@@ -42,14 +42,14 @@
 ![](https://img.shields.io/badge/Python-45%-orange?&labelColor=blue&style=flat-square)
 ![](https://img.shields.io/badge/Golang-60%-green?&labelColor=blue&style=flat-square)
 ![](https://img.shields.io/badge/Shell-40%-red?&labelColor=blue&style=flat-square)
-![](https://img.shields.io/badge/HTML5-50%-orange?&labelColor=blue&style=flat-square)
+![](https://img.shields.io/badge/HTML5-60%-green?&labelColor=blue&style=flat-square)
 ![](https://img.shields.io/badge/CSS3-60%-green?&labelColor=blue&style=flat-square)
 ![](https://img.shields.io/badge/ES6-70%-green?&labelColor=blue&style=flat-square)
 
-##### Deserted Program languages level
+##### Deserted program languages level
 
-![](https://img.shields.io/badge/VC-60%-orange?&labelColor=blue&style=flat-square)
+![](https://img.shields.io/badge/VC-60%-green?&labelColor=blue&style=flat-square)
 ![](https://img.shields.io/badge/PHP-70%-green?&labelColor=blue&style=flat-square)
-![](https://img.shields.io/badge/ASP-90%-orange?&labelColor=blue&style=flat-square)
+![](https://img.shields.io/badge/ASP-90%-green?&labelColor=blue&style=flat-square)
 ![](https://img.shields.io/badge/VB-70%-green?&labelColor=blue&style=flat-square)
-![](https://img.shields.io/badge/.NET-50%-green?&labelColor=blue&style=flat-square)
+![](https://img.shields.io/badge/.NET-60%-green?&labelColor=blue&style=flat-square)
