@@ -38,18 +38,18 @@
 
 #### Program languages level
 
-![](https://img.shields.io/badge/C-35%-red?&labelColor=blue&style=flat-square)
-![](https://img.shields.io/badge/Python-45%-orange?&labelColor=blue&style=flat-square)
-![](https://img.shields.io/badge/Golang-60%-green?&labelColor=blue&style=flat-square)
-![](https://img.shields.io/badge/Shell-40%-red?&labelColor=blue&style=flat-square)
-![](https://img.shields.io/badge/HTML5-60%-green?&labelColor=blue&style=flat-square)
-![](https://img.shields.io/badge/CSS3-60%-green?&labelColor=blue&style=flat-square)
-![](https://img.shields.io/badge/ES6-70%-green?&labelColor=blue&style=flat-square)
+![](https://img.shields.io/badge/C-35%25-red?&labelColor=blue&style=flat-square)
+![](https://img.shields.io/badge/Python-45%25-orange?&labelColor=blue&style=flat-square)
+![](https://img.shields.io/badge/Golang-60%25-green?&labelColor=blue&style=flat-square)
+![](https://img.shields.io/badge/Shell-40%25-red?&labelColor=blue&style=flat-square)
+![](https://img.shields.io/badge/HTML5-60%25-green?&labelColor=blue&style=flat-square)
+![](https://img.shields.io/badge/CSS3-60%25-green?&labelColor=blue&style=flat-square)
+![](https://img.shields.io/badge/ES6-70%25-green?&labelColor=blue&style=flat-square)
 
 ##### Deserted program languages level
 
-![](https://img.shields.io/badge/VC-60%-green?&labelColor=blue&style=flat-square)
-![](https://img.shields.io/badge/PHP-70%-green?&labelColor=blue&style=flat-square)
-![](https://img.shields.io/badge/ASP-90%-green?&labelColor=blue&style=flat-square)
-![](https://img.shields.io/badge/VB-70%-green?&labelColor=blue&style=flat-square)
-![](https://img.shields.io/badge/.NET-60%-green?&labelColor=blue&style=flat-square)
+![](https://img.shields.io/badge/VC-60%25-green?&labelColor=blue&style=flat-square)
+![](https://img.shields.io/badge/PHP-70%25-green?&labelColor=blue&style=flat-square)
+![](https://img.shields.io/badge/ASP-90%25-green?&labelColor=blue&style=flat-square)
+![](https://img.shields.io/badge/VB-70%25-green?&labelColor=blue&style=flat-square)
+![](https://img.shields.io/badge/.NET-60%25-green?&labelColor=blue&style=flat-square)
