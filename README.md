@@ -45,7 +45,7 @@
 ![](https://img.shields.io/badge/HTML5-90%25-green?&labelColor=blue&style=flat-square)
 ![](https://img.shields.io/badge/CSS3-80%25-green?&labelColor=blue&style=flat-square)
 ![](https://img.shields.io/badge/ES6-90%25-green?&labelColor=blue&style=flat-square)
-![](https://img.shields.io/badge/Dart-50%25-green?&labelColor=blue&style=flat-square)
+![](https://img.shields.io/badge/Dart-50%25-red?&labelColor=blue&style=flat-square)
 
 ##### Deserted program languages level
 
