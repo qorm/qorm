@@ -33,7 +33,7 @@
 
 [![](https://img.shields.io/badge/Debian_stable-903?logo=Debian&labelColor=ccc&logoColor=903&style=flat-square)](https://debian.org)
 [![](https://img.shields.io/badge/HAProxy-green?logo=StackShare&labelColor=ccc&logoColor=green&style=flat-square)](https://haproxy.org)
-[![](https://img.shields.io/badge/Redis-green?logo=Redis&labelColor=ccc&logoColor=green&style=flat-square)](https://haproxy.org)
+[![](https://img.shields.io/badge/Redis-blue?logo=Redis&labelColor=ccc&logoColor=blue&style=flat-square)](https://haproxy.org)
 [![](https://img.shields.io/badge/PostgreSQL-blue?logo=PostgreSQL&labelColor=ccc&logoColor=blue&style=flat-square)](https://postgresql.org)
 [![](https://img.shields.io/badge/Q-Qorm-grey?labelColor=ccc&style=flat-square)](https://github.com/qorm/qorm)
 
