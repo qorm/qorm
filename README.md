@@ -1,4 +1,4 @@
-# Coder.Jay
+# Jay
 
 [![](https://github-readme-stats.vercel.app/api?username=qorm&show_icons=true&hide=stars,prs&hide_title=true&theme=cobalt&hide_border=true)](https://github.com/qorm/)
 
