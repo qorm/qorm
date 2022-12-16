@@ -7,11 +7,11 @@
 
 > He advocates fairness and peace.
 >
-> He is a perfectionist.
->
 > He comes from East.
 >
 > He firmly believes that only pay can have return.
+>
+> He is a perfectionist.
 
 </details>
 
