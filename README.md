@@ -9,7 +9,7 @@
 >
 > He is a perfectionist.
 >
-> He comes from a small city in the East.
+> He comes from East.
 >
 > He firmly believes that only pay can have return.
 
