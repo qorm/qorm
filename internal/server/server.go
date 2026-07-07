@@ -512,13 +512,17 @@ func (s *Server) serveIndex(w http.ResponseWriter, r *http.Request) {
 	s.handlers = res.Handlers
 	rev := s.rev.Load()
 	rt := s.rt
-	s.mu.Unlock()
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	// Build the page while still holding the lock: Page/userWebJS read rt.State
+	// (locale/theme/rtl), which a concurrent POST /event mutates — reading it
+	// unlocked is a concurrent-map read+write and crashes the process.
 	html := Page(rt, res.HTML, rev)
 	if js := userWebJS(rt); js != "" {
 		html = strings.Replace(html, "</body>", "<script>"+js+"</script></body>", 1)
 	}
-	if rt.App.Window.Transparent {
+	transparent := rt.App.Window.Transparent
+	s.mu.Unlock()
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if transparent {
 		// transparent window  clear the page/stage background so the app's own
 		// shaped content defines the visible window shape (rest is click-through).
 		html = strings.Replace(html, "</head>", "<style>html,body,#qorm-stage{background:transparent!important;box-shadow:none!important;}</style></head>", 1)
