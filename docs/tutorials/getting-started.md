@@ -90,7 +90,7 @@ qorm render my-app -o my-app.html
 
 ## 下一步
 
-- [JSON 格式规格](../spec/json-format-spec.md) —— 清单、场景、动作的完整字段。
+- [组件目录](../reference/widgets.md) —— 渲染器接受的每一个节点 type(代码生成,权威)。
 - [组件目录](../reference/widgets.md) —— 所有可用节点类型(自动生成)。
 - [能力清单](../platforms/capabilities.md) —— 摄像头、定位、蓝牙等原生能力。
 - [用户中间层](../platforms/native-middlelayer.md) —— 用一份 Go 文件加你自己的原生 op。
