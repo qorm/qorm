@@ -528,6 +528,12 @@ func (r *renderer) list(n *model.Node) {
 	itemH := propNum(n, "itemHeight", 44)
 	wrap := fmt.Sprintf("content-visibility:auto;contain-intrinsic-size:0 %gpx;", itemH)
 
+	reorderH := -1
+	if propBool(n, "reorderable") {
+		if inv := parseInvokeProp(n, "onReorder"); inv != nil {
+			reorderH = r.register(inv)
+		}
+	}
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, r.containerCSS(n)+"flex-direction:column;")
 	prev := r.scope
 	prevSuf := r.idSuffix
@@ -550,6 +556,9 @@ func (r *renderer) list(n *model.Node) {
 	r.scope = prev
 	r.idSuffix = prevSuf
 	r.sb.WriteString(`</div>`)
+	if reorderH >= 0 && n.ID != "" {
+		fmt.Fprintf(&r.sb, `<script>setTimeout(function(){qormReorder(document.getElementById(%q),%d)})</script>`, n.ID, reorderH)
+	}
 }
 
 // tabs renders a header row of tab labels and shows the child panel matching
@@ -2410,7 +2419,7 @@ func (r *renderer) gestureDetector(n *model.Node) {
 		attrs += fmt.Sprintf(` ondblclick="qorm(%d)"`, r.register(dbl))
 	}
 	if lp := parseInvokeProp(n, "onLongPress"); lp != nil {
-		initJS = fmt.Sprintf(`<script>qormLong(document.getElementById(%q),%d)</script>`, r.nid(n), r.register(lp))
+		initJS = fmt.Sprintf(`<script>setTimeout(function(){qormLong(document.getElementById(%q),%d)})</script>`, r.nid(n), r.register(lp))
 	}
 	cursor := ""
 	if attrs != "" || initJS != "" {
@@ -2989,7 +2998,7 @@ func (r *renderer) dismissible(n *model.Node) {
 	}
 	r.sb.WriteString(`</div></div>`)
 	if h >= 0 {
-		fmt.Fprintf(&r.sb, `<script>qormSwipe(document.getElementById(%q),%d)</script>`, r.nid(n), h)
+		fmt.Fprintf(&r.sb, `<script>setTimeout(function(){qormSwipe(document.getElementById(%q),%d)})</script>`, r.nid(n), h)
 	}
 }
 
@@ -3067,7 +3076,7 @@ func (r *renderer) contextMenu(n *model.Node) {
 			sep, r.actionColor(a.style), attr, html.EscapeString(a.label))
 	}
 	r.sb.WriteString(`</div></div></div>`)
-	fmt.Fprintf(&r.sb, `<script>qormCtx(document.getElementById(%q))</script>`, r.nid(n))
+	fmt.Fprintf(&r.sb, `<script>setTimeout(function(){qormCtx(document.getElementById(%q))})</script>`, r.nid(n))
 }
 
 // refreshIndicator is Flutter's RefreshIndicator: pull the scroll content down
@@ -3090,7 +3099,7 @@ func (r *renderer) refreshIndicator(n *model.Node) {
 	}
 	r.sb.WriteString(`</div>`)
 	if h >= 0 {
-		fmt.Fprintf(&r.sb, `<script>qormRefresh(document.getElementById(%q),%d)</script>`, r.nid(n), h)
+		fmt.Fprintf(&r.sb, `<script>setTimeout(function(){qormRefresh(document.getElementById(%q),%d)})</script>`, r.nid(n), h)
 	}
 }
 

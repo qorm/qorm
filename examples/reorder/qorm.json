@@ -1,0 +1,3 @@
+{ "type": "app", "id": "reorder", "name": "Reorder", "entry": "main", "theme": "apple",
+  "globalState": { "schema": { "items": "array" },
+    "initial": { "items": [ {"id":1,"label":"Write the spec"}, {"id":2,"label":"Build the prototype"}, {"id":3,"label":"Get feedback"}, {"id":4,"label":"Ship it"} ] } } }
