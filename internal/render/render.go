@@ -138,11 +138,53 @@ func (r *renderer) interp(s string) string {
 	return runtime.Stringify(runtime.EvalBinding(s, r.ctx()))
 }
 
-// node dispatches a node to its renderer, honouring conditional visibility.
+// animationWidgets consume the `animation` prop themselves (via motion), so the
+// universal wrap skips them to avoid double-animating.
+var animationWidgets = map[string]bool{
+	"motion": true, "animated": true, "transition": true, "animatedswitcher": true,
+	"fadetransition": true, "slidetransition": true, "scaletransition": true,
+	"rotationtransition": true, "sizetransition": true, "hero": true,
+}
+
+// node dispatches a node to its renderer, honouring conditional visibility. Any
+// node — a built-in widget OR a component instance — carrying an `animation` prop
+// is wrapped in that entrance effect, so animation is a cross-cutting property
+// rather than something only the `motion` widget offers.
 func (r *renderer) node(n *model.Node) {
 	if !r.visible(n) {
 		return
 	}
+	if !animationWidgets[n.Type] {
+		if raw := propStr(n, "animation"); raw != "" {
+			if effect := r.interp(raw); effect != "" {
+				r.wrapAnimation(n, effect)
+				return
+			}
+		}
+	}
+	r.renderInner(n)
+}
+
+// wrapAnimation renders n inside a div playing the named entrance effect, so a
+// component instance (`{"type":"Card","animation":"fadeup"}`) or any widget
+// animates without a `motion` wrapper.
+func (r *renderer) wrapAnimation(n *model.Node, effect string) {
+	kf := motionKeyframe[strings.ToLower(effect)]
+	if kf == "" {
+		kf = "qa-fade"
+	}
+	dur := propNum(n, "duration", 450)
+	delay := propNum(n, "delay", 0)
+	curve := propStrOr(n, "curve", "cubic-bezier(.34,1.2,.64,1)")
+	repeat := propStrOr(n, "repeat", "1")
+	fmt.Fprintf(&r.sb, `<div style="animation:%s %gms %s %gms %s both;">`, kf, dur, curve, delay, repeat)
+	r.renderInner(n)
+	r.sb.WriteString(`</div>`)
+}
+
+// renderInner dispatches a node to its renderer (component instantiation or the
+// built-in widget switch), after node() has handled visibility and animation.
+func (r *renderer) renderInner(n *model.Node) {
 	if comp, ok := r.rt.App.Components[n.Type]; ok && comp != nil && r.compDepth < 32 {
 		r.renderComponent(n, comp)
 		return
