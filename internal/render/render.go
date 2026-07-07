@@ -1672,25 +1672,62 @@ func (r *renderer) resolveStyle(style map[string]any) map[string]any {
 	if style == nil {
 		return nil
 	}
-	bound := false
-	for _, v := range style {
-		if sv, ok := v.(string); ok && strings.Contains(sv, "{{") {
-			bound = true
-			break
-		}
-	}
-	if !bound {
+	if !styleHasBinding(style) {
 		return style
 	}
 	out := make(map[string]any, len(style))
 	for k, v := range style {
-		if sv, ok := v.(string); ok && strings.Contains(sv, "{{") {
-			out[k] = runtime.EvalBinding(sv, r.ctx())
-		} else {
-			out[k] = v
-		}
+		out[k] = r.resolveStyleVal(v)
 	}
 	return out
+}
+
+// resolveStyleVal evaluates {{ … }} bindings in a style value, recursing into
+// nested maps (e.g. margin:{left:"{{…}}"}) and arrays so nested edges bind too.
+func (r *renderer) resolveStyleVal(v any) any {
+	switch t := v.(type) {
+	case string:
+		if strings.Contains(t, "{{") {
+			return runtime.EvalBinding(t, r.ctx())
+		}
+		return t
+	case map[string]any:
+		out := make(map[string]any, len(t))
+		for k, vv := range t {
+			out[k] = r.resolveStyleVal(vv)
+		}
+		return out
+	case []any:
+		out := make([]any, len(t))
+		for i, vv := range t {
+			out[i] = r.resolveStyleVal(vv)
+		}
+		return out
+	default:
+		return v
+	}
+}
+
+// styleHasBinding reports whether v contains a {{ … }} binding anywhere, incl.
+// nested maps/arrays, so the binding-free common case skips the copy.
+func styleHasBinding(v any) bool {
+	switch t := v.(type) {
+	case string:
+		return strings.Contains(t, "{{")
+	case map[string]any:
+		for _, vv := range t {
+			if styleHasBinding(vv) {
+				return true
+			}
+		}
+	case []any:
+		for _, vv := range t {
+			if styleHasBinding(vv) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (r *renderer) boxCSS(n *model.Node) string {
@@ -3089,9 +3126,12 @@ var motionKeyframe = map[string]string{
 
 // motion plays a named entrance/attention animation on its children. The effect
 // comes from the `animation` prop (bindable — so an agent switches the whole
-// implementation by changing state) or is derived from the widget type. Since a
-// server re-render remounts the subtree, changing state replays the animation
-// live. Covers Flutter's Fade/Slide/Scale/Rotation/Size transitions, Hero and
+// implementation by changing state) or is derived from the widget type. Entrance
+// effects fire when the element mounts: the live update morphs the DOM in place
+// and preserves existing nodes, so an effect replays when a node is newly created
+// (e.g. an item appended to a bound `list`), not on every state change. For
+// value-driven, in-place motion use `animatedcontainer` (a CSS transition).
+// Covers Flutter's Fade/Slide/Scale/Rotation/Size transitions, Hero and
 // AnimatedSwitcher, plus attention effects (bounce/shake/pulse).
 func (r *renderer) motion(n *model.Node) {
 	effect := r.interp(propStr(n, "animation"))
