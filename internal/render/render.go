@@ -559,9 +559,11 @@ func (r *renderer) scaffold(n *model.Node) {
 	style := r.boxCSS(n) + "position:relative;display:flex;flex-direction:column;min-height:100%;"
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, style)
 	var body, bottom, fabs []*model.Node
+	hasAppbar := false
 	for _, c := range n.Children {
 		switch c.Type {
 		case "appbar":
+			hasAppbar = true
 			r.node(c)
 		case "bottomnav", "bottomnavigationbar", "navigationbar":
 			bottom = append(bottom, c)
@@ -571,7 +573,13 @@ func (r *renderer) scaffold(n *model.Node) {
 			body = append(body, c)
 		}
 	}
-	r.sb.WriteString(`<div class="qorm-body" style="flex:1;min-height:0;overflow:auto;padding-bottom:var(--safe-bottom, env(safe-area-inset-bottom, 0px));">`)
+	// Without an app bar the body reaches the top of the screen, so it must clear
+	// the status bar / notch itself; an app bar already applies the top safe inset.
+	topPad := ""
+	if !hasAppbar {
+		topPad = "padding-top:var(--safe-top, env(safe-area-inset-top, 0px));"
+	}
+	r.sb.WriteString(`<div class="qorm-body" style="flex:1;min-height:0;overflow:auto;` + topPad + `padding-bottom:var(--safe-bottom, env(safe-area-inset-bottom, 0px));">`)
 	for _, c := range body {
 		r.node(c)
 	}
