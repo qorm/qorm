@@ -69,7 +69,6 @@ Miniapp Pack 必须明确声明支持能力：
 
 ```text
 复杂 motion → fade/slide
-externalSurface → 不支持或平台组件
 filesystem → storage API
 custom painter → canvas 或不支持
 ```

@@ -5,7 +5,7 @@ QORM 是 UI 层，不实现所有底层能力。底层能力通过 Host Capabili
 ## 目标
 
 - 隔离 UI Runtime 与平台 API。
-- 为桌面、移动、Web、游戏、插件提供统一调用方式。
+- 为桌面、移动、Web、插件提供统一调用方式。
 - 让 Agent 可以检查能力是否可用。
 - 让权限模型可声明、可校验。
 
@@ -28,7 +28,6 @@ video.play
 window.fullscreen
 ime.status
 accessibility.announce
-game.surface
 ```
 
 ## 调用格式
@@ -76,7 +75,6 @@ Desktop: Go Host Adapter（cmd/qorm window_desktop.go desktopHardware*）+ WebVi
 Mobile: Go 运行时（Go→WASM）+ qormToNative + Swift/Kotlin thin bridge
         （iOS: package_native.go iosBridgeBody() / Android: androidMainActivity()）
 Web: Web Host Adapter + Web API / fetch
-Game: Game Host Adapter + game state / external surface
 ```
 
 硬件能力统一路径：widget（`internal/render/render.go`）→ JS（`internal/server/server.go`）→ `qormToNative` op → 平台原生桥。

@@ -53,7 +53,6 @@ nativeComponents render path
 
 ```text
 filesystem.saveFile
-externalSurface
 long-running background tasks
 arbitrary cross-origin networking
 full system clipboard access
@@ -140,7 +139,7 @@ Vendor profile 应声明：
   "miniappMode": {
     "vendor": "wechat",
     "degraded": true,
-    "disabledCapabilities": ["filesystem.saveFile", "externalSurface"]
+    "disabledCapabilities": ["filesystem.saveFile"]
   }
 }
 ```
@@ -156,7 +155,7 @@ Vendor profile 应明确：
 - native component 支持
 - display list / canvas 限制
 - text rendering 差异
-- overlay / modal / external surface 支持情况
+- overlay / modal 支持情况
 
 ## 权限与安全边界
 

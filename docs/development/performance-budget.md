@@ -32,18 +32,6 @@ Keyboard/IME 不阻塞主线程
 文本和图片使用缓存
 ```
 
-## Game UI 目标
-
-```text
-HUD 更新 < 1ms - 3ms
-每帧不解析 JSON
-每帧不全量 layout
-每帧不全量 text shaping
-动画不触发布局
-draw call 可控
-资源提前上传 GPU
-```
-
 ## 规范约束下的性能不变量
 
 - 完整表达式字段和模板插值字段都必须预编译为可复用表达式 IR。
@@ -73,7 +61,6 @@ frame_time_ms
 
 - 一次按钮点击导致全 Scene layout。
 - 一个 opacity motion 导致 layout。
-- Game HUD 每帧重建全部 Display List。
 - 高频文本没有 cache。
 - MCP 进入渲染热路径。
 - preview_patch 直接操作 live scene。

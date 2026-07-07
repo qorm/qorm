@@ -35,7 +35,7 @@ QORM 是 UI 层，它通过 Host Capability 和 Platform Pack 调用外部能力
 - 需要 Agent 参与 UI 构建的开发者。
 - 需要跨平台动态界面的产品团队。
 - 需要移动端动态 UI 更新能力的应用。
-- 需要游戏 HUD / Overlay / 实时 UI 的项目。
+- 需要实时 UI 的项目。
 - 需要可解释、可验证、可 Patch 界面系统的工具平台。
 
 ## 核心成果
@@ -46,7 +46,7 @@ QORM 最终应提供：
 - 纯 Go Core：服务端渲染 + 离线 Go→WASM 客户端（`cmd/qorm-wasm`）。
 - Layout、Render、Runtime、Host Capability。
 - 桌面、移动、Web、Miniapp 等 Platform Pack。
-- document / app / realtime / game-ui / external-game 等 Render Profile / Integration Mode。
+- document / app / realtime 等 Render Profile。
 - MCP、Skill、Agent Pack。
 - VS Code 扩展与 LSP。
 - 多语言 SDK。

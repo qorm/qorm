@@ -57,7 +57,6 @@ conformance test
 - Render Graph snapshot。
 - Text cache。
 - Texture atlas。
-- Game HUD frame update。
 
 ## Host 测试
 
@@ -98,6 +97,5 @@ conformance test
 - First render。
 - Layout update。
 - Display List diff。
-- Game HUD update。
 - Text cache hit。
 - preview_patch 不进入渲染热路径。

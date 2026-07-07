@@ -45,7 +45,7 @@ Rendering Layer
   Layout / Text / Display List / Render Graph / Renderer Contract
 
 Host Layer
-  Host Capability / Native Bridge / Plugin / External Surface
+  Host Capability / Native Bridge / Plugin
 
 Agent Layer
   MCP / Skill / Inspect / Patch / Simulate / Explain
@@ -54,7 +54,7 @@ Platform Layer
   Desktop / Mobile / Web / Miniapp
 
 Render/Profile Layer
-  document / app / realtime / game-ui / external-game
+  document / app / realtime
 ```
 
 ## 动态解释器
@@ -139,21 +139,7 @@ Approval if required
 - Host Adapter 是最终 dispatch 前的权限执行点。
 - custom HttpClient 只能实现 transport，不能替代裁决层。
 
-## 游戏与实时 UI
-
-QORM 支持：
-
-```text
-game-ui profile
-HUD
-overlay
-external game integration mode
-frame-driven runtime
-state snapshot binding
-fast text
-texture atlas
-sprite-like UI primitive
-```
+## 游戏引擎非目标
 
 QORM 不做：
 

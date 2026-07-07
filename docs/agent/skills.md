@@ -12,7 +12,6 @@ platform-porting
 motion-design
 host-capability-check
 mobile-adaptation
-game-ui-design
 ```
 
 ## Skill 基本结构
@@ -53,15 +52,3 @@ layout_debug
 检查 safe area / scroll / absolute
 preview_patch
 ```
-
-## game-ui-design
-
-用途：生成游戏 HUD。
-
-规则：
-
-- `game-ui-design` 面向 `render.profile = game-ui` 的 HUD / Overlay 设计，不代表独立平台。
-- 优先使用 absolute/overlay。
-- 高频动画不得触发布局。
-- 使用 fastText 和 progressBar。
-- 不实现游戏逻辑。

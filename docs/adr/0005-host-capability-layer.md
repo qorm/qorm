@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-QORM 是 UI 层，不可能实现所有底层能力。桌面、移动、Web、游戏和插件都有不同系统 API。
+QORM 是 UI 层，不可能实现所有底层能力。桌面、移动、Web 和插件都有不同系统 API。
 
 ## Decision
 

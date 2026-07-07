@@ -53,8 +53,6 @@ Render Profile 负责：
 document
 app
 realtime
-game-ui
-game-lite
 ```
 
 规则：
@@ -72,17 +70,13 @@ Integration Mode 负责：
 - 事件路由边界
 - 合成与嵌入策略
 
-典型 Integration Mode：
-
-```text
-external-game
-```
+Integration Mode 描述 QORM 被嵌入到外部渲染主体（如外部宿主的渲染管线）时的协作关系：QORM 负责 UI 层，外部主体负责其自身画面与内部渲染。
 
 规则：
 - Integration Mode 不是 Platform。
 - Integration Mode 也不是单纯的 Render Profile；它强调与外部系统的协作边界。
 - Integration Mode 仍然运行在某个 Platform 上。
-- Integration Mode 若依赖外部 surface 或外部引擎能力，必须通过 Host Capability 和 Platform Pack 提供。
+- Integration Mode 若依赖外部渲染主体的能力，必须通过 Host Capability 和 Platform Pack 提供。
 
 ## Host Capability
 
@@ -101,7 +95,6 @@ Host Capability 负责：
 network.request
 clipboard.write
 filesystem.saveFile
-game.surface
 ```
 
 规则：
@@ -127,24 +120,6 @@ Integration Mode: none
 Host Capability: network.request, clipboard.write
 ```
 
-### 例子 2：桌面 HUD 编辑器预览
-
-```text
-Platform: desktop
-Render Profile: game-ui
-Integration Mode: none
-Host Capability: game.surface, filesystem.saveFile
-```
-
-### 例子 3：外部游戏引擎中的覆盖层 UI
-
-```text
-Platform: desktop 或 mobile
-Render Profile: game-ui
-Integration Mode: external-game
-Host Capability: game.surface
-```
-
 ## 文档与目录约束
 
 - Platform 文档放在 `docs/platforms/`。
@@ -160,7 +135,3 @@ Host Capability: game.surface
 2. 再判断它是否主要改变渲染与更新策略；若是，则属于 Render Profile。
 3. 再判断它是否主要描述外部系统协作；若是，则属于 Integration Mode。
 4. 最后将具体可调用能力下沉为 Host Capability。
-
-`game-ui` 应归入 Render Profile。
-`external-game` 应归入 Integration Mode。
-`game.surface` 应归入 Host Capability。

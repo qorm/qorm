@@ -7,7 +7,7 @@ Motion 是 QORM 的声明式动效系统。
 - 跨平台。
 - 可被 Agent 理解。
 - 默认不触发布局。
-- 可用于普通 UI、实时 UI、游戏 HUD。
+- 可用于普通 UI、实时 UI。
 
 ## Motion 定义
 
@@ -130,9 +130,9 @@ V1 默认规则：
 - 节点被移除时，其挂载 motion 自动终止。
 - 不定义 pause / resume / reverse 作为 V1 必需能力。
 
-## Game UI 动效
+## 高频动效
 
-游戏 HUD 动效应优先使用：
+高频动效应优先使用：
 
 ```text
 opacity

@@ -65,7 +65,6 @@
 
 ## Render Profiles
 
-- [Game UI](platforms/game-ui.md)
 
 ## Agent
 
@@ -101,7 +100,6 @@
 - [Todo](examples/todo.md)
 - [Login](examples/login.md)
 - [Dashboard](examples/dashboard.md)
-- [Game HUD](examples/game-hud.md)
 
 ## ADR
 
