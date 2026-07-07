@@ -144,6 +144,24 @@ func Markdown() string {
 		}
 		b.WriteString("| `" + c.Stem + "` | `" + c.Widget + "` | " + ops + " | `" + cb + "` | " + strings.Join(c.Platforms, ", ") + " | " + desc + " |\n")
 	}
+
+	// Per-platform view: each target's full hardware-interface list.
+	b.WriteString("\n## 按平台 · Hardware interfaces by platform\n\n")
+	b.WriteString("Every capability each target implements natively or via a Web API.\n\n")
+	for _, p := range []struct{ key, label string }{
+		{IOS, "iOS"}, {Android, "Android"}, {Mac, "macOS"}, {Linux, "Linux"}, {Windows, "Windows"}, {Web, "Web"},
+	} {
+		var caps []string
+		for _, c := range All {
+			for _, cp := range c.Platforms {
+				if cp == p.key {
+					caps = append(caps, "`"+c.Stem+"`")
+					break
+				}
+			}
+		}
+		b.WriteString("- **" + p.label + "** (" + strconv.Itoa(len(caps)) + ") — " + strings.Join(caps, ", ") + "\n")
+	}
 	return b.String()
 }
 

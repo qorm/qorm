@@ -9,6 +9,26 @@ cgo, so it cross-compiles to every platform from any machine.
 Developed in collaboration with Claude (Anthropic) — fitting, since human-AI
 collaboration is QORM's whole premise.
 
+## Platform support
+
+<!-- support-summary:start -->
+| Target | Package | Render | Live app | Agent / MCP |
+|---|---|---|---|---|
+| Web | ok | ok | ok | ok |
+| iOS | ok | ok | ok | ok |
+| Android | ok | ok | ok | ok |
+| macOS | ok | ok | ok | ok |
+| Linux | beta | ok | ok | ok |
+| Windows | beta | ok | ok | ok |
+| Mini-program | ok | beta | beta | beta |
+<!-- support-summary:end -->
+
+`ok` supported + tested · `beta` foundation / partial · `—` n/a. The full feature
+list (distribution, rendering, runtime, agent — each per target) is the
+[platform support matrix](docs/platforms/support-matrix.md); each platform's
+hardware interfaces are in [capabilities.md](docs/platforms/capabilities.md). Both
+are generated from the code and kept in sync by tests.
+
 ## Run
 
 ```bash
