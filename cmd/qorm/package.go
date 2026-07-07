@@ -282,7 +282,7 @@ func confirmCommercial(appDir string, branding, subscribed bool) bool {
 	}
 	fmt.Fprintf(os.Stderr, "note: this package uses a commercial feature (%s).\n"+
 		"      Commercial use asks a QORM Patreon membership — Indie $1/mo or Studio\n"+
-		"      $7/mo. See TERMS.md · https://www.patreon.com/qorm\n",
+		"      $7/mo. See ops/TERMS.md · https://www.patreon.com/qorm\n",
 		strings.Join(feats, ", "))
 	if subscribed {
 		fmt.Fprintln(os.Stderr, "      confirmed via --subscribed.")
