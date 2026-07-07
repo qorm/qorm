@@ -18,7 +18,10 @@ import (
 	"github.com/qorm/qorm/internal/runtime"
 )
 
-var onclickRe = regexp.MustCompile(`onclick="qorm\((\d+)\)"`)
+var (
+	onclickRe    = regexp.MustCompile(`onclick="qorm\((\d+)\)"`)
+	onclickAnyRe = regexp.MustCompile(`\sonclick="[^"]*"`)
+)
 
 // BuildProject renders a QORM app into a WeChat mini-program project as a
 // path -> file-content map.
@@ -52,11 +55,15 @@ func htmlToWXML(html string) string {
 	s = svgRe.ReplaceAllStringFunc(s, svgToImage)
 	// Drop attributes WXML has no concept of (role, aria-*).
 	s = a11yAttrRe.ReplaceAllString(s, "")
-	// onclick="qorm(N)" -> bindtap + data-h=N (before tag remaps).
+	// onclick="qorm(N)" -> bindtap + data-h=N; strip any other onclick (client-side
+	// JS like tab switching won't run in a mini-program's static foundation).
 	s = onclickRe.ReplaceAllString(s, `bindtap="onTap" data-h="$1"`)
-	// Box + interactive containers -> <view> (QORM styles them fully inline, so
-	// mapping <button> to <view> avoids the platform's default button chrome).
-	for _, tag := range []string{"div", "button", "span", "p", "a"} {
+	s = onclickAnyRe.ReplaceAllString(s, "")
+	// Box/interactive/form-container tags with no WXML equivalent -> <view> (QORM
+	// styles them fully inline; mapping <button>/<select> avoids default chrome and
+	// the WXML parser rejecting <select>/<option>). <input>/<textarea>/<label> are
+	// valid WXML and pass through.
+	for _, tag := range []string{"div", "button", "span", "p", "a", "select", "option", "optgroup"} {
 		s = strings.ReplaceAll(s, "<"+tag+" ", "<view ")
 		s = strings.ReplaceAll(s, "<"+tag+">", "<view>")
 		s = strings.ReplaceAll(s, "</"+tag+">", "</view>")
