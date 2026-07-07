@@ -49,6 +49,11 @@ type Server struct {
 	lastSrc  string // source of the most recent event (for live edit attribution)
 	lastDet  string // its short detail
 
+	// What the human is currently attending to (the focused / last-touched element),
+	// surfaced to the agent via qorm_activity so it collaborates in context.
+	humanFocus   string
+	humanFocusAt time.Time
+
 	measureMu sync.Mutex
 	measure   []byte // latest self-reported layout (rects + key styles)
 
@@ -97,7 +102,14 @@ func (s *Server) initAgent() {
 	s.agent.SetActivityProvider(func() string {
 		s.actMu.Lock()
 		defer s.actMu.Unlock()
-		b, _ := json.Marshal(s.activity)
+		out := map[string]any{"events": s.activity}
+		if s.humanFocus != "" {
+			out["humanFocus"] = map[string]any{
+				"element":    s.humanFocus,
+				"secondsAgo": int(time.Since(s.humanFocusAt).Seconds()),
+			}
+		}
+		b, _ := json.Marshal(out)
 		return string(b)
 	})
 }
@@ -175,6 +187,24 @@ func (s *Server) serveLog(w http.ResponseWriter, r *http.Request) {
 	s.actMu.Unlock()
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(out)
+}
+
+// servePresence records what the human is currently attending to (the focused or
+// just-touched element), so the agent sees it via qorm_activity — the human side
+// of presence, mirroring the human's "AI edited" flash.
+func (s *Server) servePresence(w http.ResponseWriter, r *http.Request) {
+	var p struct{ Element string }
+	if json.NewDecoder(r.Body).Decode(&p) == nil {
+		el := strings.TrimSpace(p.Element)
+		if len(el) > 120 {
+			el = el[:120]
+		}
+		s.actMu.Lock()
+		s.humanFocus = el
+		s.humanFocusAt = time.Now()
+		s.actMu.Unlock()
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // serveMeasure stores (POST) or returns (GET) the app's self-reported layout:
@@ -415,6 +445,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/events", s.serveEvents)
 	mux.HandleFunc("/poll", s.servePoll)
 	mux.HandleFunc("/log", s.serveLog)
+	mux.HandleFunc("/presence", blockCrossOrigin(s.servePresence))
 	mux.HandleFunc("/console", s.serveConsole)
 	mux.HandleFunc("/logwindow", s.serveLogWindow)
 	mux.HandleFunc("/window", blockCrossOrigin(s.serveWindow))
@@ -1422,6 +1453,22 @@ if(window.EventSource){
     fetch('/poll?rev='+__rev).then(function(r){return r.json();}).then(qormApply).catch(function(){});
   }, 800);
 }
+// Human presence: report the element the human focuses or taps, so the agent can
+// see (via qorm_activity) what the human is attending to — the reverse direction
+// of the "AI edited" flash. Only the nearest interactive element, deduped.
+(function(){
+  var last='';
+  function ping(el){
+    var t=el&&el.closest&&el.closest('button,a,input,textarea,select,[data-state]');
+    if(!t) return;
+    var lab=(t.getAttribute('aria-label')||t.getAttribute('placeholder')||t.textContent||'').replace(/\s+/g,' ').trim().slice(0,60);
+    var d=t.tagName.toLowerCase()+(lab?': '+lab:'');
+    if(d===last) return; last=d;
+    fetch('/presence',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({element:d})}).catch(function(){});
+  }
+  document.addEventListener('focusin',function(e){ ping(e.target); });
+  document.addEventListener('pointerdown',function(e){ ping(e.target); });
+})();
 if(document.readyState!=='loading'){ setTimeout(qormMeasure,60); setTimeout(qormHwInit,300); } else { window.addEventListener('load',function(){ setTimeout(qormMeasure,60); setTimeout(qormHwInit,300); }); }
 </script>
 </body>
