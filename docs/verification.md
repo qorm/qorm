@@ -101,7 +101,7 @@ While a human runs the app, an agent on the same session can call:
 Both read the live client's self-measurement, so the agent sees exactly what the
 human sees. The tool descriptions carry the full assertion list.
 
-## On-device live debugging (物理机联调)
+## On-device live debugging
 
 ```bash
 qorm run <app> --lan

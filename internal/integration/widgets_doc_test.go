@@ -63,11 +63,11 @@ func widgetCatalog(t *testing.T) string {
 	sort.Slice(groups, func(i, j int) bool { return groups[i].canonical < groups[j].canonical })
 
 	var b strings.Builder
-	b.WriteString("# 组件目录 · Widget Catalog\n\n")
-	b.WriteString("> 由 `internal/render/render.go` 的 node() switch 自动生成(`TestWidgetCatalogInSync`),请勿手改。\n")
+	b.WriteString("# Widget Catalog\n\n")
+	b.WriteString("> Auto-generated from the node() switch in `internal/render/render.go` (`TestWidgetCatalogInSync`) — do not edit by hand.\n")
 	b.WriteString("> Auto-generated from the render switch — do not edit by hand.\n\n")
-	b.WriteString("每个组件用**第一列的规范名**;其余是等价别名(为兼容 Flutter/Cupertino/HTML 命名保留)。写 app 时优先用规范名。\n\n")
-	b.WriteString("| 规范名 Canonical | 别名 Aliases | 渲染器 |\n|---|---|---|\n")
+	b.WriteString("Each widget lists its **canonical name** first; the rest are equivalent aliases (kept for Flutter/Cupertino/HTML naming compatibility). Prefer the canonical name when writing apps.\n\n")
+	b.WriteString("| Canonical | Aliases | Renderer |\n|---|---|---|\n")
 	for _, g := range groups {
 		al := g.aliases
 		if al == "" {

@@ -31,6 +31,7 @@ runnable reference — when a doc and a running example disagree, trust the exam
 
 ## Human-AI collaboration
 
+- [Build with your AI assistant](build-with-ai.md) — point your AI at QORM to scaffold, edit, run, and verify apps
 - [Collaborating on a live app](collaboration.md) — a human and an AI agent on the same running app, each seeing the other (the QORM premise)
 
 ## For AI agents

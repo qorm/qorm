@@ -1,8 +1,8 @@
 # First Platform Pack
 
-Platform Pack 描述 QORM 如何在某个平台运行。
+A Platform Pack describes how QORM runs on a given platform.
 
-## 目录
+## Directory
 
 ```text
 platform-packs/desktop/
@@ -45,11 +45,11 @@ platform-packs/desktop/
 }
 ```
 
-说明：
-- 布尔值 `true` 只应作为对象形式的简写。
-- 正式 Platform Pack 应优先使用对象形式，便于补充 `permission`、`domains`、`requiresApproval` 等约束。
+Notes:
+- The boolean `true` should only be used as shorthand for the object form.
+- A production Platform Pack should prefer the object form, which makes it easy to add constraints such as `permission`, `domains`, and `requiresApproval`.
 
-## 使用
+## Usage
 
 ```bash
 qorm check qorm.json --target desktop

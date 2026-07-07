@@ -1,11 +1,10 @@
 # Getting Started with QORM
 
-本教程从零建一个最小 QORM 应用:一个计数器。三个文件——清单、场景、动作——`qorm run`
-直接跑起来。
+This tutorial builds a minimal QORM app from scratch: a counter. Three files — manifest, scene, and action — and `qorm run` gets it going.
 
-## 目录结构
+## Directory structure
 
-一个 QORM 应用就是一个目录:`qorm.json` 是清单,`scenes/` 放界面,`actions/` 放动作。
+A QORM app is just a directory: `qorm.json` is the manifest, `scenes/` holds the UI, and `actions/` holds the actions.
 
 ```text
 my-app/
@@ -16,9 +15,9 @@ my-app/
    └─ increment.json
 ```
 
-## qorm.json — 清单
+## qorm.json — manifest
 
-声明应用元信息、入口场景(`entry`)、以及全局状态(`globalState`:一个 schema + 初始值)。
+Declares the app metadata, the entry scene (`entry`), and the global state (`globalState`: a schema plus initial values).
 
 ```json
 {
@@ -33,10 +32,9 @@ my-app/
 }
 ```
 
-## scenes/main.json — 界面
+## scenes/main.json — UI
 
-用节点树声明 UI。文本用 `text` 字段,`{{ state.count }}` 把全局状态插进来;按钮用
-`onPress` 触发一个动作(字符串就是动作名)。
+Declare the UI as a node tree. Text goes in the `text` field, and `{{ state.count }}` interpolates global state; a button uses `onPress` to trigger an action (a string is the action name).
 
 ```json
 {
@@ -55,10 +53,9 @@ my-app/
 }
 ```
 
-## actions/increment.json — 动作
+## actions/increment.json — action
 
-一个动作是一串步骤。这里 `state.set` 把 `count` 设为 `{{ state.count + 1 }}`——`{{ … }}`
-里是完整表达式,能读全局状态、做算术。
+An action is a sequence of steps. Here `state.set` sets `count` to `{{ state.count + 1 }}` — inside `{{ … }}` is a full expression that can read global state and do arithmetic.
 
 ```json
 {
@@ -70,28 +67,28 @@ my-app/
 }
 ```
 
-## 运行
+## Running
 
-指向应用目录(不是单个文件):
+Point at the app directory (not a single file):
 
 ```bash
-qorm run my-app          # 在浏览器里实时打开;点 +1,计数自增
+qorm run my-app          # opens live in the browser; click +1 and the count increments
 ```
 
-服务器托管应用、处理按钮事件、重跑动作、把重渲染的 UI 换回页面——这就是运行回路。
+The server hosts the app, handles button events, re-runs actions, and swaps the re-rendered UI back into the page — that is the run loop.
 
-## 渲染静态快照
+## Rendering a static snapshot
 
-不启动浏览器,渲染一张静态 HTML 快照(适合 CI / 预览):
+Render a static HTML snapshot without launching a browser (good for CI / previews):
 
 ```bash
 qorm render my-app -o my-app.html
 ```
 
-## 下一步
+## Next steps
 
-- [组件目录](../reference/widgets.md) —— 渲染器接受的每一个节点 type(代码生成,权威)。
-- [组件目录](../reference/widgets.md) —— 所有可用节点类型(自动生成)。
-- [能力清单](../platforms/capabilities.md) —— 摄像头、定位、蓝牙等原生能力。
-- [用户中间层](../platforms/native-middlelayer.md) —— 用一份 Go 文件加你自己的原生 op。
-- 更多可运行示例见仓库 [`examples/`](../../examples)(counter / todo / dashboard / hardware / …)。
+- [Widget catalog](../reference/widgets.md) — every node type the renderer accepts (code-generated, authoritative).
+- [Widget catalog](../reference/widgets.md) — all available node types (auto-generated).
+- [Capabilities](../platforms/capabilities.md) — native capabilities like camera, location, and Bluetooth.
+- [User middle layer](../platforms/native-middlelayer.md) — add your own native ops with a single Go file.
+- For more runnable examples, see [`examples/`](../../examples) in the repo (counter / todo / dashboard / hardware / …).

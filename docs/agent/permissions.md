@@ -1,8 +1,8 @@
 # QORM Agent Permissions
 
-QORM Agent 权限模型用于控制 Agent 可以看什么、改什么、执行什么。
+The QORM agent permission model controls what an agent can see, change, and execute.
 
-## 权限级别
+## Permission Levels
 
 ```text
 read-only
@@ -16,15 +16,15 @@ deploy
 admin
 ```
 
-## 默认权限
+## Default Permissions
 
-默认 Agent 权限为：
+The default agent permission is:
 
 ```text
 read-only + preview-only
 ```
 
-允许：
+Allowed:
 
 ```text
 inspect
@@ -34,7 +34,7 @@ explain
 platform_check
 ```
 
-禁止：
+Denied:
 
 ```text
 apply_patch
@@ -44,9 +44,9 @@ shell
 deploy
 ```
 
-其中 `filesystem.saveFile` 表示文件写入类 capability；其权限键通常为 `filesystem.write`。
+Here, `filesystem.saveFile` denotes a file-write capability; its permission key is usually `filesystem.write`.
 
-## 权限声明
+## Permission Declaration
 
 ```json
 {
@@ -62,16 +62,16 @@ deploy
 }
 ```
 
-## Agent 权限与系统权限的关系
+## Relationship Between Agent Permissions and System Permissions
 
-- Agent policy 是额外约束层，不是授权源。
-- Agent allow 不能放宽 platform / app / host policy。
-- Agent deny 可以进一步限制该 Agent。
-- `preview_patch` 默认可用，但仍必须遵守无副作用原则。
+- Agent policy is an additional constraint layer, not a source of authorization.
+- An agent allow cannot loosen the platform / app / host policy.
+- An agent deny can further restrict that agent.
+- `preview_patch` is available by default, but must still follow the no-side-effect principle.
 
-## 危险操作
+## Dangerous Operations
 
-危险操作包括：
+Dangerous operations include:
 
 ```text
 filesystem.saveFile
@@ -84,13 +84,13 @@ deploy
 bundle.publish
 ```
 
-这里的文件写入危险性对应 `filesystem.write` 权限域。
+Here the danger of file writes corresponds to the `filesystem.write` permission domain.
 
-必须要求用户确认。
+These must require user confirmation.
 
-## Approval 语义
+## Approval Semantics
 
-对 Agent 而言，以下操作通常需要审批：
+For an agent, the following operations typically require approval:
 
 ```text
 apply_patch
@@ -100,15 +100,15 @@ shell
 deploy
 ```
 
-最小规则：
-- 审批 scope 至少绑定 agent、operation、目标资源范围。
-- `preview_patch` 的通过结果不能自动等价于 `apply_patch` 审批。
-- 若策略允许，可以让一次审批覆盖“同一 previewToken 的 apply”。
-- 目标文件、patch 内容、Bundle 版本、权限策略变化后，原审批必须失效。
+Minimum rules:
+- An approval scope must at least bind the agent, operation, and target resource range.
+- A passing `preview_patch` result cannot automatically be treated as `apply_patch` approval.
+- If policy permits, a single approval may cover "the apply of the same previewToken."
+- After the target file, patch content, Bundle version, or permission policy changes, the original approval must be invalidated.
 
-## Approval 生命周期与撤销
+## Approval Lifecycle and Revocation
 
-审批记录至少包含：
+An approval record contains at least:
 
 ```text
 approval id
@@ -121,16 +121,16 @@ reuse policy
 revokedAt
 ```
 
-撤销触发条件至少包括：
-- 用户主动撤销。
-- Agent Pack 变化。
-- Bundle 或目标文档变化。
-- 系统策略变化。
-- 超时过期。
+Revocation triggers include at least:
+- The user revokes it manually.
+- The Agent Pack changes.
+- The Bundle or target document changes.
+- The system policy changes.
+- Timeout expiration.
 
-## 审计日志
+## Audit Log
 
-所有 Agent 操作应记录：
+All agent operations should be recorded:
 
 ```text
 agent id
@@ -144,4 +144,4 @@ approval id
 audit event id
 ```
 
-审计日志应尽量避免存储完整敏感输入；如涉及 token、密码、绝对文件内容，应记录摘要或脱敏字段。
+The audit log should avoid storing complete sensitive inputs where possible; if it involves tokens, passwords, or absolute file contents, it should record a summary or redacted fields.
