@@ -48,3 +48,26 @@ func TestUniversalAnimation(t *testing.T) {
 		t.Error("animated node rendered as an unknown widget")
 	}
 }
+
+// TestNestedStyleBinding guards that {{ … }} bindings inside a nested style
+// object (e.g. margin:{left}) resolve, not only top-level style values.
+func TestNestedStyleBinding(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "scenes"), 0o755)
+	if err := os.WriteFile(filepath.Join(dir, "qorm.json"),
+		[]byte(`{"type":"app","id":"m","entry":"main","globalState":{"schema":{"on":"boolean"},"initial":{"on":true}}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "scenes", "main.json"),
+		[]byte(`{"type":"scene","id":"main","root":{"type":"box","style":{"width":40,"margin":{"left":"{{ state.on ? 240 : 0 }}"}}}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	app, err := loader.LoadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	html := Render(qrt.New(app)).HTML
+	if !strings.Contains(html, "240px") {
+		t.Error("nested style binding margin.left did not resolve (expected 240px)")
+	}
+}
