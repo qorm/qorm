@@ -25,7 +25,7 @@ import (
 	"syscall"
 	"time"
 
-	webview "github.com/webview/webview_go"
+	webview "github.com/qorm/qorm/internal/webview"
 
 	"github.com/qorm/qorm/internal/measure"
 	qrt "github.com/qorm/qorm/internal/runtime"

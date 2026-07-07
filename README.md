@@ -8,7 +8,7 @@ JSON, and your AI (Claude, Cursor, …) can **scaffold, edit, run, and verify** 
 while you collaborate on the same running app in real time — you click, it sees
 you; it edits, you watch it happen.
 
-Under the hood it's pure Go (no cgo): it runs the app live in the browser, renders
+Under the hood the default build is pure Go — it runs the app live in the browser, renders
 a static HTML snapshot, ed25519-signs it into a distributable bundle, serves it
 over-the-air with rollback, exposes it to agents over MCP, and packages it for
 web / iOS / Android / desktop / mini-program — cross-compiled from any machine.
@@ -91,11 +91,12 @@ Each target is a single static ~7 MB binary with no runtime dependencies. In
 this default (pure-Go) build, `qorm run --app` opens the app in a chromeless
 browser window.
 
-## Native desktop window (Wails-style, opt-in)
+## Native desktop window (opt-in)
 
-For a true native window, build with `-tags desktop`. Following Wails, this
-drives the platform-native WebView (WKWebView / WebView2 / WebKitGTK) via cgo —
-so it is built **per-platform**, not cross-compiled from one machine:
+For a true native window, build with `-tags desktop`. This drives the
+platform-native WebView (WKWebView / WebView2 / WebKitGTK) via cgo — using a
+vendored WebView binding ([`internal/webview`](internal/webview)) — so it is built
+**per-platform**, not cross-compiled from one machine:
 
 ```bash
 ./scripts/build-desktop.sh                     # native binary for this OS
@@ -233,3 +234,10 @@ HTTPS OTA (`qorm run --tls`), key-revocation lists (`--revoked`), and the
 agent `apply_patch` tool have all landed. Remaining direction — a hosted docs
 portal, a sandboxed Playground, and the ecosystem registry — is tracked in
 `docs/planning/`.
+
+## Acknowledgments
+
+The optional native-desktop window vendors the [webview](https://github.com/webview/webview)
+C/C++ library and its [Go binding](https://github.com/webview/webview_go) (MIT,
+(c) Serge Zaitsev) — thank you. The opt-in native-window approach was inspired by
+[Wails](https://github.com/wailsapp/wails).

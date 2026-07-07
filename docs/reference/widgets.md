@@ -3,7 +3,7 @@
 > Auto-generated from the node() switch in `internal/render/render.go` (`TestWidgetCatalogInSync`) — do not edit by hand.
 > Auto-generated from the render switch — do not edit by hand.
 
-Each widget lists its **canonical name** first; the rest are equivalent aliases (kept for Flutter/Cupertino/HTML naming compatibility). Prefer the canonical name when writing apps.
+Each widget lists its **canonical name** first; the rest are equivalent aliases. Prefer the canonical name when writing apps.
 
 | Canonical | Aliases | Renderer |
 |---|---|---|
