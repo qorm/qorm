@@ -156,25 +156,24 @@ min/max width/height, opacity, transition). See `examples/gallery`.
 A running app (started from a bundle) accepts hot updates: `POST /update
 {"source": "<url-or-path>"}` fetches, verifies (hash + signature vs the trusted
 key) and hot-swaps the app; `POST /rollback` reverts. A rejected update leaves
-the live app untouched — a bad update can never take it down. See the OTA demo
-in `docs/planning/go-runtime-plan.md`.
+the live app untouched — a bad update can never take it down.
 
 ## Documentation
 
 QORM is dual-consumer — the same artifacts serve human developers and AI agents.
 
-- **Humans** start at [`docs/index.md`](docs/index.md): the [getting-started
-  tutorial](docs/tutorials/getting-started.md), the [JSON format
-  spec](docs/spec/json-format-spec.md), the [widget
+- **Humans** start at [`docs/`](docs/): the [getting-started
+  tutorial](docs/tutorials/getting-started.md), the [widget
   catalog](docs/reference/widgets.md) and [capabilities](docs/platforms/capabilities.md)
   (both auto-generated from the code), platform guides, and the [user
   middle-layer](docs/platforms/native-middlelayer.md) — add your own native ops
   in one `native/desktop.go` that compiles into the desktop binary *and* the
   mobile/web WASM.
-- **AI agents** start at [`llms.txt`](llms.txt): a curated, machine-readable map
-  of everything above. Drive a live app over [MCP](docs/agent/mcp-tools.md) and
-  self-verify your own edits against real rendered geometry with `qorm measure` /
-  `qorm check` (see [verification](docs/overview/verification.md)).
+- **AI agents** start at [`llms.txt`](llms.txt) (or [`AGENTS.md`](AGENTS.md)): a
+  curated, machine-readable map of everything above. Add QORM to your agent with
+  [`integrations/`](integrations), drive a live app over [MCP](docs/agent/mcp-tools.md),
+  and self-verify your edits against real rendered geometry with `qorm measure` /
+  `qorm check` (see [verification](docs/verification.md)).
 
 ## License
 

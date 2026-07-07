@@ -12,3 +12,6 @@ dist/
 # donor-fetch credentials (never commit)
 donors.env
 /etc/qorm/
+
+# internal planning / aspirational specs — local only, not part of the public runtime docs
+/planning/
