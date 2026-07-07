@@ -1,3 +1,7 @@
+//go:build desktop
+
+// Package webview is vendored from webview/webview_go (MIT) and only builds in the
+// native-window (-tags desktop) build; the default pure-Go build never needs it.
 package webview
 
 /*
@@ -25,12 +29,12 @@ void CgoWebViewUnbind(webview_t w, const char *name);
 */
 import "C"
 import (
+	"encoding/json"
+	"errors"
 	_ "github.com/qorm/qorm/internal/webview/libs/mswebview2"
 	_ "github.com/qorm/qorm/internal/webview/libs/mswebview2/include"
 	_ "github.com/qorm/qorm/internal/webview/libs/webview"
 	_ "github.com/qorm/qorm/internal/webview/libs/webview/include"
-	"encoding/json"
-	"errors"
 	"reflect"
 	"runtime"
 	"sync"
