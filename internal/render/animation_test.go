@@ -71,3 +71,21 @@ func TestNestedStyleBinding(t *testing.T) {
 		t.Error("nested style binding margin.left did not resolve (expected 240px)")
 	}
 }
+
+// TestAnimatedContainerLayout guards that AnimatedContainer honours layout
+// align/justify (via containerCSS) so children can be centred.
+func TestAnimatedContainerLayout(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "scenes"), 0o755)
+	os.WriteFile(filepath.Join(dir, "qorm.json"), []byte(`{"type":"app","id":"a","entry":"main"}`), 0o644)
+	os.WriteFile(filepath.Join(dir, "scenes", "main.json"),
+		[]byte(`{"type":"scene","id":"main","root":{"type":"animatedcontainer","layout":{"align":"center","justify":"center"},"children":[{"type":"text","text":"x"}]}}`), 0o644)
+	app, err := loader.LoadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	html := Render(qrt.New(app)).HTML
+	if !strings.Contains(html, "align-items:center") || !strings.Contains(html, "justify-content:center") {
+		t.Error("animatedcontainer did not apply layout align/justify")
+	}
+}
