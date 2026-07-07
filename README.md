@@ -183,8 +183,7 @@ term applies ([TERMS.md](TERMS.md)): apps ship with the QORM logo by default;
 personal / educational / open-source use may re-icon freely, and **commercial
 white-labeling** (a custom icon, or removing the "Made with QORM" metadata note) asks
 a Patreon membership — **Indie $1/mo** (individual) or **Studio $7/mo** (company). A **Supporter** tier ($3/mo) backs the project with priority feature requests; personal/edu/OSS use is the free **Community** tier. The `qorm` CLI asks you
-to confirm (honour-system) when you package a commercial feature. Supporters are
-listed on the site, refreshed daily.
+to confirm (honour-system) when you package a commercial feature. Supporters are recognized on the QORM Patreon page.
 
 ## Roadmap
 

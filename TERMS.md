@@ -55,11 +55,10 @@ needing commercial white-labeling. It gets:
 
 (Supporter does **not** grant commercial white-labeling — that's Indie / Studio.)
 
-## Supporters list
+## Supporters
 
-Every patron — Supporter, Indie, or Studio — is listed (first name + last
-initial) on the QORM site's supporters page, refreshed daily from Patreon. Ask us
-to change or remove your entry anytime.
+Every patron — Supporter, Indie, or Studio — is a supporter of QORM, recognized on
+the QORM Patreon page. Thank you.
 
 ---
 

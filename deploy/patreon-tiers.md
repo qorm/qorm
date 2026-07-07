@@ -18,7 +18,7 @@ The price of nothing, so individual commercial use stays fair.
 - Commercial white-labeling: ship your app with your own icon (replace the QORM logo)
 - Remove the "Made with QORM" note from your app's packaging metadata
 - Commercial resale: sell the product you build with QORM
-- Your name on the QORM supporters page
+- Recognized on the QORM Patreon page
 
 ---
 
@@ -32,7 +32,7 @@ people who want to support the project and help steer what comes next.
 
 **Benefits**
 - Priority feature requests: your reasonable requests get prioritized
-- Your name on the QORM supporters page
+- Recognized on the QORM Patreon page
 - Our thanks for keeping QORM free and open for everyone
 
 ---
@@ -49,7 +49,7 @@ For a company or team shipping a commercial product built with QORM.
 - Remove the "Made with QORM" note from packaging metadata
 - Commercial resale for your business
 - Priority feature requests
-- Your company on the QORM supporters page
+- Your company recognized on the QORM Patreon page
 
 ---
 
