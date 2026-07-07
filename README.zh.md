@@ -11,6 +11,19 @@
 
 <sub>上面这段 GIF 是 QORM 自己录的——AI 通过 MCP 驱动编辑,`qorm shot` 用 WebKit 逐帧截图,无浏览器自动化工具。见 <a href="scripts/record-demo.sh">scripts/record-demo.sh</a>。</sub>
 
+
+### 同一个 app,打包成 iOS
+
+<p align="center">
+  <img src="assets/screenshots/dashboard.png" width="200" alt="iOS 上的仪表盘">
+  <img src="assets/screenshots/uikit.png" width="200" alt="iOS 上的自定义组件">
+  <img src="assets/screenshots/login.png" width="200" alt="iOS 上的登录表单">
+  <img src="assets/screenshots/counter.png" width="200" alt="iOS 上的计数器">
+</p>
+
+<sub>真实 iOS 构建(`qorm package -p ios`),在 iOS 模拟器里截取。同一份 JSON app
+还能跑在 web / 安卓 / 桌面 / 小程序上。</sub>
+
 底层默认构建是纯 Go:它在浏览器中实时运行应用,渲染出静态 HTML 快照,用 ed25519
 签名打包成可分发的 bundle,通过空中下发(OTA)带回滚地提供服务,经由 MCP 向智能体开放,
 并将其打包为 web / iOS / Android / 桌面 / 小程序——可从任意机器交叉编译。

@@ -14,6 +14,18 @@ you; it edits, you watch it happen.
 shot` captured each frame via WebKit. No browser automation; see
 [`scripts/record-demo.sh`](scripts/record-demo.sh).</sub>
 
+### The same app, packaged for iOS
+
+<p align="center">
+  <img src="assets/screenshots/dashboard.png" width="200" alt="Dashboard on iOS">
+  <img src="assets/screenshots/uikit.png" width="200" alt="Custom components on iOS">
+  <img src="assets/screenshots/login.png" width="200" alt="Login form on iOS">
+  <img src="assets/screenshots/counter.png" width="200" alt="Counter on iOS">
+</p>
+
+<sub>Real iOS builds (`qorm package -p ios`), captured in the iOS Simulator. The
+same JSON app also runs on web / Android / desktop / mini-program.</sub>
+
 Under the hood the default build is pure Go — it runs the app live in the browser, renders
 a static HTML snapshot, ed25519-signs it into a distributable bundle, serves it
 over-the-air with rollback, exposes it to agents over MCP, and packages it for
