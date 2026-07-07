@@ -1,0 +1,1 @@
+{ "type":"action","id":"remove","steps":[{"type":"state.remove","path":"items","matchKey":"id","match":"{{ id }}"}]}

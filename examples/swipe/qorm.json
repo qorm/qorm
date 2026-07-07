@@ -1,0 +1,6 @@
+{ "type":"app","id":"swipe","name":"Inbox","entry":"main","theme":"apple",
+  "globalState":{"schema":{"items":"array"},"initial":{"items":[
+    {"id":1,"from":"Ada Lovelace","subject":"Re: the analytical engine"},
+    {"id":2,"from":"Alan Turing","subject":"Can machines think?"},
+    {"id":3,"from":"Grace Hopper","subject":"Found a bug (literally)"}
+  ]}}}

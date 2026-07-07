@@ -185,3 +185,57 @@ func (r *renderer) dismissible(n *model.Node) {
 		fmt.Fprintf(&r.sb, `<script>setTimeout(function(){qormSwipe(document.getElementById(%q),%d)})</script>`, r.nid(n), h)
 	}
 }
+
+// swipeActions is a list row that reveals trailing action buttons on a left
+// swipe (iOS Mail style): swipe to open, tap an action to fire it and close,
+// tap the content or swipe back to close. actions: [{label,icon,color,name,args}].
+func (r *renderer) swipeActions(n *model.Node) {
+	id := r.nid(n)
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-swa" style=%q>`, id, r.boxCSS(n)+"position:relative;overflow:hidden;")
+	r.sb.WriteString(`<div class="qorm-swa-actions" style="position:absolute;top:0;right:0;bottom:0;display:flex;">`)
+	if raw, ok := n.Prop("actions"); ok {
+		if arr, ok := raw.([]any); ok {
+			for _, a := range arr {
+				m, ok := a.(map[string]any)
+				if !ok {
+					continue
+				}
+				h := -1
+				if name := str(m, "name"); name != "" {
+					inv := &model.Invoke{Name: name, Args: map[string]string{}}
+					if args, ok := m["args"].(map[string]any); ok {
+						for k, v := range args {
+							inv.Args[k] = fmt.Sprint(v)
+						}
+					}
+					h = r.register(inv)
+				}
+				color := colorStr(m, "color")
+				if color == "" {
+					color = "var(--danger)"
+				}
+				inner := ""
+				if icon := str(m, "icon"); icon != "" {
+					if svg := iconSVG(icon, 20); svg != "" {
+						inner = svg
+					}
+				}
+				if label := str(m, "label"); label != "" {
+					inner += `<span>` + html.EscapeString(label) + `</span>`
+				}
+				onclick := ""
+				if h >= 0 {
+					onclick = fmt.Sprintf(` onclick="qorm(%d)"`, h)
+				}
+				fmt.Fprintf(&r.sb, `<button class="qorm-swa-act qorm-tap" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:76px;border:none;cursor:pointer;background:%s;color:#fff;font-size:13px;font-weight:600;"%s>%s</button>`, color, onclick, inner)
+			}
+		}
+	}
+	r.sb.WriteString(`</div>`)
+	r.sb.WriteString(`<div class="qorm-swa-content" style="position:relative;background:var(--surface);touch-action:pan-y;">`)
+	for _, c := range n.Children {
+		r.node(c)
+	}
+	r.sb.WriteString(`</div></div>`)
+	fmt.Fprintf(&r.sb, `<script>setTimeout(function(){qormSwipeActions(document.getElementById(%q))})</script>`, id)
+}

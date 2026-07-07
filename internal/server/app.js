@@ -737,3 +737,20 @@ if(window.EventSource){
   document.addEventListener('input',function(e){ ping(e.target); });   // live typing
 })();
 if(document.readyState!=='loading'){ setTimeout(qormMeasure,60); setTimeout(qormHwInit,300); } else { window.addEventListener('load',function(){ setTimeout(qormMeasure,60); setTimeout(qormHwInit,300); }); }
+// qormSwipeActions: swipe a row left to reveal trailing action buttons; tap an
+// action to fire it and close, tap the content or swipe back to close.
+function qormSwipeActions(el){
+  if(!el) return;
+  var content=el.querySelector('.qorm-swa-content'), acts=el.querySelector('.qorm-swa-actions');
+  if(!content||!acts) return;
+  var x0=null, base=0, open=false;
+  function w(){ return acts.offsetWidth||0; }
+  function set(x, anim){ content.style.transition=anim?'transform .24s cubic-bezier(.32,.72,0,1)':'none'; content.style.transform='translateX('+x+'px)'; }
+  content.addEventListener('pointerdown', function(e){ x0=e.clientX; base=open?-w():0; set(base,false); });
+  content.addEventListener('pointermove', function(e){ if(x0===null) return; var dx=Math.max(-w()-24, Math.min(0, base+(e.clientX-x0))); set(dx,false); });
+  function end(e){ if(x0===null) return; var dx=base+((e&&e.clientX||x0)-x0); open = dx < -w()/2; set(open?-w():0, true); x0=null; }
+  content.addEventListener('pointerup', end);
+  content.addEventListener('pointercancel', end);
+  content.addEventListener('click', function(e){ if(open){ e.preventDefault(); e.stopPropagation(); open=false; set(0,true); } }, true);
+  Array.prototype.forEach.call(acts.children, function(b){ b.addEventListener('click', function(){ open=false; setTimeout(function(){ set(0,true); }, 0); }); });
+}
