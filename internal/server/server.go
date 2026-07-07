@@ -46,6 +46,8 @@ type Server struct {
 	actMu    sync.Mutex
 	activity []LogEntry
 	actSeq   int
+	lastSrc  string // source of the most recent event (for live edit attribution)
+	lastDet  string // its short detail
 
 	measureMu sync.Mutex
 	measure   []byte // latest self-reported layout (rects + key styles)
@@ -104,7 +106,10 @@ func (s *Server) bump() (int64, string) {
 // broadcast pushes a revision+HTML payload to every subscriber, dropping it for
 // any client whose buffer is full rather than blocking.
 func (s *Server) broadcast(rev int64, html string) {
-	payload, _ := json.Marshal(map[string]any{"rev": rev, "html": html, "theme": s.rt.CurrentTheme()})
+	s.actMu.Lock()
+	src, det := s.lastSrc, s.lastDet
+	s.actMu.Unlock()
+	payload, _ := json.Marshal(map[string]any{"rev": rev, "html": html, "theme": s.rt.CurrentTheme(), "source": src, "detail": det})
 	msg := string(payload)
 	s.subsMu.Lock()
 	for ch := range s.subs {
@@ -132,6 +137,7 @@ func (s *Server) logEvent(source, detail string) {
 	if len(s.activity) > 200 {
 		s.activity = s.activity[len(s.activity)-200:]
 	}
+	s.lastSrc, s.lastDet = source, detail // for live edit attribution in the broadcast
 	s.actMu.Unlock()
 }
 
@@ -665,6 +671,13 @@ func Page(rt *runtime.Runtime, body string, rev int64) string {
   html, body { overscroll-behavior:none; -webkit-overflow-scrolling:touch; }
   body { background:var(--bg); color:var(--label); font-family:var(--font); letter-spacing:-0.01em;
          min-height:100vh; display:flex; align-items:flex-start; justify-content:center; padding:24px; }
+  /* live collaborator presence: "AI edited" toast when an agent changes the shared app */
+  #qorm-presence { position:fixed; left:50%%; bottom:20px; transform:translate(-50%%,20px);
+    display:flex; align-items:center; gap:7px; padding:9px 15px; border-radius:20px;
+    background:var(--accent); color:var(--on-accent,#fff); font-weight:600; font-size:13px;
+    box-shadow:0 8px 24px rgba(0,0,0,.28); opacity:0; pointer-events:none; z-index:99999;
+    transition:opacity .2s ease, transform .2s ease; }
+  #qorm-presence.show { opacity:1; transform:translate(-50%%,0); }
   /* Responsive: a centered device frame on PC, full-bleed on phones. */
   #qorm-stage { width:%dpx; max-width:100%%; min-height:%dpx; background:var(--bg); color:var(--label);
                 border-radius:var(--stage-radius); box-shadow:0 12px 48px rgba(0,0,0,.18);
@@ -1366,7 +1379,16 @@ function qormApply(d){
   if(d&&d.theme) qormTheme(d.theme);
   if(!d||typeof d.rev==='undefined') return;
   if(typeof d.html!=='undefined'){ qormMorphInto(document.getElementById('qorm-root'), d.html); }
+  if(d.source==='agent') qormPresence(d.detail);   // a collaborator (AI) edited — show it live
   __rev=d.rev;
+}
+// Live edit attribution: when the AI edits the shared app, the human sees it.
+function qormPresence(detail){
+  var el=document.getElementById('qorm-presence');
+  if(!el){ el=document.createElement('div'); el.id='qorm-presence'; document.body.appendChild(el); }
+  el.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg><span>AI edited'+(detail?' · '+detail:'')+'</span>';
+  el.classList.add('show');
+  clearTimeout(el._t); el._t=setTimeout(function(){ el.classList.remove('show'); }, 2600);
 }
 if(window.EventSource){
   var es=new EventSource('/events');
