@@ -18,13 +18,20 @@ qorm run examples/counter          # browser UI + agent endpoint at /mcp
 ## The loop — each sees the other
 
 - **The human sees the AI.** When the agent edits the app (`qorm_apply_patch`,
-  `qorm_dispatch`, `qorm_set_state`), the change appears in every connected
-  browser **instantly** over SSE, and a live **"AI edited · &lt;what&gt;"** toast
-  shows who did it — you watch the AI work in real time.
-- **The AI sees the human.** `qorm_activity` returns the shared activity log —
-  who (human / agent) did what, in order — so the agent can respond to the
-  human's clicks instead of guessing from state. The human's actions are also
-  reflected in the agent's next `qorm_inspect`.
+  `qorm_dispatch`, `qorm_set_state`), the change appears in every connected browser
+  **instantly** over SSE. An **"AI edited · &lt;what&gt;"** toast names it, and the
+  elements the agent actually touched briefly **pulse a blue outline** — so you see
+  not just *that* it edited but *where*.
+- **The AI sees the human.** `qorm_activity` returns the shared session's live
+  presence: the `events` log (who did what, in order), `humanFocus` (the element the
+  human is on right now), `humanTyping` (the text they last entered), and
+  `humanFilled` (which password fields they completed — by label only; a password
+  value is **never** captured). So the agent collaborates in context — "the human is
+  filling the email field" — instead of guessing from state.
+- **The human sees what's shared.** The activity panel (a separate window the
+  desktop app opens, or `/logwindow`) shows a *shared with the AI* line — the human's
+  own focus and typed text, password fields marked *value hidden* — so it is
+  transparent exactly what the agent can perceive.
 
 ## Safe edits — review-bound
 

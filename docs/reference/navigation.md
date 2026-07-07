@@ -21,4 +21,12 @@ them, with a back stack.
   action moves the human's view too (and vice versa). A desktop window may pin a
   specific scene with `?scene=<id>`.
 
+## Page transition
+
+Switching scenes plays a coordinated, iOS-style transition automatically: the
+incoming scene slides in from the edge while the outgoing one parallax-slides the
+other way (less far) and dims, giving depth. `navigate` slides forward; `back`
+reverses it. Each scene is treated as an opaque block during the slide, so scenes
+without their own background don't bleed through each other.
+
 See `examples/navigation`.
