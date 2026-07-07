@@ -3089,7 +3089,9 @@ func (r *renderer) animatedContainer(n *model.Node) {
 	dur := propNum(n, "duration", 300)
 	curve := propStrOr(n, "curve", "cubic-bezier(.4,0,.2,1)")
 	trans := fmt.Sprintf("transition:all %gms %s;", dur, curve)
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, n.ID, r.boxCSS(n)+trans, a11y(n))
+	// containerCSS (not boxCSS) so an AnimatedContainer honours layout align/justify
+	// like any other container — e.g. centring an icon inside an animated circle.
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, n.ID, r.containerCSS(n)+trans, a11y(n))
 	for _, c := range n.Children {
 		r.node(c)
 	}
