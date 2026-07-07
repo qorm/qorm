@@ -1,16 +1,16 @@
 # QORM Codex Pack
 
-Codex Pack 用于代码型 Agent 操作 QORM 仓库和 JSON 文件。
+The Codex Pack lets code-oriented agents operate on QORM repositories and JSON files.
 
-## 目标
+## Goals
 
-- 生成 JSON 源文件。
-- 修改 Go 代码（`cmd/`、`internal/`）。
-- 运行测试。
-- 通过 MCP 检查 QORM Bundle。
-- 生成 Patch 并预览。
+- Generate JSON source files.
+- Modify Go code (`cmd/`, `internal/`).
+- Run tests.
+- Inspect QORM Bundles via MCP.
+- Generate and preview Patches.
 
-## 默认允许
+## Allowed by Default
 
 ```text
 read files
@@ -20,41 +20,41 @@ run go test ./...
 preview_patch
 ```
 
-## 默认禁止
+## Denied by Default
 
 ```text
-直接 deploy
-执行危险 shell
-绕过 preview_patch
-新增未授权 Host Capability
+Direct deploy
+Running dangerous shell commands
+Bypassing preview_patch
+Adding unauthorized Host Capabilities
 ```
 
-## 权限边界
+## Permission Boundaries
 
-- Codex Pack 只能进一步限制自身行为，不能放宽 platform / app / host policy。
-- `preview_patch` 默认允许，但必须保持无副作用。
-- `apply_patch` 必须服从统一 approval 规则。
+- The Codex Pack can only further restrict its own behavior; it cannot loosen the platform / app / host policy.
+- `preview_patch` is allowed by default, but it must remain free of side effects.
+- `apply_patch` must obey the unified approval rules.
 
-## 工作流
+## Workflow
 
 ```text
-1. 读取 README 和相关 spec
-2. 读取目标 JSON 文件
-3. 生成 patch
+1. Read the README and relevant spec
+2. Read the target JSON file
+3. Generate a patch
 4. qorm.validate_bundle
 5. qorm.preview_patch
-6. 用户确认后 apply
-7. 运行测试
+6. apply after user confirmation
+7. Run tests
 ```
 
-## 输出要求
+## Output Requirements
 
-Codex 修改 QORM 文件时，应输出：
+When Codex modifies QORM files, it should output:
 
 ```text
-改动摘要
-修改文件
-验证结果
-潜在风险
-是否需要用户确认
+Summary of changes
+Files modified
+Validation results
+Potential risks
+Whether user confirmation is required
 ```

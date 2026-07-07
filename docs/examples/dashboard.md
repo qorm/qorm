@@ -1,8 +1,8 @@
 # Example: Dashboard
 
-Dashboard 示例验证复杂布局、卡片、列表、表格和响应式。
+The Dashboard example verifies complex layouts, cards, lists, tables, and responsiveness.
 
-## 页面结构
+## Page Structure
 
 ```text
 page
@@ -14,7 +14,7 @@ page
    └─ table
 ```
 
-## Layout 示例
+## Layout Example
 
 ```json
 {
@@ -36,9 +36,9 @@ page
 }
 ```
 
-## 验收
+## Acceptance
 
-- sidebar 固定宽度。
-- content 填充剩余区域。
-- 表格滚动不影响整体 layout。
-- 数据更新只影响相关卡片和图表。
+- The sidebar has a fixed width.
+- The content fills the remaining area.
+- Table scrolling does not affect the overall layout.
+- Data updates only affect the relevant cards and charts.

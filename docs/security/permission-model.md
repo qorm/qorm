@@ -1,8 +1,8 @@
 # QORM Permission Model
 
-权限模型控制 Host Capability、Agent、Plugin、Bundle 和 Platform Pack 的可用范围。
+The permission model controls the available scope of Host Capabilities, Agents, Plugins, Bundles, and Platform Packs.
 
-## 权限来源
+## Permission Sources
 
 ```text
 platform capabilities
@@ -13,9 +13,9 @@ plugin manifest
 user approval
 ```
 
-## 权限优先级
+## Permission Priority
 
-一次调用按以下顺序裁决：
+A single call is adjudicated in the following order:
 
 ```text
 1. capability exists
@@ -26,21 +26,21 @@ user approval
 6. user approved if required
 ```
 
-规则：
-- 默认 deny。
-- 任一环节拒绝即拒绝。
-- 用户 approval 不能越过 platform unsupported 或 app/system hard deny。
-- `bundle declares capability` 只表示声明需求，不表示授予权限。
+Rules:
+- Deny by default.
+- A deny at any stage results in a deny.
+- User approval cannot override platform unsupported or app/system hard deny.
+- `bundle declares capability` only expresses a requirement declaration; it does not grant permission.
 
-## 冲突解决
+## Conflict Resolution
 
-- deny 覆盖 allow。
-- 缺失声明视为 deny。
-- 结构化限制只能收窄，不能放宽。
-- 例如多个来源都声明 `domains` 时，最终允许范围取交集。
-- 若某来源未声明 `methods` 而另一个来源声明了 `methods`，最终只允许已声明的方法集合。
+- deny overrides allow.
+- A missing declaration is treated as deny.
+- Structured restrictions can only narrow, never widen.
+- For example, when multiple sources declare `domains`, the final allowed scope is their intersection.
+- If one source does not declare `methods` while another declares `methods`, the final result only allows the declared method set.
 
-## 权限示例
+## Permission Example
 
 ```json
 {
@@ -61,19 +61,19 @@ user approval
 }
 ```
 
-## requiresApproval 语义
+## requiresApproval Semantics
 
-`requiresApproval` 表示该能力或操作即使已被允许，也仍需有效审批凭证。
+`requiresApproval` means that even if the capability or operation is already allowed, a valid approval credential is still required.
 
-最小规则：
-- scope 至少绑定 `capability`、调用方、目标资源范围。
-- 审批可以是一次性或会话级，但必须由策略显式定义。
-- 目标资源变化后，原审批不得自动扩展到更大范围。
-- 策略、Bundle、Platform Pack、Agent Pack、用户身份或运行环境变化后，审批必须重新评估。
+Minimum rules:
+- The scope must at least bind the `capability`, the caller, and the target resource scope.
+- Approval may be one-time or session-level, but must be explicitly defined by policy.
+- After the target resource changes, the original approval must not automatically extend to a broader scope.
+- After a change to policy, Bundle, Platform Pack, Agent Pack, user identity, or runtime environment, approval must be re-evaluated.
 
-## Approval 生命周期
+## Approval Lifecycle
 
-审批记录至少包含：
+An approval record contains at least:
 
 ```text
 approval id
@@ -86,16 +86,16 @@ revokedAt
 revocation reason
 ```
 
-失效条件至少包括：
-- 超时过期。
-- 用户主动撤销。
-- Bundle 或 Pack 版本切换。
-- 权限策略变化。
-- 目标文件、目标域名或目标 capability 范围变化。
+Invalidation conditions include at least:
+- Timeout expiration.
+- Explicit revocation by the user.
+- Bundle or Pack version switch.
+- Permission policy change.
+- Change in the scope of target files, target domains, or target capability.
 
-## Agent 权限
+## Agent Permissions
 
-Agent 侧权限应更严格：
+Agent-side permissions should be stricter:
 
 ```text
 read-only
@@ -106,15 +106,15 @@ host-call
 admin
 ```
 
-默认不授予 `apply-patch` 和 `host-call`。
+`apply-patch` and `host-call` are not granted by default.
 
-Agent allow 不能放宽 app/system policy；Agent deny 可以进一步限制该 Agent。
+Agent allow cannot relax app/system policy; Agent deny can further restrict that Agent.
 
-## 审计
+## Auditing
 
-所有权限相关操作必须记录审计日志。
+All permission-related operations must be recorded in an audit log.
 
-最小字段：
+Minimum fields:
 
 ```text
 decision id
@@ -128,4 +128,4 @@ reason
 timestamp
 ```
 
-审计日志应避免记录原始敏感载荷；若必须保留上下文，应记录摘要或脱敏字段。
+Audit logs should avoid recording raw sensitive payloads; if context must be retained, record summaries or redacted fields.

@@ -111,8 +111,7 @@ func Summary() string {
 // Markdown renders the matrix as docs/platforms/support-matrix.md.
 func Markdown() string {
 	var b strings.Builder
-	b.WriteString("# 平台支持矩阵 · Platform support matrix\n\n")
-	b.WriteString("> 本文件由 `internal/support` 自动生成(`TestSupportMatrixInSync`),请勿手改。\n")
+	b.WriteString("# Platform support matrix\n\n")
 	b.WriteString("> Auto-generated from the support registry — do not edit by hand.\n\n")
 	b.WriteString("What QORM supports on each target, at a glance. **`ok`** = supported and tested; **`beta`** = foundation / partial or platform-limited; **`—`** = not applicable. Per-capability hardware detail is in [capabilities.md](capabilities.md).\n\n")
 

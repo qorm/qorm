@@ -1,6 +1,6 @@
-# QORM 小程序 (Mini-program) platform
+# QORM Mini-program platform
 
-Mini-programs (WeChat 微信 / others) can't run Go or WASM in their render path —
+Mini-programs (WeChat / others) can't run Go or WASM in their render path —
 they render **WXML** markup driven by a JS page model, inside a vendor sandbox. So
 QORM targets them differently from web/mobile/desktop: instead of shipping the
 Go→WASM runtime, it **remaps the app's rendered HTML/CSS to WXML/WXSS** and emits
@@ -15,7 +15,7 @@ qorm package examples/counter -p miniapp -o counter-weapp
 # aliases: -p miniprogram | -p weapp
 ```
 
-Open the output in **WeChat DevTools** (微信开发者工具). It's a standard project:
+Open the output in **WeChat DevTools**. It's a standard project:
 
 ```
 counter-weapp/

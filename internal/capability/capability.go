@@ -123,11 +123,10 @@ func Supported(widget, platform string) bool {
 // a human reads exactly what the code implements — no drift.
 func Markdown() string {
 	var b strings.Builder
-	b.WriteString("# 能力清单 · Capabilities\n\n")
-	b.WriteString("> 本文件由 `internal/capability` 注册表自动生成(`TestCapabilityDocInSync`),请勿手改。\n")
+	b.WriteString("# Capabilities\n\n")
 	b.WriteString("> Auto-generated from the capability registry — do not edit by hand.\n\n")
-	b.WriteString("QORM 内置 " + strconv.Itoa(len(All)) + " 个硬件/原生能力。每个能力:组件类型 = 能力名,触发 `qormToNative(op)`,结果回 `qormOn<X>`。AI 可用 `qorm_capabilities` MCP 工具发现全部。\n\n")
-	b.WriteString("| 能力 Capability | Widget | Ops | 回调 Callback | 平台 Platforms | 说明 |\n")
+	b.WriteString("QORM has " + strconv.Itoa(len(All)) + " built-in hardware/native capabilities. For each: the widget type is the capability name, `qormToNative(op)` triggers it, and the result comes back via `qormOn<X>`. Agents discover them all with the `qorm_capabilities` MCP tool.\n\n")
+	b.WriteString("| Capability | Widget | Ops | Callback | Platforms | Description |\n")
 	b.WriteString("|---|---|---|---|---|---|\n")
 	for _, c := range All {
 		ops := strings.Join(c.Ops, "<br>")
@@ -146,7 +145,7 @@ func Markdown() string {
 	}
 
 	// Per-platform view: each target's full hardware-interface list.
-	b.WriteString("\n## 按平台 · Hardware interfaces by platform\n\n")
+	b.WriteString("\n## Hardware interfaces by platform\n\n")
 	b.WriteString("Every capability each target implements natively or via a Web API.\n\n")
 	for _, p := range []struct{ key, label string }{
 		{IOS, "iOS"}, {Android, "Android"}, {Mac, "macOS"}, {Linux, "Linux"}, {Windows, "Windows"}, {Web, "Web"},

@@ -1,6 +1,5 @@
-# 平台支持矩阵 · Platform support matrix
+# Platform support matrix
 
-> 本文件由 `internal/support` 自动生成(`TestSupportMatrixInSync`),请勿手改。
 > Auto-generated from the support registry — do not edit by hand.
 
 What QORM supports on each target, at a glance. **`ok`** = supported and tested; **`beta`** = foundation / partial or platform-limited; **`—`** = not applicable. Per-capability hardware detail is in [capabilities.md](capabilities.md).

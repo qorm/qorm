@@ -1,11 +1,11 @@
-# 组件目录 · Widget Catalog
+# Widget Catalog
 
-> 由 `internal/render/render.go` 的 node() switch 自动生成(`TestWidgetCatalogInSync`),请勿手改。
+> Auto-generated from the node() switch in `internal/render/render.go` (`TestWidgetCatalogInSync`) — do not edit by hand.
 > Auto-generated from the render switch — do not edit by hand.
 
-每个组件用**第一列的规范名**;其余是等价别名(为兼容 Flutter/Cupertino/HTML 命名保留)。写 app 时优先用规范名。
+Each widget lists its **canonical name** first; the rest are equivalent aliases (kept for Flutter/Cupertino/HTML naming compatibility). Prefer the canonical name when writing apps.
 
-| 规范名 Canonical | 别名 Aliases | 渲染器 |
+| Canonical | Aliases | Renderer |
 |---|---|---|
 | `accordion` | — | `accordion` |
 | `actionsheet` | cupertinoactionsheet | `actionSheet` |

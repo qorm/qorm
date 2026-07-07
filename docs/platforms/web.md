@@ -1,8 +1,8 @@
 # QORM Web Platform
 
-Web 端通过 WASM Runtime 或 TypeScript Adapter 接入 QORM。
+The web platform connects to QORM through the WASM Runtime or the TypeScript Adapter.
 
-## Package it · 打包与试用
+## Package it
 
 ```sh
 qorm package examples/dashboard -p web -o dashboard-web   # an installable, offline PWA
@@ -11,7 +11,7 @@ qorm package examples/dashboard -p web -o dashboard-web   # an installable, offl
 Serve the output folder and "Add to Home Screen". Any example packages to web.
 See the [support matrix](support-matrix.md).
 
-## 架构
+## Architecture
 
 ```text
 qorm.bundle.json
@@ -27,7 +27,7 @@ Browser
 
 ## Host Adapter
 
-Web 端底层能力受浏览器限制。应通过 Web Host Adapter 封装：
+On the web, low-level capabilities are constrained by the browser. They should be wrapped through the Web Host Adapter:
 
 ```text
 network.request
@@ -38,30 +38,30 @@ file.open
 notification.show
 ```
 
-## Web 安全边界
+## Web security boundaries
 
-- Browser sandbox 是外层能力边界。
-- QORM Web Runtime 不能超过浏览器已授予的能力。
-- Web Host Adapter 是 QORM 在浏览器内的权限与策略执行点。
-- 浏览器原生权限提示不等于 QORM approval；若两者都要求，必须都通过。
+- The browser sandbox is the outermost capability boundary.
+- The QORM Web Runtime cannot exceed the capabilities granted by the browser.
+- The Web Host Adapter is QORM's permission and policy enforcement point inside the browser.
+- A native browser permission prompt is not equivalent to a QORM approval; if both are required, both must pass.
 
-## 网络请求
+## Network requests
 
-Web 端使用 HttpClient 抽象：
+The web platform uses an HttpClient abstraction:
 
 ```text
-默认 fetch
-可插拔 custom HttpClient adapter
+default fetch
+pluggable custom HttpClient adapter
 ```
 
-### Custom HttpClient 边界
+### Custom HttpClient boundaries
 
-- custom client 只负责传输实现，不负责权限裁决。
-- 域名、方法、header、credentials、approval 检查必须在 Host Adapter 侧完成。
-- custom client 不能绕过 QORM 的 `network.request` 能力约束。
-- CORS、cookie、same-origin 限制仍受浏览器控制。
+- The custom client is responsible only for the transport implementation, not for permission decisions.
+- Domain, method, header, credentials, and approval checks must be performed on the Host Adapter side.
+- The custom client cannot bypass QORM's `network.request` capability constraints.
+- CORS, cookie, and same-origin restrictions remain under browser control.
 
-Action 示例：
+Action example:
 
 ```json
 {
@@ -78,9 +78,9 @@ Action 示例：
 }
 ```
 
-## 渲染路线
+## Rendering routes
 
-可选路线：
+Available routes:
 
 ```text
 DOM renderer
@@ -89,20 +89,20 @@ WebGPU renderer
 WASM + GPU renderer
 ```
 
-V1 可先使用最容易验证的路线，后续再强化高性能渲染。
+V1 can start with the route that is easiest to validate, then strengthen high-performance rendering later.
 
-## 限制
+## Limitations
 
-Web 端不能假设：
+The web platform cannot assume:
 
 ```text
-任意文件系统访问
-系统级剪贴板访问
-后台长期运行
-任意网络跨域
-本地 Native Capability
+Arbitrary filesystem access
+System-level clipboard access
+Long-running background execution
+Arbitrary cross-origin networking
+Local Native Capability
 ```
 
-## 审计可见性
+## Audit visibility
 
-Web 端的审计记录受浏览器隐私与存储约束影响。即便如此，权限决策、approval id 和 capability 结果仍应尽量记录到可用的本地或宿主日志中。
+Web audit records are affected by browser privacy and storage constraints. Even so, permission decisions, approval ids, and capability results should still be recorded to the available local or host logs as much as possible.

@@ -1,10 +1,10 @@
-# 用户中间层:给 app 加自己的能力
+# User middle layer: adding your own capabilities to an app
 
-QORM 内置了约 26 个硬件能力(摄像头/录音、定位、蓝牙、NFC、生物识别、震动/触感、手电、亮度/音量、电池、传感器、网络状态、剪贴板、分享、通知、截屏/录屏……),app 开发者也能**不改框架源码**加自己的能力。**推荐用 Go**——写一份、到处跑。Swift/Java 只留给罕见的纯原生 SDK。
+QORM ships with about 26 built-in hardware capabilities (camera/recording, location, Bluetooth, NFC, biometrics, vibration/haptics, flashlight, brightness/volume, battery, sensors, network status, clipboard, sharing, notifications, screenshot/screen recording, and more), and app developers can add their own capabilities **without modifying framework source code**. **Go is recommended** -- write it once, run it everywhere. Swift/Java are reserved only for rare pure-native SDKs.
 
-## 推荐:Go 中间层(一份 Go,到处能用)
+## Recommended: Go middle layer (one Go source, usable everywhere)
 
-写一个 `native/desktop.go`,用 `qormext.Register` 注册你的 op。它会**编进桌面二进制**,也**编进手机/网页的离线 WASM**——iOS/Android/桌面/浏览器**同一份 Go**。
+Write a `native/desktop.go` and register your op with `qormext.Register`. It is **compiled into the desktop binary** and also **compiled into the offline WASM for mobile/web** -- the **same Go source** for iOS/Android/desktop/browser.
 
 ```go
 //go:build ignore
@@ -13,62 +13,62 @@ package main
 import "github.com/qorm/qorm/pkg/qormext"
 func init() {
     qormext.Register("myBankSDK", func(data map[string]any) string {
-        // 你的 Go 逻辑:算法、协议、HTTP、后端集成……data 是 qormToNative 的 payload
-        return `qormOnBankSDK("done")`  // 返回一行 JS,回 app 执行
+        // Your Go logic: algorithms, protocols, HTTP, backend integration... data is the qormToNative payload
+        return `qormOnBankSDK("done")`  // return one line of JS, executed back in the app
     })
 }
 ```
 
-组件里 `qormToNative('myBankSDK', {...})` 会**优先**交给这份 Go(WebView 里是 `window.qormWasmOp`,桌面是编入的二进制),`qormOnBankSDK` 回调更新 UI。
+In a component, `qormToNative('myBankSDK', {...})` is handed **first** to this Go (`window.qormWasmOp` in a WebView, the compiled-in binary on desktop), and the `qormOnBankSDK` callback updates the UI.
 
-### Go 中间层直接调硬件/框架底层
+### The Go middle layer calls hardware / framework internals directly
 
-Go 里能直接够到框架底层,不用只靠返回 JS:
+From Go you can reach framework internals directly, rather than relying only on returning JS:
 
 ```go
-qormext.Native("bluetoothScan", `{}`)     // → 框架原生桥 或 Web API
-qormext.Emit("orderDone", `{"id":42}`)     // → 推事件到 UI 事件总线,前端 qormOn('orderDone', fn) 收
-qormext.CallJS(`navigator.vibrate(200)`)   // → 任意 JS
+qormext.Native("bluetoothScan", `{}`)     // → framework native bridge or Web API
+qormext.Emit("orderDone", `{"id":42}`)     // → push an event to the UI event bus; the frontend receives it via qormOn('orderDone', fn)
+qormext.CallJS(`navigator.vibrate(200)`)   // → any JS
 ```
 
-- **通用硬件**(摄像头/定位/传感器/震动)→ Web API,到处能用
-- **iOS 缺的**(蓝牙/NFC,Safari 无 Web API)→ **框架内置原生桥**(框架维护,你不写)
-- 结果回到 app 的 `qormOn<X>` 回调
-- `qormext.Emit(event, dataJSON)` 走**原生→UI 事件总线**:底层主动向界面推信号,前端只管 `qormOn(event, fn)` 监听——不用请求-响应
+- **Common hardware** (camera/location/sensors/vibration) → Web API, works everywhere
+- **What iOS lacks** (Bluetooth/NFC, no Web API in Safari) → **the framework's built-in native bridge** (maintained by the framework; you don't write it)
+- Results return to the app's `qormOn<X>` callback
+- `qormext.Emit(event, dataJSON)` uses the **native→UI event bus**: the lower layer actively pushes signals to the UI, and the frontend only listens with `qormOn(event, fn)` -- no request-response needed
 
-> 硬件访问要走原生桥时,**离线包需带框架原生桥**(见文末边界)。
+> When hardware access must go through the native bridge, **the offline package must include the framework native bridge** (see the boundaries at the end).
 
-## 桥接契约(内置硬件 + 自定义,同一套)
+## Bridging contract (built-in hardware + custom, same mechanism)
 
 ```
-组件/JS  ──①qormToNative(op, data)──►  Go 中间层 / 框架原生桥
-组件/JS  ◄──③qormOn<X>(result)────────┘  回调送回 web
+component/JS  ──①qormToNative(op, data)──►  Go middle layer / framework native bridge
+component/JS  ◄──③qormOn<X>(result)────────┘  callback returns to web
 ```
 
-`qormHasNative()`(有原生桥)/ `qormHasMobileNative()`(iOS/Android 全量桥),浏览器/桌面自动回退到 Web API。
+`qormHasNative()` (a native bridge is present) / `qormHasMobileNative()` (the full iOS/Android bridge); browser/desktop automatically fall back to the Web API.
 
-## 高级:罕见纯原生 SDK(Swift / Java 注入)
+## Advanced: rare pure-native SDKs (Swift / Java injection)
 
-如果某能力**必须**用平台原生 API 且 Web API + 框架桥都够不到(某些厂商专有 SDK),再放 `native/ios.swift` / `native/android.java` 片段,打包时注入生成工程。**大多数情况不需要——先用上面的 Go。**
+If a capability **must** use a platform-native API and neither the Web API nor the framework bridge can reach it (certain vendor-proprietary SDKs), add `native/ios.swift` / `native/android.java` snippets, which are injected into the generated project at package time. **Most of the time this is unnecessary -- use the Go above first.**
 
 ```
 myapp/native/
-    desktop.go      # 推荐:Go 中间层(桌面二进制 + 手机/网页 WASM)
-    web.js          # web 侧:qormOn<X> 回调 + 把按钮接到 op
-    ios.swift       # 高级:罕见 iOS 纯原生 SDK
-    android.java    # 高级:罕见 Android 纯原生 SDK
+    desktop.go      # recommended: Go middle layer (desktop binary + mobile/web WASM)
+    web.js          # web side: qormOn<X> callbacks + wiring buttons to ops
+    ios.swift       # advanced: rare iOS pure-native SDK
+    android.java    # advanced: rare Android pure-native SDK
 ```
 
 ### `native/ios.swift`
 
-定义一个 `qormUserOp` 函数,用 `switch` 分发你的 op。iOS 桥的 `switch` 默认分支会调它。类里可用 `js(_:)` 回调、`body` 拿到 `qormToNative` 传的数据。
+Define a `qormUserOp` function and dispatch your ops with a `switch`. The default branch of the iOS bridge's `switch` calls it. Inside the class you can use the `js(_:)` callback and `body` to get the data passed by `qormToNative`.
 
 ```swift
 func qormUserOp(_ op: String, _ body: [String: Any]) {
     switch op {
     case "myBankSDK":
         let amount = body["amount"] as? Double ?? 0
-        // 这里调你真实的原生 SDK……
+        // call your real native SDK here...
         js("qormOnBankSDK(\"paid \\(amount) via native SDK\")")
     default:
         break
@@ -78,7 +78,7 @@ func qormUserOp(_ op: String, _ body: [String: Any]) {
 
 ### `native/android.java`
 
-每个 op 是一个 `@JavascriptInterface` 方法(注入到 Bridge 类,挂在 `window.qormAndroid` 上)。用 `js(String)` 回调。
+Each op is a `@JavascriptInterface` method (injected into the Bridge class, exposed on `window.qormAndroid`). Use the `js(String)` callback.
 
 ```java
 @JavascriptInterface public void myBankSDK() {
@@ -88,44 +88,44 @@ func qormUserOp(_ op: String, _ body: [String: Any]) {
 
 ### `native/web.js`
 
-注入到页面,负责 **web 侧**两件事:定义 `qormOn<X>` 回调,以及把 app 里的按钮(按 id)接到 `qormToNative`。这样浏览器/桌面用 Web API、手机用原生桥,同一份逻辑。
+Injected into the page, responsible for two things on the **web side**: defining `qormOn<X>` callbacks, and wiring the app's buttons (by id) to `qormToNative`. This way browser/desktop use the Web API and mobile uses the native bridge, with the same logic.
 
 ```js
-// 点 #payBtn → 触发自定义原生 op
+// click #payBtn → trigger the custom native op
 document.addEventListener('click', function (e) {
   if (e.target.closest('#payBtn')) qormToNative('myBankSDK', { amount: 9.99 });
 });
-// 原生/Web 回调:更新 UI
+// native/Web callback: update the UI
 function qormOnBankSDK(msg) {
   var el = document.getElementById('result');
   if (el) el.textContent = msg;
 }
 ```
 
-> 组件的 `id`(qorm.json 里写的)会渲染成 DOM 的 `id`,所以 `web.js` 能用 `getElementById` / `closest('#id')` 定位它们。
+> A component's `id` (declared in qorm.json) renders as the DOM `id`, so `web.js` can locate it with `getElementById` / `closest('#id')`.
 
-## 完整示例
+## Complete examples
 
-- [`examples/middleware`](../../examples/middleware) —— **推荐**,展示 Go 中间层全貌:
-  `hash`(真 `crypto/sha256`,声明式 JSON 做不到的逻辑)、`visit`(常驻 Go 内存的有状态计数)、
-  `celebrate`(Go 调框架硬件桥 `qormext.Native` + 用 `qormext.Emit` 往 UI 事件总线推事件)。
-  一份 `native/desktop.go`,桌面二进制 + 手机/网页 WASM 都编进去。
-- [`examples/native-ext`](../../examples/native-ext) —— 最小版:一个「Pay via Native SDK」按钮,
-  含 `ios.swift` / `android.java` 纯原生逃生舱片段。
+- [`examples/middleware`](../../examples/middleware) -- **recommended**, showing the full Go middle layer:
+  `hash` (real `crypto/sha256`, logic that declarative JSON cannot express), `visit` (stateful counting held in Go memory),
+  `celebrate` (Go calling the framework hardware bridge `qormext.Native` + using `qormext.Emit` to push events to the UI event bus).
+  A single `native/desktop.go`, compiled into the desktop binary and the mobile/web WASM alike.
+- [`examples/native-ext`](../../examples/native-ext) -- minimal version: a "Pay via Native SDK" button,
+  with `ios.swift` / `android.java` pure-native escape-hatch snippets.
 
 ```bash
-qorm run examples/middleware                         # 桌面:Go 中间层编进二进制,直接跑
-qorm package examples/middleware -p web              # 一份 Go 编进离线 WASM
-qorm package examples/native-ext -p ios --dev URL    # 注入 ios.swift 到 dev 客户端
+qorm run examples/middleware                         # desktop: Go middle layer compiled into the binary, runs directly
+qorm package examples/middleware -p web              # one Go source compiled into the offline WASM
+qorm package examples/native-ext -p ios --dev URL    # inject ios.swift into the dev client
 ```
 
-## 边界与提示
+## Boundaries and tips
 
-- **iOS / Android**:完全支持。生成的工程注入你的片段,和内置硬件同一套契约。
-- **手机 / 网页(WASM)**:同一个 `native/desktop.go` 也**编进离线 WASM**(QORM 运行时本就是 Go→WASM),在 iOS/Android/浏览器的 WebView 里跑——**一份 Go,到处能用**。`qorm package -p web/ios/android` 时打包器把它注入 `cmd/qorm-wasm` 一起编。WebView 里 `qormToNative('op')` 优先交给 WASM 里的 Go(`window.qormWasmOp`),返回一行 JS 执行。
-  - **WASM 能操作硬件**:Go 中间层可以 `qormext.Native("bluetoothScan", "{}")` / `qormext.CallJS(js)` **直接调框架底层**——通用硬件走 Web API,iOS 缺的蓝牙/NFC 走框架原生桥(框架已内置,用户不写)。结果回到 app 的 `qormOn<X>` 回调。
-  - **注意(收敛中)**:离线包的 WebView 目前带 WASM,但**框架原生桥正在合并进离线 VC**。合并前,离线包硬件走 Web API(iOS 蓝牙/NFC 暂缺);dev 客户端有完整原生桥。合并后离线包 = WASM(含用户 Go)+ 全量原生桥,Go 中间层够到全部硬件。
-- **桌面(macOS)**:用户中间层就是 **Go**,和前端+框架一起**编译进那一个二进制**(不是子进程、不是别的语言)。写 `native/desktop.go`:
+- **iOS / Android**: fully supported. The generated project injects your snippets under the same contract as the built-in hardware.
+- **Mobile / web (WASM)**: the same `native/desktop.go` is also **compiled into the offline WASM** (the QORM runtime is itself Go→WASM), running inside the WebView on iOS/Android/browser -- **one Go source, usable everywhere**. During `qorm package -p web/ios/android`, the packager injects it into `cmd/qorm-wasm` and compiles it together. In the WebView, `qormToNative('op')` is handed first to the Go inside the WASM (`window.qormWasmOp`), which returns one line of JS to execute.
+  - **WASM can drive hardware**: the Go middle layer can `qormext.Native("bluetoothScan", "{}")` / `qormext.CallJS(js)` to **call framework internals directly** -- common hardware goes through the Web API, and the Bluetooth/NFC that iOS lacks go through the framework native bridge (built into the framework; the user doesn't write it). Results return to the app's `qormOn<X>` callback.
+  - **Note (in progress)**: the offline package's WebView currently ships WASM, but **the framework native bridge is being merged into the offline VC**. Before that merge, offline-package hardware goes through the Web API (iOS Bluetooth/NFC temporarily unavailable); the dev client has the full native bridge. After the merge, the offline package = WASM (including user Go) + the full native bridge, and the Go middle layer reaches all hardware.
+- **Desktop (macOS)**: the user middle layer is just **Go**, **compiled into that single binary** together with the frontend + framework (not a subprocess, not another language). Write `native/desktop.go`:
 
   ```go
   //go:build ignore
@@ -134,15 +134,15 @@ qorm package examples/native-ext -p ios --dev URL    # 注入 ios.swift 到 dev 
   import "github.com/qorm/qorm/pkg/qormext"
   func init() {
       qormext.Register("myBankSDK", func(data map[string]any) string {
-          // 你的 Go 逻辑:HTTP、计算、协议、后端集成……data 是 qormToNative 的 payload
-          return `qormOnBankSDK("paid via Go middle-layer")` // 返回一行 JS,桌面 eval 回页面
+          // Your Go logic: HTTP, computation, protocols, backend integration... data is the qormToNative payload
+          return `qormOnBankSDK("paid via Go middle-layer")` // return one line of JS, which desktop evals back into the page
       })
   }
   ```
 
-  `qorm package -p mac` 会把它和框架一起 `go build` 成**单一二进制**(打包器把它注入 cmd/qorm 编译、完了删掉);桌面桥遇到未知 op 就查 `qormext` 注册表。`web.js` 也照常生效(桌面上摄像头/麦克风/定位直接用 Web API,localhost 即安全上下文)。
-  > `//go:build ignore` 让 `go build ./...` 不单独编它;打包时打包器会剥掉这行再编进去。
-- **平台一致性警告**:如果你有 `native/ios.swift` 却没有 `native/android.java`(反之亦然),`qorm package` 会警告——你的自定义 op 在缺片段的平台上不会执行。
-- **权限**:原生能力涉及的系统权限(相机、蓝牙、定位…)在生成工程的 `Info.plist` / `AndroidManifest.xml` 里声明;付费 team / 特殊 entitlement(如 NFC)按平台提示处理。
+  `qorm package -p mac` runs `go build` on it together with the framework into a **single binary** (the packager injects it into cmd/qorm for compilation, then removes it afterward); when the desktop bridge hits an unknown op, it looks it up in the `qormext` registry. `web.js` also works as usual (on desktop, camera/microphone/location use the Web API directly, since localhost is a secure context).
+  > `//go:build ignore` keeps `go build ./...` from compiling it standalone; at package time the packager strips this line before compiling it in.
+- **Platform consistency warning**: if you have `native/ios.swift` but no `native/android.java` (or vice versa), `qorm package` warns you -- your custom op will not run on the platform that is missing its snippet.
+- **Permissions**: the system permissions that native capabilities require (camera, Bluetooth, location, and so on) are declared in the generated project's `Info.plist` / `AndroidManifest.xml`; paid-team / special entitlements (such as NFC) are handled per the platform's guidance.
 
-相关:[移动端](mobile.md) · [桌面端](desktop.md)
+Related: [Mobile](mobile.md) · [Desktop](desktop.md)

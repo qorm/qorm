@@ -1,8 +1,8 @@
 # QORM Mobile Platform
 
-Mobile 需要专门适配，不能简单复用 Desktop 实现。
+Mobile requires dedicated adaptation; it cannot simply reuse the Desktop implementation.
 
-## Package it · 打包与试用
+## Package it
 
 ```sh
 qorm package examples/hardware -p ios     -o hardware-ios      # an Xcode project
@@ -14,25 +14,25 @@ The app runs offline on device via Go→WASM in a WebView. Examples:
 [`i18n`](../../examples/i18n) (locales, plurals, currency, RTL). See the
 [support matrix](support-matrix.md) for per-capability platform support.
 
-## 架构
+## Architecture
 
 ```text
 Mobile App (WebView)
   ↓
-Go QORM Runtime，编译为 WASM（cmd/qorm-wasm，随应用一起 Go→WASM）
+Go QORM Runtime, compiled to WASM (cmd/qorm-wasm, Go→WASM shipped with the app)
   ↓
 qormToNative op
   ↓
-原生桥（iOS: package_native.go iosBridgeBody() / Android: androidMainActivity()）
+Native bridge (iOS: package_native.go iosBridgeBody() / Android: androidMainActivity())
   ↓
 Swift / Kotlin thin bridge
   ↓
 iOS / Android system APIs
 ```
 
-## 动态 Bundle
+## Dynamic Bundle
 
-移动端可以内置解释器动态加载：
+Mobile can load bundles dynamically via a built-in interpreter:
 
 ```text
 qorm.bundle.json
@@ -46,14 +46,14 @@ activate
 rollback on failure
 ```
 
-## Bundle 签名执行要求
+## Bundle signature enforcement requirements
 
-- 设备端必须校验 `hash`、`signature`、`keyId`、`minRuntimeVersion`。
-- 未知或已吊销签名密钥不得激活。
-- 新 Bundle 激活失败时必须回滚到 `last known-good bundle`。
-- 离线场景下应使用最近一次可信 trust metadata / revocation snapshot。
+- The device must verify `hash`, `signature`, `keyId`, and `minRuntimeVersion`.
+- Unknown or revoked signing keys must not be activated.
+- If a new Bundle fails to activate, it must roll back to the `last known-good bundle`.
+- In offline scenarios, use the most recent trusted trust metadata / revocation snapshot.
 
-## 需要专项处理
+## Requires dedicated handling
 
 ```text
 safe area
@@ -72,39 +72,39 @@ rollback
 
 ## iOS
 
-iOS 侧建议：
+Recommendations for iOS:
 
 ```text
-Go 运行时编译为 WASM（cmd/qorm-wasm）随应用打包
-Swift thin bridge（原生桥补 Web API 缺失的能力，如蓝牙/NFC）
-WebView 内置 Runtime，本地运行 Bundle
-Bundle 作为 UI 描述数据
-固定 Host Capability 白名单
+Go runtime compiled to WASM (cmd/qorm-wasm), packaged with the app
+Swift thin bridge (native bridge fills capabilities missing from the Web API, such as Bluetooth/NFC)
+WebView with a built-in Runtime, running the Bundle locally
+Bundle as UI description data
+A fixed Host Capability allowlist
 ```
 
-Bundle 不应新增未审核的底层 Native API。
+Bundles should not introduce unreviewed low-level Native APIs.
 
 ## Android
 
-Android 侧建议：
+Recommendations for Android:
 
 ```text
-Go 运行时编译为 WASM（cmd/qorm-wasm）随应用打包
-Kotlin thin bridge（原生桥补 Web API 缺失的能力）
-JNI 调用最小化
-Host Capability 注册
+Go runtime compiled to WASM (cmd/qorm-wasm), packaged with the app
+Kotlin thin bridge (native bridge fills capabilities missing from the Web API)
+Minimal JNI calls
+Host Capability registration
 Bundle cache
 ```
 
-## 移动端审批存续
+## Mobile approval persistence
 
-- 审批默认应绑定 app session 或用户 session。
-- app 更新、账号切换、Bundle 切换、策略变化后应重新评估原审批。
-- 涉及文件写入、系统分享、外部域名访问等危险能力时，不应无限期复用旧审批。
+- By default, approvals should be bound to an app session or a user session.
+- After an app update, account switch, Bundle switch, or policy change, prior approvals should be re-evaluated.
+- For dangerous capabilities such as file writes, system sharing, or external-domain access, old approvals should not be reused indefinitely.
 
-## 不考虑 JIT
+## No JIT
 
-移动端不使用 Native JIT。性能依靠：
+Mobile does not use a Native JIT. Performance relies on:
 
 ```text
 Typed IR

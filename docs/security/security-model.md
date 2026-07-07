@@ -1,25 +1,24 @@
 # QORM Security Model
 
-> **目标模型 vs. 当前实现。** 本文件描述 QORM 的**目标**安全模型。当前 Go 运行时**已强制**的部分:
-> ed25519 「验证产物再运行」的 Bundle 签名 + 内容完整性(整性优先于签名);OTA 更新需要可信公钥
-> (`--trust`,否则拒绝);密钥撤销绑定到实际验证密钥;本地服务器对危险端点(`/window` eval、
-> `/update`、`/mcp`)做跨源(CSRF/DNS-rebind)拦截;移动端原生能力由系统权限弹窗把关,生成工程按
-> 已用 widget 派生 `Info.plist` / `AndroidManifest` 声明。
-> **尚未实现**(本文所述的目标,勿当作已生效的保证):独立的运行时「能力审批层」——即逐能力的
-> 白名单裁决、approval 生命周期(撤销/过期)、以及「桌面原生 op 在传输层之外再受门控」。桌面原生
-> op 目前不做独立审批;下面的「安全不变量」是设计意图,不是当前强制项。
+> **Target model vs. current implementation.** This document describes QORM's **target** security model. What the current Go runtime **already enforces**:
+> ed25519 "verify the artifact before running it" Bundle signing + content integrity (integrity takes precedence over signing); OTA updates require a trusted public key
+> (`--trust`, otherwise rejected); key revocation bound to the actual verification key; the local server blocks cross-origin (CSRF/DNS-rebind) access to dangerous endpoints (`/window` eval,
+> `/update`, `/mcp`); mobile native capabilities are gated by system permission prompts, and generated projects derive `Info.plist` / `AndroidManifest` declarations from the widgets actually used.
+> **Not yet implemented** (the targets described here; do not treat them as guarantees already in effect): a standalone runtime "capability approval layer" — that is, per-capability
+> allowlist adjudication, an approval lifecycle (revocation/expiration), and "desktop native ops gated beyond the transport layer". Desktop native
+> ops are currently not independently approved; the "security invariants" below are design intent, not currently enforced requirements.
 
-QORM 支持动态 Bundle、Agent Patch、Host Capability、Plugin 和 Native Bridge，因此安全模型必须内置。
+QORM supports dynamic Bundles, Agent Patches, Host Capabilities, Plugins, and the Native Bridge, so the security model must be built in.
 
-## 安全目标
+## Security Goals
 
-- Bundle 不能绕过平台权限。
-- Agent 默认不能执行危险操作。
-- Host Capability 必须白名单化。
-- Plugin 必须声明权限和能力。
-- 移动端动态更新必须可校验、可回滚。
+- Bundles must not bypass platform permissions.
+- Agents must not perform dangerous operations by default.
+- Host Capabilities must be allowlisted.
+- Plugins must declare their permissions and capabilities.
+- Mobile dynamic updates must be verifiable and reversible.
 
-## 信任边界
+## Trust Boundaries
 
 ```text
 Source JSON
@@ -32,27 +31,27 @@ Agent
 Platform
 ```
 
-每个边界都必须可校验。
+Every boundary must be verifiable.
 
-## 决策边界
+## Decision Boundaries
 
-- Bundle 是声明式输入，不授予权限。
-- Runtime 负责执行校验、解析、Patch 与权限调度。
-- Host / Platform 是底层能力最终裁决者。
-- Agent 不能自行批准自己的危险操作。
-- 自定义 Web client、Plugin 或 Bridge 只能实现 transport / adapter，不能替代权限裁决层。
+- A Bundle is declarative input; it does not grant permissions.
+- The Runtime is responsible for executing verification, resolution, patching, and permission dispatch.
+- The Host / Platform is the final arbiter of low-level capabilities.
+- An Agent cannot approve its own dangerous operations.
+- A custom Web client, Plugin, or Bridge can only implement transport / adapter logic; it cannot replace the permission adjudication layer.
 
-## 安全不变量
+## Security Invariants
 
-- 不存在任何路径可以绕过 Host Capability 直接访问底层 API。
-- 没有任何 approval 可以把 unsupported capability 变成 supported。
-- 已签名 Bundle 也不能绕过 app/system policy。
-- 被撤销或过期的 approval 不得继续用于未来调用。
-- MCP 工具不得进入渲染热路径。
+- No path exists that can bypass Host Capabilities to directly access low-level APIs.
+- No approval can turn an unsupported capability into a supported one.
+- A signed Bundle still cannot bypass app/system policy.
+- A revoked or expired approval must not continue to be used for future calls.
+- MCP tools must not enter the rendering hot path.
 
-## Bundle 安全
+## Bundle Security
 
-Bundle 必须包含：
+A Bundle must contain:
 
 ```text
 bundleVersion
@@ -64,17 +63,17 @@ capability requirements
 source manifest
 ```
 
-签名、canonicalization、信任根、轮换与吊销规则以 `bundle-signing.md` 为准。
+The rules for signing, canonicalization, trust root, rotation, and revocation are governed by `bundle-signing.md`.
 
-## Agent 安全
+## Agent Security
 
-Agent 默认只能 inspect、validate、preview。apply、host.call、filesystem.saveFile 等写入类能力、deploy 必须经过策略和必要审批。
+By default, an Agent can only inspect, validate, and preview. Write-class capabilities such as apply, host.call, and filesystem.saveFile, and deploy, must go through policy and any required approval.
 
-Agent 权限与系统权限的关系以 `agent/permissions.md` 和 `permission-model.md` 为准。
+The relationship between Agent permissions and system permissions is governed by `agent/permissions.md` and `permission-model.md`.
 
-## Host Capability 安全
+## Host Capability Security
 
-每个 Host Capability 必须声明：
+Every Host Capability must declare:
 
 ```text
 name
@@ -85,11 +84,11 @@ platform support
 requires approval
 ```
 
-运行时权限优先级、审批生命周期和审计规则以 `permission-model.md` 和 `host-capability-spec.md` 为准。
+Runtime permission priority, approval lifecycle, and audit rules are governed by `permission-model.md` and `host-capability-spec.md`.
 
-## Plugin 安全
+## Plugin Security
 
-Plugin 需要：
+A Plugin requires:
 
 ```text
 manifest
@@ -99,19 +98,19 @@ version
 signature
 ```
 
-Plugin 只能收窄自身能力，不得扩大宿主策略允许范围。
+A Plugin can only narrow its own capabilities; it must not widen the scope allowed by host policy.
 
-## Web / Custom Client 安全边界
+## Web / Custom Client Security Boundaries
 
-- Browser sandbox 是 Web 端外层能力边界。
-- Web Host Adapter 是 QORM 在浏览器内的权限执行点。
-- injected/custom HttpClient 只是 transport adapter，不能跳过域名、方法、凭证和审批检查。
-- 浏览器原生权限提示不等于 QORM approval；两者都必须满足时才可放行。
+- The browser sandbox is the outermost capability boundary on the Web side.
+- The Web Host Adapter is QORM's permission enforcement point inside the browser.
+- An injected/custom HttpClient is only a transport adapter; it cannot skip domain, method, credential, and approval checks.
+- A browser native permission prompt is not equivalent to a QORM approval; both must be satisfied before access is granted.
 
-## 禁止行为
+## Prohibited Behaviors
 
-- Bundle 动态新增未审核 Native API。
-- Agent 无确认写入文件系统。
-- UI Action 直接执行 shell。
-- 插件绕过 Host Capability。
-- 自定义 client 充当权限裁决者。
+- A Bundle dynamically adding an unreviewed Native API.
+- An Agent writing to the filesystem without confirmation.
+- A UI Action directly executing a shell.
+- A plugin bypassing Host Capabilities.
+- A custom client acting as the permission arbiter.

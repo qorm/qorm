@@ -1,10 +1,10 @@
 # QORM OpenClaw Pack
 
-OpenClaw Pack 用于长期运行、跨渠道或自动化型 Agent 接入 QORM。
+The OpenClaw Pack is for long-running, cross-channel, or automated agents connecting to QORM.
 
-## 定位
+## Positioning
 
-OpenClaw 可以调用 QORM MCP Server，但 QORM 不依赖 OpenClaw。
+OpenClaw can call the QORM MCP Server, but QORM does not depend on OpenClaw.
 
 ```text
 OpenClaw Agent
@@ -16,9 +16,9 @@ QORM Agent Protocol
 QORM Core
 ```
 
-## 默认策略
+## Default Policy
 
-OpenClaw Pack 默认采用更严格权限：
+The OpenClaw Pack uses a stricter permission policy by default:
 
 ```text
 inspect: allow
@@ -31,41 +31,41 @@ shell: deny
 filesystem.write: deny unless approved
 ```
 
-## 权限边界
+## Permission Boundaries
 
-- OpenClaw Pack 只能收窄权限，不能放宽平台或系统策略。
-- `preview_patch` 仍必须无副作用。
-- 任何提升都必须绑定显式 approval 生命周期。
+- The OpenClaw Pack can only narrow permissions; it cannot loosen platform or system policy.
+- `preview_patch` must still be free of side effects.
+- Any elevation must be bound to an explicit approval lifecycle.
 
-## 适用任务
+## Applicable Tasks
 
 ```text
-远程检查 UI
-生成修改建议
-预览 Patch
-平台兼容性检查
-布局诊断
-文档生成
+Remote UI inspection
+Generating change suggestions
+Previewing Patches
+Platform compatibility checks
+Layout diagnostics
+Documentation generation
 ```
 
-## 不建议任务
+## Discouraged Tasks
 
 ```text
-自动 apply patch
-自动部署
-自动调用底层系统能力
-自动修改权限配置
+Automatic patch apply
+Automatic deployment
+Automatic invocation of low-level system capabilities
+Automatic modification of permission configuration
 ```
 
-## 权限提升
+## Permission Elevation
 
-任何权限提升必须包含：
+Any permission elevation must include:
 
 ```text
-原因
-范围
-目标文件
-风险
-用户确认
-过期时间
+Reason
+Scope
+Target files
+Risk
+User confirmation
+Expiration time
 ```

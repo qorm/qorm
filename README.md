@@ -1,13 +1,34 @@
-# QORM Go Runtime
+# QORM
 
-QORM is a pure-Go runtime that loads a QORM app — a small, language-neutral JSON
-format for UI (manifest + scenes + actions) — and runs it live in the browser,
-renders a static HTML snapshot, compiles/signs it into a distributable bundle,
-serves it over-the-air with rollback, and exposes it to AI agents over MCP. No
-cgo, so it cross-compiles to every platform from any machine.
+**Build UI apps with your AI assistant — together, live.** QORM is an
+agent-native declarative-UI runtime: describe a UI as small, language-neutral
+JSON, and your AI (Claude, Cursor, …) can **scaffold, edit, run, and verify** it
+while you collaborate on the same running app in real time — you click, it sees
+you; it edits, you watch it happen.
+
+Under the hood it's pure Go (no cgo): it runs the app live in the browser, renders
+a static HTML snapshot, ed25519-signs it into a distributable bundle, serves it
+over-the-air with rollback, exposes it to agents over MCP, and packages it for
+web / iOS / Android / desktop / mini-program — cross-compiled from any machine.
 
 Developed in collaboration with Claude (Anthropic) — fitting, since human-AI
 collaboration is QORM's whole premise.
+
+## Build with your AI assistant
+
+QORM is agent-native: point your AI coding assistant (Claude Code, Claude Desktop,
+Cursor, Windsurf, …) at it and have it **scaffold, edit, run, and verify** QORM
+apps — then collaborate with you on a live app in real time. You click, it sees
+you (`qorm_activity`); it edits, you see an **"AI edited"** toast. Set it up once:
+
+```sh
+go install github.com/qorm/qorm/cmd/qorm@latest
+claude mcp add qorm -- qorm mcp .      # or add integrations/mcp.json to your agent
+```
+
+Then just ask — *"scaffold a habit tracker"*, *"fix this overflow"*, *"package it
+for web"*. Full guide: **[Build with your AI](docs/build-with-ai.md)** ·
+[Human-AI collaboration](docs/collaboration.md).
 
 ## Platform support
 

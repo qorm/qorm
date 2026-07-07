@@ -1,19 +1,19 @@
 # QORM Claude Pack
 
-Claude Pack 用于 Claude 类 Agent 的 QORM 工作流。
+The Claude Pack provides a QORM workflow for Claude-style agents.
 
-## 适用任务
+## Applicable Tasks
 
 ```text
-文档编写
-架构分析
-JSON 生成
-Layout 检查
-平台兼容性分析
-Agent Patch 生成
+Documentation writing
+Architecture analysis
+JSON generation
+Layout inspection
+Platform compatibility analysis
+Agent Patch generation
 ```
 
-## 推荐工具
+## Recommended Tools
 
 ```text
 qorm.inspect_scene
@@ -23,9 +23,9 @@ qorm.explain_node
 qorm.platform_check
 ```
 
-## 安全要求
+## Security Requirements
 
-Claude Pack 默认不应允许：
+By default, the Claude Pack should not permit:
 
 ```text
 apply_patch
@@ -35,20 +35,20 @@ shell
 deploy
 ```
 
-需要用户确认后才能执行有副作用操作。
+Operations with side effects require user confirmation before they can run.
 
-## 权限边界
+## Permission Boundaries
 
-- Claude Pack 不能提升主权限模型授予范围。
-- 即便 Pack 层允许某操作，仍需通过 platform / app / host policy。
-- `preview_patch` 与 `apply_patch` 的审批关系以 Agent Protocol 和 Permission Model 为准。
+- The Claude Pack cannot expand the scope granted by the primary permission model.
+- Even if the Pack layer permits an operation, it must still pass the platform / app / host policy.
+- The approval relationship between `preview_patch` and `apply_patch` is governed by the Agent Protocol and Permission Model.
 
-## Prompt 规则
+## Prompt Rules
 
-Claude 应遵守：
+Claude should follow these rules:
 
-- 先分析现有结构，再生成 Patch。
-- 不直接重写整个 Bundle。
-- 不添加平台不支持能力。
-- 不把 QORM 当成完整游戏引擎。
-- 移动端能力必须经过 platform_check。
+- Analyze the existing structure first, then generate a Patch.
+- Do not rewrite the entire Bundle directly.
+- Do not add capabilities the platform does not support.
+- Do not treat QORM as a full game engine.
+- Mobile capabilities must pass platform_check.
