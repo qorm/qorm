@@ -25,6 +25,9 @@ type Runtime struct {
 	// NavStack holds the scenes to return to for navigate-back.
 	Scene    string
 	NavStack []string
+	// NavDir records the direction of the most recent navigation ("push" / "pop")
+	// so the client can play the matching page transition; cleared after it ships.
+	NavDir string
 }
 
 // CurrentScene is the scene id to render ("" falls back to the entry scene).
@@ -41,6 +44,7 @@ func (r *Runtime) Navigate(to string) {
 	}
 	r.NavStack = append(r.NavStack, r.Scene)
 	r.Scene = to
+	r.NavDir = "push"
 }
 
 // NavigateBack returns to the previous scene, if any.
@@ -50,7 +54,11 @@ func (r *Runtime) NavigateBack() {
 	}
 	r.Scene = r.NavStack[len(r.NavStack)-1]
 	r.NavStack = r.NavStack[:len(r.NavStack)-1]
+	r.NavDir = "pop"
 }
+
+// TakeNavDir returns and clears the pending navigation direction.
+func (r *Runtime) TakeNavDir() string { d := r.NavDir; r.NavDir = ""; return d }
 
 // New creates a runtime with state seeded from the manifest's initial values.
 func New(app *model.App) *Runtime {
