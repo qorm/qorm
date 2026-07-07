@@ -33,6 +33,7 @@ counter-weapp/
   reused wholesale (WXSS accepts inline `style=` and CSS variables).
 - **Tap wiring** — `onclick="qorm(N)"` becomes `bindtap="onTap"` carrying the
   handler index in `data-h`, so events reach the page model.
+- **Icons & charts** — inline SVG is re-encoded as a data-URI `<image>` (WXML can't render `<svg>`); chart colors convert exactly, icon color defaults to a neutral (full icon theming is a follow-up).
 - **Theme** — QORM's design tokens (`--accent`, `--label`, …) go into `app.wxss`.
 
 ## What's next (not in the foundation yet)
