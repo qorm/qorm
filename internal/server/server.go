@@ -849,6 +849,9 @@ func Page(rt *runtime.Runtime, body string, rev int64) string {
   /* Spatial attribution: a node the AI just changed pulses a blue outline. */
   .qorm-ai-touch { animation:qorm-ai-flash 1.3s ease-out; border-radius:inherit; }
   @keyframes qorm-ai-flash { 0%% { box-shadow:0 0 0 2px rgba(10,132,255,.9); } 60%% { box-shadow:0 0 0 2px rgba(10,132,255,.45); } 100%% { box-shadow:0 0 0 2px rgba(10,132,255,0); } }
+  /* Page transition: a scene swapped in by navigation slides + fades in. */
+  .qorm-scene-in { animation:qorm-scene-in 300ms cubic-bezier(.32,.72,0,1) both; }
+  @keyframes qorm-scene-in { from { opacity:0; transform:translateX(26px); } to { opacity:1; transform:none; } }
   @keyframes qa-fade { from { opacity:0; } to { opacity:1; } }
   @keyframes qa-fadeup { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
   @keyframes qa-fadedown { from { opacity:0; transform:translateY(-16px); } to { opacity:1; transform:none; } }
@@ -926,6 +929,9 @@ function morphKids(from, to){
       var rn=document.importNode(tc,true); from.replaceChild(rn, fc); qormFlash(rn);
     } else if(fc.nodeType===3 || fc.nodeType===8){
       if(fc.nodeValue!==tc.nodeValue){ fc.nodeValue=tc.nodeValue; qormFlash(from); }
+    } else if(fc.nodeType===1 && fc.getAttribute('data-scene')!==null && fc.getAttribute('data-scene')!==tc.getAttribute('data-scene')){
+      // navigation swapped the scene: recreate the root so it plays a page transition
+      var sn=document.importNode(tc,true); from.replaceChild(sn, fc); sn.classList.add('qorm-scene-in');
     } else if(fc.nodeType===1){
       morphEl(fc, tc);
     }
