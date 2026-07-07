@@ -48,6 +48,10 @@ type renderer struct {
 	unknowns     []string
 	compChildren []*model.Node // children of the current component instance (for slot)
 	compDepth    int
+	// per-render caches: state + the resolved i18n catalog are constant during a
+	// single render, so compute them once instead of per bound node.
+	catalog map[string]any
+	baseCtx map[string]any
 }
 
 // nid returns a node's id made unique within the current list item, so widgets
@@ -114,7 +118,16 @@ func (r *renderer) renderComponent(n *model.Node, comp *model.Node) {
 }
 
 func (r *renderer) ctx() map[string]any {
-	m := map[string]any{"state": r.rt.State, "t": r.rt.Catalog()}
+	if r.catalog == nil {
+		r.catalog = r.rt.Catalog() // resolve the i18n catalog once per render, not per node
+	}
+	if len(r.scope) == 0 {
+		if r.baseCtx == nil { // most nodes have no list scope — share one read-only ctx
+			r.baseCtx = map[string]any{"state": r.rt.State, "t": r.catalog}
+		}
+		return r.baseCtx
+	}
+	m := map[string]any{"state": r.rt.State, "t": r.catalog}
 	for k, v := range r.scope {
 		m[k] = v
 	}
