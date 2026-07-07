@@ -6,9 +6,9 @@
   ]},
   {"type":"bottomnav","id":"nav","value":"{{state.tab}}",
    "items":[
-     {"value":"home","icon":"🏠","label":"Home"},
-     {"value":"search","icon":"🔍","label":"Search"},
-     {"value":"profile","icon":"👤","label":"Profile"}
+     {"value":"home","icon":"home","label":"Home"},
+     {"value":"search","icon":"search","label":"Search"},
+     {"value":"profile","icon":"user","label":"Profile"}
    ],
    "onChange":{"type":"invoke","name":"setTab","args":{}}}
 ]}}

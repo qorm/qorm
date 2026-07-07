@@ -41,7 +41,7 @@
           "style": { "background": "#fff", "padding": 12, "margin": { "bottom": 8 }, "borderRadius": 10, "gap": 10 },
           "layout": { "align": "center" },
           "children": [
-            { "type": "button", "id": "chk", "label": "{{ item.done ? \"✓\" : \"○\" }}",
+            { "type": "button", "id": "chk", "label": "{{ item.done ? \"●\" : \"○\" }}",
               "style": { "background": "#f1f5f9", "color": "#16a34a", "width": 32, "height": 32, "borderRadius": 16, "fontSize": 16 },
               "onPress": { "type": "invoke", "name": "toggleTask", "args": { "id": "{{item.id}}" } } },
             { "type": "text", "id": "t", "text": "{{item.title}}", "style": { "fontSize": 15, "color": "#111827", "flexGrow": 1 } },
@@ -52,7 +52,7 @@
           ]
         }
       },
-      { "type": "empty", "id": "none", "if": "{{ len(state.tasks) == 0 }}", "icon": "🎉", "title": "All clear", "label": "No tasks — add one above." }
+      { "type": "empty", "id": "none", "if": "{{ len(state.tasks) == 0 }}", "icon": "check", "title": "All clear", "label": "No tasks — add one above." }
     ]
   }
 }

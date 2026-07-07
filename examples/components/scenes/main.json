@@ -327,15 +327,15 @@
       {
         "type": "empty",
         "id": "emp",
-        "icon": "🗂️",
+        "icon": "inbox",
         "title": "No files yet",
         "label": "Upload something to get started"
       },
       {
         "type": "appbar",
         "id": "ab",
-        "label": "Flutter Widgets",
-        "leading": "☰",
+        "label": "Widget Gallery",
+        "leading": "menu",
         "children": [
           {
             "type": "button",
@@ -348,7 +348,7 @@
       {
         "type": "listtile",
         "id": "lt",
-        "leading": "📁",
+        "leading": "folder",
         "label": "Documents",
         "subtitle": "14 files",
         "trailing": "›"
@@ -421,8 +421,8 @@
           {
             "type": "choicechip",
             "id": "cc1",
-            "label": "React",
-            "avatar": "⚛️"
+            "label": "Design",
+            "avatar": "star"
           },
           {
             "type": "filterchip",
@@ -607,7 +607,7 @@
         "id": "tff",
         "value": "{{state.email}}",
         "label": "Email",
-        "prefix": "✉",
+        "prefix": "mail",
         "placeholder": "you@x.com",
         "maxLength": 40,
         "helper": "We never share it",
@@ -637,7 +637,7 @@
               {
                 "type": "icon",
                 "id": "bic",
-                "text": "🔔",
+                "icon": "bell",
                 "style": {
                   "fontSize": 24
                 }
@@ -653,7 +653,7 @@
               {
                 "type": "icon",
                 "id": "bic2",
-                "text": "✉️",
+                "icon": "mail",
                 "style": {
                   "fontSize": 24
                 }
@@ -742,7 +742,7 @@
           {
             "type": "listtile",
             "id": "ls1",
-            "leading": "📶",
+            "leading": "wifi",
             "label": "Wi-Fi",
             "trailing": "Home",
             "onPress": {
@@ -754,7 +754,7 @@
           {
             "type": "listtile",
             "id": "ls2",
-            "leading": "🔵",
+            "leading": "bluetooth",
             "label": "Bluetooth",
             "onPress": {
               "type": "invoke",
@@ -765,7 +765,7 @@
           {
             "type": "listtile",
             "id": "ls3",
-            "leading": "🔔",
+            "leading": "bell",
             "label": "Notifications",
             "onPress": {
               "type": "invoke",
@@ -852,7 +852,7 @@
           {
             "type": "listtile",
             "id": "dtile",
-            "leading": "📧",
+            "leading": "mail",
             "label": "Swipe me left to delete",
             "subtitle": "an inbox row"
           }
@@ -1069,17 +1069,17 @@
             "items": [
               {
                 "value": "home",
-                "icon": "🏠",
+                "icon": "home",
                 "label": "Home"
               },
               {
                 "value": "lib",
-                "icon": "📚",
+                "icon": "book",
                 "label": "Library"
               },
               {
                 "value": "me",
-                "icon": "👤",
+                "icon": "user",
                 "label": "Me"
               }
             ]

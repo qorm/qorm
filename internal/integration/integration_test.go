@@ -294,7 +294,7 @@ func TestComponentBatch1(t *testing.T) {
 		"qorm-skel",   // skeleton
 		"qormAcc",     // accordion toggle wired
 		"Section one", // accordion header
-		"★",           // rating
+		"M12 3l2.6 5.3", // rating star icon (SVG path)
 		"Members",     // breadcrumb last crumb
 		">design<",    // tag
 	} {
@@ -421,9 +421,9 @@ func TestSortableTable(t *testing.T) {
 	}
 }
 
-// TestFlutterParityPhase1 covers the Flutter-parity phase-1 widgets: AppBar,
-// ListTile, Wrap, button variants, and FloatingActionButton.
-func TestFlutterParityPhase1(t *testing.T) {
+// TestWidgetParityPhase1 covers the phase-1 widgets: app bar, list tile, wrap,
+// button variants, and the floating action button.
+func TestWidgetParityPhase1(t *testing.T) {
 	app, err := loader.LoadDir(examplesDir(t, "components"))
 	if err != nil {
 		t.Fatalf("load: %v", err)
@@ -431,7 +431,7 @@ func TestFlutterParityPhase1(t *testing.T) {
 	html := render.Render(qrt.New(app)).HTML
 	for _, m := range []string{
 		"height:calc(44px",          // appbar (+ safe-area inset)
-		">Flutter Widgets<",         // appbar title
+		">Widget Gallery<",          // appbar title
 		">Documents<", ">14 files<", // listtile title+subtitle
 		"flex-wrap:wrap",                 // wrap
 		"border:1px solid var(--accent)", // outlined button variant
@@ -447,17 +447,18 @@ func TestFlutterParityPhase1(t *testing.T) {
 	}
 }
 
-// TestFlutterParityChips covers the Chip family + RangeSlider.
-func TestFlutterParityChips(t *testing.T) {
+// TestWidgetParityChips covers the chip family (choice/filter/input) + RangeSlider.
+func TestWidgetParityChips(t *testing.T) {
 	app, err := loader.LoadDir(examplesDir(t, "components"))
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
 	html := render.Render(qrt.New(app)).HTML
 	for _, m := range []string{
-		"border-radius:16px", // chips
-		">React<", "⚛️",      // choice chip + avatar
-		"✓",                              // selected filter chip check
+		"border-radius:16px",             // chips
+		">Design<",                       // choice chip label
+		"M12 3l2.6 5.3",                  // choice chip avatar (star icon SVG path)
+		"M4 12l5 5L20 6",                 // selected filter chip check icon (SVG path)
 		"qorm-range-lo", "qorm-range-hi", // range slider thumbs
 	} {
 		if !strings.Contains(html, m) {
@@ -470,8 +471,8 @@ func TestFlutterParityChips(t *testing.T) {
 	}
 }
 
-// TestFlutterParityGridStepper covers GridView + Material Stepper.
-func TestFlutterParityGridStepper(t *testing.T) {
+// TestWidgetParityGridStepper covers the grid view + the stepper widget.
+func TestWidgetParityGridStepper(t *testing.T) {
 	app, err := loader.LoadDir(examplesDir(t, "components"))
 	if err != nil {
 		t.Fatalf("load: %v", err)
@@ -480,8 +481,8 @@ func TestFlutterParityGridStepper(t *testing.T) {
 	for _, m := range []string{
 		"grid-template-columns:repeat(2,1fr)", // gridview
 		">Item 1<", ">Item 4<",                // grid cells from data
-		">Shipping<", ">shipping body<", // active step (wizStep=1) content
-		"✓", // completed step 0 marker
+		">Shipping<", ">shipping body<",       // active step (wizStep=1) content
+		"M4 12l5 5L20 6",                      // completed step marker (check icon SVG path)
 	} {
 		if !strings.Contains(html, m) {
 			t.Errorf("gridview/stepper showcase should render %q", m)
@@ -493,8 +494,8 @@ func TestFlutterParityGridStepper(t *testing.T) {
 	}
 }
 
-// TestFlutterParityPageDropdown covers PageView + DropdownButton.
-func TestFlutterParityPageDropdown(t *testing.T) {
+// TestWidgetParityPageDropdown covers the page view + dropdown button widgets.
+func TestWidgetParityPageDropdown(t *testing.T) {
 	app, err := loader.LoadDir(examplesDir(t, "components"))
 	if err != nil {
 		t.Fatalf("load: %v", err)
@@ -512,8 +513,8 @@ func TestFlutterParityPageDropdown(t *testing.T) {
 	}
 }
 
-// TestFlutterParityGestureAutocomplete covers GestureDetector + Autocomplete.
-func TestFlutterParityGestureAutocomplete(t *testing.T) {
+// TestWidgetParityGestureAutocomplete covers the gesture detector + autocomplete widgets.
+func TestWidgetParityGestureAutocomplete(t *testing.T) {
 	app, err := loader.LoadDir(examplesDir(t, "components"))
 	if err != nil {
 		t.Fatalf("load: %v", err)
@@ -531,9 +532,9 @@ func TestFlutterParityGestureAutocomplete(t *testing.T) {
 	}
 }
 
-// TestFlutterParityFormField covers TextFormField (InputDecoration + reactive
-// validation) and CircularProgressIndicator.
-func TestFlutterParityFormField(t *testing.T) {
+// TestWidgetParityFormField covers the text form field (input decoration +
+// reactive validation) and the circular progress indicator.
+func TestWidgetParityFormField(t *testing.T) {
 	app, err := loader.LoadDir(examplesDir(t, "components"))
 	if err != nil {
 		t.Fatalf("load: %v", err)
@@ -559,8 +560,8 @@ func TestFlutterParityFormField(t *testing.T) {
 	}
 }
 
-// TestFlutterParityBadgeDivider covers Badge-on-child + VerticalDivider.
-func TestFlutterParityBadgeDivider(t *testing.T) {
+// TestWidgetParityBadgeDivider covers the badge-on-child + vertical divider widgets.
+func TestWidgetParityBadgeDivider(t *testing.T) {
 	app, _ := loader.LoadDir(examplesDir(t, "components"))
 	html := render.Render(qrt.New(app)).HTML
 	for _, m := range []string{
@@ -574,8 +575,8 @@ func TestFlutterParityBadgeDivider(t *testing.T) {
 	}
 }
 
-// TestCupertinoDialogs covers CupertinoAlertDialog + CupertinoActionSheet.
-func TestCupertinoDialogs(t *testing.T) {
+// TestDialogs covers the alert dialog + action sheet widgets.
+func TestDialogs(t *testing.T) {
 	app, _ := loader.LoadDir(examplesDir(t, "components"))
 	html := render.Render(qrt.New(app)).HTML
 	for _, m := range []string{
@@ -591,8 +592,8 @@ func TestCupertinoDialogs(t *testing.T) {
 	}
 }
 
-// TestCupertinoListSection covers the iOS inset grouped list + tile chevron.
-func TestCupertinoListSection(t *testing.T) {
+// TestListSection covers the iOS inset grouped list + tile chevron.
+func TestListSection(t *testing.T) {
 	app, _ := loader.LoadDir(examplesDir(t, "components"))
 	html := render.Render(qrt.New(app)).HTML
 	for _, m := range []string{
@@ -607,9 +608,9 @@ func TestCupertinoListSection(t *testing.T) {
 	}
 }
 
-// TestCupertinoSliderActivityPicker covers the iOS slider restyle,
-// CupertinoActivityIndicator and CupertinoPicker.
-func TestCupertinoSliderActivityPicker(t *testing.T) {
+// TestSliderActivityPicker covers the iOS slider restyle, the activity
+// indicator and the picker.
+func TestSliderActivityPicker(t *testing.T) {
 	app, _ := loader.LoadDir(examplesDir(t, "components"))
 	html := render.Render(qrt.New(app)).HTML
 	for _, m := range []string{
@@ -640,7 +641,7 @@ func TestDismissible(t *testing.T) {
 	}
 }
 
-// TestContextMenuRefresh covers CupertinoContextMenu + RefreshIndicator.
+// TestContextMenuRefresh covers the context menu + refresh indicator widgets.
 func TestContextMenuRefresh(t *testing.T) {
 	app, _ := loader.LoadDir(examplesDir(t, "components"))
 	html := render.Render(qrt.New(app)).HTML

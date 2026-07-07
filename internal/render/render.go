@@ -615,9 +615,14 @@ func (r *renderer) bottomNav(n *model.Node) {
 			}
 			attr = fmt.Sprintf(` onclick="qorm(%d)"`, r.register(&model.Invoke{Name: n.OnChange.Name, Args: args}))
 		}
+		iconName := fmt.Sprint(obj["icon"])
+		iconHTML := html.EscapeString(iconName)
+		if svg := iconSVG(iconName, 22); svg != "" {
+			iconHTML = svg
+		}
 		fmt.Fprintf(&r.sb, `<button class="qorm-navitem" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0;border:none;background:none;cursor:pointer;color:%s;"%s>`, col, attr)
-		fmt.Fprintf(&r.sb, `<span style="font-size:20px;">%s</span><span style="font-size:12px;">%s</span></button>`,
-			html.EscapeString(fmt.Sprint(obj["icon"])), html.EscapeString(fmt.Sprint(obj["label"])))
+		fmt.Fprintf(&r.sb, `<span style="font-size:20px;display:inline-flex;align-items:center;">%s</span><span style="font-size:12px;">%s</span></button>`,
+			iconHTML, html.EscapeString(fmt.Sprint(obj["label"])))
 	}
 	r.sb.WriteString(`</div>`)
 }
@@ -649,7 +654,7 @@ func (r *renderer) expansionTile(n *model.Node) {
 	fmt.Fprintf(&r.sb, `<details id=%q style=%q%s>`, n.ID, r.boxCSS(n)+"border-bottom:1px solid var(--sep);", open)
 	fmt.Fprintf(&r.sb, `<summary style="display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;list-style:none;">`)
 	if lead := r.interp(propStr(n, "leading")); lead != "" {
-		fmt.Fprintf(&r.sb, `<span style="font-size:20px;">%s</span>`, html.EscapeString(lead))
+		fmt.Fprintf(&r.sb, `<span style="font-size:20px;display:inline-flex;align-items:center;">%s</span>`, iconOrText(lead, 20))
 	}
 	fmt.Fprintf(&r.sb, `<span style="flex:1;font-size:15px;font-weight:500;">%s</span><span style="color:var(--label2);">▾</span></summary>`,
 		html.EscapeString(r.interp(labelOf(n))))
@@ -680,7 +685,7 @@ func (r *renderer) listTile(n *model.Node) {
 	}
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s%s>`, n.ID, style, a11y(n), r.pressAttr(n))
 	if lead := r.interp(propStr(n, "leading")); lead != "" {
-		fmt.Fprintf(&r.sb, `<div style="font-size:22px;flex:none;">%s</div>`, html.EscapeString(lead))
+		fmt.Fprintf(&r.sb, `<div style="font-size:22px;flex:none;display:inline-flex;align-items:center;">%s</div>`, iconOrText(lead, 22))
 	}
 	r.sb.WriteString(`<div style="flex:1;min-width:0;">`)
 	fmt.Fprintf(&r.sb, `<div style="font-size:15px;color:var(--label);">%s</div>`, html.EscapeString(r.interp(labelOf(n))))
@@ -705,7 +710,7 @@ func (r *renderer) appbar(n *model.Node) {
 	style := fmt.Sprintf("display:flex;align-items:center;gap:6px;height:calc(44px + var(--safe-top, env(safe-area-inset-top, 0px)));padding:var(--safe-top, env(safe-area-inset-top, 0px)) 8px 0 8px;box-sizing:border-box;background:%s;-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-bottom:.5px solid var(--sep);", bg)
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, n.ID, r.boxCSS(n)+style, a11y(n))
 	if lead := r.interp(propStr(n, "leading")); lead != "" {
-		fmt.Fprintf(&r.sb, `<div style="min-width:44px;color:var(--accent);font-size:17px;">%s</div>`, html.EscapeString(lead))
+		fmt.Fprintf(&r.sb, `<div style="min-width:44px;color:var(--accent);font-size:17px;display:inline-flex;align-items:center;">%s</div>`, iconOrText(lead, 20))
 	} else {
 		r.sb.WriteString(`<div style="min-width:44px;"></div>`)
 	}
@@ -893,6 +898,17 @@ func (r *renderer) icon(n *model.Node) {
 	fmt.Fprintf(&r.sb, `<span id=%q style=%q%s>%s</span>`, n.ID, style, a11y(n), html.EscapeString(name))
 }
 
+// iconOrText resolves a string that may name a built-in icon: it returns the
+// inline SVG when the name is known, otherwise the escaped raw text. This lets
+// string props (leading/avatar/prefix/nav icons) reference icon names instead
+// of emoji while still accepting plain text.
+func iconOrText(s string, size float64) string {
+	if svg := iconSVG(s, size); svg != "" {
+		return svg
+	}
+	return html.EscapeString(s)
+}
+
 func (r *renderer) badge(n *model.Node) {
 	label := r.interp(labelOf(n))
 	// Flutter Badge(child): with children, render a corner count/dot over the
@@ -1033,10 +1049,7 @@ func (r *renderer) datatable(n *model.Node) {
 	}
 	fmt.Fprintf(&r.sb, `<table id=%q class="qorm-datatable" style=%q><thead><tr>`, n.ID, r.boxCSS(n))
 	if selectable {
-		box := "☐"
-		if allSel {
-			box = "☑"
-		}
+		box := checkboxCell(allSel)
 		if n.OnPress != nil {
 			idx := r.register(&model.Invoke{Name: n.OnPress.Name, Args: mergeArgs(n.OnPress.Args, "key", "__all__")})
 			fmt.Fprintf(&r.sb, `<th class="qdt-check"><span onclick="qorm(%d)" style="cursor:pointer;font-size:16px;">%s</span></th>`, idx, box)
@@ -1070,10 +1083,7 @@ func (r *renderer) datatable(n *model.Node) {
 		}
 		fmt.Fprintf(&r.sb, "<tr%s>", cls)
 		if selectable {
-			box := "☐"
-			if sel {
-				box = "☑"
-			}
+			box := checkboxCell(sel)
 			if n.OnPress != nil {
 				idx := r.register(&model.Invoke{Name: n.OnPress.Name, Args: mergeArgs(n.OnPress.Args, "key", keyVal)})
 				fmt.Fprintf(&r.sb, `<td class="qdt-check"><span onclick="qorm(%d)" style="cursor:pointer;font-size:16px;">%s</span></td>`, idx, box)
@@ -1087,6 +1097,16 @@ func (r *renderer) datatable(n *model.Node) {
 		r.sb.WriteString("</tr>")
 	}
 	r.sb.WriteString("</tbody></table>")
+}
+
+// checkboxCell renders a small square checkbox glyph without emoji: an empty
+// bordered box when unchecked, or an accent-filled box with a check icon when
+// checked.
+func checkboxCell(checked bool) string {
+	if checked {
+		return `<span style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:3px;background:var(--accent);color:#fff;box-sizing:border-box;">` + iconSVG("check", 11) + `</span>`
+	}
+	return `<span style="display:inline-block;width:16px;height:16px;border-radius:3px;border:1.5px solid var(--sep);box-sizing:border-box;"></span>`
 }
 
 // mergeArgs copies an invoke's args and sets key=val (val is a literal).
@@ -1160,13 +1180,13 @@ func (r *renderer) alert(n *model.Node) {
 func alertColors(v string) (bg, fg, icon string) {
 	switch v {
 	case "success":
-		return "color-mix(in srgb,var(--success) 15%,transparent)", "var(--success)", "✓"
+		return "color-mix(in srgb,var(--success) 15%,transparent)", "var(--success)", iconSVG("check", 18)
 	case "warning":
-		return "color-mix(in srgb,var(--warning) 18%,transparent)", "var(--warning)", "⚠"
+		return "color-mix(in srgb,var(--warning) 18%,transparent)", "var(--warning)", iconSVG("alert", 18)
 	case "error", "danger":
-		return "color-mix(in srgb,var(--danger) 15%,transparent)", "var(--danger)", "✕"
+		return "color-mix(in srgb,var(--danger) 15%,transparent)", "var(--danger)", iconSVG("x", 18)
 	default:
-		return "color-mix(in srgb,var(--accent) 13%,transparent)", "var(--accent)", "ℹ"
+		return "color-mix(in srgb,var(--accent) 13%,transparent)", "var(--accent)", iconSVG("info", 18)
 	}
 }
 
@@ -1217,12 +1237,13 @@ func (r *renderer) rating(n *model.Node) {
 	val := int(asFloat(runtime.EvalBinding(propStr(n, "value"), r.ctx())))
 	max := int(propNum(n, "max", 5))
 	style := r.boxCSS(n) + "display:inline-flex;gap:2px;font-size:" + num(propNum(n, "size", 18)) + "px;color:#f59e0b;"
+	sz := propNum(n, "size", 18)
 	fmt.Fprintf(&r.sb, `<span id=%q style=%q role="img" aria-label="%d of %d">`, n.ID, style, val, max)
 	for i := 1; i <= max; i++ {
 		if i <= val {
-			r.sb.WriteString("★")
+			r.sb.WriteString(iconSVG("star", sz))
 		} else {
-			r.sb.WriteString(`<span style="color:var(--sep);">★</span>`)
+			r.sb.WriteString(`<span style="color:var(--sep);">` + iconSVG("star", sz) + `</span>`)
 		}
 	}
 	r.sb.WriteString(`</span>`)
@@ -1443,7 +1464,12 @@ func (r *renderer) stat(n *model.Node) {
 func (r *renderer) empty(n *model.Node) {
 	style := r.boxCSS(n) + "display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:32px;text-align:center;"
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, style)
-	fmt.Fprintf(&r.sb, `<div style="font-size:40px;opacity:.6;">%s</div>`, html.EscapeString(propStrOr(n, "icon", "📭")))
+	emptyIcon := propStrOr(n, "icon", "inbox")
+	if svg := iconSVG(emptyIcon, 40); svg != "" {
+		fmt.Fprintf(&r.sb, `<div style="opacity:.6;color:var(--label2);">%s</div>`, svg)
+	} else {
+		fmt.Fprintf(&r.sb, `<div style="font-size:40px;opacity:.6;">%s</div>`, html.EscapeString(emptyIcon))
+	}
 	if title := r.interp(propStr(n, "title")); title != "" {
 		fmt.Fprintf(&r.sb, `<div style="font-size:16px;font-weight:600;color:var(--label2);">%s</div>`, html.EscapeString(title))
 	}
@@ -2080,7 +2106,7 @@ func truthyStrCT(s string) bool { return s != "" && s != "false" && s != "0" }
 // chip is Flutter's chip family: a compact rounded element. `selected` (a
 // binding) toggles the highlighted state; onPress fires on tap (ChoiceChip/
 // FilterChip); a delete × dispatches onChange (InputChip). An optional avatar/
-// leading glyph and, for a selected filter chip, a ✓ are shown.
+// leading glyph and, for a selected filter chip, a check icon are shown.
 func (r *renderer) chip(n *model.Node) {
 	selected := false
 	if s := propStr(n, "selected"); s != "" {
@@ -2093,10 +2119,10 @@ func (r *renderer) chip(n *model.Node) {
 	style := fmt.Sprintf("display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:16px;font-size:13px;background:%s;color:%s;border:%s;cursor:pointer;", bg, fg, border)
 	fmt.Fprintf(&r.sb, `<span id=%q style=%q%s%s>`, n.ID, r.boxCSS(n)+style, a11y(n), r.pressAttr(n))
 	if selected && (n.Type == "filterchip" || propStr(n, "showCheck") == "true") {
-		r.sb.WriteString(`<span style="font-size:12px;">✓</span>`)
+		r.sb.WriteString(`<span style="display:inline-flex;align-items:center;">` + iconSVG("check", 12) + `</span>`)
 	}
 	if av := r.interp(propStr(n, "avatar")); av != "" {
-		fmt.Fprintf(&r.sb, `<span style="font-size:15px;">%s</span>`, html.EscapeString(av))
+		fmt.Fprintf(&r.sb, `<span style="font-size:15px;display:inline-flex;align-items:center;">%s</span>`, iconOrText(av, 15))
 	}
 	fmt.Fprintf(&r.sb, `<span>%s</span>`, html.EscapeString(r.interp(labelOf(n))))
 	if n.OnChange != nil || n.Type == "inputchip" { // delete affordance
@@ -2190,15 +2216,15 @@ func (r *renderer) materialStepper(n *model.Node) {
 		} else if cur {
 			circleBg = "var(--accent)"
 		}
-		mark := num(float64(i + 1))
+		markHTML := html.EscapeString(num(float64(i + 1)))
 		if done {
-			mark = "✓"
+			markHTML = iconSVG("check", 14)
 		}
 		r.sb.WriteString(`<div style="display:flex;gap:12px;">`)
 		// index column: circle + connector line
 		r.sb.WriteString(`<div style="display:flex;flex-direction:column;align-items:center;">`)
 		fmt.Fprintf(&r.sb, `<div style="width:26px;height:26px;border-radius:50%%;background:%s;color:%s;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex:none;">%s</div>`,
-			circleBg, circleFg, html.EscapeString(mark))
+			circleBg, circleFg, markHTML)
 		if i < len(titles)-1 {
 			r.sb.WriteString(`<div style="flex:1;width:2px;background:var(--sep);min-height:16px;"></div>`)
 		}
@@ -2362,7 +2388,7 @@ func (r *renderer) textFormField(n *model.Node) {
 	}
 	fmt.Fprintf(&r.sb, `<div style="display:flex;align-items:center;gap:8px;border:1px solid %s;border-radius:8px;padding:0 10px;height:40px;background:var(--surface);">`, border)
 	if pre := r.interp(propStr(n, "prefix")); pre != "" {
-		fmt.Fprintf(&r.sb, `<span style="color:var(--label2);">%s</span>`, html.EscapeString(pre))
+		fmt.Fprintf(&r.sb, `<span style="color:var(--label2);display:inline-flex;align-items:center;">%s</span>`, iconOrText(pre, 16))
 	}
 	itype := propStrOr(n, "inputType", "text")
 	fmt.Fprintf(&r.sb, `<input type=%q value=%q placeholder=%q style="flex:1;border:none;outline:none;font-size:14px;background:transparent;"%s%s%s>`,
@@ -2851,9 +2877,13 @@ func (r *renderer) dismissible(n *model.Node) {
 	} else if d := parseInvokeProp(n, "onDismissed"); d != nil {
 		h = r.register(d)
 	}
-	icon := propStrOr(n, "icon", "🗑")
+	icon := propStrOr(n, "icon", "trash")
+	iconHTML := html.EscapeString(icon)
+	if svg := iconSVG(icon, 20); svg != "" {
+		iconHTML = svg
+	}
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, r.nid(n), r.boxCSS(n)+"position:relative;transition:height .2s,opacity .2s;")
-	fmt.Fprintf(&r.sb, `<div style="position:absolute;inset:0;background:var(--danger);display:flex;align-items:center;justify-content:flex-end;padding:0 22px;color:#fff;font-size:20px;">%s</div>`, html.EscapeString(icon))
+	fmt.Fprintf(&r.sb, `<div style="position:absolute;inset:0;background:var(--danger);display:flex;align-items:center;justify-content:flex-end;padding:0 22px;color:#fff;font-size:20px;">%s</div>`, iconHTML)
 	r.sb.WriteString(`<div class="qorm-dismiss-content" style="position:relative;background:var(--surface);touch-action:pan-y;">`)
 	for _, c := range n.Children {
 		r.node(c)
@@ -3189,8 +3219,8 @@ func (r *renderer) navigationRail(n *model.Node) {
 			attr = fmt.Sprintf(` onclick="qorm(%d)"`, r.register(&model.Invoke{Name: n.OnChange.Name, Args: args}))
 		}
 		fmt.Fprintf(&r.sb, `<button style="display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 6px;border:none;border-radius:10px;cursor:pointer;background:%s;color:%s;"%s>`, bg, col, attr)
-		fmt.Fprintf(&r.sb, `<span style="font-size:20px;">%s</span><span style="font-size:11px;">%s</span></button>`,
-			html.EscapeString(fmt.Sprint(obj["icon"])), html.EscapeString(fmt.Sprint(obj["label"])))
+		fmt.Fprintf(&r.sb, `<span style="font-size:20px;display:inline-flex;align-items:center;">%s</span><span style="font-size:11px;">%s</span></button>`,
+			iconOrText(fmt.Sprint(obj["icon"]), 20), html.EscapeString(fmt.Sprint(obj["label"])))
 	}
 	r.sb.WriteString(`</div>`)
 }

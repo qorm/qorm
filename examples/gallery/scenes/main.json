@@ -71,7 +71,7 @@
               {
                 "type": "icon",
                 "id": "gear",
-                "icon": "⚙️",
+                "icon": "settings",
                 "style": {
                   "fontSize": 22
                 }
@@ -436,7 +436,7 @@
                 "type": "text",
                 "id": "thanks",
                 "if": "{{state.agree}}",
-                "text": "✓ Thanks for agreeing!",
+                "text": "Thanks for agreeing!",
                 "style": {
                   "fontSize": 14,
                   "fontWeight": 700,
