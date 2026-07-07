@@ -21,6 +21,35 @@ import (
 type Runtime struct {
 	App   *model.App
 	State map[string]any
+	// Scene is the id of the scene currently shown ("" = the manifest entry).
+	// NavStack holds the scenes to return to for navigate-back.
+	Scene    string
+	NavStack []string
+}
+
+// CurrentScene is the scene id to render ("" falls back to the entry scene).
+func (r *Runtime) CurrentScene() string { return r.Scene }
+
+// Navigate pushes the current scene onto the back stack and shows `to`. Unknown
+// scenes and no-op navigations are ignored.
+func (r *Runtime) Navigate(to string) {
+	if to == "" || to == r.Scene {
+		return
+	}
+	if _, ok := r.App.Scenes[to]; !ok {
+		return
+	}
+	r.NavStack = append(r.NavStack, r.Scene)
+	r.Scene = to
+}
+
+// NavigateBack returns to the previous scene, if any.
+func (r *Runtime) NavigateBack() {
+	if len(r.NavStack) == 0 {
+		return
+	}
+	r.Scene = r.NavStack[len(r.NavStack)-1]
+	r.NavStack = r.NavStack[:len(r.NavStack)-1]
 }
 
 // New creates a runtime with state seeded from the manifest's initial values.
@@ -171,6 +200,12 @@ func (r *Runtime) Dispatch(name string, args map[string]any) {
 
 func (r *Runtime) applyStep(step model.Step, ctx map[string]any) {
 	switch step.Type {
+	case "navigate":
+		if step.Back {
+			r.NavigateBack()
+		} else {
+			r.Navigate(Stringify(EvalBinding(step.To, ctx)))
+		}
 	case "state.set":
 		setPath(r.State, step.Path, EvalBinding(step.Value, ctx))
 	case "state.append":

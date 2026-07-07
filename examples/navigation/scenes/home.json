@@ -1,0 +1,8 @@
+{ "type": "scene", "id": "home", "root": { "type": "scaffold", "children": [
+  { "type": "appbar", "title": "Home" },
+  { "type": "column", "style": { "padding": 20, "gap": 12 }, "children": [
+    { "type": "text", "text": "Welcome back", "style": { "fontWeight": 800, "fontSize": 26 } },
+    { "type": "text", "text": "Tap below to navigate to another scene.", "style": { "color": "#8e8e93" } },
+    { "type": "button", "text": "Open profile", "onPress": { "type": "invoke", "name": "openProfile" }, "style": { "background": "#0a84ff", "color": "#fff", "padding": 14, "borderRadius": 10, "fontWeight": 700 } }
+  ]}
+]}}

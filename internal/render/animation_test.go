@@ -89,3 +89,40 @@ func TestAnimatedContainerLayout(t *testing.T) {
 		t.Error("animatedcontainer did not apply layout align/justify")
 	}
 }
+
+// TestNavigation checks the navigate action step: dispatching it switches the
+// runtime's current scene, and navigate-back returns to the previous one.
+func TestNavigation(t *testing.T) {
+	dir := t.TempDir()
+	w := func(p, s string) {
+		if err := os.WriteFile(filepath.Join(dir, p), []byte(s), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	os.MkdirAll(filepath.Join(dir, "scenes"), 0o755)
+	os.MkdirAll(filepath.Join(dir, "actions"), 0o755)
+	w("qorm.json", `{"type":"app","id":"nav","entry":"home"}`)
+	w("scenes/home.json", `{"type":"scene","id":"home","root":{"type":"text","text":"HOME"}}`)
+	w("scenes/details.json", `{"type":"scene","id":"details","root":{"type":"text","text":"DETAILS"}}`)
+	w("actions/go.json", `{"type":"action","id":"go","steps":[{"type":"navigate","to":"details"}]}`)
+	w("actions/back.json", `{"type":"action","id":"back","steps":[{"type":"navigate","back":true}]}`)
+	app, err := loader.LoadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rt := qrt.New(app)
+	if !strings.Contains(Render(rt).HTML, "HOME") {
+		t.Fatal("entry scene should be home")
+	}
+	rt.Dispatch("go", nil)
+	if rt.CurrentScene() != "details" {
+		t.Fatalf("navigate: current scene = %q, want details", rt.CurrentScene())
+	}
+	if !strings.Contains(RenderScene(rt, rt.CurrentScene()).HTML, "DETAILS") {
+		t.Error("details scene did not render after navigate")
+	}
+	rt.Dispatch("back", nil)
+	if s := rt.CurrentScene(); s != "" && s != "home" {
+		t.Fatalf("navigate back: current scene = %q, want entry", s)
+	}
+}

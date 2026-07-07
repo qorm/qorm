@@ -138,7 +138,7 @@ func (s *Server) initAgent() {
 // pushes the new UI to all SSE subscribers. Caller must hold s.mu.
 func (s *Server) bump() (int64, string) {
 	rev := s.rev.Add(1)
-	res := render.Render(s.rt)
+	res := render.RenderScene(s.rt, s.rt.CurrentScene())
 	s.handlers = res.Handlers
 	s.broadcast(rev, res.HTML)
 	return rev, res.HTML
@@ -594,6 +594,9 @@ func (s *Server) serveRollback(w http.ResponseWriter, _ *http.Request) {
 func (s *Server) serveIndex(w http.ResponseWriter, r *http.Request) {
 	scene := r.URL.Query().Get("scene")
 	s.mu.Lock()
+	if scene == "" { // no explicit scene (a desktop window may pin one): follow navigation
+		scene = s.rt.CurrentScene()
+	}
 	res := render.RenderScene(s.rt, scene)
 	s.handlers = res.Handlers
 	rev := s.rev.Load()
@@ -643,7 +646,7 @@ func (s *Server) servePoll(w http.ResponseWriter, r *http.Request) {
 	cur := s.rev.Load()
 	var html string
 	if cur != clientRev {
-		res := render.Render(s.rt)
+		res := render.RenderScene(s.rt, s.rt.CurrentScene())
 		s.handlers = res.Handlers
 		html = res.HTML
 	}
@@ -673,7 +676,7 @@ func (s *Server) serveEvent(w http.ResponseWriter, r *http.Request) {
 	// GETting / (a reconnect, or an out-of-order request) would otherwise find
 	// an empty table and silently drop the action.
 	if s.handlers == nil {
-		s.handlers = render.Render(s.rt).Handlers
+		s.handlers = render.RenderScene(s.rt, s.rt.CurrentScene()).Handlers
 	}
 	// Fold current input values back into state before dispatching.
 	for path, val := range req.Inputs {
