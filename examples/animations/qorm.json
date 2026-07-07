@@ -1,0 +1,4 @@
+{
+  "type": "app", "id": "animations", "name": "Animations", "entry": "main", "theme": "apple",
+  "globalState": { "schema": { "items": "array", "seq": "number" }, "initial": { "items": [], "seq": 1 } }
+}
