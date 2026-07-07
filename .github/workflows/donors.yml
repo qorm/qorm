@@ -1,0 +1,39 @@
+name: Refresh supporters
+
+on:
+  schedule:
+    - cron: '15 4 * * *'   # daily 04:15 UTC
+  workflow_dispatch: {}     # manual "Run workflow" button
+
+permissions:
+  contents: write           # to commit the refreshed donors.json
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Refresh donors.json from Patreon
+        env:
+          PATREON_ACCESS_TOKEN: ${{ secrets.PATREON_ACCESS_TOKEN }}
+        run: |
+          if [ -z "$PATREON_ACCESS_TOKEN" ]; then
+            echo "PATREON_ACCESS_TOKEN secret not set — add it under Settings > Secrets to enable the daily refresh."
+            exit 0
+          fi
+          go run ./cmd/qorm-donors -o site/donors.json
+      - name: Commit if changed
+        run: |
+          if ! git diff --quiet -- site/donors.json; then
+            git config user.name  "qorm"
+            git config user.email "github@qorm.com"
+            git add site/donors.json
+            git commit -m "chore: refresh supporters list from Patreon"
+            git push
+          else
+            echo "no change"
+          fi
