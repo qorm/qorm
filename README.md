@@ -164,6 +164,13 @@ runtime the browser renders. An AI's edits appear in every connected browser
 `/poll` fallback) — and the human's clicks are visible to the AI's next
 `qorm_inspect`. True real-time human-AI collaboration on one running app.
 
+
+<p align="center"><img src="assets/screenshots/logwindow.png" width="440" alt="The activity panel: human (you) and AI agent actions in one shared session"></p>
+
+<sub>The **activity panel** — a separate window the desktop app opens next to your
+app — shows every human tap (green) and agent MCP call (blue) on the *same* running
+app, colour-coded and live. This is the human's window into the collaboration.</sub>
+
 ```bash
 qorm run examples/counter          # browser UI + agent endpoint at /mcp
 # agent: POST http://127.0.0.1:PORT/mcp  (JSON-RPC 2.0)

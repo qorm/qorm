@@ -147,6 +147,12 @@ qorm mcp examples/counter
 订阅服务器推送事件(SSE,带 `/poll` 回退)——而人的点击对 AI 的下一次
 `qorm_inspect` 可见。在同一个运行中的应用上实现真正的实时人机协作。
 
+
+<p align="center"><img src="assets/screenshots/logwindow.png" width="440" alt="活动面板:人类(you)与 AI agent 在同一个共享会话里的操作"></p>
+
+<sub>**活动面板**——桌面版在 app 旁边单开的一个窗口——把每一次人类点击(绿)和
+AI 的 MCP 调用(蓝)都按颜色实时显示在*同一个*运行中的 app 上。这就是人类观察协作的那扇窗。</sub>
+
 ```bash
 qorm run examples/counter          # browser UI + agent endpoint at /mcp
 # agent: POST http://127.0.0.1:PORT/mcp  (JSON-RPC 2.0)
