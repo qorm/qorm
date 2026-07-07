@@ -2,6 +2,20 @@
 
 Desktop 是 QORM 的第一优先级运行平台之一，适合开发预览、生产桌面应用、工具类应用和高性能 UI 实验。
 
+## Package it · 打包与试用
+
+```sh
+qorm package examples/menus -p mac         # a macOS .app (per-platform cgo build)
+./scripts/build-desktop.sh                 # native-window binary for this OS (-tags desktop)
+qorm-desktop-... run examples/menus --app  # opens a native window
+```
+
+Examples that exercise desktop features: [`menus`](../../examples/menus) (system
+menu bar / tray / right-click menus, with icons + submenus),
+[`floating`](../../examples/floating) (chromeless + transparent, custom-shape
+window), [`desktop-hardware`](../../examples/desktop-hardware). See the
+[support matrix](support-matrix.md) for what's tested per OS.
+
 ## 架构
 
 ```text
