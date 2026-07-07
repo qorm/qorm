@@ -48,6 +48,7 @@ references below (the runnable sources are the contract).
 
 ## Drive it as an AI agent
 
+- [Human-AI collaboration](docs/collaboration.md) — a human and an agent on one live app over SSE + MCP, each seeing the other; the "AI edited" toast and `qorm_activity` close the loop.
 - [integrations/](integrations) — drop-in MCP config + per-agent setup (Claude Code/Desktop, Cursor, Windsurf) + a QORM **skill**.
 - [Agent skill](integrations/skill/SKILL.md) — the runnable format, the MCP tools, and how to self-verify.
 - [MCP tools](docs/agent/mcp-tools.md) — the Model Context Protocol surface to read/edit a live app.

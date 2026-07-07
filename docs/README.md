@@ -29,6 +29,10 @@ runnable reference — when a doc and a running example disagree, trust the exam
 - [Counter](examples/counter.md) · [Todo](examples/todo.md) · [Login](examples/login.md) · [Dashboard](examples/dashboard.md)
 - The full set of runnable apps lives in [`examples/`](../examples).
 
+## Human-AI collaboration
+
+- [Collaborating on a live app](collaboration.md) — a human and an AI agent on the same running app, each seeing the other (the QORM premise)
+
 ## For AI agents
 
 - [Agent integrations](../integrations) — drop-in MCP config + a QORM skill for Claude / Cursor / Windsurf

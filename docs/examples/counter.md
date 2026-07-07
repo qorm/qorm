@@ -1,56 +1,47 @@
 # Example: Counter
 
-Counter 示例用于验证状态、事件、Action 和绑定。
+The smallest complete QORM app — global state, an action, and a binding. Source:
+[`examples/counter`](../../examples/counter).
 
-```json
-{
-  "qorm": "0.1",
-  "type": "scene",
-  "id": "counter",
-  "state": {
-    "count": 0
-  },
-  "root": {
-    "type": "column",
-    "id": "root",
-    "layout": {
-      "width": "fill",
-      "height": "fill",
-      "align": "center",
-      "justify": "center",
-      "gap": 16
-    },
-    "children": [
-      {
-        "type": "text",
-        "id": "count_text",
-        "value": "当前数值：{{ count }}"
-      },
-      {
-        "type": "row",
-        "id": "actions",
-        "layout": { "gap": 12 },
-        "children": [
-          {
-            "type": "button",
-            "id": "dec",
-            "text": "-",
-            "on": { "press": [{ "type": "state.set", "path": "count", "value": "{{ count - 1 }}" }] }
-          },
-          {
-            "type": "button",
-            "id": "inc",
-            "text": "+",
-            "on": { "press": [{ "type": "state.set", "path": "count", "value": "{{ count + 1 }}" }] }
-          }
-        ]
-      }
-    ]
-  }
-}
+```sh
+qorm run examples/counter
 ```
 
-验收：
-- 点击按钮后仅依赖 `count` 的 binding 重新计算。
-- `count_text` 被标记为相关更新目标。
-- 不发生全 Scene layout。
+Press `+` / `-`: the button dispatches an action, the runtime updates state, and
+the bound text re-renders.
+
+## The pieces
+
+Global state, declared in `qorm.json`:
+
+```json
+"globalState": { "schema": { "count": "number" }, "initial": { "count": 0 } }
+```
+
+The count, bound in the scene:
+
+```json
+{ "type": "text", "id": "number", "text": "{{state.count}}" }
+```
+
+A button invokes an action, passing the current value as an argument:
+
+```json
+{ "type": "button", "id": "btn_plus", "label": "+",
+  "onPress": { "type": "invoke", "name": "increment", "args": { "count": "{{state.count}}" } } }
+```
+
+The action (`actions/increment.json`) computes the new value:
+
+```json
+{ "type": "action", "id": "increment",
+  "steps": [ { "type": "state.set", "path": "count", "value": "{{ count + 1 }}" } ] }
+```
+
+## Format notes (this is the runnable format)
+
+- Text is the `text` field (not `value`); bind with `{{ state.x }}`.
+- A button's callback is `onPress` (not `on: { press }`), naming an action.
+- Inside the action, `value` sees the args from `onPress` (here `count`), so
+  `{{ count + 1 }}` works. The [JSON format spec] design-intent draft diverges —
+  trust the examples.
