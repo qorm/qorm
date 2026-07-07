@@ -8,7 +8,7 @@ import (
 	"runtime"
 	"time"
 
-	webview "github.com/webview/webview_go"
+	webview "github.com/qorm/qorm/internal/webview"
 )
 
 // appWebView holds the running app window so nativeEval can reach it from any

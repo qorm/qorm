@@ -66,7 +66,7 @@ func widgetCatalog(t *testing.T) string {
 	b.WriteString("# Widget Catalog\n\n")
 	b.WriteString("> Auto-generated from the node() switch in `internal/render/render.go` (`TestWidgetCatalogInSync`) — do not edit by hand.\n")
 	b.WriteString("> Auto-generated from the render switch — do not edit by hand.\n\n")
-	b.WriteString("Each widget lists its **canonical name** first; the rest are equivalent aliases (kept for Flutter/Cupertino/HTML naming compatibility). Prefer the canonical name when writing apps.\n\n")
+	b.WriteString("Each widget lists its **canonical name** first; the rest are equivalent aliases. Prefer the canonical name when writing apps.\n\n")
 	b.WriteString("| Canonical | Aliases | Renderer |\n|---|---|---|\n")
 	for _, g := range groups {
 		al := g.aliases

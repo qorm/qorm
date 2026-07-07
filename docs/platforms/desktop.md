@@ -33,7 +33,7 @@ Native WebView (-tags desktop: WKWebView / WebView2 / WebKitGTK)
 ## Features
 
 - Runs the pure-Go core directly (frontend + framework + the user's `native/desktop.go` compiled into a single binary).
-- The default path is pure Go with no cgo, so you can cross-compile from one machine to macOS/Linux/Windows x amd64/arm64.
+- The default path is pure Go, so you can cross-compile from one machine to macOS/Linux/Windows x amd64/arm64.
 - Access to a more complete set of Host Capabilities.
 - Provides development debugging, Agent Patch, preview, and profiling.
 
