@@ -1,90 +1,42 @@
 # Example: Login
 
-本页记录当前 V1 RC canonical subset。它对齐真实可运行示例
-[`examples/login/qorm.json`](../../examples/login/qorm.json) 与测试
-[`examples/login/login.test.json`](../../examples/login/login.test.json)，不是完整 Login
-表单教程。
+A styled login form — text inputs, bound state, and a submit button. Source:
+[`examples/login`](../../examples/login).
 
-## Current V1 RC canonical subset
+```sh
+qorm run examples/login
+```
 
-当前 Login canonical 示例只覆盖一个最小登录流：
+## The pieces
 
-- scene state 只有 `status` 与 `loginResult`。
-- `submit_login` 先把 `status` 设为 `loading`。
-- 随后通过 `host.call` 调用 `network.request`，并用 `resultPath` 把 mock
-  结果写入 `loginResult`。
-- 最后把 `status` 设为 `authenticated`。
-
-## 状态
+Global state holds the form fields and status (in `qorm.json`):
 
 ```json
-{
-  "status": "idle",
-  "loginResult": null
+"globalState": {
+  "schema": { "email": "string", "password": "string", "isLoggingIn": "boolean", "errorMessage": "string" },
+  "initial": { "email": "", "password": "", "isLoggingIn": false, "errorMessage": "" }
 }
 ```
 
-UI 绑定也保持最小：
-
-- `status_text` 显示 `Status: {{ status }}`。
-- `result_text` 显示 `User: {{ loginResult.user.name }}`。
-- `login_button` 的 `press` 事件触发 `submit_login`。
-
-## Submit Action
+Inputs bind two-way to the fields, and the submit button invokes an action with
+the entered values:
 
 ```json
-[
-  {
-    "type": "state.set",
-    "path": "status",
-    "value": "loading"
-  },
-  {
-    "type": "host.call",
-    "capability": "network.request",
-    "input": {
-      "method": "POST",
-      "url": "https://example.invalid/login",
-      "body": {
-        "username": "demo"
-      }
-    },
-    "resultPath": "loginResult"
-  },
-  {
-    "type": "state.set",
-    "path": "status",
-    "value": "authenticated"
-  }
-]
+{ "type": "input", "id": "email", "binding": "email", "placeholder": "Email Address" }
+{ "type": "button", "id": "submit", "label": "Sign In",
+  "onPress": { "type": "invoke", "name": "performLogin", "args": { "email": "{{state.email}}", "password": "{{state.password}}" } } }
 ```
 
-## Test / 验收
+An error line binds to state so a failed attempt shows a message:
 
-当前测试使用 `examples/login/login.test.json` 的 conformance 口径：
+```json
+{ "type": "text", "id": "err", "text": "{{state.errorMessage}}" }
+```
 
-- mock `network.request` 返回 `{ "ok": true, "user": { "name": "Ada" } }`。
-- simulate `login_button` 的 `press` 事件。
-- assert `host_called` 覆盖 `network.request`。
-- assert state：`status = authenticated`，`loginResult.user.name = Ada`。
-- assert text：`status_text = Status: authenticated`，
-  `result_text = User: Ada`。
+The login flow is exercised by [`login.test.json`](../../examples/login/login.test.json)
+(a `type: test` fixture the loader skips at run time but the harness runs).
 
-## 非当前承诺
+## Format notes
 
-当前 Login canonical 示例不使用、也不承诺以下完整教程语义：
-
-- `condition`
-- `batch`
-- `toast.show`
-- 嵌套 `output.path` 形式
-- `username` / `password` 表单校验
-- 独立 `loading` boolean / `error` / `loginResponse` 状态模型
-
-## 后续方向
-
-完整 Login 教程可以在后续 backlog 中升级为包含表单输入、校验分支、
-loading/error 状态、Toast 提示，以及 `condition` / `batch` /
-`toast.show` / `output.path` 的正式教程。升级前，当前 V1 RC Login
-示例仍以 `examples/login/qorm.json` 与 `examples/login/login.test.json`
-为准。
+- Inputs bind with `binding` (two-way); the button's `onPress` names an action
+  and passes state values as args.

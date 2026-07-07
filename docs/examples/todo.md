@@ -1,53 +1,47 @@
 # Example: Todo
 
-Todo 示例验证列表、输入、数组状态和条件渲染。
+Lists, text input, and array state. Source: [`examples/todo`](../../examples/todo).
 
-## 关键状态
-
-```json
-{
-  "taskInput": "",
-  "tasks": []
-}
+```sh
+qorm run examples/todo
 ```
 
-## 新增 Action
+Type a task and add it; toggle tasks done. The list is data-bound to an array in
+state, so adding/toggling re-renders it.
+
+## The pieces
+
+An input bound two-way to state, and an add button that invokes an action:
 
 ```json
-{
-  "type": "batch",
-  "steps": [
-    {
-      "type": "state.append",
-      "path": "tasks",
-      "value": { "title": "{{ taskInput }}", "done": false }
-    },
-    {
-      "type": "state.set",
-      "path": "taskInput",
-      "value": ""
-    }
-  ]
-}
+{ "type": "input", "id": "field", "binding": "inputValue", "placeholder": "New task…" }
+{ "type": "button", "id": "add", "label": "Add",
+  "onPress": { "type": "invoke", "name": "addTodo", "args": { "text": "{{state.inputValue}}" } } }
 ```
 
-## 列表节点
+The add action appends an object to the array and clears the input
+(`actions/addTodo.json`):
 
 ```json
-{
-  "type": "list",
-  "id": "task_list",
-  "data": "{{ tasks }}",
-  "item": {
-    "type": "row",
-    "children": [
-      { "type": "checkbox", "bind": "item.done" },
-      { "type": "text", "value": "{{ item.title }}" }
-    ]
-  }
-}
+{ "type": "action", "id": "addTodo", "steps": [
+  { "type": "state.appendObject", "path": "items",
+    "item": { "id": "{{ text }}", "text": "{{ text }}", "done": "{{ false }}" } },
+  { "type": "state.set", "path": "inputValue", "value": "" }
+] }
 ```
 
-说明：
-- `data` 是完整表达式字段，求值后返回数组。
-- `item.*` 只在该列表项模板上下文内可见。
+A data-bound list renders each item; `{{item.*}}` is the per-row scope:
+
+```json
+{ "type": "list", "id": "items", "data": "{{ state.items }}",
+  "renderItem": { "type": "row", "children": [
+    { "type": "checkbox", "onChange": { "type": "invoke", "name": "toggleTodo", "args": { "id": "{{item.id}}" } } },
+    { "type": "text", "text": "{{ item.text }}" }
+  ] } }
+```
+
+## Format notes
+
+- The repeat is `list` with `data: "{{ state.items }}"` and a `renderItem`
+  template (not `item`); `{{ item.* }}` is visible only inside that template.
+- Append with `state.appendObject`; two-way input via `binding`.
