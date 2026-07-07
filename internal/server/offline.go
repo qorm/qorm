@@ -20,8 +20,8 @@ func OfflineHTML(rt *runtime.Runtime, bundleJSON string) (string, error) {
 	// 1. online dispatch (POST /event) -> in-process WASM dispatch
 	onlineDriver := `  fetch('/event',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({h:h,inputs:inputs})})
-    .then(function(r){ var rv=r.headers.get('X-Qorm-Rev'); if(rv) __rev=parseInt(rv); qormTheme(r.headers.get('X-Qorm-Theme')); return r.text(); })
-    .then(function(html){qormMorphInto(document.getElementById('qorm-root'), html);});`
+    .then(function(r){ var rv=parseInt(r.headers.get('X-Qorm-Rev'))||0; qormTheme(r.headers.get('X-Qorm-Theme')); return r.text().then(function(html){ return {rv:rv,html:html}; }); })
+    .then(function(o){ if(o.rv && o.rv<=__rev) return; if(o.rv) __rev=o.rv; qormMorphInto(document.getElementById('qorm-root'), o.html); });`
 	offlineDriver := `  var res=qormEvent(h, JSON.stringify(inputs));
   if(res){ qormTheme(res.theme); qormDir(res.dir); qormMorphInto(document.getElementById('qorm-root'), res.html); if(typeof qormMeasure!=='undefined') setTimeout(qormMeasure,30); }`
 	page, err := replaceOnce(page, onlineDriver, offlineDriver)
