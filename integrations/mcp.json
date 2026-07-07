@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "qorm": {
+      "command": "qorm",
+      "args": ["mcp", "."]
+    }
+  }
+}
