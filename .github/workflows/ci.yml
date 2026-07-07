@@ -38,3 +38,23 @@ jobs:
           cache: true
       - name: Build (-tags desktop)
         run: go build -tags desktop -o /dev/null ./cmd/qorm
+
+  binaries:
+    name: cross-compile (downloadable artifacts)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # so build-all.sh can `git describe` the version
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Cross-compile every platform
+        run: ./scripts/build-all.sh dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qorm-binaries
+          path: dist/*
+          retention-days: 30
