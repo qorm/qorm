@@ -379,7 +379,7 @@ func (s *Server) callTool(name string, args json.RawMessage) (string, error) {
 func (s *Server) stateAndHTML() map[string]any {
 	return map[string]any{
 		"state": s.rt.State,
-		"html":  render.Render(s.rt).HTML,
+		"html":  render.RenderScene(s.rt, s.rt.CurrentScene()).HTML,
 	}
 }
 

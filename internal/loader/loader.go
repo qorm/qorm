@@ -348,6 +348,8 @@ func buildAction(doc map[string]any) *model.Action {
 				Body:     asString(sm["body"]),
 				Result:   asString(sm["result"]),
 				Error:    asString(sm["error"]),
+				To:       asString(sm["to"]),
+				Back:     sm["back"] == true,
 			}
 			if item, ok := sm["item"].(map[string]any); ok {
 				step.Object = map[string]string{}
