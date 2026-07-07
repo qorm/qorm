@@ -179,13 +179,6 @@ func userWebJS(rt *runtime.Runtime) string {
 	return string(b)
 }
 
-// AppBaseDir returns the app source dir (for user native/ plugins).
-func (s *Server) AppBaseDir() string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.rt.App.BaseDir
-}
-
 // SetAppBaseDir sets where the app was loaded from, so native/web.js (a sibling
 // of a bundle) is injected on desktop even when loaded from a compiled bundle.
 func (s *Server) SetAppBaseDir(dir string) {

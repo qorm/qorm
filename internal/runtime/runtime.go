@@ -138,11 +138,6 @@ func EvalBinding(s string, ctx map[string]any) any {
 	})
 }
 
-// Interpolate renders a scene-bound string to text.
-func (r *Runtime) Interpolate(s string) string {
-	return expr.Stringify(EvalBinding(s, r.sceneCtx()))
-}
-
 // EvalArgs evaluates an invoke's argument expressions in scene context.
 func (r *Runtime) EvalArgs(args map[string]string) map[string]any {
 	out := map[string]any{}
