@@ -60,6 +60,8 @@ func main() {
 		os.Exit(cmdPackage(os.Args[2:]))
 	case "measure":
 		os.Exit(cmdMeasure(os.Args[2:]))
+	case "shot":
+		os.Exit(cmdShot(os.Args[2:]))
 	case "check":
 		os.Exit(cmdCheck(os.Args[2:]))
 	case "docs":
@@ -97,6 +99,7 @@ usage:
   qorm run <app-dir|bundle> [--trust pub.key] [--revoked list.json] [--app] [--port N=10383] [--no-open]
                                                   run app live (verifies signed bundles; --app = standalone window)
   qorm render <app-dir|scene.json> [-o out.html]  write a static HTML snapshot
+  qorm shot <app-dir> -o out.png                 render an app to a PNG (macOS, -tags desktop)
   qorm measure <app-dir> [-o report.json]          render + self-measure layout & styles (needs -tags desktop)
   qorm check <app-dir> (--checks c.json | --audit) [-o r.json]
                                                   verify layout/styles/behaviour vs expectations (or generic audit)

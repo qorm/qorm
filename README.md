@@ -8,6 +8,12 @@ JSON, and your AI (Claude, Cursor, …) can **scaffold, edit, run, and verify** 
 while you collaborate on the same running app in real time — you click, it sees
 you; it edits, you watch it happen.
 
+<p align="center"><img src="assets/qorm-demo.gif" alt="A human and an AI editing a live QORM app together, with an 'AI edited' toast" width="380"></p>
+
+<sub>The GIF was recorded by QORM itself — the AI drove the edits over MCP and `qorm
+shot` captured each frame via WebKit. No browser automation; see
+[`scripts/record-demo.sh`](scripts/record-demo.sh).</sub>
+
 Under the hood the default build is pure Go — it runs the app live in the browser, renders
 a static HTML snapshot, ed25519-signs it into a distributable bundle, serves it
 over-the-air with rollback, exposes it to agents over MCP, and packages it for
