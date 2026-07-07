@@ -1,0 +1,2 @@
+{"type":"app","id":"cxanim","name":"Payment","entry":"main","theme":"apple",
+ "globalState":{"schema":{"done":"boolean"},"initial":{"done":false}}}
