@@ -110,6 +110,7 @@ Each widget lists its **canonical name** first; the rest are equivalent aliases.
 | `steps` | stepper | `steps` |
 | `storage` | — | `hwList` |
 | `stt` | speechinput | `hwList` |
+| `swipeactions` | swipeaction | `swipeActions` |
 | `switchlisttile` | checkboxlisttile, radiolisttile | `controlTile` |
 | `systemmodes` | modes | `hwList` |
 | `table` | — | `table` |

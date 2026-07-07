@@ -318,6 +318,8 @@ func (r *renderer) renderInner(n *model.Node) {
 		r.empty(n)
 	case "segmented", "slidingsegmentedcontrol", "cupertinoslidingsegmentedcontrol":
 		r.segmented(n)
+	case "swipeactions", "swipeaction":
+		r.swipeActions(n)
 	case "dismissible":
 		r.dismissible(n)
 	case "contextmenu", "cupertinocontextmenu":

@@ -155,3 +155,32 @@ func TestReorder(t *testing.T) {
 		t.Errorf("state.move did not relocate element: %v", items)
 	}
 }
+
+// TestSwipeActions checks a swipeActions row renders its action buttons (wired to
+// their actions) and the client helper, with the content intact.
+func TestSwipeActions(t *testing.T) {
+	dir := t.TempDir()
+	w := func(p, s string) {
+		os.MkdirAll(filepath.Join(dir, filepath.Dir(p)), 0o755)
+		if err := os.WriteFile(filepath.Join(dir, p), []byte(s), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	w("qorm.json", `{"type":"app","id":"sw","entry":"main","globalState":{"schema":{"items":"array"},"initial":{"items":[{"id":1,"t":"hi"}]}}}`)
+	w("actions/del.json", `{"type":"action","id":"del","steps":[{"type":"state.remove","path":"items","matchKey":"id","match":"{{ id }}"}]}`)
+	w("scenes/main.json", `{"type":"scene","id":"main","root":{"type":"list","data":"{{state.items}}","renderItem":{"type":"swipeactions","actions":[{"label":"Delete","color":"#ff3b30","name":"del","args":{"id":"{{item.id}}"}}],"children":[{"type":"text","text":"{{item.t}}"}]}}}`)
+	app, err := loader.LoadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	html := Render(qrt.New(app)).HTML
+	if strings.Contains(html, "data-qorm-unknown") {
+		t.Error("swipeactions rendered as unknown")
+	}
+	if !strings.Contains(html, "qorm-swa-act") || !strings.Contains(html, "Delete") {
+		t.Error("swipeactions did not render its action button")
+	}
+	if !strings.Contains(html, "qormSwipeActions(") {
+		t.Error("swipeactions did not wire the client helper")
+	}
+}

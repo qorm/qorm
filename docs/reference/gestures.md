@@ -6,6 +6,7 @@ QORM ships touch/pointer gestures as widget props — no JavaScript to write.
 |---|---|
 | tap / double-tap / long-press | `onPress` / `onDoubleTap` / `onLongPress` on any node |
 | swipe-to-dismiss | a `dismissible` widget with `onDismissed` |
+| swipe-to-reveal actions | a `swipeactions` widget with an `actions` list |
 | swipeable pages | a horizontal `scroll` (scroll-snap) |
 | pull-to-refresh | a `scroll` with `onRefresh` |
 | drag-to-reorder | a `list` with `reorderable: true` + `onReorder` |
