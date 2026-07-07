@@ -23,3 +23,6 @@ donors.env
 *.test
 *.wasm
 BUNDLE_ONLY
+
+# private operations material (go-to-market, drafts) — local only
+/ops/internal/
