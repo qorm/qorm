@@ -850,8 +850,8 @@ func Page(rt *runtime.Runtime, body string, rev int64) string {
   .qorm-ai-touch { animation:qorm-ai-flash 1.3s ease-out; border-radius:inherit; }
   @keyframes qorm-ai-flash { 0%% { box-shadow:0 0 0 2px rgba(10,132,255,.9); } 60%% { box-shadow:0 0 0 2px rgba(10,132,255,.45); } 100%% { box-shadow:0 0 0 2px rgba(10,132,255,0); } }
   /* Page transition: a scene swapped in by navigation slides + fades in. */
-  .qorm-scene-in { animation:qorm-scene-in 300ms cubic-bezier(.32,.72,0,1) both; }
-  @keyframes qorm-scene-in { from { opacity:0; transform:translateX(26px); } to { opacity:1; transform:none; } }
+  .qorm-scene-in { animation:qorm-scene-in 1000ms cubic-bezier(.32,.72,0,1) both; }
+  @keyframes qorm-scene-in { from { opacity:0; transform:translateX(80px); } to { opacity:1; transform:none; } }
   @keyframes qa-fade { from { opacity:0; } to { opacity:1; } }
   @keyframes qa-fadeup { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
   @keyframes qa-fadedown { from { opacity:0; transform:translateY(-16px); } to { opacity:1; transform:none; } }
@@ -940,12 +940,14 @@ function morphKids(from, to){
   while(fc){ var n=fc.nextSibling; from.removeChild(fc); fc=n; }
 }
 function morphEl(from, to){
-  // sync attributes
-  var changed=false;
+  // sync attributes; keep a transient page-transition class a redundant re-morph
+  // (SSE + the POST response both apply the same update) would otherwise strip.
+  var changed=false, hadAnim=from.classList&&from.classList.contains('qorm-scene-in');
   var ta=to.attributes, i, a;
   for(i=ta.length-1;i>=0;i--){ a=ta[i]; if(from.getAttribute(a.name)!==a.value){ from.setAttribute(a.name,a.value); changed=true; } }
   var fa=from.attributes;
   for(i=fa.length-1;i>=0;i--){ a=fa[i]; if(!to.hasAttribute(a.name)){ from.removeAttribute(a.name); changed=true; } }
+  if(hadAnim && !from.classList.contains('qorm-scene-in')) from.classList.add('qorm-scene-in');
   if(changed) qormFlash(from);
   var focused=(document.activeElement===from);
   // form controls: keep the user's live value/checked unless they're not focused
@@ -968,8 +970,8 @@ function qorm(h){
   });
   fetch('/event',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({h:h,inputs:inputs})})
-    .then(function(r){ var rv=r.headers.get('X-Qorm-Rev'); if(rv) __rev=parseInt(rv); qormTheme(r.headers.get('X-Qorm-Theme')); return r.text(); })
-    .then(function(html){qormMorphInto(document.getElementById('qorm-root'), html);});
+    .then(function(r){ var rv=parseInt(r.headers.get('X-Qorm-Rev'))||0; qormTheme(r.headers.get('X-Qorm-Theme')); return r.text().then(function(html){ return {rv:rv,html:html}; }); })
+    .then(function(o){ if(o.rv && o.rv<=__rev) return; if(o.rv) __rev=o.rv; qormMorphInto(document.getElementById('qorm-root'), o.html); });
 }
 // Camera: open the device camera/photo picker, read the chosen image as a data
 // URL, show it in the preview, sync it into bound state, and fire onChange.
@@ -1487,6 +1489,8 @@ function qormTheme(t){ if(!t) return; var st=document.getElementById('qorm-stage
 function qormApply(d){
   if(d&&d.theme) qormTheme(d.theme);
   if(!d||typeof d.rev==='undefined') return;
+  if(d.rev<=__rev) return;   // already applied (e.g. via the POST /event response) — no double morph
+  __rev=d.rev;
   window.__qormEditSrc=d.source;   // so morph can flag AI-touched nodes for a flash
   if(typeof d.html!=='undefined'){ qormMorphInto(document.getElementById('qorm-root'), d.html); }
   window.__qormEditSrc=null;
