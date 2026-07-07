@@ -18,6 +18,7 @@ runnable reference — when a doc and a running example disagree, trust the exam
 ## Reference (auto-generated from the code — canonical)
 
 - [Widget catalog](reference/widgets.md) — every node `type` the renderer accepts
+- [Animation](reference/animation.md) — entrance effects, value-driven transitions, and press feedback
 - [Capabilities](platforms/capabilities.md) — built-in hardware/OS ops, callbacks, and platforms
 
 ## Platforms & packaging
