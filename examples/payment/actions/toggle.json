@@ -1,0 +1,1 @@
+{"type":"action","id":"toggle","steps":[{"type":"state.set","path":"done","value":"{{ done ? false : true }}"}]}

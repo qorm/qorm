@@ -1,0 +1,25 @@
+{"type":"scene","id":"main","root":{"type":"column","style":{"padding":24,"gap":18,"background":"#f2f2f7"},"layout":{"width":"fill"},"children":[
+  {"type":"text","text":"Checkout","style":{"fontWeight":800,"fontSize":26}},
+  {"type":"text","text":"Tap to pay — the card animates to a receipt in one coordinated motion.","style":{"color":"#8e8e93","fontSize":14}},
+
+  {"type":"animatedcontainer","duration":500,"curve":"cubic-bezier(.34,1.3,.64,1)",
+   "style":{"background":"{{ state.done ? '#eafbf1' : '#ffffff' }}","border":"{{ state.done ? '1.5px solid #30d158' : '1.5px solid #ececef' }}","borderRadius":22,"padding":22,"gap":16},
+   "children":[
+     {"type":"row","style":{"gap":16},"layout":{"align":"center"},"children":[
+       {"type":"animatedcontainer","duration":500,"style":{"width":58,"height":58,"borderRadius":29,"background":"{{ state.done ? '#30d158' : '#e9e9ee' }}"},"layout":{"align":"center","justify":"center"},"children":[
+         {"type":"icon","icon":"check","size":32,"if":"{{state.done}}","animation":"pop","duration":500,"style":{"color":"#ffffff"}}
+       ]},
+       {"type":"column","style":{"gap":3},"layout":{"width":"fill"},"children":[
+         {"type":"text","text":"{{ state.done ? 'Payment complete' : 'Pay $49.00' }}","style":{"fontWeight":700,"fontSize":20}},
+         {"type":"text","text":"{{ state.done ? 'Receipt below' : 'Visa ending 4242' }}","style":{"color":"#8e8e93","fontSize":14}}
+       ]}
+     ]},
+     {"type":"column","if":"{{state.done}}","style":{"gap":10,"padding":{"top":6}},"children":[
+       {"type":"divider"},
+       {"type":"row","animation":"fadeup","duration":500,"delay":80,"layout":{"justify":"between"},"children":[{"type":"text","text":"Amount","style":{"color":"#8e8e93"}},{"type":"text","text":"$49.00","style":{"fontWeight":700}}]},
+       {"type":"row","animation":"fadeup","duration":500,"delay":180,"layout":{"justify":"between"},"children":[{"type":"text","text":"Date","style":{"color":"#8e8e93"}},{"type":"text","text":"Jul 7, 2026","style":{"fontWeight":700}}]},
+       {"type":"row","animation":"fadeup","duration":500,"delay":280,"layout":{"justify":"between"},"children":[{"type":"text","text":"Reference","style":{"color":"#8e8e93"}},{"type":"text","text":"QM-4242","style":{"fontWeight":700}}]}
+     ]}
+   ]},
+  {"type":"button","text":"{{ state.done ? 'Reset' : 'Pay now' }}","onPress":{"type":"invoke","name":"toggle","args":{"done":"{{state.done}}"}},"style":{"background":"{{ state.done ? '#8e8e93' : '#0a84ff' }}","color":"#fff","padding":16,"borderRadius":14,"fontWeight":700,"fontSize":17}}
+]}}
