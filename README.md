@@ -214,11 +214,16 @@ Top-tier widget vocabulary, all mapped to semantic HTML/CSS:
   `spinner`, `video`.
 - **Structure**: `tabs` (client-side switching), `list` (data-bound repeat with
   `{{item.*}}` scope).
+- **Animation**: an `animation` prop on *any* node (or component) plays an entrance
+  effect on mount (`fadeup`, `pop`, `bounce`, …); `animatedcontainer` /
+  `animatedopacity` do value-driven transitions; buttons get iOS press feedback.
+  See [animation](docs/reference/animation.md) and `examples/animations` /
+  `examples/payment`.
 
 Plus cross-cutting features on every node: conditional rendering
 (`"if": "{{state.x}}"`), accessibility (`role`, `ariaLabel`, `title`), and rich
 style (shadow, gradient, position + top/left/right/bottom, aspectRatio,
-min/max width/height, opacity, transition). See `examples/gallery`.
+min/max width/height, opacity, transition, `animation`). See `examples/gallery`.
 
 ## Over-the-air updates
 
