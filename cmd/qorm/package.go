@@ -10,6 +10,7 @@ import (
 
 	"github.com/qorm/qorm/internal/bundle"
 	"github.com/qorm/qorm/internal/loader"
+	"github.com/qorm/qorm/internal/miniapp"
 	qrt "github.com/qorm/qorm/internal/runtime"
 	"github.com/qorm/qorm/internal/server"
 )
@@ -67,7 +68,7 @@ func cmdPackage(args []string) int {
 		}
 	}
 	if in == "" {
-		fmt.Fprintln(os.Stderr, "usage: qorm package <app-dir> [-p web|android|ios] [-o out-dir]")
+		fmt.Fprintln(os.Stderr, "usage: qorm package <app-dir> [-p web|android|ios|mac|miniapp] [-o out-dir]")
 		return 2
 	}
 	name := filepath.Base(strings.TrimRight(in, "/"))
@@ -143,6 +144,25 @@ func cmdPackage(args []string) int {
 		return 0
 	}
 
+	// A mini-program (小程序) is a WXML/WXSS project, not HTML/WASM — QORM remaps
+	// its rendered UI and emits a WeChat-style project (open it in WeChat DevTools).
+	if platform == "miniapp" || platform == "miniprogram" || platform == "weapp" {
+		rt := qrt.New(app)
+		for path, content := range miniapp.BuildProject(rt) {
+			full := filepath.Join(out, path)
+			if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+				return 1
+			}
+			if err := os.WriteFile(full, []byte(content), 0o644); err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+				return 1
+			}
+		}
+		fmt.Printf("packaged %s -> %s (WeChat mini-program project; open it in WeChat DevTools)\n", name, out)
+		return 0
+	}
+
 	// The web assets are the payload for every platform; native shells wrap them.
 	webDir := out
 	if platform != "web" {
@@ -207,7 +227,7 @@ func cmdPackage(args []string) int {
 			return 1
 		}
 	default:
-		fmt.Fprintf(os.Stderr, "error: unknown platform %q (web|android|ios)\n", platform)
+		fmt.Fprintf(os.Stderr, "error: unknown platform %q (web|android|ios|mac|miniapp)\n", platform)
 		return 2
 	}
 	return 0
