@@ -126,3 +126,32 @@ func TestNavigation(t *testing.T) {
 		t.Fatalf("navigate back: current scene = %q, want entry", s)
 	}
 }
+
+// TestReorder checks drag-to-reorder end to end: state.move relocates a list
+// element, and a reorderable list wires the qormReorder client helper.
+func TestReorder(t *testing.T) {
+	dir := t.TempDir()
+	w := func(p, s string) {
+		if err := os.WriteFile(filepath.Join(dir, p), []byte(s), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	os.MkdirAll(filepath.Join(dir, "scenes"), 0o755)
+	os.MkdirAll(filepath.Join(dir, "actions"), 0o755)
+	w("qorm.json", `{"type":"app","id":"re","entry":"main","globalState":{"schema":{"items":"array"},"initial":{"items":[{"label":"A"},{"label":"B"},{"label":"C"}]}}}`)
+	w("actions/onReorder.json", `{"type":"action","id":"onReorder","steps":[{"type":"state.move","path":"items","from":"{{_reorderFrom}}","to":"{{_reorderTo}}"}]}`)
+	w("scenes/main.json", `{"type":"scene","id":"main","root":{"type":"list","id":"L","reorderable":true,"onReorder":{"type":"invoke","name":"onReorder"},"data":"{{state.items}}","renderItem":{"type":"text","text":"{{item.label}}"}}}`)
+	app, err := loader.LoadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rt := qrt.New(app)
+	if !strings.Contains(Render(rt).HTML, "qormReorder(") {
+		t.Error("reorderable list did not wire the qormReorder client helper")
+	}
+	rt.Dispatch("onReorder", map[string]any{"_reorderFrom": 0.0, "_reorderTo": 2.0})
+	items, _ := rt.State["items"].([]any)
+	if len(items) != 3 || items[2].(map[string]any)["label"] != "A" {
+		t.Errorf("state.move did not relocate element: %v", items)
+	}
+}
