@@ -1,4 +1,4 @@
-<!-- data-lang-nav --> [English](README.md) · 中文
+<!-- data-lang-nav --><p align="right"><a href="README.md">English</a> · <b>中文</b></p>
 
 # QORM
 

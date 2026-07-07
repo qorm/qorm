@@ -1,6 +1,6 @@
-# QORM documentation
+<!-- data-lang-nav --><p align="right"><b>English</b> · <a href="zh/README.md">中文</a></p>
 
-<!-- data-lang-nav --> English · [中文](zh/README.md)
+# QORM documentation
 
 QORM (Queryable Object Rendering Model) is a pure-Go, agent-native declarative-UI
 runtime: write a UI as JSON, run it live, sign it, and package it for
