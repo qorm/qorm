@@ -35,13 +35,14 @@ type Server struct {
 	preview *previewState
 	history []*model.App // pre-images before each apply_patch, for undo
 
-	mu          *sync.Mutex   // guards rt during shared sessions
-	afterMutate func()        // called after a mutating tool (for live-sync)
-	measureProv func() []byte // latest self-reported layout, if a live client is measuring
-	windowMover func(id string, x, y, w, h int)
-	windowOp    func(id, op string)
-	windowOpen  func(id, url string, w, h int)
-	windowEval  func(id, js string)
+	mu           *sync.Mutex   // guards rt during shared sessions
+	afterMutate  func()        // called after a mutating tool (for live-sync)
+	measureProv  func() []byte // latest self-reported layout, if a live client is measuring
+	activityProv func() string // shared-session activity log JSON (who did what), if wired
+	windowMover  func(id string, x, y, w, h int)
+	windowOp     func(id, op string)
+	windowOpen   func(id, url string, w, h int)
+	windowEval   func(id, js string)
 }
 
 const maxHistory = 50
@@ -69,6 +70,10 @@ func NewShared(rt *runtime.Runtime, mu *sync.Mutex, afterMutate func()) *Server 
 // SetMeasureProvider supplies the latest layout self-measurement (from a live
 // browser/WebView client), enabling the qorm_measure/qorm_check_layout tools.
 func (s *Server) SetMeasureProvider(f func() []byte) { s.measureProv = f }
+
+// SetActivityProvider supplies the shared-session activity log (who did what),
+// enabling the qorm_activity tool so an agent can see the human's live actions.
+func (s *Server) SetActivityProvider(f func() string) { s.activityProv = f }
 
 // SetWindowMover supplies the native window mover (desktop app only), enabling
 // the qorm_window tool for the agent to position the user's window.
