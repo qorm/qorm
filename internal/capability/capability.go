@@ -19,7 +19,7 @@
 package capability
 
 import (
-	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -118,30 +118,6 @@ func Supported(widget, platform string) bool {
 	return false
 }
 
-// PlatformsFor returns the platform support set for a widget type.
-func PlatformsFor(widget string) map[string]bool {
-	c := byWidget[widget]
-	if c == nil {
-		return nil
-	}
-	m := make(map[string]bool, len(c.Platforms))
-	for _, p := range c.Platforms {
-		m[p] = true
-	}
-	return m
-}
-
-// Widgets returns the sorted list of capability widget types (for the render
-// switch / validation).
-func Widgets() []string {
-	out := make([]string, 0, len(All))
-	for _, c := range All {
-		out = append(out, c.Widget)
-	}
-	sort.Strings(out)
-	return out
-}
-
 // Markdown renders the registry as a human-readable capability reference table.
 // The docs are generated from this ONE source (see TestCapabilityDocInSync), so
 // a human reads exactly what the code implements — no drift.
@@ -150,7 +126,7 @@ func Markdown() string {
 	b.WriteString("# 能力清单 · Capabilities\n\n")
 	b.WriteString("> 本文件由 `internal/capability` 注册表自动生成(`TestCapabilityDocInSync`),请勿手改。\n")
 	b.WriteString("> Auto-generated from the capability registry — do not edit by hand.\n\n")
-	b.WriteString("QORM 内置 " + itoa(len(All)) + " 个硬件/原生能力。每个能力:组件类型 = 能力名,触发 `qormToNative(op)`,结果回 `qormOn<X>`。AI 可用 `qorm_capabilities` MCP 工具发现全部。\n\n")
+	b.WriteString("QORM 内置 " + strconv.Itoa(len(All)) + " 个硬件/原生能力。每个能力:组件类型 = 能力名,触发 `qormToNative(op)`,结果回 `qormOn<X>`。AI 可用 `qorm_capabilities` MCP 工具发现全部。\n\n")
 	b.WriteString("| 能力 Capability | Widget | Ops | 回调 Callback | 平台 Platforms | 说明 |\n")
 	b.WriteString("|---|---|---|---|---|---|\n")
 	for _, c := range All {
@@ -169,25 +145,6 @@ func Markdown() string {
 		b.WriteString("| `" + c.Stem + "` | `" + c.Widget + "` | " + ops + " | `" + cb + "` | " + strings.Join(c.Platforms, ", ") + " | " + desc + " |\n")
 	}
 	return b.String()
-}
-
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	neg := n < 0
-	if neg {
-		n = -n
-	}
-	var d []byte
-	for n > 0 {
-		d = append([]byte{byte('0' + n%10)}, d...)
-		n /= 10
-	}
-	if neg {
-		return "-" + string(d)
-	}
-	return string(d)
 }
 
 // perms lists the permission identifiers each capability needs per platform, so

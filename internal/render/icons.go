@@ -63,6 +63,3 @@ func iconSVG(name string, size float64) string {
 	}
 	return fmt.Sprintf(`<svg width="%g" height="%g" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;flex:none;">%s</svg>`, size, size, body)
 }
-
-// hasIcon reports whether a name resolves to a built-in SVG icon.
-func hasIcon(name string) bool { _, ok := iconPaths[name]; return ok }

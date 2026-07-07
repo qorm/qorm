@@ -334,10 +334,3 @@ func writeIconFor(appDir, path string, n int) {
 		}
 	}
 }
-
-// writeIcon writes the embedded QORM logo icon at (nearest) size n.
-func writeIcon(path string, n int) {
-	if b := appIcon(n); b != nil {
-		os.WriteFile(path, b, 0o644)
-	}
-}

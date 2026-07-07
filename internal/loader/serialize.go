@@ -70,11 +70,7 @@ func ManifestToJSON(app *model.App) map[string]any {
 	putIf(m, "defaultLocale", app.DefaultLocale)
 	gs := map[string]any{}
 	if len(app.GlobalState.Schema) > 0 {
-		schema := map[string]any{}
-		for k, v := range app.GlobalState.Schema {
-			schema[k] = v
-		}
-		gs["schema"] = schema
+		gs["schema"] = copyStrMap(app.GlobalState.Schema)
 	}
 	if app.GlobalState.Initial != nil {
 		gs["initial"] = app.GlobalState.Initial
@@ -139,18 +135,10 @@ func ActionToJSON(a *model.Action) map[string]any {
 		putIf(s, "result", st.Result)
 		putIf(s, "error", st.Error)
 		if st.Object != nil {
-			obj := map[string]any{}
-			for k, v := range st.Object {
-				obj[k] = v
-			}
-			s["item"] = obj
+			s["item"] = copyStrMap(st.Object)
 		}
 		if st.Headers != nil {
-			hdr := map[string]any{}
-			for k, v := range st.Headers {
-				hdr[k] = v
-			}
-			s["headers"] = hdr
+			s["headers"] = copyStrMap(st.Headers)
 		}
 		steps = append(steps, s)
 	}
@@ -171,11 +159,17 @@ func AppToDocs(app *model.App) []map[string]any {
 }
 
 func invokeToJSON(inv *model.Invoke) map[string]any {
-	args := map[string]any{}
-	for k, v := range inv.Args {
-		args[k] = v
+	return map[string]any{"type": "invoke", "name": inv.Name, "args": copyStrMap(inv.Args)}
+}
+
+// copyStrMap copies a map[string]string into a fresh map[string]any, so the
+// emitted document shares no nested map with the live model.
+func copyStrMap(m map[string]string) map[string]any {
+	out := make(map[string]any, len(m))
+	for k, v := range m {
+		out[k] = v
 	}
-	return map[string]any{"type": "invoke", "name": inv.Name, "args": args}
+	return out
 }
 
 func putIf(m map[string]any, key, val string) {
