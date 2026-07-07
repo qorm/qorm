@@ -765,6 +765,9 @@ func Page(rt *runtime.Runtime, body string, rev int64) string {
   /* Interactive: iOS press feedback (tap-to-scale) on buttons & tappables. */
   .qorm-tap { transition:transform .12s ease, opacity .12s ease; -webkit-tap-highlight-color:transparent; }
   .qorm-tap:active { transform:scale(.96); opacity:.7; }
+  /* Spatial attribution: a node the AI just changed pulses a blue outline. */
+  .qorm-ai-touch { animation:qorm-ai-flash 1.3s ease-out; border-radius:inherit; }
+  @keyframes qorm-ai-flash { 0%% { box-shadow:0 0 0 2px rgba(10,132,255,.9); } 60%% { box-shadow:0 0 0 2px rgba(10,132,255,.45); } 100%% { box-shadow:0 0 0 2px rgba(10,132,255,0); } }
   @keyframes qa-fade { from { opacity:0; } to { opacity:1; } }
   @keyframes qa-fadeup { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
   @keyframes qa-fadedown { from { opacity:0; transform:translateY(-16px); } to { opacity:1; transform:none; } }
@@ -817,6 +820,14 @@ function qormMeasure(){
     fetch('/measure',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(out)});
   }catch(e){}
 }
+// qormFlash briefly outlines a node the AI just changed, so the human sees WHERE
+// an edit landed (spatial attribution), not only the "AI edited" toast. No-op for
+// the human's own edits and initial paint.
+function qormFlash(el){
+  if(!el || el.nodeType!==1 || window.__qormEditSrc!=='agent') return;
+  el.classList.add('qorm-ai-touch');
+  setTimeout(function(){ el.classList.remove('qorm-ai-touch'); }, 1300);
+}
 function qormMorphInto(root, html){
   var tmp=document.createElement('div'); tmp.innerHTML=html;
   var active=document.activeElement, activeId=active&&active.id;
@@ -828,12 +839,12 @@ function morphKids(from, to){
   var fc=from.firstChild, tc=to.firstChild;
   while(tc){
     var nt=tc.nextSibling;
-    if(!fc){ from.appendChild(document.importNode(tc,true)); tc=nt; continue; }
+    if(!fc){ var an=document.importNode(tc,true); from.appendChild(an); qormFlash(an); tc=nt; continue; }
     var nf=fc.nextSibling;
     if(fc.nodeType!==tc.nodeType || (fc.nodeType===1 && fc.nodeName!==tc.nodeName)){
-      from.replaceChild(document.importNode(tc,true), fc);
+      var rn=document.importNode(tc,true); from.replaceChild(rn, fc); qormFlash(rn);
     } else if(fc.nodeType===3 || fc.nodeType===8){
-      if(fc.nodeValue!==tc.nodeValue) fc.nodeValue=tc.nodeValue;
+      if(fc.nodeValue!==tc.nodeValue){ fc.nodeValue=tc.nodeValue; qormFlash(from); }
     } else if(fc.nodeType===1){
       morphEl(fc, tc);
     }
@@ -843,10 +854,12 @@ function morphKids(from, to){
 }
 function morphEl(from, to){
   // sync attributes
+  var changed=false;
   var ta=to.attributes, i, a;
-  for(i=ta.length-1;i>=0;i--){ a=ta[i]; if(from.getAttribute(a.name)!==a.value) from.setAttribute(a.name,a.value); }
+  for(i=ta.length-1;i>=0;i--){ a=ta[i]; if(from.getAttribute(a.name)!==a.value){ from.setAttribute(a.name,a.value); changed=true; } }
   var fa=from.attributes;
-  for(i=fa.length-1;i>=0;i--){ a=fa[i]; if(!to.hasAttribute(a.name)) from.removeAttribute(a.name); }
+  for(i=fa.length-1;i>=0;i--){ a=fa[i]; if(!to.hasAttribute(a.name)){ from.removeAttribute(a.name); changed=true; } }
+  if(changed) qormFlash(from);
   var focused=(document.activeElement===from);
   // form controls: keep the user's live value/checked unless they're not focused
   if(from.nodeName==='INPUT'){
@@ -1387,7 +1400,9 @@ function qormTheme(t){ if(!t) return; var st=document.getElementById('qorm-stage
 function qormApply(d){
   if(d&&d.theme) qormTheme(d.theme);
   if(!d||typeof d.rev==='undefined') return;
+  window.__qormEditSrc=d.source;   // so morph can flag AI-touched nodes for a flash
   if(typeof d.html!=='undefined'){ qormMorphInto(document.getElementById('qorm-root'), d.html); }
+  window.__qormEditSrc=null;
   if(d.source==='agent') qormPresence(d.detail);   // a collaborator (AI) edited — show it live
   __rev=d.rev;
 }
