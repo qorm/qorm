@@ -1,5 +1,7 @@
 # QORM
 
+<!-- data-lang-nav --> English · [中文](README.zh.md)
+
 **Build UI apps with your AI assistant — together, live.** QORM is an
 agent-native declarative-UI runtime: describe a UI as small, language-neutral
 JSON, and your AI (Claude, Cursor, …) can **scaffold, edit, run, and verify** it
