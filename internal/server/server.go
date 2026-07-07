@@ -57,6 +57,10 @@ type Server struct {
 	// button tap must not erase what they just typed). Never a password value.
 	humanTyping   string
 	humanTypingAt time.Time
+	// A hidden (password) field the human filled, retained by label only — the
+	// value is never captured, but the agent may know the form is complete.
+	humanFilled   string
+	humanFilledAt time.Time
 
 	measureMu sync.Mutex
 	measure   []byte // latest self-reported layout (rects + key styles)
@@ -117,6 +121,12 @@ func (s *Server) initAgent() {
 			out["humanTyping"] = map[string]any{
 				"entry":      s.humanTyping,
 				"secondsAgo": int(time.Since(s.humanTypingAt).Seconds()),
+			}
+		}
+		if s.humanFilled != "" {
+			out["humanFilled"] = map[string]any{
+				"field":      s.humanFilled, // a hidden field they filled; value NOT captured
+				"secondsAgo": int(time.Since(s.humanFilledAt).Seconds()),
 			}
 		}
 		b, _ := json.Marshal(out)
@@ -214,7 +224,10 @@ func (s *Server) servePresence(w http.ResponseWriter, r *http.Request) {
 		s.humanFocusAt = time.Now()
 		// A typed entry ("<field> = <value>") is retained separately so a later tap
 		// doesn't erase it; "(hidden)" password markers are not.
-		if strings.Contains(el, " = ") && !strings.HasSuffix(el, "= (hidden)") {
+		if strings.HasSuffix(el, "= (hidden)") {
+			s.humanFilled = strings.TrimSuffix(el, " = (hidden)")
+			s.humanFilledAt = time.Now()
+		} else if strings.Contains(el, " = ") {
 			s.humanTyping = el
 			s.humanTypingAt = time.Now()
 		}
@@ -1477,15 +1490,13 @@ if(window.EventSource){
   function ping(el){
     var t=el&&el.closest&&el.closest('button,a,input,textarea,select,[data-state]');
     if(!t) return;
-    var lab=(t.getAttribute('aria-label')||t.getAttribute('placeholder')||t.textContent||'').replace(/\s+/g,' ').trim().slice(0,40);
+    var isPw=(t.tagName==='INPUT' && t.type==='password');
+    var lab=(t.getAttribute('aria-label')||(isPw?'password':t.getAttribute('placeholder'))||t.textContent||'').replace(/\s+/g,' ').trim().slice(0,40);
     var d=t.tagName.toLowerCase()+(lab?': '+lab:'');
-    // include what the human is typing — but never a password field's value
-    var tag=t.tagName;
-    if((tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') && t.type!=='password' && t.value){
-      d+=' = '+String(t.value).slice(0,60);
-    }else if(tag==='INPUT' && t.type==='password' && t.value){
-      d+=' = (hidden)';
-    }
+    // include what the human typed — but a password's value is never sent, only
+    // a "(hidden)" marker so the agent knows the field was filled, not its content
+    if(isPw){ if(t.value) d+=' = (hidden)'; }
+    else if((t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT') && t.value){ d+=' = '+String(t.value).slice(0,60); }
     if(d===last) return; last=d;
     fetch('/presence',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({element:d})}).catch(function(){});
   }
