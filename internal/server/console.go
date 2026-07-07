@@ -149,6 +149,8 @@ const logWindowHTML = `<!doctype html>
   .ctrl button{background:#1a1d24;color:#c7ccd6;border:1px solid #2c313b;border-radius:7px;
     padding:5px 10px;font-size:12px;cursor:pointer;}
   .ctrl button:hover{background:#242832;color:#fff;}
+  .pres{padding:8px 16px;border-bottom:1px solid #22252d;font-size:12px;color:#9aa2b1;font-family:-apple-system,sans-serif;}
+  .pres .lbl{color:#7d8493;} .pres b{color:#30d158;font-weight:600;} .pres .pw{color:#ffd60a;}
 </style></head><body>
   <header><span class="dot"></span><b>Activity log</b><small>shared session</small></header>
   <div class="legend">
@@ -174,6 +176,7 @@ const logWindowHTML = `<!doctype html>
     <button onclick="qopen(&quot;win&quot;+(++qn),location.origin+&quot;/&quot;,400,600)">＋ window</button>
     <button onclick="qo(&quot;tile&quot;)"> tile all</button>
   </div>
+  <div class="pres"><span class="lbl">shared with the AI:</span> <span id="qpres">nothing yet</span></div>
   <div id="log"><div class="e system"><span class="t">--:--:--</span><span class="who">system</span><span class="d">waiting for activity…</span></div></div>
 <script>
   var log=document.getElementById('log'),since=0,first=true;
@@ -191,4 +194,14 @@ const logWindowHTML = `<!doctype html>
   function qo(op){fetch('/window',{method:'POST',body:JSON.stringify({op:op})}).catch(function(){});}
   function qopen(id,url,w,h){fetch('/window',{method:'POST',body:JSON.stringify({op:'open',id:id,url:url,w:w,h:h})}).catch(function(){});}
   setInterval(poll,600);poll();
+  // Show the human what the agent can currently see about them (transparency).
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+  function qpres(){ fetch('/presence').then(function(r){return r.json();}).then(function(p){
+    var el=document.getElementById('qpres'); if(!el) return; var parts=[];
+    if(p.focus) parts.push('on <b>'+esc(p.focus)+'</b>');
+    if(p.typing) parts.push('typed <b>'+esc(p.typing)+'</b>');
+    if(p.filled) parts.push('<span class="pw">'+esc(p.filled)+' filled (value hidden)</span>');
+    el.innerHTML = parts.length ? parts.join(' &middot; ') : 'nothing yet';
+  }).catch(function(){}); }
+  setInterval(qpres,900); qpres();
 </script></body></html>`
