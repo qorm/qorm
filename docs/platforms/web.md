@@ -2,6 +2,15 @@
 
 Web 端通过 WASM Runtime 或 TypeScript Adapter 接入 QORM。
 
+## Package it · 打包与试用
+
+```sh
+qorm package examples/dashboard -p web -o dashboard-web   # an installable, offline PWA
+```
+
+Serve the output folder and "Add to Home Screen". Any example packages to web.
+See the [support matrix](support-matrix.md).
+
 ## 架构
 
 ```text

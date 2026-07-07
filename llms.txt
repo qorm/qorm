@@ -35,6 +35,7 @@ references below (the runnable sources are the contract).
 
 ## Platforms
 
+- [Platform support matrix](docs/platforms/support-matrix.md) — what works where, at a glance.
 - [Mobile](docs/platforms/mobile.md) · [Desktop](docs/platforms/desktop.md) · [Web](docs/platforms/web.md) · [Mini-app](docs/platforms/miniapp.md)
 
 ## Examples (runnable — the canonical patterns)

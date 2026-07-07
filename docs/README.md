@@ -20,6 +20,7 @@ runnable reference — when a doc and a running example disagree, trust the exam
 
 ## Platforms & packaging
 
+- [Platform support matrix](platforms/support-matrix.md) — what works where, at a glance
 - [Mobile](platforms/mobile.md) · [Desktop](platforms/desktop.md) · [Web](platforms/web.md) · [Mini-app](platforms/miniapp.md)
 - [User middle-layer](platforms/native-middlelayer.md) — add your own native ops in one Go file that compiles into desktop *and* mobile/web WASM
 

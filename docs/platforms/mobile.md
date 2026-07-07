@@ -2,6 +2,18 @@
 
 Mobile 需要专门适配，不能简单复用 Desktop 实现。
 
+## Package it · 打包与试用
+
+```sh
+qorm package examples/hardware -p ios     -o hardware-ios      # an Xcode project
+qorm package examples/hardware -p android -o hardware-android  # an Android project
+```
+
+The app runs offline on device via Go→WASM in a WebView. Examples:
+[`hardware`](../../examples/hardware) (the capability catalog exercised),
+[`i18n`](../../examples/i18n) (locales, plurals, currency, RTL). See the
+[support matrix](support-matrix.md) for per-capability platform support.
+
 ## 架构
 
 ```text
