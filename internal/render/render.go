@@ -1629,10 +1629,10 @@ func (r *renderer) boxCSS(n *model.Node) string {
 	writeNum(&b, "min-height", s, "minHeight")
 	writeNum(&b, "max-height", s, "maxHeight")
 	if v, ok := numOK(s, "flexGrow"); ok {
-		fmt.Fprintf(&b, "flex-grow:%g;flex-basis:0;", v)
+		css(&b, "flex-grow", v, ";flex-basis:0;")
 	}
 	if v, ok := numOK(s, "aspectRatio"); ok {
-		fmt.Fprintf(&b, "aspect-ratio:%g;", v)
+		css(&b, "aspect-ratio", v, ";")
 	}
 	if bg := colorStr(s, "background"); bg != "" {
 		fmt.Fprintf(&b, "background:%s;", bg)
@@ -1641,7 +1641,7 @@ func (r *renderer) boxCSS(n *model.Node) string {
 		fmt.Fprintf(&b, "background:%s;", g)
 	}
 	if v, ok := numOK(s, "borderRadius"); ok {
-		fmt.Fprintf(&b, "border-radius:%gpx;", v)
+		css(&b, "border-radius", v, "px;")
 	}
 	if bw, ok := numOK(s, "borderWidth"); ok {
 		bc := colorStr(s, "borderColor")
@@ -1651,10 +1651,10 @@ func (r *renderer) boxCSS(n *model.Node) string {
 		fmt.Fprintf(&b, "border:%gpx solid %s;", bw, bc)
 	}
 	if v, ok := numOK(s, "gap"); ok {
-		fmt.Fprintf(&b, "gap:%gpx;", v)
+		css(&b, "gap", v, "px;")
 	}
 	if v, ok := numOK(s, "opacity"); ok {
-		fmt.Fprintf(&b, "opacity:%g;", v)
+		css(&b, "opacity", v, ";")
 	}
 	if sh := colorStr(s, "shadow"); sh != "" {
 		fmt.Fprintf(&b, "box-shadow:%s;", sh)
@@ -1685,21 +1685,21 @@ func (r *renderer) textCSS(n *model.Node) string {
 		fmt.Fprintf(&b, "color:%s;", v)
 	}
 	if v, ok := numOK(s, "fontSize"); ok {
-		fmt.Fprintf(&b, "font-size:%gpx;", v)
+		css(&b, "font-size", v, "px;")
 	} else {
 		b.WriteString("font-size:15px;")
 	}
 	if v, ok := numOK(s, "fontWeight"); ok {
-		fmt.Fprintf(&b, "font-weight:%g;", v)
+		css(&b, "font-weight", v, ";")
 	}
 	if v := colorStr(s, "fontFamily"); v != "" {
 		fmt.Fprintf(&b, "font-family:%s;", v)
 	}
 	if v, ok := numOK(s, "lineHeight"); ok {
-		fmt.Fprintf(&b, "line-height:%g;", v)
+		css(&b, "line-height", v, ";")
 	}
 	if v, ok := numOK(s, "letterSpacing"); ok {
-		fmt.Fprintf(&b, "letter-spacing:%gpx;", v)
+		css(&b, "letter-spacing", v, "px;")
 	}
 	if v := colorStr(s, "fontStyle"); v != "" {
 		fmt.Fprintf(&b, "font-style:%s;", v)
@@ -1711,7 +1711,7 @@ func (r *renderer) textCSS(n *model.Node) string {
 		fmt.Fprintf(&b, "text-transform:%s;", v)
 	}
 	if v, ok := numOK(s, "lineClamp"); ok {
-		fmt.Fprintf(&b, "display:-webkit-box;-webkit-line-clamp:%g;-webkit-box-orient:vertical;overflow:hidden;", v)
+		css(&b, "display:-webkit-box;-webkit-line-clamp", v, ";-webkit-box-orient:vertical;overflow:hidden;")
 	} else if propBool(n, "ellipsis") {
 		b.WriteString("white-space:nowrap;overflow:hidden;text-overflow:ellipsis;")
 	}
@@ -1790,6 +1790,16 @@ func labelOf(n *model.Node) string {
 		return n.Label
 	}
 	return n.Text
+}
+
+// css writes "prop:<float><suffix>" without fmt reflection (Fprintf %g is a hot
+// alloc in the per-node CSS builders). strconv 'g'/-1 matches %g exactly.
+func css(b *strings.Builder, prop string, v float64, suffix string) {
+	b.WriteString(prop)
+	b.WriteByte(':')
+	var buf [24]byte
+	b.Write(strconv.AppendFloat(buf[:0], v, 'g', -1, 64))
+	b.WriteString(suffix)
 }
 
 func writeSize(b *strings.Builder, dim string, vals ...any) {
