@@ -75,7 +75,7 @@ func toolList() []tool {
 		},
 		{
 			Name:        "qorm_activity",
-			Description: "Read the shared session's live presence: returns {events:[who (human/agent) did what, oldest to newest], humanFocus:{element, secondsAgo}} — so the agent sees both what the human just did AND the element they are attending to right now, and collaborates in context. Only available in a running `qorm run` session. Read-only.",
+			Description: "Read the shared session's live presence: returns {events:[who (human/agent) did what, oldest to newest], humanFocus:{element, secondsAgo}, humanTyping:{entry, secondsAgo}} — so the agent sees what the human just did, the element they are on now, AND the text they last typed (passwords excluded), and collaborates in context. Only available in a running `qorm run` session. Read-only.",
 			InputSchema: obj(nil),
 		},
 		{
