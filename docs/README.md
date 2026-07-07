@@ -19,6 +19,7 @@ runnable reference — when a doc and a running example disagree, trust the exam
 
 - [Widget catalog](reference/widgets.md) — every node `type` the renderer accepts
 - [Animation](reference/animation.md) — entrance effects, value-driven transitions, and press feedback
+- [Navigation](reference/navigation.md) — multiple scenes + the navigate action + page transitions
 - [Capabilities](platforms/capabilities.md) — built-in hardware/OS ops, callbacks, and platforms
 
 ## Platforms & packaging

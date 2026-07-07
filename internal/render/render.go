@@ -79,7 +79,19 @@ func RenderScene(rt *runtime.Runtime, sceneID string) Result {
 	} else {
 		r.sb.WriteString(`<div style="padding:24px;color:#888">no scene to render</div>`)
 	}
-	return Result{HTML: r.sb.String(), Handlers: r.handlers, Unknown: r.unknowns}
+	html := r.sb.String()
+	// Tag the scene root with its id so the client can play a page transition when
+	// navigation swaps in a different scene (the morph recreates a changed root).
+	key := sceneID
+	if key == "" {
+		key = "entry"
+	}
+	if strings.HasPrefix(html, "<") {
+		if i := strings.IndexAny(html, " >"); i > 0 {
+			html = html[:i] + ` data-scene="` + key + `"` + html[i:]
+		}
+	}
+	return Result{HTML: html, Handlers: r.handlers, Unknown: r.unknowns}
 }
 
 // renderComponent instantiates an app-defined component: the instance node's
