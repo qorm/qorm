@@ -213,6 +213,24 @@ func (s *Server) serveLog(w http.ResponseWriter, r *http.Request) {
 // just-touched element), so the agent sees it via qorm_activity — the human side
 // of presence, mirroring the human's "AI edited" flash.
 func (s *Server) servePresence(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		// The human's own panel reads this to show what is shared with the agent.
+		s.actMu.Lock()
+		out := map[string]any{}
+		if s.humanFocus != "" {
+			out["focus"] = s.humanFocus
+		}
+		if s.humanTyping != "" {
+			out["typing"] = s.humanTyping
+		}
+		if s.humanFilled != "" {
+			out["filled"] = s.humanFilled
+		}
+		s.actMu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(out)
+		return
+	}
 	var p struct{ Element string }
 	if json.NewDecoder(r.Body).Decode(&p) == nil {
 		el := strings.TrimSpace(p.Element)
