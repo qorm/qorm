@@ -182,9 +182,11 @@ type Step struct {
 	// Object is used by state.appendObject: field name -> value expression.
 	Object map[string]string
 	// navigate step: To is the target scene id (may contain {{bindings}}); Back
-	// pops the navigation stack instead.
+	// pops the navigation stack instead. state.move also uses To (target index)
+	// together with From (source index).
 	To   string
 	Back bool
+	From string
 	// http.* steps: call a backend and store the parsed JSON response.
 	URL     string            // request URL (may contain {{bindings}})
 	Method  string            // override for http.request (else GET/POST by type)

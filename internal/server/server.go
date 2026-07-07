@@ -1508,6 +1508,55 @@ function qormSwipe(el,h){
   el.addEventListener('pointerup',end); el.addEventListener('pointerleave',end);
 }
 // Long-press: fire handler h after 500ms of a sustained press (GestureDetector).
+function qormPostReorder(h, from, to){
+  fetch('/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({h:h,inputs:{_reorderFrom:from,_reorderTo:to}})})
+    .then(function(r){ var rv=parseInt(r.headers.get('X-Qorm-Rev'))||0; qormTheme(r.headers.get('X-Qorm-Theme')); return r.text().then(function(html){ return {rv:rv,html:html}; }); })
+    .then(function(o){ if(o.rv && o.rv<=__rev) return; if(o.rv) __rev=o.rv; qormMorphInto(document.getElementById('qorm-root'), o.html); });
+}
+// qormReorder makes a list drag-to-reorder: press-hold an item to pick it up, drag
+// it while siblings slide aside to show where it will land, release to commit the
+// new order (persisted via a state.move step, so the AI sees it and it survives).
+function qormReorder(list, h){
+  if(!list) return;
+  function items(){ return Array.prototype.filter.call(list.children, function(c){ return c.nodeType===1 && c.tagName!=='SCRIPT'; }); }
+  list.addEventListener('pointerdown', function(e){
+    var its=items(), item=null, from=-1;
+    for(var i=0;i<its.length;i++){ if(its[i].contains(e.target)){ item=its[i]; from=i; break; } }
+    if(!item) return;
+    if(e.button && e.button!==0) return;   // primary button only
+    var y0=e.clientY, started=false, to=from, itemH=item.offsetHeight||44;
+    function start(){
+      started=true; to=from;
+      item.style.transition='none'; item.style.zIndex='20'; item.style.position='relative';
+      item.style.boxShadow='0 10px 30px rgba(0,0,0,.22)'; item.style.opacity='.97';
+      document.body.style.userSelect='none';
+      try{ item.setPointerCapture(e.pointerId); }catch(_){}
+    }
+    function onMove(ev){
+      var dy=ev.clientY-y0;
+      if(!started){ if(Math.abs(dy)>5){ start(); } else { return; } }
+      ev.preventDefault();
+      item.style.transform='translateY('+dy+'px)';
+      var nt=Math.max(0, Math.min(its.length-1, from+Math.round(dy/itemH)));
+      if(nt!==to){ to=nt;
+        its.forEach(function(el,idx){ if(el===item) return; var t=0;
+          if(from<to && idx>from && idx<=to) t=-itemH;
+          else if(from>to && idx>=to && idx<from) t=itemH;
+          el.style.transition='transform .18s'; el.style.transform=t?('translateY('+t+'px)'):''; });
+      }
+    }
+    function onUp(){
+      cleanup();
+      if(!started) return;
+      document.body.style.userSelect='';
+      its.forEach(function(el){ el.style.transition=''; el.style.transform=''; el.style.zIndex=''; el.style.boxShadow=''; el.style.opacity=''; el.style.position=''; });
+      if(to!==from) qormPostReorder(h, from, to);
+    }
+    function cleanup(){ document.removeEventListener('pointermove', onMove); document.removeEventListener('pointerup', onUp); }
+    document.addEventListener('pointermove', onMove, {passive:false});
+    document.addEventListener('pointerup', onUp);
+  });
+}
 function qormLong(el,h){
   var t=null;
   var start=function(){ t=setTimeout(function(){ t=null; qorm(h); },500); };

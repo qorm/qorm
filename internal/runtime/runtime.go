@@ -276,6 +276,12 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any) {
 			field = expr.Stringify(EvalBinding(field, ctx))
 		}
 		sortArray(getPath(r.State, step.Path), field, EvalBinding(step.Value, ctx))
+	case "state.move":
+		if arr, ok := getPath(r.State, step.Path).([]any); ok {
+			from := int(toNum(EvalBinding(step.From, ctx)))
+			to := int(toNum(EvalBinding(step.To, ctx)))
+			setPath(r.State, step.Path, moveElem(arr, from, to))
+		}
 	case "state.clear":
 		switch getPath(r.State, step.Path).(type) {
 		case []any:
@@ -360,6 +366,30 @@ func (r *Runtime) applyHTTP(step model.Step, ctx map[string]any) {
 }
 
 // sortArray sorts an array of objects in place by key; dir "desc" reverses.
+// moveElem returns arr with the element at `from` relocated to index `to`
+// (drag-to-reorder). Out-of-range or no-op moves return arr unchanged.
+func moveElem(arr []any, from, to int) []any {
+	n := len(arr)
+	if from < 0 || from >= n || from == to {
+		return arr
+	}
+	v := arr[from]
+	rest := make([]any, 0, n-1)
+	rest = append(rest, arr[:from]...)
+	rest = append(rest, arr[from+1:]...)
+	if to < 0 {
+		to = 0
+	}
+	if to > len(rest) {
+		to = len(rest)
+	}
+	out := make([]any, 0, n)
+	out = append(out, rest[:to]...)
+	out = append(out, v)
+	out = append(out, rest[to:]...)
+	return out
+}
+
 func sortArray(v any, key string, dir any) {
 	arr, ok := v.([]any)
 	if !ok || key == "" {
