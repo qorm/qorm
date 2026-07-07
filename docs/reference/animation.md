@@ -2,8 +2,9 @@
 
 QORM animations are declarative and cross-cutting: any node — a built-in widget
 **or a component instance** — can carry an `animation` prop and play an entrance
-effect. Because a server re-render remounts the subtree, changing state (a human
-or an agent) replays the animation live.
+effect. Entrance effects fire when a node mounts. The live update morphs the DOM in
+place, so an effect replays when a node is newly created (e.g. an item appended to
+a bound list), not on every state change.
 
 ## The `animation` property (any node)
 

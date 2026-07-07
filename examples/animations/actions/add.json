@@ -1,0 +1,7 @@
+{
+  "type": "action", "id": "add",
+  "steps": [
+    { "type": "state.appendObject", "path": "items", "item": { "id": "{{ seq }}", "label": "Card {{ seq }} — pops in" } },
+    { "type": "state.set", "path": "seq", "value": "{{ seq + 1 }}" }
+  ]
+}
