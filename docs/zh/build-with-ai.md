@@ -6,6 +6,15 @@ QORM 面向智能体:让你的 AI 编码助手(Claude Code、Claude Desktop、Cu
 指向它,由 AI 来**搭建、编辑、运行并验证** QORM 应用——然后与你实时协作一个运行中的应用。
 这是工作流中属于人的一侧。
 
+## 先看效果
+
+60 秒版本:[`scripts/demo.sh`](../../scripts/demo.sh) 会开一个共享会话并按脚本自动做一串 AI 编辑——打开打印出的 URL、按下录制,就能看到应用实时变化 + 「AI edited」提示:
+
+```sh
+./scripts/demo.sh                 # examples/counter
+./scripts/demo.sh examples/dashboard
+```
+
 ## 1. 安装 QORM
 
 ```sh
