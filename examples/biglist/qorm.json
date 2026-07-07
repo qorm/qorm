@@ -1,0 +1,5 @@
+{
+  "type": "app", "id": "qorm_biglist", "name": "Big List",
+  "entry": "main",
+  "globalState": { "schema": { "items": "array" }, "initial": { "items": [] } }
+}

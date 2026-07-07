@@ -1,0 +1,126 @@
+{
+  "type": "scene",
+  "id": "main",
+  "root": {
+    "type": "column",
+    "id": "root",
+    "style": {
+      "background": "#F9FAFB",
+      "padding": 24
+    },
+    "layout": {
+      "width": "fill",
+      "height": "fill"
+    },
+    "children": [
+      {
+        "type": "text",
+        "id": "title",
+        "text": "Task Master",
+        "style": {
+          "color": "#111827",
+          "fontSize": 24,
+          "fontWeight": 800,
+          "margin": { "bottom": 24 }
+        }
+      },
+      {
+        "type": "row",
+        "id": "input_row",
+        "style": { "gap": 12, "margin": { "bottom": 24 } },
+        "children": [
+          {
+            "type": "input",
+            "id": "todo_input",
+            "placeholder": "What needs to be done?",
+            "value": "{{state.inputValue}}",
+            "style": {
+              "background": "#FFFFFF",
+              "height": 48,
+              "flexGrow": 1,
+              "padding": { "left": 16 },
+              "borderRadius": 12,
+              "borderWidth": 1,
+              "borderColor": "#E5E7EB"
+            }
+          },
+          {
+            "type": "button",
+            "id": "add_btn",
+            "label": "Add",
+            "style": {
+              "background": "#10B981",
+              "color": "#FFFFFF",
+              "width": 80,
+              "height": 48,
+              "borderRadius": 12,
+              "fontWeight": 600
+            },
+            "onPress": {
+              "type": "invoke",
+              "name": "addTodo",
+              "args": {
+                "text": "{{state.inputValue}}",
+                "items": "{{state.items}}"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "type": "column",
+        "id": "list",
+        "style": { "flexGrow": 1 },
+        "layout": { "width": "fill" },
+        "children": [
+          {
+            "type": "list",
+            "id": "todo_list",
+            "data": "{{state.items}}",
+            "renderItem": {
+              "type": "row",
+              "style": {
+                "background": "#FFFFFF",
+                "padding": 16,
+                "margin": { "bottom": 8 },
+                "borderRadius": 12,
+                "align": "center"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "text": "{{item.text}}",
+                  "style": {
+                    "color": "#374151",
+                    "fontSize": 16,
+                    "flexGrow": 1
+                  }
+                },
+                {
+                  "type": "button",
+                  "label": "Done",
+                  "style": {
+                    "background": "#F3F4F6",
+                    "color": "#6B7280",
+                    "fontSize": 12,
+                    "padding": { "left": 12, "right": 12 },
+                    "height": 28,
+                    "borderRadius": 6
+                  },
+                  "onPress": {
+                    "type": "invoke",
+                    "name": "toggleTodo",
+                    "args": {
+                      "id": "{{item.id}}",
+                      "items": "{{state.items}}"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

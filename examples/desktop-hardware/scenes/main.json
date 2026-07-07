@@ -1,0 +1,1268 @@
+{
+ "type": "scene",
+ "id": "main",
+ "root": {
+  "type": "scaffold",
+  "id": "root",
+  "children": [
+   {
+    "type": "scroll",
+    "id": "body",
+    "children": [
+     {
+      "type": "column",
+      "id": "page",
+      "style": {
+       "maxWidth": 900
+      },
+      "children": [
+       {
+        "type": "column",
+        "id": "hdr",
+        "style": {
+         "gap": 3,
+         "padding": {
+          "top": 24,
+          "right": 24,
+          "bottom": 4,
+          "left": 24
+         }
+        },
+        "children": [
+         {
+          "type": "text",
+          "id": "htitle",
+          "text": "Desktop Hardware",
+          "style": {
+           "fontSize": 26,
+           "fontWeight": 800,
+           "color": "var(--label)"
+          }
+         },
+         {
+          "type": "text",
+          "id": "hsub",
+          "text": "QORM native capabilities on macOS",
+          "style": {
+           "fontSize": 13,
+           "color": "#8e8e93"
+          }
+         }
+        ]
+       },
+       {
+        "type": "text",
+        "id": "sec_system",
+        "text": "SYSTEM",
+        "style": {
+         "fontSize": 11,
+         "fontWeight": 700,
+         "color": "#8e8e93",
+         "padding": {
+          "top": 18,
+          "right": 24,
+          "bottom": 6,
+          "left": 24
+         }
+        }
+       },
+       {
+        "type": "grid",
+        "id": "g_system",
+        "columns": 3,
+        "style": {
+         "gap": 14,
+         "padding": {
+          "top": 0,
+          "right": 18,
+          "bottom": 10,
+          "left": 18
+         }
+        },
+        "children": [
+         {
+          "type": "card",
+          "id": "c_vol",
+          "style": {
+           "padding": 16,
+           "gap": 10,
+           "borderRadius": 14
+          },
+          "children": [
+           {
+            "type": "row",
+            "id": "h_vol",
+            "style": {
+             "gap": 8,
+             "align": "center"
+            },
+            "children": [
+             {
+              "type": "icon",
+              "id": "i_vol",
+              "icon": "volume",
+              "size": 17,
+              "style": {
+               "color": "#0a84ff"
+              }
+             },
+             {
+              "type": "text",
+              "id": "t_vol",
+              "text": "Volume",
+              "style": {
+               "fontSize": 13,
+               "fontWeight": 700,
+               "color": "var(--label)"
+              }
+             }
+            ]
+           },
+           {
+            "type": "volume",
+            "id": "vol"
+           }
+          ]
+         },
+         {
+          "type": "card",
+          "id": "c_brt",
+          "style": {
+           "padding": 16,
+           "gap": 10,
+           "borderRadius": 14
+          },
+          "children": [
+           {
+            "type": "row",
+            "id": "h_brt",
+            "style": {
+             "gap": 8,
+             "align": "center"
+            },
+            "children": [
+             {
+              "type": "icon",
+              "id": "i_brt",
+              "icon": "brightness",
+              "size": 17,
+              "style": {
+               "color": "#0a84ff"
+              }
+             },
+             {
+              "type": "text",
+              "id": "t_brt",
+              "text": "Brightness",
+              "style": {
+               "fontSize": 13,
+               "fontWeight": 700,
+               "color": "var(--label)"
+              }
+             }
+            ]
+           },
+           {
+            "type": "brightness",
+            "id": "brt"
+           }
+          ]
+         },
+         {
+          "type": "card",
+          "id": "c_awake",
+          "style": {
+           "padding": 16,
+           "gap": 10,
+           "borderRadius": 14
+          },
+          "children": [
+           {
+            "type": "row",
+            "id": "h_awake",
+            "style": {
+             "gap": 8,
+             "align": "center"
+            },
+            "children": [
+             {
+              "type": "icon",
+              "id": "i_awake",
+              "icon": "sun",
+              "size": 17,
+              "style": {
+               "color": "#0a84ff"
+              }
+             },
+             {
+              "type": "text",
+              "id": "t_awake",
+              "text": "Keep Awake",
+              "style": {
+               "fontSize": 13,
+               "fontWeight": 700,
+               "color": "var(--label)"
+              }
+             }
+            ]
+           },
+           {
+            "type": "keepawake",
+            "id": "awake"
+           }
+          ]
+         },
+         {
+          "type": "card",
+          "id": "c_ntf",
+          "style": {
+           "padding": 16,
+           "gap": 10,
+           "borderRadius": 14
+          },
+          "children": [
+           {
+            "type": "row",
+            "id": "h_ntf",
+            "style": {
+             "gap": 8,
+             "align": "center"
+            },
+            "children": [
+             {
+              "type": "icon",
+              "id": "i_ntf",
+              "icon": "bell",
+              "size": 17,
+              "style": {
+               "color": "#0a84ff"
+              }
+             },
+             {
+              "type": "text",
+              "id": "t_ntf",
+              "text": "Notification",
+              "style": {
+               "fontSize": 13,
+               "fontWeight": 700,
+               "color": "var(--label)"
+              }
+             }
+            ]
+           },
+           {
+            "type": "notify",
+            "id": "ntf",
+            "text": "Desktop notification",
+            "label": "Send",
+            "placeholder": "QORM"
+           }
+          ]
+         },
+         {
+          "type": "card",
+          "id": "c_dbg",
+          "style": {
+           "padding": 16,
+           "gap": 10,
+           "borderRadius": 14
+          },
+          "children": [
+           {
+            "type": "row",
+            "id": "h_dbg",
+            "style": {
+             "gap": 8,
+             "align": "center"
+            },
+            "children": [
+             {
+              "type": "icon",
+              "id": "i_dbg",
+              "icon": "bell",
+              "size": 17,
+              "style": {
+               "color": "#0a84ff"
+              }
+             },
+             {
+              "type": "text",
+              "id": "t_dbg",
+              "text": "Dock Badge",
+              "style": {
+               "fontSize": 13,
+               "fontWeight": 700,
+               "color": "var(--label)"
+              }
+             }
+            ]
+           },
+           {
+            "type": "dockbadge",
+            "id": "dbg"
+           }
+          ]
+         },
+         {
+          "type": "card",
+          "id": "c_lgi",
+          "style": {
+           "padding": 16,
+           "gap": 10,
+           "borderRadius": 14
+          },
+          "children": [
+           {
+            "type": "row",
+            "id": "h_lgi",
+            "style": {
+             "gap": 8,
+             "align": "center"
+            },
+            "children": [
+             {
+              "type": "icon",
+              "id": "i_lgi",
+              "icon": "settings",
+              "size": 17,
+              "style": {
+               "color": "#0a84ff"
+              }
+             },
+             {
+              "type": "text",
+              "id": "t_lgi",
+              "text": "Launch at Login",
+              "style": {
+               "fontSize": 13,
+               "fontWeight": 700,
+               "color": "var(--label)"
+              }
+             }
+            ]
+           },
+           {
+            "type": "loginitem",
+            "id": "lgi"
+           }
+          ]
+         },
+         {
+          "type": "card",
+          "id": "c_scr",
+          "style": {
+           "padding": 16,
+           "gap": 10,
+           "borderRadius": 14
+          },
+          "children": [
+           {
+            "type": "row",
+            "id": "h_scr",
+            "style": {
+             "gap": 8,
+             "align": "center"
+            },
+            "children": [
+             {
+              "type": "icon",
+              "id": "i_scr",
+              "icon": "device",
+              "size": 17,
+              "style": {
+               "color": "#0a84ff"
+              }
+             },
+             {
+              "type": "text",
+              "id": "t_scr",
+              "text": "Displays",
+              "style": {
+               "fontSize": 13,
+               "fontWeight": 700,
+               "color": "var(--label)"
+              }
+             }
+            ]
+           },
+           {
+            "type": "screens",
+            "id": "scr"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "text",
+        "id": "sec_media",
+        "text": "MEDIA & CAPTURE",
+        "style": {
+         "fontSize": 11,
+         "fontWeight": 700,
+         "color": "#8e8e93",
+         "padding": {
+          "top": 18,
+          "right": 24,
+          "bottom": 6,
+          "left": 24
+         }
+        }
+       },
+       {
+        "type": "grid",
+        "id": "g_media",
+        "columns": 3,
+        "style": {
+         "gap": 14,
+         "padding": {
+          "top": 0,
+          "right": 18,
+          "bottom": 10,
+          "left": 18
+         }
+        },
+        "children": [
+         {
+          "type": "card",
+          "id": "c_cam",
+          "style": {
+           "padding": 16,
+           "gap": 10,
+           "borderRadius": 14
+          },
+          "children": [
+           {
+            "type": "row",
+            "id": "h_cam",
+            "style": {
+             "gap": 8,
+             "align": "center"
+            },
+            "children": [
+             {
+              "type": "icon",
+              "id": "i_cam",
+              "icon": "camera",
+              "size": 17,
+              "style": {
+               "color": "#0a84ff"
+              }
+             },
+             {
+              "type": "text",
+              "id": "t_cam",
+              "text": "Camera",
+              "style": {
+               "fontSize": 13,
+               "fontWeight": 700,
+               "color": "var(--label)"
+              }
+             }
+            ]
+           },
+           {
+            "type": "camera",
+            "id": "cam",
+            "value": "{{state.photo}}",
+            "label": "Take Photo"
+           }
+          ]
+         },
+         {
+          "type": "card",
+          "id": "c_mic",
+          "style": {
+           "padding": 16,
+           "gap": 10,
+           "borderRadius": 14
+          },
+          "children": [
+           {
+            "type": "row",
+            "id": "h_mic",
+            "style": {
+             "gap": 8,
+             "align": "center"
+            },
+            "children": [
+             {
+              "type": "icon",
+              "id": "i_mic",
+              "icon": "mic",
+              "size": 17,
+              "style": {
+               "color": "#0a84ff"
+              }
+             },
+             {
+              "type": "text",
+              "id": "t_mic",
+              "text": "Microphone",
+              "style": {
+               "fontSize": 13,
+               "fontWeight": 700,
+               "color": "var(--label)"
+              }
+             }
+            ]
+           },
+           {
+            "type": "recorder",
+            "id": "mic",
+            "value": "{{state.audio}}",
+            "label": "Record"
+           }
+          ]
+         },
+         {
+          "type": "card",
+          "id": "c_shot",
+          "style": {
+           "padding": 16,
+           "gap": 10,
+           "borderRadius": 14
+          },
+          "children": [
+           {
+            "type": "row",
+            "id": "h_shot",
+            "style": {
+             "gap": 8,
+             "align": "center"
+            },
+            "children": [
+             {
+              "type": "icon",
+              "id": "i_shot",
+              "icon": "screenshot",
+              "size": 17,
+              "style": {
+               "color": "#0a84ff"
+              }
+             },
+             {
+              "type": "text",
+              "id": "t_shot",
+              "text": "Screenshot",
+              "style": {
+               "fontSize": 13,
+               "fontWeight": 700,
+               "color": "var(--label)"
+              }
+             }
+            ]
+           },
+           {
+            "type": "screenshot",
+            "id": "shot",
+            "label": "Capture"
+           }
+          ]
+         },
+         {
+          "type": "card",
+          "id": "c_srec",
+          "style": {
+           "padding": 16,
+           "gap": 10,
+           "borderRadius": 14
+          },
+          "children": [
+           {
+            "type": "row",
+            "id": "h_srec",
+            "style": {
+             "gap": 8,
+             "align": "center"
+            },
+            "children": [
+             {
+              "type": "icon",
+              "id": "i_srec",
+              "icon": "video",
+              "size": 17,
+              "style": {
+               "color": "#0a84ff"
+              }
+             },
+             {
+              "type": "text",
+              "id": "t_srec",
+              "text": "Screen Record",
+              "style": {
+               "fontSize": 13,
+               "fontWeight": 700,
+               "color": "var(--label)"
+              }
+             }
+            ]
+           },
+           {
+            "type": "screenrecord",
+            "id": "srec",
+            "label": "Record Screen"
+           }
+          ]
+         },
+         {
+          "type": "card",
+          "id": "c_tts",
+          "style": {
+           "padding": 16,
+           "gap": 10,
+           "borderRadius": 14
+          },
+          "children": [
+           {
+            "type": "row",
+            "id": "h_tts",
+            "style": {
+             "gap": 8,
+             "align": "center"
+            },
+            "children": [
+             {
+              "type": "icon",
+              "id": "i_tts",
+              "icon": "zap",
+              "size": 17,
+              "style": {
+               "color": "#0a84ff"
+              }
+             },
+             {
+              "type": "text",
+              "id": "t_tts",
+              "text": "Text to Speech",
+              "style": {
+               "fontSize": 13,
+               "fontWeight": 700,
+               "color": "var(--label)"
+              }
+             }
+            ]
+           },
+           {
+            "type": "tts",
+            "id": "tts",
+            "data-text": "Hello from the desktop.",
+            "label": "Speak"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "text",
+        "id": "sec_data",
+        "text": "DATA & SHARING",
+        "style": {
+         "fontSize": 11,
+         "fontWeight": 700,
+         "color": "#8e8e93",
+         "padding": {
+          "top": 18,
+          "right": 24,
+          "bottom": 6,
+          "left": 24
+         }
+        }
+       },
+       {
+        "type": "grid",
+        "id": "g_data",
+        "columns": 3,
+        "style": {
+         "gap": 14,
+         "padding": {
+          "top": 0,
+          "right": 18,
+          "bottom": 10,
+          "left": 18
+         }
+        },
+        "children": [
+         {
+          "type": "card",
+          "id": "c_clip",
+          "style": {
+           "padding": 16,
+           "gap": 10,
+           "borderRadius": 14
+          },
+          "children": [
+           {
+            "type": "row",
+            "id": "h_clip",
+            "style": {
+             "gap": 8,
+             "align": "center"
+            },
+            "children": [
+             {
+              "type": "icon",
+              "id": "i_clip",
+              "icon": "clipboard",
+              "size": 17,
+              "style": {
+               "color": "#0a84ff"
+              }
+             },
+             {
+              "type": "text",
+              "id": "t_clip",
+              "text": "Clipboard",
+              "style": {
+               "fontSize": 13,
+               "fontWeight": 700,
+               "color": "var(--label)"
+              }
+             }
+            ]
+           },
+           {
+            "type": "clipboard",
+            "id": "clip",
+            "label": "Copy"
+           }
+          ]
+         },
+         {
+          "type": "card",
+          "id": "c_store",
+          "style": {
+           "padding": 16,
+           "gap": 10,
+           "borderRadius": 14
+          },
+          "children": [
+           {
+            "type": "row",
+            "id": "h_store",
+            "style": {
+             "gap": 8,
+             "align": "center"
+            },
+            "children": [
+             {
+              "type": "icon",
+              "id": "i_store",
+              "icon": "database",
+              "size": 17,
+              "style": {
+               "color": "#0a84ff"
+              }
+             },
+             {
+              "type": "text",
+              "id": "t_store",
+              "text": "Storage",
+              "style": {
+               "fontSize": 13,
+               "fontWeight": 700,
+               "color": "var(--label)"
+              }
+             }
+            ]
+           },
+           {
+            "type": "storage",
+            "id": "store",
+            "label": "Save"
+           }
+          ]
+         },
+         {
+          "type": "card",
+          "id": "c_ss",
+          "style": {
+           "padding": 16,
+           "gap": 10,
+           "borderRadius": 14
+          },
+          "children": [
+           {
+            "type": "row",
+            "id": "h_ss",
+            "style": {
+             "gap": 8,
+             "align": "center"
+            },
+            "children": [
+             {
+              "type": "icon",
+              "id": "i_ss",
+              "icon": "lock",
+              "size": 17,
+              "style": {
+               "color": "#0a84ff"
+              }
+             },
+             {
+              "type": "text",
+              "id": "t_ss",
+              "text": "Secure Storage",
+              "style": {
+               "fontSize": 13,
+               "fontWeight": 700,
+               "color": "var(--label)"
+              }
+             }
+            ]
+           },
+           {
+            "type": "securestorage",
+            "id": "ss",
+            "label": "Save Securely"
+           }
+          ]
+         },
+         {
+          "type": "card",
+          "id": "c_shr",
+          "style": {
+           "padding": 16,
+           "gap": 10,
+           "borderRadius": 14
+          },
+          "children": [
+           {
+            "type": "row",
+            "id": "h_shr",
+            "style": {
+             "gap": 8,
+             "align": "center"
+            },
+            "children": [
+             {
+              "type": "icon",
+              "id": "i_shr",
+              "icon": "share",
+              "size": 17,
+              "style": {
+               "color": "#0a84ff"
+              }
+             },
+             {
+              "type": "text",
+              "id": "t_shr",
+              "text": "Share",
+              "style": {
+               "fontSize": 13,
+               "fontWeight": 700,
+               "color": "var(--label)"
+              }
+             }
+            ]
+           },
+           {
+            "type": "share",
+            "id": "shr",
+            "label": "Share"
+           }
+          ]
+         },
+         {
+          "type": "card",
+          "id": "c_url",
+          "style": {
+           "padding": 16,
+           "gap": 10,
+           "borderRadius": 14
+          },
+          "children": [
+           {
+            "type": "row",
+            "id": "h_url",
+            "style": {
+             "gap": 8,
+             "align": "center"
+            },
+            "children": [
+             {
+              "type": "icon",
+              "id": "i_url",
+              "icon": "globe",
+              "size": 17,
+              "style": {
+               "color": "#0a84ff"
+              }
+             },
+             {
+              "type": "text",
+              "id": "t_url",
+              "text": "Open URL",
+              "style": {
+               "fontSize": 13,
+               "fontWeight": 700,
+               "color": "var(--label)"
+              }
+             }
+            ]
+           },
+           {
+            "type": "openurl",
+            "id": "url",
+            "data-url": "https://qorm.dev",
+            "label": "Open"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "text",
+        "id": "sec_device",
+        "text": "DEVICE & SENSORS",
+        "style": {
+         "fontSize": 11,
+         "fontWeight": 700,
+         "color": "#8e8e93",
+         "padding": {
+          "top": 18,
+          "right": 24,
+          "bottom": 6,
+          "left": 24
+         }
+        }
+       },
+       {
+        "type": "grid",
+        "id": "g_device",
+        "columns": 3,
+        "style": {
+         "gap": 14,
+         "padding": {
+          "top": 0,
+          "right": 18,
+          "bottom": 10,
+          "left": 18
+         }
+        },
+        "children": [
+         {
+          "type": "card",
+          "id": "c_dev",
+          "style": {
+           "padding": 16,
+           "gap": 10,
+           "borderRadius": 14
+          },
+          "children": [
+           {
+            "type": "row",
+            "id": "h_dev",
+            "style": {
+             "gap": 8,
+             "align": "center"
+            },
+            "children": [
+             {
+              "type": "icon",
+              "id": "i_dev",
+              "icon": "device",
+              "size": 17,
+              "style": {
+               "color": "#0a84ff"
+              }
+             },
+             {
+              "type": "text",
+              "id": "t_dev",
+              "text": "Device Info",
+              "style": {
+               "fontSize": 13,
+               "fontWeight": 700,
+               "color": "var(--label)"
+              }
+             }
+            ]
+           },
+           {
+            "type": "deviceinfo",
+            "id": "dev",
+            "label": "Read"
+           }
+          ]
+         },
+         {
+          "type": "card",
+          "id": "c_net",
+          "style": {
+           "padding": 16,
+           "gap": 10,
+           "borderRadius": 14
+          },
+          "children": [
+           {
+            "type": "row",
+            "id": "h_net",
+            "style": {
+             "gap": 8,
+             "align": "center"
+            },
+            "children": [
+             {
+              "type": "icon",
+              "id": "i_net",
+              "icon": "globe",
+              "size": 17,
+              "style": {
+               "color": "#0a84ff"
+              }
+             },
+             {
+              "type": "text",
+              "id": "t_net",
+              "text": "Network",
+              "style": {
+               "fontSize": 13,
+               "fontWeight": 700,
+               "color": "var(--label)"
+              }
+             }
+            ]
+           },
+           {
+            "type": "network",
+            "id": "net",
+            "label": "Status"
+           }
+          ]
+         },
+         {
+          "type": "card",
+          "id": "c_bt",
+          "style": {
+           "padding": 16,
+           "gap": 10,
+           "borderRadius": 14
+          },
+          "children": [
+           {
+            "type": "row",
+            "id": "h_bt",
+            "style": {
+             "gap": 8,
+             "align": "center"
+            },
+            "children": [
+             {
+              "type": "icon",
+              "id": "i_bt",
+              "icon": "bluetooth",
+              "size": 17,
+              "style": {
+               "color": "#0a84ff"
+              }
+             },
+             {
+              "type": "text",
+              "id": "t_bt",
+              "text": "Bluetooth",
+              "style": {
+               "fontSize": 13,
+               "fontWeight": 700,
+               "color": "var(--label)"
+              }
+             }
+            ]
+           },
+           {
+            "type": "bluetooth",
+            "id": "bt",
+            "label": "Scan"
+           }
+          ]
+         },
+         {
+          "type": "card",
+          "id": "c_wf",
+          "style": {
+           "padding": 16,
+           "gap": 10,
+           "borderRadius": 14
+          },
+          "children": [
+           {
+            "type": "row",
+            "id": "h_wf",
+            "style": {
+             "gap": 8,
+             "align": "center"
+            },
+            "children": [
+             {
+              "type": "icon",
+              "id": "i_wf",
+              "icon": "wifi",
+              "size": 17,
+              "style": {
+               "color": "#0a84ff"
+              }
+             },
+             {
+              "type": "text",
+              "id": "t_wf",
+              "text": "Wi-Fi",
+              "style": {
+               "fontSize": 13,
+               "fontWeight": 700,
+               "color": "var(--label)"
+              }
+             }
+            ]
+           },
+           {
+            "type": "wifi",
+            "id": "wf",
+            "label": "Info"
+           }
+          ]
+         },
+         {
+          "type": "card",
+          "id": "c_bio",
+          "style": {
+           "padding": 16,
+           "gap": 10,
+           "borderRadius": 14
+          },
+          "children": [
+           {
+            "type": "row",
+            "id": "h_bio",
+            "style": {
+             "gap": 8,
+             "align": "center"
+            },
+            "children": [
+             {
+              "type": "icon",
+              "id": "i_bio",
+              "icon": "fingerprint",
+              "size": 17,
+              "style": {
+               "color": "#0a84ff"
+              }
+             },
+             {
+              "type": "text",
+              "id": "t_bio",
+              "text": "Touch ID",
+              "style": {
+               "fontSize": 13,
+               "fontWeight": 700,
+               "color": "var(--label)"
+              }
+             }
+            ]
+           },
+           {
+            "type": "biometric",
+            "id": "bio",
+            "label": "Authenticate"
+           }
+          ]
+         },
+         {
+          "type": "card",
+          "id": "c_gps",
+          "style": {
+           "padding": 16,
+           "gap": 10,
+           "borderRadius": 14
+          },
+          "children": [
+           {
+            "type": "row",
+            "id": "h_gps",
+            "style": {
+             "gap": 8,
+             "align": "center"
+            },
+            "children": [
+             {
+              "type": "icon",
+              "id": "i_gps",
+              "icon": "location",
+              "size": 17,
+              "style": {
+               "color": "#0a84ff"
+              }
+             },
+             {
+              "type": "text",
+              "id": "t_gps",
+              "text": "Location",
+              "style": {
+               "fontSize": 13,
+               "fontWeight": 700,
+               "color": "var(--label)"
+              }
+             }
+            ]
+           },
+           {
+            "type": "location",
+            "id": "gps",
+            "value": "{{state.loc}}",
+            "label": "Locate"
+           }
+          ]
+         },
+         {
+          "type": "card",
+          "id": "c_modes",
+          "style": {
+           "padding": 16,
+           "gap": 10,
+           "borderRadius": 14
+          },
+          "children": [
+           {
+            "type": "row",
+            "id": "h_modes",
+            "style": {
+             "gap": 8,
+             "align": "center"
+            },
+            "children": [
+             {
+              "type": "icon",
+              "id": "i_modes",
+              "icon": "settings",
+              "size": 17,
+              "style": {
+               "color": "#0a84ff"
+              }
+             },
+             {
+              "type": "text",
+              "id": "t_modes",
+              "text": "System Modes",
+              "style": {
+               "fontSize": 13,
+               "fontWeight": 700,
+               "color": "var(--label)"
+              }
+             }
+            ]
+           },
+           {
+            "type": "systemmodes",
+            "id": "modes",
+            "label": "Read Modes"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

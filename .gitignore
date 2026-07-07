@@ -1,0 +1,14 @@
+/dist/
+*.log
+*.tmp
+.DS_Store
+dist/
+
+# packaged apps
+*-web/
+*-android/
+*-ios/
+
+# donor-fetch credentials (never commit)
+donors.env
+/etc/qorm/

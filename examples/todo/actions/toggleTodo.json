@@ -1,0 +1,13 @@
+{
+  "type": "action",
+  "id": "toggleTodo",
+  "steps": [
+    {
+      "type": "state.toggle",
+      "path": "items",
+      "matchKey": "id",
+      "match": "{{ id }}",
+      "field": "done"
+    }
+  ]
+}

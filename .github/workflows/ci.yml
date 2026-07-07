@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: build · vet · test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build (pure Go)
+        run: go build ./...
+      - name: Build (WASM client)
+        run: GOOS=js GOARCH=wasm go build -o /dev/null ./cmd/qorm-wasm
+      - name: Vet
+        run: go vet ./...
+      - name: Test
+        run: go test ./...
+
+  desktop:
+    name: build (native desktop, cgo)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build (-tags desktop)
+        run: go build -tags desktop -o /dev/null ./cmd/qorm

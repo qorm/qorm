@@ -1,0 +1,58 @@
+{
+  "type": "scene", "id": "main",
+  "root": {
+    "type": "column", "id": "root",
+    "style": { "background": "#f8fafc", "padding": 20, "gap": 14 },
+    "layout": { "width": "fill", "height": "fill" },
+    "children": [
+      {
+        "type": "row", "id": "head", "style": { "gap": 12 }, "layout": { "align": "center" },
+        "children": [
+          { "type": "text", "id": "title", "text": "Task Board", "style": { "fontSize": 22, "fontWeight": 800, "color": "#0f172a", "flexGrow": 1 } },
+          { "type": "stat", "id": "count", "label": "Total", "value": "{{ len(state.tasks) }}" }
+        ]
+      },
+      {
+        "type": "row", "id": "addrow", "style": { "gap": 8 },
+        "children": [
+          { "type": "input", "id": "newTitle", "value": "{{state.newTitle}}", "placeholder": "Add a task…",
+            "style": { "flexGrow": 1, "height": 42, "background": "#fff", "borderWidth": 1, "borderColor": "#d1d5db", "borderRadius": 8, "padding": { "left": 12 } } },
+          { "type": "button", "id": "add", "label": "Add",
+            "style": { "background": "#2e7df6", "color": "#fff", "fontWeight": 700, "width": 72, "height": 42, "borderRadius": 8 },
+            "onPress": { "type": "invoke", "name": "addTask", "args": { "title": "{{state.newTitle}}" } } }
+        ]
+      },
+      {
+        "type": "row", "id": "toolbar", "style": { "gap": 10 }, "layout": { "align": "center" },
+        "children": [
+          { "type": "segmented", "id": "filter", "value": "{{state.filter}}",
+            "options": [ { "value": "all", "label": "All" }, { "value": "active", "label": "Active" }, { "value": "done", "label": "Done" } ] },
+          { "type": "spacer", "id": "sp" },
+          { "type": "button", "id": "sort", "label": "Sort A→Z",
+            "style": { "background": "#e2e8f0", "color": "#334155", "fontSize": 13, "padding": { "top": 8, "bottom": 8, "left": 12, "right": 12 }, "borderRadius": 8 },
+            "onPress": { "type": "invoke", "name": "sortTasks", "args": {} } }
+        ]
+      },
+      {
+        "type": "list", "id": "tasklist", "data": "{{state.tasks}}",
+        "renderItem": {
+          "type": "row", "id": "task",
+          "if": "{{ state.filter == \"all\" || (state.filter == \"active\" && !item.done) || (state.filter == \"done\" && item.done) }}",
+          "style": { "background": "#fff", "padding": 12, "margin": { "bottom": 8 }, "borderRadius": 10, "gap": 10 },
+          "layout": { "align": "center" },
+          "children": [
+            { "type": "button", "id": "chk", "label": "{{ item.done ? \"✓\" : \"○\" }}",
+              "style": { "background": "#f1f5f9", "color": "#16a34a", "width": 32, "height": 32, "borderRadius": 16, "fontSize": 16 },
+              "onPress": { "type": "invoke", "name": "toggleTask", "args": { "id": "{{item.id}}" } } },
+            { "type": "text", "id": "t", "text": "{{item.title}}", "style": { "fontSize": 15, "color": "#111827", "flexGrow": 1 } },
+            { "type": "badge", "id": "st", "if": "{{ item.done }}", "label": "done", "style": { "background": "#dcfce7", "color": "#15803d" } },
+            { "type": "button", "id": "rm", "label": "×",
+              "style": { "background": "#fef2f2", "color": "#dc2626", "width": 28, "height": 28, "borderRadius": 14, "fontSize": 16 },
+              "onPress": { "type": "invoke", "name": "removeTask", "args": { "id": "{{item.id}}" } } }
+          ]
+        }
+      },
+      { "type": "empty", "id": "none", "if": "{{ len(state.tasks) == 0 }}", "icon": "🎉", "title": "All clear", "label": "No tasks — add one above." }
+    ]
+  }
+}

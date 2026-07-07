@@ -1,0 +1,92 @@
+{
+  "type": "app",
+  "id": "menus",
+  "name": "Menus",
+  "entry": "main",
+  "theme": "apple",
+  "platforms": {
+    "desktop": {
+      "window": {
+        "width": 460,
+        "height": 360
+      },
+      "menu": [
+        {
+          "title": "File",
+          "items": [
+            {
+              "id": "new",
+              "title": "New",
+              "icon": "doc.badge.plus",
+              "shortcut": "cmd+n"
+            },
+            {
+              "id": "open",
+              "title": "Open…",
+              "icon": "folder",
+              "shortcut": "cmd+o"
+            },
+            {
+              "separator": true
+            },
+            {
+              "id": "export",
+              "title": "Export",
+              "icon": "square.and.arrow.up",
+              "items": [
+                {
+                  "id": "export-pdf",
+                  "title": "as PDF"
+                },
+                {
+                  "id": "export-png",
+                  "title": "as PNG"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "title": "View",
+          "items": [
+            {
+              "id": "zoom-in",
+              "title": "Zoom In",
+              "icon": "plus.magnifyingglass",
+              "shortcut": "cmd+="
+            },
+            {
+              "id": "zoom-out",
+              "title": "Zoom Out",
+              "icon": "minus.magnifyingglass",
+              "shortcut": "cmd+-"
+            }
+          ]
+        }
+      ],
+      "tray": {
+        "tip": "Menus demo",
+        "items": [
+          {
+            "id": "tray-show",
+            "title": "Show Window",
+            "icon": "macwindow"
+          },
+          {
+            "id": "tray-about",
+            "title": "About",
+            "icon": "info.circle"
+          },
+          {
+            "separator": true
+          },
+          {
+            "id": "quit",
+            "title": "Quit",
+            "icon": "power"
+          }
+        ]
+      }
+    }
+  }
+}

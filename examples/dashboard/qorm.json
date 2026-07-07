@@ -1,0 +1,5 @@
+{
+  "type": "app", "id": "dashboard", "name": "Analytics", "entry": "main", "theme": "apple",
+  "platforms": { "desktop": { "window": { "width": 900, "height": 720 } } },
+  "globalState": { "schema": { "range": "string" }, "initial": { "range": "Week" } }
+}

@@ -1,0 +1,109 @@
+{
+  "type": "scene",
+  "id": "main",
+  "root": {
+    "type": "column",
+    "id": "root",
+    "style": {
+      "background": "#0F172A",
+      "padding": 32
+    },
+    "layout": {
+      "width": "fill",
+      "height": "fill",
+      "align": "center",
+      "justify": "center"
+    },
+    "children": [
+      {
+        "type": "text",
+        "id": "title",
+        "text": "COUNTER",
+        "style": {
+          "color": "#38BDF8",
+          "fontSize": 14,
+          "fontWeight": 700,
+          "textAlign": "center"
+        }
+      },
+      {
+        "type": "column",
+        "id": "display",
+        "style": {
+          "margin": { "top": 40, "bottom": 40 }
+        },
+        "layout": {
+          "align": "center"
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "number",
+            "text": "{{state.count}}",
+            "style": {
+              "color": "#F8FAFC",
+              "fontSize": 80,
+              "fontWeight": 900,
+              "textAlign": "center"
+            }
+          },
+          {
+            "type": "text",
+            "id": "status_text",
+            "text": "{{state.status}}",
+            "style": {
+              "color": "#64748B",
+              "fontSize": 14,
+              "margin": { "top": 8 }
+            }
+          }
+        ]
+      },
+      {
+        "type": "row",
+        "id": "controls",
+        "style": {
+          "gap": 20
+        },
+        "children": [
+          {
+            "type": "button",
+            "id": "btn_minus",
+            "label": "-",
+            "style": {
+              "background": "#1E293B",
+              "color": "#F8FAFC",
+              "fontSize": 24,
+              "width": 60,
+              "height": 60,
+              "borderRadius": 30
+            },
+            "onPress": {
+              "type": "invoke",
+              "name": "decrement",
+              "args": { "count": "{{state.count}}" }
+            }
+          },
+          {
+            "type": "button",
+            "id": "btn_plus",
+            "label": "+",
+            "style": {
+              "background": "#38BDF8",
+              "color": "#0F172A",
+              "fontSize": 24,
+              "width": 60,
+              "height": 60,
+              "borderRadius": 30
+            },
+            "onPress": {
+              "type": "invoke",
+              "name": "increment",
+              "args": { "count": "{{state.count}}" }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

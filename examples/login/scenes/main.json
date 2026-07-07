@@ -1,0 +1,123 @@
+{
+  "type": "scene",
+  "id": "main",
+  "root": {
+    "type": "column",
+    "id": "root",
+    "style": {
+      "background": "#FDFCFE",
+      "padding": 48
+    },
+    "layout": {
+      "width": "fill",
+      "height": "fill",
+      "align": "center",
+      "justify": "center"
+    },
+    "children": [
+      {
+        "type": "column",
+        "id": "header",
+        "style": { "margin": { "bottom": 32 } },
+        "layout": { "align": "center" },
+        "children": [
+          {
+            "type": "text",
+            "id": "title",
+            "text": "Welcome Back",
+            "style": {
+              "color": "#1F2937",
+              "fontSize": 28,
+              "fontWeight": 700
+            }
+          },
+          {
+            "type": "text",
+            "id": "subtitle",
+            "text": "Sign in to your QORM account",
+            "style": {
+              "color": "#6B7280",
+              "fontSize": 14,
+              "margin": { "top": 8 }
+            }
+          }
+        ]
+      },
+      {
+        "type": "column",
+        "id": "form",
+        "layout": { "width": "fill" },
+        "style": { "gap": 16 },
+        "children": [
+          {
+            "type": "text",
+            "id": "lbl_email",
+            "text": "Email Address",
+            "style": { "color": "#374151", "fontSize": 14, "fontWeight": 600 }
+          },
+          {
+            "type": "input",
+            "id": "input_email",
+            "placeholder": "admin@qorm.dev",
+            "style": {
+              "background": "#F3F4F6",
+              "height": 48,
+              "padding": { "left": 12, "right": 12 },
+              "borderRadius": 8
+            }
+          },
+          {
+            "type": "text",
+            "id": "lbl_pwd",
+            "text": "Password",
+            "style": { "color": "#374151", "fontSize": 14, "fontWeight": 600, "margin": { "top": 8 } }
+          },
+          {
+            "type": "input",
+            "id": "input_password",
+            "placeholder": "••••••••",
+            "secure": true,
+            "style": {
+              "background": "#F3F4F6",
+              "height": 48,
+              "padding": { "left": 12, "right": 12 },
+              "borderRadius": 8
+            }
+          }
+        ]
+      },
+      {
+        "type": "button",
+        "id": "btn_login",
+        "label": "Sign In",
+        "style": {
+          "background": "#4F46E5",
+          "color": "#FFFFFF",
+          "height": 50,
+          "borderRadius": 8,
+          "margin": { "top": 32 },
+          "width": "fill"
+        },
+        "onPress": {
+          "type": "invoke",
+          "name": "performLogin",
+          "args": {
+            "email": "admin@qorm.dev",
+            "password": "secret"
+          }
+        }
+      },
+      {
+        "type": "text",
+        "id": "error_msg",
+        "text": "{{state.errorMessage}}",
+        "style": {
+          "color": "#EF4444",
+          "fontSize": 13,
+          "margin": { "top": 16 },
+          "textAlign": "center"
+        }
+      }
+    ]
+  }
+}

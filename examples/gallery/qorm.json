@@ -1,0 +1,28 @@
+{
+  "type": "app",
+  "id": "qorm_gallery",
+  "name": "QORM Widget Gallery",
+  "entry": "main",
+  "version": "1.0.0",
+  "globalState": {
+    "schema": {
+      "name": "string",
+      "plan": "string",
+      "volume": "number",
+      "notify": "boolean",
+      "agree": "boolean",
+      "bio": "string"
+    },
+    "initial": {
+      "name": "Ada",
+      "plan": "pro",
+      "volume": 60,
+      "notify": true,
+      "agree": false,
+      "bio": "Building with QORM."
+    }
+  },
+  "platforms": {
+    "desktop": { "window": { "width": 460, "height": 820, "title": "Gallery" } }
+  }
+}

@@ -1,0 +1,194 @@
+# QORM Go Runtime
+
+QORM is a pure-Go runtime that loads a QORM app — a small, language-neutral JSON
+format for UI (manifest + scenes + actions) — and runs it live in the browser,
+renders a static HTML snapshot, compiles/signs it into a distributable bundle,
+serves it over-the-air with rollback, and exposes it to AI agents over MCP. No
+cgo, so it cross-compiles to every platform from any machine.
+
+Developed in collaboration with Claude (Anthropic) — fitting, since human-AI
+collaboration is QORM's whole premise.
+
+## Run
+
+```bash
+go run ./cmd/qorm run examples/counter      # opens the app in your browser
+go run ./cmd/qorm render examples/todo -o todo.html   # static snapshot
+```
+
+Press `+` / `-` in the counter, or add/toggle tasks in the todo app — button
+presses POST to `/event`, the server updates state, re-runs the action, and
+swaps in the re-rendered UI.
+
+## Signed bundles (verify-the-bundle, don't-trust-the-server)
+
+Compile an app into a single content-addressed artifact and sign it with
+ed25519. The runtime verifies integrity (tamper detection) and, with a trusted
+public key, authenticity — before running a line of it. This is the trust
+primitive for safe over-the-air UI delivery.
+
+```bash
+qorm keygen                                        # -> qorm_key, qorm_key.pub
+qorm build examples/counter -o counter.qorm.bundle --key qorm_key
+qorm verify counter.qorm.bundle --trust qorm_key.pub
+qorm run    counter.qorm.bundle --trust qorm_key.pub   # refuses tampered/unsigned bundles
+```
+
+A tampered bundle fails the hash check; a bundle signed by an untrusted key
+fails the signature check; both are refused at run time. All pure Go
+(`crypto/ed25519`), so it cross-compiles like everything else.
+
+## Cross-compile every platform
+
+```bash
+./scripts/build-all.sh          # -> dist/qorm-{darwin,linux,windows}-{amd64,arm64}
+```
+
+Each target is a single static ~7 MB binary with no runtime dependencies. In
+this default (pure-Go) build, `qorm run --app` opens the app in a chromeless
+browser window.
+
+## Native desktop window (Wails-style, opt-in)
+
+For a true native window, build with `-tags desktop`. Following Wails, this
+drives the platform-native WebView (WKWebView / WebView2 / WebKitGTK) via cgo —
+so it is built **per-platform**, not cross-compiled from one machine:
+
+```bash
+./scripts/build-desktop.sh                     # native binary for this OS
+qorm-desktop-... run examples/counter --app    # opens a native window
+```
+
+The two paths coexist deliberately: default = cross-compile everywhere (browser
+window); `-tags desktop` = native window (per-platform build). Both render
+**HTML/CSS in a web engine**, so both keep the full agent-collaboration stack
+(shared live session over SSE + MCP). The QORM architecture (loader → runtime →
+render → server) is identical in both.
+
+| build | render | draws widgets |
+|---|---|---|
+| default | HTML/CSS → browser | web engine |
+| `-tags desktop` | HTML/CSS → native WebView | web engine |
+
+## Agent access over MCP
+
+Expose the app to an agent (Claude, Cursor, …) over the Model Context Protocol
+(stdio JSON-RPC):
+
+```bash
+qorm mcp examples/counter
+```
+
+The agent can **design, run, test and operate** the app — the loop for real
+human-AI collaboration:
+
+| capability | tools |
+|---|---|
+| understand | `qorm_inspect`, `qorm_render_html`, `qorm_get_node`, `qorm_list_actions` |
+| operate    | `qorm_dispatch` (run an action), `qorm_set_state` |
+| test       | `qorm_assert` (stateEquals / htmlContains / nodeExists) |
+| design     | `qorm_preview_patch` → `qorm_apply_patch` |
+| reason     | `qorm_simulate_action` (side-effect-free) |
+
+Safety model: `simulate` and `preview_patch` never touch the live app;
+`apply_patch` must carry the `previewToken` returned by a prior `preview_patch`
+of the **same** ops — so a committed design change is always bound to a review.
+
+### Shared live session (human + AI, one app)
+
+`qorm run` also exposes the agent over HTTP at `/mcp`, sharing the *same*
+runtime the browser renders. An AI's edits appear in every connected browser
+**instantly** — the page subscribes to Server-Sent Events at `/events` (with a
+`/poll` fallback) — and the human's clicks are visible to the AI's next
+`qorm_inspect`. True real-time human-AI collaboration on one running app.
+
+```bash
+qorm run examples/counter          # browser UI + agent endpoint at /mcp
+# agent: POST http://127.0.0.1:PORT/mcp  (JSON-RPC 2.0)
+```
+
+## Architecture
+
+```
+app JSON (manifest + scenes + actions)
+  → loader   parse into model.App (Node tree / Action / GlobalState)
+  → runtime  state store + {{expr}} evaluation + action dispatch
+  → render   Node → HTML + CSS flexbox (browser does layout)
+  → server   HTTP + /event live update loop
+```
+
+| package | role |
+|---|---|
+| `internal/model`   | App / Node / Action data model |
+| `internal/loader`  | load a dir (skips `type:test`), parse manifest/scene/action |
+| `internal/expr`    | expression evaluator (`count + 1`, `state.x`, ternary, ...) |
+| `internal/runtime` | state, binding interpolation, action steps (`state.set/append/appendObject/toggle`) |
+| `internal/render`  | full widget set → HTML/CSS, incl. `list` repeat with `{{item.*}}` scope |
+| `internal/server`  | live HTTP server + event dispatch |
+| `internal/bundle`  | compile + sha256 content hash + ed25519 sign/verify |
+| `internal/keys`    | ed25519 keypair generation and storage |
+| `internal/ota`     | fetch (http/file) + verify-before-activate, rollback by inaction |
+| `internal/mcp`     | MCP stdio JSON-RPC server (agent tools) |
+| `cmd/qorm`         | `run` / `render` / `build` / `keygen` / `verify` / `mcp` CLI |
+
+## Widget coverage
+
+Top-tier widget vocabulary, all mapped to semantic HTML/CSS:
+
+- **Layout**: row, column, stack/absolute, `scroll`, `grid` (N columns), `card`,
+  `spacer`, `divider`, wrap.
+- **Text**: text, `link`, `icon`, `badge` — with fontFamily, lineHeight,
+  letterSpacing, textDecoration, `lineClamp`/`ellipsis`, transform.
+- **Input**: input (two-way state binding), `textarea`, `select`, checkbox,
+  switch, `radio`, slider — with `onChange` events.
+- **Media/feedback**: image, `avatar` (image or initials), `progress`,
+  `spinner`, `video`.
+- **Structure**: `tabs` (client-side switching), `list` (data-bound repeat with
+  `{{item.*}}` scope).
+
+Plus cross-cutting features on every node: conditional rendering
+(`"if": "{{state.x}}"`), accessibility (`role`, `ariaLabel`, `title`), and rich
+style (shadow, gradient, position + top/left/right/bottom, aspectRatio,
+min/max width/height, opacity, transition). See `examples/gallery`.
+
+## Over-the-air updates
+
+A running app (started from a bundle) accepts hot updates: `POST /update
+{"source": "<url-or-path>"}` fetches, verifies (hash + signature vs the trusted
+key) and hot-swaps the app; `POST /rollback` reverts. A rejected update leaves
+the live app untouched — a bad update can never take it down. See the OTA demo
+in `docs/planning/go-runtime-plan.md`.
+
+## Documentation
+
+QORM is dual-consumer — the same artifacts serve human developers and AI agents.
+
+- **Humans** start at [`docs/index.md`](docs/index.md): the [getting-started
+  tutorial](docs/tutorials/getting-started.md), the [JSON format
+  spec](docs/spec/json-format-spec.md), the [widget
+  catalog](docs/reference/widgets.md) and [capabilities](docs/platforms/capabilities.md)
+  (both auto-generated from the code), platform guides, and the [user
+  middle-layer](docs/platforms/native-middlelayer.md) — add your own native ops
+  in one `native/desktop.go` that compiles into the desktop binary *and* the
+  mobile/web WASM.
+- **AI agents** start at [`llms.txt`](llms.txt): a curated, machine-readable map
+  of everything above. Drive a live app over [MCP](docs/agent/mcp-tools.md) and
+  self-verify your own edits against real rendered geometry with `qorm measure` /
+  `qorm check` (see [verification](docs/overview/verification.md)).
+
+## License
+
+The source is [MIT](LICENSE) — free to use, modify, and distribute. One branding
+term applies ([TERMS.md](TERMS.md)): apps ship with the QORM logo by default;
+personal / educational / open-source use may re-icon freely, and **commercial
+white-labeling** (a custom icon, or removing the "Made with QORM" metadata note) asks
+a Patreon membership — **Indie $1/mo** (individual) or **Studio $7/mo** (company). A **Supporter** tier ($3/mo) backs the project with priority feature requests; personal/edu/OSS use is the free **Community** tier. The `qorm` CLI asks you
+to confirm (honour-system) when you package a commercial feature. Supporters are
+listed on the site, refreshed daily.
+
+## Roadmap
+
+HTTPS OTA (`qorm run --tls`), key-revocation lists (`--revoked`), and the
+agent `apply_patch` tool have all landed. Remaining direction — a hosted docs
+portal, a sandboxed Playground, and the ecosystem registry — is tracked in
+`docs/planning/`.

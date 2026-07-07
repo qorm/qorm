@@ -1,0 +1,41 @@
+{
+  "qorm": "0.1",
+  "type": "test",
+  "name": "counter test",
+  "scene": {
+    "type": "scene",
+    "id": "counter",
+    "state": { "count": 0 },
+    "root": {
+      "type": "column",
+      "id": "root",
+      "children": [
+        {
+          "type": "text",
+          "id": "count_text",
+          "value": "Count: {{ count }}"
+        },
+        {
+          "type": "button",
+          "id": "increment_button",
+          "text": "Increment",
+          "on": { "press": { "type": "state.set", "path": "count", "value": 1 } }
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "type": "simulate_event",
+      "target": { "id": "increment_button" },
+      "event": "press"
+    }
+  ],
+  "assertions": [
+    {
+      "type": "state_equals",
+      "path": "count",
+      "value": 1
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "type": "action",
+  "id": "decrement",
+  "steps": [
+    {
+      "type": "state.set",
+      "path": "count",
+      "value": "{{ count - 1 }}"
+    }
+  ]
+}

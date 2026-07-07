@@ -1,0 +1,291 @@
+{
+  "type": "scene",
+  "id": "main",
+  "root": {
+    "type": "scaffold",
+    "id": "root",
+    "children": [
+      {
+        "type": "appbar",
+        "id": "nav",
+        "label": "Today",
+        "children": [
+          {
+            "type": "button",
+            "id": "gear",
+            "label": "⚙",
+            "variant": "icon"
+          }
+        ]
+      },
+      {
+        "type": "column",
+        "id": "body",
+        "style": {
+          "padding": 16,
+          "gap": 16
+        },
+        "children": [
+          {
+            "type": "column",
+            "id": "hero",
+            "style": {
+              "background": "linear-gradient(135deg,#007aff,#5e5ce6)",
+              "padding": 20,
+              "borderRadius": 18,
+              "gap": 4
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "hi",
+                "text": "Good morning, Alex",
+                "style": {
+                  "fontSize": 22,
+                  "fontWeight": 700,
+                  "color": "#ffffff"
+                }
+              },
+              {
+                "type": "text",
+                "id": "sub",
+                "text": "You're 82% to your daily goal",
+                "style": {
+                  "fontSize": 14,
+                  "color": "#eaf2ff"
+                }
+              }
+            ]
+          },
+          {
+            "type": "grid",
+            "id": "stats",
+            "columns": 3,
+            "style": {
+              "gap": 10
+            },
+            "children": [
+              {
+                "type": "stat",
+                "id": "s1",
+                "label": "Steps",
+                "value": "8,240",
+                "delta": "+12%",
+                "deltaType": "up",
+                "style": {
+                  "background": "var(--surface)",
+                  "padding": 14,
+                  "borderRadius": 14
+                }
+              },
+              {
+                "type": "stat",
+                "id": "s2",
+                "label": "Kcal",
+                "value": "420",
+                "delta": "+5%",
+                "deltaType": "up",
+                "style": {
+                  "background": "var(--surface)",
+                  "padding": 14,
+                  "borderRadius": 14
+                }
+              },
+              {
+                "type": "stat",
+                "id": "s3",
+                "label": "Km",
+                "value": "3.2",
+                "style": {
+                  "background": "var(--surface)",
+                  "padding": 14,
+                  "borderRadius": 14
+                }
+              }
+            ]
+          },
+          {
+            "type": "column",
+            "id": "actcard",
+            "style": {
+              "background": "var(--surface)",
+              "padding": 16,
+              "borderRadius": 16,
+              "gap": 10
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "acth",
+                "text": "Activity",
+                "style": {
+                  "fontSize": 17,
+                  "fontWeight": 600
+                }
+              },
+              {
+                "type": "chart",
+                "id": "actch",
+                "chartType": "area",
+                "color": "#007aff",
+                "data": "[3,6,4,8,7,10,9,12,11,14]",
+                "style": {
+                  "width": 320,
+                  "height": 70
+                }
+              },
+              {
+                "type": "wrap",
+                "id": "chips",
+                "spacing": 6,
+                "children": [
+                  {
+                    "type": "choicechip",
+                    "id": "c1",
+                    "label": "Day",
+                    "selected": "{{ state.filter == \"day\" }}",
+                    "onPress": {
+                      "type": "invoke",
+                      "name": "noop",
+                      "args": {}
+                    }
+                  },
+                  {
+                    "type": "choicechip",
+                    "id": "c2",
+                    "label": "Week",
+                    "selected": "{{ state.filter == \"week\" }}",
+                    "onPress": {
+                      "type": "invoke",
+                      "name": "noop",
+                      "args": {}
+                    }
+                  },
+                  {
+                    "type": "choicechip",
+                    "id": "c3",
+                    "label": "Month",
+                    "selected": "{{ state.filter == \"month\" }}",
+                    "onPress": {
+                      "type": "invoke",
+                      "name": "noop",
+                      "args": {}
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listsection",
+            "id": "settings",
+            "header": "Settings",
+            "children": [
+              {
+                "type": "switchlisttile",
+                "id": "wifi",
+                "label": "Wi-Fi",
+                "value": "{{state.wifi}}"
+              },
+              {
+                "type": "switchlisttile",
+                "id": "notif",
+                "label": "Notifications",
+                "value": "{{state.notif}}"
+              },
+              {
+                "type": "listtile",
+                "id": "about",
+                "leading": "ℹ️",
+                "label": "About",
+                "onPress": {
+                  "type": "invoke",
+                  "name": "noop",
+                  "args": {}
+                }
+              }
+            ]
+          },
+          {
+            "type": "column",
+            "id": "prefcard",
+            "style": {
+              "background": "var(--surface)",
+              "padding": 16,
+              "borderRadius": 16,
+              "gap": 14
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "pth",
+                "text": "Appearance",
+                "style": {
+                  "fontSize": 17,
+                  "fontWeight": 600
+                }
+              },
+              {
+                "type": "segmented",
+                "id": "themeseg",
+                "value": "{{state.theme}}",
+                "options": [
+                  {
+                    "value": "apple",
+                    "label": "Light"
+                  },
+                  {
+                    "value": "dark",
+                    "label": "Dark"
+                  }
+                ]
+              },
+              {
+                "type": "row",
+                "id": "brow",
+                "style": {
+                  "gap": 10
+                },
+                "layout": {
+                  "align": "center"
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "bl",
+                    "text": "🔅"
+                  },
+                  {
+                    "type": "slider",
+                    "id": "bright",
+                    "value": "{{state.bright}}",
+                    "min": 0,
+                    "max": 100,
+                    "style": {
+                      "flexGrow": 1
+                    }
+                  },
+                  {
+                    "type": "text",
+                    "id": "br",
+                    "text": "🔆"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "fab",
+        "id": "add",
+        "label": "＋",
+        "onPress": {
+          "type": "invoke",
+          "name": "noop",
+          "args": {}
+        }
+      }
+    ]
+  }
+}

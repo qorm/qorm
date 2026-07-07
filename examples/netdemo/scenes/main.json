@@ -1,0 +1,90 @@
+{
+  "type": "scene",
+  "id": "main",
+  "root": {
+    "type": "scaffold",
+    "id": "root",
+    "children": [
+      {
+        "type": "appbar",
+        "id": "bar",
+        "label": "Backend Demo"
+      },
+      {
+        "type": "column",
+        "id": "body",
+        "style": {
+          "padding": 16,
+          "gap": 14
+        },
+        "children": [
+          {
+            "type": "card",
+            "id": "card",
+            "children": [
+              {
+                "type": "text",
+                "id": "lbl",
+                "text": "🐱 Cat Fact",
+                "style": {
+                  "fontSize": 13,
+                  "fontWeight": 700,
+                  "color": "#8e8e93"
+                }
+              },
+              {
+                "type": "text",
+                "id": "fact",
+                "text": "{{state.resp.fact}}",
+                "style": {
+                  "fontSize": 17,
+                  "lineHeight": 1.4
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "id": "err",
+            "text": "{{state.err}}",
+            "style": {
+              "fontSize": 13,
+              "color": "#ff3b30"
+            }
+          },
+          {
+            "type": "button",
+            "id": "go",
+            "label": "New Cat Fact",
+            "variant": "filled",
+            "onPress": {
+              "type": "invoke",
+              "name": "getFact",
+              "args": {}
+            }
+          },
+          {
+            "type": "divider",
+            "id": "dv"
+          },
+          {
+            "type": "text",
+            "id": "camlbl",
+            "text": "📷 Hardware: Camera",
+            "style": {
+              "fontSize": 13,
+              "fontWeight": 700,
+              "color": "#8e8e93"
+            }
+          },
+          {
+            "type": "camera",
+            "id": "cam",
+            "value": "{{state.photo}}",
+            "label": "📷 拍照 / Take Photo"
+          }
+        ]
+      }
+    ]
+  }
+}

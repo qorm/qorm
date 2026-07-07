@@ -1,0 +1,4 @@
+{ "type": "action", "id": "addTask", "steps": [
+  { "type": "state.appendObject", "path": "tasks", "item": { "id": "{{ title }}", "title": "{{ title }}", "done": "{{ false }}" } },
+  { "type": "state.set", "path": "newTitle", "value": "" }
+]}

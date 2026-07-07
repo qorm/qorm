@@ -1,0 +1,21 @@
+{
+  "type": "app",
+  "id": "netdemo",
+  "name": "Backend Demo",
+  "entry": "main",
+  "theme": "apple",
+  "globalState": {
+    "schema": {
+      "resp": "object",
+      "err": "string",
+      "photo": "string"
+    },
+    "initial": {
+      "resp": {
+        "fact": "Tap the button to call a real backend (catfact.ninja) and show the response."
+      },
+      "err": "",
+      "photo": ""
+    }
+  }
+}

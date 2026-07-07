@@ -1,0 +1,17 @@
+{
+  "type": "scene", "id": "main",
+  "root": {
+    "type": "column", "id": "root", "style": { "background": "#fff" }, "layout": { "width": "fill", "height": "fill" },
+    "children": [
+      { "type": "list", "id": "rows", "data": "{{state.items}}", "virtualize": true, "itemHeight": 40,
+        "renderItem": {
+          "type": "row", "style": { "padding": 12, "borderWidth": 1, "borderColor": "#eee", "gap": 10 }, "layout": { "align": "center" },
+          "children": [
+            { "type": "avatar", "initials": "{{item.name}}", "size": 24 },
+            { "type": "text", "text": "{{item.name}}", "style": { "fontSize": 14, "flexGrow": 1 } },
+            { "type": "badge", "label": "{{item.tag}}" }
+          ]
+        } }
+    ]
+  }
+}

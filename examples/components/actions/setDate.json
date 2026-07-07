@@ -1,0 +1,1 @@
+{"type":"action","id":"setDate","steps":[{"type":"state.set","path":"date","value":"{{value}}"}]}

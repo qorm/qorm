@@ -1,0 +1,8 @@
+{
+  "type": "app",
+  "id": "nativeext",
+  "name": "Native Ext",
+  "entry": "main",
+  "theme": "apple",
+  "globalState": { "schema": { "result": "string" }, "initial": { "result": "not paid yet" } }
+}

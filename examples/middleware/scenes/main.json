@@ -1,0 +1,31 @@
+{ "type": "scene", "id": "main", "root": { "type": "scaffold", "id": "root", "children": [
+  { "type": "appbar", "id": "bar", "label": "Middle-Layer (your Go, everywhere)" },
+  { "type": "scroll", "id": "body", "children": [
+    { "type": "column", "id": "page", "style": {"padding": 16, "gap": 14}, "children": [
+
+      { "type": "card", "id": "c1", "style": {"padding": 16, "gap": 10}, "children": [
+        { "type": "text", "id": "t1", "text": "Real Go, not JSON", "style": {"fontSize": 13, "fontWeight": 800, "color": "#8e8e93"} },
+        { "type": "text", "id": "t1b", "text": "SHA-256 in Go stdlib — one line the declarative layer can't express.", "style": {"fontSize": 13, "color": "var(--label)"} },
+        { "type": "input", "id": "txt", "value": "{{state.text}}", "binding": "text", "placeholder": "type something" },
+        { "type": "button", "id": "hashBtn", "text": "Hash it" },
+        { "type": "text", "id": "hash-out", "text": "—", "style": {"fontSize": 12, "color": "#8e8e93"} }
+      ]},
+
+      { "type": "card", "id": "c2", "style": {"padding": 16, "gap": 10}, "children": [
+        { "type": "text", "id": "t2", "text": "Stateful backend", "style": {"fontSize": 13, "fontWeight": 800, "color": "#8e8e93"} },
+        { "type": "text", "id": "t2b", "text": "A counter that lives in Go and survives across calls.", "style": {"fontSize": 13, "color": "var(--label)"} },
+        { "type": "button", "id": "visitBtn", "text": "Record a visit" },
+        { "type": "text", "id": "visit-out", "text": "visits: 0", "style": {"fontSize": 16, "fontWeight": 700, "color": "var(--label)"} }
+      ]},
+
+      { "type": "card", "id": "c3", "style": {"padding": 16, "gap": 10}, "children": [
+        { "type": "text", "id": "t3", "text": "Go reaches hardware + pushes events", "style": {"fontSize": 13, "fontWeight": 800, "color": "#8e8e93"} },
+        { "type": "text", "id": "t3b", "text": "Go calls the framework's hardware bridge, then emits an event onto the UI bus.", "style": {"fontSize": 13, "color": "var(--label)"} },
+        { "type": "button", "id": "celebBtn", "text": "Celebrate" },
+        { "type": "text", "id": "celeb-out", "text": "—", "style": {"fontSize": 13, "color": "var(--label)"} },
+        { "type": "text", "id": "event-out", "text": "no event yet", "style": {"fontSize": 12, "color": "#8e8e93"} }
+      ]}
+
+    ]}
+  ]}
+]}}
