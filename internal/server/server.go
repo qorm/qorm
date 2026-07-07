@@ -136,21 +136,26 @@ func (s *Server) initAgent() {
 
 // bump increments the revision, re-renders, refreshes the handler table and
 // pushes the new UI to all SSE subscribers. Caller must hold s.mu.
-func (s *Server) bump() (int64, string) {
+func (s *Server) bump() (int64, string, string) {
 	rev := s.rev.Add(1)
 	res := render.RenderScene(s.rt, s.rt.CurrentScene())
 	s.handlers = res.Handlers
-	s.broadcast(rev, res.HTML)
-	return rev, res.HTML
+	nav := s.rt.TakeNavDir()
+	s.broadcast(rev, res.HTML, nav)
+	return rev, res.HTML, nav
 }
 
 // broadcast pushes a revision+HTML payload to every subscriber, dropping it for
 // any client whose buffer is full rather than blocking.
-func (s *Server) broadcast(rev int64, html string) {
+func (s *Server) broadcast(rev int64, html, nav string) {
 	s.actMu.Lock()
 	src, det := s.lastSrc, s.lastDet
 	s.actMu.Unlock()
-	payload, _ := json.Marshal(map[string]any{"rev": rev, "html": html, "theme": s.rt.CurrentTheme(), "source": src, "detail": det})
+	m := map[string]any{"rev": rev, "html": html, "theme": s.rt.CurrentTheme(), "source": src, "detail": det}
+	if nav != "" {
+		m["nav"] = nav
+	}
+	payload, _ := json.Marshal(m)
 	msg := string(payload)
 	s.subsMu.Lock()
 	for ch := range s.subs {
@@ -698,10 +703,13 @@ func (s *Server) serveEvent(w http.ResponseWriter, r *http.Request) {
 		}
 		s.rt.Dispatch(h.Name, args)
 	}
-	rev, html := s.bump()
+	rev, html, nav := s.bump()
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("X-Qorm-Rev", strconv.FormatInt(rev, 10))
 	w.Header().Set("X-Qorm-Theme", s.rt.CurrentTheme())
+	if nav != "" {
+		w.Header().Set("X-Qorm-Nav", nav)
+	}
 	fmt.Fprint(w, html)
 }
 
@@ -849,9 +857,6 @@ func Page(rt *runtime.Runtime, body string, rev int64) string {
   /* Spatial attribution: a node the AI just changed pulses a blue outline. */
   .qorm-ai-touch { animation:qorm-ai-flash 1.3s ease-out; border-radius:inherit; }
   @keyframes qorm-ai-flash { 0%% { box-shadow:0 0 0 2px rgba(10,132,255,.9); } 60%% { box-shadow:0 0 0 2px rgba(10,132,255,.45); } 100%% { box-shadow:0 0 0 2px rgba(10,132,255,0); } }
-  /* Page transition: a scene swapped in by navigation slides + fades in. */
-  .qorm-scene-in { animation:qorm-scene-in 1000ms cubic-bezier(.32,.72,0,1) both; }
-  @keyframes qorm-scene-in { from { opacity:0; transform:translateX(80px); } to { opacity:1; transform:none; } }
   @keyframes qa-fade { from { opacity:0; } to { opacity:1; } }
   @keyframes qa-fadeup { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
   @keyframes qa-fadedown { from { opacity:0; transform:translateY(-16px); } to { opacity:1; transform:none; } }
@@ -919,6 +924,38 @@ function qormMorphInto(root, html){
   if(activeId){ var el=document.getElementById(activeId); if(el&&el.focus) try{ el.focus(); }catch(e){} }
   setTimeout(qormMeasure, 30);
 }
+// qormPageTransition plays a coordinated push/pop: the incoming scene slides in
+// from the edge while the outgoing one parallax-slides the other way (less far)
+// and dims — the depth cue that makes an iOS navigation feel right. dir 'pop'
+// reverses the direction. Both scenes are stacked absolutely during the run.
+function qormPageTransition(container, oldEl, newEl, dir){
+  var back=(dir==='pop');
+  var inFrom=back?'-100%%':'100%%', outTo=back?'30%%':'-30%%';
+  var pos=container.style.position, ovx=container.style.overflowX;
+  container.style.position='relative'; container.style.overflowX='hidden';
+  // Each sliding scene must be an OPAQUE block, or the two overlap and read as a
+  // mess. Give a transparent scene the stage's background for the duration.
+  var stageBg=getComputedStyle(document.getElementById('qorm-stage')).backgroundColor;
+  [oldEl,newEl].forEach(function(e){ e.style.position='absolute'; e.style.top='0'; e.style.left='0'; e.style.right='0'; e.style.bottom='0'; e.style.margin='0'; e.style.willChange='transform,filter';
+    var cbg=getComputedStyle(e).backgroundColor;
+    if(!cbg||cbg==='rgba(0, 0, 0, 0)'||cbg==='transparent'){ e.style.background=stageBg; e.setAttribute('data-qorm-txbg','1'); }
+  });
+  container.appendChild(newEl);
+  newEl.style.transform='translateX('+inFrom+')';
+  void newEl.offsetWidth; // commit the start frame before transitioning
+  var dur=560, ease='cubic-bezier(.32,.72,0,1)';
+  newEl.style.transition='transform '+dur+'ms '+ease;
+  oldEl.style.transition='transform '+dur+'ms '+ease+', filter '+dur+'ms '+ease;
+  newEl.style.transform='translateX(0)';
+  oldEl.style.transform='translateX('+outTo+')';
+  oldEl.style.filter='brightness(.5)';
+  setTimeout(function(){
+    if(oldEl.parentNode===container) container.removeChild(oldEl);
+    ['position','top','left','right','bottom','margin','transform','transition','filter','willChange'].forEach(function(p){ newEl.style.removeProperty(p); });
+    if(newEl.getAttribute('data-qorm-txbg')){ newEl.style.removeProperty('background'); newEl.removeAttribute('data-qorm-txbg'); }
+    container.style.position=pos; container.style.overflowX=ovx;
+  }, dur+50);
+}
 function morphKids(from, to){
   var fc=from.firstChild, tc=to.firstChild;
   while(tc){
@@ -930,8 +967,8 @@ function morphKids(from, to){
     } else if(fc.nodeType===3 || fc.nodeType===8){
       if(fc.nodeValue!==tc.nodeValue){ fc.nodeValue=tc.nodeValue; qormFlash(from); }
     } else if(fc.nodeType===1 && fc.getAttribute('data-scene')!==null && fc.getAttribute('data-scene')!==tc.getAttribute('data-scene')){
-      // navigation swapped the scene: recreate the root so it plays a page transition
-      var sn=document.importNode(tc,true); from.replaceChild(sn, fc); sn.classList.add('qorm-scene-in');
+      // navigation swapped the scene: play a coordinated iOS-style page transition
+      qormPageTransition(from, fc, document.importNode(tc,true), window.__qormNav);
     } else if(fc.nodeType===1){
       morphEl(fc, tc);
     }
@@ -940,14 +977,12 @@ function morphKids(from, to){
   while(fc){ var n=fc.nextSibling; from.removeChild(fc); fc=n; }
 }
 function morphEl(from, to){
-  // sync attributes; keep a transient page-transition class a redundant re-morph
-  // (SSE + the POST response both apply the same update) would otherwise strip.
-  var changed=false, hadAnim=from.classList&&from.classList.contains('qorm-scene-in');
+  // sync attributes
+  var changed=false;
   var ta=to.attributes, i, a;
   for(i=ta.length-1;i>=0;i--){ a=ta[i]; if(from.getAttribute(a.name)!==a.value){ from.setAttribute(a.name,a.value); changed=true; } }
   var fa=from.attributes;
   for(i=fa.length-1;i>=0;i--){ a=fa[i]; if(!to.hasAttribute(a.name)){ from.removeAttribute(a.name); changed=true; } }
-  if(hadAnim && !from.classList.contains('qorm-scene-in')) from.classList.add('qorm-scene-in');
   if(changed) qormFlash(from);
   var focused=(document.activeElement===from);
   // form controls: keep the user's live value/checked unless they're not focused
@@ -970,8 +1005,8 @@ function qorm(h){
   });
   fetch('/event',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({h:h,inputs:inputs})})
-    .then(function(r){ var rv=parseInt(r.headers.get('X-Qorm-Rev'))||0; qormTheme(r.headers.get('X-Qorm-Theme')); return r.text().then(function(html){ return {rv:rv,html:html}; }); })
-    .then(function(o){ if(o.rv && o.rv<=__rev) return; if(o.rv) __rev=o.rv; qormMorphInto(document.getElementById('qorm-root'), o.html); });
+    .then(function(r){ var rv=parseInt(r.headers.get('X-Qorm-Rev'))||0; var nav=r.headers.get('X-Qorm-Nav')||''; qormTheme(r.headers.get('X-Qorm-Theme')); return r.text().then(function(html){ return {rv:rv,html:html,nav:nav}; }); })
+    .then(function(o){ if(o.rv && o.rv<=__rev) return; if(o.rv) __rev=o.rv; window.__qormNav=o.nav; qormMorphInto(document.getElementById('qorm-root'), o.html); });
 }
 // Camera: open the device camera/photo picker, read the chosen image as a data
 // URL, show it in the preview, sync it into bound state, and fire onChange.
@@ -1492,6 +1527,7 @@ function qormApply(d){
   if(d.rev<=__rev) return;   // already applied (e.g. via the POST /event response) — no double morph
   __rev=d.rev;
   window.__qormEditSrc=d.source;   // so morph can flag AI-touched nodes for a flash
+  window.__qormNav=d.nav||'';      // page-transition direction, if a navigation
   if(typeof d.html!=='undefined'){ qormMorphInto(document.getElementById('qorm-root'), d.html); }
   window.__qormEditSrc=null;
   if(d.source==='agent') qormPresence(d.detail);   // a collaborator (AI) edited — show it live
