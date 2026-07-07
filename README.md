@@ -1,6 +1,6 @@
-# QORM
+<!-- data-lang-nav --><p align="right"><b>English</b> · <a href="README.zh.md">中文</a></p>
 
-<!-- data-lang-nav --> English · [中文](README.zh.md)
+# QORM
 
 **Build UI apps with your AI assistant — together, live.** QORM is an
 agent-native declarative-UI runtime: describe a UI as small, language-neutral
