@@ -91,6 +91,15 @@ func (s *Server) initAgent() {
 		defer s.measureMu.Unlock()
 		return s.measure
 	})
+	// Let the agent read the shared activity log, so it can see what the human
+	// just did in the live app and respond — the reverse of the human's "AI
+	// edited" toast.
+	s.agent.SetActivityProvider(func() string {
+		s.actMu.Lock()
+		defer s.actMu.Unlock()
+		b, _ := json.Marshal(s.activity)
+		return string(b)
+	})
 }
 
 // bump increments the revision, re-renders, refreshes the handler table and

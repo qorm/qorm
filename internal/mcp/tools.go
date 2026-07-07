@@ -74,6 +74,11 @@ func toolList() []tool {
 			InputSchema: obj(nil),
 		},
 		{
+			Name:        "qorm_activity",
+			Description: "Read the shared-session activity log: who (human / agent) did what, oldest to newest — so the agent can see what the human just did in the live app and respond. Only available in a running `qorm run` session. Read-only.",
+			InputSchema: obj(nil),
+		},
+		{
 			Name:        "qorm_export_scene",
 			Description: "Serialise the current (possibly patched) entry scene back to QORM JSON, so design work done via apply_patch can be saved or shipped. Read-only.",
 			InputSchema: obj(nil),
@@ -236,6 +241,11 @@ func (s *Server) callTool(name string, args json.RawMessage) (string, error) {
 		return jsonPretty(capability.All), nil
 	case "qorm_list_actions":
 		return jsonPretty(s.listActions()), nil
+	case "qorm_activity":
+		if s.activityProv == nil {
+			return "", fmt.Errorf("activity log unavailable (only in a running `qorm run` shared session)")
+		}
+		return s.activityProv(), nil
 	case "qorm_export_scene":
 		return jsonPretty(loader.SceneToJSON(s.rt.App.Entry, s.rt.App.EntryRoot())), nil
 	case "qorm_export_bundle":

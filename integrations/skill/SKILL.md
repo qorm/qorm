@@ -21,7 +21,7 @@ behaviour). A pure-Go runtime renders it, signs it, and packages it everywhere.
 ## Drive a live app over MCP
 
 `qorm mcp <app-dir>` (or the `/mcp` endpoint of a running `qorm run`) exposes:
-- Understand: `qorm_inspect`, `qorm_get_node`, `qorm_query`, `qorm_list_actions`, `qorm_render_html`.
+- Understand: `qorm_inspect`, `qorm_get_node`, `qorm_query`, `qorm_list_actions`, `qorm_render_html`, `qorm_activity` (what the human just did in the shared session).
 - Operate: `qorm_dispatch` (run an action), `qorm_set_state`.
 - Design (review-bound): `qorm_preview_patch` → `qorm_apply_patch` (must carry the preview's `previewToken`); `qorm_undo`, `qorm_diff`.
 - Reason without side effects: `qorm_simulate_action`.

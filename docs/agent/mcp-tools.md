@@ -16,6 +16,7 @@ QORM exposes a [Model Context Protocol](https://modelcontextprotocol.io) server 
 | `qorm_get_node` | `id`* (string) | Return a node's type, props, and child ids by node id. Read-only. |
 | `qorm_query` | `hasProp` (string), `idContains` (string), `textContains` (string), `type` (string) | Find nodes matching a selector (any of: type, textContains, idContains, hasProp — combined with AND). Returns each match's id, type, label and ancestor path. Use this to locate nodes before patching. Read-only. |
 | `qorm_list_actions` | — | List available actions and a summary of each action's steps. Read-only. |
+| `qorm_activity` | — | Read the shared-session activity log: who (human / agent) did what, oldest to newest — so the agent can see what the human just did in the live app and respond. Only available in a running `qorm run` session. Read-only. |
 | `qorm_export_scene` | — | Serialise the current (possibly patched) entry scene back to QORM JSON, so design work done via apply_patch can be saved or shipped. Read-only. |
 | `qorm_export_bundle` | — | Serialise the whole current app (manifest + scenes + actions) into an UNSIGNED bundle (with content hash). A human/CI signs it (`qorm sign`) before OTA deploy — the agent never holds the signing key. Read-only. |
 | `qorm_simulate_action` | `action`* (string), `args` (object) | Dispatch an action against a COPY of state and return before/after/changed. Side-effect-free: the live app is never modified. |
