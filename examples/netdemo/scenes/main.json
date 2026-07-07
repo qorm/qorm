@@ -25,7 +25,7 @@
               {
                 "type": "text",
                 "id": "lbl",
-                "text": "🐱 Cat Fact",
+                "text": "Cat Fact",
                 "style": {
                   "fontSize": 13,
                   "fontWeight": 700,
@@ -70,7 +70,7 @@
           {
             "type": "text",
             "id": "camlbl",
-            "text": "📷 Hardware: Camera",
+            "text": "Hardware: Camera",
             "style": {
               "fontSize": 13,
               "fontWeight": 700,
@@ -81,7 +81,7 @@
             "type": "camera",
             "id": "cam",
             "value": "{{state.photo}}",
-            "label": "📷 拍照 / Take Photo"
+            "label": "拍照 / Take Photo"
           }
         ]
       }

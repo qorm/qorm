@@ -11,10 +11,9 @@
         "label": "Today",
         "children": [
           {
-            "type": "button",
+            "type": "icon",
             "id": "gear",
-            "label": "⚙",
-            "variant": "icon"
+            "icon": "settings"
           }
         ]
       },
@@ -196,7 +195,7 @@
               {
                 "type": "listtile",
                 "id": "about",
-                "leading": "ℹ️",
+                "leading": "info",
                 "label": "About",
                 "onPress": {
                   "type": "invoke",
@@ -251,9 +250,12 @@
                 },
                 "children": [
                   {
-                    "type": "text",
+                    "type": "icon",
                     "id": "bl",
-                    "text": "🔅"
+                    "icon": "brightness",
+                    "style": {
+                      "fontSize": 16
+                    }
                   },
                   {
                     "type": "slider",
@@ -266,9 +268,12 @@
                     }
                   },
                   {
-                    "type": "text",
+                    "type": "icon",
                     "id": "br",
-                    "text": "🔆"
+                    "icon": "sun",
+                    "style": {
+                      "fontSize": 22
+                    }
                   }
                 ]
               }

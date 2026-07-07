@@ -21,7 +21,7 @@
         "if": "{{ len(state.password) > 0 && len(state.password) < 6 }}",
         "style": { "fontSize": 12, "color": "#ef4444" } },
 
-      { "type": "text", "id": "ok", "text": "✓ Looks good — ready to submit",
+      { "type": "text", "id": "ok", "text": "Looks good — ready to submit",
         "if": "{{ matches(state.email, \"^[^@\\\\s]+@[^@\\\\s]+\\\\.[^@\\\\s]+$\") && len(state.password) >= 6 }}",
         "style": { "fontSize": 13, "fontWeight": 700, "color": "#16a34a", "margin": { "top": 12 } } }
     ]
