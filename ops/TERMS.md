@@ -1,6 +1,6 @@
 # QORM Terms
 
-QORM's **source code** is MIT-licensed (see [LICENSE](LICENSE)) — free to use,
+QORM's **source code** is MIT-licensed (see [LICENSE](../LICENSE)) — free to use,
 modify, and distribute. These Terms add a good-faith **branding condition** for
 commercial white-labeling; they don't restrict your MIT rights to the code.
 

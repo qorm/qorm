@@ -36,7 +36,7 @@ After an edit, prove it against the rendered reality rather than assuming:
 
 - Run: `qorm run <app>`. Static snapshot: `qorm render <app> -o out.html`.
 - Sign + verify: `qorm build <app> -o app.bundle --key k`; `qorm verify app.bundle --trust k.pub`.
-- Package: `qorm package <app> -p web|ios|android|mac`. A custom app icon or `--no-branding` is commercial white-labeling (see TERMS.md) and prompts for a Patreon-membership confirmation.
+- Package: `qorm package <app> -p web|ios|android|mac`. A custom app icon or `--no-branding` is commercial white-labeling (see ops/TERMS.md) and prompts for a Patreon-membership confirmation.
 
 ## Don't
 
