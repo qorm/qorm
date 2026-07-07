@@ -9,6 +9,7 @@
 package miniapp
 
 import (
+	"encoding/base64"
 	"fmt"
 	"regexp"
 	"strings"
@@ -40,12 +41,18 @@ func BuildProject(rt *runtime.Runtime) map[string]string {
 	}
 }
 
-// htmlToWXML remaps QORM's rendered HTML fragment to WXML: HTML box/text elements
-// become <view>, images become <image>, and onclick="qorm(N)" becomes a WXML tap
-// binding carrying the handler index in a dataset.
+// htmlToWXML remaps QORM's rendered HTML fragment to WXML: inline SVG becomes a
+// data-URI <image> (WXML can't render <svg>), HTML box/text elements become
+// <view>, <img> becomes a closed <image>, onclick becomes a tap binding, and
+// WXML-invalid a11y attributes are dropped.
 func htmlToWXML(html string) string {
 	s := html
-	// onclick="qorm(N)" -> bindtap + data-h=N (do this before tag remaps).
+	// Inline SVG (icons + charts) -> base64 data-URI <image> — do this first, so
+	// the SVG's inner <path>/<rect>/... are encoded, not left as bare markup.
+	s = svgRe.ReplaceAllStringFunc(s, svgToImage)
+	// Drop attributes WXML has no concept of (role, aria-*).
+	s = a11yAttrRe.ReplaceAllString(s, "")
+	// onclick="qorm(N)" -> bindtap + data-h=N (before tag remaps).
 	s = onclickRe.ReplaceAllString(s, `bindtap="onTap" data-h="$1"`)
 	// Box + interactive containers -> <view> (QORM styles them fully inline, so
 	// mapping <button> to <view> avoids the platform's default button chrome).
@@ -60,7 +67,26 @@ func htmlToWXML(html string) string {
 	return s
 }
 
-var imgRe = regexp.MustCompile(`<img\b([^>]*?)\s*/?>`)
+var (
+	imgRe      = regexp.MustCompile(`<img\b([^>]*?)\s*/?>`)
+	svgRe      = regexp.MustCompile(`(?s)<svg\b[^>]*>.*?</svg>`)
+	svgWHRe    = regexp.MustCompile(`width="([\d.]+)"[^>]*?height="([\d.]+)"`)
+	a11yAttrRe = regexp.MustCompile(`\s(?:role|aria-[a-z]+)="[^"]*"`)
+)
+
+// svgToImage encodes an inline SVG as a data-URI <image>. Chart SVGs carry
+// explicit colors and convert exactly; icon SVGs use currentColor, which has no
+// color context inside an isolated image, so it is defaulted to a visible neutral
+// (full icon theming on mini-programs is a follow-up).
+func svgToImage(svg string) string {
+	clean := strings.ReplaceAll(svg, "currentColor", "#3c3c43")
+	b64 := base64.StdEncoding.EncodeToString([]byte(clean))
+	style := ""
+	if m := svgWHRe.FindStringSubmatch(svg); m != nil {
+		style = fmt.Sprintf(` style="width:%spx;height:%spx;"`, m[1], m[2])
+	}
+	return `<image src="data:image/svg+xml;base64,` + b64 + `"` + style + `></image>`
+}
 
 func themeWXSS(theme string) string {
 	// Design tokens mirror internal/server (Apple default; a manifest theme picks

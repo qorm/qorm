@@ -40,3 +40,24 @@ func TestBuildProjectWeChat(t *testing.T) {
 		t.Error("every <image> must be closed for the WXML parser")
 	}
 }
+
+// TestWXMLValidForRichApp checks a widget-heavy app (icons, charts, varied
+// widgets) produces WXML with no tokens the WXML parser rejects. The `<`-prefixed
+// tokens can't appear inside a base64 data-URI (base64 has no '<'), so a literal
+// hit means real leftover markup.
+func TestWXMLValidForRichApp(t *testing.T) {
+	app, err := loader.LoadDir(filepath.Join("..", "..", "examples", "gallery"))
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	wxml := BuildProject(qrt.New(app))["pages/index/index.wxml"]
+	for _, bad := range []string{"<svg", "<rect", "<path", "<polyline", "<polygon", "<div", "<img ", "role=", "aria-", "onclick="} {
+		if strings.Contains(wxml, bad) {
+			t.Errorf("WXML still contains invalid token %q", bad)
+		}
+	}
+	// inline SVG should have become data-URI images
+	if !strings.Contains(wxml, "data:image/svg+xml;base64,") {
+		t.Error("expected inline SVG (icons/charts) to convert to data-URI <image>")
+	}
+}
