@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
 
 permissions:
@@ -42,7 +42,7 @@ jobs:
   binaries:
     name: cross-compile (downloadable artifacts)
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
         with:
