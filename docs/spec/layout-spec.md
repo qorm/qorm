@@ -77,7 +77,7 @@ maxContent
 
 ## Absolute / Overlay
 
-游戏 HUD 和浮层常用：
+浮层常用：
 
 ```json
 {

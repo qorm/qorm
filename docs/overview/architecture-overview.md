@@ -59,7 +59,7 @@ Layout 计算布局
   ↓
 Render 生成 Display List 和 Render Graph
   ↓
-Platform Renderer 输出到桌面、移动、Web 等宿主；如启用 `game-ui` profile，则按 HUD / Overlay 渲染策略输出。 
+Platform Renderer 输出到桌面、移动、Web 等宿主。
 ```
 
 ## 运行模式
@@ -111,11 +111,7 @@ mcp profile
 document
 app
 realtime
-game-ui
-external-game
 ```
-
-external-game 也属于 profile / integration mode，而不是平台类型。
 
 ## Agent 边界
 

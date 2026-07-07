@@ -64,7 +64,6 @@ Render Graph
 GPU-first renderer
 text cache
 texture atlas
-external surface
 ```
 
 ## 开发工具

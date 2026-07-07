@@ -65,8 +65,6 @@ platform-packs/<platform>/
 {
   "displayList": true,
   "renderGraph": true,
-  "externalSurface": true,
-  "fastText": true,
   "textureAtlas": true
 }
 ```

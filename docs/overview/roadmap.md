@@ -101,19 +101,7 @@
 - Batching。
 - Performance budget。
 
-## Phase 8: Game UI Profile
-
-目标：支持 `game-ui` Render Profile、HUD、Overlay 和外部游戏 Surface。
-
-交付：
-
-- `game-ui` Render Profile。
-- Frame-driven runtime。
-- State snapshot binding。
-- externalSurface。
-- progressBar / cooldown / sprite / fastText。
-
-## Phase 9: SDK / Plugin Ecosystem
+## Phase 8: SDK / Plugin Ecosystem
 
 目标：形成开发者生态。
 
@@ -126,7 +114,7 @@
 - WASM（Go→WASM）Plugin。
 - C ABI Plugin。
 
-## Phase 10: DX & Testing
+## Phase 9: DX & Testing
 
 目标：形成稳定的开发预览、热更新和无头测试能力。
 
@@ -137,7 +125,7 @@
 - Test Runner API。
 - 节点查询与状态断言 API。
 
-## Phase 11: Advanced Runtime & Ecosystem Specs
+## Phase 10: Advanced Runtime & Ecosystem Specs
 
 目标：补齐高级运行时能力与生态资产的正式规范。
 
@@ -148,7 +136,7 @@
 - Asset Package / Dependency Resolution 规范。
 - Miniapp vendor capability profiles。
 
-## Phase 12: Website & Ecosystem Services
+## Phase 11: Website & Ecosystem Services
 
 目标：建设官方站点、文档门户、playground 和 Registry 基础设施。
 

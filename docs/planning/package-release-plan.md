@@ -65,24 +65,6 @@ mcp-profile.json
 examples/
 ```
 
-## Render Profiles
-
-发布目录：
-
-```text
-render-profiles/game-ui
-render-profiles/external-game
-```
-
-每个 Profile 应包含：
-
-```text
-profile.json
-examples/
-performance-notes.md
-integration-notes.md
-```
-
 ## Agent Packs
 
 ```text
