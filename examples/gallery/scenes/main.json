@@ -1,0 +1,463 @@
+{
+  "type": "scene",
+  "id": "main",
+  "root": {
+    "type": "scroll",
+    "id": "root",
+    "style": {
+      "background": "#f5f6fa",
+      "padding": 20,
+      "gap": 16
+    },
+    "layout": {
+      "width": "fill",
+      "height": "fill"
+    },
+    "children": [
+      {
+        "type": "card",
+        "id": "header",
+        "style": {
+          "gap": 12
+        },
+        "children": [
+          {
+            "type": "row",
+            "id": "profile",
+            "style": {
+              "gap": 12
+            },
+            "layout": {
+              "align": "center"
+            },
+            "children": [
+              {
+                "type": "avatar",
+                "id": "av",
+                "initials": "{{state.name}}",
+                "size": 48
+              },
+              {
+                "type": "column",
+                "id": "who",
+                "style": {
+                  "gap": 2
+                },
+                "layout": {
+                  "justify": "center"
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "hi",
+                    "text": "Hello, {{state.name}}",
+                    "style": {
+                      "fontSize": 18,
+                      "fontWeight": 700,
+                      "color": "#111827"
+                    }
+                  },
+                  {
+                    "type": "badge",
+                    "id": "plan_badge",
+                    "label": "{{state.plan}} plan"
+                  }
+                ]
+              },
+              {
+                "type": "spacer",
+                "id": "sp1"
+              },
+              {
+                "type": "icon",
+                "id": "gear",
+                "icon": "⚙️",
+                "style": {
+                  "fontSize": 22
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "grid",
+        "id": "stats",
+        "columns": 3,
+        "style": {
+          "gap": 12
+        },
+        "children": [
+          {
+            "type": "card",
+            "id": "s1",
+            "style": {
+              "gap": 4
+            },
+            "children": [
+              {
+                "type": "text",
+                "text": "1.2k",
+                "style": {
+                  "fontSize": 22,
+                  "fontWeight": 800,
+                  "color": "#2e7df6"
+                }
+              },
+              {
+                "type": "text",
+                "text": "Views",
+                "style": {
+                  "fontSize": 12,
+                  "color": "#6b7280"
+                }
+              }
+            ]
+          },
+          {
+            "type": "card",
+            "id": "s2",
+            "style": {
+              "gap": 4
+            },
+            "children": [
+              {
+                "type": "text",
+                "text": "348",
+                "style": {
+                  "fontSize": 22,
+                  "fontWeight": 800,
+                  "color": "#10b981"
+                }
+              },
+              {
+                "type": "text",
+                "text": "Likes",
+                "style": {
+                  "fontSize": 12,
+                  "color": "#6b7280"
+                }
+              }
+            ]
+          },
+          {
+            "type": "card",
+            "id": "s3",
+            "style": {
+              "gap": 4
+            },
+            "children": [
+              {
+                "type": "text",
+                "text": "27",
+                "style": {
+                  "fontSize": 22,
+                  "fontWeight": 800,
+                  "color": "#f59e0b"
+                }
+              },
+              {
+                "type": "text",
+                "text": "New",
+                "style": {
+                  "fontSize": 12,
+                  "color": "#6b7280"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "tabs",
+        "id": "tabs",
+        "tabs": [
+          "Form",
+          "Status"
+        ],
+        "children": [
+          {
+            "type": "card",
+            "id": "form",
+            "style": {
+              "gap": 14
+            },
+            "children": [
+              {
+                "type": "text",
+                "text": "Display name",
+                "style": {
+                  "fontSize": 13,
+                  "fontWeight": 600,
+                  "color": "#374151"
+                }
+              },
+              {
+                "type": "input",
+                "id": "name_in",
+                "value": "{{state.name}}",
+                "placeholder": "Your name",
+                "onChange": {
+                  "type": "invoke",
+                  "name": "noop"
+                },
+                "style": {
+                  "background": "#fff",
+                  "height": 40,
+                  "padding": {
+                    "left": 12
+                  },
+                  "borderRadius": 8,
+                  "borderWidth": 1,
+                  "borderColor": "#d1d5db"
+                }
+              },
+              {
+                "type": "text",
+                "text": "Bio",
+                "style": {
+                  "fontSize": 13,
+                  "fontWeight": 600,
+                  "color": "#374151"
+                }
+              },
+              {
+                "type": "textarea",
+                "id": "bio_in",
+                "value": "{{state.bio}}",
+                "rows": 3,
+                "style": {
+                  "background": "#fff",
+                  "padding": 10,
+                  "borderRadius": 8,
+                  "borderWidth": 1,
+                  "borderColor": "#d1d5db"
+                }
+              },
+              {
+                "type": "text",
+                "text": "Plan",
+                "style": {
+                  "fontSize": 13,
+                  "fontWeight": 600,
+                  "color": "#374151"
+                }
+              },
+              {
+                "type": "select",
+                "id": "plan_sel",
+                "value": "{{state.plan}}",
+                "options": [
+                  {
+                    "value": "free",
+                    "label": "Free"
+                  },
+                  {
+                    "value": "pro",
+                    "label": "Pro"
+                  },
+                  {
+                    "value": "team",
+                    "label": "Team"
+                  }
+                ],
+                "style": {
+                  "background": "#fff",
+                  "height": 40,
+                  "padding": {
+                    "left": 8
+                  },
+                  "borderRadius": 8,
+                  "borderWidth": 1,
+                  "borderColor": "#d1d5db"
+                }
+              },
+              {
+                "type": "radio",
+                "id": "billing",
+                "value": "{{state.plan}}",
+                "options": [
+                  {
+                    "value": "free",
+                    "label": "Free tier"
+                  },
+                  {
+                    "value": "pro",
+                    "label": "Pro ($9/mo)"
+                  },
+                  {
+                    "value": "team",
+                    "label": "Team ($29/mo)"
+                  }
+                ]
+              },
+              {
+                "type": "divider",
+                "id": "d1"
+              },
+              {
+                "type": "switch",
+                "id": "notify",
+                "label": "Email notifications",
+                "value": "{{state.notify}}"
+              },
+              {
+                "type": "checkbox",
+                "id": "agree",
+                "label": "I agree to the terms",
+                "value": "{{state.agree}}"
+              },
+              {
+                "type": "text",
+                "text": "Volume: {{state.volume}}",
+                "style": {
+                  "fontSize": 13,
+                  "color": "#374151"
+                }
+              },
+              {
+                "type": "slider",
+                "id": "vol",
+                "value": "{{state.volume}}",
+                "min": 0,
+                "max": 100,
+                "style": {
+                  "width": "fill"
+                }
+              }
+            ]
+          },
+          {
+            "type": "card",
+            "id": "status",
+            "style": {
+              "gap": 14
+            },
+            "children": [
+              {
+                "type": "text",
+                "text": "Upload progress",
+                "style": {
+                  "fontSize": 13,
+                  "fontWeight": 600,
+                  "color": "#374151"
+                }
+              },
+              {
+                "type": "chart",
+                "id": "views_chart",
+                "chartType": "bar",
+                "data": [
+                  4,
+                  8,
+                  15,
+                  16,
+                  23,
+                  42,
+                  30,
+                  18
+                ],
+                "color": "#10b981",
+                "style": {
+                  "width": 300,
+                  "height": 90,
+                  "margin": {
+                    "bottom": 8
+                  }
+                }
+              },
+              {
+                "type": "chart",
+                "id": "trend",
+                "chartType": "area",
+                "data": [
+                  10,
+                  12,
+                  9,
+                  15,
+                  22,
+                  18,
+                  25,
+                  30
+                ],
+                "color": "#2e7df6",
+                "style": {
+                  "width": 300,
+                  "height": 70
+                }
+              },
+              {
+                "type": "progress",
+                "id": "prog",
+                "value": "{{state.volume}}",
+                "color": "#10b981",
+                "style": {
+                  "width": "fill"
+                }
+              },
+              {
+                "type": "row",
+                "id": "loading",
+                "style": {
+                  "gap": 10
+                },
+                "layout": {
+                  "align": "center"
+                },
+                "children": [
+                  {
+                    "type": "spinner",
+                    "id": "spin",
+                    "size": 20
+                  },
+                  {
+                    "type": "text",
+                    "text": "Syncing…",
+                    "style": {
+                      "fontSize": 14,
+                      "color": "#6b7280"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "divider",
+                "id": "d2"
+              },
+              {
+                "type": "text",
+                "text": "Agreed: {{state.agree}} · Notify: {{state.notify}}",
+                "style": {
+                  "fontSize": 13,
+                  "color": "#374151"
+                }
+              },
+              {
+                "type": "text",
+                "id": "thanks",
+                "if": "{{state.agree}}",
+                "text": "✓ Thanks for agreeing!",
+                "style": {
+                  "fontSize": 14,
+                  "fontWeight": 700,
+                  "color": "#10b981"
+                }
+              },
+              {
+                "type": "link",
+                "id": "docs",
+                "label": "Read the docs →",
+                "href": "https://example.com",
+                "style": {
+                  "color": "#2e7df6",
+                  "fontSize": 14,
+                  "fontWeight": 600
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

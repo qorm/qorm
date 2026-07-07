@@ -1,0 +1,27 @@
+{
+  "type": "app",
+  "id": "qorm_counter",
+  "name": "QORM Premium Counter",
+  "entry": "main",
+  "globalState": {
+    "schema": {
+      "count": "number",
+      "status": "string"
+    },
+    "initial": {
+      "count": 0,
+      "status": "Ready"
+    }
+  },
+  "platforms": {
+    "desktop": {
+      "window": {
+        "width": 400,
+        "height": 500,
+        "title": "Counter Pro",
+        "resizable": false,
+        "icon": "assets/icon.png"
+      }
+    }
+  }
+}

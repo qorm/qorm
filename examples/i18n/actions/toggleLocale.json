@@ -1,0 +1,1 @@
+{ "type": "action", "id": "toggleLocale", "steps": [ { "type": "state.set", "path": "locale", "value": "{{ locale == \"en\" ? \"zh\" : \"en\" }}" } ] }

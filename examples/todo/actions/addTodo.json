@@ -1,0 +1,20 @@
+{
+  "type": "action",
+  "id": "addTodo",
+  "steps": [
+    {
+      "type": "state.appendObject",
+      "path": "items",
+      "item": {
+        "id": "{{ text }}",
+        "text": "{{ text }}",
+        "done": "{{ false }}"
+      }
+    },
+    {
+      "type": "state.set",
+      "path": "inputValue",
+      "value": ""
+    }
+  ]
+}

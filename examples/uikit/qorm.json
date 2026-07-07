@@ -1,0 +1,95 @@
+{
+  "type": "app",
+  "id": "uikit",
+  "name": "JSON Components",
+  "entry": "main",
+  "theme": "apple",
+  "platforms": {
+    "desktop": {
+      "window": {
+        "width": 480,
+        "height": 800
+      }
+    }
+  },
+  "components": {
+    "metric": {
+      "type": "card",
+      "style": {
+        "padding": 16,
+        "gap": 4
+      },
+      "children": [
+        {
+          "type": "text",
+          "text": "{{prop.label}}",
+          "style": {
+            "fontSize": 12,
+            "color": "#8e8e93",
+            "fontWeight": 700
+          }
+        },
+        {
+          "type": "text",
+          "text": "{{prop.value}}",
+          "style": {
+            "fontSize": 28,
+            "fontWeight": 800,
+            "color": "var(--label)"
+          }
+        }
+      ]
+    },
+    "kv": {
+      "type": "row",
+      "style": {
+        "gap": 8,
+        "padding": {
+          "top": 8,
+          "right": 0,
+          "bottom": 8,
+          "left": 0
+        }
+      },
+      "children": [
+        {
+          "type": "text",
+          "text": "{{prop.k}}",
+          "style": {
+            "color": "#8e8e93",
+            "flexGrow": 1
+          }
+        },
+        {
+          "type": "text",
+          "text": "{{prop.v}}",
+          "style": {
+            "fontWeight": 700,
+            "color": "var(--label)"
+          }
+        }
+      ]
+    },
+    "panel": {
+      "type": "card",
+      "style": {
+        "padding": 16,
+        "gap": 6
+      },
+      "children": [
+        {
+          "type": "text",
+          "text": "{{prop.title}}",
+          "style": {
+            "fontSize": 16,
+            "fontWeight": 800,
+            "color": "var(--label)"
+          }
+        },
+        {
+          "type": "slot"
+        }
+      ]
+    }
+  }
+}

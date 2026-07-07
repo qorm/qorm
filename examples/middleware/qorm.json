@@ -1,0 +1,5 @@
+{
+  "type": "app", "id": "middleware", "name": "Middle-Layer", "entry": "main", "theme": "apple",
+  "platforms": { "desktop": { "window": { "width": 460, "height": 760 } } },
+  "globalState": { "schema": { "text": "string" }, "initial": { "text": "hello qorm" } }
+}

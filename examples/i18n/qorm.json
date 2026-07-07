@@ -1,0 +1,21 @@
+{
+  "type": "app",
+  "id": "qorm_i18n",
+  "name": "QORM i18n Demo",
+  "entry": "main",
+  "defaultLocale": "en",
+  "globalState": {
+    "schema": {
+      "locale": "string",
+      "name": "string",
+      "count": "number",
+      "amount": "number"
+    },
+    "initial": {
+      "locale": "en",
+      "name": "Ada",
+      "count": 3,
+      "amount": 1234.5
+    }
+  }
+}

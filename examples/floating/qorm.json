@@ -1,0 +1,30 @@
+{
+  "type": "app",
+  "id": "floating",
+  "name": "Focus",
+  "entry": "main",
+  "theme": "apple",
+  "platforms": {
+    "desktop": {
+      "window": {
+        "width": 250,
+        "height": 200,
+        "chromeless": true,
+        "transparent": true
+      }
+    }
+  },
+  "globalState": {
+    "schema": {
+      "mins": "number",
+      "running": "bool"
+    },
+    "initial": {
+      "mins": 25,
+      "running": false
+    }
+  },
+  "actions": {
+    "toggle": "toggle"
+  }
+}

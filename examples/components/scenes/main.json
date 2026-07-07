@@ -1,0 +1,1122 @@
+{
+  "type": "scene",
+  "id": "main",
+  "root": {
+    "type": "scroll",
+    "id": "root",
+    "style": {
+      "padding": 20,
+      "gap": 16,
+      "background": "var(--bg)"
+    },
+    "layout": {
+      "width": "fill",
+      "height": "fill"
+    },
+    "children": [
+      {
+        "type": "breadcrumb",
+        "id": "bc",
+        "items": [
+          "Home",
+          "Team",
+          "Members"
+        ]
+      },
+      {
+        "type": "alert",
+        "id": "al",
+        "variant": "success",
+        "title": "Saved",
+        "label": "Your changes were saved."
+      },
+      {
+        "type": "steps",
+        "id": "st",
+        "steps": [
+          "Account",
+          "Profile",
+          "Done"
+        ],
+        "active": 1
+      },
+      {
+        "type": "row",
+        "id": "tags",
+        "style": {
+          "gap": 6
+        },
+        "children": [
+          {
+            "type": "tag",
+            "id": "t1",
+            "label": "design"
+          },
+          {
+            "type": "tag",
+            "id": "t2",
+            "label": "urgent"
+          }
+        ]
+      },
+      {
+        "type": "rating",
+        "id": "rt",
+        "value": 4,
+        "max": 5
+      },
+      {
+        "type": "table",
+        "id": "tbl",
+        "data": "{{state.rows}}",
+        "columns": [
+          {
+            "value": "name",
+            "label": "Name"
+          },
+          {
+            "value": "role",
+            "label": "Role"
+          }
+        ],
+        "onChange": {
+          "type": "invoke",
+          "name": "sortRows",
+          "args": {}
+        }
+      },
+      {
+        "type": "accordion",
+        "id": "acc",
+        "children": [
+          {
+            "type": "column",
+            "title": "Section one",
+            "children": [
+              {
+                "type": "text",
+                "text": "First panel content"
+              }
+            ]
+          },
+          {
+            "type": "column",
+            "title": "Section two",
+            "children": [
+              {
+                "type": "text",
+                "text": "Second panel content"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "skeleton",
+        "id": "sk",
+        "style": {
+          "height": 40,
+          "borderRadius": 8
+        }
+      },
+      {
+        "type": "modal",
+        "id": "md",
+        "open": "{{state.showModal}}",
+        "title": "Welcome",
+        "children": [
+          {
+            "type": "text",
+            "text": "This is a modal dialog."
+          }
+        ]
+      },
+      {
+        "type": "pagination",
+        "id": "pg",
+        "page": 2,
+        "total": 5,
+        "onPress": {
+          "type": "invoke",
+          "name": "noop",
+          "args": {
+            "page": "{{page}}"
+          }
+        }
+      },
+      {
+        "type": "menu",
+        "id": "mn",
+        "label": "Actions",
+        "children": [
+          {
+            "type": "text",
+            "text": "Edit",
+            "style": {
+              "fontSize": 14,
+              "padding": 8
+            }
+          },
+          {
+            "type": "text",
+            "text": "Delete",
+            "style": {
+              "fontSize": 14,
+              "padding": 8
+            }
+          }
+        ]
+      },
+      {
+        "type": "tree",
+        "id": "tr",
+        "data": [
+          {
+            "label": "src",
+            "children": [
+              {
+                "label": "main.go"
+              },
+              {
+                "label": "pkg",
+                "children": [
+                  {
+                    "label": "a.go"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "carousel",
+        "id": "cr",
+        "children": [
+          {
+            "type": "card",
+            "children": [
+              {
+                "type": "text",
+                "text": "Slide 1"
+              }
+            ]
+          },
+          {
+            "type": "card",
+            "children": [
+              {
+                "type": "text",
+                "text": "Slide 2"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "timeline",
+        "id": "tl",
+        "items": [
+          {
+            "title": "Created",
+            "text": "2026-07-01"
+          },
+          {
+            "title": "Shipped",
+            "text": "2026-07-04"
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "id": "tip",
+        "text": "Hover me",
+        "tooltip": "A helpful hint",
+        "style": {
+          "fontSize": 14
+        }
+      },
+      {
+        "type": "grid",
+        "id": "stats2",
+        "columns": 3,
+        "style": {
+          "gap": 12
+        },
+        "children": [
+          {
+            "type": "stat",
+            "id": "v1",
+            "label": "Revenue",
+            "value": "$12.4k",
+            "delta": "+8%",
+            "deltaType": "up"
+          },
+          {
+            "type": "stat",
+            "id": "v2",
+            "label": "Users",
+            "value": "3,201",
+            "delta": "-2%",
+            "deltaType": "down"
+          },
+          {
+            "type": "stat",
+            "id": "v3",
+            "label": "Churn",
+            "value": "1.1%"
+          }
+        ]
+      },
+      {
+        "type": "field",
+        "id": "fld",
+        "label": "Email",
+        "required": true,
+        "help": "We never share it",
+        "children": [
+          {
+            "type": "input",
+            "id": "fx",
+            "placeholder": "you@example.com",
+            "style": {
+              "height": 40,
+              "borderWidth": 1,
+              "borderColor": "#d1d5db",
+              "borderRadius": 8,
+              "padding": {
+                "left": 10
+              }
+            }
+          }
+        ]
+      },
+      {
+        "type": "segmented",
+        "id": "seg",
+        "value": "{{state.plan}}",
+        "options": [
+          {
+            "value": "m",
+            "label": "Monthly"
+          },
+          {
+            "value": "y",
+            "label": "Yearly"
+          }
+        ]
+      },
+      {
+        "type": "descriptions",
+        "id": "desc",
+        "items": [
+          {
+            "label": "Plan",
+            "value": "Pro"
+          },
+          {
+            "label": "Seats",
+            "value": "5"
+          },
+          {
+            "label": "Renews",
+            "value": "2026-08-01"
+          }
+        ]
+      },
+      {
+        "type": "empty",
+        "id": "emp",
+        "icon": "🗂️",
+        "title": "No files yet",
+        "label": "Upload something to get started"
+      },
+      {
+        "type": "appbar",
+        "id": "ab",
+        "label": "Flutter Widgets",
+        "leading": "☰",
+        "children": [
+          {
+            "type": "button",
+            "id": "abx",
+            "label": "⋮",
+            "variant": "icon"
+          }
+        ]
+      },
+      {
+        "type": "listtile",
+        "id": "lt",
+        "leading": "📁",
+        "label": "Documents",
+        "subtitle": "14 files",
+        "trailing": "›"
+      },
+      {
+        "type": "wrap",
+        "id": "wr",
+        "spacing": 6,
+        "children": [
+          {
+            "type": "tag",
+            "id": "wt1",
+            "label": "go"
+          },
+          {
+            "type": "tag",
+            "id": "wt2",
+            "label": "rust"
+          },
+          {
+            "type": "tag",
+            "id": "wt3",
+            "label": "flutter"
+          }
+        ]
+      },
+      {
+        "type": "row",
+        "id": "bvars",
+        "style": {
+          "gap": 8
+        },
+        "children": [
+          {
+            "type": "button",
+            "id": "bv1",
+            "label": "Elevated",
+            "variant": "elevated"
+          },
+          {
+            "type": "button",
+            "id": "bv2",
+            "label": "Filled",
+            "variant": "filled"
+          },
+          {
+            "type": "button",
+            "id": "bv3",
+            "label": "Text",
+            "variant": "text"
+          },
+          {
+            "type": "button",
+            "id": "bv4",
+            "label": "Outlined",
+            "variant": "outlined"
+          }
+        ]
+      },
+      {
+        "type": "fab",
+        "id": "fab1",
+        "label": "＋"
+      },
+      {
+        "type": "wrap",
+        "id": "chiprow",
+        "spacing": 6,
+        "children": [
+          {
+            "type": "choicechip",
+            "id": "cc1",
+            "label": "React",
+            "avatar": "⚛️"
+          },
+          {
+            "type": "filterchip",
+            "id": "fc1",
+            "label": "Go",
+            "selected": "{{state.filterGo}}"
+          },
+          {
+            "type": "inputchip",
+            "id": "ic1",
+            "label": "tag-x",
+            "onChange": {
+              "type": "invoke",
+              "name": "noop",
+              "args": {}
+            }
+          }
+        ]
+      },
+      {
+        "type": "rangeslider",
+        "id": "rng",
+        "low": "{{state.lo}}",
+        "high": "{{state.hi}}",
+        "min": 0,
+        "max": 100
+      },
+      {
+        "type": "gridview",
+        "id": "gview",
+        "data": "{{state.photos}}",
+        "crossAxisCount": 2,
+        "spacing": 8,
+        "renderItem": {
+          "type": "card",
+          "id": "gcell",
+          "style": {
+            "background": "var(--fill)",
+            "padding": 16,
+            "borderRadius": 8
+          },
+          "children": [
+            {
+              "type": "text",
+              "id": "gt",
+              "text": "Item {{item.t}}"
+            }
+          ]
+        }
+      },
+      {
+        "type": "materialstepper",
+        "id": "wiz",
+        "active": "{{state.wizStep}}",
+        "steps": [
+          "Account",
+          "Shipping",
+          "Payment"
+        ],
+        "children": [
+          {
+            "type": "text",
+            "id": "w0",
+            "text": "account body"
+          },
+          {
+            "type": "text",
+            "id": "w1",
+            "text": "shipping body"
+          },
+          {
+            "type": "text",
+            "id": "w2",
+            "text": "payment body"
+          }
+        ]
+      },
+      {
+        "type": "pageview",
+        "id": "pv",
+        "style": {
+          "height": 80
+        },
+        "children": [
+          {
+            "type": "card",
+            "id": "pg1",
+            "style": {
+              "background": "#e0f2fe",
+              "padding": 20
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "pg1t",
+                "text": "Page One"
+              }
+            ]
+          },
+          {
+            "type": "card",
+            "id": "pg2",
+            "style": {
+              "background": "#fce7f3",
+              "padding": 20
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "pg2t",
+                "text": "Page Two"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "dropdownbutton",
+        "id": "ddb",
+        "value": "{{state.sortField}}",
+        "onChange": {
+          "type": "invoke",
+          "name": "sortRows",
+          "args": {}
+        },
+        "options": [
+          {
+            "value": "name",
+            "label": "By Name"
+          },
+          {
+            "value": "role",
+            "label": "By Role"
+          }
+        ]
+      },
+      {
+        "type": "gesturedetector",
+        "id": "gd",
+        "onPress": {
+          "type": "invoke",
+          "name": "noop",
+          "args": {}
+        },
+        "onDoubleTap": {
+          "type": "invoke",
+          "name": "noop",
+          "args": {}
+        },
+        "onLongPress": {
+          "type": "invoke",
+          "name": "noop",
+          "args": {}
+        },
+        "style": {
+          "background": "var(--fill)",
+          "padding": 16,
+          "borderRadius": 8
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "gdt",
+            "text": "Tap / double-tap / long-press me"
+          }
+        ]
+      },
+      {
+        "type": "autocomplete",
+        "id": "ac",
+        "value": "{{state.fruit}}",
+        "placeholder": "Fruit…",
+        "options": [
+          "Apple",
+          "Apricot",
+          "Banana",
+          "Cherry"
+        ]
+      },
+      {
+        "type": "textformfield",
+        "id": "tff",
+        "value": "{{state.email}}",
+        "label": "Email",
+        "prefix": "✉",
+        "placeholder": "you@x.com",
+        "maxLength": 40,
+        "helper": "We never share it",
+        "error": "{{ matches(state.email, \"^[^@ ]+@[^@ ]+[.][^@ ]+$\") ? \"\" : \"Enter a valid email\" }}"
+      },
+      {
+        "type": "circularprogress",
+        "id": "cp",
+        "value": "{{state.dl}}",
+        "size": 48
+      },
+      {
+        "type": "row",
+        "id": "bdgrow",
+        "style": {
+          "gap": 24
+        },
+        "layout": {
+          "align": "center"
+        },
+        "children": [
+          {
+            "type": "badge",
+            "id": "bdg1",
+            "label": "3",
+            "children": [
+              {
+                "type": "icon",
+                "id": "bic",
+                "text": "🔔",
+                "style": {
+                  "fontSize": 24
+                }
+              }
+            ]
+          },
+          {
+            "type": "badge",
+            "id": "bdg2",
+            "smallSize": "true",
+            "label": "•",
+            "children": [
+              {
+                "type": "icon",
+                "id": "bic2",
+                "text": "✉️",
+                "style": {
+                  "fontSize": 24
+                }
+              }
+            ]
+          },
+          {
+            "type": "verticaldivider",
+            "id": "vd"
+          },
+          {
+            "type": "text",
+            "id": "vdt",
+            "text": "after divider"
+          }
+        ]
+      },
+      {
+        "type": "alertdialog",
+        "id": "cad",
+        "open": "{{state.showAlert}}",
+        "title": "Delete file?",
+        "message": "This cannot be undone.",
+        "actions": [
+          {
+            "label": "Cancel",
+            "style": "cancel",
+            "onPress": {
+              "type": "invoke",
+              "name": "noop",
+              "args": {}
+            }
+          },
+          {
+            "label": "Delete",
+            "style": "destructive",
+            "onPress": {
+              "type": "invoke",
+              "name": "noop",
+              "args": {}
+            }
+          }
+        ]
+      },
+      {
+        "type": "actionsheet",
+        "id": "cas",
+        "open": "{{state.showSheet}}",
+        "title": "Choose an option",
+        "actions": [
+          {
+            "label": "Share",
+            "onPress": {
+              "type": "invoke",
+              "name": "noop",
+              "args": {}
+            }
+          },
+          {
+            "label": "Delete",
+            "style": "destructive",
+            "onPress": {
+              "type": "invoke",
+              "name": "noop",
+              "args": {}
+            }
+          }
+        ],
+        "cancel": [
+          {
+            "label": "Cancel",
+            "onPress": {
+              "type": "invoke",
+              "name": "noop",
+              "args": {}
+            }
+          }
+        ]
+      },
+      {
+        "type": "listsection",
+        "id": "lsec",
+        "header": "Settings",
+        "footer": "Manage your preferences.",
+        "children": [
+          {
+            "type": "listtile",
+            "id": "ls1",
+            "leading": "📶",
+            "label": "Wi-Fi",
+            "trailing": "Home",
+            "onPress": {
+              "type": "invoke",
+              "name": "noop",
+              "args": {}
+            }
+          },
+          {
+            "type": "listtile",
+            "id": "ls2",
+            "leading": "🔵",
+            "label": "Bluetooth",
+            "onPress": {
+              "type": "invoke",
+              "name": "noop",
+              "args": {}
+            }
+          },
+          {
+            "type": "listtile",
+            "id": "ls3",
+            "leading": "🔔",
+            "label": "Notifications",
+            "onPress": {
+              "type": "invoke",
+              "name": "noop",
+              "args": {}
+            }
+          }
+        ]
+      },
+      {
+        "type": "row",
+        "id": "actrow",
+        "style": {
+          "gap": 16
+        },
+        "layout": {
+          "align": "center"
+        },
+        "children": [
+          {
+            "type": "activityindicator",
+            "id": "act",
+            "size": 24
+          },
+          {
+            "type": "text",
+            "id": "actt",
+            "text": "Loading…"
+          }
+        ]
+      },
+      {
+        "type": "picker",
+        "id": "pk",
+        "value": "{{state.city}}",
+        "onChange": {
+          "type": "invoke",
+          "name": "noop",
+          "args": {}
+        },
+        "options": [
+          {
+            "value": "NYC",
+            "label": "New York"
+          },
+          {
+            "value": "Tokyo",
+            "label": "Tokyo"
+          },
+          {
+            "value": "Paris",
+            "label": "Paris"
+          }
+        ]
+      },
+      {
+        "type": "datepicker",
+        "id": "dp",
+        "value": "{{state.date}}",
+        "minYear": 2024,
+        "maxYear": 2030,
+        "onChange": {
+          "type": "invoke",
+          "name": "setDate",
+          "args": {}
+        }
+      },
+      {
+        "type": "slider",
+        "id": "volsl",
+        "value": "{{state.vol}}",
+        "min": 0,
+        "max": 100
+      },
+      {
+        "type": "dismissible",
+        "id": "dis",
+        "onDismissed": {
+          "type": "invoke",
+          "name": "noop",
+          "args": {}
+        },
+        "children": [
+          {
+            "type": "listtile",
+            "id": "dtile",
+            "leading": "📧",
+            "label": "Swipe me left to delete",
+            "subtitle": "an inbox row"
+          }
+        ]
+      },
+      {
+        "type": "contextmenu",
+        "id": "ctx",
+        "actions": [
+          {
+            "label": "Copy",
+            "onPress": {
+              "type": "invoke",
+              "name": "noop",
+              "args": {}
+            }
+          },
+          {
+            "label": "Delete",
+            "style": "destructive",
+            "onPress": {
+              "type": "invoke",
+              "name": "noop",
+              "args": {}
+            }
+          }
+        ],
+        "children": [
+          {
+            "type": "card",
+            "id": "ctxc",
+            "style": {
+              "background": "var(--fill)",
+              "padding": 16,
+              "borderRadius": 10
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "ctxt",
+                "text": "Long-press for menu"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "refreshindicator",
+        "id": "rfi",
+        "style": {
+          "height": 90
+        },
+        "onRefresh": {
+          "type": "invoke",
+          "name": "noop",
+          "args": {}
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "rft",
+            "text": "Pull down to refresh"
+          }
+        ]
+      },
+      {
+        "type": "animatedcontainer",
+        "id": "anc",
+        "duration": 400,
+        "style": {
+          "background": "var(--fill)",
+          "height": 40,
+          "borderRadius": 10,
+          "width": "{{ state.big ? 200 : 100 }}"
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "anct",
+            "text": "animated"
+          }
+        ]
+      },
+      {
+        "type": "animatedopacity",
+        "id": "ano",
+        "duration": 400,
+        "opacity": "{{ state.faded ? 0.3 : 1 }}",
+        "children": [
+          {
+            "type": "text",
+            "id": "anot",
+            "text": "fade me"
+          }
+        ]
+      },
+      {
+        "type": "motion",
+        "id": "mot",
+        "animation": "{{state.effect}}",
+        "duration": 600,
+        "children": [
+          {
+            "type": "card",
+            "id": "motc",
+            "style": {
+              "background": "var(--fill)",
+              "padding": 18,
+              "borderRadius": 12
+            },
+            "children": [
+              {
+                "type": "text",
+                "id": "mott",
+                "text": "effect = {{state.effect}}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "transform",
+        "id": "tf",
+        "rotate": "{{state.angle}}",
+        "scale": 1.0,
+        "style": {
+          "background": "var(--fill)",
+          "padding": 14,
+          "borderRadius": 10
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "tft",
+            "text": "rotated {{state.angle}}°"
+          }
+        ]
+      },
+      {
+        "type": "aspectratio",
+        "id": "ar",
+        "ratio": 1.6,
+        "style": {
+          "background": "#111827",
+          "borderRadius": 12
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "art",
+            "text": "16:10",
+            "style": {
+              "color": "#fff",
+              "padding": 10
+            }
+          }
+        ]
+      },
+      {
+        "type": "richtext",
+        "id": "rtx",
+        "spans": [
+          {
+            "text": "The ",
+            "color": "#111827"
+          },
+          {
+            "text": "quick ",
+            "color": "#007aff",
+            "fontWeight": 700
+          },
+          {
+            "text": "brown",
+            "italic": true
+          },
+          {
+            "text": " fox",
+            "underline": true,
+            "color": "#dc2626"
+          }
+        ]
+      },
+      {
+        "type": "largetitle",
+        "id": "lt2",
+        "label": "Library",
+        "subtitle": "128 items",
+        "children": [
+          {
+            "type": "button",
+            "id": "lta",
+            "label": "Edit",
+            "variant": "text"
+          }
+        ]
+      },
+      {
+        "type": "row",
+        "id": "railrow",
+        "style": {
+          "gap": 12,
+          "height": 140
+        },
+        "children": [
+          {
+            "type": "navigationrail",
+            "id": "nr",
+            "value": "{{state.rail}}",
+            "onChange": {
+              "type": "invoke",
+              "name": "noop",
+              "args": {}
+            },
+            "items": [
+              {
+                "value": "home",
+                "icon": "🏠",
+                "label": "Home"
+              },
+              {
+                "value": "lib",
+                "icon": "📚",
+                "label": "Library"
+              },
+              {
+                "value": "me",
+                "icon": "👤",
+                "label": "Me"
+              }
+            ]
+          },
+          {
+            "type": "selectabletext",
+            "id": "sel",
+            "text": "Select and copy this text.",
+            "style": {
+              "flexGrow": 1,
+              "padding": 10
+            }
+          }
+        ]
+      },
+      {
+        "type": "list",
+        "id": "inbox",
+        "data": "{{state.inbox}}",
+        "renderItem": {
+          "type": "dismissible",
+          "id": "irow",
+          "onDismissed": {
+            "type": "invoke",
+            "name": "noop",
+            "args": {}
+          },
+          "children": [
+            {
+              "type": "listtile",
+              "id": "itile",
+              "label": "{{item.t}}",
+              "subtitle": "swipe to delete"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

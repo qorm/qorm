@@ -1,0 +1,33 @@
+{
+  "type": "app",
+  "id": "qorm_today",
+  "name": "Today",
+  "entry": "main",
+  "theme": "apple",
+  "platforms": {
+    "desktop": {
+      "window": {
+        "width": 400,
+        "height": 780
+      }
+    }
+  },
+  "globalState": {
+    "schema": {
+      "wifi": "boolean",
+      "notif": "boolean",
+      "theme": "string",
+      "bright": "number",
+      "filter": "string",
+      "fav": "boolean"
+    },
+    "initial": {
+      "wifi": true,
+      "notif": false,
+      "theme": "apple",
+      "bright": 65,
+      "filter": "day",
+      "fav": true
+    }
+  }
+}

@@ -1,0 +1,908 @@
+{
+ "type": "scene",
+ "id": "main",
+ "root": {
+  "type": "scaffold",
+  "id": "root",
+  "children": [
+   {
+    "type": "appbar",
+    "id": "bar",
+    "label": "Hardware Test"
+   },
+   {
+    "type": "column",
+    "id": "body",
+    "style": {
+     "padding": 16,
+     "gap": 16
+    },
+    "children": [
+     {
+      "type": "card",
+      "id": "c1",
+      "children": [
+       {
+        "type": "text",
+        "id": "t1",
+        "text": "Camera",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "camera",
+        "id": "cam",
+        "value": "{{state.photo}}",
+        "label": "Take Photo"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "c2",
+      "children": [
+       {
+        "type": "text",
+        "id": "t2",
+        "text": "GPS Location",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "location",
+        "id": "loc",
+        "value": "{{state.loc}}",
+        "label": "Get Location"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "c3",
+      "children": [
+       {
+        "type": "text",
+        "id": "t3",
+        "text": "Motion Sensors",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "sensors",
+        "id": "mot",
+        "label": "Enable Motion"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "c4",
+      "children": [
+       {
+        "type": "text",
+        "id": "t4",
+        "text": "Microphone",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "recorder",
+        "id": "rec",
+        "value": "{{state.audio}}",
+        "label": "Record"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "c5",
+      "children": [
+       {
+        "type": "text",
+        "id": "t5",
+        "text": "Biometric",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "biometric",
+        "id": "bio",
+        "value": "{{state.bio}}",
+        "label": "Face ID / Fingerprint"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "c6",
+      "children": [
+       {
+        "type": "text",
+        "id": "t6",
+        "text": "Bluetooth",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "bluetooth",
+        "id": "bt",
+        "label": "Scan Bluetooth"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "c7",
+      "children": [
+       {
+        "type": "text",
+        "id": "t7",
+        "text": "Wi-Fi",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "wifi",
+        "id": "wf",
+        "label": "Wi-Fi Info"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "c8",
+      "children": [
+       {
+        "type": "text",
+        "id": "t8",
+        "text": "NFC",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "nfc",
+        "id": "nf",
+        "label": "Read NFC Tag"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "c9",
+      "children": [
+       {
+        "type": "text",
+        "id": "tc9",
+        "text": "Volume",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "volume",
+        "id": "vol"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "c10",
+      "children": [
+       {
+        "type": "text",
+        "id": "tc10",
+        "text": "Brightness",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "brightness",
+        "id": "brt"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "c11",
+      "children": [
+       {
+        "type": "text",
+        "id": "tc11",
+        "text": "Vibrate",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "vibrate",
+        "id": "vib"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "c12",
+      "children": [
+       {
+        "type": "text",
+        "id": "tc12",
+        "text": "Flashlight",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "torch",
+        "id": "tor"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "c13",
+      "children": [
+       {
+        "type": "text",
+        "id": "tc13",
+        "text": "Battery",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "battery",
+        "id": "bat"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "c14",
+      "children": [
+       {
+        "type": "text",
+        "id": "t14",
+        "text": "Notification",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "notify",
+        "id": "ntf",
+        "text": "Hello from your QORM app ",
+        "label": "Send Notification",
+        "placeholder": "QORM"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "c15",
+      "children": [
+       {
+        "type": "text",
+        "id": "t15",
+        "text": "Dock Badge",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "dockbadge",
+        "id": "dbg"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "cshot",
+      "children": [
+       {
+        "type": "text",
+        "id": "tshot",
+        "text": "Screenshot",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "screenshot",
+        "id": "shot",
+        "label": "Take Screenshot"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "crec",
+      "children": [
+       {
+        "type": "text",
+        "id": "trec",
+        "text": "Screen Recording",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "screenrecord",
+        "id": "rec",
+        "label": "Start Recording"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "cshare",
+      "children": [
+       {
+        "type": "text",
+        "id": "tshare",
+        "text": "Share",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "share",
+        "id": "shr",
+        "label": "Share"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "cclip",
+      "children": [
+       {
+        "type": "text",
+        "id": "tclip",
+        "text": "Clipboard",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "clipboard",
+        "id": "clip",
+        "label": "Copy to Clipboard"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "cdev",
+      "children": [
+       {
+        "type": "text",
+        "id": "tdev",
+        "text": "Device Info",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "deviceinfo",
+        "id": "dev",
+        "label": "Device Info"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "cnet",
+      "children": [
+       {
+        "type": "text",
+        "id": "tnet",
+        "text": "Network Status",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "network",
+        "id": "net",
+        "label": "Network Status"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "cawake",
+      "children": [
+       {
+        "type": "text",
+        "id": "tawake",
+        "text": "Keep Awake",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "keepawake",
+        "id": "awake",
+        "label": "Keep Screen Awake"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "chap",
+      "children": [
+       {
+        "type": "text",
+        "id": "thap",
+        "text": "Haptics",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "haptics",
+        "id": "hap",
+        "label": "Success Haptic",
+        "data-type": "success"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "cstore",
+      "children": [
+       {
+        "type": "text",
+        "id": "tstore",
+        "text": "Storage",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "storage",
+        "id": "store",
+        "label": "Save to Storage"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "c16",
+      "children": [
+       {
+        "type": "text",
+        "id": "t16",
+        "text": "Start at Login",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "loginitem",
+        "id": "lgi"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "c17",
+      "children": [
+       {
+        "type": "text",
+        "id": "t17",
+        "text": "Displays",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "screens",
+        "id": "scr"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "curl",
+      "children": [
+       {
+        "type": "text",
+        "id": "turl",
+        "text": "Open URL",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "openurl",
+        "id": "ourl",
+        "label": "Open URL",
+        "data-url": "https://qorm.dev"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "ctts",
+      "children": [
+       {
+        "type": "text",
+        "id": "t_ctts",
+        "text": "Text to Speech",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "tts",
+        "id": "tts",
+        "label": "Text to Speech",
+        "data-text": "Hello from QORM."
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "cpp",
+      "children": [
+       {
+        "type": "text",
+        "id": "t_cpp",
+        "text": "Pick Photo",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "photopicker",
+        "id": "pp",
+        "label": "Pick Photo"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "cfp",
+      "children": [
+       {
+        "type": "text",
+        "id": "t_cfp",
+        "text": "Pick File",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "filepicker",
+        "id": "fp",
+        "label": "Pick File"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "css",
+      "children": [
+       {
+        "type": "text",
+        "id": "t_css",
+        "text": "Secure Storage",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "securestorage",
+        "id": "ss",
+        "label": "Secure Storage"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "cstt",
+      "children": [
+       {
+        "type": "text",
+        "id": "t_cstt",
+        "text": "Speech to Text",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "stt",
+        "id": "stt",
+        "label": "Speech to Text"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "cqr",
+      "children": [
+       {
+        "type": "text",
+        "id": "t_cqr",
+        "text": "Scan QR",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "qrscan",
+        "id": "qr",
+        "label": "Scan QR"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "cvid",
+      "children": [
+       {
+        "type": "text",
+        "id": "t_cvid",
+        "text": "Record Video",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "videocapture",
+        "id": "vid",
+        "label": "Record Video"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "ccmp",
+      "children": [
+       {
+        "type": "text",
+        "id": "t_ccmp",
+        "text": "Compass",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "compass",
+        "id": "cmp",
+        "label": "Compass"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "cprx",
+      "children": [
+       {
+        "type": "text",
+        "id": "t_cprx",
+        "text": "Proximity",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "proximity",
+        "id": "prx",
+        "label": "Proximity"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "cped",
+      "children": [
+       {
+        "type": "text",
+        "id": "t_cped",
+        "text": "Pedometer",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "pedometer",
+        "id": "ped",
+        "label": "Pedometer"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "cbar",
+      "children": [
+       {
+        "type": "text",
+        "id": "t_cbar",
+        "text": "Barometer",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "barometer",
+        "id": "bar",
+        "label": "Barometer"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "ccon",
+      "children": [
+       {
+        "type": "text",
+        "id": "t_ccon",
+        "text": "Pick Contact",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "contacts",
+        "id": "con",
+        "label": "Pick Contact"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "ccal",
+      "children": [
+       {
+        "type": "text",
+        "id": "t_ccal",
+        "text": "Add Event",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "calendar",
+        "id": "cal",
+        "label": "Add Event"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "cmodes",
+      "children": [
+       {
+        "type": "text",
+        "id": "t_modes",
+        "text": "System Modes",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "systemmodes",
+        "id": "modes",
+        "label": "Read Modes"
+       }
+      ]
+     },
+     {
+      "type": "card",
+      "id": "cinsets",
+      "children": [
+       {
+        "type": "text",
+        "id": "t_insets",
+        "text": "Safe-Area Insets",
+        "style": {
+         "fontSize": 13,
+         "fontWeight": 700,
+         "color": "#8e8e93"
+        }
+       },
+       {
+        "type": "insets",
+        "id": "insets",
+        "label": "Read Insets"
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

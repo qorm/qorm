@@ -1,0 +1,3 @@
+{ "type": "action", "id": "sortRows", "steps": [
+  { "type": "state.sort", "path": "rows", "field": "{{ column }}", "value": "asc" }
+]}

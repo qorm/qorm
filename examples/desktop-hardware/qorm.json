@@ -1,0 +1,37 @@
+{
+  "type": "app",
+  "id": "desktophardware",
+  "name": "Desktop Hardware",
+  "entry": "main",
+  "theme": "apple",
+  "platforms": {
+    "desktop": {
+      "window": {
+        "width": 920,
+        "height": 720
+      }
+    }
+  },
+  "globalState": {
+    "schema": {
+      "photo": "string",
+      "loc": "string",
+      "audio": "string"
+    },
+    "initial": {
+      "photo": "",
+      "loc": "",
+      "audio": ""
+    }
+  },
+  "shortcuts": [
+    {
+      "id": "screenshot",
+      "title": "Take Screenshot"
+    },
+    {
+      "id": "about",
+      "title": "About Desktop Hardware"
+    }
+  ]
+}

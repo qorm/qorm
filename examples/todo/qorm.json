@@ -1,0 +1,30 @@
+{
+  "type": "app",
+  "id": "qorm_todo",
+  "name": "Productive Todo",
+  "entry": "main",
+  "globalState": {
+    "schema": {
+      "items": "array",
+      "inputValue": "string"
+    },
+    "initial": {
+      "items": [
+        { "id": 1, "text": "Master QORM Layout", "done": true },
+        { "id": 2, "text": "Build a premium app", "done": false }
+      ],
+      "inputValue": ""
+    }
+  },
+  "platforms": {
+    "desktop": {
+      "window": {
+        "width": 500,
+        "height": 700,
+        "title": "Tasks",
+        "resizable": true,
+        "icon": "assets/icon.png"
+      }
+    }
+  }
+}

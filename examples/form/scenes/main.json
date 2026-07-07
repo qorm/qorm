@@ -1,0 +1,29 @@
+{
+  "type": "scene", "id": "main",
+  "root": {
+    "type": "column", "id": "root",
+    "style": { "background": "#f8fafc", "padding": 28, "gap": 8 },
+    "layout": { "width": "fill", "height": "fill", "justify": "center" },
+    "children": [
+      { "type": "text", "id": "h", "text": "Create account", "style": { "fontSize": 22, "fontWeight": 800, "color": "#0f172a", "margin": { "bottom": 8 } } },
+
+      { "type": "text", "text": "Email", "style": { "fontSize": 13, "fontWeight": 600, "color": "#334155" } },
+      { "type": "input", "id": "email", "value": "{{state.email}}", "placeholder": "you@example.com",
+        "style": { "background": "#fff", "height": 42, "padding": { "left": 12 }, "borderRadius": 8, "borderWidth": 1, "borderColor": "#cbd5e1" } },
+      { "type": "text", "id": "email_err", "text": "Please enter a valid email address",
+        "if": "{{ len(state.email) > 0 && !matches(state.email, \"^[^@\\\\s]+@[^@\\\\s]+\\\\.[^@\\\\s]+$\") }}",
+        "style": { "fontSize": 12, "color": "#ef4444" } },
+
+      { "type": "text", "text": "Password", "style": { "fontSize": 13, "fontWeight": 600, "color": "#334155", "margin": { "top": 8 } } },
+      { "type": "input", "id": "password", "value": "{{state.password}}", "placeholder": "Choose a password",
+        "style": { "background": "#fff", "height": 42, "padding": { "left": 12 }, "borderRadius": 8, "borderWidth": 1, "borderColor": "#cbd5e1" } },
+      { "type": "text", "id": "pw_err", "text": "Password must be at least 6 characters",
+        "if": "{{ len(state.password) > 0 && len(state.password) < 6 }}",
+        "style": { "fontSize": 12, "color": "#ef4444" } },
+
+      { "type": "text", "id": "ok", "text": "✓ Looks good — ready to submit",
+        "if": "{{ matches(state.email, \"^[^@\\\\s]+@[^@\\\\s]+\\\\.[^@\\\\s]+$\") && len(state.password) >= 6 }}",
+        "style": { "fontSize": 13, "fontWeight": 700, "color": "#16a34a", "margin": { "top": 12 } } }
+    ]
+  }
+}

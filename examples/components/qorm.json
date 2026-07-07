@@ -1,0 +1,93 @@
+{
+  "type": "app",
+  "id": "qorm_components",
+  "name": "Components",
+  "entry": "main",
+  "globalState": {
+    "schema": {
+      "showModal": "boolean",
+      "rows": "array",
+      "plan": "string",
+      "lo": "number",
+      "hi": "number",
+      "filterGo": "boolean",
+      "photos": "array",
+      "wizStep": "number",
+      "sortField": "string",
+      "fruit": "string",
+      "taps": "number",
+      "email": "string",
+      "dl": "number",
+      "showAlert": "boolean",
+      "showSheet": "boolean",
+      "city": "string",
+      "vol": "number",
+      "big": "boolean",
+      "faded": "boolean",
+      "effect": "string",
+      "angle": "number",
+      "rail": "string",
+      "inbox": "array",
+      "date": "string"
+    },
+    "initial": {
+      "showModal": true,
+      "rows": [
+        {
+          "name": "Zoe",
+          "role": "Eng"
+        },
+        {
+          "name": "Ada",
+          "role": "Eng"
+        },
+        {
+          "name": "Linus",
+          "role": "Kernel"
+        }
+      ],
+      "plan": "m",
+      "lo": 20,
+      "hi": 70,
+      "filterGo": true,
+      "photos": [
+        {
+          "t": "1"
+        },
+        {
+          "t": "2"
+        },
+        {
+          "t": "3"
+        },
+        {
+          "t": "4"
+        }
+      ],
+      "wizStep": 1,
+      "sortField": "name",
+      "fruit": "",
+      "taps": 0,
+      "email": "",
+      "dl": 0.65,
+      "showAlert": true,
+      "showSheet": true,
+      "city": "Tokyo",
+      "vol": 40,
+      "big": false,
+      "faded": false,
+      "effect": "bounce",
+      "angle": 15,
+      "rail": "home",
+      "inbox": [
+        {
+          "t": "Alpha"
+        },
+        {
+          "t": "Beta"
+        }
+      ],
+      "date": "2026-07-04"
+    }
+  }
+}

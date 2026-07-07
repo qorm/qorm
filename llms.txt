@@ -1,0 +1,78 @@
+# QORM
+
+> QORM is an agent-native, declarative-UI runtime. A QORM app is a small,
+> language-neutral JSON bundle (manifest + scenes + actions + optional Go
+> middle-layer) that one runtime renders live in a browser, snapshots to static
+> HTML, compiles+signs into a distributable bundle, delivers over-the-air with
+> rollback, packages as web/iOS/Android/desktop, and exposes to AI agents over
+> MCP. Pure Go, no cgo — it cross-compiles everywhere.
+
+Dual-consumer by design: every artifact is meant to be readable, installable,
+and writable by a **human developer**, and discoverable, derivable, and
+self-verifiable by an **AI agent**. The reference docs below marked
+"auto-generated" are the single source of truth — they are regenerated from the
+code and guarded by tests, so trust them over prose.
+
+## Start here
+
+- [Getting started](docs/tutorials/getting-started.md): install, first app, run loop.
+- [First scene](docs/tutorials/first-scene.md), [First action](docs/tutorials/first-action.md), [First component](docs/tutorials/first-component.md): the smallest building blocks.
+- [README](README.md): the run / build / sign / package commands at a glance.
+
+## The format (write apps in this)
+
+To write an app that runs **today**, follow getting-started + the `examples/`, plus
+the auto-generated widget/capability references below. The format spec is the
+*design intent* and diverges from the current runtime — prefer the runnable
+sources when they disagree.
+
+- [Getting started](docs/tutorials/getting-started.md) + [examples](examples): the runnable format — `entry:"main"`, `globalState`, text via `text`, `onPress` → `actions/`, components in `qorm.json` with `{{prop.x}}`.
+- [JSON format spec](docs/spec/json-format-spec.md): the target design draft (`scene://` refs, `imports`/`targets`) — read for intent, not for what runs today.
+- [Global state spec](docs/spec/global-state-spec.md): state schema, bindings, dispatch.
+- [Action spec](docs/spec/action-spec.md): declarative action steps.
+- [Layout spec](docs/spec/layout-spec.md) and [Rendering spec](docs/spec/rendering-spec.md): how nodes lay out and paint.
+- [Motion spec](docs/spec/motion-spec.md): animation widgets and transitions.
+
+## Reference — auto-generated, canonical
+
+- [Widget catalog](docs/reference/widgets.md): every node `type` the renderer accepts (generated from `internal/render`, guarded by `TestWidgetCatalogInSync`).
+- [Capabilities](docs/platforms/capabilities.md): the built-in hardware/OS capabilities, their ops, callbacks, and platforms (generated from `internal/capability`, guarded by `TestCapabilityDocInSync`).
+
+## Middle-layer — add your own native ops (recommended extension point)
+
+- [User middle-layer](docs/platforms/native-middlelayer.md): write one `native/desktop.go`, register ops with `qormext.Register`, reach hardware with `qormext.Native`, push events to the UI bus with `qormext.Emit`. It compiles into the desktop binary AND the mobile/web WASM — one Go file, everywhere. Swift/Java snippets are the rare escape hatch.
+- [examples/middleware](examples/middleware): the full picture — `crypto/sha256` in Go, a stateful in-memory counter, and Go reaching the hardware bridge + emitting a UI event.
+- [examples/native-ext](examples/native-ext): minimal, with the `ios.swift`/`android.java` escape-hatch snippets.
+
+## Platforms
+
+- [Mobile](docs/platforms/mobile.md), [Desktop](docs/platforms/desktop.md), [Web](docs/platforms/web.md), [Mini-app](docs/platforms/miniapp.md): per-target packaging, capabilities, and constraints.
+- [Host capability spec](docs/spec/host-capability-spec.md): the bridge contract shared by built-in and custom ops.
+
+## Examples (runnable — the canonical patterns)
+
+- [counter](examples/counter), [todo](examples/todo), [tasks](examples/tasks): state + actions + lists.
+- [dashboard](examples/dashboard): data-viz widgets (charts, sparklines, progress).
+- [hardware](examples/hardware) / [desktop-hardware](examples/desktop-hardware): the capability catalog exercised.
+- [uikit](examples/uikit): JSON-defined custom components.
+- [i18n](examples/i18n): ICU messages, plurals, currency, RTL.
+- [menus](examples/menus): desktop system-bar / tray / right-click menus.
+- [floating](examples/floating): chromeless + transparent (custom-shape) window.
+- [gallery](examples/gallery): the widget gallery.
+
+## Drive it programmatically (AI agents)
+
+- CLI: `qorm new | run | render | build | keygen | sign | verify | package | preview | measure | check | mcp | docs | updates`.
+- [MCP tools](docs/agent/mcp-tools.md): the Model Context Protocol surface an agent uses to read/edit a live app and verify it.
+- [Verification](docs/overview/verification.md): `qorm measure` / `qorm check` render the app and report the real geometry, so an agent can self-verify its own edits against ground truth.
+- [Agent protocol spec](docs/spec/agent-protocol-spec.md): the collaboration protocol (human + AI shared session).
+- Agent packs: [claude](docs/agent/claude-pack.md), [codex](docs/agent/codex-pack.md), [permissions](docs/agent/permissions.md).
+
+## Trust & security
+
+- [Bundle signing](docs/security/bundle-signing.md): ed25519 verify-the-bundle delivery.
+- [Permission model](docs/security/permission-model.md) and [Security model](docs/security/security-model.md).
+
+## Architecture
+
+- [Architecture overview](docs/overview/architecture-overview.md), [Go architecture](docs/overview/go-architecture.md), [Vision](docs/overview/vision.md).

@@ -1,0 +1,23 @@
+{ "type": "scene", "id": "main", "root": { "type": "scaffold", "id": "root", "children": [
+  { "type": "appbar", "id": "bar", "label": "JSON Components" },
+  { "type": "scroll", "id": "body", "children": [
+    { "type": "column", "id": "page", "style": {"padding": 16, "gap": 14}, "children": [
+      { "type": "text", "id": "h1", "text": "Reusable, defined in JSON", "style": {"fontSize": 22, "fontWeight": 800, "color": "var(--label)"} },
+      { "type": "grid", "id": "metrics", "columns": 2, "style": {"gap": 12}, "children": [
+        { "type": "metric", "id": "m1", "label": "Revenue", "value": "$12.4k" },
+        { "type": "metric", "id": "m2", "label": "Users", "value": "1,203" },
+        { "type": "metric", "id": "m3", "label": "Uptime", "value": "99.9%" },
+        { "type": "metric", "id": "m4", "label": "Errors", "value": "3" }
+      ]},
+      { "type": "panel", "id": "acct", "title": "Account", "children": [
+        { "type": "kv", "id": "kv1", "k": "Plan", "v": "Pro" },
+        { "type": "kv", "id": "kv2", "k": "Seats", "v": "12" },
+        { "type": "kv", "id": "kv3", "k": "Renews", "v": "Aug 1" }
+      ]},
+      { "type": "panel", "id": "sys", "title": "System", "children": [
+        { "type": "kv", "id": "kv4", "k": "Region", "v": "us-east" },
+        { "type": "kv", "id": "kv5", "k": "Version", "v": "1.0.0" }
+      ]}
+    ]}
+  ]}
+]}}

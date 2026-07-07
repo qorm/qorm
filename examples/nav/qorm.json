@@ -1,0 +1,1 @@
+{"type":"app","id":"nav","name":"Nav Demo","entry":"main","globalState":{"schema":{"tab":"string"},"initial":{"tab":"home"}}}

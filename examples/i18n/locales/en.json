@@ -1,0 +1,9 @@
+{
+  "title": "Hello, world",
+  "subtitle": "Multi-language UI in QORM",
+  "switch": "切换到中文",
+  "greeting": "Welcome, {name}!",
+  "cart": "{count, plural, =0 {Your cart is empty} one {# item in cart} other {# items in cart}}",
+  "onlyEn": "fallback-value",
+  "price": "Total: {amount, currency, USD}"
+}

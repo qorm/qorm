@@ -1,0 +1,90 @@
+{
+ "type": "scene",
+ "id": "main",
+ "root": {
+  "type": "column",
+  "id": "root",
+  "style": {
+   "background": "#0F172A",
+   "padding": 32,
+   "gap": 12
+  },
+  "layout": {
+   "width": "fill",
+   "height": "fill",
+   "align": "center",
+   "justify": "center"
+  },
+  "children": [
+   {
+    "type": "text",
+    "id": "title",
+    "text": "{{ t.title }}",
+    "style": {
+     "color": "#F8FAFC",
+     "fontSize": 28,
+     "fontWeight": 800,
+     "textAlign": "center"
+    }
+   },
+   {
+    "type": "text",
+    "id": "subtitle",
+    "text": "{{ t.subtitle }}",
+    "style": {
+     "color": "#94A3B8",
+     "fontSize": 15,
+     "textAlign": "center"
+    }
+   },
+   {
+    "type": "text",
+    "id": "t_greeting",
+    "text": "{{ t.greeting }}",
+    "style": {
+     "fontSize": 16,
+     "color": "var(--label)"
+    }
+   },
+   {
+    "type": "text",
+    "id": "t_cart",
+    "text": "{{ t.cart }}",
+    "style": {
+     "fontSize": 16,
+     "color": "#8e8e93"
+    }
+   },
+   {
+    "type": "text",
+    "id": "t_price",
+    "text": "{{ t.price }}",
+    "style": {
+     "fontSize": 16,
+     "fontWeight": 700,
+     "color": "var(--label)"
+    }
+   },
+   {
+    "type": "button",
+    "id": "lang",
+    "label": "{{ t.switch }}",
+    "style": {
+     "background": "#38BDF8",
+     "color": "#0F172A",
+     "fontWeight": 700,
+     "width": 200,
+     "height": 44,
+     "borderRadius": 22
+    },
+    "onPress": {
+     "type": "invoke",
+     "name": "toggleLocale",
+     "args": {
+      "locale": "{{state.locale}}"
+     }
+    }
+   }
+  ]
+ }
+}

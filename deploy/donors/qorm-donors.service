@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh the QORM supporters list from Patreon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# credentials live here, NOT in git: PATREON_ACCESS_TOKEN (+ optional PATREON_CAMPAIGN_ID)
+EnvironmentFile=/etc/qorm/donors.env
+ExecStart=/usr/local/bin/qorm-donors -o /srv/qorm-site/donors.json -months 24

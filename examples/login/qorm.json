@@ -1,0 +1,31 @@
+{
+  "type": "app",
+  "id": "qorm_login",
+  "name": "Secure Login",
+  "entry": "main",
+  "globalState": {
+    "schema": {
+      "email": "string",
+      "password": "string",
+      "isLoggingIn": "boolean",
+      "errorMessage": "string"
+    },
+    "initial": {
+      "email": "",
+      "password": "",
+      "isLoggingIn": false,
+      "errorMessage": ""
+    }
+  },
+  "platforms": {
+    "desktop": {
+      "window": {
+        "width": 450,
+        "height": 600,
+        "title": "Auth Center",
+        "resizable": false,
+        "icon": "assets/icon.png"
+      }
+    }
+  }
+}

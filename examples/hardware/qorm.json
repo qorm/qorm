@@ -1,0 +1,55 @@
+{
+ "type": "app",
+ "id": "hardware",
+ "name": "Hardware Test",
+ "entry": "main",
+ "theme": "apple",
+ "globalState": {
+  "schema": {
+   "photo": "string",
+   "loc": "string",
+   "audio": "string",
+   "bio": "string"
+  },
+  "initial": {
+   "photo": "",
+   "loc": "",
+   "audio": "",
+   "bio": ""
+  }
+ },
+ "shortcuts": [
+  {
+   "id": "scan",
+   "title": "Quick Scan",
+   "icon": "qrcode.viewfinder"
+  },
+  {
+   "id": "photo",
+   "title": "Take Photo",
+   "subtitle": "Open camera",
+   "icon": "camera"
+  }
+ ],
+ "widgets": [
+  {
+   "id": "status",
+   "name": "Status",
+   "title": "QORM Status",
+   "lines": [
+    {
+     "label": "Steps",
+     "value": "4,231"
+    },
+    {
+     "label": "Battery",
+     "value": "82%"
+    },
+    {
+     "label": "Synced",
+     "value": "just now"
+    }
+   ]
+  }
+ ]
+}
