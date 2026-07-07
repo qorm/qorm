@@ -5,6 +5,15 @@ Cursor, Windsurf, …) at it and have the AI **scaffold, edit, run, and verify**
 QORM apps — then collaborate with you on a live app in real time. This is the
 human's side of the workflow.
 
+## See it first
+
+The 60-second version: [`scripts/demo.sh`](../scripts/demo.sh) starts a shared session and plays a scripted set of AI edits — open the printed URL, hit record, and watch the app change live with an "AI edited" toast:
+
+```sh
+./scripts/demo.sh                 # examples/counter
+./scripts/demo.sh examples/dashboard
+```
+
 ## 1. Install QORM
 
 ```sh
