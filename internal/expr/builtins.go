@@ -4,6 +4,8 @@ import (
 	"math"
 	"regexp"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"unicode/utf8"
 )
 
@@ -45,8 +47,8 @@ func callBuiltin(name string, a []any) any {
 	case "replace":
 		return strings.ReplaceAll(Stringify(arg(0)), Stringify(arg(1)), Stringify(arg(2)))
 	case "matches":
-		re, err := regexp.Compile(Stringify(arg(1)))
-		if err != nil {
+		re := compileCached(Stringify(arg(1)))
+		if re == nil {
 			return false
 		}
 		return re.MatchString(Stringify(arg(0)))
@@ -93,4 +95,29 @@ func reduceNums(a []any, f func(x, y float64) float64) any {
 		acc = f(acc, toNum(v))
 	}
 	return acc
+}
+
+// compileCached compiles a regex once per pattern (matches() is used inside
+// bindings evaluated on every render). A previously-bad pattern caches as nil so
+// it isn't recompiled; the cache is bounded.
+var (
+	reCache sync.Map // pattern -> *regexp.Regexp (typed-nil for a bad pattern)
+	reCount atomic.Int64
+)
+
+func compileCached(pat string) *regexp.Regexp {
+	if v, ok := reCache.Load(pat); ok {
+		re, _ := v.(*regexp.Regexp)
+		return re
+	}
+	re, err := regexp.Compile(pat)
+	if err != nil {
+		re = nil
+	}
+	if reCount.Load() < 1024 {
+		if _, loaded := reCache.LoadOrStore(pat, re); !loaded {
+			reCount.Add(1)
+		}
+	}
+	return re
 }

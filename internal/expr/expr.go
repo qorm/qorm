@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"unicode"
 )
 
@@ -22,8 +24,36 @@ const (
 	maxExprDepth = 256      // parser recursion cap (also bounds the AST/eval depth)
 )
 
-// Eval parses and evaluates src against ctx.
-func Eval(src string, ctx map[string]any) (any, error) {
+// parsed caches a parse result (a binding string is evaluated once per render,
+// but the same handful of expressions render over and over, so parsing them each
+// time is pure waste). The cache is bounded so a pathological app can't grow it.
+type parsed struct {
+	node node
+	err  error
+}
+
+var (
+	astCache sync.Map // src string -> parsed
+	astCount atomic.Int64
+)
+
+const maxASTCache = 8192
+
+func parse(src string) (node, error) {
+	if v, ok := astCache.Load(src); ok {
+		c := v.(parsed)
+		return c.node, c.err
+	}
+	n, err := parseUncached(src)
+	if astCount.Load() < maxASTCache {
+		if _, loaded := astCache.LoadOrStore(src, parsed{n, err}); !loaded {
+			astCount.Add(1)
+		}
+	}
+	return n, err
+}
+
+func parseUncached(src string) (node, error) {
 	if len(src) > maxExprLen {
 		return nil, fmt.Errorf("expression too long (%d bytes, max %d)", len(src), maxExprLen)
 	}
@@ -34,6 +64,15 @@ func Eval(src string, ctx map[string]any) (any, error) {
 	}
 	if p.peek().kind != tEOF {
 		return nil, fmt.Errorf("unexpected token %q", p.peek().text)
+	}
+	return node, nil
+}
+
+// Eval parses (cached) and evaluates src against ctx.
+func Eval(src string, ctx map[string]any) (any, error) {
+	node, err := parse(src)
+	if err != nil {
+		return nil, err
 	}
 	return evalNode(node, ctx), nil
 }
