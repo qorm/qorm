@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Questions & ideas (Discussions)
+    url: https://github.com/qorm/qorm/discussions
+    about: Ask questions, share what you built with QORM, or discuss direction.
