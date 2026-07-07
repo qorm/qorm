@@ -53,6 +53,10 @@ type Server struct {
 	// surfaced to the agent via qorm_activity so it collaborates in context.
 	humanFocus   string
 	humanFocusAt time.Time
+	// The human's last non-empty text entry, retained even after focus moves on (a
+	// button tap must not erase what they just typed). Never a password value.
+	humanTyping   string
+	humanTypingAt time.Time
 
 	measureMu sync.Mutex
 	measure   []byte // latest self-reported layout (rects + key styles)
@@ -107,6 +111,12 @@ func (s *Server) initAgent() {
 			out["humanFocus"] = map[string]any{
 				"element":    s.humanFocus,
 				"secondsAgo": int(time.Since(s.humanFocusAt).Seconds()),
+			}
+		}
+		if s.humanTyping != "" {
+			out["humanTyping"] = map[string]any{
+				"entry":      s.humanTyping,
+				"secondsAgo": int(time.Since(s.humanTypingAt).Seconds()),
 			}
 		}
 		b, _ := json.Marshal(out)
@@ -202,6 +212,12 @@ func (s *Server) servePresence(w http.ResponseWriter, r *http.Request) {
 		s.actMu.Lock()
 		s.humanFocus = el
 		s.humanFocusAt = time.Now()
+		// A typed entry ("<field> = <value>") is retained separately so a later tap
+		// doesn't erase it; "(hidden)" password markers are not.
+		if strings.Contains(el, " = ") && !strings.HasSuffix(el, "= (hidden)") {
+			s.humanTyping = el
+			s.humanTypingAt = time.Now()
+		}
 		s.actMu.Unlock()
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -1461,13 +1477,21 @@ if(window.EventSource){
   function ping(el){
     var t=el&&el.closest&&el.closest('button,a,input,textarea,select,[data-state]');
     if(!t) return;
-    var lab=(t.getAttribute('aria-label')||t.getAttribute('placeholder')||t.textContent||'').replace(/\s+/g,' ').trim().slice(0,60);
+    var lab=(t.getAttribute('aria-label')||t.getAttribute('placeholder')||t.textContent||'').replace(/\s+/g,' ').trim().slice(0,40);
     var d=t.tagName.toLowerCase()+(lab?': '+lab:'');
+    // include what the human is typing — but never a password field's value
+    var tag=t.tagName;
+    if((tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT') && t.type!=='password' && t.value){
+      d+=' = '+String(t.value).slice(0,60);
+    }else if(tag==='INPUT' && t.type==='password' && t.value){
+      d+=' = (hidden)';
+    }
     if(d===last) return; last=d;
     fetch('/presence',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({element:d})}).catch(function(){});
   }
   document.addEventListener('focusin',function(e){ ping(e.target); });
   document.addEventListener('pointerdown',function(e){ ping(e.target); });
+  document.addEventListener('input',function(e){ ping(e.target); });   // live typing
 })();
 if(document.readyState!=='loading'){ setTimeout(qormMeasure,60); setTimeout(qormHwInit,300); } else { window.addEventListener('load',function(){ setTimeout(qormMeasure,60); setTimeout(qormHwInit,300); }); }
 </script>
