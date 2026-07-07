@@ -251,17 +251,17 @@ func removeChild(parent *model.Node, id string) bool {
 // ---- deep clone (for side-effect-free preview) ----
 
 func cloneApp(app *model.App) *model.App {
-	scenes := make(map[string]*model.Node, len(app.Scenes))
+	// Copy every field first (Locales, DefaultLocale, BaseDir, Theme, Branding,
+	// Components, Widgets, DesktopMenu, Tray, Shortcuts, ...) — apply_patch swaps
+	// this clone in as the live app, so anything dropped here vanishes from every
+	// later render. Only the Scenes trees are mutated by a patch, so deep-copy
+	// just those; the rest are read-only here and can be shared by reference.
+	c := *app
+	c.Scenes = make(map[string]*model.Node, len(app.Scenes))
 	for id, root := range app.Scenes {
-		scenes[id] = cloneNode(root)
+		c.Scenes[id] = cloneNode(root)
 	}
-	return &model.App{
-		ID: app.ID, Name: app.Name, Entry: app.Entry,
-		GlobalState: app.GlobalState,
-		Scenes:      scenes,
-		Actions:     app.Actions, // actions are immutable here; share
-		Window:      app.Window,
-	}
+	return &c
 }
 
 func cloneNode(n *model.Node) *model.Node {
