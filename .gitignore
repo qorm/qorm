@@ -15,3 +15,11 @@ donors.env
 
 # internal planning / aspirational specs — local only, not part of the public runtime docs
 /planning/
+
+# stray build artifacts (never commit — see the qorm-wasm/render.test slip)
+/qorm
+/qorm-wasm
+/qorm-desktop-*
+*.test
+*.wasm
+BUNDLE_ONLY
