@@ -45,6 +45,16 @@ QORM icon with your own, or remove the "Made with QORM" note — join **Indie**
 It's honour-system: when you `qorm package` with a custom icon or `--no-branding`,
 the CLI just asks you to confirm you're a subscriber — no verification, no keys.
 
+### Startup / can't-subscribe waiver
+
+If you're an early-stage startup, or a subscription is impractical for you
+(payment rails, company policy — whatever the reason), email
+**github@qorm.com** with a short note about your situation and we'll authorize
+your white-labeling by reply — free for **one year**, renewable by another
+email. For its one-year term, an email authorization counts as a valid
+subscription under these Terms. (An example email is in the
+[README](../README.md#license).)
+
 ## Supporter — back the project
 
 The **Supporter** tier (US$3/mo) is for people who want to back QORM without

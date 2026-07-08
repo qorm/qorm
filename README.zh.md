@@ -10,7 +10,7 @@ Rendering Model,可查询对象渲染模型)是一个面向智能体的
 就能在你与它协作同一个运行中的应用时,**搭建、编辑、运行并验证**它——你点击,它看得见;
 它编辑,你眼看着变化发生。
 
-<p align="center"><img src="assets/qorm-demo.gif" alt="人与 AI 一起实时编辑同一个 QORM 应用" width="380"></p>
+<p align="center"><img src="assets/qorm-demo.gif" alt="人与 AI 一起实时编辑同一个 QORM 应用" width="580"></p>
 
 <sub>上面这段 GIF 是 QORM 自己录的——AI 通过 MCP 驱动编辑,`qorm shot` 用 WebKit 逐帧截图,无浏览器自动化工具。见 <a href="scripts/record-demo.sh">scripts/record-demo.sh</a>。</sub>
 
@@ -233,6 +233,29 @@ QORM 是双消费者的——同一批产物同时服务于人类开发者和 AI
 Patreon 会员——**Indie 每月 $1**(个人)或 **Studio 每月 $7**(公司)。**Supporter** 档
 (每月 $3)以优先特性请求支持本项目;个人/教育/开源用途属于免费的 **Community** 档。
 `qorm` CLI 会在你打包商业特性时请你确认(荣誉制)。支持者会在 QORM Patreon 页面上获得致谢。
+
+**创业团队或不方便订阅?** 如果你是早期创业团队,或订阅对你不方便(支付渠道、
+公司规定,任何原因都行),给 **github@qorm.com** 发一封邮件,简单说明一下情况,
+我们会直接回复授权,免费一年(到期再发一封邮件续期即可)。
+
+<details>
+<summary>邮件示例</summary>
+
+> **收件人:** github@qorm.com
+> **主题:** 白标授权申请——Acme 习惯打卡
+>
+> QORM 团队你们好,
+>
+> 我们是 Acme,一个 3 人创业团队,正在做一款习惯打卡应用。我们想以白标方式发布
+> (自定义图标、去掉 "Made with QORM" 说明),但目前订阅 Patreon 对我们不太现实——
+> 产品还没有收入,而且我们所在地区支付也不方便。
+>
+> 能否给我们授权?我们很乐意在产品的"关于"页面为 QORM 署名致谢。
+>
+> 谢谢!
+> 张三 · 创始人 · acme.example
+
+</details>
 
 ## 路线图
 

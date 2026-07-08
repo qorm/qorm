@@ -61,4 +61,4 @@ web / iOS / Android / 桌面——人和 AI 智能体都能读写。
 
 ## 商业使用
 
-- [条款](https://github.com/qorm/qorm/blob/main/ops/TERMS.md)——源码为 MIT;一个 Patreon 会员涵盖商业白标
+- [条款](https://github.com/qorm/qorm/blob/main/ops/TERMS.md)——源码为 MIT;一个 Patreon 会员涵盖商业白标;创业团队或不便订阅,可邮件 github@qorm.com 免费申请一年授权(可续期)

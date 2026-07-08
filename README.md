@@ -11,7 +11,7 @@ JSON, and your AI (Claude, Cursor, …) can **scaffold, edit, run, and verify** 
 while you collaborate on the same running app in real time — you click, it sees
 you; it edits, you watch it happen.
 
-<p align="center"><img src="assets/qorm-demo.gif" alt="A human and an AI editing a live QORM app together, with an 'AI edited' toast" width="380"></p>
+<p align="center"><img src="assets/qorm-demo.gif" alt="A human and an AI editing a live QORM app together, with an 'AI edited' toast" width="580"></p>
 
 <sub>The GIF was recorded by QORM itself — the AI drove the edits over MCP and `qorm
 shot` captured each frame via WebKit. No browser automation; see
@@ -260,6 +260,32 @@ personal / educational / open-source use may re-icon freely, and **commercial
 white-labeling** (a custom icon, or removing the "Made with QORM" metadata note) asks
 a Patreon membership — **Indie $1/mo** (individual) or **Studio $7/mo** (company). A **Supporter** tier ($3/mo) backs the project with priority feature requests; personal/edu/OSS use is the free **Community** tier. The `qorm` CLI asks you
 to confirm (honour-system) when you package a commercial feature. Supporters are recognized on the QORM Patreon page.
+
+**Startup or can't subscribe?** If you're an early-stage startup, or a
+subscription is impractical for you (payment rails, company policy — whatever
+the reason), just email **github@qorm.com** with a short note about your
+situation and we'll authorize you by reply — free for one year (just email
+again to renew).
+
+<details>
+<summary>Example email</summary>
+
+> **To:** github@qorm.com
+> **Subject:** White-label authorization request — Acme Habits
+>
+> Hi QORM team,
+>
+> We're Acme, a 3-person startup building a habit-tracking app. We'd like to
+> ship it white-labeled (custom icon, no "Made with QORM" note), but a Patreon
+> subscription isn't practical for us right now — we're pre-revenue and our
+> region makes the payment awkward.
+>
+> Could you authorize us? Happy to credit QORM on our about page instead.
+>
+> Thanks,
+> Jane Doe · founder · acme.example
+
+</details>
 
 ## Roadmap
 
