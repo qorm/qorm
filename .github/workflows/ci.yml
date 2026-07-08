@@ -29,15 +29,24 @@ jobs:
 
   desktop:
     name: build (native desktop, cgo)
-    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # ubuntu-22.04 pinned: the vendored webview binding needs the
+        # webkit2gtk-4.0 pkg-config profile, which 24.04 no longer ships.
+        os: [macos-latest, ubuntu-22.04, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
+      - name: Install WebKitGTK (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev pkg-config
       - name: Build (-tags desktop)
-        run: go build -tags desktop -o /dev/null ./cmd/qorm
+        run: go build -tags desktop ./cmd/qorm
 
   binaries:
     name: cross-compile (downloadable artifacts)
