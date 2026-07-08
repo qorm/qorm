@@ -412,7 +412,17 @@ const logWindowHTML = `<!doctype html>
     }).catch(function(){});
   }
   setInterval(qpres,900); qpres();
+  if (window.location.search.indexOf('demo=1') !== -1) {
+    setTimeout(function(){
+      showTab('tree');
+      setTimeout(function(){
+        var h = document.querySelector('.node-header');
+        if(h) h.click();
+      }, 400);
+    }, 1000);
+  }
 </script></body></html>`
+
 
 // serveDevState handles GET (read state) and POST (update state) for DevTools.
 func (s *Server) serveDevState(w http.ResponseWriter, r *http.Request) {
