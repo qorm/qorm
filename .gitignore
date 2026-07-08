@@ -27,3 +27,4 @@ BUNDLE_ONLY
 # private operations material (go-to-market, drafts) — local only
 /ops/internal/
 /site/
+/web_server/

@@ -2,7 +2,10 @@
 
 # QORM
 
-**Build UI apps with your AI assistant — together, live.** QORM is an
+<p align="center"><b>Query · Observe · Render · Mutate</b></p>
+
+**Build UI apps with your AI assistant — together, live.** QORM
+(Queryable Object Rendering Model) is an
 agent-native declarative-UI runtime: describe a UI as small, language-neutral
 JSON, and your AI (Claude, Cursor, …) can **scaffold, edit, run, and verify** it
 while you collaborate on the same running app in real time — you click, it sees

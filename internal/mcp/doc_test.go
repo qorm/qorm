@@ -11,14 +11,26 @@ import (
 func TestMCPDocInSync(t *testing.T) {
 	const path = "../../docs/agent/mcp-tools.md"
 	want := ToolsMarkdown()
+	const pathZH = "../../docs/zh/agent/mcp-tools.md"
+	wantZH := ToolsMarkdownZH()
+
 	if os.Getenv("QORM_UPDATE_DOCS") == "1" {
 		if err := os.WriteFile(path, []byte(want), 0o644); err != nil {
 			t.Fatal(err)
 		}
+		if err := os.WriteFile(pathZH, []byte(wantZH), 0o644); err != nil {
+			t.Fatal(err)
+		}
 		return
 	}
+
 	got, err := os.ReadFile(path)
 	if err != nil || string(got) != want {
 		t.Errorf("docs/agent/mcp-tools.md is out of sync with the tool registry — run: QORM_UPDATE_DOCS=1 go test ./internal/mcp/")
+	}
+
+	gotZH, err := os.ReadFile(pathZH)
+	if err != nil || string(gotZH) != wantZH {
+		t.Errorf("docs/zh/agent/mcp-tools.md is out of sync with the tool registry — run: QORM_UPDATE_DOCS=1 go test ./internal/mcp/")
 	}
 }
