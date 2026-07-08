@@ -246,3 +246,50 @@ func TestDevtoolIntegrationAndSSE(t *testing.T) {
 		t.Fatal("expected an SSE broadcast after the /dev/state edit")
 	}
 }
+
+// TestMCPReadOnlyMode verifies --mcp-read-only enforcement at the shared MCP
+// session: mutating tools are rejected with a JSON-RPC error while inspection
+// tools keep working, and the app state is untouched.
+func TestMCPReadOnlyMode(t *testing.T) {
+	s := counterServer(t)
+	s.SetMCPReadOnly(true)
+	ts := httptest.NewServer(s.Handler())
+	defer ts.Close()
+
+	// Mutating tools are refused before reaching the tool handler.
+	for _, tool := range []string{"qorm_dispatch", "qorm_set_state", "qorm_apply_patch"} {
+		resp := post(t, ts.URL+"/mcp",
+			`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"`+tool+`","arguments":{"action":"increment"}}}`)
+		var r struct {
+			Error *struct {
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		if err := json.Unmarshal([]byte(resp), &r); err != nil {
+			t.Fatalf("%s: bad response %q: %v", tool, resp, err)
+		}
+		if r.Error == nil || !strings.Contains(r.Error.Message, "read-only mode") {
+			t.Fatalf("%s must return a read-only JSON-RPC error, got %s", tool, resp)
+		}
+	}
+
+	// Read-only tools still work.
+	inspect := post(t, ts.URL+"/mcp",
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"qorm_inspect","arguments":{}}}`)
+	if strings.Contains(inspect, `"error"`) || !strings.Contains(inspect, "counter") {
+		t.Fatalf("qorm_inspect should succeed in read-only mode, got %s", inspect)
+	}
+
+	// Nothing mutated: the counter is still at 0.
+	if got := renderCurrent(s); !strings.Contains(got, ">0<") {
+		t.Fatalf("state must be unchanged in read-only mode, html: %s", got)
+	}
+
+	// Switching read-only off restores normal operation.
+	s.SetMCPReadOnly(false)
+	resp := post(t, ts.URL+"/mcp",
+		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"qorm_dispatch","arguments":{"action":"increment","args":{"count":0}}}}`)
+	if strings.Contains(resp, "read-only mode") {
+		t.Fatalf("dispatch should work after disabling read-only, got %s", resp)
+	}
+}

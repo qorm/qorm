@@ -35,6 +35,12 @@ type Content struct {
 	Scenes  map[string]map[string]any    `json:"scenes"`
 	Actions map[string]map[string]any    `json:"actions"`
 	Locales map[string]map[string]string `json:"locales,omitempty"`
+	// RequiredCapabilities lists the hardware/native capabilities (by canonical
+	// capability name, e.g. "camera") the app needs at runtime. The runtime
+	// refuses to start the bundle on a platform missing any of them. omitempty
+	// keeps the canonical encoding — and therefore the content hash — of older
+	// bundles unchanged.
+	RequiredCapabilities []string `json:"requiredCapabilities,omitempty"`
 }
 
 // Signature is a detached ed25519 signature over the content hash.
@@ -160,6 +166,29 @@ func (b *Bundle) SetVersion(version string) error {
 	}
 	b.ContentHash = hash
 	return nil
+}
+
+// SetRequiredCapabilities stamps the capability requirements into the content
+// and recomputes the content hash, so they are covered by the hash and any
+// subsequent signature. Call before Sign. A nil/empty list clears the field.
+func (b *Bundle) SetRequiredCapabilities(caps []string) error {
+	if len(caps) == 0 {
+		b.Content.RequiredCapabilities = nil
+	} else {
+		b.Content.RequiredCapabilities = caps
+	}
+	hash, err := b.computeHash()
+	if err != nil {
+		return err
+	}
+	b.ContentHash = hash
+	return nil
+}
+
+// RequiredCapabilities returns the capability requirements declared in the
+// content (nil for bundles built before the field existed).
+func (b *Bundle) RequiredCapabilities() []string {
+	return b.Content.RequiredCapabilities
 }
 
 // Version returns the app version carried in the manifest (or "" if unset).

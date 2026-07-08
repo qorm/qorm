@@ -17,6 +17,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	goruntime "runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -24,6 +25,7 @@ import (
 	"time"
 
 	"github.com/qorm/qorm/internal/bundle"
+	"github.com/qorm/qorm/internal/capability"
 	"github.com/qorm/qorm/internal/mcp"
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/ota"
@@ -41,6 +43,11 @@ type Server struct {
 	handlers []render.Handler
 	rev      atomic.Int64 // bumped on every mutation; drives browser live-sync
 	agent    *mcp.Server  // MCP handler sharing rt + mu
+
+	// mcpReadOnly forces the shared MCP session into read-only mode: mutating
+	// tools (dispatch/set_state/apply_patch/undo) are rejected. Set from
+	// `qorm run --mcp-read-only`; re-applied whenever the runtime is swapped.
+	mcpReadOnly bool
 
 	subsMu sync.Mutex               // guards subs
 	subs   map[chan string]struct{} // SSE subscribers, each gets pushed updates
@@ -99,10 +106,52 @@ func New(rt *runtime.Runtime) *Server {
 
 // NewBundle builds a server from a verified bundle, enabling OTA updates
 // against the given trusted key (nil = integrity-only) and revocation list.
-func NewBundle(b *bundle.Bundle, trust ed25519.PublicKey, revoked bundle.RevocationList) *Server {
+// It refuses (returns an error) when the bundle declares a required capability
+// that the current platform does not support.
+func NewBundle(b *bundle.Bundle, trust ed25519.PublicKey, revoked bundle.RevocationList) (*Server, error) {
+	if err := CheckRequiredCapabilities(b); err != nil {
+		return nil, err
+	}
 	s := &Server{rt: runtime.New(b.ToApp()), current: b, trust: trust, revoked: revoked, eventToken: genEventToken()}
 	s.initAgent()
-	return s
+	return s, nil
+}
+
+// hostPlatform maps the running OS to a capability-registry platform key.
+func hostPlatform() string {
+	switch goruntime.GOOS {
+	case "darwin":
+		return capability.Mac
+	case "windows":
+		return capability.Windows
+	default:
+		return capability.Linux
+	}
+}
+
+// CheckRequiredCapabilities verifies every capability the bundle declares in
+// requiredCapabilities against the capability registry for the current
+// platform. Capabilities are named by their canonical stem (== widget type for
+// all but "badge", whose widget is "dockbadge"); both spellings are accepted.
+// A missing capability is a hard startup error, not a warning.
+func CheckRequiredCapabilities(b *bundle.Bundle) error {
+	platform := hostPlatform()
+	for _, name := range b.RequiredCapabilities() {
+		widget := ""
+		for i := range capability.All {
+			if c := &capability.All[i]; c.Stem == name || c.Widget == name {
+				widget = c.Widget
+				break
+			}
+		}
+		if widget == "" {
+			return fmt.Errorf("bundle requires unknown capability %q (not in the capability registry)", name)
+		}
+		if !capability.Supported(widget, platform) {
+			return fmt.Errorf("bundle requires capability %q, which is not supported on this platform (%s); refusing to start", name, platform)
+		}
+	}
+	return nil
 }
 
 // genEventToken returns a cryptographically random 16-byte hex string used to
@@ -120,6 +169,7 @@ func genEventToken() string {
 // while the agent holds s.mu, so bump() must not re-take s.mu.
 func (s *Server) initAgent() {
 	s.agent = mcp.NewShared(s.rt, &s.mu, func() { s.bump() })
+	s.agent.SetReadOnly(s.mcpReadOnly)
 	s.agent.SetMeasureProvider(func() []byte {
 		s.measureMu.Lock()
 		defer s.measureMu.Unlock()
@@ -153,6 +203,16 @@ func (s *Server) initAgent() {
 		b, _ := json.Marshal(out)
 		return string(b)
 	})
+}
+
+// SetMCPReadOnly switches the shared MCP session into (or out of) read-only
+// mode: mutating agent tools are rejected with a JSON-RPC error. The setting
+// survives OTA runtime swaps.
+func (s *Server) SetMCPReadOnly(v bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.mcpReadOnly = v
+	s.agent.SetReadOnly(v)
 }
 
 // bump increments the revision, re-renders, refreshes the handler table and
@@ -554,6 +614,9 @@ func (s *Server) activate(b *bundle.Bundle) {
 func (s *Server) Update(source string) (string, error) {
 	next, err := ota.FetchVerified(source, s.trust, s.revoked)
 	if err != nil {
+		return "", err
+	}
+	if err := CheckRequiredCapabilities(next); err != nil {
 		return "", err
 	}
 	s.mu.Lock()

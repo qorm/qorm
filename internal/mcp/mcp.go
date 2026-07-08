@@ -36,6 +36,7 @@ type Server struct {
 	history []*model.App // pre-images before each apply_patch, for undo
 
 	mu           *sync.Mutex   // guards rt during shared sessions
+	readOnly     bool          // reject mutating tools (qorm run --mcp-read-only)
 	afterMutate  func()        // called after a mutating tool (for live-sync)
 	measureProv  func() []byte // latest self-reported layout, if a live client is measuring
 	activityProv func() string // shared-session activity log JSON (who did what), if wired
@@ -66,6 +67,12 @@ func New(rt *runtime.Runtime, in io.Reader, out io.Writer) *Server {
 func NewShared(rt *runtime.Runtime, mu *sync.Mutex, afterMutate func()) *Server {
 	return &Server{rt: rt, mu: mu, afterMutate: afterMutate}
 }
+
+// SetReadOnly switches the server into (or out of) read-only mode. In
+// read-only mode every mutating tool (qorm_dispatch, qorm_set_state,
+// qorm_apply_patch, qorm_undo) is rejected with a JSON-RPC error before it
+// reaches the tool handler; inspection/preview tools work unchanged.
+func (s *Server) SetReadOnly(v bool) { s.readOnly = v }
 
 // SetMeasureProvider supplies the latest layout self-measurement (from a live
 // browser/WebView client), enabling the qorm_measure/qorm_check_layout tools.
@@ -155,6 +162,15 @@ func (s *Server) dispatch(req request) *response {
 	case "tools/list":
 		return ok(req.ID, map[string]any{"tools": toolList()})
 	case "tools/call":
+		if s.readOnly {
+			var p struct {
+				Name string `json:"name"`
+			}
+			_ = json.Unmarshal(req.Params, &p)
+			if isMutating(p.Name) {
+				return fail(req.ID, -32000, "read-only mode: tool "+p.Name+" is disabled (server started with --mcp-read-only)")
+			}
+		}
 		return s.handleToolCall(req)
 	default:
 		if len(req.ID) > 0 {

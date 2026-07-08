@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/qorm/qorm/internal/bundle"
 	"github.com/qorm/qorm/internal/keys"
@@ -58,9 +59,12 @@ func cmdRun(args []string) int {
 	consoleMode := false
 	lan := false
 	tlsOn := false
+	mcpReadOnly := false
 	var dir, trust, revoked string
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
+		case "--mcp-read-only":
+			mcpReadOnly = true
 		case "--lan":
 			lan = true
 			open = false
@@ -102,6 +106,9 @@ func cmdRun(args []string) int {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
+	if mcpReadOnly {
+		srv.SetMCPReadOnly(true)
+	}
 	host := "127.0.0.1"
 	if lan {
 		host = "0.0.0.0" // reachable by physical devices on the LAN
@@ -131,6 +138,9 @@ func cmdRun(args []string) int {
 	url := fmt.Sprintf("%s://127.0.0.1:%d/", scheme, port)
 	fmt.Printf("QORM %q running at %s  (Ctrl-C to stop)\n", name, url)
 	fmt.Printf("  agent (MCP over HTTP): %smcp   — AI shares this live session\n", url)
+	if mcpReadOnly {
+		fmt.Println("  MCP is read-only: mutating agent tools (dispatch/set_state/apply_patch) are disabled")
+	}
 	if lan {
 		printDeviceConnect(port, scheme)
 	}
@@ -204,7 +214,7 @@ func cmdRender(args []string) int {
 }
 
 func cmdBuild(args []string) int {
-	var dir, out, keyPath, version string
+	var dir, out, keyPath, version, requireCaps string
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "-o", "--out":
@@ -222,6 +232,11 @@ func cmdBuild(args []string) int {
 				i++
 				version = args[i]
 			}
+		case "--require-capability":
+			if i+1 < len(args) {
+				i++
+				requireCaps = args[i]
+			}
 		default:
 			dir = args[i]
 		}
@@ -237,6 +252,12 @@ func cmdBuild(args []string) int {
 	}
 	if version != "" {
 		if err := b.SetVersion(version); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			return 1
+		}
+	}
+	if caps := splitCapabilityList(requireCaps); len(caps) > 0 {
+		if err := b.SetRequiredCapabilities(caps); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			return 1
 		}
@@ -266,8 +287,24 @@ func cmdBuild(args []string) int {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
-	fmt.Printf("built %s -> %s (%s, %s)\n", dir, out, b.ContentHash, signed)
+	if caps := b.RequiredCapabilities(); len(caps) > 0 {
+		fmt.Printf("built %s -> %s (%s, %s, requires: %s)\n", dir, out, b.ContentHash, signed, strings.Join(caps, ", "))
+	} else {
+		fmt.Printf("built %s -> %s (%s, %s)\n", dir, out, b.ContentHash, signed)
+	}
 	return 0
+}
+
+// splitCapabilityList parses a comma-separated --require-capability value
+// ("camera,location") into a clean slice (trimmed, empties dropped).
+func splitCapabilityList(s string) []string {
+	var caps []string
+	for _, c := range strings.Split(s, ",") {
+		if c = strings.TrimSpace(c); c != "" {
+			caps = append(caps, c)
+		}
+	}
+	return caps
 }
 
 func cmdKeygen(args []string) int {
@@ -419,6 +456,9 @@ func cmdVerify(args []string) int {
 		scope += " + revocation"
 	}
 	fmt.Printf("OK: %s verified (%s)\n", in, scope)
+	if caps := b.RequiredCapabilities(); len(caps) > 0 {
+		fmt.Printf("requires capabilities: %s\n", strings.Join(caps, ", "))
+	}
 	return 0
 }
 
