@@ -2,7 +2,10 @@
 
 # QORM
 
-**与你的 AI 助手一起构建 UI 应用——实时协作。** QORM 是一个面向智能体的
+<p align="center"><b>查询 · 观察 · 渲染 · 修改&nbsp;&nbsp;Query · Observe · Render · Mutate</b></p>
+
+**与你的 AI 助手一起构建 UI 应用——实时协作。** QORM(Queryable Object
+Rendering Model,可查询对象渲染模型)是一个面向智能体的
 声明式 UI 运行时:用小巧、与语言无关的 JSON 描述 UI,你的 AI(Claude、Cursor……)
 就能在你与它协作同一个运行中的应用时,**搭建、编辑、运行并验证**它——你点击,它看得见;
 它编辑,你眼看着变化发生。
@@ -48,7 +51,7 @@ claude mcp add qorm -- qorm mcp .      # or add integrations/mcp.json to your ag
 ## 平台支持
 
 <!-- support-summary:start -->
-| Target | Package | Render | Live app | Agent / MCP |
+| 运行目标 | 可安装包 | UI 渲染 | 状态/动作 | 智能体/MCP |
 |---|---|---|---|---|
 | Web | ok | ok | ok | ok |
 | iOS | ok | ok | ok | ok |
@@ -56,7 +59,7 @@ claude mcp add qorm -- qorm mcp .      # or add integrations/mcp.json to your ag
 | macOS | ok | ok | ok | ok |
 | Linux | beta | ok | ok | ok |
 | Windows | beta | ok | ok | ok |
-| Mini-program | ok | beta | beta | beta |
+| 小程序 | ok | beta | beta | beta |
 <!-- support-summary:end -->
 
 `ok` 已支持且已测试 · `beta` 基础/部分能力 · `—` 不适用。完整的特性清单

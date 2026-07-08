@@ -145,3 +145,157 @@ func Markdown() string {
 	}
 	return b.String()
 }
+
+var targetsZH = map[string]string{
+	"Web":          "Web",
+	"iOS":          "iOS",
+	"Android":      "Android",
+	"macOS":        "macOS",
+	"Linux":        "Linux",
+	"Windows":      "Windows",
+	"Mini-program": "小程序",
+}
+
+var groupsZH = map[string]string{
+	"Distribution": "分发 (Distribution)",
+	"Rendering":    "渲染 (Rendering)",
+	"Runtime":      "运行时 (Runtime)",
+	"Agent":        "智能体 (Agent)",
+}
+
+var featuresZH = map[string]string{
+	"Installable package":                      "可安装包 (Installable package)",
+	"Offline / self-contained":                 "离线 / 自包含 (Offline / self-contained)",
+	"PWA install (Add to Home Screen)":         "PWA 安装 (PWA install)",
+	"Signed bundle (ed25519)":                  "签名包 (Signed bundle)",
+	"Over-the-air update + rollback":           "热更新与回滚 (OTA)",
+	"Declarative HTML/CSS render":              "声明式 HTML/CSS 渲染",
+	"Full widget set":                          "全量组件集 (Full widget set)",
+	"Themes (Apple / Material / dark)":         "主题（Apple / Material / 深色）",
+	"Custom components (JSON-defined)":         "自定义组件（JSON 定义）",
+	"i18n messages + RTL":                      "多语言与 RTL 支持 (i18n / RTL)",
+	"Native window (chromeless / transparent)": "原生窗口（无边框/透明）",
+	"System menu bar / tray / right-click menu": "系统菜单栏/托盘/右键菜单",
+	"Live state + actions + bindings":          "实时状态/动作/绑定",
+	"Expression bindings ({{ ... }})":          "表达式绑定 (Expression bindings)",
+	"Conditional render + data-bound lists":    "条件渲染与数据绑定列表",
+	"Go middle-layer (custom native ops)":      "Go 中间层（自定义原生操作）",
+	"Hardware / OS capabilities":               "硬件与 OS 能力",
+	"MCP server (read / edit / verify a live app)": "MCP 服务端（读取/编辑/验证）",
+	"Live human-AI shared session (SSE)":       "人机共享实时会话 (SSE)",
+	"Review-bound edits (preview → apply)":     "审查限制编辑 (preview → apply)",
+	"Self-verify render (qorm measure / check)": "自我验证渲染 (qorm measure / check)",
+}
+
+var notesZH = map[string]string{
+	"Installable package":                      "桌面端为针对不同平台的 cgo 构建；小程序为微信小程序项目",
+	"Offline / self-contained":                 "Web/移动端通过 Go→WASM 离线运行；小程序渲染静态 UI",
+	"PWA install (Add to Home Screen)":         "Web 清单 + Service Worker；iOS/Android 支持添加到主屏幕",
+	"Signed bundle (ed25519)":                  "纯 Go 自校验签名包；小程序由平台签名",
+	"Over-the-air update + rollback":           "小程序更新受微信平台控制",
+	"Declarative HTML/CSS render":              "小程序渲染映射后的 WXML/WXSS",
+	"Full widget set":                          "布局、输入、媒体、结构 —— 参见 widgets.md",
+	"Themes (Apple / Material / dark)":         "设计 Token；小程序携带 Token WXSS",
+	"Custom components (JSON-defined)":         "在 qorm.json 中声明，采用 {{prop.x}} 模板",
+	"i18n messages + RTL":                      "ICU 消息、复数、货币、自右向左文本支持",
+	"Native window (chromeless / transparent)": "需使用 -tags desktop 编译；macOS 为参考实现",
+	"Live state + actions + bindings":          "小程序在基础切片中是静态的",
+	"Expression bindings ({{ ... }})":          "算术、比较、三元、字符串操作、内置函数",
+	"Conditional render + data-bound lists":    "if: 条件渲染，列表重复以及 {{item.*}} 作用域",
+	"Go middle-layer (custom native ops)":      "将单个 native/desktop.go 编译入桌面端以及移动端/Web 的 WASM 中",
+	"Hardware / OS capabilities":               "各能力的详细支持情况见 capabilities.md",
+	"MCP server (read / edit / verify a live app)": "对运行中的应用通过 stdio 或 /mcp 进行交互",
+	"Live human-AI shared session (SSE)":       "AI 的编辑立即显示在人类浏览器中；人类的点击和输入焦点反馈在 qorm_activity 中",
+	"Review-bound edits (preview → apply)":     "应用补丁的 apply_patch 必须携带 preview token",
+	"Self-verify render (qorm measure / check)": "渲染应用并报告真实的几何空间布局",
+}
+
+// SummaryZH returns a compact, transposed Chinese summary table for README.zh.md.
+func SummaryZH() string {
+	cols := []struct{ label, feature string }{
+		{"可安装包", "Installable package"},
+		{"UI 渲染", "Declarative HTML/CSS render"},
+		{"状态/动作", "Live state + actions + bindings"},
+		{"智能体/MCP", "MCP server (read / edit / verify a live app)"},
+	}
+	byName := map[string]Feature{}
+	for _, f := range Matrix {
+		byName[f.Name] = f
+	}
+	var b strings.Builder
+	b.WriteString("| 运行目标 |")
+	for _, c := range cols {
+		b.WriteString(" " + c.label + " |")
+	}
+	b.WriteString("\n|---|" + strings.Repeat("---|", len(cols)) + "\n")
+	for i, t := range Targets {
+		zhT := targetsZH[t]
+		if zhT == "" {
+			zhT = t
+		}
+		b.WriteString("| " + zhT + " |")
+		for _, c := range cols {
+			b.WriteString(" " + byName[c.feature].Cells[i].mark() + " |")
+		}
+		b.WriteString("\n")
+	}
+	return b.String()
+}
+
+// MarkdownZH renders the support matrix as docs/zh/platforms/support-matrix.md.
+func MarkdownZH() string {
+	var b strings.Builder
+	b.WriteString("# 平台支持矩阵\n\n")
+	b.WriteString("> 由支持矩阵注册表自动生成 —— 请勿手动修改。\n\n")
+	b.WriteString("QORM 在各运行目标上的支持情况一览。 **`ok`** = 已支持并测试； **`beta`** = 基础支持/部分或受限支持； **`—`** = 不适用。硬件/原生能力的详细支持情况请参见 [能力清单](capabilities.md)。\n\n")
+
+	header := "| 特征/能力 |"
+	sep := "|---|"
+	for _, t := range Targets {
+		zhT := targetsZH[t]
+		if zhT == "" {
+			zhT = t
+		}
+		header += " " + zhT + " |"
+		sep += "---|"
+	}
+
+	var group string
+	for _, f := range Matrix {
+		if f.Group != group {
+			group = f.Group
+			zhG := groupsZH[group]
+			if zhG == "" {
+				zhG = group
+			}
+			b.WriteString("\n## " + zhG + "\n\n")
+			b.WriteString(header + "\n" + sep + "\n")
+		}
+		zhName := featuresZH[f.Name]
+		if zhName == "" {
+			zhName = f.Name
+		}
+		row := "| " + zhName + " |"
+		for _, c := range f.Cells {
+			row += " " + c.mark() + " |"
+		}
+		b.WriteString(row + "\n")
+	}
+
+	// Notes
+	b.WriteString("\n## 备注说明\n\n")
+	for _, f := range Matrix {
+		zhName := featuresZH[f.Name]
+		if zhName == "" {
+			zhName = f.Name
+		}
+		zhNote := notesZH[f.Name]
+		if zhNote == "" && f.Note != "" {
+			zhNote = f.Note
+		}
+		if zhNote != "" {
+			b.WriteString("- **" + zhName + "** —— " + zhNote + "\n")
+		}
+	}
+	return b.String()
+}

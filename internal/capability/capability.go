@@ -164,6 +164,117 @@ func Markdown() string {
 	return b.String()
 }
 
+var descZH = map[string]string{
+	"camera":        "拍照（通过 getUserMedia 实时捕获或文件采集）；直接绑定到状态。",
+	"location":      "当前 GPS 定位。",
+	"recorder":      "录制麦克风音频。",
+	"sensors":       "设备运动传感器（加速度计/陀螺仪）。",
+	"biometric":     "Face ID / 指纹身份验证。",
+	"bluetooth":     "扫描 BLE 设备 + 适配器状态。",
+	"wifi":          "当前 Wi-Fi 网络信息。",
+	"nfc":           "读取 NFC/NDEF 标签。",
+	"volume":        "系统输出音量。",
+	"brightness":    "屏幕亮度。",
+	"vibrate":       "基本振动。",
+	"torch":         "手电筒 / 闪光灯。",
+	"battery":       "电量水平 + 充电状态。",
+	"notify":        "本地通知。",
+	"badge":         "应用图标 / Dock 徽标计数。",
+	"screenshot":    "捕获屏幕 / 应用视图。",
+	"screenrecord":  "录制屏幕。",
+	"share":         "打开系统分享面板。",
+	"clipboard":     "读/写剪贴板。",
+	"deviceinfo":    "设备型号 / 操作系统 / 名称。",
+	"network":       "在线状态 + 连接类型。",
+	"keepawake":     "防止屏幕休眠。",
+	"haptics":       "精细触觉反馈（成功/警告/错误/选择）。",
+	"storage":       "键值对本地存储。",
+	"loginitem":     "开机自启。",
+	"stt":           "语音转文字（语音输入 / 听写）。",
+	"securestorage": "安全键值存储（iOS Keychain / Android Keystore）。",
+	"filepicker":    "从存储中选择文件（返回名称、大小、数据 URL）。",
+	"photopicker":   "从相册选择已有照片（返回数据 URL）。",
+	"orientation":   "锁定屏幕方向（竖屏/横屏）。",
+	"videocapture":  "用摄像头录制视频。",
+	"qrscan":        "用摄像头扫描二维码 / 条形码。",
+	"tts":           "文字转语音（大声朗读字符串）。",
+	"compass":       "罗盘朝向（相对于磁北的角度）。",
+	"proximity":     "距离传感器（近/远）。",
+	"pedometer":     "计步器 / 步数计数。",
+	"barometer":     "气压 / 相对高度。",
+	"contacts":      "选择联系人（姓名 + 电话）。",
+	"calendar":      "添加日历事件。",
+	"systemmodes":   "读取系统模式：低电量、深色/外观样式、飞行模式 (Android)、免打扰 (Android)。在平台没有公开 API 时返回空值。",
+	"insets":        "安全区域内边距（以 point/dp 为单位，含状态栏、刘海屏、Home 指示条、导航栏）。",
+	"openurl":       "打开 URL / 深度链接（http, mailto, tel, sms, maps）。",
+	"screens":       "枚举显示器。",
+}
+
+var notesZH = map[string]string{
+	"biometric":     "桌面端目前仅支持 macOS Touch ID",
+	"wifi":          "iOS 限制仅能获取当前连接网络的信息",
+	"nfc":           "iOS 需要付费的 Apple Developer 团队账号",
+	"brightness":    "桌面端目前仅支持 macOS",
+	"notify":        "Android 会回退到 Web Notification API",
+	"screenrecord":  "Android 需要 MediaProjection 权限（待完成）",
+	"loginitem":     "仅限 macOS（需要安装后的 .app 包）",
+	"securestorage": "Web 端会回退到 localStorage（无硬件加密）",
+	"orientation":   "iOS 屏幕方向锁定需要 AppDelegate 支持（待完成）",
+	"videocapture":  "Android 端的 MediaRecorder 适配待完成",
+	"qrscan":        "Android 端需要 CameraX+MLKit 支持（待完成）",
+}
+
+// MarkdownZH renders the registry as a Chinese human-readable capability reference table.
+func MarkdownZH() string {
+	var b strings.Builder
+	b.WriteString("# 能力清单\n\n")
+	b.WriteString("> 由能力注册表自动生成 —— 请勿手动修改。\n\n")
+	b.WriteString("QORM 内置了 " + strconv.Itoa(len(All)) + " 项硬件/原生能力。对应地：组件类型即能力名称，由 `qormToNative(op)` 触发，结果通过 `qormOn<X>` 回传。智能体可通过 `qorm_capabilities` MCP 工具发现所有能力。\n\n")
+	b.WriteString("| 能力 | 组件 | 操作 | 回调 | 平台 | 描述 |\n")
+	b.WriteString("|---|---|---|---|---|---|\n")
+	for _, c := range All {
+		ops := strings.Join(c.Ops, "<br>")
+		if ops == "" {
+			ops = "—"
+		}
+		cb := c.Callback
+		if cb == "" {
+			cb = "—"
+		}
+		desc := descZH[c.Stem]
+		if desc == "" {
+			desc = c.Desc // fallback
+		}
+		note := notesZH[c.Stem]
+		if note == "" && c.Notes != "" {
+			note = c.Notes
+		}
+		if note != "" {
+			desc += " (" + note + ")"
+		}
+		b.WriteString("| `" + c.Stem + "` | `" + c.Widget + "` | " + ops + " | `" + cb + "` | " + strings.Join(c.Platforms, ", ") + " | " + desc + " |\n")
+	}
+
+	// Per-platform view: each target's full hardware-interface list.
+	b.WriteString("\n## 各平台硬件接口支持\n\n")
+	b.WriteString("每个运行目标原生支持或通过 Web API 实现的全部能力清单。\n\n")
+	for _, p := range []struct{ key, label string }{
+		{IOS, "iOS"}, {Android, "Android"}, {Mac, "macOS"}, {Linux, "Linux"}, {Windows, "Windows"}, {Web, "Web"},
+	} {
+		var caps []string
+		for _, c := range All {
+			for _, cp := range c.Platforms {
+				if cp == p.key {
+					caps = append(caps, "`"+c.Stem+"`")
+					break
+				}
+			}
+		}
+		b.WriteString("- **" + p.label + "** (" + strconv.Itoa(len(caps)) + ") — " + strings.Join(caps, ", ") + "\n")
+	}
+	return b.String()
+}
+
 // perms lists the permission identifiers each capability needs per platform, so
 // a packaged app ships ONLY the permissions its capabilities actually use (the
 // dev client, being app-agnostic, still bakes them all). iOS/Mac values are

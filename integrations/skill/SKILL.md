@@ -5,7 +5,8 @@ description: Build, edit, and verify QORM apps — an agent-native declarative-U
 
 # QORM skill
 
-QORM (Queryable Object Rendering Model) runs a small JSON app: a manifest
+QORM (Queryable Object Rendering Model; as verbs: Query, Observe, Render,
+Mutate — exactly what you do to a live app) runs a small JSON app: a manifest
 (`qorm.json`), `scenes/*.json` (the UI node trees), and `actions/*.json` (declarative
 behaviour). A pure-Go runtime renders it, signs it, and packages it everywhere.
 

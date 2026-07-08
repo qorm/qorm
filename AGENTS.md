@@ -6,7 +6,9 @@ agent-native declarative-UI runtime. A QORM app is JSON — a manifest
 middle-layer — that one runtime renders to HTML/CSS, ed25519-signs into a
 verifiable bundle, delivers over-the-air, packages for web / iOS / Android /
 desktop, and exposes to agents over MCP. Dual-consumer by design: every artifact
-is meant to be read, written, and *verified* by both a person and an AI.
+is meant to be read, written, and *verified* by both a person and an AI. Read
+the acronym as verbs and you have the API surface: **Query** (HTTP/MCP reads),
+**Observe** (SSE), **Render** (the runtime), **Mutate** (actions + writes).
 
 **Full machine-readable map:** [llms.txt](llms.txt).
 

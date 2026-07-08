@@ -285,6 +285,11 @@ func pageHTML(title, lang, siteName, langSwitch, nav, body string) string {
 	if lang == "" {
 		lang = "en"
 	}
+	homeLabel := "Home"
+	if lang == "zh" {
+		homeLabel = "首页"
+	}
+	navLinks := buildNavLinks(siteName, lang)
 	return fmt.Sprintf(`<!doctype html>
 <html lang="%s">
 <head>
@@ -293,12 +298,13 @@ func pageHTML(title, lang, siteName, langSwitch, nav, body string) string {
 <title>%s · QORM</title>
 <link rel="icon" href="/assets/logo.svg">
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
   :root{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
   @media (prefers-color-scheme:dark){ :root{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; } }
   :root[data-theme="light"]{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
   :root[data-theme="dark"]{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; }
   *{box-sizing:border-box}
-  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;color:var(--ink);background:var(--ground);line-height:1.62;letter-spacing:-.011em;-webkit-font-smoothing:antialiased}
+  body{margin:0;font-family:"Inter",-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;color:var(--ink);background:var(--ground);line-height:1.62;letter-spacing:-.011em;-webkit-font-smoothing:antialiased}
   a{color:var(--accent-ink);text-decoration:none} a:hover{text-decoration:underline}
   code,pre{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
   header.top{position:sticky;top:0;z-index:30;height:56px;display:flex;align-items:center;gap:14px;padding:0 22px;background:color-mix(in srgb,var(--ground) 82%%,transparent);backdrop-filter:saturate(180%%) blur(20px);-webkit-backdrop-filter:saturate(180%%) blur(20px);border-bottom:.5px solid var(--line)}
@@ -309,9 +315,9 @@ func pageHTML(title, lang, siteName, langSwitch, nav, body string) string {
   :root[data-theme="light"] header.top .brand img{filter:none}
   header.top .doc{color:var(--faint);font-weight:600;font-size:15px}
   header.top .sp{flex:1}
-  header.top a.tl{color:var(--muted);font-size:14px;font-weight:500} header.top a.tl:hover{color:var(--ink);text-decoration:none}
-  .tbtn{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
-  .tbtn:hover{color:var(--ink)} .tbtn svg{width:16px;height:16px}
+  header.top a.tl{color:var(--muted);font-size:14px;font-weight:500} header.top a.tl:hover{color:var(--ink);text-decoration:none} header.top a.tl.active-nav{color:var(--ink);font-weight:700}
+  .tbtn{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:transform 0.2s ease, background 0.2s, color 0.2s, border-color 0.2s}
+  .tbtn:hover{color:var(--ink);transform:rotate(15deg) scale(1.05)} .tbtn svg{width:16px;height:16px}
   header.top .lang{display:inline-flex;align-items:center;border:.5px solid var(--line);border-radius:8px;overflow:hidden;font-size:13px;font-weight:600}
   header.top .lang a,header.top .lang span{padding:5px 10px;color:var(--muted)}
   header.top .lang a:hover{color:var(--ink);text-decoration:none;background:var(--surface)}
@@ -321,8 +327,8 @@ func pageHTML(title, lang, siteName, langSwitch, nav, body string) string {
   aside{width:262px;min-width:262px;height:calc(100vh - 56px);overflow:auto;position:sticky;top:56px;padding:22px 8px 48px 22px}
   aside .nav-group{text-transform:uppercase;font-size:11px;font-weight:700;color:var(--faint);margin:20px 0 6px;letter-spacing:.05em}
   aside ul{list-style:none;margin:0;padding:0}
-  aside li a{display:block;padding:6px 12px;color:var(--muted);border-radius:8px;font-size:14px;font-weight:500}
-  aside li a:hover{background:var(--surface);color:var(--ink);text-decoration:none}
+  aside li a{display:block;padding:6px 12px;color:var(--muted);border-radius:8px;font-size:14px;font-weight:500;transition:background 0.15s ease, color 0.15s ease, transform 0.15s ease}
+  aside li a:hover{background:var(--surface);color:var(--ink);text-decoration:none;transform:translateX(2px)}
   aside li a.active{background:color-mix(in srgb,var(--accent) 14%%,transparent);color:var(--accent-ink);font-weight:600}
   aside li a .entag{font-size:9.5px;font-weight:700;letter-spacing:.04em;color:var(--faint);border:.5px solid var(--line);border-radius:4px;padding:0 4px;margin-left:6px;vertical-align:1px}
   main{flex:1;min-width:0;max-width:800px;padding:38px 46px 90px}
@@ -346,7 +352,8 @@ func pageHTML(title, lang, siteName, langSwitch, nav, body string) string {
   <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
   <span class="doc">%s</span>
   <span class="sp"></span>
-  <a class="tl" href="/">Home</a>
+  <a class="tl" href="/">%s</a>
+  %s
   <a class="tl" href="https://github.com/qorm/qorm">GitHub</a>
   %s
   <button class="tbtn" id="theme" aria-label="Theme"></button>
@@ -373,5 +380,24 @@ func pageHTML(title, lang, siteName, langSwitch, nav, body string) string {
 </script>
 </body>
 </html>
-`, lang, html.EscapeString(title), siteName, langSwitch, nav, body)
+`, lang, html.EscapeString(title), html.EscapeString(siteName), homeLabel, navLinks, langSwitch, nav, body)
+}
+
+// docs & api top navigation tabs builder
+func buildNavLinks(siteName, lang string) string {
+	docsLabel, apiLabel := "Docs", "API"
+	docsURL, apiURL := "/docs/", "/api/"
+	if lang == "zh" {
+		docsLabel, apiLabel = "文档", "接口"
+		docsURL, apiURL = "/docs/zh/", "/api/zh/"
+	}
+
+	docsClass, apiClass := "tl", "tl"
+	if siteName == "docs" {
+		docsClass = "tl active-nav"
+	} else if siteName == "api" {
+		apiClass = "tl active-nav"
+	}
+	return fmt.Sprintf(`<a class="%s" href="%s">%s</a><a class="%s" href="%s">%s</a>`,
+		docsClass, docsURL, docsLabel, apiClass, apiURL, apiLabel)
 }
