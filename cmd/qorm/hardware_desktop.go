@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/qorm/qorm/pkg/qormext"
 )
@@ -164,6 +165,12 @@ func desktopNotify(title, body, id string) {
 		nativeNotify(title, body, id) // in-process → click routes back to the app
 	case "linux":
 		exec.Command("notify-send", title, body).Run()
+	case "windows":
+		// NotifyIcon balloon; a WinRT toast upgrade is planned (v0.2 B4). Run
+		// async — PowerShell startup is too slow for the main thread.
+		script := "Add-Type -AssemblyName System.Windows.Forms; $n=New-Object System.Windows.Forms.NotifyIcon; $n.Icon=[System.Drawing.SystemIcons]::Information; $n.Visible=$true; $n.ShowBalloonTip(4000," + psQuote(title) + "," + psQuote(body) + ",'Info')"
+		cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", script)
+		go cmd.Run()
 	}
 }
 
@@ -268,8 +275,6 @@ func desktopHardwareLinux(op string, m map[string]interface{}, cb func(string)) 
 		if data, err := os.ReadFile(fp); err == nil {
 			cb("qormOnScreenshot(" + strconv.Quote("data:image/png;base64,"+base64.StdEncoding.EncodeToString(data)) + ")")
 		}
-	case "notify":
-		exec.Command("notify-send", strFromMap(m, "title"), strFromMap(m, "body")).Run()
 	}
 }
 
@@ -474,6 +479,13 @@ func linuxClip(text string) bool {
 
 func strFromMap(m map[string]interface{}, k string) string { s, _ := m[k].(string); return s }
 
+// winSpeakMu guards winSpeakCmd, the in-flight speech-synthesis process, so
+// speakStop kills only the PowerShell we started — never unrelated processes.
+var (
+	winSpeakMu  sync.Mutex
+	winSpeakCmd *exec.Cmd
+)
+
 // desktopHardwareWindows implements the hardware ops on Windows via PowerShell.
 // Runtime-unverified on this build host (needs a Windows machine); mirrors the
 // mac/linux handlers.
@@ -485,8 +497,19 @@ func desktopHardwareWindows(op string, m map[string]interface{}, cb func(string)
 	switch op {
 	case "speak":
 		if t, _ := m["text"].(string); t != "" {
-			// Windows Speech Synthesizer via PowerShell COM object (non-blocking in background)
-			go ps("Add-Type -AssemblyName System.Speech; $s=New-Object System.Speech.Synthesis.SpeechSynthesizer; $s.Speak(" + psQuote(t) + ")")
+			// Windows Speech Synthesizer via PowerShell (non-blocking); keep the
+			// process handle so speakStop can interrupt it.
+			winSpeakMu.Lock()
+			if winSpeakCmd != nil && winSpeakCmd.Process != nil {
+				winSpeakCmd.Process.Kill()
+			}
+			cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command",
+				"Add-Type -AssemblyName System.Speech; $s=New-Object System.Speech.Synthesis.SpeechSynthesizer; $s.Speak("+psQuote(t)+")")
+			if cmd.Start() == nil {
+				winSpeakCmd = cmd
+				go cmd.Wait()
+			}
+			winSpeakMu.Unlock()
 		}
 		return
 	case "secureSet":
@@ -504,8 +527,12 @@ func desktopHardwareWindows(op string, m map[string]interface{}, cb func(string)
 		cb("qormOnSecure(" + strconv.Quote(k) + ", " + strconv.Quote(val) + ")")
 		return
 	case "speakStop":
-		// Stop any speaking powershell processes if they are running
-		exec.Command("taskkill", "/F", "/IM", "powershell.exe").Run()
+		winSpeakMu.Lock()
+		if winSpeakCmd != nil && winSpeakCmd.Process != nil {
+			winSpeakCmd.Process.Kill()
+			winSpeakCmd = nil
+		}
+		winSpeakMu.Unlock()
 		return
 	case "openURL":
 		if u := strFromMap(m, "url"); u != "" {
@@ -536,8 +563,6 @@ func desktopHardwareWindows(op string, m map[string]interface{}, cb func(string)
 		k := strFromMap(m, "key")
 		d, _ := os.ReadFile(filepath.Join(os.TempDir(), "qorm-store-"+k))
 		cb("qormOnStorage(" + strconv.Quote(k) + ", " + strconv.Quote(string(d)) + ")")
-	case "notify":
-		ps("Add-Type -AssemblyName System.Windows.Forms; $n=New-Object System.Windows.Forms.NotifyIcon; $n.Icon=[System.Drawing.SystemIcons]::Information; $n.Visible=$true; $n.ShowBalloonTip(4000," + psQuote(strFromMap(m, "title")) + "," + psQuote(strFromMap(m, "body")) + ",'Info')")
 	}
 }
 
