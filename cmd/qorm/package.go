@@ -31,12 +31,45 @@ func appIcon(n int) []byte {
 	return b
 }
 
+// releaseOpts carries the release-build parameters through cmdPackage to the
+// per-platform scaffolds. Zero value = debug/dev packaging (today's default).
+type releaseOpts struct {
+	Release    bool   // --release: produce a distributable, signed artifact
+	AppVersion string // MARKETING_VERSION / versionName / CFBundleShortVersionString
+	BuildNum   string // CURRENT_PROJECT_VERSION / versionCode / CFBundleVersion
+
+	// iOS
+	ExportMethod string // exportOptions method (default app-store-connect)
+	Upload       bool   // exportOptions destination=upload (TestFlight)
+	APIKey       string // App Store Connect API key .p8 path (unattended)
+	APIKeyID     string
+	APIIssuer    string
+
+	// Android
+	Keystore string // path to an existing keystore (else auto-managed)
+	KeyAlias string
+	APK      bool // additionally produce a signed APK next to the AAB
+
+	// macOS
+	Identity        string // "Developer ID Application: …" (else auto-discover)
+	Notarize        bool
+	KeychainProfile string // notarytool store-credentials profile name
+	NoDMG           bool
+}
+
 // cmdPackage compiles a QORM app into an installable, fully offline package: a
 // self-contained web app (the runtime runs client-side via Go-WASM, no server),
 // optionally wrapped as an Android (APK) or iOS (IPA) project.
 func cmdPackage(args []string) int {
 	in, out, platform, team, dev := "", "", "web", "", ""
 	noBranding, subscribed := false, false
+	var rel releaseOpts
+	strArg := func(i *int, dst *string) {
+		if *i+1 < len(args) {
+			*i++
+			*dst = args[*i]
+		}
+	}
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--no-branding":
@@ -44,32 +77,60 @@ func cmdPackage(args []string) int {
 		case "--subscribed":
 			subscribed = true
 		case "--dev":
-			if i+1 < len(args) {
-				i++
-				dev = args[i]
-			}
+			strArg(&i, &dev)
 		case "--team":
-			if i+1 < len(args) {
-				i++
-				team = args[i]
-			}
+			strArg(&i, &team)
 		case "-p", "--platform":
-			if i+1 < len(args) {
-				i++
-				platform = args[i]
-			}
+			strArg(&i, &platform)
 		case "-o", "--out":
-			if i+1 < len(args) {
-				i++
-				out = args[i]
-			}
+			strArg(&i, &out)
+		case "--release":
+			rel.Release = true
+		case "--app-version":
+			strArg(&i, &rel.AppVersion)
+		case "--build":
+			strArg(&i, &rel.BuildNum)
+		case "--export-method":
+			strArg(&i, &rel.ExportMethod)
+		case "--upload":
+			rel.Upload = true
+		case "--api-key":
+			strArg(&i, &rel.APIKey)
+		case "--api-key-id":
+			strArg(&i, &rel.APIKeyID)
+		case "--api-issuer":
+			strArg(&i, &rel.APIIssuer)
+		case "--keystore":
+			strArg(&i, &rel.Keystore)
+		case "--key-alias":
+			strArg(&i, &rel.KeyAlias)
+		case "--apk":
+			rel.APK = true
+		case "--identity":
+			strArg(&i, &rel.Identity)
+		case "--notarize":
+			rel.Notarize = true
+		case "--keychain-profile":
+			strArg(&i, &rel.KeychainProfile)
+		case "--no-dmg":
+			rel.NoDMG = true
 		default:
 			in = args[i]
 		}
 	}
 	if in == "" {
-		fmt.Fprintln(os.Stderr, "usage: qorm package <app-dir> [-p web|android|ios|mac|miniapp] [-o out-dir]")
+		fmt.Fprintln(os.Stderr, "usage: qorm package <app-dir> [-p web|android|ios|mac|miniapp] [-o out-dir] [--release]")
 		return 2
+	}
+	if rel.Release && dev != "" {
+		fmt.Fprintln(os.Stderr, "error: --release and --dev are mutually exclusive (the dev client is always a debug build)")
+		return 2
+	}
+	if rel.AppVersion == "" {
+		rel.AppVersion = "1.0"
+	}
+	if rel.BuildNum == "" {
+		rel.BuildNum = "1"
 	}
 	name := filepath.Base(strings.TrimRight(in, "/"))
 	if out == "" {
@@ -110,12 +171,12 @@ func cmdPackage(args []string) int {
 		fmt.Printf("packaging the QORM Dev client → %s (install once; reuse for every app; changes hot-reload)\n", dev)
 		switch platform {
 		case "ios":
-			if err := scaffoldIOS(out, devName, devName, team, dev, in); err != nil {
+			if err := scaffoldIOS(out, devName, devName, team, dev, in, rel); err != nil {
 				fmt.Fprintf(os.Stderr, "error: %v\n", err)
 				return 1
 			}
 		case "android":
-			if err := scaffoldAndroid(out, devName, devName, dev, in); err != nil {
+			if err := scaffoldAndroid(out, devName, devName, dev, in, rel); err != nil {
 				fmt.Fprintf(os.Stderr, "error: %v\n", err)
 				return 1
 			}
@@ -137,7 +198,7 @@ func cmdPackage(args []string) int {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			return 1
 		}
-		if err := scaffoldMac(out, name, app.Name, in); err != nil {
+		if err := scaffoldMac(out, name, app.Name, in, rel); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			return 1
 		}
@@ -217,12 +278,12 @@ func cmdPackage(args []string) int {
 		writeServiceWorker(webDir)
 		fmt.Printf("packaged %s -> %s (installable, offline-capable PWA; serve it and Add to Home Screen)\n", name, out)
 	case "android":
-		if err := scaffoldAndroid(out, name, app.Name, "", in); err != nil {
+		if err := scaffoldAndroid(out, name, app.Name, "", in, rel); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			return 1
 		}
 	case "ios":
-		if err := scaffoldIOS(out, name, app.Name, team, "", in); err != nil {
+		if err := scaffoldIOS(out, name, app.Name, team, "", in, rel); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			return 1
 		}
