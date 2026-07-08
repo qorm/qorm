@@ -35,6 +35,53 @@ func post(t *testing.T, url, body string) string {
 	return string(b)
 }
 
+// pageEventToken fetches the served page and extracts the embedded human event
+// token, exactly as the browser client does. (It also primes the handler table,
+// like a browser rendering the page before clicking.)
+func pageEventToken(t *testing.T, base string) string {
+	t.Helper()
+	resp, err := http.Get(base + "/")
+	if err != nil {
+		t.Fatalf("get /: %v", err)
+	}
+	defer resp.Body.Close()
+	b, _ := io.ReadAll(resp.Body)
+	const anchor = "var __tok='"
+	page := string(b)
+	i := strings.Index(page, anchor)
+	if i < 0 {
+		t.Fatal("page should embed the event token (var __tok=...)")
+	}
+	rest := page[i+len(anchor):]
+	j := strings.Index(rest, "'")
+	if j < 0 {
+		t.Fatal("unterminated event token in page")
+	}
+	return rest[:j]
+}
+
+// postEvent POSTs a human event with the page-embedded token, as the browser
+// client does.
+func postEvent(t *testing.T, base, token, body string) string {
+	t.Helper()
+	req, err := http.NewRequest(http.MethodPost, base+"/event", strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Qorm-Token", token)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("post /event: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("post /event: status %d", resp.StatusCode)
+	}
+	b, _ := io.ReadAll(resp.Body)
+	return string(b)
+}
+
 // TestSharedSessionHumanAndAgent verifies an agent editing over /mcp and a
 // human clicking over /event both act on one live app, and each sees the
 // other's change.
@@ -67,9 +114,11 @@ func TestSharedSessionHumanAndAgent(t *testing.T) {
 		t.Errorf("browser poll should see agent's count=1, html:\n%s", html)
 	}
 
-	// Human clicks "+" (btn_plus is handler index 1 after a render).
-	http.Get(ts.URL + "/") // render to populate handler table
-	post(t, ts.URL+"/event", `{"h":1,"inputs":{}}`)
+	// Human clicks "+" (btn_plus is handler index 1 after a render). /event is
+	// human-only: it requires the token embedded in the rendered page, so fetch
+	// the page and authenticate like a real browser.
+	token := pageEventToken(t, ts.URL)
+	postEvent(t, ts.URL, token, `{"h":1,"inputs":{}}`)
 
 	// Agent sees the human's change.
 	inspect := post(t, ts.URL+"/mcp", `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"qorm_inspect","arguments":{}}}`)

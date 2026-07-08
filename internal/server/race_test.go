@@ -16,10 +16,10 @@ func TestServeIndexEventNoRace(t *testing.T) {
 	ts := httptest.NewServer(counterServer(t).Handler())
 	defer ts.Close()
 
-	// Prime the handler table so POST /event has a handler to fire.
-	if resp, err := http.Get(ts.URL + "/"); err == nil {
-		resp.Body.Close()
-	}
+	// Prime the handler table and pick up the human event token — without it
+	// serveEvent rejects the POST before touching state and the race guard is
+	// silently neutered.
+	token := pageEventToken(t, ts.URL)
 
 	var wg sync.WaitGroup
 	for i := 0; i < 40; i++ {
@@ -32,7 +32,13 @@ func TestServeIndexEventNoRace(t *testing.T) {
 		}()
 		go func() {
 			defer wg.Done()
-			if resp, err := http.Post(ts.URL+"/event", "application/json", strings.NewReader(`{"h":1,"inputs":{}}`)); err == nil {
+			req, err := http.NewRequest(http.MethodPost, ts.URL+"/event", strings.NewReader(`{"h":1,"inputs":{}}`))
+			if err != nil {
+				return
+			}
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("X-Qorm-Token", token)
+			if resp, err := http.DefaultClient.Do(req); err == nil {
 				resp.Body.Close()
 			}
 		}()

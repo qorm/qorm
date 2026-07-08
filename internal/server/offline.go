@@ -18,7 +18,7 @@ func OfflineHTML(rt *runtime.Runtime, bundleJSON string) (string, error) {
 	page := Page(rt, render.Render(rt).HTML, 0)
 
 	// 1. online dispatch (POST /event) -> in-process WASM dispatch
-	onlineDriver := `  fetch('/event',{method:'POST',headers:{'Content-Type':'application/json'},
+	onlineDriver := `  fetch('/event',{method:'POST',headers:{'Content-Type':'application/json','X-Qorm-Token':__tok},
     body:JSON.stringify({h:h,inputs:inputs})})
     .then(function(r){ var rv=parseInt(r.headers.get('X-Qorm-Rev'))||0; var nav=r.headers.get('X-Qorm-Nav')||''; qormTheme(r.headers.get('X-Qorm-Theme')); return r.text().then(function(html){ return {rv:rv,html:html,nav:nav}; }); })
     .then(function(o){ if(o.rv && o.rv<=__rev) return; if(o.rv) __rev=o.rv; window.__qormNav=o.nav; qormMorphInto(document.getElementById('qorm-root'), o.html); });`
