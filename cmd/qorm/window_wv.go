@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"runtime"
+	"sync"
 	"time"
 
 	webview "github.com/qorm/qorm/internal/webview"
@@ -15,7 +16,11 @@ import (
 // goroutine (async hardware callbacks, the user Go middle-layer, window-control
 // eval). webview_go is single-window here (openWin is a no-op), so one handle
 // suffices. Eval MUST be dispatched onto the WebView's main thread.
-var appWebView webview.WebView
+var (
+	appWebView    webview.WebView
+	activeWindows = make(map[string]webview.WebView)
+	winMu         sync.Mutex
+)
 
 // runAppWindow (non-macOS): the app window via webview_go (WebKitGTK/WebView2).
 func runAppWindow(url, title string, ww, hh int, chromeless, transparent bool) {
@@ -91,11 +96,82 @@ func runLogWindow(url, title string) {
 	w.Run()
 }
 
-// moveAppWindow: webview_go has no window-move API; no-op for now.
-func moveAppWindow(x, y, w, h int)                         {}
-func moveWin(id string, x, y, w, h int)                    {}
-func opWin(id, op string)                                  {}
-func openWin(id, title, url string, w, h int, cl, tr bool) {}
+// moveAppWindow sets the position and size of the native window (Windows via
+// user32 SetWindowPos; no GTK path yet, see winapi_other.go).
+func moveAppWindow(x, y, w, h int) {
+	wv := appWebView
+	if wv == nil {
+		return
+	}
+	if hwnd := wv.Window(); hwnd != nil {
+		setWindowPos(hwnd, x, y, w, h)
+	}
+}
+
+func openWin(id, title, url string, w, h int, cl, tr bool) {
+	winMu.Lock()
+	if old, ok := activeWindows[id]; ok {
+		winMu.Unlock()
+		old.Dispatch(func() { old.Navigate(url) })
+		return
+	}
+	winMu.Unlock()
+
+	go func() {
+		runtime.LockOSThread()
+		wv := webview.New(false)
+
+		winMu.Lock()
+		activeWindows[id] = wv
+		winMu.Unlock()
+
+		defer func() {
+			winMu.Lock()
+			delete(activeWindows, id)
+			winMu.Unlock()
+			wv.Destroy()
+		}()
+
+		wv.SetTitle(title)
+		if w == 0 {
+			w = 400
+		}
+		if h == 0 {
+			h = 600
+		}
+		wv.SetSize(w, h, webview.HintNone)
+		wv.Navigate(url)
+		wv.Run()
+	}()
+}
+
+func moveWin(id string, x, y, w, h int) {
+	if id == "main" || id == "" {
+		moveAppWindow(x, y, w, h)
+		return
+	}
+	winMu.Lock()
+	wv, ok := activeWindows[id]
+	winMu.Unlock()
+
+	if ok && wv != nil {
+		if hwnd := wv.Window(); hwnd != nil {
+			setWindowPos(hwnd, x, y, w, h)
+		}
+	}
+}
+
+func opWin(id, op string) {
+	winMu.Lock()
+	wv, ok := activeWindows[id]
+	winMu.Unlock()
+
+	if ok && wv != nil {
+		if op == "close" {
+			wv.Dispatch(func() { wv.Terminate() })
+		}
+	}
+}
 
 // windowOp: no-op on non-macOS for now.
 func windowOp(op string) {}

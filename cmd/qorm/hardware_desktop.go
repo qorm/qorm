@@ -282,40 +282,40 @@ func desktopHardwareDarwin(op string, m map[string]interface{}, cb func(string))
 	switch op {
 	case "speak":
 		if t, _ := m["text"].(string); t != "" {
-			exec.Command("say", t).Start()
+			nativeSpeak(t)
 		}
 		return
 	case "secureSet":
 		k, _ := m["key"].(string)
 		v, _ := m["value"].(string)
-		exec.Command("security", "delete-generic-password", "-a", k, "-s", "qorm").Run()
-		exec.Command("security", "add-generic-password", "-a", k, "-s", "qorm", "-w", v).Run()
-		cb("qormOnSecure(" + strconv.Quote(k) + ", " + strconv.Quote("saved") + ")")
+		if nativeSecureSet(k, v) {
+			cb("qormOnSecure(" + strconv.Quote(k) + ", " + strconv.Quote("saved") + ")")
+		} else {
+			cb("qormOnSecure(" + strconv.Quote(k) + ", " + strconv.Quote("error") + ")")
+		}
 		return
 	case "secureGet":
 		k, _ := m["key"].(string)
-		out, _ := exec.Command("security", "find-generic-password", "-a", k, "-s", "qorm", "-w").Output()
-		cb("qormOnSecure(" + strconv.Quote(k) + ", " + strconv.Quote(strings.TrimSpace(string(out))) + ")")
+		val := nativeSecureGet(k)
+		cb("qormOnSecure(" + strconv.Quote(k) + ", " + strconv.Quote(val) + ")")
 		return
 	case "speakStop":
-		exec.Command("killall", "say").Run()
+		nativeSpeakStop()
 		return
 	case "openURL":
 		if u, _ := m["url"].(string); u != "" {
-			exec.Command("open", u).Run()
+			nativeOpenURL(u)
 			cb("qormOnOpenUrl(true)")
 		}
 		return
 	case "clipboardSet":
 		t, _ := m["text"].(string)
-		c := exec.Command("pbcopy")
-		c.Stdin = strings.NewReader(t)
-		c.Run()
+		nativeClipboardSet(t)
 		cb("qormOnClipboard(" + strconv.Quote(t) + ")")
 		return
 	case "clipboardGet":
-		out, _ := exec.Command("pbpaste").Output()
-		cb("qormOnClipboard(" + strconv.Quote(string(out)) + ")")
+		val := nativeClipboardGet()
+		cb("qormOnClipboard(" + strconv.Quote(val) + ")")
 		return
 	case "share":
 		t, _ := m["text"].(string)
@@ -324,25 +324,18 @@ func desktopHardwareDarwin(op string, m map[string]interface{}, cb func(string))
 		return
 	case "deviceInfo":
 		host, _ := os.Hostname()
-		ver, _ := exec.Command("sw_vers", "-productVersion").Output()
-		info := fmt.Sprintf(`{"model":"Mac","name":%q,"os":"macOS %s"}`, host, strings.TrimSpace(string(ver)))
+		ver := nativeOSVersion()
+		info := fmt.Sprintf(`{"model":"Mac","name":%q,"os":"macOS %s"}`, host, ver)
 		cb("qormOnDeviceInfo(" + strconv.Quote(info) + ")")
 		return
 	case "networkStatus":
+		// Fast ping check or system API would be better, but the path routing is okay best-effort.
 		online := exec.Command("sh", "-c", "route -n get default >/dev/null 2>&1").Run() == nil
 		cb("qormOnNetwork(" + strconv.Quote(fmt.Sprintf(`{"online":%t,"type":"desktop"}`, online)) + ")")
 		return
 	case "keepAwake":
 		on, _ := m["on"].(bool)
-		if on {
-			if caffeinateCmd == nil {
-				caffeinateCmd = exec.Command("caffeinate", "-d")
-				caffeinateCmd.Start()
-			}
-		} else if caffeinateCmd != nil {
-			caffeinateCmd.Process.Kill()
-			caffeinateCmd = nil
-		}
+		nativeSetKeepAwake(on)
 		return
 	case "haptic":
 		return
@@ -357,10 +350,15 @@ func desktopHardwareDarwin(op string, m map[string]interface{}, cb func(string))
 		cb("qormOnStorage(" + strconv.Quote(k) + ", " + strconv.Quote(string(d)) + ")")
 		return
 	case "screenshot":
-		f := filepath.Join(os.TempDir(), "qorm-shot.jpg")
-		if exec.Command("screencapture", "-x", "-t", "jpg", f).Run() == nil {
-			if data, err := os.ReadFile(f); err == nil {
-				cb("qormOnScreenshot(" + strconv.Quote("data:image/jpeg;base64,"+base64.StdEncoding.EncodeToString(data)) + ")")
+		b64 := nativeScreenshot()
+		if b64 != "" {
+			cb("qormOnScreenshot(" + strconv.Quote("data:image/jpeg;base64,"+b64) + ")")
+		} else {
+			f := filepath.Join(os.TempDir(), "qorm-shot.jpg")
+			if exec.Command("screencapture", "-x", "-t", "jpg", f).Run() == nil {
+				if data, err := os.ReadFile(f); err == nil {
+					cb("qormOnScreenshot(" + strconv.Quote("data:image/jpeg;base64,"+base64.StdEncoding.EncodeToString(data)) + ")")
+				}
 			}
 		}
 		return
@@ -381,36 +379,46 @@ func desktopHardwareDarwin(op string, m map[string]interface{}, cb func(string))
 		}
 		return
 	case "volumeGet":
-		if v, err := strconv.Atoi(sh("output volume of (get volume settings)")); err == nil {
-			cb(fmt.Sprintf("qormOnVolume(%g)", float64(v)/100))
+		if v, ok := nativeVolumeGet(); ok {
+			cb(fmt.Sprintf("qormOnVolume(%g)", v))
+		} else {
+			if v, err := strconv.Atoi(sh("output volume of (get volume settings)")); err == nil {
+				cb(fmt.Sprintf("qormOnVolume(%g)", float64(v)/100))
+			}
 		}
 		if mu := nativeReadMute(); mu >= 0 {
 			cb(fmt.Sprintf("qormEmit(%q,%t)", "mute", mu == 1))
 		}
 	case "volumeSet":
 		if v, ok := m["value"].(float64); ok {
-			sh(fmt.Sprintf("set volume output volume %d", int(v*100)))
+			if !nativeVolumeSet(v) {
+				sh(fmt.Sprintf("set volume output volume %d", int(v*100)))
+			}
 			cb(fmt.Sprintf("qormOnVolume(%g)", v))
 		}
 	case "volumeUp", "volumeDown":
-		v, _ := strconv.Atoi(sh("output volume of (get volume settings)"))
+		var v float64
+		var ok bool
+		if v, ok = nativeVolumeGet(); !ok {
+			if vol, err := strconv.Atoi(sh("output volume of (get volume settings)")); err == nil {
+				v = float64(vol) / 100
+			}
+		}
 		if op == "volumeUp" {
-			v += 6
+			v += 0.06
 		} else {
-			v -= 6
+			v -= 0.06
 		}
 		if v < 0 {
 			v = 0
-		} else if v > 100 {
-			v = 100
+		} else if v > 1 {
+			v = 1
 		}
-		sh(fmt.Sprintf("set volume output volume %d", v))
-		cb(fmt.Sprintf("qormOnVolume(%g)", float64(v)/100))
+		if !nativeVolumeSet(v) {
+			sh(fmt.Sprintf("set volume output volume %d", int(v*100)))
+		}
+		cb(fmt.Sprintf("qormOnVolume(%g)", v))
 	case "brightnessGet", "brightnessUp", "brightnessDown":
-		// Reading/writing display brightness has no built-in macOS CLI; the
-		// popular `brightness` tool (brew install brightness) provides it. Use
-		// it best-effort and fall back to a clear "n/a on desktop" so the UI is
-		// never stuck spinning on the auto-fired brightnessGet.
 		if lvl, ok := darwinBrightness(); ok {
 			if op == "brightnessUp" || op == "brightnessDown" {
 				if op == "brightnessUp" {
@@ -430,13 +438,9 @@ func desktopHardwareDarwin(op string, m map[string]interface{}, cb func(string))
 		}
 		return
 	case "torchGet", "torchToggle":
-		// Desktops have no camera flash/torch; report OFF so the UI resolves
-		// (auto-fired torchGet) instead of hanging.
 		cb("qormOnTorch(false)")
 		return
 	case "vibrate":
-		// No vibration motor on desktop; the web layer already updates its own
-		// label, so this is intentionally a no-op.
 		return
 	case "battery":
 		out, _ := exec.Command("pmset", "-g", "batt").Output()
@@ -481,23 +485,27 @@ func desktopHardwareWindows(op string, m map[string]interface{}, cb func(string)
 	switch op {
 	case "speak":
 		if t, _ := m["text"].(string); t != "" {
-			exec.Command("say", t).Start()
+			// Windows Speech Synthesizer via PowerShell COM object (non-blocking in background)
+			go ps("Add-Type -AssemblyName System.Speech; $s=New-Object System.Speech.Synthesis.SpeechSynthesizer; $s.Speak(" + psQuote(t) + ")")
 		}
 		return
 	case "secureSet":
 		k, _ := m["key"].(string)
 		v, _ := m["value"].(string)
-		exec.Command("security", "delete-generic-password", "-a", k, "-s", "qorm").Run()
-		exec.Command("security", "add-generic-password", "-a", k, "-s", "qorm", "-w", v).Run()
-		cb("qormOnSecure(" + strconv.Quote(k) + ", " + strconv.Quote("saved") + ")")
+		if nativeSecureSet(k, v) {
+			cb("qormOnSecure(" + strconv.Quote(k) + ", " + strconv.Quote("saved") + ")")
+		} else {
+			cb("qormOnSecure(" + strconv.Quote(k) + ", " + strconv.Quote("error") + ")")
+		}
 		return
 	case "secureGet":
 		k, _ := m["key"].(string)
-		out, _ := exec.Command("security", "find-generic-password", "-a", k, "-s", "qorm", "-w").Output()
-		cb("qormOnSecure(" + strconv.Quote(k) + ", " + strconv.Quote(strings.TrimSpace(string(out))) + ")")
+		val := nativeSecureGet(k)
+		cb("qormOnSecure(" + strconv.Quote(k) + ", " + strconv.Quote(val) + ")")
 		return
 	case "speakStop":
-		exec.Command("killall", "say").Run()
+		// Stop any speaking powershell processes if they are running
+		exec.Command("taskkill", "/F", "/IM", "powershell.exe").Run()
 		return
 	case "openURL":
 		if u := strFromMap(m, "url"); u != "" {

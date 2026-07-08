@@ -2,7 +2,11 @@
 
 package main
 
-import "unsafe"
+import (
+	"unsafe"
+
+	webview "github.com/qorm/qorm/internal/webview"
+)
 
 // nativeTray: native trays for Linux (AppIndicator/DBus) and Windows
 // (Shell_NotifyIcon) are not wired yet, so the tray process simply exits.
@@ -62,7 +66,34 @@ var shortcutHandler func(string)
 
 func nativeSetDockMenu(json string) {}
 
-func nativeWinDragStart(id string)            {}
+func nativeWinDragStart(id string) {
+	var wv webview.WebView
+	if id == "main" || id == "" {
+		wv = appWebView
+	} else {
+		winMu.Lock()
+		wv = activeWindows[id]
+		winMu.Unlock()
+	}
+	if wv == nil {
+		return
+	}
+	if hwnd := wv.Window(); hwnd != nil {
+		startWindowDrag(hwnd)
+	}
+}
+
 func nativeWinDragMove(id string, dx, dy int) {}
 
 func nativeTrayJSON(png []byte, menuJSON, tip string) {}
+
+func nativeClipboardSet(text string)   {}
+func nativeClipboardGet() string       { return "" }
+func nativeOpenURL(url string)         {}
+func nativeOSVersion() string          { return "" }
+func nativeSetKeepAwake(on bool)       {}
+func nativeSpeak(text string)          {}
+func nativeSpeakStop()                 {}
+func nativeScreenshot() string         { return "" }
+func nativeVolumeGet() (float64, bool) { return 0, false }
+func nativeVolumeSet(v float64) bool   { return false }
