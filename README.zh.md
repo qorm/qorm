@@ -31,7 +31,7 @@ Rendering Model,可查询对象渲染模型)是一个面向智能体的
 签名打包成可分发的 bundle,通过空中下发(OTA)带回滚地提供服务,经由 MCP 向智能体开放,
 并将其打包为 web / iOS / Android / 桌面 / 小程序——可从任意机器交叉编译。
 
-与 Claude(Anthropic)协作开发——这很贴切,毕竟人机协作正是 QORM 的全部前提。
+与 Claude(Anthropic) 和 Gemini(Google) 协作开发——这很贴切,毕竟人机协作正是 QORM 的全部前提。
 
 ## 与你的 AI 助手一起构建
 
@@ -245,8 +245,3 @@ HTTPS OTA(`qorm run --tls`)、密钥吊销列表(`--revoked`)以及智能体 `ap
 可选的原生桌面窗口内置(vendor)了 [webview](https://github.com/webview/webview)
 C/C++ 库及其 [Go 绑定](https://github.com/webview/webview_go)(MIT,(c) Serge
 Zaitsev)——感谢。可选原生窗口的思路受 [Wails](https://github.com/wailsapp/wails) 启发。
-
-## 贡献者
-
-- **QORM 团队**
-- **Gemini** (高级智能体结对程序员)

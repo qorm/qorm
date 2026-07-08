@@ -34,7 +34,7 @@ a static HTML snapshot, ed25519-signs it into a distributable bundle, serves it
 over-the-air with rollback, exposes it to agents over MCP, and packages it for
 web / iOS / Android / desktop / mini-program — cross-compiled from any machine.
 
-Developed in collaboration with Claude (Anthropic) — fitting, since human-AI
+Developed in collaboration with Claude (Anthropic) and Gemini (Google) — fitting, since human-AI
 collaboration is QORM's whole premise.
 
 ## Build with your AI assistant
@@ -274,8 +274,3 @@ The optional native-desktop window vendors the [webview](https://github.com/webv
 C/C++ library and its [Go binding](https://github.com/webview/webview_go) (MIT,
 (c) Serge Zaitsev) — thank you. The opt-in native-window approach was inspired by
 [Wails](https://github.com/wailsapp/wails).
-
-## Contributors
-
-- **QORM Team**
-- **Gemini** (Advanced Agentic Coding Pair Programmer)
