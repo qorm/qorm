@@ -178,6 +178,7 @@ const logWindowHTML = `<!doctype html>
   .node-type{color:#ffd60a;font-weight:bold;}
   .node-id{color:#30d158;font-size:11.5px;}
   .node-text{color:#7d8493;font-style:italic;}
+  #panel-tree.active { display: flex; flex-direction: column; }
 
   /* Ctrl panel (Sticky at bottom) */
   .ctrl{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:10px 16px;border-top:1px solid #22252d;
@@ -217,7 +218,10 @@ const logWindowHTML = `<!doctype html>
     <!-- Tree Panel -->
     <div class="tab-panel" id="panel-tree">
       <div class="tree-title">Rendered Component Architecture</div>
-      <div id="tree-root">Loading...</div>
+      <div id="tree-root" style="flex:1;overflow-y:auto;margin-bottom:12px;">Loading...</div>
+      <div id="node-properties" style="height:180px;border-top:1px solid #22252d;padding-top:10px;font-size:12px;display:flex;flex-direction:column;overflow:hidden;">
+        <div style="color:#7d8493;font-style:italic;">Click a component node to inspect its properties.</div>
+      </div>
     </div>
   </div>
 
@@ -335,6 +339,11 @@ const logWindowHTML = `<!doctype html>
       header.onmouseenter = function() { highlight(node.ID); };
       header.onmouseleave = function() { highlight(''); };
     }
+    header.onclick = function() {
+      document.querySelectorAll('.node-header').forEach(function(h){ h.style.background = ''; });
+      header.style.background = '#2c313b';
+      showNodeProps(node);
+    };
     div.appendChild(header);
     
     if (node.Children && node.Children.length) {
@@ -354,6 +363,36 @@ const logWindowHTML = `<!doctype html>
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({id: id})
     }).catch(function(){});
+  }
+
+  function showNodeProps(node) {
+    var container = document.getElementById('node-properties');
+    container.innerHTML = '<div style="color:#e6e8ee;font-weight:600;margin-bottom:8px;border-bottom:1px solid #22252d;padding-bottom:4px;font-family:-apple-system,sans-serif;">Node Properties</div>' +
+      '<div style="flex:1;overflow-y:auto;padding-right:4px;" id="props-list"></div>';
+    var list = document.getElementById('props-list');
+    
+    function addProp(k, v) {
+      if (v === undefined || v === null || v === "") return;
+      var row = document.createElement('div');
+      row.style.display = 'flex';
+      row.style.padding = '4px 0';
+      row.style.borderBottom = '1px solid #1a1d24';
+      row.style.fontFamily = 'ui-monospace,monospace';
+      var valStr = typeof v === 'object' ? JSON.stringify(v) : String(v);
+      row.innerHTML = '<span style="color:#5ac8fa;width:100px;flex-shrink:0;font-weight:bold;user-select:none;">' + esc(k) + '</span>' +
+        '<span style="color:#ffd60a;word-break:break-all;">' + esc(valStr) + '</span>';
+      list.appendChild(row);
+    }
+    
+    addProp('Type', node.Type);
+    addProp('ID', node.ID);
+    addProp('Text', node.Text);
+    addProp('Label', node.Label);
+    addProp('Placeholder', node.Placeholder);
+    addProp('Value', node.Value);
+    if(node.Style && Object.keys(node.Style).length) addProp('Style', node.Style);
+    if(node.Layout && Object.keys(node.Layout).length) addProp('Layout', node.Layout);
+    if(node.Props && Object.keys(node.Props).length) addProp('Props', node.Props);
   }
 
   function qw(x,y,w,h){fetch('/window',{method:'POST',body:JSON.stringify({op:'move',x:Math.round(x),y:Math.round(y),w:w,h:h})}).catch(function(){});}

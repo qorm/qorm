@@ -57,3 +57,56 @@ func TestActivityLogAndConsole(t *testing.T) {
 		}
 	}
 }
+
+func TestDevtoolEndpoints(t *testing.T) {
+	s := consoleServer()
+
+	// Test 1: GET /dev/state
+	rr1 := httptest.NewRecorder()
+	s.serveDevState(rr1, httptest.NewRequest(http.MethodGet, "/dev/state", nil))
+	if rr1.Code != http.StatusOK {
+		t.Fatalf("GET /dev/state returned status %d", rr1.Code)
+	}
+	var state map[string]any
+	if err := json.Unmarshal(rr1.Body.Bytes(), &state); err != nil {
+		t.Fatalf("JSON decode state: %v", err)
+	}
+
+	// Test 2: POST /dev/state
+	stateUpdate := map[string]any{"count": 42.0}
+	body, _ := json.Marshal(stateUpdate)
+	rr2 := httptest.NewRecorder()
+	s.serveDevState(rr2, httptest.NewRequest(http.MethodPost, "/dev/state", strings.NewReader(string(body))))
+	if rr2.Code != http.StatusOK {
+		t.Fatalf("POST /dev/state returned status %d", rr2.Code)
+	}
+	// Verify state got modified
+	s.mu.Lock()
+	val := s.rt.State["count"]
+	s.mu.Unlock()
+	if val != 42.0 {
+		t.Errorf("expected state count to be 42, got %v", val)
+	}
+
+	// Test 3: GET /dev/tree
+	rr3 := httptest.NewRecorder()
+	s.serveDevTree(rr3, httptest.NewRequest(http.MethodGet, "/dev/tree", nil))
+	if rr3.Code != http.StatusOK {
+		t.Fatalf("GET /dev/tree returned status %d", rr3.Code)
+	}
+	var node model.Node
+	if err := json.Unmarshal(rr3.Body.Bytes(), &node); err != nil {
+		t.Fatalf("JSON decode tree: %v", err)
+	}
+	if node.Type != "column" || node.ID != "root" {
+		t.Errorf("unexpected root node: %+v", node)
+	}
+
+	// Test 4: POST /dev/highlight
+	hlBody, _ := json.Marshal(map[string]string{"id": "root"})
+	rr4 := httptest.NewRecorder()
+	s.serveDevHighlight(rr4, httptest.NewRequest(http.MethodPost, "/dev/highlight", strings.NewReader(string(hlBody))))
+	if rr4.Code != http.StatusOK {
+		t.Fatalf("POST /dev/highlight returned status %d", rr4.Code)
+	}
+}
