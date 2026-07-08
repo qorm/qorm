@@ -206,7 +206,7 @@ var groupLabels = map[string]map[string]string{
 	"agent":     {"en": "agent", "zh": "智能体"},
 	"security":  {"en": "security", "zh": "安全"},
 	"examples":  {"en": "examples", "zh": "示例"},
-	"tutorials": {"en": "tutorials", "zh": "tutorials"},
+	"tutorials": {"en": "tutorials", "zh": "教程"},
 }
 
 func groupLabel(group, lang string) string {
