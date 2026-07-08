@@ -68,6 +68,6 @@ See [Human-AI collaboration](collaboration.md) for the full loop.
 - "Turn the task row into a reusable component."
 - "Package this as an installable web app."
 
-The AI has the whole surface at hand: the [widget catalog](reference/widgets.md),
+The AI has the whole surface at hand: the [widget catalog](/api/widgets.md),
 the [capabilities](platforms/capabilities.md), and the
 [MCP tools](agent/mcp-tools.md).

@@ -89,8 +89,8 @@ qorm render my-app -o my-app.html
 
 ## 下一步
 
-- [组件目录](../../reference/widgets.md) —— 渲染器接受的每一种节点类型(代码生成,权威来源)。
-- [组件目录](../../reference/widgets.md) —— 所有可用的节点类型(自动生成)。
+- [组件目录](/api/widgets.md) —— 渲染器接受的每一种节点类型(代码生成,权威来源)。
+- [组件目录](/api/widgets.md) —— 所有可用的节点类型(自动生成)。
 - [能力](../../platforms/capabilities.md) —— 相机、定位、蓝牙等原生能力。
 - [用户中间层](../platforms/native-middlelayer.md) —— 用一个 Go 文件添加你自己的原生操作。
 - 更多可运行示例,参见仓库中的 [`examples/`](../../../examples)(counter / todo / dashboard / hardware / …)。

@@ -68,6 +68,6 @@ qorm run ./habits          # opens in your browser; agent endpoint at /mcp
 - "把任务行改造成一个可复用组件。"
 - "把它打包成一个可安装的 web 应用。"
 
-AI 手头握有整个表面:[组件目录](../reference/widgets.md)、
+AI 手头握有整个表面:[组件目录](/api/widgets.md)、
 [能力清单](../platforms/capabilities.md),以及
 [MCP 工具](../agent/mcp-tools.md)。

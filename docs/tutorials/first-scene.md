@@ -35,4 +35,4 @@ Container nodes (`column` / `row`) arrange their children using `style` (padding
 
 - Use `text` (not `value`) for text; template interpolation like `"Welcome, {{ state.user }}"` also goes in `text`.
 - Buttons use `onPress` to trigger actions (see [First Action](first-action.md)).
-- For all available node types, see the [Widget catalog](../reference/widgets.md).
+- For all available node types, see the [Widget catalog](/api/widgets.md).

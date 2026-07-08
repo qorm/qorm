@@ -20,18 +20,16 @@ web / iOS / Android / 桌面——人和 AI 智能体都能读写。
 - [快速上手](tutorials/getting-started.md)——安装、你的第一个应用、运行循环
 - [第一个场景](tutorials/first-scene.md) · [第一个 action](tutorials/first-action.md) · [第一个组件](tutorials/first-component.md) · [第一个平台包](tutorials/first-platform-pack.md)
 
-## 参考(由代码自动生成——权威)
+## 参考
 
-- [节点与组件属性](reference/props.md)——节点结构、通用样式属性,以及每个组件的专有属性
-- [动作与状态](reference/actions.md)——每种动作步骤 `type` 及其字段
-- [组件目录](../reference/widgets.md)——渲染器接受的每一种节点 `type`
+完整的、由代码自动生成的契约在独立的 **[API 参考站](/api/zh/)**——节点与组件属性、
+组件目录、动作与状态、手势、动画、导航、HTTP/SSE 接口面,以及公开 Go 包。它从运行时
+源码抽取,永不漂移。
+
+面向应用的能力文档仍留在这里,与平台指南放在一起:
+
 - [能力清单](../platforms/capabilities.md)——内置的硬件/OS 操作、回调与平台
-
-### API 接口面
-
-- [HTTP 与 SSE](reference/http-api.md)——`qorm run` 提供的端点(浏览器、MCP、OTA)
 - [MCP 工具](../agent/mcp-tools.md)——AI 智能体驱动活动应用所用的工具
-- [Go 包:qormext](reference/go-api.md)——唯一的公开 Go 包,用于应用自有的原生操作
 
 ## 平台与打包
 

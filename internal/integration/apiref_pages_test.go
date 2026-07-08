@@ -109,8 +109,8 @@ func TestAPIRefProps(t *testing.T) {
 		zh.WriteString(line)
 	}
 
-	syncDoc(t, "../../docs/reference/props.md", en.String())
-	syncDoc(t, "../../docs/zh/reference/props.md", zh.String())
+	syncDoc(t, "../../api/props.md", en.String())
+	syncDoc(t, "../../api/zh/props.md", zh.String())
 }
 
 // ---- 2. Actions & state: actions.md -----------------------------------------
@@ -192,8 +192,8 @@ func TestAPIRefActions(t *testing.T) {
 	en.WriteString("\n```json\n// actions/addTodo.json — append a new object, then clear the input\n{ \"type\": \"action\", \"id\": \"addTodo\", \"steps\": [\n  { \"type\": \"state.appendObject\", \"path\": \"todos\",\n    \"item\": { \"id\": \"{{ now }}\", \"title\": \"{{ state.draft }}\", \"done\": \"false\" } },\n  { \"type\": \"state.set\", \"path\": \"draft\", \"value\": \"\" }\n] }\n```\n")
 	zh.WriteString("\n```json\n// actions/addTodo.json — 追加一个新对象,然后清空输入\n{ \"type\": \"action\", \"id\": \"addTodo\", \"steps\": [\n  { \"type\": \"state.appendObject\", \"path\": \"todos\",\n    \"item\": { \"id\": \"{{ now }}\", \"title\": \"{{ state.draft }}\", \"done\": \"false\" } },\n  { \"type\": \"state.set\", \"path\": \"draft\", \"value\": \"\" }\n] }\n```\n")
 
-	syncDoc(t, "../../docs/reference/actions.md", en.String())
-	syncDoc(t, "../../docs/zh/reference/actions.md", zh.String())
+	syncDoc(t, "../../api/actions.md", en.String())
+	syncDoc(t, "../../api/zh/actions.md", zh.String())
 }
 
 // ---- 3. HTTP + SSE: http-api.md ---------------------------------------------
@@ -241,8 +241,8 @@ func TestAPIRefHTTP(t *testing.T) {
 	en.WriteString("\n## The `/events` stream\n\nThe client opens `GET /events` and holds it open. The server writes one SSE message per change:\n\n```\n: connected\n\ndata: <html for the changed region>\n\n```\n\nEach `data:` frame carries the re-rendered HTML the client swaps in. Log and presence updates arrive on the same stream. When a proxy buffers SSE, the client falls back to `GET /poll?rev=<n>`.\n")
 	zh.WriteString("\n## `/events` 事件流\n\n客户端打开 `GET /events` 并保持连接。服务端每次变化写入一条 SSE 消息:\n\n```\n: connected\n\ndata: <变化区域的 html>\n\n```\n\n每个 `data:` 帧携带客户端替换用的重渲染 HTML。日志与在场更新走同一条流。当代理缓冲 SSE 时,客户端回退到 `GET /poll?rev=<n>`。\n")
 
-	syncDoc(t, "../../docs/reference/http-api.md", en.String())
-	syncDoc(t, "../../docs/zh/reference/http-api.md", zh.String())
+	syncDoc(t, "../../api/http-api.md", en.String())
+	syncDoc(t, "../../api/zh/http-api.md", zh.String())
 }
 
 // serverRoutes extracts the registered mux paths from the server source, in
@@ -325,6 +325,6 @@ func TestAPIRefGoAPI(t *testing.T) {
 
 	en := build("en", "The one public Go package. An app registers its **own** native ops (in Go) so the packager compiles them into the app's single executable — the desktop bridge dispatches unknown ops here.")
 	zh := build("zh", "唯一的公开 Go 包。应用用 Go 注册**自己的**原生操作,打包器将其编译进应用的单一可执行文件——桌面桥接把未知操作分发到这里。")
-	syncDoc(t, "../../docs/reference/go-api.md", en)
-	syncDoc(t, "../../docs/zh/reference/go-api.md", zh)
+	syncDoc(t, "../../api/go-api.md", en)
+	syncDoc(t, "../../api/zh/go-api.md", zh)
 }
