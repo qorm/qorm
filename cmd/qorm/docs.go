@@ -3,13 +3,14 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/qorm/qorm/internal/mdsite"
 )
 
 // cmdDocs renders the markdown docs tree into a static HTML site (pure Go).
 func cmdDocs(args []string) int {
-	docsDir, outDir := "docs", "site"
+	docsDir, outDir, siteName := "docs", "site", ""
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--docs":
@@ -22,9 +23,18 @@ func cmdDocs(args []string) int {
 				i++
 				outDir = args[i]
 			}
+		case "--name":
+			if i+1 < len(args) {
+				i++
+				siteName = args[i]
+			}
 		}
 	}
-	n, err := mdsite.BuildSite(docsDir, outDir)
+	if siteName == "" {
+		// default the header label to the source folder's base name (docs, api, …)
+		siteName = filepath.Base(docsDir)
+	}
+	n, err := mdsite.BuildSite(docsDir, outDir, siteName)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1

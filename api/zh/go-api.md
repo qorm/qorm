@@ -1,4 +1,4 @@
-# Go package: qormext
+# Go 包:qormext
 
 > 由 `github.com/qorm/qorm/pkg/qormext` 自动生成(`TestAPIRef`),请勿手工编辑。
 
