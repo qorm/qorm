@@ -132,36 +132,72 @@ func pageHTML(title, nav, body string) string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>%s · QORM</title>
+<title>%s · QORM docs</title>
+<link rel="icon" href="/assets/logo.svg">
 <style>
-  :root { --fg:#1f2328; --muted:#656d76; --bg:#fff; --side:#f6f8fa; --accent:#2e7df6; --border:#d0d7de; --code:#f6f8fa; }
-  @media (prefers-color-scheme: dark) { :root { --fg:#e6edf3; --muted:#8b949e; --bg:#0d1117; --side:#161b22; --accent:#58a6ff; --border:#30363d; --code:#161b22; } }
-  * { box-sizing:border-box; }
-  body { margin:0; display:flex; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; color:var(--fg); background:var(--bg); }
-  aside { width:280px; min-width:280px; height:100vh; overflow:auto; background:var(--side); border-right:1px solid var(--border); padding:20px; position:sticky; top:0; }
-  aside .brand { font-weight:800; font-size:18px; margin-bottom:16px; }
-  aside .nav-group { text-transform:uppercase; font-size:11px; color:var(--muted); margin:16px 0 6px; letter-spacing:.04em; }
-  aside ul { list-style:none; margin:0; padding:0; }
-  aside li a { display:block; padding:4px 8px; color:var(--fg); text-decoration:none; border-radius:6px; font-size:14px; }
-  aside li a:hover { background:var(--border); }
-  aside li a.active { background:var(--accent); color:#fff; }
-  main { flex:1; max-width:820px; padding:40px 48px; overflow:auto; height:100vh; }
-  main h1,h2,h3 { line-height:1.25; }
-  main h1 { border-bottom:1px solid var(--border); padding-bottom:.3em; }
-  main h2 { border-bottom:1px solid var(--border); padding-bottom:.3em; margin-top:1.5em; }
-  main a { color:var(--accent); }
-  main code { background:var(--code); padding:.15em .35em; border-radius:5px; font-size:.9em; }
-  main pre { background:var(--code); padding:14px; border-radius:8px; overflow:auto; }
-  main pre code { background:none; padding:0; }
-  main table { border-collapse:collapse; width:100%%; margin:1em 0; display:block; overflow-x:auto; }
-  main th,td { border:1px solid var(--border); padding:6px 12px; text-align:left; }
-  main th { background:var(--side); }
-  main blockquote { border-left:3px solid var(--accent); margin:0; padding:.2em 1em; color:var(--muted); }
+  :root{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
+  @media (prefers-color-scheme:dark){ :root{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; } }
+  :root[data-theme="light"]{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
+  :root[data-theme="dark"]{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;color:var(--ink);background:var(--ground);line-height:1.62;letter-spacing:-.011em;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent-ink);text-decoration:none} a:hover{text-decoration:underline}
+  code,pre{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+  header.top{position:sticky;top:0;z-index:30;height:56px;display:flex;align-items:center;gap:14px;padding:0 22px;background:color-mix(in srgb,var(--ground) 82%%,transparent);backdrop-filter:saturate(180%%) blur(20px);-webkit-backdrop-filter:saturate(180%%) blur(20px);border-bottom:.5px solid var(--line)}
+  header.top .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:16px;letter-spacing:-.02em;color:var(--ink)}
+  header.top .brand img{width:24px;height:24px}
+  @media (prefers-color-scheme:dark){ header.top .brand img{filter:invert(1) brightness(1.7)} }
+  :root[data-theme="dark"] header.top .brand img{filter:invert(1) brightness(1.7)}
+  :root[data-theme="light"] header.top .brand img{filter:none}
+  header.top .doc{color:var(--faint);font-weight:600;font-size:15px}
+  header.top .sp{flex:1}
+  header.top a.tl{color:var(--muted);font-size:14px;font-weight:500} header.top a.tl:hover{color:var(--ink);text-decoration:none}
+  .tbtn{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+  .tbtn:hover{color:var(--ink)} .tbtn svg{width:16px;height:16px}
+  .shell{display:flex;max-width:1180px;margin:0 auto}
+  aside{width:262px;min-width:262px;height:calc(100vh - 56px);overflow:auto;position:sticky;top:56px;padding:22px 8px 48px 22px}
+  aside .nav-group{text-transform:uppercase;font-size:11px;font-weight:700;color:var(--faint);margin:20px 0 6px;letter-spacing:.05em}
+  aside ul{list-style:none;margin:0;padding:0}
+  aside li a{display:block;padding:6px 12px;color:var(--muted);border-radius:8px;font-size:14px;font-weight:500}
+  aside li a:hover{background:var(--surface);color:var(--ink);text-decoration:none}
+  aside li a.active{background:color-mix(in srgb,var(--accent) 14%%,transparent);color:var(--accent-ink);font-weight:600}
+  main{flex:1;min-width:0;max-width:800px;padding:38px 46px 90px}
+  main>*:first-child{margin-top:0}
+  main h1{font-size:33px;font-weight:800;letter-spacing:-.03em;margin:0 0 .5em}
+  main h2{font-size:23px;font-weight:700;letter-spacing:-.02em;margin:1.7em 0 .5em;padding-bottom:.3em;border-bottom:.5px solid var(--line)}
+  main h3{font-size:18px;font-weight:700;margin:1.5em 0 .4em}
+  main code{background:var(--raise);border:.5px solid var(--line);padding:.12em .4em;border-radius:6px;font-size:.88em}
+  main pre{background:var(--raise);border:.5px solid var(--line);padding:14px 16px;border-radius:12px;overflow:auto;font-size:13.5px;line-height:1.7}
+  main pre code{background:none;border:none;padding:0}
+  main table{border-collapse:collapse;width:100%%;margin:1em 0;display:block;overflow-x:auto;font-size:14px}
+  main th,main td{border:.5px solid var(--line);padding:8px 13px;text-align:left}
+  main th{background:var(--surface);font-weight:600}
+  main blockquote{border-left:3px solid var(--accent);margin:1.1em 0;padding:.5em 1.1em;color:var(--muted);background:var(--surface);border-radius:0 10px 10px 0}
+  main img{max-width:100%%}
+  @media (max-width:800px){ aside{display:none} main{padding:26px 22px} }
 </style>
 </head>
 <body>
-<aside><div class="brand">QORM</div>%s</aside>
-<main>%s</main>
+<header class="top">
+  <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
+  <span class="doc">docs</span>
+  <span class="sp"></span>
+  <a class="tl" href="/">Home</a>
+  <a class="tl" href="https://github.com/qorm/qorm">GitHub</a>
+  <button class="tbtn" id="theme" aria-label="Theme"></button>
+</header>
+<div class="shell">
+  <aside>%s</aside>
+  <main>%s</main>
+</div>
+<script>
+  (function(){var r=document.documentElement,b=document.getElementById('theme');
+   var sun='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>';
+   var moon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+   function c(){return r.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');}
+   function p(){b.innerHTML=c()==='dark'?sun:moon;} p();
+   b.onclick=function(){r.setAttribute('data-theme',c()==='dark'?'light':'dark');p();};})();
+</script>
 </body>
 </html>
 `, html.EscapeString(title), nav, body)
