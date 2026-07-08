@@ -53,19 +53,19 @@ myapp/
 ## `scenes/` —— 屏幕
 
 每个场景是一个 JSON 文件:`{ "type": "scene", "id": …, "root": <节点> }`。`root`
-是一棵节点树——节点结构见[节点与组件属性](reference/props.md),每种 `type` 见
-[组件目录](../reference/widgets.md)。用 `navigate` 步骤在场景间跳转,见
-[导航](../reference/navigation.md)。
+是一棵节点树——节点结构见[节点与组件属性](/api/props.md),每种 `type` 见
+[组件目录](/api/widgets.md)。用 `navigate` 步骤在场景间跳转,见
+[导航](/api/navigation.md)。
 
 ## `actions/` —— 行为
 
 每个动作是 `{ "type": "action", "id": …, "steps": [ … ] }`,由节点的 `onPress` /
 `onChange` 引用。步骤修改状态、调用后端或导航——完整词汇见
-[动作与状态](reference/actions.md)。
+[动作与状态](/api/actions.md)。
 
 ## `native/` —— 应用自己的代码
 
-可选。一个 Go 文件(`native/desktop.go`)通过 [`pkg/qormext`](reference/go-api.md)
+可选。一个 Go 文件(`native/desktop.go`)通过 [`pkg/qormext`](/api/go-api.md)
 注册应用**自己的**原生操作;打包器把它编译进桌面二进制**和**移动/web WASM,因此同一份
 自定义逻辑在所有目标上运行。`native/web.js` 可加入仅浏览器的操作。这是应用的扩展点——
 见[中间层指南](platforms/native-middlelayer.md)。

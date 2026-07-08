@@ -37,4 +37,4 @@
 
 - 文本使用 `text`(而非 `value`);模板插值(如 `"Welcome, {{ state.user }}"`)同样放在 `text` 里。
 - 按钮通过 `onPress` 触发动作(参见 [第一个动作](first-action.md))。
-- 所有可用的节点类型,参见 [组件目录](../../reference/widgets.md)。
+- 所有可用的节点类型,参见 [组件目录](/api/widgets.md)。

@@ -20,21 +20,17 @@ runnable reference — when a doc and a running example disagree, trust the exam
 - [Getting started](tutorials/getting-started.md) — install, your first app, the run loop
 - [First scene](tutorials/first-scene.md) · [First action](tutorials/first-action.md) · [First component](tutorials/first-component.md) · [First platform pack](tutorials/first-platform-pack.md)
 
-## Reference (auto-generated from the code — canonical)
+## Reference
 
-- [Node & widget props](reference/props.md) — the node schema, common style props, and every widget's specific props
-- [Actions & state](reference/actions.md) — every action step `type` and its fields
-- [Widget catalog](reference/widgets.md) — every node `type` the renderer accepts
-- [Animation](reference/animation.md) — entrance effects, value-driven transitions, and press feedback
-- [Gestures](reference/gestures.md) — tap / long-press / swipe-to-dismiss / drag-to-reorder, as widget props
-- [Navigation](reference/navigation.md) — multiple scenes + the navigate action + page transitions
+The full, auto-generated contract lives on the separate **[API reference](/api/)** —
+node & widget props, the widget catalog, actions & state, gestures, animation,
+navigation, the HTTP/SSE surface, and the public Go package. It is extracted from
+the runtime source, so it never drifts.
+
+App-facing capability docs stay here with the platform guides:
+
 - [Capabilities](platforms/capabilities.md) — built-in hardware/OS ops, callbacks, and platforms
-
-### API surface
-
-- [HTTP & SSE](reference/http-api.md) — the endpoints `qorm run` serves (browser, MCP, OTA)
 - [MCP tools](agent/mcp-tools.md) — the tools an AI agent drives the live app with
-- [Go package: qormext](reference/go-api.md) — the one public Go package, for app-owned native ops
 
 ## Platforms & packaging
 

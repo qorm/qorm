@@ -87,8 +87,8 @@ qorm render my-app -o my-app.html
 
 ## Next steps
 
-- [Widget catalog](../reference/widgets.md) — every node type the renderer accepts (code-generated, authoritative).
-- [Widget catalog](../reference/widgets.md) — all available node types (auto-generated).
+- [Widget catalog](/api/widgets.md) — every node type the renderer accepts (code-generated, authoritative).
+- [Widget catalog](/api/widgets.md) — all available node types (auto-generated).
 - [Capabilities](../platforms/capabilities.md) — native capabilities like camera, location, and Bluetooth.
 - [User middle layer](../platforms/native-middlelayer.md) — add your own native ops with a single Go file.
 - For more runnable examples, see [`examples/`](../../examples) in the repo (counter / todo / dashboard / hardware / …).

@@ -78,12 +78,12 @@ func widgetCatalog(t *testing.T) string {
 	return b.String()
 }
 
-// TestWidgetCatalogInSync keeps docs/reference/widgets.md generated from the
+// TestWidgetCatalogInSync keeps api/widgets.md generated from the
 // render switch — so the canonical widget names + aliases a human/AI reads are
 // exactly what the renderer handles. Regenerate: QORM_UPDATE_DOCS=1 go test
 // ./internal/integration/ -run TestWidgetCatalogInSync
 func TestWidgetCatalogInSync(t *testing.T) {
-	const path = "../../docs/reference/widgets.md"
+	const path = "../../api/widgets.md"
 	want := widgetCatalog(t)
 	if os.Getenv("QORM_UPDATE_DOCS") == "1" {
 		if err := os.WriteFile(path, []byte(want), 0o644); err != nil {
@@ -93,6 +93,6 @@ func TestWidgetCatalogInSync(t *testing.T) {
 	}
 	got, err := os.ReadFile(path)
 	if err != nil || string(got) != want {
-		t.Errorf("docs/reference/widgets.md out of sync — run: QORM_UPDATE_DOCS=1 go test ./internal/integration/ -run TestWidgetCatalogInSync")
+		t.Errorf("api/widgets.md out of sync — run: QORM_UPDATE_DOCS=1 go test ./internal/integration/ -run TestWidgetCatalogInSync")
 	}
 }

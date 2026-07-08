@@ -55,20 +55,20 @@ the global state:
 ## `scenes/` — screens
 
 Each scene is one JSON file: `{ "type": "scene", "id": …, "root": <node> }`. The
-`root` is a node tree — see [Node & widget props](reference/props.md) for the
-node schema and [the widget catalog](reference/widgets.md) for every `type`.
-Move between scenes with the `navigate` step; see [Navigation](reference/navigation.md).
+`root` is a node tree — see [Node & widget props](/api/props.md) for the
+node schema and [the widget catalog](/api/widgets.md) for every `type`.
+Move between scenes with the `navigate` step; see [Navigation](/api/navigation.md).
 
 ## `actions/` — behavior
 
 Each action is `{ "type": "action", "id": …, "steps": [ … ] }`, referenced from a
 node's `onPress` / `onChange`. Steps mutate state, call a backend, or navigate —
-the full vocabulary is in [Actions & state](reference/actions.md).
+the full vocabulary is in [Actions & state](/api/actions.md).
 
 ## `native/` — the app's own code
 
 Optional. One Go file (`native/desktop.go`) registers the app's **own** native
-ops via [`pkg/qormext`](reference/go-api.md); the packager compiles it into the
+ops via [`pkg/qormext`](/api/go-api.md); the packager compiles it into the
 desktop binary **and** the mobile/web WASM, so the same custom logic runs on
 every target. A `native/web.js` can add browser-only ops. This is the app's
 extension point — see [the middle-layer guide](platforms/native-middlelayer.md).
