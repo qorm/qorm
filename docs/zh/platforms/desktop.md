@@ -68,15 +68,7 @@ system.automation
 
 ## 渲染
 
-桌面可以优先验证这些:
-
-```text
-Display List
-Render Graph
-GPU-first renderer
-text cache
-texture atlas
-```
+当前唯一的渲染路径是 `internal/render` 生成的 HTML/CSS,由原生 WebView 渲染显示。GPU-first 渲染(Display List、Render Graph、文本缓存、纹理图集)属于 roadmap(见 `planning/`)。
 
 ## 开发工具
 

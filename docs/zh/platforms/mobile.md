@@ -103,14 +103,4 @@ Bundle cache
 
 ## 无 JIT
 
-移动端不使用 Native JIT。性能依赖于:
-
-```text
-Typed IR
-Execution Plan
-Dirty Tree
-Render Cache
-Text Cache
-Texture Atlas
-GPU-first rendering
-```
+移动端不使用 Native JIT。当前唯一的渲染路径是 `internal/render` 生成的 HTML/CSS,由平台 WebView 渲染显示(Go 运行时以 WASM 形式随应用分发)。GPU-first 渲染(Typed IR、Execution Plan、Dirty Tree、纹理图集)属于 roadmap(见 `planning/`)。

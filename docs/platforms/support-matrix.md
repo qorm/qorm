@@ -31,9 +31,9 @@ What QORM supports on each target, at a glance. **`ok`** = supported and tested;
 
 | Feature | Web | iOS | Android | macOS | Linux | Windows | Mini-program |
 |---|---|---|---|---|---|---|---|
-| Live state + actions + bindings | ok | ok | ok | ok | ok | ok | beta |
-| Expression bindings ({{ ... }}) | ok | ok | ok | ok | ok | ok | beta |
-| Conditional render + data-bound lists | ok | ok | ok | ok | ok | ok | beta |
+| Live state + actions + bindings | ok | ok | ok | ok | ok | ok | — |
+| Expression bindings ({{ ... }}) | ok | ok | ok | ok | ok | ok | — |
+| Conditional render + data-bound lists | ok | ok | ok | ok | ok | ok | — |
 | Go middle-layer (custom native ops) | ok | ok | ok | ok | ok | ok | — |
 | Hardware / OS capabilities | ok | ok | ok | ok | beta | beta | beta |
 
@@ -41,9 +41,9 @@ What QORM supports on each target, at a glance. **`ok`** = supported and tested;
 
 | Feature | Web | iOS | Android | macOS | Linux | Windows | Mini-program |
 |---|---|---|---|---|---|---|---|
-| MCP server (read / edit / verify a live app) | ok | ok | ok | ok | ok | ok | beta |
+| MCP server (read / edit / verify a live app) | ok | ok | ok | ok | ok | ok | — |
 | Live human-AI shared session (SSE) | ok | ok | ok | ok | ok | ok | — |
-| Review-bound edits (preview → apply) | ok | ok | ok | ok | ok | ok | ok |
+| Review-bound edits (preview → apply) | ok | ok | ok | ok | ok | ok | — |
 | Self-verify render (qorm measure / check) | ok | ok | ok | ok | ok | ok | — |
 
 ## Notes
@@ -59,12 +59,12 @@ What QORM supports on each target, at a glance. **`ok`** = supported and tested;
 - **Custom components (JSON-defined)** — declared in qorm.json, {{prop.x}} templates
 - **i18n messages + RTL** — ICU messages, plurals, currency, right-to-left
 - **Native window (chromeless / transparent)** — -tags desktop; macOS is the reference
-- **Live state + actions + bindings** — mini-program is static in the foundation slice
-- **Expression bindings ({{ ... }})** — arithmetic, comparisons, ternary, string ops, functions
-- **Conditional render + data-bound lists** — if:, list repeat with {{item.*}} scope
+- **Live state + actions + bindings** — mini-program is static export only — no on-device runtime
+- **Expression bindings ({{ ... }})** — arithmetic, comparisons, ternary, string ops, functions; mini-program is static export only (evaluated once at export)
+- **Conditional render + data-bound lists** — if:, list repeat with {{item.*}} scope; mini-program is static export only (evaluated once at export)
 - **Go middle-layer (custom native ops)** — one native/desktop.go into desktop AND mobile/web WASM
 - **Hardware / OS capabilities** — per-capability support is in capabilities.md
-- **MCP server (read / edit / verify a live app)** — stdio or /mcp against a running app
+- **MCP server (read / edit / verify a live app)** — stdio or /mcp against a running app; mini-program is static export only — no live tools apply
 - **Live human-AI shared session (SSE)** — AI edits appear in the human's browser instantly; the human's clicks show in qorm_activity
-- **Review-bound edits (preview → apply)** — apply_patch must carry the preview token
+- **Review-bound edits (preview → apply)** — apply_patch must carry the preview token; mini-program is static export only
 - **Self-verify render (qorm measure / check)** — renders the app and reports real geometry

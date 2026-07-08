@@ -64,7 +64,7 @@ for web"*. Full guide: **[Build with your AI](docs/build-with-ai.md)** ·
 | macOS | ok | ok | ok | ok |
 | Linux | beta | ok | ok | ok |
 | Windows | beta | ok | ok | ok |
-| Mini-program | ok | beta | beta | beta |
+| Mini-program | ok | beta | — | — |
 <!-- support-summary:end -->
 
 `ok` supported + tested · `beta` foundation / partial · `—` n/a. The full feature
