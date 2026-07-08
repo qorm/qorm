@@ -16,7 +16,8 @@ import (
 // offline web payload (out/www) and builds an APK if the toolchain is present.
 // The payload is served to the WebView over https via WebViewAssetLoader so the
 // WASM runtime's fetch() works from packaged assets.
-func scaffoldAndroid(out, name, appName, dev, appDir string) error {
+func scaffoldAndroid(out, name, appName, dev, appDir string, rel releaseOpts) error {
+	_ = rel // release signing/AAB lands with v0.2.1 A2
 	id := pkgID(name)
 	ns := "com.qorm." + id
 	awidgets := appWidgets(appDir)

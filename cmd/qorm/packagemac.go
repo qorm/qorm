@@ -41,7 +41,8 @@ func macPermKeys(appName, srcDir string) string {
 	return b.String()
 }
 
-func scaffoldMac(out, name, appName, srcDir string) error {
+func scaffoldMac(out, name, appName, srcDir string, rel releaseOpts) error {
+	_ = rel // release signing/notarization/DMG lands with v0.2.1 A3
 	id := pkgID(name)
 	bundle := filepath.Join(out, appName+".app")
 	macos := filepath.Join(bundle, "Contents", "MacOS")

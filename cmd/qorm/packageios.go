@@ -170,7 +170,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 // (out/www, kept as a folder reference so the WASM asset structure is
 // preserved), builds the .xcodeproj with XcodeGen, and does a simulator build
 // (no signing) to verify it compiles. A device IPA needs the user's signing.
-func scaffoldIOS(out, name, appName, team, dev, appDir string) error {
+func scaffoldIOS(out, name, appName, team, dev, appDir string, rel releaseOpts) error {
+	_ = rel // release archive/export lands with v0.2.1 A1
 	id := pkgID(name)
 	widgets := appWidgets(appDir)
 	hasWidget := len(widgets) > 0 && dev == ""
