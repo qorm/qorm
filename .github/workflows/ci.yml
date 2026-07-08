@@ -47,6 +47,73 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev pkg-config
       - name: Build (-tags desktop)
         run: go build -tags desktop ./cmd/qorm
+      - name: Smoke (run counter headless)
+        # The script probes ./qorm.exe itself when ./qorm is absent (Windows).
+        run: bash scripts/ci-smoke.sh ./qorm
+
+  # Mobile packaging jobs are expensive (Xcode / Gradle); run them on main and
+  # on PRs explicitly labeled `ci-mobile`.
+  ios-package:
+    name: package (iOS simulator)
+    runs-on: macos-latest
+    if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'ci-mobile')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Package counter for iOS (unsigned simulator build)
+        run: go run ./cmd/qorm package examples/counter -p ios -o /tmp/counter-ios
+      # `qorm package` swallows xcodebuild failures (exit code stays 0), so CI
+      # must assert the simulator .app actually exists.
+      - name: Assert simulator .app was produced
+        run: |
+          ls -d /tmp/counter-ios/build/Build/Products/Debug-iphonesimulator/*.app
+
+  android-package:
+    name: package (Android APK)
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'ci-mobile')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-counter-${{ hashFiles('cmd/qorm/packageandroid.go') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-counter-
+      - name: Package counter for Android
+        # buildAndroid runs `gradle wrapper` + `./gradlew assembleDebug` itself
+        # when system gradle + ANDROID_HOME are present (both preinstalled on
+        # ubuntu runners).
+        run: go run ./cmd/qorm package examples/counter -p android -o /tmp/counter-android
+      # `qorm package` swallows Gradle failures (exit code stays 0), so CI must
+      # assert the APK exists; retry the build once directly for a real log if
+      # the packaged project didn't produce one.
+      - name: Assert debug APK was produced
+        run: |
+          APK=/tmp/counter-android/app/build/outputs/apk/debug/app-debug.apk
+          if [ ! -f "$APK" ]; then
+            echo "APK missing after package; building directly for diagnostics"
+            cd /tmp/counter-android
+            if [ -x ./gradlew ]; then ./gradlew assembleDebug --no-daemon --console=plain
+            else gradle wrapper --gradle-version 8.9 --no-daemon && ./gradlew assembleDebug --no-daemon --console=plain
+            fi
+          fi
+          ls -l "$APK"
 
   binaries:
     name: cross-compile (downloadable artifacts)
