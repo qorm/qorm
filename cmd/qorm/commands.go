@@ -13,6 +13,7 @@ import (
 
 	"github.com/qorm/qorm/internal/bundle"
 	"github.com/qorm/qorm/internal/keys"
+	"github.com/qorm/qorm/internal/loader"
 	"github.com/qorm/qorm/internal/mcp"
 	"github.com/qorm/qorm/internal/render"
 	"github.com/qorm/qorm/internal/server"
@@ -106,6 +107,10 @@ func cmdRun(args []string) int {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
+	// Surface the loader's static diagnostics (deprecated attributes,
+	// expression type mismatches, ...) without blocking the run: the app
+	// still starts, exactly as before.
+	printDiagnostics(dir)
 	if mcpReadOnly {
 		srv.SetMCPReadOnly(true)
 	}
@@ -250,6 +255,13 @@ func cmdBuild(args []string) int {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
+	// Print static diagnostics to stderr at build time. NOTE(v0.2.1 C3): the
+	// release plan also called for writing diagnostics into the bundle
+	// metadata; that is deliberately deferred — bundle content just changed
+	// for requiredCapabilities, and adding diagnostics would touch the
+	// hash/signature surface again. Printing keeps the signal without a
+	// format change.
+	printDiagnostics(dir)
 	if version != "" {
 		if err := b.SetVersion(version); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -293,6 +305,25 @@ func cmdBuild(args []string) int {
 		fmt.Printf("built %s -> %s (%s, %s)\n", dir, out, b.ContentHash, signed)
 	}
 	return 0
+}
+
+// printDiagnostics writes the loader's static diagnostics for an app
+// directory to stderr, one per line. Non-directory inputs (scene files,
+// compiled bundles) are skipped: diagnostics belong to authoring time.
+// Diagnostics never fail the command — `error:`-prefixed entries mark type
+// errors, the rest are warnings.
+func printDiagnostics(path string) {
+	info, err := os.Stat(path)
+	if err != nil || !info.IsDir() {
+		return
+	}
+	docs, err := loader.CollectDocs(path)
+	if err != nil {
+		return
+	}
+	for _, d := range loader.FromDocs(docs).Diagnostics {
+		fmt.Fprintln(os.Stderr, d)
+	}
 }
 
 // splitCapabilityList parses a comma-separated --require-capability value
