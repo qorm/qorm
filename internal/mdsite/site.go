@@ -11,6 +11,7 @@ import (
 
 type page struct {
 	htmlRel string // path relative to out dir, e.g. "spec/ir-spec.html"
+	navRel  string // language-neutral path, e.g. "tutorials/first-scene.html"
 	title   string
 	group   string // grouping label within the language ("" for root)
 	lang    string // "en" or "zh"
@@ -47,7 +48,8 @@ func BuildSite(docsDir, outDir, siteName string) (int, error) {
 		if parts := strings.SplitN(navRel, sep, 2); len(parts) == 2 {
 			group = parts[0]
 		}
-		pages = append(pages, page{htmlRel: htmlRel, title: firstHeading(string(data), rel), group: group, lang: lang})
+		navHTML := filepath.ToSlash(strings.TrimSuffix(navRel, ".md") + ".html")
+		pages = append(pages, page{htmlRel: htmlRel, navRel: navHTML, title: firstHeading(string(data), rel), group: group, lang: lang})
 		srcOf[htmlRel] = path
 		return nil
 	})
@@ -58,8 +60,19 @@ func BuildSite(docsDir, outDir, siteName string) (int, error) {
 		return 0, fmt.Errorf("no markdown files under %s", docsDir)
 	}
 	sort.Slice(pages, func(i, j int) bool {
-		if pages[i].group != pages[j].group {
+		gi, gj := order(groupOrder, pages[i].group), order(groupOrder, pages[j].group)
+		if gi != gj {
+			return gi < gj
+		}
+		if pages[i].group != pages[j].group { // unordered groups: alphabetical
 			return pages[i].group < pages[j].group
+		}
+		pi, pj := order(pageOrder, pages[i].navRel), order(pageOrder, pages[j].navRel)
+		if pi != pj {
+			return pi < pj
+		}
+		if pages[i].navRel != pages[j].navRel {
+			return pages[i].navRel < pages[j].navRel
 		}
 		return pages[i].htmlRel < pages[j].htmlRel
 	})
@@ -132,6 +145,56 @@ func firstHeading(src, rel string) string {
 		}
 	}
 	return strings.TrimSuffix(filepath.Base(rel), ".md")
+}
+
+// groupOrder and pageOrder give the sidebar an easy-to-hard reading order
+// instead of alphabetical. Anything unlisted sorts after the listed ones
+// (alphabetically), so adding a page never breaks the build — it just appends.
+var groupOrder = map[string]int{
+	"": 0, "tutorials": 1, "examples": 2, "reference": 3,
+	"platforms": 4, "agent": 5, "security": 6,
+}
+
+var pageOrder = orderList(
+	// overview (docs root) — gentlest first
+	"README.html", "project-structure.html", "build-with-ai.html",
+	"collaboration.html", "verification.html",
+	// api root — the reference, in learning order
+	"props.html", "widgets.html", "actions.html", "gestures.html",
+	"animation.html", "navigation.html", "http-api.html", "go-api.html",
+	// tutorials — the guided path
+	"tutorials/getting-started.html", "tutorials/first-scene.html",
+	"tutorials/first-action.html", "tutorials/first-component.html",
+	"tutorials/first-platform-pack.html",
+	// examples — simple to rich
+	"examples/counter.html", "examples/todo.html", "examples/login.html",
+	"examples/dashboard.html",
+	// platforms — common targets to advanced
+	"platforms/web.html", "platforms/mobile.html", "platforms/desktop.html",
+	"platforms/miniapp.html", "platforms/native-middlelayer.html",
+	"platforms/capabilities.html", "platforms/support-matrix.html",
+	// agent — basics to per-agent packs
+	"agent/permissions.html", "agent/mcp-tools.html", "agent/skills.html",
+	"agent/claude-pack.html", "agent/codex-pack.html", "agent/openclaw-pack.html",
+	// security — model to mechanics
+	"security/security-model.html", "security/permission-model.html",
+	"security/bundle-signing.html",
+)
+
+func orderList(keys ...string) map[string]int {
+	m := make(map[string]int, len(keys))
+	for i, k := range keys {
+		m[k] = i
+	}
+	return m
+}
+
+// order returns the weight for key, or a large value (after all listed keys).
+func order(m map[string]int, key string) int {
+	if v, ok := m[key]; ok {
+		return v
+	}
+	return 1 << 20
 }
 
 // groupLabels localises the sidebar section headings (derived from directory
