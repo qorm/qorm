@@ -291,12 +291,12 @@ func TestComponentBatch1(t *testing.T) {
 		"<table", "qorm-table", "Name", ">Ada<", // table + bound rows
 		`role="dialog"`, ">Welcome<", // modal (open)
 		`role="alert"`, ">Saved<", // alert
-		"qorm-skel",   // skeleton
-		"qormAcc",     // accordion toggle wired
-		"Section one", // accordion header
+		"qorm-skel",     // skeleton
+		"qormAcc",       // accordion toggle wired
+		"Section one",   // accordion header
 		"M12 3l2.6 5.3", // rating star icon (SVG path)
-		"Members",     // breadcrumb last crumb
-		">design<",    // tag
+		"Members",       // breadcrumb last crumb
+		">design<",      // tag
 	} {
 		if !strings.Contains(html, m) {
 			t.Errorf("components showcase should render %q", m)
@@ -481,8 +481,8 @@ func TestWidgetParityGridStepper(t *testing.T) {
 	for _, m := range []string{
 		"grid-template-columns:repeat(2,1fr)", // gridview
 		">Item 1<", ">Item 4<",                // grid cells from data
-		">Shipping<", ">shipping body<",       // active step (wizStep=1) content
-		"M4 12l5 5L20 6",                      // completed step marker (check icon SVG path)
+		">Shipping<", ">shipping body<", // active step (wizStep=1) content
+		"M4 12l5 5L20 6", // completed step marker (check icon SVG path)
 	} {
 		if !strings.Contains(html, m) {
 			t.Errorf("gridview/stepper showcase should render %q", m)
