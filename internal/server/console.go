@@ -118,8 +118,14 @@ func (s *Server) serveLogWindow(w http.ResponseWriter, _ *http.Request) {
 	if name == "" {
 		name = "QORM"
 	}
+	s.actMu.Lock()
+	logsData, _ := json.Marshal(s.activity)
+	s.actMu.Unlock()
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write([]byte(strings.ReplaceAll(logWindowHTML, "{{title}}", htmlEscape(name))))
+	html := strings.ReplaceAll(logWindowHTML, "{{title}}", htmlEscape(name))
+	html = strings.ReplaceAll(html, "{{initial_logs}}", string(logsData))
+	w.Write([]byte(html))
 }
 
 const logWindowHTML = `<!doctype html>
@@ -247,6 +253,22 @@ const logWindowHTML = `<!doctype html>
 
 <script>
   var log=document.getElementById('log'),since=0,first=true,activeTab='logs';
+  var initialLogs = {{initial_logs}};
+  if (initialLogs && initialLogs.length) {
+    log.innerHTML = '';
+    first = false;
+    initialLogs.forEach(function(e) {
+      since = Math.max(since, e.seq);
+      var d = document.createElement('div');
+      d.className = 'e ' + e.source;
+      d.innerHTML = '<span class="t"></span><span class="who"></span><span class="d"></span>';
+      d.querySelector('.t').textContent = e.time;
+      d.querySelector('.who').textContent = (e.source === 'human' ? 'you' : e.source);
+      d.querySelector('.d').textContent = e.detail;
+      log.appendChild(d);
+    });
+    log.scrollTop = log.scrollHeight;
+  }
   
   function showTab(tabId) {
     activeTab = tabId;
@@ -422,7 +444,6 @@ const logWindowHTML = `<!doctype html>
     }, 1000);
   }
 </script></body></html>`
-
 
 // serveDevState handles GET (read state) and POST (update state) for DevTools.
 func (s *Server) serveDevState(w http.ResponseWriter, r *http.Request) {
