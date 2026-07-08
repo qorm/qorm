@@ -4,7 +4,7 @@ package main
 
 /*
 #cgo CFLAGS: -x objective-c -fobjc-arc
-#cgo LDFLAGS: -framework Cocoa -framework ServiceManagement -framework WebKit -framework LocalAuthentication -framework CoreWLAN -framework CoreBluetooth -framework CoreAudio -framework AudioToolbox
+#cgo LDFLAGS: -framework Cocoa -framework ServiceManagement -framework WebKit -framework LocalAuthentication -framework CoreWLAN -framework CoreBluetooth -framework CoreAudio -framework AudioToolbox -framework Security -framework IOKit
 #include <stdlib.h>
 void qormRunTray(const unsigned char* png, int pngLen, const char** items, int n, const char* tip);
 void qormRunTrayJSON(const unsigned char* png, int pngLen, const char* menuJSON, const char* tip);
@@ -33,6 +33,18 @@ void qormWatchVolume(void);
 int qormReadMute(void);
 const char* qormSystemModes(void);
 void qormWatchBrightness(void);
+void qormClipboardSet(const char* text);
+const char* qormClipboardGet(void);
+void qormOpenURL(const char* url);
+const char* qormOSVersion(void);
+void qormKeepAwake(int on);
+void qormSpeak(const char* text);
+void qormSpeakStop(void);
+const char* qormScreenshot(void);
+float qormGetSystemVolume(void);
+int qormSetSystemVolume(float volume);
+int qormSecureSet(const char* key, const char* val);
+const char* qormSecureGet(const char* key);
 */
 import "C"
 
@@ -277,6 +289,86 @@ func nativeWatchVolume() { C.qormWatchVolume() }
 // nativeSystemModes returns the readable system modes as JSON.
 func nativeSystemModes() string {
 	c := C.qormSystemModes()
+	s := C.GoString(c)
+	C.free(unsafe.Pointer(c))
+	return s
+}
+
+func nativeClipboardSet(text string) {
+	c := C.CString(text)
+	defer C.free(unsafe.Pointer(c))
+	C.qormClipboardSet(c)
+}
+
+func nativeClipboardGet() string {
+	c := C.qormClipboardGet()
+	s := C.GoString(c)
+	C.free(unsafe.Pointer(c))
+	return s
+}
+
+func nativeOpenURL(url string) {
+	c := C.CString(url)
+	defer C.free(unsafe.Pointer(c))
+	C.qormOpenURL(c)
+}
+
+func nativeOSVersion() string {
+	c := C.qormOSVersion()
+	s := C.GoString(c)
+	C.free(unsafe.Pointer(c))
+	return s
+}
+
+func nativeSetKeepAwake(on bool) {
+	val := 0
+	if on {
+		val = 1
+	}
+	C.qormKeepAwake(C.int(val))
+}
+
+func nativeSpeak(text string) {
+	c := C.CString(text)
+	defer C.free(unsafe.Pointer(c))
+	C.qormSpeak(c)
+}
+
+func nativeSpeakStop() {
+	C.qormSpeakStop()
+}
+
+func nativeScreenshot() string {
+	c := C.qormScreenshot()
+	s := C.GoString(c)
+	C.free(unsafe.Pointer(c))
+	return s
+}
+
+func nativeVolumeGet() (float64, bool) {
+	v := float64(C.qormGetSystemVolume())
+	if v < 0 {
+		return 0, false
+	}
+	return v, true
+}
+
+func nativeVolumeSet(v float64) bool {
+	return C.qormSetSystemVolume(C.float(v)) == 1
+}
+
+func nativeSecureSet(key, val string) bool {
+	ck := C.CString(key)
+	cv := C.CString(val)
+	defer C.free(unsafe.Pointer(ck))
+	defer C.free(unsafe.Pointer(cv))
+	return C.qormSecureSet(ck, cv) == 1
+}
+
+func nativeSecureGet(key string) string {
+	ck := C.CString(key)
+	defer C.free(unsafe.Pointer(ck))
+	c := C.qormSecureGet(ck)
 	s := C.GoString(c)
 	C.free(unsafe.Pointer(c))
 	return s

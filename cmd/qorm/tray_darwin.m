@@ -1,5 +1,9 @@
 //go:build darwin && desktop
 #import <Cocoa/Cocoa.h>
+#import <math.h>
+#import <WebKit/WebKit.h>
+#import <Security/Security.h>
+#import <IOKit/pwr_mgt/IOPMLib.h>
 #include "_cgo_export.h"
 
 @interface QormTrayTarget : NSObject
@@ -594,4 +598,147 @@ void qormWatchBrightness(void) {
     RegFn reg = (RegFn)dlsym(h, "DisplayServicesRegisterForBrightnessChangeNotifications");
     if (!reg) return;
     reg(CGMainDisplayID(), 0, (void *)qormBrightCB);
+}
+
+void qormClipboardSet(const char* text) {
+    NSString *s = [NSString stringWithUTF8String:(text ? text : "")];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        @autoreleasepool {
+            NSPasteboard *pb = [NSPasteboard generalPasteboard];
+            [pb declareTypes:@[NSPasteboardTypeString] owner:nil];
+            [pb setString:s forType:NSPasteboardTypeString];
+        }
+    });
+}
+
+const char* qormClipboardGet(void) {
+    __block NSString *s = @"";
+    dispatch_sync(dispatch_get_main_queue(), ^{
+        @autoreleasepool {
+            NSPasteboard *pb = [NSPasteboard generalPasteboard];
+            s = [pb stringForType:NSPasteboardTypeString];
+        }
+    });
+    return strdup(s ? [s UTF8String] : "");
+}
+
+void qormOpenURL(const char* url) {
+    NSString *s = [NSString stringWithUTF8String:(url ? url : "")];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        @autoreleasepool {
+            NSURL *u = [NSURL URLWithString:s];
+            if (u) [[NSWorkspace sharedWorkspace] openURL:u];
+        }
+    });
+}
+
+const char* qormOSVersion(void) {
+    @autoreleasepool {
+        NSOperatingSystemVersion v = [[NSProcessInfo processInfo] operatingSystemVersion];
+        NSString *ver = [NSString stringWithFormat:@"%ld.%ld.%ld", (long)v.majorVersion, (long)v.minorVersion, (long)v.patchVersion];
+        return strdup([ver UTF8String]);
+    }
+}
+
+static IOPMAssertionID gKeepAwakeAssertionID = 0;
+void qormKeepAwake(int on) {
+    if (on) {
+        if (gKeepAwakeAssertionID == 0) {
+            CFStringRef reason = CFSTR("QORM Keep Awake");
+            IOPMAssertionCreateWithName(kIOPMAssertionTypeNoDisplaySleep, kIOPMAssertionLevelOn, reason, &gKeepAwakeAssertionID);
+        }
+    } else {
+        if (gKeepAwakeAssertionID != 0) {
+            IOPMAssertionRelease(gKeepAwakeAssertionID);
+            gKeepAwakeAssertionID = 0;
+        }
+    }
+}
+
+static NSSpeechSynthesizer *gSpeechSynth;
+void qormSpeak(const char* text) {
+    NSString *s = [NSString stringWithUTF8String:(text ? text : "")];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        @autoreleasepool {
+            if (!gSpeechSynth) gSpeechSynth = [[NSSpeechSynthesizer alloc] init];
+            [gSpeechSynth startSpeakingString:s];
+        }
+    });
+}
+
+void qormSpeakStop(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        @autoreleasepool {
+            if (gSpeechSynth) [gSpeechSynth stopSpeaking];
+        }
+    });
+}
+
+const char* qormScreenshot(void) {
+    // CGDisplayCreateImage is obsoleted in macOS 15.0. Fallback to CLI screencapture.
+    return strdup("");
+}
+
+float qormGetSystemVolume(void) {
+    AudioObjectID d = qormOutDev();
+    if (d == kAudioObjectUnknown) return -1.0;
+    AudioObjectPropertyAddress a = qormVolAddr();
+    Float32 v = 0.0;
+    UInt32 sz = sizeof(v);
+    OSStatus err = AudioObjectGetPropertyData(d, &a, 0, NULL, &sz, &v);
+    return err == noErr ? (float)v : -1.0;
+}
+
+int qormSetSystemVolume(float volume) {
+    AudioObjectID d = qormOutDev();
+    if (d == kAudioObjectUnknown) return 0;
+    AudioObjectPropertyAddress a = qormVolAddr();
+    Float32 v = (Float32)volume;
+    UInt32 sz = sizeof(v);
+    OSStatus err = AudioObjectSetPropertyData(d, &a, 0, NULL, sz, &v);
+    return err == noErr ? 1 : 0;
+}
+
+int qormSecureSet(const char* key, const char* val) {
+    @autoreleasepool {
+        NSString *k = [NSString stringWithUTF8String:(key ? key : "")];
+        NSString *v = [NSString stringWithUTF8String:(val ? val : "")];
+        NSData *vData = [v dataUsingEncoding:NSUTF8StringEncoding];
+        
+        NSDictionary *query = @{
+            (id)kSecClass: (id)kSecClassGenericPassword,
+            (id)kSecAttrAccount: k,
+            (id)kSecAttrService: @"qorm"
+        };
+        
+        SecItemDelete((__bridge CFDictionaryRef)query);
+        
+        NSMutableDictionary *attrs = [query mutableCopy];
+        attrs[(id)kSecValueData] = vData;
+        
+        OSStatus status = SecItemAdd((__bridge CFDictionaryRef)attrs, NULL);
+        return status == errSecSuccess ? 1 : 0;
+    }
+}
+
+const char* qormSecureGet(const char* key) {
+    @autoreleasepool {
+        NSString *k = [NSString stringWithUTF8String:(key ? key : "")];
+        NSDictionary *query = @{
+            (id)kSecClass: (id)kSecClassGenericPassword,
+            (id)kSecAttrAccount: k,
+            (id)kSecAttrService: @"qorm",
+            (id)kSecReturnData: @YES,
+            (id)kSecMatchLimit: (id)kSecMatchLimitOne
+        };
+        
+        CFTypeRef result = NULL;
+        OSStatus status = SecItemCopyMatching((__bridge CFDictionaryRef)query, &result);
+        if (status == errSecSuccess && result) {
+            NSData *d = (__bridge_transfer NSData *)result;
+            NSString *s = [[NSString alloc] initWithData:d encoding:NSUTF8StringEncoding];
+            return strdup(s ? [s UTF8String] : "");
+        }
+        return strdup("");
+    }
 }
