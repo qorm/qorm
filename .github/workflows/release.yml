@@ -11,6 +11,10 @@ jobs:
   binaries:
     name: cross-compile + release
     runs-on: ubuntu-latest
+    env:
+      # Exposed as job env (instead of using the secrets context inline) so
+      # step-level `if:` can gate on whether the signing secret is configured.
+      QORM_RELEASE_KEY_DATA: ${{ secrets.QORM_RELEASE_KEY }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -23,6 +27,20 @@ jobs:
         run: go vet ./... && go test ./...
       - name: Cross-compile every platform
         run: QORM_VERSION="${GITHUB_REF_NAME}" ./scripts/build-all.sh dist
+      - name: Sign release checksums (ed25519)
+        if: ${{ env.QORM_RELEASE_KEY_DATA != '' }}
+        run: |
+          umask 077
+          printf '%s' "$QORM_RELEASE_KEY_DATA" > "$RUNNER_TEMP/release.key"
+          QORM_RELEASE_KEY="$RUNNER_TEMP/release.key" go run ./cmd/qorm __release-sign dist
+          rm -f "$RUNNER_TEMP/release.key"
+      - name: Self-verify signed checksums
+        if: ${{ env.QORM_RELEASE_KEY_DATA != '' }}
+        run: |
+          umask 077
+          printf '%s' "$QORM_RELEASE_KEY_DATA" > "$RUNNER_TEMP/release.key"
+          QORM_RELEASE_KEY="$RUNNER_TEMP/release.key" go run ./cmd/qorm __release-sign --verify dist
+          rm -f "$RUNNER_TEMP/release.key"
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
