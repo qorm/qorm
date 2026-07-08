@@ -1,5 +1,10 @@
 # QORM Mini-program platform
 
+> **Positioning: static export only.** `qorm package -p miniapp` is a one-shot
+> export of the app's **initial UI** to a WXML/WXSS project. There is no on-device
+> QORM runtime: no live session, no state/actions, no `qorm measure`/self-verify,
+> no action dispatch. What you export is what renders.
+
 Mini-programs (WeChat / others) can't run Go or WASM in their render path —
 they render **WXML** markup driven by a JS page model, inside a vendor sandbox. So
 QORM targets them differently from web/mobile/desktop: instead of shipping the
@@ -36,12 +41,16 @@ counter-weapp/
 - **Icons & charts** — inline SVG is re-encoded as a data-URI `<image>` (WXML can't render `<svg>`); chart colors convert exactly, icon color defaults to a neutral (full icon theming is a follow-up).
 - **Theme** — QORM's design tokens (`--accent`, `--label`, …) go into `app.wxss`.
 
-## What's next (not in the foundation yet)
+## Roadmap (v0.3, not committed)
 
-- **Full interactivity** — a JS interpreter that evaluates QORM bindings/actions
-  and `setData`, so state changes re-render on device (today `onTap` is a stub).
+None of the following exists today — the target is static export only:
+
+- **Full interactivity** — would require a JS interpreter that evaluates QORM
+  bindings/actions and `setData` on device. **Not implemented**: today `onTap`
+  only logs a static-export notice; actions do not run in mini-programs.
 - **Vendor profiles** — per-vendor capability differences (WeChat / Alipay /
   ByteDance …), review/debug constraints, and degraded-capability declarations.
+  **Not implemented.**
 
 ## Constraints (vendor sandbox)
 

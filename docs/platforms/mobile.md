@@ -104,14 +104,7 @@ Bundle cache
 
 ## No JIT
 
-Mobile does not use a Native JIT. Performance relies on:
-
-```text
-Typed IR
-Execution Plan
-Dirty Tree
-Render Cache
-Text Cache
-Texture Atlas
-GPU-first rendering
-```
+Mobile does not use a Native JIT. Today the only render path is `internal/render`'s
+HTML/CSS, displayed by the platform WebView (the Go runtime ships as WASM).
+GPU-first rendering (typed IR, execution plan, dirty tree, texture atlas) is
+roadmap work — see `planning/`.

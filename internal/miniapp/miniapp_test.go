@@ -39,6 +39,11 @@ func TestBuildProjectWeChat(t *testing.T) {
 	if strings.Count(wxml, "<image") != strings.Count(wxml, "</image>") {
 		t.Error("every <image> must be closed for the WXML parser")
 	}
+
+	// the page JS must tell developers this is a static export with no runtime
+	if js := files["pages/index/index.js"]; !strings.Contains(js, "static export — actions do not run in mini-programs") {
+		t.Error("pages/index/index.js should carry the static-export developer notice")
+	}
 }
 
 // TestWXMLValidForRichApp checks a widget-heavy app (icons, charts, varied

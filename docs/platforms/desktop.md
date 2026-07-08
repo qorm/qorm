@@ -70,15 +70,9 @@ system.automation
 
 ## Rendering
 
-Desktop can validate these first:
-
-```text
-Display List
-Render Graph
-GPU-first renderer
-text cache
-texture atlas
-```
+Today desktop has a single render path: `internal/render` produces HTML/CSS,
+which the native WebView displays. A GPU-first renderer (display list, render
+graph, text cache, texture atlas) is roadmap work — see `planning/`.
 
 ## Development tools
 

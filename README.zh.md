@@ -59,7 +59,7 @@ claude mcp add qorm -- qorm mcp .      # or add integrations/mcp.json to your ag
 | macOS | ok | ok | ok | ok |
 | Linux | beta | ok | ok | ok |
 | Windows | beta | ok | ok | ok |
-| 小程序 | ok | beta | beta | beta |
+| 小程序 | ok | beta | — | — |
 <!-- support-summary:end -->
 
 `ok` 已支持且已测试 · `beta` 基础/部分能力 · `—` 不适用。完整的特性清单

@@ -31,9 +31,9 @@ QORM 在各运行目标上的支持情况一览。 **`ok`** = 已支持并测试
 
 | 特征/能力 | Web | iOS | Android | macOS | Linux | Windows | 小程序 |
 |---|---|---|---|---|---|---|---|
-| 实时状态/动作/绑定 | ok | ok | ok | ok | ok | ok | beta |
-| 表达式绑定 (Expression bindings) | ok | ok | ok | ok | ok | ok | beta |
-| 条件渲染与数据绑定列表 | ok | ok | ok | ok | ok | ok | beta |
+| 实时状态/动作/绑定 | ok | ok | ok | ok | ok | ok | — |
+| 表达式绑定 (Expression bindings) | ok | ok | ok | ok | ok | ok | — |
+| 条件渲染与数据绑定列表 | ok | ok | ok | ok | ok | ok | — |
 | Go 中间层（自定义原生操作） | ok | ok | ok | ok | ok | ok | — |
 | 硬件与 OS 能力 | ok | ok | ok | ok | beta | beta | beta |
 
@@ -41,9 +41,9 @@ QORM 在各运行目标上的支持情况一览。 **`ok`** = 已支持并测试
 
 | 特征/能力 | Web | iOS | Android | macOS | Linux | Windows | 小程序 |
 |---|---|---|---|---|---|---|---|
-| MCP 服务端（读取/编辑/验证） | ok | ok | ok | ok | ok | ok | beta |
+| MCP 服务端（读取/编辑/验证） | ok | ok | ok | ok | ok | ok | — |
 | 人机共享实时会话 (SSE) | ok | ok | ok | ok | ok | ok | — |
-| 审查限制编辑 (preview → apply) | ok | ok | ok | ok | ok | ok | ok |
+| 审查限制编辑 (preview → apply) | ok | ok | ok | ok | ok | ok | — |
 | 自我验证渲染 (qorm measure / check) | ok | ok | ok | ok | ok | ok | — |
 
 ## 备注说明
@@ -59,12 +59,12 @@ QORM 在各运行目标上的支持情况一览。 **`ok`** = 已支持并测试
 - **自定义组件（JSON 定义）** —— 在 qorm.json 中声明，采用 {{prop.x}} 模板
 - **多语言与 RTL 支持 (i18n / RTL)** —— ICU 消息、复数、货币、自右向左文本支持
 - **原生窗口（无边框/透明）** —— 需使用 -tags desktop 编译；macOS 为参考实现
-- **实时状态/动作/绑定** —— 小程序在基础切片中是静态的
-- **表达式绑定 (Expression bindings)** —— 算术、比较、三元、字符串操作、内置函数
-- **条件渲染与数据绑定列表** —— if: 条件渲染，列表重复以及 {{item.*}} 作用域
+- **实时状态/动作/绑定** —— 小程序为仅静态导出（static export only），设备端无运行时
+- **表达式绑定 (Expression bindings)** —— 算术、比较、三元、字符串操作、内置函数；小程序为仅静态导出（导出时求值一次）
+- **条件渲染与数据绑定列表** —— if: 条件渲染，列表重复以及 {{item.*}} 作用域；小程序为仅静态导出（导出时求值一次）
 - **Go 中间层（自定义原生操作）** —— 将单个 native/desktop.go 编译入桌面端以及移动端/Web 的 WASM 中
 - **硬件与 OS 能力** —— 各能力的详细支持情况见 capabilities.md
-- **MCP 服务端（读取/编辑/验证）** —— 对运行中的应用通过 stdio 或 /mcp 进行交互
+- **MCP 服务端（读取/编辑/验证）** —— 对运行中的应用通过 stdio 或 /mcp 进行交互；小程序为仅静态导出（static export only），实时工具不适用
 - **人机共享实时会话 (SSE)** —— AI 的编辑立即显示在人类浏览器中；人类的点击和输入焦点反馈在 qorm_activity 中
-- **审查限制编辑 (preview → apply)** —— 应用补丁的 apply_patch 必须携带 preview token
+- **审查限制编辑 (preview → apply)** —— 应用补丁的 apply_patch 必须携带 preview token；小程序为仅静态导出（static export only）
 - **自我验证渲染 (qorm measure / check)** —— 渲染应用并报告真实的几何空间布局
