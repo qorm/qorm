@@ -95,15 +95,17 @@ func usage() {
 
 usage:
   qorm new <dir> [--name "App Name"]              scaffold a new runnable app
-  qorm run <app-dir|bundle> [--trust pub.key] [--revoked list.json] [--app] [--port N=10383] [--no-open]
-                                                  run app live (verifies signed bundles; --app = standalone window)
+  qorm run <app-dir|bundle> [--trust pub.key] [--revoked list.json] [--app] [--port N=10383] [--no-open] [--mcp-read-only]
+                                                  run app live (verifies signed bundles; --app = standalone window;
+                                                  --mcp-read-only = agents may inspect but not mutate)
   qorm render <app-dir|scene.json> [-o out.html]  write a static HTML snapshot
   qorm shot <app-dir> -o out.png                 render an app to a PNG (macOS, -tags desktop)
   qorm measure <app-dir> [-o report.json]          render + self-measure layout & styles (needs -tags desktop)
   qorm check <app-dir> (--checks c.json | --audit) [-o r.json]
                                                   verify layout/styles/behaviour vs expectations (or generic audit)
-  qorm build <app-dir> -o app.qorm.bundle [--key priv.key]
-                                                  compile (+optionally sign) a bundle
+  qorm build <app-dir> -o app.qorm.bundle [--key priv.key] [--require-capability camera,location]
+                                                  compile (+optionally sign) a bundle; declared capabilities are
+                                                  enforced at startup on the running platform
   qorm keygen [--out-dir .]                        generate an ed25519 signing keypair
   qorm sign <bundle> --key priv.key [-o out]       sign an existing (e.g. agent-exported) bundle
   qorm verify <bundle> [--trust pub.key] [--revoked list.json]
@@ -216,7 +218,10 @@ func buildServer(path, trustPath, revokedPath string) (*server.Server, string, e
 						name = n
 					}
 				}
-				srv := server.NewBundle(b, trust, revoked)
+				srv, serr := server.NewBundle(b, trust, revoked)
+				if serr != nil {
+					return nil, "", serr
+				}
 				// so the server injects native/web.js sitting beside the bundle
 				srv.SetAppBaseDir(filepath.Dir(path))
 				return srv, name, nil

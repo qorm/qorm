@@ -150,3 +150,67 @@ func TestLocalesSurviveBundle(t *testing.T) {
 		t.Errorf("defaultLocale lost through bundle, got %q", rebuilt.DefaultLocale)
 	}
 }
+
+func TestRequiredCapabilitiesRoundTrip(t *testing.T) {
+	b, err := Build(counterDir())
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	if err := b.SetRequiredCapabilities([]string{"camera", "location"}); err != nil {
+		t.Fatalf("SetRequiredCapabilities: %v", err)
+	}
+	pub, priv, _ := keys.Generate()
+	if err := b.Sign(priv, keys.KeyID(pub)); err != nil {
+		t.Fatalf("sign: %v", err)
+	}
+
+	// Requirements survive marshal/unmarshal and stay covered by the signature.
+	data, err := Marshal(b)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	got, err := Unmarshal(data)
+	if err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	caps := got.RequiredCapabilities()
+	if len(caps) != 2 || caps[0] != "camera" || caps[1] != "location" {
+		t.Fatalf("requiredCapabilities lost in round-trip: %v", caps)
+	}
+	if err := Verify(got, pub); err != nil {
+		t.Fatalf("signed bundle with requirements should verify: %v", err)
+	}
+
+	// Tampering with the declared requirements breaks the hash/signature —
+	// an attacker cannot silently drop a requirement.
+	got.Content.RequiredCapabilities = nil
+	if err := Verify(got, pub); err == nil {
+		t.Fatal("stripping requiredCapabilities must fail verification")
+	}
+}
+
+func TestLegacyBundleWithoutRequiredCapabilities(t *testing.T) {
+	// A bundle built with no requirements encodes exactly as pre-field bundles
+	// did (omitempty), so old bundles keep verifying and report nil.
+	b, err := Build(counterDir())
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	data, err := Marshal(b)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if strings.Contains(string(data), "requiredCapabilities") {
+		t.Fatal("bundles without requirements must not encode the field (hash compat with old bundles)")
+	}
+	got, err := Unmarshal(data)
+	if err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if got.RequiredCapabilities() != nil {
+		t.Fatalf("legacy bundle should report nil requirements, got %v", got.RequiredCapabilities())
+	}
+	if err := Verify(got, nil); err != nil {
+		t.Fatalf("legacy bundle must still verify: %v", err)
+	}
+}

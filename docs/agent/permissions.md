@@ -46,6 +46,10 @@ deploy
 
 Here, `filesystem.saveFile` denotes a file-write capability; its permission key is usually `filesystem.write`.
 
+## Runtime Enforcement
+
+The `read-only` level is enforced at runtime by `qorm run --mcp-read-only`: the shared MCP session then rejects mutating tools (`qorm_dispatch`, `qorm_set_state`, `qorm_apply_patch`, `qorm_undo`) with a JSON-RPC "read-only mode" error, while inspection and preview tools keep working.
+
 ## Permission Declaration
 
 ```json

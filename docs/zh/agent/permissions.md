@@ -48,6 +48,10 @@ deploy
 
 这里 `filesystem.saveFile` 表示文件写入能力;其权限键通常是 `filesystem.write`。
 
+## 运行时强制执行
+
+`read-only` 级别通过 `qorm run --mcp-read-only` 在运行时强制执行:共享 MCP 会话会以 JSON-RPC "read-only mode" 错误拒绝会产生变更的工具(`qorm_dispatch`、`qorm_set_state`、`qorm_apply_patch`、`qorm_undo`),而检查与预览类工具继续正常工作。
+
 ## 权限声明
 
 ```json
