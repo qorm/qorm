@@ -236,7 +236,7 @@ func cmdPackage(args []string) int {
 // buildWASM compiles the client-side runtime for the browser/WebView.
 func buildWASM(dst, appDir string) error {
 	defer injectUserGo(appDir, "github.com/qorm/qorm/cmd/qorm-wasm")()
-	cmd := exec.Command("go", "build", "-o", dst, "github.com/qorm/qorm/cmd/qorm-wasm")
+	cmd := exec.Command("go", "build", "-ldflags", "-s -w", "-trimpath", "-o", dst, "github.com/qorm/qorm/cmd/qorm-wasm")
 	cmd.Env = append(os.Environ(), "GOOS=js", "GOARCH=wasm")
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
