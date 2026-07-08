@@ -179,6 +179,11 @@ func desktopNotify(title, body, id string) {
 func desktopHardwareLinux(op string, m map[string]interface{}, cb func(string)) {
 	num := func(s string) int { n, _ := strconv.Atoi(strings.TrimSpace(s)); return n }
 	switch op {
+	case "volumeSet":
+		if v, ok := m["value"].(float64); ok {
+			exec.Command("pactl", "set-sink-volume", "@DEFAULT_SINK@", fmt.Sprintf("%d%%", int(v*100))).Run()
+			cb(fmt.Sprintf("qormOnVolume(%g)", v))
+		}
 	case "volumeGet", "volumeUp", "volumeDown":
 		if op == "volumeUp" {
 			exec.Command("pactl", "set-sink-volume", "@DEFAULT_SINK@", "+6%").Run()
@@ -203,6 +208,15 @@ func desktopHardwareLinux(op string, m map[string]interface{}, cb func(string)) 
 		st, _ := os.ReadFile(base + "status")
 		charging := strings.TrimSpace(string(st)) == "Charging" || strings.TrimSpace(string(st)) == "Full"
 		cb(fmt.Sprintf("qormOnBattery(%g,%t)", float64(num(string(cap)))/100, charging))
+	case "brightnessSet":
+		if v, ok := m["value"].(float64); ok {
+			exec.Command("brightnessctl", "set", fmt.Sprintf("%d%%", int(clamp01(v)*100))).Run()
+			if lvl, ok2 := linuxBrightness(); ok2 {
+				cb(fmt.Sprintf("qormOnBrightness(%g)", lvl))
+			} else {
+				cb(brightnessUnsupportedJS)
+			}
+		}
 	case "brightnessGet", "brightnessUp", "brightnessDown":
 		// Best-effort via brightnessctl (backlight). Falls back to a clear
 		// "n/a on desktop" when there's no backlight/tool, so the auto-fired
@@ -234,6 +248,9 @@ func desktopHardwareLinux(op string, m map[string]interface{}, cb func(string)) 
 		if t, _ := m["text"].(string); t != "" {
 			exec.Command("spd-say", t).Start()
 		}
+	case "speakStop":
+		// -C cancels all queued messages via speech-dispatcher (no pkill).
+		exec.Command("spd-say", "-C").Run()
 	case "openURL":
 		if u, _ := m["url"].(string); u != "" {
 			exec.Command("xdg-open", u).Run()
@@ -423,6 +440,16 @@ func desktopHardwareDarwin(op string, m map[string]interface{}, cb func(string))
 			sh(fmt.Sprintf("set volume output volume %d", int(v*100)))
 		}
 		cb(fmt.Sprintf("qormOnVolume(%g)", v))
+	case "brightnessSet":
+		if v, ok := m["value"].(float64); ok {
+			nativeBrightnessSet(clamp01(v))
+			if lvl, ok2 := darwinBrightness(); ok2 {
+				cb(fmt.Sprintf("qormOnBrightness(%g)", lvl))
+			} else {
+				cb(fmt.Sprintf("qormOnBrightness(%g)", clamp01(v)))
+			}
+		}
+		return
 	case "brightnessGet", "brightnessUp", "brightnessDown":
 		if lvl, ok := darwinBrightness(); ok {
 			if op == "brightnessUp" || op == "brightnessDown" {
