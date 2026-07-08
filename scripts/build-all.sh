@@ -27,4 +27,9 @@ for t in "${targets[@]}"; do
     go build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o "$name" ./cmd/qorm
   printf "  %-22s %s\n" "$t" "$(du -h "$name" | cut -f1)"
 done
+
+# Checksum manifest for the assets (portable across mac/linux: done in Go).
+# When QORM_RELEASE_KEY points at an ed25519 private key (see `qorm keygen`),
+# the manifest is also signed to SHA256SUMS.sig for `qorm update` verification.
+go run ./cmd/qorm __release-sign "$OUT"
 echo "done."

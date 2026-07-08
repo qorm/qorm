@@ -65,6 +65,8 @@ func main() {
 		os.Exit(cmdUpdates(os.Args[2:]))
 	case "update":
 		os.Exit(cmdUpdate(os.Args[2:]))
+	case "__release-sign": // internal: checksum + ed25519-sign release assets (CI)
+		os.Exit(cmdReleaseSign(os.Args[2:]))
 	case "__logwin": // internal: open the separate log window (desktop)
 		if len(os.Args) >= 4 {
 			runLogWindow(os.Args[2], os.Args[3])
@@ -113,7 +115,7 @@ usage:
                                                   render a packaged app and report its layout
   qorm docs [--docs docs] [-o site]                render the markdown docs to a static HTML site
   qorm updates <bundles-dir> [--port N]            OTA publish server (staged rollout via rollout.json)
-  qorm update                                      update the CLI to the latest version
+  qorm update [--insecure-skip-verify]             update the CLI to the latest version (verifies signed checksums)
   qorm version                                     print the version
 `)
 }
