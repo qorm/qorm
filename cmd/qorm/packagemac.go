@@ -42,7 +42,6 @@ func macPermKeys(appName, srcDir string) string {
 }
 
 func scaffoldMac(out, name, appName, srcDir string, rel releaseOpts) error {
-	_ = rel // release signing/notarization/DMG lands with v0.2.1 A3
 	id := pkgID(name)
 	bundle := filepath.Join(out, appName+".app")
 	macos := filepath.Join(bundle, "Contents", "MacOS")
@@ -71,6 +70,13 @@ func scaffoldMac(out, name, appName, srcDir string, rel releaseOpts) error {
 	}
 	// icon (.icns from the QORM logo) + Info.plist
 	makeICNS(filepath.Join(res, "AppIcon.icns"), srcDir)
+	appVersion, buildNum := rel.AppVersion, rel.BuildNum
+	if appVersion == "" {
+		appVersion = "1.0"
+	}
+	if buildNum == "" {
+		buildNum = "1"
+	}
 	plist := `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
@@ -80,7 +86,8 @@ func scaffoldMac(out, name, appName, srcDir string, rel releaseOpts) error {
   <key>CFBundleExecutable</key><string>` + id + `</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>1.0</string>
+  <key>CFBundleShortVersionString</key><string>` + appVersion + `</string>
+  <key>CFBundleVersion</key><string>` + buildNum + `</string>
   <key>LSMinimumSystemVersion</key><string>10.13</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSQuitAlwaysKeepsWindows</key><false/>
@@ -88,16 +95,186 @@ func scaffoldMac(out, name, appName, srcDir string, rel releaseOpts) error {
 	if err := os.WriteFile(filepath.Join(bundle, "Contents", "Info.plist"), []byte(plist), 0o644); err != nil {
 		return err
 	}
-	// Ad-hoc code-sign the finished bundle so macOS can PROMPT for TCC-protected
-	// APIs (Bluetooth, camera, mic, location) on first use instead of killing an
-	// unsigned .app the moment it touches them.
-	sign := exec.Command("codesign", "--force", "--deep", "--sign", "-", bundle)
+	if !rel.Release {
+		// Ad-hoc code-sign the finished bundle so macOS can PROMPT for TCC-protected
+		// APIs (Bluetooth, camera, mic, location) on first use instead of killing an
+		// unsigned .app the moment it touches them.
+		sign := exec.Command("codesign", "--force", "--deep", "--sign", "-", bundle)
+		sign.Stderr = os.Stderr
+		if err := sign.Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "warn: ad-hoc codesign failed (%v) — TCC-protected APIs may still crash\n", err)
+		}
+		fmt.Printf("packaged %s -> %s (double-click to run)\n", appName, bundle)
+		return nil
+	}
+	// --release: Developer ID signature (hardened runtime), then DMG, then
+	// optional notarization. Never falls back to ad-hoc — a release artifact
+	// that Gatekeeper rejects on every other Mac is worse than a hard error.
+	identity := rel.Identity
+	if identity == "" {
+		var err error
+		if identity, err = findDeveloperID(); err != nil {
+			return err
+		}
+	}
+	if err := signMacRelease(bundle, identity); err != nil {
+		return err
+	}
+	artifact := bundle // what gets notarized (and shipped)
+	if !rel.NoDMG {
+		dmg := filepath.Join(out, appName+".dmg")
+		if err := makeDMG(bundle, dmg, appName); err != nil {
+			return err
+		}
+		// sign the DMG too, so the container itself carries a Developer ID seal
+		sign := exec.Command("codesign", "--force", "--timestamp", "--sign", identity, dmg)
+		sign.Stderr = os.Stderr
+		if err := sign.Run(); err != nil {
+			return fmt.Errorf("codesign of %s failed: %w", dmg, err)
+		}
+		artifact = dmg
+	}
+	if rel.Notarize {
+		if err := notarizeMac(artifact, rel); err != nil {
+			return err
+		}
+	}
+	fmt.Printf("packaged %s -> %s (signed \"%s\")\n", appName, artifact, identity)
+	return nil
+}
+
+// findDeveloperID auto-discovers the single "Developer ID Application" signing
+// identity in the keychain. Zero or several candidates is a hard error (with
+// the list, so --identity can pick one) — a --release build must never fall
+// back to an ad-hoc signature silently.
+func findDeveloperID() (string, error) {
+	out, err := exec.Command("security", "find-identity", "-v", "-p", "codesigning").Output()
+	if err != nil {
+		return "", fmt.Errorf("security find-identity failed: %w", err)
+	}
+	var ids []string
+	for _, line := range strings.Split(string(out), "\n") {
+		if !strings.Contains(line, "Developer ID Application") {
+			continue
+		}
+		// `  1) <SHA1> "Developer ID Application: Some Name (TEAMID)"`
+		if i := strings.Index(line, `"`); i >= 0 {
+			ids = append(ids, strings.Trim(strings.TrimSpace(line[i:]), `"`))
+		}
+	}
+	switch len(ids) {
+	case 1:
+		return ids[0], nil
+	case 0:
+		return "", fmt.Errorf("--release needs a \"Developer ID Application\" certificate, but `security find-identity -v -p codesigning` lists none; enroll in the Apple Developer Program and install one (Xcode > Settings > Accounts > Manage Certificates), or pass --identity")
+	default:
+		return "", fmt.Errorf("multiple Developer ID Application identities found — pick one with --identity:\n  %s", strings.Join(ids, "\n  "))
+	}
+}
+
+// signMacRelease signs the .app with a Developer ID identity and the hardened
+// runtime (both required by the notary service). No --deep: Apple no longer
+// recommends it, and this bundle has exactly one nested binary, so signing the
+// .app once (codesign covers the main executable inside-out) is sufficient.
+func signMacRelease(bundlePath, identity string) error {
+	// Intentionally minimal entitlements (empty dict). If WKWebView ever
+	// crashes under the hardened runtime, add here:
+	//   <key>com.apple.security.cs.allow-unsigned-executable-memory</key><true/>
+	ent := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!-- Minimal on purpose. If WKWebView crashes under the hardened runtime, add:
+     <key>com.apple.security.cs.allow-unsigned-executable-memory</key><true/> -->
+<dict/>
+</plist>
+`
+	entPath := filepath.Join(filepath.Dir(bundlePath), "release.entitlements")
+	if err := os.WriteFile(entPath, []byte(ent), 0o644); err != nil {
+		return err
+	}
+	sign := exec.Command("codesign", "--force", "--options", "runtime", "--timestamp",
+		"--entitlements", entPath, "--sign", identity, bundlePath)
 	sign.Stderr = os.Stderr
 	if err := sign.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "warn: ad-hoc codesign failed (%v) — TCC-protected APIs may still crash\n", err)
+		return fmt.Errorf("release codesign of %s failed: %w", bundlePath, err)
 	}
-	fmt.Printf("packaged %s -> %s (double-click to run)\n", appName, bundle)
 	return nil
+}
+
+// makeDMG wraps the signed .app in a compressed (UDZO) disk image — the
+// canonical "drag to Applications" macOS distribution artifact.
+func makeDMG(appBundle, dmgPath, volName string) error {
+	cmd := exec.Command("hdiutil", "create", "-volname", volName, "-srcfolder", appBundle, "-ov", "-format", "UDZO", dmgPath)
+	cmd.Stdout = os.Stderr
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("hdiutil create %s failed: %w", dmgPath, err)
+	}
+	return nil
+}
+
+// notarizeMac submits the artifact (the .dmg, or with --no-dmg the .app, which
+// gets ditto-zipped first — notarytool won't take a bare bundle) to Apple's
+// notary service, waits, and staples the ticket to the artifact and to the
+// sibling .app so Gatekeeper passes even offline.
+func notarizeMac(path string, rel releaseOpts) error {
+	profile := rel.KeychainProfile
+	if profile == "" {
+		profile = "qorm"
+	}
+	target := path
+	if strings.HasSuffix(path, ".app") {
+		zip := strings.TrimSuffix(path, ".app") + ".zip"
+		z := exec.Command("ditto", "-c", "-k", "--keepParent", path, zip)
+		z.Stderr = os.Stderr
+		if err := z.Run(); err != nil {
+			return fmt.Errorf("ditto zip for notarization failed: %w", err)
+		}
+		defer os.Remove(zip)
+		target = zip
+	}
+	fmt.Fprintf(os.Stderr, "notarizing %s with keychain profile %q (waits on Apple, typically minutes)…\n", filepath.Base(target), profile)
+	sub := exec.Command("xcrun", "notarytool", "submit", target, "--keychain-profile", profile, "--wait")
+	out, err := sub.CombinedOutput()
+	os.Stderr.Write(out)
+	if err != nil || !strings.Contains(string(out), "status: Accepted") {
+		logID := "<submission-id>"
+		if id := notarySubmissionID(string(out)); id != "" {
+			logID = id
+		}
+		return fmt.Errorf(`notarization failed; per-file reasons:
+  xcrun notarytool log %s --keychain-profile %s
+first-time setup (password = app-specific password from appleid.apple.com):
+  xcrun notarytool store-credentials %s --apple-id <you@example.com> --team-id <TEAMID> --password <app-specific-password>`,
+			logID, profile, profile)
+	}
+	// staple the ticket: the artifact itself, plus the .app beside a .dmg (the
+	// DMG's ticket covers the bundle it contains).
+	staple := []string{path}
+	if strings.HasSuffix(path, ".dmg") {
+		if app := strings.TrimSuffix(path, ".dmg") + ".app"; dirExists(app) {
+			staple = append(staple, app)
+		}
+	}
+	for _, p := range staple {
+		s := exec.Command("xcrun", "stapler", "staple", p)
+		s.Stderr = os.Stderr
+		if err := s.Run(); err != nil {
+			return fmt.Errorf("stapler staple %s failed: %w", p, err)
+		}
+	}
+	return nil
+}
+
+// notarySubmissionID pulls the first "id: <uuid>" out of notarytool output so
+// a failure can point at the exact notary log to fetch.
+func notarySubmissionID(out string) string {
+	for _, line := range strings.Split(out, "\n") {
+		if f := strings.Fields(line); len(f) == 2 && f[0] == "id:" {
+			return f[1]
+		}
+	}
+	return ""
 }
 
 // makeICNS builds an .icns from the embedded QORM logo via iconutil.
