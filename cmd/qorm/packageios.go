@@ -93,7 +93,9 @@ struct QormWidget: Widget {
 }
 
 // iosWidgetTarget returns the XcodeGen target for the widget extension, or "".
-func iosWidgetTarget(hasWidget bool, id, name, team string) string {
+// The widget's version MUST match the app's (App Store validation rejects
+// mismatched CFBundleShortVersionString between an app and its extensions).
+func iosWidgetTarget(hasWidget bool, id, name, team, appVersion, buildNum string) string {
 	if !hasWidget {
 		return ""
 	}
@@ -111,8 +113,8 @@ func iosWidgetTarget(hasWidget bool, id, name, team string) string {
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.qorm.` + id + `.widget
-        MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "1"
+        MARKETING_VERSION: "` + appVersion + `"
+        CURRENT_PROJECT_VERSION: "` + buildNum + `"
         CODE_SIGN_ENTITLEMENTS: ` + id + `Widget.entitlements` + signingYML(team)
 }
 
@@ -169,9 +171,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 // scaffoldIOS generates a WKWebView iOS app around the offline web payload
 // (out/www, kept as a folder reference so the WASM asset structure is
 // preserved), builds the .xcodeproj with XcodeGen, and does a simulator build
-// (no signing) to verify it compiles. A device IPA needs the user's signing.
+// (no signing) to verify it compiles. With --release it instead archives and
+// exports a signed, distributable .ipa (see archiveIOS).
 func scaffoldIOS(out, name, appName, team, dev, appDir string, rel releaseOpts) error {
-	_ = rel // release archive/export lands with v0.2.1 A1
+	// A release archive MUST be signed — refuse up front rather than silently
+	// falling back to an unsigned/simulator build.
+	if rel.Release && team == "" && rel.APIKey == "" {
+		return fmt.Errorf("--release requires signing: pass --team <TEAMID> (Apple Developer team), or --api-key <key.p8> --api-key-id <ID> --api-issuer <ISSUER> for unattended App Store Connect signing")
+	}
 	id := pkgID(name)
 	widgets := appWidgets(appDir)
 	hasWidget := len(widgets) > 0 && dev == ""
@@ -214,12 +221,12 @@ targets:
 ` + iosInfo(dev, appName, appDir) + `    settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.qorm.` + id + `
-        MARKETING_VERSION: "1.0"
-        CURRENT_PROJECT_VERSION: "1"
+        MARKETING_VERSION: "` + rel.AppVersion + `"
+        CURRENT_PROJECT_VERSION: "` + rel.BuildNum + `"
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_ENTITLEMENTS: ` + id + `.entitlements` + iosGenInfo(dev, appName, appDir) + signingYML(team) + `
-` + iosWidgetTarget(hasWidget, id, widgetName, team) + `
+` + iosWidgetTarget(hasWidget, id, widgetName, team, rel.AppVersion, rel.BuildNum) + `
 `,
 	}
 	if hasWidget {
@@ -236,8 +243,8 @@ targets:
   <array><string>` + appGroup + `</string></array>
 </dict></plist>`
 	}
-	for rel, content := range files {
-		p := filepath.Join(out, rel)
+	for relPath, content := range files {
+		p := filepath.Join(out, relPath)
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 			return err
 		}
@@ -246,6 +253,9 @@ targets:
 		}
 	}
 	fmt.Printf("generated iOS project -> %s\n", out)
+	if rel.Release {
+		return archiveIOS(out, id, team, rel)
+	}
 	return buildIOS(out, id, team)
 }
 
@@ -316,6 +326,129 @@ func buildIOS(dir, id, team string) error {
 	if _, e := os.Stat(appPath); e == nil {
 		fmt.Printf("  [ok] Simulator .app: %s\n  For a device build: pass --team <id>.\n", appPath)
 	}
+	return nil
+}
+
+// iosExportOptionsPlist renders the exportOptions.plist for xcodebuild
+// -exportArchive. method uses the Xcode 15.4+ names ("app-store-connect",
+// "release-testing", "debugging"), tolerating the pre-15.4 spellings; upload
+// sends the build straight to App Store Connect (TestFlight) instead of
+// leaving the .ipa on disk.
+func iosExportOptionsPlist(method, team string, upload bool) string {
+	switch method {
+	case "", "app-store": // old name for app-store-connect (pre-Xcode 15.4)
+		method = "app-store-connect"
+	case "ad-hoc": // old name for release-testing
+		method = "release-testing"
+	case "development": // old name for debugging
+		method = "debugging"
+	}
+	dest := "export"
+	if upload {
+		dest = "upload"
+	}
+	teamXML := ""
+	if team != "" {
+		teamXML = "\n  <key>teamID</key><string>" + team + "</string>"
+	}
+	return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>method</key><string>` + method + `</string>
+  <key>destination</key><string>` + dest + `</string>` + teamXML + `
+  <key>signingStyle</key><string>automatic</string>
+  <key>uploadSymbols</key><true/>
+</dict></plist>
+`
+}
+
+// archiveIOS is the release counterpart of buildIOS: XcodeGen, then a signed
+// Release archive (xcodebuild archive), then -exportArchive with a generated
+// exportOptions.plist, producing a distributable .ipa in the out dir (or an
+// upload straight to TestFlight with --upload). Unlike the debug paths, a
+// failed archive/export is a hard error — a release build must not silently
+// degrade to an unsigned artifact.
+func archiveIOS(dir, id, team string, rel releaseOpts) error {
+	if err := os.MkdirAll(filepath.Join(dir, "build"), 0o755); err != nil {
+		return err
+	}
+	optsRel := filepath.Join("build", "exportOptions.plist")
+	if err := os.WriteFile(filepath.Join(dir, optsRel),
+		[]byte(iosExportOptionsPlist(rel.ExportMethod, team, rel.Upload)), 0o644); err != nil {
+		return err
+	}
+	archivePath := filepath.Join("build", id+".xcarchive")
+	archiveArgs := []string{"-project", id + ".xcodeproj", "-scheme", id,
+		"-destination", "generic/platform=iOS", "-configuration", "Release",
+		"-archivePath", archivePath, "-allowProvisioningUpdates"}
+	if team != "" {
+		archiveArgs = append(archiveArgs, "DEVELOPMENT_TEAM="+team, "CODE_SIGN_STYLE=Automatic")
+	}
+	archiveArgs = append(archiveArgs, "archive")
+	exportArgs := []string{"-exportArchive", "-archivePath", archivePath,
+		"-exportOptionsPlist", optsRel,
+		"-exportPath", filepath.Join("build", "export"), "-allowProvisioningUpdates"}
+	if rel.APIKey != "" {
+		exportArgs = append(exportArgs,
+			"-authenticationKeyPath", rel.APIKey,
+			"-authenticationKeyID", rel.APIKeyID,
+			"-authenticationKeyIssuerID", rel.APIIssuer)
+	}
+	xg, xgErr := exec.LookPath("xcodegen")
+	xb, xbErr := exec.LookPath("xcodebuild")
+	if xgErr != nil || xbErr != nil {
+		fmt.Printf("  XcodeGen/Xcode not both present — sources are ready; produce the .ipa by hand:\n"+
+			"    cd %s && xcodegen\n"+
+			"    xcodebuild %s\n"+
+			"    xcodebuild %s\n",
+			dir, strings.Join(archiveArgs, " "), strings.Join(exportArgs, " "))
+		return nil
+	}
+	gen := exec.Command(xg, "generate")
+	gen.Dir = dir
+	gen.Stdout, gen.Stderr = os.Stderr, os.Stderr
+	if err := gen.Run(); err != nil {
+		return fmt.Errorf("xcodegen failed: %w (sources are ready at %s)", err, dir)
+	}
+	runArchive := func() error {
+		cmd := exec.Command(xb, archiveArgs...)
+		cmd.Dir = dir
+		cmd.Stdout, cmd.Stderr = os.Stderr, os.Stderr
+		return cmd.Run()
+	}
+	fmt.Fprintf(os.Stderr, "archiving for release (signed)…\n")
+	if err := runArchive(); err != nil {
+		fmt.Fprintf(os.Stderr, "archive failed — retrying without the NFC entitlement (needs a paid team)…\n")
+		dropNFCEntitlement(dir, id, xg)
+		if err := runArchive(); err != nil {
+			return fmt.Errorf("xcodebuild archive failed: %w — check that team %q can sign for distribution (a paid Apple Developer membership is required), or open %s/%s.xcodeproj in Xcode and use Product > Archive", err, team, dir, id)
+		}
+		fmt.Printf("  archived WITHOUT NFC (this team can't sign it); other hardware works, a paid team is needed for NFC.\n")
+	}
+	fmt.Fprintf(os.Stderr, "exporting the archive (%s)…\n", filepath.Base(optsRel))
+	exp := exec.Command(xb, exportArgs...)
+	exp.Dir = dir
+	exp.Stdout, exp.Stderr = os.Stderr, os.Stderr
+	if err := exp.Run(); err != nil {
+		return fmt.Errorf("xcodebuild -exportArchive failed: %w — inspect %s, adjust it if needed, then re-run:\n    cd %s && xcodebuild %s", err, filepath.Join(dir, optsRel), dir, strings.Join(exportArgs, " "))
+	}
+	if rel.Upload {
+		fmt.Printf("  [ok] archive uploaded to App Store Connect (check TestFlight once processing finishes).\n")
+		return nil
+	}
+	ipas, _ := filepath.Glob(filepath.Join(dir, "build", "export", "*.ipa"))
+	if len(ipas) == 0 {
+		return fmt.Errorf("export finished but no .ipa was produced under %s", filepath.Join(dir, "build", "export"))
+	}
+	data, err := os.ReadFile(ipas[0])
+	if err != nil {
+		return err
+	}
+	dst := filepath.Join(dir, filepath.Base(ipas[0]))
+	if err := os.WriteFile(dst, data, 0o644); err != nil {
+		return err
+	}
+	fmt.Printf("  [ok] Release .ipa: %s\n", dst)
 	return nil
 }
 
