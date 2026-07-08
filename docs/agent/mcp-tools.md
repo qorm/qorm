@@ -9,10 +9,10 @@ QORM exposes a [Model Context Protocol](https://modelcontextprotocol.io) server 
 
 | Tool | Parameters | What it does |
 |---|---|---|
-| `qorm_window` | `h` (integer), `id` (string), `js` (string), `op` (move\|open\|close\|eval\|tile\|focus\|minimize\|pin\|unpin), `url` (string), `w` (integer), `x` (integer), `y` (integer) | Control the desktop app window: op=move needs x,y,w,h (top-left px); op=focus/minimize/pin/unpin act on the window. The control engine positions the user's window. macOS desktop app only. |
-| `qorm_inspect` | — | Inspect the QORM app: id, name, entry scene, scene ids, state schema, current state, and action ids. Read-only. |
+| `qorm_window` | `h` (integer), `id` (string), `js` (string), `op` (move\|open\|close\|eval\|tile\|focus\|minimize\|pin\|unpin), `url` (string), `w` (integer), `x` (integer), `y` (integer) | Control the desktop app window: op=move needs x,y,w,h (top-left px); op=focus/minimize/pin/unpin act on the window. The control engine positions the user's window. Supported on macOS and Windows desktop apps. |
+| `qorm_inspect` | — | Inspect the QORM app: id, name, entry scene, scene ids, state schema, current state, action ids, and static compiler diagnostics. Read-only. |
 | `qorm_render_html` | — | Render the current app to HTML so the agent can see what the UI looks like. Read-only. |
-| `qorm_capabilities` | — | List all built-in hardware/native capabilities: each capability's canonical name + widget type, the qormToNative op strings it accepts, its qormOn<Name> callback, and which platforms (ios/android/mac/linux/windows/web) implement it. Read-only — how an agent discovers what hardware exists and exactly how to call it. |
+| `qorm_capabilities` | — | List all built-in hardware/native capabilities: each capability's canonical name + widget type, the qormToNative op strings it accepts, its qormOn<Name> callback, and which platforms (ios/android/mac/linux/windows/web) implement it. Read-only — how an agent discovers what hardware exists and exactly how to call it. Mini-program is a static export target: no live tools apply. |
 | `qorm_get_node` | `id`* (string) | Return a node's type, props, and child ids by node id. Read-only. |
 | `qorm_query` | `hasProp` (string), `idContains` (string), `textContains` (string), `type` (string) | Find nodes matching a selector (any of: type, textContains, idContains, hasProp — combined with AND). Returns each match's id, type, label and ancestor path. Use this to locate nodes before patching. Read-only. |
 | `qorm_list_actions` | — | List available actions and a summary of each action's steps. Read-only. |

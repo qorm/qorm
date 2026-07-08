@@ -35,12 +35,12 @@ func toolList() []tool {
 	return []tool{
 		{
 			Name:        "qorm_window",
-			Description: "Control the desktop app window: op=move needs x,y,w,h (top-left px); op=focus/minimize/pin/unpin act on the window. The control engine positions the user's window. macOS desktop app only.",
+			Description: "Control the desktop app window: op=move needs x,y,w,h (top-left px); op=focus/minimize/pin/unpin act on the window. The control engine positions the user's window. Supported on macOS and Windows desktop apps.",
 			InputSchema: obj(map[string]any{"id": strProp, "url": strProp, "js": strProp, "op": map[string]any{"type": "string", "enum": []string{"move", "open", "close", "eval", "tile", "focus", "minimize", "pin", "unpin"}}, "x": intProp, "y": intProp, "w": intProp, "h": intProp}),
 		},
 		{
 			Name:        "qorm_inspect",
-			Description: "Inspect the QORM app: id, name, entry scene, scene ids, state schema, current state, and action ids. Read-only.",
+			Description: "Inspect the QORM app: id, name, entry scene, scene ids, state schema, current state, action ids, and static compiler diagnostics. Read-only.",
 			InputSchema: obj(nil),
 		},
 		{
@@ -50,7 +50,7 @@ func toolList() []tool {
 		},
 		{
 			Name:        "qorm_capabilities",
-			Description: "List all built-in hardware/native capabilities: each capability's canonical name + widget type, the qormToNative op strings it accepts, its qormOn<Name> callback, and which platforms (ios/android/mac/linux/windows/web) implement it. Read-only — how an agent discovers what hardware exists and exactly how to call it.",
+			Description: "List all built-in hardware/native capabilities: each capability's canonical name + widget type, the qormToNative op strings it accepts, its qormOn<Name> callback, and which platforms (ios/android/mac/linux/windows/web) implement it. Read-only — how an agent discovers what hardware exists and exactly how to call it. Mini-program is a static export target: no live tools apply.",
 			InputSchema: obj(nil),
 		},
 		{
@@ -483,6 +483,7 @@ func (s *Server) inspect() map[string]any {
 		"actions":      actionIDs,
 		"stateSchema":  s.rt.App.GlobalState.Schema,
 		"currentState": s.rt.State,
+		"diagnostics":  s.rt.App.Diagnostics,
 	}
 }
 

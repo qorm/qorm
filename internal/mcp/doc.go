@@ -23,8 +23,8 @@ func ToolsMarkdown() string {
 }
 
 var toolDescriptionsZH = map[string]string{
-	"qorm_window":          "控制桌面应用窗口：op=move 时需要 x,y,w,h（左上角像素坐标）；op=focus/minimize/pin/unpin 作用于窗口。控制引擎调整用户窗口的位置。仅限 macOS 桌面应用。",
-	"qorm_inspect":         "检查 QORM 应用：id、名称、入口场景、场景 id 列表、状态模式 (schema)、当前状态以及动作 (action) id 列表。只读。",
+	"qorm_window":          "控制桌面应用窗口：op=move 时需要 x,y,w,h（左上角像素坐标）；op=focus/minimize/pin/unpin 作用于窗口。控制引擎调整用户窗口的位置。支持 macOS 和 Windows 桌面应用。",
+	"qorm_inspect":         "检查 QORM 应用：id、名称、入口场景、场景 id 列表、状态模式 (schema)、当前状态、动作 (action) id 列表以及静态编译诊断警告。只读。",
 	"qorm_render_html":     "将当前应用渲染为 HTML，以便智能体查看 UI 的外观。只读。",
 	"qorm_capabilities":    "列出所有内置的硬件/原生能力：每个能力的规范名称 + 组件类型、它接受的 qormToNative 操作字符串、它的 qormOn<Name> 回调，以及实现它的平台（ios/android/mac/linux/windows/web）。只读 —— 用于智能体发现存在哪些硬件以及如何调用它们。",
 	"qorm_get_node":        "通过节点 id 返回节点的类型、属性（props）和子节点 id 列表。只读。",
