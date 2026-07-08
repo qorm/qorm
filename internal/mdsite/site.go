@@ -17,8 +17,12 @@ type page struct {
 }
 
 // BuildSite renders every markdown file under docsDir into a linked static HTML
-// site under outDir, and returns the number of pages written.
-func BuildSite(docsDir, outDir string) (int, error) {
+// site under outDir, and returns the number of pages written. siteName is the
+// short label shown next to the logo (e.g. "docs" or "api").
+func BuildSite(docsDir, outDir, siteName string) (int, error) {
+	if siteName == "" {
+		siteName = "docs"
+	}
 	var pages []page
 	srcOf := map[string]string{} // htmlRel -> source md path
 
@@ -63,21 +67,21 @@ func BuildSite(docsDir, outDir string) (int, error) {
 	for _, p := range pages {
 		data, _ := os.ReadFile(srcOf[p.htmlRel])
 		body := RenderMarkdown(string(data))
-		nav := navHTML(pagesForLang(pages, p.lang), p.htmlRel)
+		nav := sidebarHTML(pages, p.lang, p.htmlRel)
 		out := filepath.Join(outDir, p.htmlRel)
 		if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
 			return 0, err
 		}
-		if err := os.WriteFile(out, []byte(pageHTML(p.title, langSwitchHTML(p, pages), nav, body)), 0o644); err != nil {
+		if err := os.WriteFile(out, []byte(pageHTML(p.title, p.lang, siteName, langSwitchHTML(p, pages), nav, body)), 0o644); err != nil {
 			return 0, err
 		}
 	}
 
 	// index.html: reuse an existing index/README page, else a generated landing.
 	if !hasPage(pages, "index.html") && !hasPage(pages, "README.html") {
-		nav := navHTML(pagesForLang(pages, "en"), "index.html")
+		nav := sidebarHTML(pages, "en", "index.html")
 		landing := "<h1>QORM Documentation</h1>\n<p>Select a page from the sidebar.</p>\n"
-		if err := os.WriteFile(filepath.Join(outDir, "index.html"), []byte(pageHTML("QORM Docs", "", nav, landing)), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(outDir, "index.html"), []byte(pageHTML("QORM", "en", siteName, "", nav, landing)), 0o644); err != nil {
 			return 0, err
 		}
 	} else if hasPage(pages, "README.html") && !hasPage(pages, "index.html") {
@@ -96,20 +100,9 @@ func hasPage(pages []page, htmlRel string) bool {
 	return false
 }
 
-// pagesForLang returns only the pages in the given language, so each language's
-// sidebar lists just its own pages.
-func pagesForLang(pages []page, lang string) []page {
-	var out []page
-	for _, p := range pages {
-		if p.lang == lang {
-			out = append(out, p)
-		}
-	}
-	return out
-}
-
 // langSwitchHTML builds the EN / 中文 toggle for a page, linking each language to
-// this page's counterpart when it exists (zh/foo.html <-> foo.html).
+// this page's counterpart when it exists (zh/foo.html <-> foo.html). The
+// data-lang attributes let the client remember the reader's language choice.
 func langSwitchHTML(p page, pages []page) string {
 	sep := string(filepath.Separator)
 	enRel, zhRel := p.htmlRel, "zh"+sep+p.htmlRel
@@ -120,13 +113,13 @@ func langSwitchHTML(p page, pages []page) string {
 	dir := filepath.Dir(p.htmlRel)
 	item := func(label, rel, code string) string {
 		if p.lang == code {
-			return `<span class="on">` + label + `</span>`
+			return `<span class="on" data-lang="` + code + `">` + label + `</span>`
 		}
 		if hasPage(pages, rel) {
 			link, _ := filepath.Rel(dir, rel)
-			return `<a href="` + filepath.ToSlash(link) + `">` + label + `</a>`
+			return `<a href="` + filepath.ToSlash(link) + `" data-lang="` + code + `">` + label + `</a>`
 		}
-		return `<span class="off">` + label + `</span>`
+		return `<span class="off" data-lang="` + code + `">` + label + `</span>`
 	}
 	return `<div class="lang">` + item("EN", enRel, "en") + item("中文", zhRel, "zh") + `</div>`
 }
@@ -141,41 +134,89 @@ func firstHeading(src, rel string) string {
 	return strings.TrimSuffix(filepath.Base(rel), ".md")
 }
 
-// navHTML builds a grouped sidebar with links relative to the current page.
-func navHTML(pages []page, current string) string {
+// groupLabels localises the sidebar section headings (derived from directory
+// names) so the Chinese sidebar reads in Chinese too.
+var groupLabels = map[string]map[string]string{
+	"":          {"en": "overview", "zh": "概览"},
+	"reference": {"en": "reference", "zh": "参考"},
+	"platforms": {"en": "platforms", "zh": "平台"},
+	"agent":     {"en": "agent", "zh": "智能体"},
+	"security":  {"en": "security", "zh": "安全"},
+	"examples":  {"en": "examples", "zh": "示例"},
+	"tutorials": {"en": "tutorials", "zh": "tutorials"},
+}
+
+func groupLabel(group, lang string) string {
+	if m, ok := groupLabels[group]; ok {
+		if v := m[lang]; v != "" {
+			return v
+		}
+		if v := m["en"]; v != "" {
+			return v
+		}
+	}
+	if group == "" {
+		return "overview"
+	}
+	return group
+}
+
+// sidebarHTML builds a grouped sidebar for the given language. The structure is
+// driven by the English page set (the superset), so no page ever vanishes from
+// the sidebar: each row links to the page's translation when one exists, and
+// otherwise falls back to the English page, tagged "EN". This is what keeps
+// language navigation from silently dropping the reader back into English.
+func sidebarHTML(all []page, lang, current string) string {
+	sep := string(filepath.Separator)
+	zhByRel := map[string]page{} // en-relative html path -> zh page
+	var base []page              // english pages define the sidebar order
+	for _, p := range all {
+		if p.lang == "zh" {
+			zhByRel[strings.TrimPrefix(p.htmlRel, "zh"+sep)] = p
+		} else {
+			base = append(base, p)
+		}
+	}
 	dir := filepath.Dir(current)
 	var b strings.Builder
 	lastGroup := "\x00"
-	for _, p := range pages {
+	for _, p := range base {
 		if p.group != lastGroup {
 			if lastGroup != "\x00" {
 				b.WriteString("</ul>")
 			}
-			label := p.group
-			if label == "" {
-				label = "overview"
-			}
-			fmt.Fprintf(&b, `<div class="nav-group">%s</div><ul>`, html.EscapeString(label))
+			fmt.Fprintf(&b, `<div class="nav-group">%s</div><ul>`, html.EscapeString(groupLabel(p.group, lang)))
 			lastGroup = p.group
 		}
-		link, _ := filepath.Rel(dir, p.htmlRel)
+		target, tag := p, ""
+		if lang == "zh" {
+			if z, ok := zhByRel[p.htmlRel]; ok {
+				target = z
+			} else {
+				tag = ` <span class="entag">EN</span>` // no translation yet
+			}
+		}
+		link, _ := filepath.Rel(dir, target.htmlRel)
 		cls := ""
-		if p.htmlRel == current {
+		if target.htmlRel == current {
 			cls = ` class="active"`
 		}
-		fmt.Fprintf(&b, `<li><a href="%s"%s>%s</a></li>`, link, cls, html.EscapeString(p.title))
+		fmt.Fprintf(&b, `<li><a href="%s"%s>%s%s</a></li>`, filepath.ToSlash(link), cls, html.EscapeString(target.title), tag)
 	}
 	b.WriteString("</ul>")
 	return b.String()
 }
 
-func pageHTML(title, langSwitch, nav, body string) string {
+func pageHTML(title, lang, siteName, langSwitch, nav, body string) string {
+	if lang == "" {
+		lang = "en"
+	}
 	return fmt.Sprintf(`<!doctype html>
-<html lang="en">
+<html lang="%s">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>%s · QORM docs</title>
+<title>%s · QORM</title>
 <link rel="icon" href="/assets/logo.svg">
 <style>
   :root{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
@@ -209,6 +250,7 @@ func pageHTML(title, langSwitch, nav, body string) string {
   aside li a{display:block;padding:6px 12px;color:var(--muted);border-radius:8px;font-size:14px;font-weight:500}
   aside li a:hover{background:var(--surface);color:var(--ink);text-decoration:none}
   aside li a.active{background:color-mix(in srgb,var(--accent) 14%%,transparent);color:var(--accent-ink);font-weight:600}
+  aside li a .entag{font-size:9.5px;font-weight:700;letter-spacing:.04em;color:var(--faint);border:.5px solid var(--line);border-radius:4px;padding:0 4px;margin-left:6px;vertical-align:1px}
   main{flex:1;min-width:0;max-width:800px;padding:38px 46px 90px}
   main>*:first-child{margin-top:0}
   main h1{font-size:33px;font-weight:800;letter-spacing:-.03em;margin:0 0 .5em}
@@ -228,7 +270,7 @@ func pageHTML(title, langSwitch, nav, body string) string {
 <body>
 <header class="top">
   <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
-  <span class="doc">docs</span>
+  <span class="doc">%s</span>
   <span class="sp"></span>
   <a class="tl" href="/">Home</a>
   <a class="tl" href="https://github.com/qorm/qorm">GitHub</a>
@@ -246,8 +288,16 @@ func pageHTML(title, langSwitch, nav, body string) string {
    function c(){return r.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');}
    function p(){b.innerHTML=c()==='dark'?sun:moon;} p();
    b.onclick=function(){r.setAttribute('data-theme',c()==='dark'?'light':'dark');p();};})();
+  (function(){/* remember the reader's language across pages + both sites */
+   try{var box=document.querySelector('header .lang');if(!box)return;
+     var cur=document.documentElement.lang;
+     box.querySelectorAll('[data-lang]').forEach(function(el){
+       if(el.tagName==='A')el.addEventListener('click',function(){try{localStorage.setItem('qorm-lang',el.getAttribute('data-lang'));}catch(e){}});});
+     var pref;try{pref=localStorage.getItem('qorm-lang');}catch(e){}
+     if(pref&&pref!==cur){var alt=box.querySelector('a[data-lang="'+pref+'"]');if(alt)location.replace(alt.getAttribute('href'));}
+   }catch(e){}})();
 </script>
 </body>
 </html>
-`, html.EscapeString(title), langSwitch, nav, body)
+`, lang, html.EscapeString(title), siteName, langSwitch, nav, body)
 }

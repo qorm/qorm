@@ -2,6 +2,7 @@ package integration
 
 import (
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -11,7 +12,7 @@ import (
 // widgetCatalog extracts the canonical widget type + its aliases + renderer from
 // the render node() switch, so the doc is generated from the ONE source of truth
 // (the switch itself) and can never drift.
-func widgetCatalog(t *testing.T) string {
+func widgetCatalog(t *testing.T, lang string) string {
 	t.Helper()
 	src, err := os.ReadFile("../../internal/render/render.go")
 	if err != nil {
@@ -63,11 +64,17 @@ func widgetCatalog(t *testing.T) string {
 	sort.Slice(groups, func(i, j int) bool { return groups[i].canonical < groups[j].canonical })
 
 	var b strings.Builder
-	b.WriteString("# Widget Catalog\n\n")
-	b.WriteString("> Auto-generated from the node() switch in `internal/render/render.go` (`TestWidgetCatalogInSync`) — do not edit by hand.\n")
-	b.WriteString("> Auto-generated from the render switch — do not edit by hand.\n\n")
-	b.WriteString("Each widget lists its **canonical name** first; the rest are equivalent aliases. Prefer the canonical name when writing apps.\n\n")
-	b.WriteString("| Canonical | Aliases | Renderer |\n|---|---|---|\n")
+	if lang == "zh" {
+		b.WriteString("# 组件目录\n\n")
+		b.WriteString("> 由 `internal/render/render.go` 的 node() 分发自动生成(`TestWidgetCatalogInSync`),请勿手工编辑。\n\n")
+		b.WriteString("每个组件先列出**规范名**,其余为等价别名。编写应用时优先用规范名。\n\n")
+		b.WriteString("| 规范名 | 别名 | 渲染器 |\n|---|---|---|\n")
+	} else {
+		b.WriteString("# Widget Catalog\n\n")
+		b.WriteString("> Auto-generated from the node() switch in `internal/render/render.go` (`TestWidgetCatalogInSync`) — do not edit by hand.\n\n")
+		b.WriteString("Each widget lists its **canonical name** first; the rest are equivalent aliases. Prefer the canonical name when writing apps.\n\n")
+		b.WriteString("| Canonical | Aliases | Renderer |\n|---|---|---|\n")
+	}
 	for _, g := range groups {
 		al := g.aliases
 		if al == "" {
@@ -83,16 +90,23 @@ func widgetCatalog(t *testing.T) string {
 // exactly what the renderer handles. Regenerate: QORM_UPDATE_DOCS=1 go test
 // ./internal/integration/ -run TestWidgetCatalogInSync
 func TestWidgetCatalogInSync(t *testing.T) {
-	const path = "../../api/widgets.md"
-	want := widgetCatalog(t)
-	if os.Getenv("QORM_UPDATE_DOCS") == "1" {
-		if err := os.WriteFile(path, []byte(want), 0o644); err != nil {
-			t.Fatal(err)
+	for _, tc := range []struct{ lang, path string }{
+		{"en", "../../api/widgets.md"},
+		{"zh", "../../api/zh/widgets.md"},
+	} {
+		want := widgetCatalog(t, tc.lang)
+		if os.Getenv("QORM_UPDATE_DOCS") == "1" {
+			if err := os.MkdirAll(filepath.Dir(tc.path), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(tc.path, []byte(want), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			continue
 		}
-		return
-	}
-	got, err := os.ReadFile(path)
-	if err != nil || string(got) != want {
-		t.Errorf("api/widgets.md out of sync — run: QORM_UPDATE_DOCS=1 go test ./internal/integration/ -run TestWidgetCatalogInSync")
+		got, err := os.ReadFile(tc.path)
+		if err != nil || string(got) != want {
+			t.Errorf("%s out of sync — run: QORM_UPDATE_DOCS=1 go test ./internal/integration/ -run TestWidgetCatalogInSync", tc.path)
+		}
 	}
 }

@@ -1,10 +1,10 @@
-# Widget Catalog
+# 组件目录
 
-> Auto-generated from the node() switch in `internal/render/render.go` (`TestWidgetCatalogInSync`) — do not edit by hand.
+> 由 `internal/render/render.go` 的 node() 分发自动生成(`TestWidgetCatalogInSync`),请勿手工编辑。
 
-Each widget lists its **canonical name** first; the rest are equivalent aliases. Prefer the canonical name when writing apps.
+每个组件先列出**规范名**,其余为等价别名。编写应用时优先用规范名。
 
-| Canonical | Aliases | Renderer |
+| 规范名 | 别名 | 渲染器 |
 |---|---|---|
 | `accordion` | — | `accordion` |
 | `actionsheet` | cupertinoactionsheet | `actionSheet` |

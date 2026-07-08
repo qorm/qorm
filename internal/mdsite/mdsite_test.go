@@ -39,7 +39,7 @@ func TestBuildSite(t *testing.T) {
 	os.WriteFile(filepath.Join(docs, "spec", "ir.md"), []byte("# IR Spec\n\nDetails."), 0o644)
 
 	out := t.TempDir()
-	n, err := BuildSite(docs, out)
+	n, err := BuildSite(docs, out, "docs")
 	if err != nil {
 		t.Fatalf("BuildSite: %v", err)
 	}

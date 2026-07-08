@@ -296,7 +296,11 @@ func TestAPIRefGoAPI(t *testing.T) {
 
 	build := func(lang, intro string) string {
 		var b strings.Builder
-		writeGenHeaderFrom(&b, lang, "Go package: qormext", intro, "github.com/qorm/qorm/pkg/qormext")
+		title := "Go package: qormext"
+		if lang == "zh" {
+			title = "Go 包:qormext"
+		}
+		writeGenHeaderFrom(&b, lang, title, intro, "github.com/qorm/qorm/pkg/qormext")
 		b.WriteString("```go\nimport \"github.com/qorm/qorm/pkg/qormext\"\n```\n\n")
 		b.WriteString(fenceGoDoc(dpkg.Doc) + "\n")
 
