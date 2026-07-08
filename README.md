@@ -274,3 +274,8 @@ The optional native-desktop window vendors the [webview](https://github.com/webv
 C/C++ library and its [Go binding](https://github.com/webview/webview_go) (MIT,
 (c) Serge Zaitsev) — thank you. The opt-in native-window approach was inspired by
 [Wails](https://github.com/wailsapp/wails).
+
+## Contributors
+
+- **QORM Team**
+- **Gemini** (Advanced Agentic Coding Pair Programmer)
