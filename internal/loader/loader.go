@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/qorm/qorm/internal/expr"
 	"github.com/qorm/qorm/internal/model"
 )
 
@@ -81,6 +82,8 @@ func CollectDocs(dir string) ([]map[string]any, error) {
 }
 
 // FromDocs assembles a model.App from a set of raw source documents.
+// Manifests are applied first (a scene file may sort before qorm.json) so the
+// globalState schema is known when scene/action expressions are type-checked.
 func FromDocs(docs []map[string]any) *model.App {
 	app := &model.App{
 		Scenes:  map[string]*model.Node{},
@@ -88,16 +91,21 @@ func FromDocs(docs []map[string]any) *model.App {
 	}
 	var diags []string
 	for _, doc := range docs {
-		switch asString(doc["type"]) {
-		case "app":
+		if asString(doc["type"]) == "app" {
 			applyManifest(app, doc, &diags)
+		}
+	}
+	sceneVars := stateVars(app.GlobalState.Schema, false)
+	actionVars := stateVars(app.GlobalState.Schema, true)
+	for _, doc := range docs {
+		switch asString(doc["type"]) {
 		case "scene":
 			if root, ok := doc["root"].(map[string]any); ok {
 				sceneID := asString(doc["id"])
-				app.Scenes[sceneID] = buildNode(root, &diags, sceneID)
+				app.Scenes[sceneID] = buildNode(root, &diags, sceneID, sceneVars)
 			}
 		case "action":
-			act := buildAction(doc, &diags)
+			act := buildAction(doc, &diags, actionVars)
 			if act.ID != "" {
 				app.Actions[act.ID] = act
 			}
@@ -108,6 +116,24 @@ func FromDocs(docs []map[string]any) *model.App {
 	}
 	app.Diagnostics = diags
 	return app
+}
+
+// stateVars maps the manifest's globalState schema onto the identifier names
+// visible to expressions, for expr.Check. Scene bindings see "state.count";
+// action expressions additionally see bare "count" (Runtime.Dispatch copies
+// top-level state keys into the context), enabled via bare.
+func stateVars(schema map[string]string, bare bool) map[string]string {
+	if len(schema) == 0 {
+		return nil
+	}
+	vars := make(map[string]string, len(schema)*2)
+	for k, t := range schema {
+		vars["state."+k] = t
+		if bare {
+			vars[k] = t
+		}
+	}
+	return vars
 }
 
 // LoadFile loads a single scene file (no app-level state binding).
@@ -124,7 +150,7 @@ func LoadFile(path string) (*model.App, error) {
 	if asString(doc["type"]) == "scene" {
 		if root, ok := doc["root"].(map[string]any); ok {
 			sceneID := asString(doc["id"])
-			app.Scenes[sceneID] = buildNode(root, &app.Diagnostics, sceneID)
+			app.Scenes[sceneID] = buildNode(root, &app.Diagnostics, sceneID, nil)
 			app.Entry = sceneID
 		}
 	}
@@ -238,9 +264,12 @@ func applyManifest(app *model.App, doc map[string]any, diags *[]string) {
 	}
 	if comps, ok := doc["components"].(map[string]any); ok {
 		app.Components = map[string]*model.Node{}
+		// Schema was parsed above (globalState precedes components in this
+		// function), so component expressions are type-checked too.
+		compVars := stateVars(app.GlobalState.Schema, false)
 		for name, def := range comps {
 			if m, ok := def.(map[string]any); ok {
-				app.Components[name] = buildNode(m, diags, "component:"+name)
+				app.Components[name] = buildNode(m, diags, "component:"+name, compVars)
 			}
 		}
 	}
@@ -277,9 +306,11 @@ func applyManifest(app *model.App, doc map[string]any, diags *[]string) {
 }
 
 // BuildNode builds a node tree from a raw JSON object (exported for patch ops).
-func BuildNode(m map[string]any) *model.Node { return buildNode(m, nil, "") }
+func BuildNode(m map[string]any) *model.Node { return buildNode(m, nil, "", nil) }
 
-func buildNode(m map[string]any, diags *[]string, sceneID string) *model.Node {
+// buildNode builds one node. vars is the identifier -> declared-type map for
+// static expression type checking (nil disables it, e.g. for patch ops).
+func buildNode(m map[string]any, diags *[]string, sceneID string, vars map[string]string) *model.Node {
 	nodeID := asString(m["id"])
 	nodeType := asString(m["type"])
 
@@ -297,8 +328,8 @@ func buildNode(m map[string]any, diags *[]string, sceneID string) *model.Node {
 			}
 		}
 
-		// 校验表达式格式（如非 state. 或 prop. 的绑定）
-		checkExpressions(m, diags, sceneID, nodeID)
+		// 校验表达式格式（如非 state. 或 prop. 的绑定）与静态类型
+		checkExpressions(m, diags, sceneID, nodeID, vars)
 	}
 
 	n := &model.Node{
@@ -319,13 +350,13 @@ func buildNode(m map[string]any, diags *[]string, sceneID string) *model.Node {
 	n.OnPress = parseInvoke(m["onPress"], diags, sceneID, nodeID, "onPress")
 	n.OnChange = parseInvoke(m["onChange"], diags, sceneID, nodeID, "onChange")
 	if ri, ok := m["renderItem"].(map[string]any); ok {
-		n.Template = buildNode(ri, diags, sceneID)
+		n.Template = buildNode(ri, diags, sceneID, vars)
 	}
 	n.Data = asString(m["data"])
 	if kids, ok := m["children"].([]any); ok {
 		for _, k := range kids {
 			if km, ok := k.(map[string]any); ok {
-				n.Children = append(n.Children, buildNode(km, diags, sceneID))
+				n.Children = append(n.Children, buildNode(km, diags, sceneID, vars))
 			}
 		}
 	}
@@ -362,7 +393,7 @@ func parseInvoke(v any, diags *[]string, sceneID, nodeID, eventName string) *mod
 	return inv
 }
 
-func buildAction(doc map[string]any, diags *[]string) *model.Action {
+func buildAction(doc map[string]any, diags *[]string, vars map[string]string) *model.Action {
 	actID := asString(doc["id"])
 	act := &model.Action{ID: actID}
 	if steps, ok := doc["steps"].([]any); ok {
@@ -370,6 +401,9 @@ func buildAction(doc map[string]any, diags *[]string) *model.Action {
 			sm, ok := s.(map[string]any)
 			if !ok {
 				continue
+			}
+			if diags != nil {
+				checkStepExprTypes(sm, diags, actID, vars)
 			}
 			toVal := asString(sm["to"])
 			if diags != nil && strings.HasPrefix(toVal, "scene://") {
@@ -410,7 +444,26 @@ func buildAction(doc map[string]any, diags *[]string) *model.Action {
 	return act
 }
 
-func checkExpressions(m map[string]any, diags *[]string, sceneID, nodeID string) {
+// checkStepExprTypes statically type-checks every `{{expr}}` in an action
+// step's string fields (value/match/body/...) against the state schema.
+func checkStepExprTypes(sm map[string]any, diags *[]string, actID string, vars map[string]string) {
+	for _, v := range sm {
+		strVal, ok := v.(string)
+		if !ok {
+			if subMap, ok := v.(map[string]any); ok {
+				checkStepExprTypes(subMap, diags, actID, vars)
+			}
+			continue
+		}
+		forEachExpr(strVal, func(src string) {
+			for _, mm := range expr.Check(src, vars) {
+				*diags = append(*diags, fmt.Sprintf("error: [Action: %s] type mismatch: %s in {{ %s }}", actID, mm.Detail, mm.Expr))
+			}
+		})
+	}
+}
+
+func checkExpressions(m map[string]any, diags *[]string, sceneID, nodeID string, vars map[string]string) {
 	for k, v := range m {
 		if k == "children" || k == "renderItem" {
 			continue
@@ -418,27 +471,36 @@ func checkExpressions(m map[string]any, diags *[]string, sceneID, nodeID string)
 		strVal, ok := v.(string)
 		if !ok {
 			if subMap, ok := v.(map[string]any); ok {
-				checkExpressions(subMap, diags, sceneID, nodeID)
+				checkExpressions(subMap, diags, sceneID, nodeID, vars)
 			}
 			continue
 		}
-		for {
-			start := strings.Index(strVal, "{{")
-			if start == -1 {
-				break
+		forEachExpr(strVal, func(src string) {
+			if len(src) > 0 && !strings.Contains(src, ".") &&
+				!strings.Contains(src, "(") &&
+				src != "true" && src != "false" {
+				*diags = append(*diags, fmt.Sprintf("[Scene: %s] 节点 (id: %q) 表达式 %q 使用了非标准的绑定，属性值绑定建议加上前缀，如 'state.%s' 或 'prop.%s'。", sceneID, nodeID, "{{"+src+"}}", src, src))
 			}
-			end := strings.Index(strVal[start:], "}}")
-			if end == -1 {
-				break
+			for _, mm := range expr.Check(src, vars) {
+				*diags = append(*diags, fmt.Sprintf("error: [Scene: %s] 节点 (id: %q) type mismatch: %s in {{ %s }}", sceneID, nodeID, mm.Detail, mm.Expr))
 			}
-			expr := strings.TrimSpace(strVal[start+2 : start+end])
-			if len(expr) > 0 && !strings.Contains(expr, ".") &&
-				!strings.Contains(expr, "(") &&
-				expr != "true" && expr != "false" {
-				*diags = append(*diags, fmt.Sprintf("[Scene: %s] 节点 (id: %q) 表达式 %q 使用了非标准的绑定，属性值绑定建议加上前缀，如 'state.%s' 或 'prop.%s'。", sceneID, nodeID, "{{"+expr+"}}", expr, expr))
-			}
-			strVal = strVal[start+end+2:]
+		})
+	}
+}
+
+// forEachExpr calls fn with each trimmed `{{ ... }}` expression inside s.
+func forEachExpr(s string, fn func(src string)) {
+	for {
+		start := strings.Index(s, "{{")
+		if start == -1 {
+			return
 		}
+		end := strings.Index(s[start:], "}}")
+		if end == -1 {
+			return
+		}
+		fn(strings.TrimSpace(s[start+2 : start+end]))
+		s = s[start+end+2:]
 	}
 }
 
