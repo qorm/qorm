@@ -245,3 +245,8 @@ HTTPS OTA(`qorm run --tls`)、密钥吊销列表(`--revoked`)以及智能体 `ap
 可选的原生桌面窗口内置(vendor)了 [webview](https://github.com/webview/webview)
 C/C++ 库及其 [Go 绑定](https://github.com/webview/webview_go)(MIT,(c) Serge
 Zaitsev)——感谢。可选原生窗口的思路受 [Wails](https://github.com/wailsapp/wails) 启发。
+
+## 贡献者
+
+- **QORM 团队**
+- **Gemini** (高级智能体结对程序员)

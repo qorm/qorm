@@ -685,8 +685,24 @@ function qormLong(el,h){
 // session over /mcp) and swap in the new UI. Prefer Server-Sent Events for
 // instant multi-client push; fall back to polling.
 var __rev=__QORM_REV__;
+function qormHighlightNode(nodeId){
+  document.querySelectorAll('.qorm-inspect-highlight').forEach(function(el){
+    el.style.outline = '';
+    el.style.outlineOffset = '';
+    el.classList.remove('qorm-inspect-highlight');
+  });
+  if(!nodeId) return;
+  var target = document.getElementById(nodeId);
+  if(target){
+    target.classList.add('qorm-inspect-highlight');
+    target.style.outline = '3px solid #0a84ff';
+    target.style.outlineOffset = '-3px';
+    target.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+  }
+}
 function qormTheme(t){ if(!t) return; var st=document.getElementById('qorm-stage'); if(st) st.className='qorm-theme-'+t; }
 function qormApply(d){
+  if(d&&typeof d.inspectNode!=='undefined'){ qormHighlightNode(d.inspectNode); }
   if(d&&d.theme) qormTheme(d.theme);
   if(!d||typeof d.rev==='undefined') return;
   if(d.rev<=__rev) return;   // already applied (e.g. via the POST /event response) — no double morph

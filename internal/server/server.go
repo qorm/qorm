@@ -506,6 +506,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/mcp", blockCrossOrigin(s.serveMCP))
 	mux.HandleFunc("/update", blockCrossOrigin(s.serveUpdate))
 	mux.HandleFunc("/rollback", blockCrossOrigin(s.serveRollback))
+	mux.HandleFunc("/dev/state", blockCrossOrigin(s.serveDevState))
+	mux.HandleFunc("/dev/tree", blockCrossOrigin(s.serveDevTree))
+	mux.HandleFunc("/dev/highlight", blockCrossOrigin(s.serveDevHighlight))
 	return mux
 }
 

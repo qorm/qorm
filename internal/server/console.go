@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 )
@@ -123,7 +124,7 @@ func (s *Server) serveLogWindow(w http.ResponseWriter, _ *http.Request) {
 
 const logWindowHTML = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{title}} — activity log</title>
+<title>{{title}} — QORM DevTool</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;}
   html,body{height:100%;}
@@ -134,30 +135,92 @@ const logWindowHTML = `<!doctype html>
   header .dot{width:9px;height:9px;border-radius:50%;background:#1eb854;animation:pulse 2s infinite;}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(30,184,84,.5);}70%{box-shadow:0 0 0 9px transparent;}100%{box-shadow:0 0 0 0 transparent;}}
   header b{font-size:14px;} header small{margin-left:auto;color:#7d8493;font-size:12px;}
-  .legend{display:flex;gap:14px;padding:8px 16px;border-bottom:1px solid #22252d;font-size:12px;color:#7d8493;
+  
+  /* Tab Bar Styles */
+  .tabs-bar{display:flex;background:#13161c;border-bottom:1px solid #22252d;padding:0 8px;gap:4px;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  .tab-btn{background:none;border:none;color:#7d8493;padding:10px 14px;font-size:13px;cursor:pointer;
+    border-bottom:2px solid transparent;transition:all .15s ease;font-weight:500;}
+  .tab-btn:hover{color:#dfe3ea;}
+  .tab-btn.active{color:#0a84ff;border-bottom-color:#0a84ff;}
+  
+  .panel-body{flex:1;overflow:hidden;position:relative;display:flex;flex-direction:column;}
+  .tab-panel{display:none;height:100%;width:100%;overflow-y:auto;padding:12px 16px;}
+  .tab-panel.active{display:block;}
+
+  /* Legend */
+  .legend{display:flex;gap:14px;padding:8px 0 12px;border-bottom:1px solid #22252d;font-size:12px;color:#7d8493;
     font-family:-apple-system,sans-serif;}
   .legend .k{display:inline-flex;align-items:center;gap:6px;} .legend .sw{width:8px;height:8px;border-radius:50%;}
-  #log{flex:1;overflow-y:auto;padding:12px 16px;font-size:12.5px;line-height:1.8;}
+  
+  #log{font-size:12.5px;line-height:1.8;padding-top:8px;}
   .e{display:flex;gap:9px;animation:in .25s ease;}
   @keyframes in{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
   .t{color:#5a616e;flex:none;} .who{flex:none;width:50px;font-weight:600;}
   .agent .who{color:#5ac8fa;} .human .who{color:#30d158;} .system .who{color:#8a93a3;} .app .who{color:#ffd60a;}
   .d{color:#dfe3ea;word-break:break-word;}
-  .ctrl{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:8px 16px;border-bottom:1px solid #22252d;
-    font-family:-apple-system,sans-serif;}
+  
+  /* State Styles */
+  .state-title{font-size:13px;color:#e6e8ee;margin-bottom:12px;font-family:-apple-system,sans-serif;font-weight:600;}
+  .state-row{display:flex;padding:8px 10px;border-bottom:1px solid #1a1d24;font-size:12.5px;align-items:center;
+    transition:background .15s;}
+  .state-row:hover{background:#13161c;}
+  .state-key{color:#5ac8fa;font-weight:bold;margin-right:8px;}
+  .state-val{color:#ffd60a;cursor:pointer;text-decoration:underline;text-underline-offset:3px;}
+  .state-val:hover{color:#fff;}
+
+  /* Tree Styles */
+  .tree-title{font-size:13px;color:#e6e8ee;margin-bottom:12px;font-family:-apple-system,sans-serif;font-weight:600;}
+  .tree-node{margin-left:14px;border-left:1px dashed #2c313b;padding-left:10px;}
+  .node-header{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:4px;cursor:pointer;
+    transition:all .15s;font-size:12.5px;user-select:none;}
+  .node-header:hover{background:#1c1f26;color:#fff;}
+  .node-type{color:#ffd60a;font-weight:bold;}
+  .node-id{color:#30d158;font-size:11.5px;}
+  .node-text{color:#7d8493;font-style:italic;}
+
+  /* Ctrl panel (Sticky at bottom) */
+  .ctrl{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:10px 16px;border-top:1px solid #22252d;
+    background:#13161c;font-family:-apple-system,sans-serif;}
   .ctrl .cl{color:#7d8493;font-size:12px;margin-right:4px;}
   .ctrl button{background:#1a1d24;color:#c7ccd6;border:1px solid #2c313b;border-radius:7px;
     padding:5px 10px;font-size:12px;cursor:pointer;}
   .ctrl button:hover{background:#242832;color:#fff;}
-  .pres{padding:8px 16px;border-bottom:1px solid #22252d;font-size:12px;color:#9aa2b1;font-family:-apple-system,sans-serif;}
+  .pres{padding:8px 16px;border-top:1px solid #22252d;font-size:12px;color:#9aa2b1;font-family:-apple-system,sans-serif;
+    background:#0c0e13;}
   .pres .lbl{color:#7d8493;} .pres b{color:#30d158;font-weight:600;} .pres .pw{color:#ffd60a;}
 </style></head><body>
-  <header><span class="dot"></span><b>Activity log</b><small>shared session</small></header>
-  <div class="legend">
-    <span class="k"><span class="sw" style="background:#30d158"></span>you</span>
-    <span class="k"><span class="sw" style="background:#5ac8fa"></span>AI agent</span>
-    <span class="k"><span class="sw" style="background:#8a93a3"></span>system</span>
+  <header><span class="dot"></span><b>QORM DevTool</b><small>active session</small></header>
+  <div class="tabs-bar">
+    <button class="tab-btn active" id="btn-logs" onclick="showTab('logs')">Activity Logs</button>
+    <button class="tab-btn" id="btn-state" onclick="showTab('state')">State Manager</button>
+    <button class="tab-btn" id="btn-tree" onclick="showTab('tree')">Component Tree</button>
   </div>
+  
+  <div class="panel-body">
+    <!-- Logs Panel -->
+    <div class="tab-panel active" id="panel-logs">
+      <div class="legend">
+        <span class="k"><span class="sw" style="background:#30d158"></span>you</span>
+        <span class="k"><span class="sw" style="background:#5ac8fa"></span>AI agent</span>
+        <span class="k"><span class="sw" style="background:#8a93a3"></span>system</span>
+      </div>
+      <div id="log"><div class="e system"><span class="t">--:--:--</span><span class="who">system</span><span class="d">waiting for activity…</span></div></div>
+    </div>
+    
+    <!-- State Panel -->
+    <div class="tab-panel" id="panel-state">
+      <div class="state-title">Live App State</div>
+      <div id="state-list">Loading...</div>
+    </div>
+    
+    <!-- Tree Panel -->
+    <div class="tab-panel" id="panel-tree">
+      <div class="tree-title">Rendered Component Architecture</div>
+      <div id="tree-root">Loading...</div>
+    </div>
+  </div>
+
   <div class="ctrl">
     <span class="cl">window</span>
     <button onclick="qw(40,40,400,820)"> left</button>
@@ -177,31 +240,214 @@ const logWindowHTML = `<!doctype html>
     <button onclick="qo(&quot;tile&quot;)"> tile all</button>
   </div>
   <div class="pres"><span class="lbl">shared with the AI:</span> <span id="qpres">nothing yet</span></div>
-  <div id="log"><div class="e system"><span class="t">--:--:--</span><span class="who">system</span><span class="d">waiting for activity…</span></div></div>
+
 <script>
-  var log=document.getElementById('log'),since=0,first=true;
-  function poll(){fetch('/log?since='+since).then(function(r){return r.json();}).then(function(rows){
-    if(rows&&rows.length){if(first){log.innerHTML='';first=false;}
-      rows.forEach(function(e){since=Math.max(since,e.seq);
-        var d=document.createElement('div');d.className='e '+e.source;
-        d.innerHTML='<span class="t"></span><span class="who"></span><span class="d"></span>';
-        d.querySelector('.t').textContent=e.time;d.querySelector('.who').textContent=(e.source==='human'?'you':e.source);
-        d.querySelector('.d').textContent=e.detail;log.appendChild(d);});
-      log.scrollTop=log.scrollHeight;}
-  }).catch(function(){});}
+  var log=document.getElementById('log'),since=0,first=true,activeTab='logs';
+  
+  function showTab(tabId) {
+    activeTab = tabId;
+    document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+    document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+    document.getElementById('btn-' + tabId).classList.add('active');
+    document.getElementById('panel-' + tabId).classList.add('active');
+    
+    if(tabId === 'state') loadState();
+    if(tabId === 'tree') loadTree();
+  }
+
+  function poll(){
+    if (activeTab !== 'logs') return;
+    fetch('/log?since='+since).then(function(r){return r.json();}).then(function(rows){
+      if(rows&&rows.length){if(first){log.innerHTML='';first=false;}
+        rows.forEach(function(e){since=Math.max(since,e.seq);
+          var d=document.createElement('div');d.className='e '+e.source;
+          d.innerHTML='<span class="t"></span><span class="who"></span><span class="d"></span>';
+          d.querySelector('.t').textContent=e.time;d.querySelector('.who').textContent=(e.source==='human'?'you':e.source);
+          d.querySelector('.d').textContent=e.detail;log.appendChild(d);});
+        log.scrollTop=log.scrollHeight;}
+    }).catch(function(){});
+  }
+  
+  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+  
+  // State Manager Functions
+  function loadState() {
+    var container = document.getElementById('state-list');
+    fetch('/dev/state').then(r => r.json()).then(data => {
+      container.innerHTML = '';
+      if (!Object.keys(data).length) {
+        container.innerHTML = '<div style="color:#7d8493;font-size:12.5px;">No state variables defined yet.</div>';
+        return;
+      }
+      for (var k in data) {
+        var row = document.createElement('div');
+        row.className = 'state-row';
+        var valStr = JSON.stringify(data[k]);
+        row.innerHTML = '<span class="state-key">' + esc(k) + ':</span>' +
+          '<span class="state-val" onclick="editState(\''+esc(k)+'\','+esc(valStr)+')">' + esc(valStr) + '</span>';
+        container.appendChild(row);
+      }
+    }).catch(err => { container.innerHTML = 'Error loading state: ' + err; });
+  }
+
+  function editState(key, oldVal) {
+    var newVal = prompt('Edit value for "' + key + '" (JSON formatted):', JSON.stringify(oldVal));
+    if (newVal !== null) {
+      try {
+        var parsed = JSON.parse(newVal);
+        fetch('/dev/state').then(r => r.json()).then(current => {
+          current[key] = parsed;
+          fetch('/dev/state', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(current)
+          }).then(function(){ loadState(); });
+        });
+      } catch(e) {
+        alert('Invalid JSON representation: ' + e.message);
+      }
+    }
+  }
+
+  // Tree Inspector Functions
+  function loadTree() {
+    var root = document.getElementById('tree-root');
+    fetch('/dev/tree').then(r => r.json()).then(data => {
+      root.innerHTML = '';
+      root.appendChild(renderNode(data));
+    }).catch(err => { root.innerHTML = 'Error loading node tree: ' + err; });
+  }
+
+  function renderNode(node) {
+    if (!node) return document.createTextNode('');
+    var div = document.createElement('div');
+    div.className = 'tree-node';
+    var header = document.createElement('div');
+    header.className = 'node-header';
+    
+    var typeText = esc(node.Type || 'View');
+    var idText = node.ID ? ' <span class="node-id">#' + esc(node.ID) + '</span>' : '';
+    var contentText = node.Text ? ' <span class="node-text">"' + esc(node.Text) + '"</span>' : '';
+    
+    header.innerHTML = '<span class="node-type">' + typeText + '</span>' + idText + contentText;
+    
+    if (node.ID) {
+      header.onmouseenter = function() { highlight(node.ID); };
+      header.onmouseleave = function() { highlight(''); };
+    }
+    div.appendChild(header);
+    
+    if (node.Children && node.Children.length) {
+      var childrenDiv = document.createElement('div');
+      childrenDiv.className = 'node-children';
+      node.Children.forEach(function(child) {
+        childrenDiv.appendChild(renderNode(child));
+      });
+      div.appendChild(childrenDiv);
+    }
+    return div;
+  }
+
+  function highlight(id) {
+    fetch('/dev/highlight', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({id: id})
+    }).catch(function(){});
+  }
+
   function qw(x,y,w,h){fetch('/window',{method:'POST',body:JSON.stringify({op:'move',x:Math.round(x),y:Math.round(y),w:w,h:h})}).catch(function(){});}
   var qn=1;
   function qo(op){fetch('/window',{method:'POST',body:JSON.stringify({op:op})}).catch(function(){});}
   function qopen(id,url,w,h){fetch('/window',{method:'POST',body:JSON.stringify({op:'open',id:id,url:url,w:w,h:h})}).catch(function(){});}
+  
   setInterval(poll,600);poll();
-  // Show the human what the agent can currently see about them (transparency).
-  function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
-  function qpres(){ fetch('/presence').then(function(r){return r.json();}).then(function(p){
-    var el=document.getElementById('qpres'); if(!el) return; var parts=[];
-    if(p.focus) parts.push('on <b>'+esc(p.focus)+'</b>');
-    if(p.typing) parts.push('typed <b>'+esc(p.typing)+'</b>');
-    if(p.filled) parts.push('<span class="pw">'+esc(p.filled)+' filled (value hidden)</span>');
-    el.innerHTML = parts.length ? parts.join(' &middot; ') : 'nothing yet';
-  }).catch(function(){}); }
+  
+  function qpres(){
+    fetch('/presence').then(function(r){return r.json();}).then(function(p){
+      var el=document.getElementById('qpres'); if(!el) return; var parts=[];
+      if(p.focus) parts.push('on <b>'+esc(p.focus)+'</b>');
+      if(p.typing) parts.push('typed <b>'+esc(p.typing)+'</b>');
+      if(p.filled) parts.push('<span class="pw">'+esc(p.filled)+' filled (value hidden)</span>');
+      el.innerHTML = parts.length ? parts.join(' &middot; ') : 'nothing yet';
+    }).catch(function(){});
+  }
   setInterval(qpres,900); qpres();
 </script></body></html>`
+
+// serveDevState handles GET (read state) and POST (update state) for DevTools.
+func (s *Server) serveDevState(w http.ResponseWriter, r *http.Request) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if r.Method == "POST" {
+		var newState map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&newState); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		s.rt.State = newState
+		s.logEvent("system", "state modified via devtool")
+		s.bump()
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(s.rt.State)
+}
+
+// serveDevTree returns the current scene's node tree structure.
+func (s *Server) serveDevTree(w http.ResponseWriter, r *http.Request) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	sceneID := s.rt.CurrentScene()
+	if sceneID == "" {
+		sceneID = s.rt.App.Entry
+	}
+	rootNode, ok := s.rt.App.Scenes[sceneID]
+	if !ok {
+		// Fallback to any scene
+		for _, n := range s.rt.App.Scenes {
+			rootNode = n
+			break
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(rootNode)
+}
+
+// serveDevHighlight broadcasts a node inspect highlight payload over SSE.
+func (s *Server) serveDevHighlight(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		ID string `json:"id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Broadcast inspectNode over SSE subscribers
+	m := map[string]any{
+		"rev":         s.rev.Load(),
+		"inspectNode": req.ID,
+	}
+	payload, _ := json.Marshal(m)
+	msg := string(payload)
+
+	s.subsMu.Lock()
+	for ch := range s.subs {
+		select {
+		case ch <- msg:
+		default:
+		}
+	}
+	s.subsMu.Unlock()
+
+	w.WriteHeader(http.StatusOK)
+}
