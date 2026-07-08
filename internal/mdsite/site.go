@@ -289,6 +289,10 @@ func pageHTML(title, lang, siteName, langSwitch, nav, body string) string {
 	if lang == "zh" {
 		homeLabel = "首页"
 	}
+	patronLabel := "Patreon"
+	if lang == "zh" {
+		patronLabel = "资助"
+	}
 	navLinks := buildNavLinks(siteName, lang)
 	return fmt.Sprintf(`<!doctype html>
 <html lang="%s">
@@ -355,6 +359,7 @@ func pageHTML(title, lang, siteName, langSwitch, nav, body string) string {
   <a class="tl" href="/">%s</a>
   %s
   <a class="tl" href="https://github.com/qorm/qorm">GitHub</a>
+  <a class="tl" href="https://www.patreon.com/qorm">%s</a>
   %s
   <button class="tbtn" id="theme" aria-label="Theme"></button>
 </header>
@@ -380,7 +385,7 @@ func pageHTML(title, lang, siteName, langSwitch, nav, body string) string {
 </script>
 </body>
 </html>
-`, lang, html.EscapeString(title), html.EscapeString(siteName), homeLabel, navLinks, langSwitch, nav, body)
+`, lang, html.EscapeString(title), html.EscapeString(siteName), homeLabel, navLinks, patronLabel, langSwitch, nav, body)
 }
 
 // docs & api top navigation tabs builder
