@@ -61,3 +61,87 @@ func findByID(n *model.Node, id string) *model.Node {
 	}
 	return nil
 }
+
+func TestLoaderDiagnostics(t *testing.T) {
+	docs := []map[string]any{
+		{
+			"type": "scene",
+			"id":   "main",
+			"root": map[string]any{
+				"type":  "view",
+				"id":    "root_id",
+				"value": "ignored_value",
+				"on": map[string]any{
+					"press": "some_action",
+				},
+				"children": []any{
+					map[string]any{
+						"type": "text",
+						"id":   "text_id",
+						"text": "Hello {{count}}",
+					},
+					map[string]any{
+						"type":    "button",
+						"id":      "btn_id",
+						"onPress": "scene://other_scene",
+					},
+				},
+			},
+		},
+		{
+			"type": "action",
+			"id":   "some_action",
+			"steps": []any{
+				map[string]any{
+					"type": "navigate",
+					"to":   "scene://target_scene",
+				},
+			},
+		},
+	}
+
+	app := FromDocs(docs)
+	if len(app.Diagnostics) == 0 {
+		t.Fatal("expected compiler diagnostics, but got none")
+	}
+
+	hasOnWarning := false
+	hasValueWarning := false
+	hasExprWarning := false
+	hasSceneWarning := false
+	hasActionSceneWarning := false
+
+	for _, d := range app.Diagnostics {
+		if strings.Contains(d, "使用了已弃用的 'on' 属性") {
+			hasOnWarning = true
+		}
+		if strings.Contains(d, "错误地配置了 'value'") {
+			hasValueWarning = true
+		}
+		if strings.Contains(d, "使用了非标准的绑定") {
+			hasExprWarning = true
+		}
+		if strings.Contains(d, "btn_id") && strings.Contains(d, "scene://") {
+			hasSceneWarning = true
+		}
+		if strings.Contains(d, "some_action") && strings.Contains(d, "scene://") {
+			hasActionSceneWarning = true
+		}
+	}
+
+	if !hasOnWarning {
+		t.Error("missing deprecated 'on' binding warning")
+	}
+	if !hasValueWarning {
+		t.Error("missing text component 'value' warning")
+	}
+	if !hasExprWarning {
+		t.Error("missing non-standard binding warning")
+	}
+	if !hasSceneWarning {
+		t.Error("missing scene:// protocol warning in invoke")
+	}
+	if !hasActionSceneWarning {
+		t.Error("missing scene:// protocol warning in action step")
+	}
+}

@@ -86,16 +86,18 @@ func FromDocs(docs []map[string]any) *model.App {
 		Scenes:  map[string]*model.Node{},
 		Actions: map[string]*model.Action{},
 	}
+	var diags []string
 	for _, doc := range docs {
 		switch asString(doc["type"]) {
 		case "app":
-			applyManifest(app, doc)
+			applyManifest(app, doc, &diags)
 		case "scene":
 			if root, ok := doc["root"].(map[string]any); ok {
-				app.Scenes[asString(doc["id"])] = buildNode(root)
+				sceneID := asString(doc["id"])
+				app.Scenes[sceneID] = buildNode(root, &diags, sceneID)
 			}
 		case "action":
-			act := buildAction(doc)
+			act := buildAction(doc, &diags)
 			if act.ID != "" {
 				app.Actions[act.ID] = act
 			}
@@ -104,6 +106,7 @@ func FromDocs(docs []map[string]any) *model.App {
 	if app.Entry == "" {
 		app.Entry = "main"
 	}
+	app.Diagnostics = diags
 	return app
 }
 
@@ -120,8 +123,9 @@ func LoadFile(path string) (*model.App, error) {
 	app := &model.App{Scenes: map[string]*model.Node{}, Actions: map[string]*model.Action{}, Entry: "main"}
 	if asString(doc["type"]) == "scene" {
 		if root, ok := doc["root"].(map[string]any); ok {
-			app.Scenes[asString(doc["id"])] = buildNode(root)
-			app.Entry = asString(doc["id"])
+			sceneID := asString(doc["id"])
+			app.Scenes[sceneID] = buildNode(root, &app.Diagnostics, sceneID)
+			app.Entry = sceneID
 		}
 	}
 	return app, nil
@@ -196,7 +200,7 @@ func parseMenuGroups(raw any) []model.MenuGroup {
 	return out
 }
 
-func applyManifest(app *model.App, doc map[string]any) {
+func applyManifest(app *model.App, doc map[string]any, diags *[]string) {
 	app.ID = asString(doc["id"])
 	app.Name = asString(doc["name"])
 	app.Entry = asString(doc["entry"])
@@ -236,7 +240,7 @@ func applyManifest(app *model.App, doc map[string]any) {
 		app.Components = map[string]*model.Node{}
 		for name, def := range comps {
 			if m, ok := def.(map[string]any); ok {
-				app.Components[name] = buildNode(m)
+				app.Components[name] = buildNode(m, diags, "component:"+name)
 			}
 		}
 	}
@@ -273,12 +277,33 @@ func applyManifest(app *model.App, doc map[string]any) {
 }
 
 // BuildNode builds a node tree from a raw JSON object (exported for patch ops).
-func BuildNode(m map[string]any) *model.Node { return buildNode(m) }
+func BuildNode(m map[string]any) *model.Node { return buildNode(m, nil, "") }
 
-func buildNode(m map[string]any) *model.Node {
+func buildNode(m map[string]any, diags *[]string, sceneID string) *model.Node {
+	nodeID := asString(m["id"])
+	nodeType := asString(m["type"])
+
+	if diags != nil {
+		// 校验 on 属性
+		if _, hasOn := m["on"]; hasOn {
+			*diags = append(*diags, fmt.Sprintf("[Scene: %s] 节点 (id: %q, type: %q) 使用了已弃用的 'on' 属性（如 on: {press: ...}）。请直接使用 'onPress' 或 'onChange'。", sceneID, nodeID, nodeType))
+		}
+
+		// 校验 value 属性
+		if val, hasVal := m["value"]; hasVal {
+			valStr := asString(val)
+			if valStr != "" && nodeType != "input" && nodeType != "textarea" && nodeType != "select" && nodeType != "slider" {
+				*diags = append(*diags, fmt.Sprintf("[Scene: %s] 节点 (id: %q, type: %q) 错误地配置了 'value': %q。普通文本节点请使用 'text' 属性，状态绑定请使用 '{{state.xxx}}'。", sceneID, nodeID, nodeType, valStr))
+			}
+		}
+
+		// 校验表达式格式（如非 state. 或 prop. 的绑定）
+		checkExpressions(m, diags, sceneID, nodeID)
+	}
+
 	n := &model.Node{
-		Type:        asString(m["type"]),
-		ID:          asString(m["id"]),
+		Type:        nodeType,
+		ID:          nodeID,
 		Text:        asString(m["text"]),
 		Label:       asString(m["label"]),
 		Placeholder: asString(m["placeholder"]),
@@ -291,27 +316,31 @@ func buildNode(m map[string]any) *model.Node {
 	if l, ok := m["layout"].(map[string]any); ok {
 		n.Layout = l
 	}
-	n.OnPress = parseInvoke(m["onPress"])
-	n.OnChange = parseInvoke(m["onChange"])
+	n.OnPress = parseInvoke(m["onPress"], diags, sceneID, nodeID, "onPress")
+	n.OnChange = parseInvoke(m["onChange"], diags, sceneID, nodeID, "onChange")
 	if ri, ok := m["renderItem"].(map[string]any); ok {
-		n.Template = buildNode(ri)
+		n.Template = buildNode(ri, diags, sceneID)
 	}
 	n.Data = asString(m["data"])
 	if kids, ok := m["children"].([]any); ok {
 		for _, k := range kids {
 			if km, ok := k.(map[string]any); ok {
-				n.Children = append(n.Children, buildNode(km))
+				n.Children = append(n.Children, buildNode(km, diags, sceneID))
 			}
 		}
 	}
 	return n
 }
 
-func parseInvoke(v any) *model.Invoke {
+func parseInvoke(v any, diags *[]string, sceneID, nodeID, eventName string) *model.Invoke {
 	// String shorthand: "onPress": "increment" invokes that action with no args.
 	if s, ok := v.(string); ok {
 		if s == "" {
 			return nil
+		}
+		if diags != nil && strings.HasPrefix(s, "scene://") {
+			*diags = append(*diags, fmt.Sprintf("[Scene: %s] 节点 (id: %q) 的 %s 动作使用了已弃用的 'scene://' 协议前缀: %q。请直接指定目标场景 ID (如 'main')。", sceneID, nodeID, eventName, s))
+			s = strings.TrimPrefix(s, "scene://")
 		}
 		return &model.Invoke{Name: s, Args: map[string]string{}}
 	}
@@ -319,7 +348,12 @@ func parseInvoke(v any) *model.Invoke {
 	if !ok {
 		return nil
 	}
-	inv := &model.Invoke{Name: asString(m["name"]), Args: map[string]string{}}
+	name := asString(m["name"])
+	if diags != nil && strings.HasPrefix(name, "scene://") {
+		*diags = append(*diags, fmt.Sprintf("[Scene: %s] 节点 (id: %q) 的 %s 动作使用了已弃用的 'scene://' 协议前缀: %q。请直接指定目标场景 ID (如 'main')。", sceneID, nodeID, eventName, name))
+		name = strings.TrimPrefix(name, "scene://")
+	}
+	inv := &model.Invoke{Name: name, Args: map[string]string{}}
 	if args, ok := m["args"].(map[string]any); ok {
 		for k, v := range args {
 			inv.Args[k] = asString(v)
@@ -328,13 +362,19 @@ func parseInvoke(v any) *model.Invoke {
 	return inv
 }
 
-func buildAction(doc map[string]any) *model.Action {
-	act := &model.Action{ID: asString(doc["id"])}
+func buildAction(doc map[string]any, diags *[]string) *model.Action {
+	actID := asString(doc["id"])
+	act := &model.Action{ID: actID}
 	if steps, ok := doc["steps"].([]any); ok {
 		for _, s := range steps {
 			sm, ok := s.(map[string]any)
 			if !ok {
 				continue
+			}
+			toVal := asString(sm["to"])
+			if diags != nil && strings.HasPrefix(toVal, "scene://") {
+				*diags = append(*diags, fmt.Sprintf("[Action: %s] 导航目标使用了已弃用的 'scene://' 协议前缀: %q。请直接指定目标场景 ID (如 'main')。", actID, toVal))
+				toVal = strings.TrimPrefix(toVal, "scene://")
 			}
 			step := model.Step{
 				Type:     asString(sm["type"]),
@@ -348,7 +388,7 @@ func buildAction(doc map[string]any) *model.Action {
 				Body:     asString(sm["body"]),
 				Result:   asString(sm["result"]),
 				Error:    asString(sm["error"]),
-				To:       asString(sm["to"]),
+				To:       toVal,
 				Back:     sm["back"] == true,
 				From:     asString(sm["from"]),
 			}
@@ -368,6 +408,38 @@ func buildAction(doc map[string]any) *model.Action {
 		}
 	}
 	return act
+}
+
+func checkExpressions(m map[string]any, diags *[]string, sceneID, nodeID string) {
+	for k, v := range m {
+		if k == "children" || k == "renderItem" {
+			continue
+		}
+		strVal, ok := v.(string)
+		if !ok {
+			if subMap, ok := v.(map[string]any); ok {
+				checkExpressions(subMap, diags, sceneID, nodeID)
+			}
+			continue
+		}
+		for {
+			start := strings.Index(strVal, "{{")
+			if start == -1 {
+				break
+			}
+			end := strings.Index(strVal[start:], "}}")
+			if end == -1 {
+				break
+			}
+			expr := strings.TrimSpace(strVal[start+2 : start+end])
+			if len(expr) > 0 && !strings.Contains(expr, ".") &&
+				!strings.Contains(expr, "(") &&
+				expr != "true" && expr != "false" {
+				*diags = append(*diags, fmt.Sprintf("[Scene: %s] 节点 (id: %q) 表达式 %q 使用了非标准的绑定，属性值绑定建议加上前缀，如 'state.%s' 或 'prop.%s'。", sceneID, nodeID, "{{"+expr+"}}", expr, expr))
+			}
+			strVal = strVal[start+end+2:]
+		}
+	}
 }
 
 // ---- coercion helpers ----

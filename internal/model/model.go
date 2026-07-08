@@ -44,6 +44,8 @@ type App struct {
 	// Shortcuts are the app's home-screen / Dock quick actions (long-press the
 	// app icon). Selecting one launches the app and fires qormEmit('shortcut', id).
 	Shortcuts []Shortcut
+	// Diagnostics holds static compilation warnings or syntax errors found by the loader.
+	Diagnostics []string
 }
 
 // MenuItem is one entry in a system / tray / context menu. Items nests a submenu.
