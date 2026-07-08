@@ -6,7 +6,9 @@ package server
 
 import (
 	"crypto/ed25519"
+	"crypto/rand"
 	_ "embed"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -78,11 +80,19 @@ type Server struct {
 	WindowOp    func(id, op string)             // focus/minimize/pin/unpin/close
 	WindowOpen  func(id, url string, w, h int)  // open a secondary window
 	WindowEval  func(id, js string)             // push JS to a window (window-to-window comms)
+
+	// eventToken is a random secret generated at server start and embedded in the
+	// rendered HTML page. /event and /presence POST require this token, enforcing
+	// that only the real browser client (a human) can produce "human"-attributed
+	// log entries. Agents use MCP, which produces "agent" entries. This prevents
+	// either side from forging the other's identity — the foundational audit
+	// principle for human-AI collaboration.
+	eventToken string
 }
 
 // New builds a server for a runtime (no OTA).
 func New(rt *runtime.Runtime) *Server {
-	s := &Server{rt: rt}
+	s := &Server{rt: rt, eventToken: genEventToken()}
 	s.initAgent()
 	return s
 }
@@ -90,9 +100,19 @@ func New(rt *runtime.Runtime) *Server {
 // NewBundle builds a server from a verified bundle, enabling OTA updates
 // against the given trusted key (nil = integrity-only) and revocation list.
 func NewBundle(b *bundle.Bundle, trust ed25519.PublicKey, revoked bundle.RevocationList) *Server {
-	s := &Server{rt: runtime.New(b.ToApp()), current: b, trust: trust, revoked: revoked}
+	s := &Server{rt: runtime.New(b.ToApp()), current: b, trust: trust, revoked: revoked, eventToken: genEventToken()}
 	s.initAgent()
 	return s
+}
+
+// genEventToken returns a cryptographically random 16-byte hex string used to
+// bind /event and /presence to the real browser client.
+func genEventToken() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand unavailable: " + err.Error())
+	}
+	return hex.EncodeToString(b)
 }
 
 // initAgent (re)binds the shared MCP handler to the current runtime. Called on
@@ -235,6 +255,11 @@ func (s *Server) servePresence(w http.ResponseWriter, r *http.Request) {
 		s.actMu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(out)
+		return
+	}
+	// Enforce human-only: reject presence reports without the page-embedded event token.
+	if r.Header.Get("X-Qorm-Token") != s.eventToken {
+		http.Error(w, "invalid event token", http.StatusForbidden)
 		return
 	}
 	var p struct{ Element string }
@@ -613,7 +638,7 @@ func (s *Server) serveIndex(w http.ResponseWriter, r *http.Request) {
 	// Build the page while still holding the lock: Page/userWebJS read rt.State
 	// (locale/theme/rtl), which a concurrent POST /event mutates — reading it
 	// unlocked is a concurrent-map read+write and crashes the process.
-	html := Page(rt, res.HTML, rev)
+	html := Page(rt, res.HTML, rev, s.eventToken)
 	if js := userWebJS(rt); js != "" {
 		html = strings.Replace(html, "</body>", "<script>"+js+"</script></body>", 1)
 	}
@@ -674,6 +699,12 @@ type eventReq struct {
 }
 
 func (s *Server) serveEvent(w http.ResponseWriter, r *http.Request) {
+	// Enforce human-only: reject requests without the page-embedded event token.
+	// This prevents agents/scripts from forging "human"-attributed operations.
+	if r.Header.Get("X-Qorm-Token") != s.eventToken {
+		http.Error(w, "invalid event token — only the browser client can dispatch human events", http.StatusForbidden)
+		return
+	}
 	var req eventReq
 	if json.NewDecoder(r.Body).Decode(&req) != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
@@ -723,11 +754,17 @@ func (s *Server) serveEvent(w http.ResponseWriter, r *http.Request) {
 var appJS string
 
 // qormAppJS returns the client script with the current revision substituted.
-func qormAppJS(rev int64) string {
-	return strings.ReplaceAll(appJS, "__QORM_REV__", strconv.FormatInt(rev, 10))
+func qormAppJS(rev int64, eventToken string) string {
+	s := strings.ReplaceAll(appJS, "__QORM_REV__", strconv.FormatInt(rev, 10))
+	s = strings.ReplaceAll(s, "__QORM_TOKEN__", eventToken)
+	return s
 }
 
-func Page(rt *runtime.Runtime, body string, rev int64) string {
+func Page(rt *runtime.Runtime, body string, rev int64, eventToken ...string) string {
+	tok := ""
+	if len(eventToken) > 0 {
+		tok = eventToken[0]
+	}
 	w := rt.App.Window
 	width := w.Width
 	if width == 0 {
@@ -896,7 +933,7 @@ func Page(rt *runtime.Runtime, body string, rev int64) string {
 <div id="qorm-stage" class="qorm-theme-%s"><div id="qorm-root">%s</div></div>
 <script>%s</script>
 </body>
-</html>`, lang, dir, htmlEscape(title), width, height, theme, body, qormAppJS(rev))
+</html>`, lang, dir, htmlEscape(title), width, height, theme, body, qormAppJS(rev, tok))
 }
 
 func htmlEscape(s string) string {

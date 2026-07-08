@@ -119,7 +119,7 @@ function qorm(h){
     else if(el.type==='range'||el.type==='number'){ inputs[k]=parseFloat(el.value); }
     else { inputs[k]=el.value; }
   });
-  fetch('/event',{method:'POST',headers:{'Content-Type':'application/json'},
+  fetch('/event',{method:'POST',headers:{'Content-Type':'application/json','X-Qorm-Token':__tok},
     body:JSON.stringify({h:h,inputs:inputs})})
     .then(function(r){ var rv=parseInt(r.headers.get('X-Qorm-Rev'))||0; var nav=r.headers.get('X-Qorm-Nav')||''; qormTheme(r.headers.get('X-Qorm-Theme')); return r.text().then(function(html){ return {rv:rv,html:html,nav:nav}; }); })
     .then(function(o){ if(o.rv && o.rv<=__rev) return; if(o.rv) __rev=o.rv; window.__qormNav=o.nav; qormMorphInto(document.getElementById('qorm-root'), o.html); });
@@ -625,7 +625,7 @@ function qormSwipe(el,h){
 }
 // Long-press: fire handler h after 500ms of a sustained press (GestureDetector).
 function qormPostReorder(h, from, to){
-  fetch('/event',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({h:h,inputs:{_reorderFrom:from,_reorderTo:to}})})
+  fetch('/event',{method:'POST',headers:{'Content-Type':'application/json','X-Qorm-Token':__tok},body:JSON.stringify({h:h,inputs:{_reorderFrom:from,_reorderTo:to}})})
     .then(function(r){ var rv=parseInt(r.headers.get('X-Qorm-Rev'))||0; qormTheme(r.headers.get('X-Qorm-Theme')); return r.text().then(function(html){ return {rv:rv,html:html}; }); })
     .then(function(o){ if(o.rv && o.rv<=__rev) return; if(o.rv) __rev=o.rv; qormMorphInto(document.getElementById('qorm-root'), o.html); });
 }
@@ -685,6 +685,7 @@ function qormLong(el,h){
 // session over /mcp) and swap in the new UI. Prefer Server-Sent Events for
 // instant multi-client push; fall back to polling.
 var __rev=__QORM_REV__;
+var __tok='__QORM_TOKEN__';
 function qormHighlightNode(nodeId){
   document.querySelectorAll('.qorm-inspect-highlight').forEach(function(el){
     el.style.outline = '';
@@ -746,7 +747,7 @@ if(window.EventSource){
     if(isPw){ if(t.value) d+=' = (hidden)'; }
     else if((t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT') && t.value){ d+=' = '+String(t.value).slice(0,60); }
     if(d===last) return; last=d;
-    fetch('/presence',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({element:d})}).catch(function(){});
+    fetch('/presence',{method:'POST',headers:{'Content-Type':'application/json','X-Qorm-Token':__tok},body:JSON.stringify({element:d})}).catch(function(){});
   }
   document.addEventListener('focusin',function(e){ ping(e.target); });
   document.addEventListener('pointerdown',function(e){ ping(e.target); });
