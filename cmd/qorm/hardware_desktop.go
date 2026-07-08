@@ -166,11 +166,27 @@ func desktopNotify(title, body, id string) {
 	case "linux":
 		exec.Command("notify-send", title, body).Run()
 	case "windows":
-		// NotifyIcon balloon; a WinRT toast upgrade is planned (v0.2 B4). Run
-		// async — PowerShell startup is too slow for the main thread.
-		script := "Add-Type -AssemblyName System.Windows.Forms; $n=New-Object System.Windows.Forms.NotifyIcon; $n.Icon=[System.Drawing.SystemIcons]::Information; $n.Visible=$true; $n.ShowBalloonTip(4000," + psQuote(title) + "," + psQuote(body) + ",'Info')"
-		cmd := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", script)
-		go cmd.Run()
+		// WinRT toast first (real Action Center notification). The AppId is
+		// PowerShell's own AUMID, so no Start-menu shortcut registration is
+		// needed. Title/body go in as DOM text nodes — no XML escaping issues.
+		// If the toast projection fails (stripped WinRT, old host), fall back
+		// to the previous NotifyIcon balloon. Run async — PowerShell startup
+		// is too slow for the main thread.
+		go func() {
+			toast := "$ErrorActionPreference='Stop';" +
+				"$null=[Windows.UI.Notifications.ToastNotificationManager,Windows.UI.Notifications,ContentType=WindowsRuntime];" +
+				"$x=[Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02);" +
+				"$t=$x.GetElementsByTagName('text');" +
+				"$null=$t.Item(0).AppendChild($x.CreateTextNode(" + psQuote(title) + "));" +
+				"$null=$t.Item(1).AppendChild($x.CreateTextNode(" + psQuote(body) + "));" +
+				"$n=New-Object Windows.UI.Notifications.ToastNotification $x;" +
+				"[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe').Show($n)"
+			if exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", toast).Run() == nil {
+				return
+			}
+			balloon := "Add-Type -AssemblyName System.Windows.Forms; $n=New-Object System.Windows.Forms.NotifyIcon; $n.Icon=[System.Drawing.SystemIcons]::Information; $n.Visible=$true; $n.ShowBalloonTip(4000," + psQuote(title) + "," + psQuote(body) + ",'Info')"
+			exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", balloon).Run()
+		}()
 	}
 }
 
@@ -590,6 +606,44 @@ func desktopHardwareWindows(op string, m map[string]interface{}, cb func(string)
 		k := strFromMap(m, "key")
 		d, _ := os.ReadFile(filepath.Join(os.TempDir(), "qorm-store-"+k))
 		cb("qormOnStorage(" + strconv.Quote(k) + ", " + strconv.Quote(string(d)) + ")")
+	case "volumeGet", "volumeUp", "volumeDown":
+		// Core Audio via raw COM (winapi_windows.go) — same nudge/clamp pattern
+		// as the darwin handler, without an osascript-style fallback.
+		v, ok := nativeVolumeGet()
+		if !ok {
+			return
+		}
+		if op == "volumeUp" {
+			v += 0.06
+		} else if op == "volumeDown" {
+			v -= 0.06
+		}
+		v = clamp01(v)
+		if op != "volumeGet" && !nativeVolumeSet(v) {
+			return
+		}
+		cb(fmt.Sprintf("qormOnVolume(%g)", v))
+	case "volumeSet":
+		if v, ok := m["value"].(float64); ok {
+			if nativeVolumeSet(clamp01(v)) {
+				cb(fmt.Sprintf("qormOnVolume(%g)", clamp01(v)))
+			}
+		}
+	case "screenshot":
+		// GDI+ CopyFromScreen of the virtual screen (all monitors), then read
+		// the PNG back — same file round-trip as the Linux handler.
+		fp := filepath.Join(os.TempDir(), "qorm-shot.png")
+		os.Remove(fp) // never serve a stale capture if PowerShell fails
+		ps("Add-Type -AssemblyName System.Windows.Forms,System.Drawing;" +
+			"$s=[System.Windows.Forms.SystemInformation]::VirtualScreen;" +
+			"$b=New-Object System.Drawing.Bitmap $s.Width,$s.Height;" +
+			"$g=[System.Drawing.Graphics]::FromImage($b);" +
+			"$g.CopyFromScreen($s.Left,$s.Top,0,0,$b.Size);" +
+			"$b.Save(" + psQuote(fp) + ",[System.Drawing.Imaging.ImageFormat]::Png);" +
+			"$g.Dispose();$b.Dispose()")
+		if data, err := os.ReadFile(fp); err == nil {
+			cb("qormOnScreenshot(" + strconv.Quote("data:image/png;base64,"+base64.StdEncoding.EncodeToString(data)) + ")")
+		}
 	}
 }
 

@@ -15,3 +15,8 @@ func startWindowDrag(hwnd unsafe.Pointer) {}
 // plaintext.
 func nativeSecureSet(key, val string) bool { return false }
 func nativeSecureGet(key string) string    { return "" }
+
+// nativeVolumeGet/Set: no native master-volume API wired on Linux/BSD; the
+// desktop bridge uses pactl there (see desktopHardwareLinux).
+func nativeVolumeGet() (float64, bool) { return 0, false }
+func nativeVolumeSet(v float64) bool   { return false }

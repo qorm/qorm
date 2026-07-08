@@ -87,13 +87,11 @@ func nativeWinDragMove(id string, dx, dy int) {}
 
 func nativeTrayJSON(png []byte, menuJSON, tip string) {}
 
-func nativeClipboardSet(text string)   {}
-func nativeClipboardGet() string       { return "" }
-func nativeOpenURL(url string)         {}
-func nativeOSVersion() string          { return "" }
-func nativeSetKeepAwake(on bool)       {}
-func nativeSpeak(text string)          {}
-func nativeSpeakStop()                 {}
-func nativeScreenshot() string         { return "" }
-func nativeVolumeGet() (float64, bool) { return 0, false }
-func nativeVolumeSet(v float64) bool   { return false }
+func nativeClipboardSet(text string) {}
+func nativeClipboardGet() string     { return "" }
+func nativeOpenURL(url string)       {}
+func nativeOSVersion() string        { return "" }
+func nativeSetKeepAwake(on bool)     {}
+func nativeSpeak(text string)        {}
+func nativeSpeakStop()               {}
+func nativeScreenshot() string       { return "" }
