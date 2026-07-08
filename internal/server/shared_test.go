@@ -137,3 +137,63 @@ func TestAccessibilityLangDirAndLandmark(t *testing.T) {
 		t.Error("ar page should declare lang=ar dir=rtl")
 	}
 }
+
+func TestDevtoolIntegrationAndSSE(t *testing.T) {
+	s := counterServer(t)
+	ch := make(chan string, 4)
+	s.subsMu.Lock()
+	s.subs = map[chan string]struct{}{ch: {}}
+	s.subsMu.Unlock()
+
+	ts := httptest.NewServer(s.Handler())
+	defer ts.Close()
+
+	// 1. 测试 /dev/highlight 的 SSE 广播链路
+	highlightPayload := `{"id":"btn_plus"}`
+	respHighlight := post(t, ts.URL+"/dev/highlight", highlightPayload)
+	if respHighlight != "" {
+		t.Errorf("expected empty body for /dev/highlight POST, got: %s", respHighlight)
+	}
+
+	select {
+	case msg := <-ch:
+		var d struct {
+			InspectNode string `json:"inspectNode"`
+		}
+		if err := json.Unmarshal([]byte(msg), &d); err != nil {
+			t.Fatalf("broadcast payload not JSON: %v", err)
+		}
+		if d.InspectNode != "btn_plus" {
+			t.Errorf("expected inspectNode to be btn_plus, got %q (payload: %s)", d.InspectNode, msg)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected an SSE broadcast after the /dev/highlight post")
+	}
+
+	// 2. 测试 /dev/state 更新后的状态同步与重绘广播
+	statePayload := `{"count":123}`
+	post(t, ts.URL+"/dev/state", statePayload)
+
+	s.mu.Lock()
+	currentCount := s.rt.State["count"]
+	s.mu.Unlock()
+	if currentCount != 123.0 {
+		t.Errorf("expected state count to be 123, got %v", currentCount)
+	}
+
+	select {
+	case msg := <-ch:
+		var d struct {
+			Rev  int64  `json:"rev"`
+			HTML string `json:"html"`
+		}
+		if err := json.Unmarshal([]byte(msg), &d); err != nil {
+			t.Fatalf("broadcast payload not JSON: %v", err)
+		}
+		if !strings.Contains(d.HTML, ">123<") {
+			t.Errorf("broadcast should carry the new HTML showing count 123, got HTML:\n%s", d.HTML)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("expected an SSE broadcast after the /dev/state edit")
+	}
+}
