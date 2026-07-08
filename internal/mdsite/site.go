@@ -90,16 +90,27 @@ func BuildSite(docsDir, outDir, siteName string) (int, error) {
 		}
 	}
 
-	// index.html: reuse an existing index/README page, else a generated landing.
+	// Every directory that has a README.html gets an index.html copy, so a bare
+	// directory URL (/docs/, /docs/zh/, /api/zh/, …) resolves instead of 404ing.
+	for _, p := range pages {
+		if filepath.Base(p.htmlRel) != "README.html" {
+			continue
+		}
+		idx := filepath.Join(filepath.Dir(p.htmlRel), "index.html")
+		if hasPage(pages, filepath.ToSlash(idx)) {
+			continue // a real index page already owns this slot
+		}
+		if data, err := os.ReadFile(filepath.Join(outDir, p.htmlRel)); err == nil {
+			_ = os.WriteFile(filepath.Join(outDir, idx), data, 0o644)
+		}
+	}
+	// If the root has neither an index nor a README, drop a minimal landing there.
 	if !hasPage(pages, "index.html") && !hasPage(pages, "README.html") {
 		nav := sidebarHTML(pages, "en", "index.html")
 		landing := "<h1>QORM Documentation</h1>\n<p>Select a page from the sidebar.</p>\n"
 		if err := os.WriteFile(filepath.Join(outDir, "index.html"), []byte(pageHTML("QORM", "en", siteName, "", nav, landing)), 0o644); err != nil {
 			return 0, err
 		}
-	} else if hasPage(pages, "README.html") && !hasPage(pages, "index.html") {
-		data, _ := os.ReadFile(filepath.Join(outDir, "README.html"))
-		_ = os.WriteFile(filepath.Join(outDir, "index.html"), data, 0o644)
 	}
 	return len(pages), nil
 }

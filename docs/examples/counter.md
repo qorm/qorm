@@ -1,7 +1,7 @@
 # Example: Counter
 
 The smallest complete QORM app — global state, an action, and a binding. Source:
-[`examples/counter`](../../examples/counter).
+[`examples/counter`](https://github.com/qorm/qorm/tree/main/examples/counter).
 
 ```sh
 qorm run examples/counter

@@ -59,4 +59,4 @@ render the app and report real geometry. See [verifying an app](verification.md)
 | verify | `qorm_measure`, `qorm_check_layout` |
 
 Full reference: [MCP tools](agent/mcp-tools.md). To add QORM to your agent, see
-[`integrations/`](../integrations).
+[`integrations/`](https://github.com/qorm/qorm/tree/main/integrations).

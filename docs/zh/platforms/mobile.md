@@ -11,7 +11,7 @@ qorm package examples/hardware -p ios     -o hardware-ios      # an Xcode projec
 qorm package examples/hardware -p android -o hardware-android  # an Android project
 ```
 
-应用通过 Go→WASM 在 WebView 中于设备上离线运行。示例:[`hardware`](../../../examples/hardware)(演示能力目录)、[`i18n`](../../../examples/i18n)(语言环境、复数、货币、RTL)。有关各能力的平台支持情况,参见[支持矩阵](../../platforms/support-matrix.md)。
+应用通过 Go→WASM 在 WebView 中于设备上离线运行。示例:[`hardware`](https://github.com/qorm/qorm/tree/main/examples/hardware)(演示能力目录)、[`i18n`](https://github.com/qorm/qorm/tree/main/examples/i18n)(语言环境、复数、货币、RTL)。有关各能力的平台支持情况,参见[支持矩阵](../../platforms/support-matrix.md)。
 
 ## 架构
 

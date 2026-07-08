@@ -7,7 +7,7 @@ human's side of the workflow.
 
 ## See it first
 
-The 60-second version: [`scripts/demo.sh`](../scripts/demo.sh) starts a shared session and plays a scripted set of AI edits — open the printed URL, hit record, and watch the app change live with an "AI edited" toast:
+The 60-second version: [`scripts/demo.sh`](https://github.com/qorm/qorm/blob/main/scripts/demo.sh) starts a shared session and plays a scripted set of AI edits — open the printed URL, hit record, and watch the app change live with an "AI edited" toast:
 
 ```sh
 ./scripts/demo.sh                 # examples/counter
@@ -25,14 +25,14 @@ go install github.com/qorm/qorm/cmd/qorm@latest   # puts `qorm` on your PATH
 
 QORM ships a drop-in MCP server (so the AI can read, edit, and verify a live app)
 and a skill (so it writes the format the runtime actually accepts). Per-agent
-setup is in [`integrations/`](../integrations). In short:
+setup is in [`integrations/`](https://github.com/qorm/qorm/tree/main/integrations). In short:
 
 - **Claude Code:** `claude mcp add qorm -- qorm mcp .`
 - **Claude Desktop / Cursor / Windsurf:** merge the block from
-  [`integrations/mcp.json`](../integrations/mcp.json) into your agent's MCP config.
+  [`integrations/mcp.json`](https://github.com/qorm/qorm/blob/main/integrations/mcp.json) into your agent's MCP config.
 - Point the AI at the skill
-  [`integrations/skill/SKILL.md`](../integrations/skill/SKILL.md) (or this repo's
-  [`llms.txt`](../llms.txt) / [`AGENTS.md`](../AGENTS.md)) so it uses the runnable
+  [`integrations/skill/SKILL.md`](https://github.com/qorm/qorm/blob/main/integrations/skill/SKILL.md) (or this repo's
+  [`llms.txt`](https://github.com/qorm/qorm/blob/main/llms.txt) / [`AGENTS.md`](https://github.com/qorm/qorm/blob/main/AGENTS.md)) so it uses the runnable
   format instead of guessing.
 
 ## 3. Ask it to build something

@@ -1,9 +1,9 @@
-<!-- data-lang-nav --> [English](../../examples/counter.md) · 中文
+<!-- data-lang-nav --> [English](https://github.com/qorm/qorm/blob/main/examples/counter.md) · 中文
 
 # 示例:计数器
 
 最小的完整 QORM 应用——全局状态、一个动作和一个绑定。源码:
-[`examples/counter`](../../../examples/counter)。
+[`examples/counter`](https://github.com/qorm/qorm/tree/main/examples/counter)。
 
 ```sh
 qorm run examples/counter

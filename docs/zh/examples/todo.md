@@ -1,8 +1,8 @@
-<!-- data-lang-nav --> [English](../../examples/todo.md) · 中文
+<!-- data-lang-nav --> [English](https://github.com/qorm/qorm/blob/main/examples/todo.md) · 中文
 
 # 示例:待办事项
 
-列表、文本输入和数组状态。源码:[`examples/todo`](../../../examples/todo)。
+列表、文本输入和数组状态。源码:[`examples/todo`](https://github.com/qorm/qorm/tree/main/examples/todo)。
 
 ```sh
 qorm run examples/todo

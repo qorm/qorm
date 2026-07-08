@@ -10,8 +10,8 @@ qorm package examples/hardware -p android -o hardware-android  # an Android proj
 ```
 
 The app runs offline on device via Go→WASM in a WebView. Examples:
-[`hardware`](../../examples/hardware) (the capability catalog exercised),
-[`i18n`](../../examples/i18n) (locales, plurals, currency, RTL). See the
+[`hardware`](https://github.com/qorm/qorm/tree/main/examples/hardware) (the capability catalog exercised),
+[`i18n`](https://github.com/qorm/qorm/tree/main/examples/i18n) (locales, plurals, currency, RTL). See the
 [support matrix](support-matrix.md) for per-capability platform support.
 
 ## Architecture
