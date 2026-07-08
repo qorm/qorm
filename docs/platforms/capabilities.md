@@ -14,14 +14,14 @@ QORM has 43 built-in hardware/native capabilities. For each: the widget type is 
 | `bluetooth` | `bluetooth` | bluetoothScan<br>bluetoothState | `qormOnBluetooth` | ios, android, mac | Scan for BLE devices + adapter state. |
 | `wifi` | `wifi` | wifiInfo | `qormOnWifi` | ios, android, mac | Current Wi-Fi network info. (iOS restricts Wi-Fi info to the current network) |
 | `nfc` | `nfc` | nfcRead | `qormOnNfc` | ios, android | Read an NFC/NDEF tag. (iOS requires a paid Apple Developer team) |
-| `volume` | `volume` | volumeGet<br>volumeSet<br>volumeUp<br>volumeDown | `qormOnVolume` | ios, android, mac, linux | System output volume. (Android volumeSet pending (get/up/down only)) |
+| `volume` | `volume` | volumeGet<br>volumeSet<br>volumeUp<br>volumeDown | `qormOnVolume` | ios, android, mac, linux, windows | System output volume. (Android volumeSet pending (get/up/down only)) |
 | `brightness` | `brightness` | brightnessGet<br>brightnessSet<br>brightnessUp<br>brightnessDown | `qormOnBrightness` | ios, android, mac, linux | Screen brightness. (Linux needs brightnessctl + a backlight device; Android brightnessSet pending; Windows pending) |
 | `vibrate` | `vibrate` | vibrate | `—` | ios, android, web | Basic vibration. |
 | `torch` | `torch` | torchGet<br>torchToggle | `qormOnTorch` | ios, android | Flashlight / torch. |
 | `battery` | `battery` | battery | `qormOnBattery` | ios, android, mac, linux, web | Battery level + charging state. |
-| `notify` | `notify` | notify | `qormOnNotify` | ios, mac, linux, windows, web | Local notification. (Android falls back to the Web Notification API; Windows shows a balloon (toast planned)) |
+| `notify` | `notify` | notify | `qormOnNotify` | ios, mac, linux, windows, web | Local notification. (Android falls back to the Web Notification API; Windows shows a WinRT toast (balloon fallback)) |
 | `badge` | `dockbadge` | badge | `—` | ios, mac | App icon / Dock badge count. |
-| `screenshot` | `screenshot` | screenshot | `qormOnScreenshot` | ios, android, mac, linux, web | Capture the screen / app view. (Linux needs grim, scrot or ImageMagick; Windows pending) |
+| `screenshot` | `screenshot` | screenshot | `qormOnScreenshot` | ios, android, mac, linux, windows, web | Capture the screen / app view. (Linux needs grim, scrot or ImageMagick) |
 | `screenrecord` | `screenrecord` | screenRecordStart<br>screenRecordStop | `qormOnScreenRecord` | ios, mac, web | Record the screen. (Android needs MediaProjection (pending)) |
 | `share` | `share` | share | `qormOnShare` | ios, android, mac, linux, windows, web | Open the system share sheet. (Linux/Windows fall back to copying the text to the clipboard) |
 | `clipboard` | `clipboard` | clipboardSet<br>clipboardGet | `qormOnClipboard` | ios, android, mac, linux, windows, web | Read/write the clipboard. |
@@ -58,5 +58,5 @@ Every capability each target implements natively or via a Web API.
 - **Android** (36) — `camera`, `location`, `recorder`, `sensors`, `biometric`, `bluetooth`, `wifi`, `nfc`, `volume`, `brightness`, `vibrate`, `torch`, `battery`, `screenshot`, `share`, `clipboard`, `deviceinfo`, `network`, `keepawake`, `haptics`, `storage`, `stt`, `securestorage`, `filepicker`, `photopicker`, `orientation`, `tts`, `compass`, `proximity`, `pedometer`, `barometer`, `contacts`, `calendar`, `systemmodes`, `insets`, `openurl`
 - **macOS** (25) — `camera`, `location`, `recorder`, `biometric`, `bluetooth`, `wifi`, `volume`, `brightness`, `battery`, `notify`, `badge`, `screenshot`, `screenrecord`, `share`, `clipboard`, `deviceinfo`, `network`, `keepawake`, `storage`, `loginitem`, `securestorage`, `tts`, `systemmodes`, `openurl`, `screens`
 - **Linux** (16) — `camera`, `location`, `recorder`, `volume`, `brightness`, `battery`, `notify`, `screenshot`, `share`, `clipboard`, `deviceinfo`, `network`, `keepawake`, `storage`, `tts`, `openurl`
-- **Windows** (12) — `camera`, `location`, `recorder`, `notify`, `share`, `clipboard`, `deviceinfo`, `network`, `storage`, `securestorage`, `tts`, `openurl`
+- **Windows** (14) — `camera`, `location`, `recorder`, `volume`, `notify`, `screenshot`, `share`, `clipboard`, `deviceinfo`, `network`, `storage`, `securestorage`, `tts`, `openurl`
 - **Web** (28) — `camera`, `location`, `recorder`, `vibrate`, `battery`, `notify`, `screenshot`, `screenrecord`, `share`, `clipboard`, `deviceinfo`, `network`, `keepawake`, `haptics`, `storage`, `stt`, `securestorage`, `filepicker`, `photopicker`, `orientation`, `videocapture`, `qrscan`, `tts`, `compass`, `contacts`, `systemmodes`, `insets`, `openurl`
