@@ -6,19 +6,32 @@ QORM(Queryable Object Rendering Model,可查询对象渲染模型)是一个纯 G
 声明式 UI 运行时:用 JSON 编写 UI,实时运行它,签名它,并将其打包为
 web / iOS / Android / 桌面——人和 AI 智能体都能读写。
 
+这个名字同时也是你对一个活动应用所做的四件事:经由 HTTP/MCP **查询(Query)**
+节点树与状态,通过 SSE 实时**观察(Observe)**它,把它**渲染(Render)**到每个平台,
+再经由 actions 与写接口**修改(Mutate)**它。
+
 初来乍到?先读[顶层 README](../../README.zh.md) 了解全局与 CLI,然后从下方深入。
 [`examples/`](../../examples) 应用是权威的、可运行的参考——当文档与运行中的示例不一致时,
 以示例为准。
 
 ## 学习
 
+- [工程结构](project-structure.md)——一个 QORM 应用文件夹的布局,逐个文件讲解
 - [快速上手](tutorials/getting-started.md)——安装、你的第一个应用、运行循环
 - [第一个场景](tutorials/first-scene.md) · [第一个 action](tutorials/first-action.md) · [第一个组件](tutorials/first-component.md) · [第一个平台包](tutorials/first-platform-pack.md)
 
 ## 参考(由代码自动生成——权威)
 
+- [节点与组件属性](reference/props.md)——节点结构、通用样式属性,以及每个组件的专有属性
+- [动作与状态](reference/actions.md)——每种动作步骤 `type` 及其字段
 - [组件目录](../reference/widgets.md)——渲染器接受的每一种节点 `type`
 - [能力清单](../platforms/capabilities.md)——内置的硬件/OS 操作、回调与平台
+
+### API 接口面
+
+- [HTTP 与 SSE](reference/http-api.md)——`qorm run` 提供的端点(浏览器、MCP、OTA)
+- [MCP 工具](../agent/mcp-tools.md)——AI 智能体驱动活动应用所用的工具
+- [Go 包:qormext](reference/go-api.md)——唯一的公开 Go 包,用于应用自有的原生操作
 
 ## 平台与打包
 
