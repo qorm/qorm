@@ -10,10 +10,10 @@ qorm package examples/menus -p mac         # a macOS .app (per-platform cgo buil
 qorm-desktop-... run examples/menus --app  # opens a native window
 ```
 
-Examples that exercise desktop features: [`menus`](../../examples/menus) (system
+Examples that exercise desktop features: [`menus`](https://github.com/qorm/qorm/tree/main/examples/menus) (system
 menu bar / tray / right-click menus, with icons + submenus),
-[`floating`](../../examples/floating) (chromeless + transparent, custom-shape
-window), [`desktop-hardware`](../../examples/desktop-hardware). See the
+[`floating`](https://github.com/qorm/qorm/tree/main/examples/floating) (chromeless + transparent, custom-shape
+window), [`desktop-hardware`](https://github.com/qorm/qorm/tree/main/examples/desktop-hardware). See the
 [support matrix](support-matrix.md) for what's tested per OS.
 
 ## Architecture

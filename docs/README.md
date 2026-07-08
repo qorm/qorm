@@ -10,8 +10,8 @@ The name is also what you do with a live app: **Query** the node tree and state
 over HTTP/MCP, **Observe** it in real time over SSE, **Render** it on every
 platform, **Mutate** it through actions and the write API.
 
-New here? Read the [top-level README](../README.md) for the big picture and the
-CLI, then dive in below. The [`examples/`](../examples) apps are the canonical,
+New here? Read the [top-level README](https://github.com/qorm/qorm/blob/main/README.md) for the big picture and the
+CLI, then dive in below. The [`examples/`](https://github.com/qorm/qorm/tree/main/examples) apps are the canonical,
 runnable reference — when a doc and a running example disagree, trust the example.
 
 ## Learn
@@ -41,7 +41,7 @@ App-facing capability docs stay here with the platform guides:
 ## Examples (walkthroughs)
 
 - [Counter](examples/counter.md) · [Todo](examples/todo.md) · [Login](examples/login.md) · [Dashboard](examples/dashboard.md)
-- The full set of runnable apps lives in [`examples/`](../examples).
+- The full set of runnable apps lives in [`examples/`](https://github.com/qorm/qorm/tree/main/examples).
 
 ## Human-AI collaboration
 
@@ -50,7 +50,7 @@ App-facing capability docs stay here with the platform guides:
 
 ## For AI agents
 
-- [Agent integrations](../integrations) — drop-in MCP config + a QORM skill for Claude / Cursor / Windsurf
+- [Agent integrations](https://github.com/qorm/qorm/tree/main/integrations) — drop-in MCP config + a QORM skill for Claude / Cursor / Windsurf
 - [MCP tools](agent/mcp-tools.md) — the Model Context Protocol surface to read, edit, and verify a live app
 - [Verifying an app](verification.md) — self-verify edits with `qorm measure` / `qorm check`
 - [Skills](agent/skills.md) · [Permissions](agent/permissions.md)
@@ -62,4 +62,4 @@ App-facing capability docs stay here with the platform guides:
 
 ## Commercial use
 
-- [Terms](../ops/TERMS.md) — the source is MIT; a Patreon membership covers commercial white-labeling
+- [Terms](https://github.com/qorm/qorm/blob/main/ops/TERMS.md) — the source is MIT; a Patreon membership covers commercial white-labeling

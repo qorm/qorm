@@ -1,7 +1,7 @@
 # Example: Login
 
 A styled login form — text inputs, bound state, and a submit button. Source:
-[`examples/login`](../../examples/login).
+[`examples/login`](https://github.com/qorm/qorm/tree/main/examples/login).
 
 ```sh
 qorm run examples/login
@@ -33,7 +33,7 @@ An error line binds to state so a failed attempt shows a message:
 { "type": "text", "id": "err", "text": "{{state.errorMessage}}" }
 ```
 
-The login flow is exercised by [`login.test.json`](../../examples/login/login.test.json)
+The login flow is exercised by [`login.test.json`](https://github.com/qorm/qorm/blob/main/examples/login/login.test.json)
 (a `type: test` fixture the loader skips at run time but the harness runs).
 
 ## Format notes

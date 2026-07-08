@@ -1,9 +1,9 @@
-<!-- data-lang-nav --> [English](../../examples/login.md) · 中文
+<!-- data-lang-nav --> [English](https://github.com/qorm/qorm/blob/main/examples/login.md) · 中文
 
 # 示例:登录
 
 一个带样式的登录表单——文本输入框、绑定状态和一个提交按钮。源码:
-[`examples/login`](../../../examples/login)。
+[`examples/login`](https://github.com/qorm/qorm/tree/main/examples/login)。
 
 ```sh
 qorm run examples/login
@@ -34,7 +34,7 @@ qorm run examples/login
 { "type": "text", "id": "err", "text": "{{state.errorMessage}}" }
 ```
 
-登录流程由 [`login.test.json`](../../../examples/login/login.test.json) 进行验证
+登录流程由 [`login.test.json`](https://github.com/qorm/qorm/blob/main/examples/login/login.test.json) 进行验证
 (这是一个 `type: test` 测试装置,加载器在运行时会跳过它,但测试框架会运行它)。
 
 ## 格式说明

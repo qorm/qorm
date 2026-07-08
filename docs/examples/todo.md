@@ -1,6 +1,6 @@
 # Example: Todo
 
-Lists, text input, and array state. Source: [`examples/todo`](../../examples/todo).
+Lists, text input, and array state. Source: [`examples/todo`](https://github.com/qorm/qorm/tree/main/examples/todo).
 
 ```sh
 qorm run examples/todo

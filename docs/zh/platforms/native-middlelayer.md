@@ -108,11 +108,11 @@ function qormOnBankSDK(msg) {
 
 ## 完整示例
 
-- [`examples/middleware`](../../../examples/middleware) —— **推荐**,展示完整的 Go 中间层:
+- [`examples/middleware`](https://github.com/qorm/qorm/tree/main/examples/middleware) —— **推荐**,展示完整的 Go 中间层:
   `hash`(真正的 `crypto/sha256`,声明式 JSON 无法表达的逻辑)、`visit`(保存在 Go 内存中的有状态计数)、
   `celebrate`(Go 调用框架硬件桥接 `qormext.Native` + 使用 `qormext.Emit` 向 UI 事件总线推送事件)。
   单个 `native/desktop.go`,既编译进桌面二进制,也一并编译进移动/web WASM。
-- [`examples/native-ext`](../../../examples/native-ext) —— 最小版本:一个「Pay via Native SDK」按钮,
+- [`examples/native-ext`](https://github.com/qorm/qorm/tree/main/examples/native-ext) —— 最小版本:一个「Pay via Native SDK」按钮,
   带有 `ios.swift` / `android.java` 纯原生逃生舱片段。
 
 ```bash

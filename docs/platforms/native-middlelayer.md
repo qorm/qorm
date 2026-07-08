@@ -106,11 +106,11 @@ function qormOnBankSDK(msg) {
 
 ## Complete examples
 
-- [`examples/middleware`](../../examples/middleware) -- **recommended**, showing the full Go middle layer:
+- [`examples/middleware`](https://github.com/qorm/qorm/tree/main/examples/middleware) -- **recommended**, showing the full Go middle layer:
   `hash` (real `crypto/sha256`, logic that declarative JSON cannot express), `visit` (stateful counting held in Go memory),
   `celebrate` (Go calling the framework hardware bridge `qormext.Native` + using `qormext.Emit` to push events to the UI event bus).
   A single `native/desktop.go`, compiled into the desktop binary and the mobile/web WASM alike.
-- [`examples/native-ext`](../../examples/native-ext) -- minimal version: a "Pay via Native SDK" button,
+- [`examples/native-ext`](https://github.com/qorm/qorm/tree/main/examples/native-ext) -- minimal version: a "Pay via Native SDK" button,
   with `ios.swift` / `android.java` pure-native escape-hatch snippets.
 
 ```bash

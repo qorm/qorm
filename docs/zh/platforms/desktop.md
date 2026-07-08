@@ -12,7 +12,7 @@ qorm package examples/menus -p mac         # a macOS .app (per-platform cgo buil
 qorm-desktop-... run examples/menus --app  # opens a native window
 ```
 
-演示桌面特性的示例:[`menus`](../../../examples/menus)(系统菜单栏 / 托盘 / 右键菜单,带图标 + 子菜单)、[`floating`](../../../examples/floating)(无边框 + 透明、自定义形状窗口)、[`desktop-hardware`](../../../examples/desktop-hardware)。有关各操作系统的测试情况,参见[支持矩阵](../../platforms/support-matrix.md)。
+演示桌面特性的示例:[`menus`](https://github.com/qorm/qorm/tree/main/examples/menus)(系统菜单栏 / 托盘 / 右键菜单,带图标 + 子菜单)、[`floating`](https://github.com/qorm/qorm/tree/main/examples/floating)(无边框 + 透明、自定义形状窗口)、[`desktop-hardware`](https://github.com/qorm/qorm/tree/main/examples/desktop-hardware)。有关各操作系统的测试情况,参见[支持矩阵](../../platforms/support-matrix.md)。
 
 ## 架构
 

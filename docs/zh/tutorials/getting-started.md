@@ -93,4 +93,4 @@ qorm render my-app -o my-app.html
 - [组件目录](/api/widgets.md) —— 所有可用的节点类型(自动生成)。
 - [能力](../../platforms/capabilities.md) —— 相机、定位、蓝牙等原生能力。
 - [用户中间层](../platforms/native-middlelayer.md) —— 用一个 Go 文件添加你自己的原生操作。
-- 更多可运行示例,参见仓库中的 [`examples/`](../../../examples)(counter / todo / dashboard / hardware / …)。
+- 更多可运行示例,参见仓库中的 [`examples/`](https://github.com/qorm/qorm/tree/main/examples)(counter / todo / dashboard / hardware / …)。

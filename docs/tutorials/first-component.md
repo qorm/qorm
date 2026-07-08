@@ -57,4 +57,4 @@ The instance passes `children` to fill the slot:
 ```
 
 - `{{ prop.* }}` is only visible inside the component template; a field of the same name on the instance is the value passed in.
-- For a complete runnable example, see [`examples/uikit`](../../examples/uikit) (metric / kv / panel).
+- For a complete runnable example, see [`examples/uikit`](https://github.com/qorm/qorm/tree/main/examples/uikit) (metric / kv / panel).

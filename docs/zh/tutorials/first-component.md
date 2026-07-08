@@ -59,4 +59,4 @@
 ```
 
 - `{{ prop.* }}` 只在组件模板内部可见;实例上同名的字段就是传入的值。
-- 完整的可运行示例,参见 [`examples/uikit`](../../../examples/uikit)(metric / kv / panel)。
+- 完整的可运行示例,参见 [`examples/uikit`](https://github.com/qorm/qorm/tree/main/examples/uikit)(metric / kv / panel)。

@@ -8,7 +8,7 @@ QORM 面向智能体:让你的 AI 编码助手(Claude Code、Claude Desktop、Cu
 
 ## 先看效果
 
-60 秒版本:[`scripts/demo.sh`](../../scripts/demo.sh) 会开一个共享会话并按脚本自动做一串 AI 编辑——打开打印出的 URL、按下录制,就能看到应用实时变化 + 「AI edited」提示:
+60 秒版本:[`scripts/demo.sh`](https://github.com/qorm/qorm/blob/main/scripts/demo.sh) 会开一个共享会话并按脚本自动做一串 AI 编辑——打开打印出的 URL、按下录制,就能看到应用实时变化 + 「AI edited」提示:
 
 ```sh
 ./scripts/demo.sh                 # examples/counter
@@ -26,14 +26,14 @@ go install github.com/qorm/qorm/cmd/qorm@latest   # puts `qorm` on your PATH
 
 QORM 附带一个即插即用的 MCP 服务器(让 AI 能读取、编辑并验证一个运行中的应用)
 和一个技能(让它写出运行时真正接受的格式)。各智能体的具体配置见
-[`integrations/`](../../integrations)。简而言之:
+[`integrations/`](https://github.com/qorm/qorm/tree/main/integrations)。简而言之:
 
 - **Claude Code:** `claude mcp add qorm -- qorm mcp .`
 - **Claude Desktop / Cursor / Windsurf:** 把
-  [`integrations/mcp.json`](../../integrations/mcp.json) 里的代码块合并进你智能体的 MCP 配置。
+  [`integrations/mcp.json`](https://github.com/qorm/qorm/blob/main/integrations/mcp.json) 里的代码块合并进你智能体的 MCP 配置。
 - 把 AI 指向技能
-  [`integrations/skill/SKILL.md`](../../integrations/skill/SKILL.md)(或本仓库的
-  [`llms.txt`](../../llms.txt) / [`AGENTS.md`](../../AGENTS.md)),让它使用可运行的
+  [`integrations/skill/SKILL.md`](https://github.com/qorm/qorm/blob/main/integrations/skill/SKILL.md)(或本仓库的
+  [`llms.txt`](https://github.com/qorm/qorm/blob/main/llms.txt) / [`AGENTS.md`](https://github.com/qorm/qorm/blob/main/AGENTS.md)),让它使用可运行的
   格式而不是靠猜。
 
 ## 3. 让它构建点东西
