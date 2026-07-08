@@ -35,6 +35,7 @@ the acronym as verbs and you have the API surface: **Query** (HTTP/MCP reads),
   `qorm_dispatch` / `qorm_set_state`; change design with `qorm_preview_patch` →
   `qorm_apply_patch` (apply must carry the preview's token). See
   [docs/agent/mcp-tools.md](docs/agent/mcp-tools.md).
+- **CRITICAL: During development, editing, and live debugging, agents MUST always keep the human observation window (logwindow / DevTool) open and active (serving on http://127.0.0.1:10383/logwindow or /console) so humans can inspect updates in real time.**
 - **Self-verify** every edit against the rendered reality with `qorm measure` /
   `qorm check` (or `qorm_measure` / `qorm_check_layout`) — see
   [docs/verification.md](docs/verification.md).
