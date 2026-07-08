@@ -17,7 +17,9 @@ import (
 // The payload is served to the WebView over https via WebViewAssetLoader so the
 // WASM runtime's fetch() works from packaged assets.
 func scaffoldAndroid(out, name, appName, dev, appDir string, rel releaseOpts) error {
-	_ = rel // release signing/AAB lands with v0.2.1 A2
+	if _, err := strconv.Atoi(rel.BuildNum); err != nil {
+		return fmt.Errorf("--build must be an integer (got %q): Android versionCode is numeric", rel.BuildNum)
+	}
 	id := pkgID(name)
 	ns := "com.qorm." + id
 	awidgets := appWidgets(appDir)
@@ -40,7 +42,27 @@ func scaffoldAndroid(out, name, appName, dev, appDir string, rel releaseOpts) er
 			return err
 		}
 	}
-	writeIconFor(appDir, filepath.Join(res, "mipmap-mdpi", "ic_launcher.png"), 192)
+	writeAndroidIcons(appDir, res)
+
+	// release builds sign with a managed (or user-supplied) keystore; the
+	// credentials travel via keystore.properties so they never sit in gradle.
+	if rel.Release {
+		ksPath, alias, storePass, keyPass, err := ensureKeystore(appDir, rel)
+		if err != nil {
+			return err
+		}
+		props := "storeFile=" + filepath.ToSlash(ksPath) + "\n" +
+			"storePassword=" + storePass + "\n" +
+			"keyPassword=" + keyPass + "\n" +
+			"keyAlias=" + alias + "\n"
+		if err := os.WriteFile(filepath.Join(out, "keystore.properties"), []byte(props), 0o600); err != nil {
+			return err
+		}
+		// keep the credentials out of git if the generated project is committed
+		if err := os.WriteFile(filepath.Join(out, ".gitignore"), []byte("keystore.properties\n"), 0o644); err != nil {
+			return err
+		}
+	}
 
 	files := map[string]string{
 		"settings.gradle": `pluginManagement {
@@ -58,17 +80,17 @@ include(":app")
 `,
 		"gradle.properties": "android.useAndroidX=true\norg.gradle.jvmargs=-Xmx2048m\n",
 		"app/build.gradle": `plugins { id 'com.android.application' }
-android {
+` + androidSigningProps(rel) + `android {
     namespace '` + ns + `'
     compileSdk 34
     defaultConfig {
         applicationId "` + ns + `"
         minSdk 24
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode ` + rel.BuildNum + `
+        versionName "` + rel.AppVersion + `"
     }
-    buildTypes { release { minifyEnabled false } }
+` + androidSigningConfig(rel) + `    buildTypes { release { minifyEnabled false` + androidReleaseSigning(rel) + ` } }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
@@ -104,8 +126,13 @@ dependencies {
 	files["app/src/main/java/com/qorm/"+id+"/QormWidget.java"] = androidWidgetProvider(ns, awProvider(awidgets, wName))
 	files["app/src/main/res/layout/qorm_widget.xml"] = androidWidgetLayout()
 	files["app/src/main/res/xml/qorm_widget_info.xml"] = androidWidgetInfo()
-	for rel, content := range files {
-		p := filepath.Join(out, rel)
+	files["app/src/main/res/values/colors.xml"] = `<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="qorm_icon_bg">#FFFFFF</color>
+</resources>
+`
+	for relPath, content := range files {
+		p := filepath.Join(out, relPath)
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
 			return err
 		}
@@ -115,19 +142,119 @@ dependencies {
 	}
 
 	fmt.Printf("generated Android project -> %s\n", out)
-	return buildAndroid(out)
+	return buildAndroid(out, rel)
 }
 
-// buildAndroid runs a Gradle debug build if a toolchain is available, else
-// prints how to finish the build.
-func buildAndroid(dir string) error {
+// androidSigningProps loads keystore.properties at the top of app/build.gradle
+// so no credential ever appears in gradle source (release builds only).
+func androidSigningProps(rel releaseOpts) string {
+	if !rel.Release {
+		return ""
+	}
+	return `def ksProps = new Properties()
+def ksFile = rootProject.file('keystore.properties')
+if (ksFile.exists()) { ksFile.withInputStream { ksProps.load(it) } }
+`
+}
+
+// androidSigningConfig emits the signingConfigs block fed by keystore.properties.
+func androidSigningConfig(rel releaseOpts) string {
+	if !rel.Release {
+		return ""
+	}
+	return `    signingConfigs {
+        release {
+            storeFile file(ksProps['storeFile'])
+            storePassword ksProps['storePassword']
+            keyAlias ksProps['keyAlias']
+            keyPassword ksProps['keyPassword']
+        }
+    }
+`
+}
+
+// androidReleaseSigning attaches the release signingConfig to the release build type.
+func androidReleaseSigning(rel releaseOpts) string {
+	if !rel.Release {
+		return ""
+	}
+	return "; signingConfig signingConfigs.release"
+}
+
+// androidDPIs lists the launcher-icon density buckets: ic_launcher size and
+// the adaptive-icon foreground canvas (108dp scaled per density).
+var androidDPIs = []struct {
+	name     string
+	icon, fg int
+}{
+	{"mdpi", 48, 108},
+	{"hdpi", 72, 162},
+	{"xhdpi", 96, 216},
+	{"xxhdpi", 144, 324},
+	{"xxxhdpi", 192, 432},
+}
+
+// writeAndroidIcons renders the full launcher-icon set: ic_launcher.png for
+// all five densities, adaptive-icon foregrounds (content scaled to 66% of the
+// canvas so launcher masks don't clip it), and the anydpi-v26 adaptive icon.
+// On any resize failure it falls back to the pre-v0.2.1 single-mdpi icon so
+// packaging never fails over artwork.
+func writeAndroidIcons(appDir, res string) {
+	src := appIconFor(appDir, 1024)
+	for _, d := range androidDPIs {
+		dir := filepath.Join(res, "mipmap-"+d.name)
+		icon, err := resizePNG(src, d.icon)
+		if err == nil {
+			var fg []byte
+			if fg, err = paddedPNG(src, d.fg, d.fg*66/100); err == nil {
+				err = os.MkdirAll(dir, 0o755)
+			}
+			if err == nil {
+				if err = os.WriteFile(filepath.Join(dir, "ic_launcher.png"), icon, 0o644); err == nil {
+					err = os.WriteFile(filepath.Join(dir, "ic_launcher_foreground.png"), fg, 0o644)
+				}
+			}
+		}
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "warn: launcher icons: %v — falling back to a single unscaled icon\n", err)
+			writeIconFor(appDir, filepath.Join(res, "mipmap-mdpi", "ic_launcher.png"), 192)
+			return
+		}
+	}
+	anydpi := filepath.Join(res, "mipmap-anydpi-v26")
+	if err := os.MkdirAll(anydpi, 0o755); err != nil {
+		fmt.Fprintf(os.Stderr, "warn: launcher icons: %v\n", err)
+		return
+	}
+	adaptive := `<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/qorm_icon_bg"/>
+    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+</adaptive-icon>
+`
+	if err := os.WriteFile(filepath.Join(anydpi, "ic_launcher.xml"), []byte(adaptive), 0o644); err != nil {
+		fmt.Fprintf(os.Stderr, "warn: launcher icons: %v\n", err)
+	}
+}
+
+// buildAndroid runs the Gradle build if a toolchain is available, else prints
+// how to finish it by hand: assembleDebug normally, bundleRelease (plus
+// assembleRelease with --apk) for --release.
+func buildAndroid(dir string, rel releaseOpts) error {
+	tasks := []string{"assembleDebug"}
+	if rel.Release {
+		tasks = []string{"bundleRelease"}
+		if rel.APK {
+			tasks = append(tasks, "assembleRelease")
+		}
+	}
 	gradle, err := exec.LookPath("gradle")
 	sdk := os.Getenv("ANDROID_HOME")
 	if sdk == "" {
 		sdk = os.Getenv("ANDROID_SDK_ROOT")
 	}
 	if err != nil || sdk == "" {
-		fmt.Printf("  Android SDK/Gradle not both present — project is ready to build:\n    cd %s && gradle assembleDebug\n", dir)
+		fmt.Printf("  Android SDK/Gradle not both present — project is ready to build:\n    cd %s && gradle %s\n", dir, strings.Join(tasks, " "))
 		return nil
 	}
 	// Pin a Gradle wrapper to a version the Android plugin supports (a newer
@@ -140,13 +267,30 @@ func buildAndroid(dir string) error {
 	if err := wrap.Run(); err != nil {
 		builder = gradle // fall back to system gradle
 	}
-	fmt.Fprintf(os.Stderr, "building APK (first run downloads Gradle + the Android plugin)…\n")
-	cmd := exec.Command(builder, "assembleDebug", "--no-daemon", "--console=plain")
-	cmd.Dir = dir
-	cmd.Stdout = os.Stderr
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		fmt.Printf("  Gradle build did not complete. Project is ready:\n    cd %s && ./gradlew assembleDebug\n", dir)
+	for _, task := range tasks {
+		fmt.Fprintf(os.Stderr, "running gradle %s (first run downloads Gradle + the Android plugin)…\n", task)
+		cmd := exec.Command(builder, task, "--no-daemon", "--console=plain")
+		cmd.Dir = dir
+		cmd.Stdout = os.Stderr
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			fmt.Printf("  Gradle build did not complete. Project is ready:\n    cd %s && ./gradlew %s\n", dir, strings.Join(tasks, " "))
+			return nil
+		}
+	}
+	if rel.Release {
+		aab := filepath.Join(dir, "app", "build", "outputs", "bundle", "release", "app-release.aab")
+		if _, e := os.Stat(aab); e == nil {
+			fmt.Printf("  [ok] AAB: %s\n", aab)
+			fmt.Printf("  upload it in the Play Console (https://play.google.com/console) under an\n" +
+				"  internal-testing or production track. Recommended: enable Play App Signing.\n")
+		}
+		if rel.APK {
+			apk := filepath.Join(dir, "app", "build", "outputs", "apk", "release", "app-release.apk")
+			if _, e := os.Stat(apk); e == nil {
+				fmt.Printf("  [ok] APK: %s\n", apk)
+			}
+		}
 		return nil
 	}
 	apk := filepath.Join(dir, "app", "build", "outputs", "apk", "debug", "app-debug.apk")
