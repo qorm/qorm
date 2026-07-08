@@ -48,6 +48,14 @@ func RenderMarkdown(src string) string {
 	i := 0
 	for i < len(lines) {
 		line := lines[i]
+		ts := strings.TrimSpace(line)
+		// Skip HTML comments and the GitHub-README language marker: the docs
+		// site has its own language switcher, and this converter renders raw
+		// HTML as escaped text.
+		if strings.HasPrefix(ts, "<!--") || strings.Contains(ts, "data-lang-nav") {
+			i++
+			continue
+		}
 		switch {
 		case strings.HasPrefix(line, "```"):
 			i++
@@ -186,13 +194,34 @@ func inlineMD(s string) string {
 		codes = append(codes, m[1:len(m)-1])
 		return fmt.Sprintf("\x00c%d\x00", len(codes)-1)
 	})
-	s = linkRe.ReplaceAllString(s, `<a href="$2">$1</a>`)
+	s = linkRe.ReplaceAllStringFunc(s, func(m string) string {
+		g := linkRe.FindStringSubmatch(m)
+		return `<a href="` + mdLinkToHTML(g[2]) + `">` + g[1] + `</a>`
+	})
 	s = boldRe.ReplaceAllString(s, `<strong>$1</strong>`)
 	s = italicRe.ReplaceAllString(s, `<em>$1</em>`)
 	for idx, c := range codes {
 		s = strings.Replace(s, fmt.Sprintf("\x00c%d\x00", idx), "<code>"+c+"</code>", 1)
 	}
 	return s
+}
+
+// mdLinkToHTML rewrites an internal link to another markdown file so it points
+// at the generated .html instead (e.g. reference/widgets.md -> reference/widgets.html).
+// External links, anchors and mailto: are left untouched.
+func mdLinkToHTML(href string) string {
+	if strings.HasPrefix(href, "http://") || strings.HasPrefix(href, "https://") ||
+		strings.HasPrefix(href, "#") || strings.HasPrefix(href, "mailto:") {
+		return href
+	}
+	frag := ""
+	if k := strings.IndexByte(href, '#'); k >= 0 {
+		frag, href = href[k:], href[:k]
+	}
+	if strings.HasSuffix(href, ".md") {
+		href = strings.TrimSuffix(href, ".md") + ".html"
+	}
+	return href + frag
 }
 
 // slug builds an anchor id, keeping letters/digits (incl. CJK) and dashes.
