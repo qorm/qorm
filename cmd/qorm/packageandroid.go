@@ -812,7 +812,7 @@ public class MainActivity extends androidx.fragment.app.FragmentActivity impleme
                 boolean dark = (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES;
                 android.app.NotificationManager nm = (android.app.NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
                 boolean dnd = nm != null && nm.getCurrentInterruptionFilter() != android.app.NotificationManager.INTERRUPTION_FILTER_ALL;
-                String json = "{"lowPower":" + low + ","darkMode":" + dark + ","airplane":" + airplane + ","dnd":" + dnd + "}";
+                String json = "{\"lowPower\":" + low + ",\"darkMode\":" + dark + ",\"airplane\":" + airplane + ",\"dnd\":" + dnd + "}";
                 js("qormOnModes(" + org.json.JSONObject.quote(json) + ")");
             } catch (Exception e) {} });
         }
@@ -845,7 +845,7 @@ public class MainActivity extends androidx.fragment.app.FragmentActivity impleme
                         t=(int)(wi.getSystemWindowInsetTop()/dn); b=(int)(wi.getSystemWindowInsetBottom()/dn); l=(int)(wi.getSystemWindowInsetLeft()/dn); r=(int)(wi.getSystemWindowInsetRight()/dn);
                     }
                 }
-                js("qormOnInsets('{"top":"+t+","bottom":"+b+","left":"+l+","right":"+r+"}')");
+                js("qormOnInsets('{\"top\":"+t+",\"bottom\":"+b+",\"left\":"+l+",\"right\":"+r+"}')");
             });
         }
         //__QORM_USER_ANDROID__
