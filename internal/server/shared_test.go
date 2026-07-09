@@ -197,9 +197,24 @@ func TestDevtoolIntegrationAndSSE(t *testing.T) {
 	ts := httptest.NewServer(s.Handler())
 	defer ts.Close()
 
+	// DevTool writes are token-gated like /event; authenticate as the
+	// DevTool page does (the token is embedded in the served page).
+	token := pageEventToken(t, ts.URL)
+	devPost := func(path, body string) string {
+		req, _ := http.NewRequest(http.MethodPost, ts.URL+path, strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Qorm-Token", token)
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatalf("post %s: %v", path, err)
+		}
+		defer resp.Body.Close()
+		b, _ := io.ReadAll(resp.Body)
+		return string(b)
+	}
+
 	// 1. 测试 /dev/highlight 的 SSE 广播链路
-	highlightPayload := `{"id":"btn_plus"}`
-	respHighlight := post(t, ts.URL+"/dev/highlight", highlightPayload)
+	respHighlight := devPost("/dev/highlight", `{"id":"btn_plus"}`)
 	if respHighlight != "" {
 		t.Errorf("expected empty body for /dev/highlight POST, got: %s", respHighlight)
 	}
@@ -220,8 +235,7 @@ func TestDevtoolIntegrationAndSSE(t *testing.T) {
 	}
 
 	// 2. 测试 /dev/state 更新后的状态同步与重绘广播
-	statePayload := `{"count":123}`
-	post(t, ts.URL+"/dev/state", statePayload)
+	devPost("/dev/state", `{"count":123}`)
 
 	s.mu.Lock()
 	currentCount := s.rt.State["count"]

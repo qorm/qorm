@@ -61,11 +61,16 @@ func cmdRun(args []string) int {
 	lan := false
 	tlsOn := false
 	mcpReadOnly := false
-	var dir, trust, revoked string
+	var dir, trust, revoked, auditLog string
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--mcp-read-only":
 			mcpReadOnly = true
+		case "--audit-log":
+			if i+1 < len(args) {
+				i++
+				auditLog = args[i]
+			}
 		case "--lan":
 			lan = true
 			open = false
@@ -113,6 +118,13 @@ func cmdRun(args []string) int {
 	printDiagnostics(dir)
 	if mcpReadOnly {
 		srv.SetMCPReadOnly(true)
+	}
+	if auditLog != "" {
+		if err := srv.SetAuditLog(auditLog); err != nil {
+			fmt.Fprintf(os.Stderr, "error: --audit-log: %v\n", err)
+			return 1
+		}
+		fmt.Printf("audit log -> %s (hash-chained; verify with: qorm audit %s)\n", auditLog, auditLog)
 	}
 	host := "127.0.0.1"
 	if lan {
@@ -597,5 +609,28 @@ func cmdPreview(args []string) int {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
+	return 0
+}
+
+// cmdAudit verifies a hash-chained activity audit log written by
+// `qorm run --audit-log <file>`: any edited, dropped, reordered or
+// re-attributed entry breaks the chain and is reported with its position.
+func cmdAudit(args []string) int {
+	if len(args) != 1 {
+		fmt.Fprintln(os.Stderr, "usage: qorm audit <audit-log.jsonl>")
+		return 2
+	}
+	f, err := os.Open(args[0])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+	defer f.Close()
+	n, err := server.VerifyAuditChain(f)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "AUDIT FAIL after %d verified entries: %v\n", n, err)
+		return 1
+	}
+	fmt.Printf("AUDIT OK: %d entries, hash chain intact\n", n)
 	return 0
 }

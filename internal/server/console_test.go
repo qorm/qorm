@@ -72,11 +72,13 @@ func TestDevtoolEndpoints(t *testing.T) {
 		t.Fatalf("JSON decode state: %v", err)
 	}
 
-	// Test 2: POST /dev/state
+	// Test 2: POST /dev/state — token-gated like every human-side write.
 	stateUpdate := map[string]any{"count": 42.0}
 	body, _ := json.Marshal(stateUpdate)
 	rr2 := httptest.NewRecorder()
-	s.serveDevState(rr2, httptest.NewRequest(http.MethodPost, "/dev/state", strings.NewReader(string(body))))
+	req2 := httptest.NewRequest(http.MethodPost, "/dev/state", strings.NewReader(string(body)))
+	req2.Header.Set("X-Qorm-Token", s.eventToken)
+	s.serveDevState(rr2, req2)
 	if rr2.Code != http.StatusOK {
 		t.Fatalf("POST /dev/state returned status %d", rr2.Code)
 	}
@@ -102,10 +104,12 @@ func TestDevtoolEndpoints(t *testing.T) {
 		t.Errorf("unexpected root node: %+v", node)
 	}
 
-	// Test 4: POST /dev/highlight
+	// Test 4: POST /dev/highlight — token-gated like every human-side write.
 	hlBody, _ := json.Marshal(map[string]string{"id": "root"})
 	rr4 := httptest.NewRecorder()
-	s.serveDevHighlight(rr4, httptest.NewRequest(http.MethodPost, "/dev/highlight", strings.NewReader(string(hlBody))))
+	req4 := httptest.NewRequest(http.MethodPost, "/dev/highlight", strings.NewReader(string(hlBody)))
+	req4.Header.Set("X-Qorm-Token", s.eventToken)
+	s.serveDevHighlight(rr4, req4)
 	if rr4.Code != http.StatusOK {
 		t.Fatalf("POST /dev/highlight returned status %d", rr4.Code)
 	}

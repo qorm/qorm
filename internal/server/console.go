@@ -18,7 +18,11 @@ func (s *Server) serveConsole(w http.ResponseWriter, _ *http.Request) {
 		name = "QORM"
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write([]byte(strings.ReplaceAll(consoleHTML, "{{title}}", htmlEscape(name))))
+	html := strings.ReplaceAll(consoleHTML, "{{title}}", htmlEscape(name))
+	// The DevTool is a human-side surface: it gets the same event token as the
+	// app page so its writes (/dev/state, /dev/highlight) are authenticated.
+	html = strings.ReplaceAll(html, "{{token}}", s.eventToken)
+	w.Write([]byte(html))
 }
 
 const consoleHTML = `<!doctype html>
@@ -325,7 +329,7 @@ const logWindowHTML = `<!doctype html>
           current[key] = parsed;
           fetch('/dev/state', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {'Content-Type': 'application/json', 'X-Qorm-Token': '{{token}}'},
             body: JSON.stringify(current)
           }).then(function(){ loadState(); });
         });
@@ -382,7 +386,7 @@ const logWindowHTML = `<!doctype html>
   function highlight(id) {
     fetch('/dev/highlight', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
+      headers: {'Content-Type': 'application/json', 'X-Qorm-Token': '{{token}}'},
       body: JSON.stringify({id: id})
     }).catch(function(){});
   }
@@ -451,13 +455,20 @@ func (s *Server) serveDevState(w http.ResponseWriter, r *http.Request) {
 	defer s.mu.Unlock()
 
 	if r.Method == "POST" {
+		// DevTool writes are human-side: they need the page-embedded token
+		// (like /event), and they are attributed as "devtool" — never lumped
+		// into "system", so the audit trail shows who actually mutated state.
+		if r.Header.Get("X-Qorm-Token") != s.eventToken {
+			http.Error(w, "invalid event token", http.StatusForbidden)
+			return
+		}
 		var newState map[string]any
 		if err := json.NewDecoder(r.Body).Decode(&newState); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		s.rt.State = newState
-		s.logEvent("system", "state modified via devtool")
+		s.logEvent("devtool", "state modified via devtool")
 		s.bump()
 		w.WriteHeader(http.StatusOK)
 		return
@@ -491,6 +502,10 @@ func (s *Server) serveDevTree(w http.ResponseWriter, r *http.Request) {
 
 // serveDevHighlight broadcasts a node inspect highlight payload over SSE.
 func (s *Server) serveDevHighlight(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("X-Qorm-Token") != s.eventToken {
+		http.Error(w, "invalid event token", http.StatusForbidden)
+		return
+	}
 	var req struct {
 		ID string `json:"id"`
 	}
