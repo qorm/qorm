@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/qorm/qorm/internal/a11y"
 	"github.com/qorm/qorm/internal/bundle"
 	"github.com/qorm/qorm/internal/loader"
 	"github.com/qorm/qorm/internal/measure"
@@ -46,6 +47,11 @@ func toolList() []tool {
 		{
 			Name:        "qorm_render_html",
 			Description: "Render the current app to HTML so the agent can see what the UI looks like. Read-only.",
+			InputSchema: obj(nil),
+		},
+		{
+			Name:        "qorm_a11y_tree",
+			Description: "Derive the accessibility tree for the entry scene: every node's ARIA role, accessible name and semantic state (checked/disabled/required/value), plus an audit of accessibility issues — interactive controls and images that would reach a screen reader with no accessible name. Use it to check a11y coverage or find what to fix. Read-only.",
 			InputSchema: obj(nil),
 		},
 		{
@@ -237,6 +243,8 @@ func (s *Server) callTool(name string, args json.RawMessage) (string, error) {
 		return jsonPretty(s.inspect()), nil
 	case "qorm_render_html":
 		return render.Render(s.rt).HTML, nil
+	case "qorm_a11y_tree":
+		return jsonPretty(a11y.Build(s.rt.App.EntryRoot())), nil
 	case "qorm_capabilities":
 		return jsonPretty(capability.All), nil
 	case "qorm_list_actions":
