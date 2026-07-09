@@ -13,6 +13,9 @@
       { "type": "text", "id": "email_err", "text": "Please enter a valid email address",
         "if": "{{ len(state.email) > 0 && !matches(state.email, \"^[^@\\\\s]+@[^@\\\\s]+\\\\.[^@\\\\s]+$\") }}",
         "style": { "fontSize": 12, "color": "#ef4444" } },
+      { "type": "text", "id": "email_field_err", "text": "{{ state.fieldErrors.email }}",
+        "if": "{{ len(state.fieldErrors.email) > 0 }}",
+        "style": { "fontSize": 12, "fontWeight": 600, "color": "#dc2626" } },
 
       { "type": "text", "text": "Password", "style": { "fontSize": 13, "fontWeight": 600, "color": "#334155", "margin": { "top": 8 } } },
       { "type": "input", "id": "password", "value": "{{state.password}}", "placeholder": "Choose a password",
@@ -20,10 +23,21 @@
       { "type": "text", "id": "pw_err", "text": "Password must be at least 6 characters",
         "if": "{{ len(state.password) > 0 && len(state.password) < 6 }}",
         "style": { "fontSize": 12, "color": "#ef4444" } },
+      { "type": "text", "id": "pw_field_err", "text": "{{ state.fieldErrors.password }}",
+        "if": "{{ len(state.fieldErrors.password) > 0 }}",
+        "style": { "fontSize": 12, "fontWeight": 600, "color": "#dc2626" } },
 
       { "type": "text", "id": "ok", "text": "Looks good — ready to submit",
         "if": "{{ matches(state.email, \"^[^@\\\\s]+@[^@\\\\s]+\\\\.[^@\\\\s]+$\") && len(state.password) >= 6 }}",
-        "style": { "fontSize": 13, "fontWeight": 700, "color": "#16a34a", "margin": { "top": 12 } } }
+        "style": { "fontSize": 13, "fontWeight": 700, "color": "#16a34a", "margin": { "top": 12 } } },
+
+      { "type": "button", "id": "submit", "label": "Create account",
+        "style": { "background": "#2e7df6", "color": "#fff", "fontWeight": 700, "height": 44, "borderRadius": 8, "margin": { "top": 12 } },
+        "onPress": { "type": "invoke", "name": "submit", "args": {} } },
+
+      { "type": "text", "id": "status", "text": "{{ state.status }}",
+        "if": "{{ len(state.status) > 0 }}",
+        "style": { "fontSize": 13, "fontWeight": 700, "color": "#0f172a", "margin": { "top": 8 } } }
     ]
   }
 }

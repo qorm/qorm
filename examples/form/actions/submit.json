@@ -1,0 +1,11 @@
+{
+  "type": "action", "id": "submit",
+  "steps": [
+    { "type": "state.set", "path": "fieldErrors.email",
+      "value": "{{ len(trim(state.email)) == 0 ? \"Email is required\" : (matches(state.email, \"^[^@\\\\s]+@[^@\\\\s]+\\\\.[^@\\\\s]+$\") ? \"\" : \"Enter a valid email address\") }}" },
+    { "type": "state.set", "path": "fieldErrors.password",
+      "value": "{{ len(state.password) == 0 ? \"Password is required\" : (len(state.password) < 6 ? \"Use at least 6 characters\" : \"\") }}" },
+    { "type": "state.set", "path": "status",
+      "value": "{{ len(state.fieldErrors.email) == 0 && len(state.fieldErrors.password) == 0 ? \"Account created\" : \"Please fix the highlighted fields\" }}" }
+  ]
+}
