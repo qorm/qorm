@@ -147,4 +147,14 @@ qorm package examples/native-ext -p ios --dev URL    # inject ios.swift into the
 - **平台一致性警告**:如果你有 `native/ios.swift` 却没有 `native/android.java`(或反之),`qorm package` 会警告你 —— 你的自定义 op 将无法在缺少其片段的平台上运行。
 - **权限**:原生能力所需的系统权限(相机、蓝牙、定位等)在生成项目的 `Info.plist` / `AndroidManifest.xml` 中声明;付费团队 / 特殊授权(如 NFC)按平台指引处理。
 
+## 插件 ABI 版本
+
+`qormext` 契约(`Op` 签名、`Register`、`Emit`、桥接)有版本号——`qormext.ABIVersion`。在 `qorm.json` 里声明你的原生代码所针对的 ABI:
+
+```json
+{ "pluginABI": "1" }
+```
+
+加载器会把它的主版本与运行时的 `ABIVersion` 比较,不一致就产生一条诊断,让针对不兼容中间层契约构建的 app 在加载时被发现,而非静默出错。这是**警告而非硬失败**——app 仍会加载,只是它的自定义原生 op 可能不工作。不使用带版本中间层的 app 直接省略 `pluginABI`(始终兼容)。
+
 相关:[Mobile](mobile.md) · [Desktop](desktop.md)

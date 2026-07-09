@@ -12,6 +12,7 @@ import (
 
 	"github.com/qorm/qorm/internal/expr"
 	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/qorm/pkg/qormext"
 )
 
 // skipDirs are directories that never contain renderable QORM sources.
@@ -237,6 +238,12 @@ func applyManifest(app *model.App, doc map[string]any, diags *[]string) {
 	app.Branding = true // default on; qorm.json "branding":false removes the metadata note
 	if v, ok := doc["branding"]; ok {
 		app.Branding = asBool(v)
+	}
+	// Plugin (middle-layer) ABI compatibility: warn if the app was authored
+	// against an incompatible qormext contract major. Non-fatal — the app still
+	// loads; the custom native ops just may not behave.
+	if app.PluginABI = asString(doc["pluginABI"]); app.PluginABI != "" && !qormext.CompatibleABI(app.PluginABI) {
+		*diags = append(*diags, fmt.Sprintf("error: pluginABI %q is incompatible with this runtime's plugin ABI v%d — the app's custom native ops may not work", app.PluginABI, qormext.ABIVersion))
 	}
 	if gs, ok := doc["globalState"].(map[string]any); ok {
 		app.GlobalState.Schema = map[string]string{}

@@ -145,4 +145,21 @@ qorm package examples/native-ext -p ios --dev URL    # inject ios.swift into the
 - **Platform consistency warning**: if you have `native/ios.swift` but no `native/android.java` (or vice versa), `qorm package` warns you -- your custom op will not run on the platform that is missing its snippet.
 - **Permissions**: the system permissions that native capabilities require (camera, Bluetooth, location, and so on) are declared in the generated project's `Info.plist` / `AndroidManifest.xml`; paid-team / special entitlements (such as NFC) are handled per the platform's guidance.
 
+## Plugin ABI version
+
+The `qormext` contract (the `Op` signature, `Register`, `Emit`, the bridge) has
+a version — `qormext.ABIVersion`. Declare the ABI your native code targets in
+`qorm.json`:
+
+```json
+{ "pluginABI": "1" }
+```
+
+The loader compares its major to the runtime's `ABIVersion` and emits a
+diagnostic if they differ, so an app built against an incompatible middle-layer
+contract is caught at load time instead of silently misbehaving. It is a
+warning, not a hard failure — the app still loads; only its custom native ops
+may not work. Apps that use no versioned middle-layer omit `pluginABI` entirely
+(always compatible).
+
 Related: [Mobile](mobile.md) · [Desktop](desktop.md)
