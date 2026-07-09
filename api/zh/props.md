@@ -90,6 +90,7 @@
 | `fab` | `extended` |
 | `field` | `error` · `help` · `label` · `required` |
 | `filepicker` | `label` |
+| `form` | — |
 | `gesturedetector` | `onDoubleTap` · `onLongPress` |
 | `gridview` | `crossAxisCount` · `minItemWidth` · `spacing` |
 | `haptics` | `label` |
@@ -112,6 +113,7 @@
 | `network` | `label` |
 | `nfc` | `label` |
 | `notify` | — |
+| `offstage` | `offstage` |
 | `openurl` | `label` |
 | `orientation` | `label` |
 | `pageview` | — |

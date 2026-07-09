@@ -731,6 +731,44 @@ func (r *renderer) navButton(n *model.Node, glyph, label, aria string) {
 	r.sb.WriteString(`</button>`)
 }
 
+// form is Flutter's Form / an HTML <form>: it groups input fields and fires its
+// action on submit — Enter in a field or a native submit button — via the form's
+// onPress (authored as the submit handler). Field-level validation stays
+// declarative (each field's bound `error`), and the app gates submission by
+// binding its submit button's disabled state; the form itself submits
+// unconditionally. `return false` stops the browser's page reload.
+func (r *renderer) form(n *model.Node) {
+	submit := ` onsubmit="return false"`
+	if n.OnPress != nil {
+		submit = fmt.Sprintf(` onsubmit="qorm(%d);return false"`, r.register(n.OnPress))
+	}
+	fmt.Fprintf(&r.sb, `<form id=%q style=%q%s%s>`, r.nid(n), r.containerCSS(n), a11y(n), submit)
+	for _, c := range n.Children {
+		r.node(c)
+	}
+	r.sb.WriteString(`</form>`)
+}
+
+// offstage is Flutter's Offstage: it keeps its child in the tree but drops it
+// from layout/paint when `offstage` is truthy (default true, matching Flutter).
+// Unlike if/visible/show (which omit the node entirely), Offstage renders the
+// subtree so its ids stay wired — useful for pre-mounting a to-be-revealed panel.
+func (r *renderer) offstage(n *model.Node) {
+	off := true
+	if raw, ok := n.Prop("offstage"); ok {
+		off = asBool(runtime.EvalBinding(fmt.Sprint(raw), r.ctx()))
+	}
+	style := r.boxCSS(n)
+	if off {
+		style += "display:none;"
+	}
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, r.nid(n), style, a11y(n))
+	for _, c := range n.Children {
+		r.node(c)
+	}
+	r.sb.WriteString(`</div>`)
+}
+
 // selectableText is Flutter's SelectableText: text the user can select/copy.
 func (r *renderer) selectableText(n *model.Node) {
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q>%s</div>`, n.ID,

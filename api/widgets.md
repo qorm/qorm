@@ -53,6 +53,7 @@ Each widget lists its **canonical name** first; the rest are equivalent aliases.
 | `fab` | floatingactionbutton | `fab` |
 | `field` | formfield | `field` |
 | `filepicker` | file | `hwList` |
+| `form` | — | `form` |
 | `gesturedetector` | gesture, inkwell | `gestureDetector` |
 | `gridview` | — | `gridView` |
 | `haptics` | — | `hwList` |
@@ -75,6 +76,7 @@ Each widget lists its **canonical name** first; the rest are equivalent aliases.
 | `network` | — | `hwList` |
 | `nfc` | — | `hwList` |
 | `notify` | — | `notify` |
+| `offstage` | — | `offstage` |
 | `openurl` | openlink | `hwList` |
 | `orientation` | — | `hwList` |
 | `pageview` | — | `pageView` |
