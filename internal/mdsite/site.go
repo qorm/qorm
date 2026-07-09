@@ -135,17 +135,19 @@ func langSwitchHTML(p page, pages []page) string {
 		zhRel = p.htmlRel
 	}
 	dir := filepath.Dir(p.htmlRel)
-	item := func(label, rel, code string) string {
-		if p.lang == code {
-			return `<span class="on" data-lang="` + code + `">` + label + `</span>`
-		}
-		if hasPage(pages, rel) {
-			link, _ := filepath.Rel(dir, rel)
-			return `<a href="` + filepath.ToSlash(link) + `" data-lang="` + code + `">` + label + `</a>`
-		}
-		return `<span class="off" data-lang="` + code + `">` + label + `</span>`
+	// A single icon toggle to the OTHER language's version of this page — the
+	// same globe-icon control the marketing landing uses. data-lang carries the
+	// target language so the client can remember the reader's choice.
+	globe := `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/></svg>`
+	targetLang, targetRel, targetLabel, targetName := "zh", zhRel, "中", "中文"
+	if p.lang == "zh" {
+		targetLang, targetRel, targetLabel, targetName = "en", enRel, "EN", "English"
 	}
-	return `<div class="lang">` + item("EN", enRel, "en") + item("中文", zhRel, "zh") + `</div>`
+	if hasPage(pages, targetRel) {
+		link, _ := filepath.Rel(dir, targetRel)
+		return `<a class="iconlink lang" href="` + filepath.ToSlash(link) + `" data-lang="` + targetLang + `" aria-label="` + targetName + `" title="` + targetName + `">` + globe + `<span>` + targetLabel + `</span></a>`
+	}
+	return `<span class="iconlink lang off" aria-label="` + targetName + `">` + globe + `<span>` + targetLabel + `</span></span>`
 }
 
 // firstHeading returns the first ATX heading text, or the file name.
@@ -311,7 +313,8 @@ func pageHTML(title, lang, siteName, langSwitch, nav, body string) string {
   body{margin:0;font-family:"Inter",-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;color:var(--ink);background:var(--ground);line-height:1.62;letter-spacing:-.011em;-webkit-font-smoothing:antialiased}
   a{color:var(--accent-ink);text-decoration:none} a:hover{text-decoration:underline}
   code,pre{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
-  header.top{position:sticky;top:0;z-index:30;height:56px;display:flex;align-items:center;gap:14px;padding:0 22px;background:color-mix(in srgb,var(--ground) 82%%,transparent);backdrop-filter:saturate(180%%) blur(20px);-webkit-backdrop-filter:saturate(180%%) blur(20px);border-bottom:.5px solid var(--line)}
+  header.top{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--ground) 82%%,transparent);backdrop-filter:saturate(180%%) blur(20px);-webkit-backdrop-filter:saturate(180%%) blur(20px);border-bottom:.5px solid var(--line)}
+  header.top .tnav{height:56px;display:flex;align-items:center;gap:14px;max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,32px)}
   header.top .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:16px;letter-spacing:-.02em;color:var(--ink)}
   header.top .brand img{width:24px;height:24px}
   @media (prefers-color-scheme:dark){ header.top .brand img{filter:invert(1) brightness(1.7)} }
@@ -322,12 +325,19 @@ func pageHTML(title, lang, siteName, langSwitch, nav, body string) string {
   header.top a.tl{color:var(--muted);font-size:14px;font-weight:500} header.top a.tl:hover{color:var(--ink);text-decoration:none} header.top a.tl.active-nav{color:var(--ink);font-weight:700}
   .tbtn{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:transform 0.2s ease, background 0.2s, color 0.2s, border-color 0.2s}
   .tbtn:hover{color:var(--ink);transform:rotate(15deg) scale(1.05)} .tbtn svg{width:16px;height:16px}
+  header.top .iconlink{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;transition:transform .2s cubic-bezier(.16,1,.3,1),color .2s,border-color .2s}
+  header.top .iconlink:hover{color:var(--ink);border-color:color-mix(in srgb,var(--accent) 40%%,var(--line));transform:translateY(-1px);text-decoration:none}
+  header.top .iconlink.patreon:hover{color:#f96854;border-color:color-mix(in srgb,#f96854 45%%,var(--line))}
+  header.top .iconlink svg{width:17px;height:17px}
+  header.top .iconlink.lang{width:auto;padding:0 9px;gap:3px;font-size:11px;font-weight:800;letter-spacing:.02em}
+  header.top .iconlink.lang svg{width:14px;height:14px}
+  header.top .iconlink.lang.off{opacity:.4;pointer-events:none}
   header.top .lang{display:inline-flex;align-items:center;border:.5px solid var(--line);border-radius:8px;overflow:hidden;font-size:13px;font-weight:600}
   header.top .lang a,header.top .lang span{padding:5px 10px;color:var(--muted)}
   header.top .lang a:hover{color:var(--ink);text-decoration:none;background:var(--surface)}
   header.top .lang .on{background:var(--accent);color:#fff}
   header.top .lang .off{color:var(--faint);opacity:.55}
-  .shell{display:flex;max-width:1180px;margin:0 auto}
+  .shell{display:flex;max-width:1280px;margin:0 auto;padding:0 clamp(0px,2vw,20px)}
   aside{width:262px;min-width:262px;height:calc(100vh - 56px);overflow:auto;position:sticky;top:56px;padding:22px 8px 48px 22px}
   aside .nav-group{text-transform:uppercase;font-size:11px;font-weight:700;color:var(--faint);margin:20px 0 6px;letter-spacing:.05em}
   aside ul{list-style:none;margin:0;padding:0}
@@ -352,17 +362,17 @@ func pageHTML(title, lang, siteName, langSwitch, nav, body string) string {
 </style>
 </head>
 <body>
-<header class="top">
+<header class="top"><div class="tnav">
   <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
   <span class="doc">%s</span>
   <span class="sp"></span>
   <a class="tl" href="/">%s</a>
   %s
-  <a class="tl" href="https://github.com/qorm/qorm">GitHub</a>
-  <a class="tl" href="https://www.patreon.com/qorm">%s</a>
+  <a class="iconlink" href="https://github.com/qorm/qorm" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
+  <a class="iconlink patreon" href="https://www.patreon.com/qorm" target="_blank" rel="noopener" aria-label="%s" title="%s"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="14.4" cy="9.6" r="6.6"/><rect x="1.5" y="2.5" width="4" height="19" rx="0.3"/></svg></a>
   %s
   <button class="tbtn" id="theme" aria-label="Theme"></button>
-</header>
+</div></header>
 <div class="shell">
   <aside>%s</aside>
   <main>%s</main>
@@ -375,17 +385,16 @@ func pageHTML(title, lang, siteName, langSwitch, nav, body string) string {
    function p(){b.innerHTML=c()==='dark'?sun:moon;} p();
    b.onclick=function(){r.setAttribute('data-theme',c()==='dark'?'light':'dark');p();};})();
   (function(){/* remember the reader's language across pages + both sites */
-   try{var box=document.querySelector('header .lang');if(!box)return;
-     var cur=document.documentElement.lang;
-     box.querySelectorAll('[data-lang]').forEach(function(el){
+   try{var cur=document.documentElement.lang;
+     document.querySelectorAll('header [data-lang]').forEach(function(el){
        if(el.tagName==='A')el.addEventListener('click',function(){try{localStorage.setItem('qorm-lang',el.getAttribute('data-lang'));}catch(e){}});});
      var pref;try{pref=localStorage.getItem('qorm-lang');}catch(e){}
-     if(pref&&pref!==cur){var alt=box.querySelector('a[data-lang="'+pref+'"]');if(alt)location.replace(alt.getAttribute('href'));}
+     if(pref&&pref!==cur){var alt=document.querySelector('header a[data-lang="'+pref+'"]');if(alt)location.replace(alt.getAttribute('href'));}
    }catch(e){}})();
 </script>
 </body>
 </html>
-`, lang, html.EscapeString(title), html.EscapeString(siteName), homeLabel, navLinks, patronLabel, langSwitch, nav, body)
+`, lang, html.EscapeString(title), html.EscapeString(siteName), homeLabel, navLinks, patronLabel, patronLabel, langSwitch, nav, body)
 }
 
 // docs & api top navigation tabs builder
