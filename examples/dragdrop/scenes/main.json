@@ -1,0 +1,36 @@
+{ "type": "scene", "id": "main", "root": { "type": "scaffold", "children": [
+  { "type": "appbar", "title": "Drag & Drop" },
+  { "type": "column", "style": { "padding": 16, "gap": 8 }, "children": [
+    { "type": "text", "text": "Drag a card between columns", "style": { "fontWeight": 800, "fontSize": 20 } },
+    { "type": "text", "text": "Each drop updates the card's column in shared state — the AI sees the move too.", "style": { "color": "#8e8e93", "fontSize": 13 } },
+    { "type": "row", "style": { "gap": 12, "marginTop": 8 }, "layout": { "align": "start" }, "children": [
+      { "type": "column", "style": { "gap": 8, "flexGrow": 1 }, "children": [
+        { "type": "text", "text": "To Do", "style": { "fontWeight": 700, "fontSize": 13, "color": "#8e8e93" } },
+        { "type": "dragtarget", "onDrop": { "type": "invoke", "name": "moveTodo" }, "style": { "background": "#f2f2f7", "borderRadius": 12, "padding": 8, "minHeight": 220, "gap": 8 }, "layout": { "direction": "column" }, "children": [
+          { "type": "list", "data": "{{ state.items }}", "renderItem": {
+            "type": "draggable", "data": "{{ item.id }}", "if": "{{ item.col == \"todo\" }}",
+            "style": { "background": "#fff", "borderRadius": 10, "padding": 12, "marginBottom": 8, "shadow": "0 1px 3px rgba(0,0,0,.08)" },
+            "children": [ { "type": "text", "text": "{{ item.label }}", "style": { "fontWeight": 600, "fontSize": 15 } } ] } }
+        ] }
+      ] },
+      { "type": "column", "style": { "gap": 8, "flexGrow": 1 }, "children": [
+        { "type": "text", "text": "Doing", "style": { "fontWeight": 700, "fontSize": 13, "color": "#8e8e93" } },
+        { "type": "dragtarget", "onDrop": { "type": "invoke", "name": "moveDoing" }, "style": { "background": "#f2f2f7", "borderRadius": 12, "padding": 8, "minHeight": 220, "gap": 8 }, "layout": { "direction": "column" }, "children": [
+          { "type": "list", "data": "{{ state.items }}", "renderItem": {
+            "type": "draggable", "data": "{{ item.id }}", "if": "{{ item.col == \"doing\" }}",
+            "style": { "background": "#fff", "borderRadius": 10, "padding": 12, "marginBottom": 8, "shadow": "0 1px 3px rgba(0,0,0,.08)" },
+            "children": [ { "type": "text", "text": "{{ item.label }}", "style": { "fontWeight": 600, "fontSize": 15 } } ] } }
+        ] }
+      ] },
+      { "type": "column", "style": { "gap": 8, "flexGrow": 1 }, "children": [
+        { "type": "text", "text": "Done", "style": { "fontWeight": 700, "fontSize": 13, "color": "#8e8e93" } },
+        { "type": "dragtarget", "onDrop": { "type": "invoke", "name": "moveDone" }, "style": { "background": "#f2f2f7", "borderRadius": 12, "padding": 8, "minHeight": 220, "gap": 8 }, "layout": { "direction": "column" }, "children": [
+          { "type": "list", "data": "{{ state.items }}", "renderItem": {
+            "type": "draggable", "data": "{{ item.id }}", "if": "{{ item.col == \"done\" }}",
+            "style": { "background": "#fff", "borderRadius": 10, "padding": 12, "marginBottom": 8, "shadow": "0 1px 3px rgba(0,0,0,.08)" },
+            "children": [ { "type": "text", "text": "{{ item.label }}", "style": { "fontWeight": 600, "fontSize": 15 } } ] } }
+        ] }
+      ] }
+    ] }
+  ] }
+] } }
