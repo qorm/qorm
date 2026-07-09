@@ -4,6 +4,11 @@
 # 2. User clicks buttons naturally on the native app (generating "you" logs)
 # 3. AI edits via MCP (generating "agent" logs)
 # 4. QORM's built-in shot captures App and DevTool separately, ImageMagick stitches them
+#
+# NOTE: this path uses `qorm shot` (WKWebView takeSnapshot), which returns blank
+# frames in headless/sandboxed macOS contexts (and crashes 0xbad4007 with no
+# WindowServer). If you get all-white frames, use the Docker-Chromium variant
+# instead: scripts/record-demo-headless.sh
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"; cd "$ROOT"
 PORT=8866; U="http://127.0.0.1:$PORT"; APP="${1:-examples/counter}"
