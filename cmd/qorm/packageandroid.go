@@ -97,6 +97,10 @@ include(":app")
     }
 }
 dependencies {
+    // Align every transitive kotlin-stdlib (security-crypto pulls the old
+    // split jdk7/jdk8 artifacts, activity pulls the merged 1.8 stdlib —
+    // without the BOM they collide as duplicate classes).
+    implementation platform('org.jetbrains.kotlin:kotlin-bom:1.8.22')
     implementation 'androidx.webkit:webkit:1.12.1'
     implementation 'androidx.biometric:biometric:1.1.0'
     implementation 'androidx.security:security-crypto:1.1.0-alpha06'
