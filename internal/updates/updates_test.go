@@ -85,4 +85,49 @@ func TestResolveServesBundle(t *testing.T) {
 	if !strings.Contains(string(body), "qorm-bundle/1") {
 		t.Error("served payload should be a QORM bundle")
 	}
+	// Packaged shells (qormapp://, appassets.androidplatform.net, PWA domains)
+	// are always cross-origin to the update server — every response needs CORS.
+	if got := resp.Header.Get("Access-Control-Allow-Origin"); got != "*" {
+		t.Errorf("Access-Control-Allow-Origin = %q, want *", got)
+	}
+}
+
+// TestCORSPreflight: browsers may preflight the cross-origin /resolve call; the
+// server must answer OPTIONS itself with the CORS headers (and CORS must also
+// cover error responses, or the shell sees an opaque failure instead of a 404).
+func TestCORSPreflight(t *testing.T) {
+	srv := &Server{rollouts: map[string]Rollout{}}
+	ts := httptest.NewServer(srv.Handler())
+	defer ts.Close()
+
+	req, _ := http.NewRequest(http.MethodOptions, ts.URL+"/resolve", nil)
+	req.Header.Set("Origin", "https://app.example")
+	req.Header.Set("Access-Control-Request-Method", "GET")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("preflight: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent {
+		t.Errorf("preflight status = %d, want %d", resp.StatusCode, http.StatusNoContent)
+	}
+	if got := resp.Header.Get("Access-Control-Allow-Origin"); got != "*" {
+		t.Errorf("preflight Access-Control-Allow-Origin = %q, want *", got)
+	}
+	if got := resp.Header.Get("Access-Control-Allow-Methods"); !strings.Contains(got, "GET") {
+		t.Errorf("preflight Access-Control-Allow-Methods = %q, want GET", got)
+	}
+
+	// Error responses (unknown app -> 404) still need the CORS header.
+	errResp, err := http.Get(ts.URL + "/resolve?app=nope&client=x")
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	defer errResp.Body.Close()
+	if errResp.StatusCode != http.StatusNotFound {
+		t.Errorf("unknown app status = %d, want 404", errResp.StatusCode)
+	}
+	if got := errResp.Header.Get("Access-Control-Allow-Origin"); got != "*" {
+		t.Errorf("error response Access-Control-Allow-Origin = %q, want *", got)
+	}
 }

@@ -41,11 +41,34 @@ func New(dir string) (*Server, error) {
 }
 
 // Handler returns the HTTP routes: /resolve (staged selection) and /bundles/.
+//
+// All routes answer with open CORS (Access-Control-Allow-Origin: * plus an
+// OPTIONS preflight): packaged app shells always call us cross-origin
+// (qormapp:// on iOS, appassets.androidplatform.net on Android, the PWA's own
+// domain on web). This is safe to open wide — bundles are public, unauthenticated
+// artifacts whose trust comes from the client-side ed25519 verification
+// (ota.FetchVerified), not from who may read them, so there is no confidential
+// surface to leak and nothing an attacker gains by fetching them.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/resolve", s.resolve)
 	mux.Handle("/bundles/", http.StripPrefix("/bundles/", http.FileServer(http.Dir(s.dir))))
-	return mux
+	return allowAnyOrigin(mux)
+}
+
+// allowAnyOrigin adds the CORS headers packaged shells need and short-circuits
+// OPTIONS preflights. See Handler for why "*" is the right policy here.
+func allowAnyOrigin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		if r.Method == http.MethodOptions {
+			w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 // Bucket maps a client id to a stable 0–99 bucket.

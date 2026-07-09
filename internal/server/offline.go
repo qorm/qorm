@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -8,13 +9,26 @@ import (
 	"github.com/qorm/qorm/internal/runtime"
 )
 
+// UpdateConfig wires a packaged app to an OTA update server (`qorm updates`).
+// It is injected into the offline HTML as window.__QORM_UPDATE__ for the WASM
+// runtime's qormCheckUpdate/qormInit. Trust is REQUIRED (the packager enforces
+// the pairing): without a key the client cannot authenticate updates, so OTA
+// stays off — the same fail-closed model as the live server's /update.
+type UpdateConfig struct {
+	URL   string `json:"url"`   // update server base URL; the client calls <url>/resolve
+	App   string `json:"app"`   // app id — the rollout.json key on the update server
+	Trust string `json:"trust"` // base64 ed25519 public key OTA bundles must be signed with
+}
+
 // OfflineHTML produces a fully standalone index.html for an installable package:
 // it reuses the exact same theme CSS, DOM-morph engine, and gesture helpers as
 // the live server Page, but swaps the fetch('/event') driver for an in-process
 // Go-WASM call (qormEvent) and drops the server-only live-sync + self-measure.
 // The app runs entirely client-side — no server — so it can be wrapped in a
 // PWA / APK / IPA. bundleJSON is the app compiled with bundle.Build+Marshal.
-func OfflineHTML(rt *runtime.Runtime, bundleJSON string) (string, error) {
+// update, when non-nil, turns on the OTA client (see UpdateConfig); nil keeps
+// the boot byte-identical to a package built before OTA existed.
+func OfflineHTML(rt *runtime.Runtime, bundleJSON string, update *UpdateConfig) (string, error) {
 	page := Page(rt, render.Render(rt).HTML, 0)
 
 	// 1. online dispatch (POST /event) -> in-process WASM dispatch
@@ -69,6 +83,13 @@ function qormDir(d){ document.documentElement.setAttribute('dir', d||'ltr'); }
   }).catch(function(e){ document.getElementById('qorm-root').innerHTML='<div style="padding:20px">app load failed: '+e+'</div>'; });
 })();
 `
+	if update != nil {
+		cfg, jerr := json.Marshal(update) // json escapes </script>-breaking chars
+		if jerr != nil {
+			return "", jerr
+		}
+		boot = otaBoot(string(cfg))
+	}
 	page, err = replaceOnce(page, "\n</script>\n</body>", boot+"</script>\n</body>")
 	if err != nil {
 		return "", err
@@ -107,6 +128,39 @@ function qormDir(d){ document.documentElement.setAttribute('dir', d||'ltr'); }
 		}
 	}
 	return page, nil
+}
+
+// otaBoot is the boot script for packages built with --update-url: same as the
+// plain boot plus (a) the injected window.__QORM_UPDATE__ client config, (b) a
+// three-level bundle load — localStorage 'qorm.ota.bundle' (latest OTA update)
+// -> 'qorm.ota.prev' (its rollback copy) -> the packaged bundle.json — where a
+// level falls through when qormInit rejects it ({err:...}; qormInit verifies
+// OTA-origin levels against the trust key and drops a bad level itself), and
+// (c) a silent qormCheckUpdate 3s after first paint.
+func otaBoot(cfgJSON string) string {
+	return `
+function qormDir(d){ document.documentElement.setAttribute('dir', d||'ltr'); }
+window.__QORM_UPDATE__=` + cfgJSON + `;
+(function(){
+  var go=new Go();
+  function apply(r){ if(r){ qormTheme(r.theme); qormDir(r.dir); qormMorphInto(document.getElementById('qorm-root'), r.html); if(typeof qormMeasure!=='undefined') setTimeout(qormMeasure,40); } }
+  function stored(k){ try{ return localStorage.getItem(k); }catch(_){ return null; } }
+  function check(){ setTimeout(function(){ try{ qormCheckUpdate().then(function(r){ if(r&&r.html){ apply(r); } }).catch(function(){}); }catch(_){} }, 3000); }
+  fetch('qorm.wasm').then(function(r){ return r.arrayBuffer(); }).then(function(buf){
+    return WebAssembly.instantiate(buf, go.importObject);
+  }).then(function(w){
+    go.run(w.instance);
+    var lv=[['qorm.ota.bundle','ota'],['qorm.ota.prev','prev']], i, t, r;
+    for(i=0;i<lv.length;i++){
+      t=stored(lv[i][0]);
+      if(!t) continue;
+      try{ r=qormInit(t, lv[i][1]); }catch(_){ r=null; }
+      if(r && !r.err){ apply(r); check(); return; }
+    }
+    return fetch('bundle.json').then(function(res){ return res.text(); }).then(function(t){ apply(qormInit(t)); check(); });
+  }).catch(function(e){ document.getElementById('qorm-root').innerHTML='<div style="padding:20px">app load failed: '+e+'</div>'; });
+})();
+`
 }
 
 // replaceOnce replaces exactly one occurrence of old, erroring if the anchor is
