@@ -100,6 +100,10 @@ dependencies {
     implementation 'androidx.webkit:webkit:1.12.1'
     implementation 'androidx.biometric:biometric:1.1.0'
     implementation 'androidx.security:security-crypto:1.1.0-alpha06'
+    // registerForActivityResult (contact/file/photo pickers): biometric's
+    // transitive fragment/activity are too old to have ActivityResultContracts.
+    implementation 'androidx.activity:activity:1.9.3'
+    implementation 'androidx.fragment:fragment:1.8.5'
 }
 `,
 		"app/src/main/AndroidManifest.xml": `<?xml version="1.0" encoding="utf-8"?>
@@ -824,9 +828,9 @@ public class MainActivity extends androidx.fragment.app.FragmentActivity impleme
                 e.putString("widget_title", o.optString("title", ""));
                 e.putString("widget_lines", o.optJSONArray("lines") != null ? o.optJSONArray("lines").toString() : "[]");
                 e.apply();
-                android.content.Intent i = new android.content.Intent(this, QormWidget.class);
+                android.content.Intent i = new android.content.Intent(MainActivity.this, QormWidget.class);
                 i.setAction(android.appwidget.AppWidgetManager.ACTION_APPWIDGET_UPDATE);
-                int[] ids = android.appwidget.AppWidgetManager.getInstance(this).getAppWidgetIds(new android.content.ComponentName(this, QormWidget.class));
+                int[] ids = android.appwidget.AppWidgetManager.getInstance(MainActivity.this).getAppWidgetIds(new android.content.ComponentName(MainActivity.this, QormWidget.class));
                 i.putExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_IDS, ids);
                 sendBroadcast(i);
                 js("qormOnWidget('updated')");
