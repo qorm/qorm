@@ -3,7 +3,8 @@
 // vocabulary — containers, scroll, grid, text, button, link, input, textarea,
 // select, checkbox, switch, radio, slider, image, avatar, icon, badge, card,
 // divider, spacer, progress, spinner, video, tabs and data-bound lists — plus
-// conditional rendering (`if`), onChange events and accessibility attributes.
+// conditional rendering (`if`, responsive `when` over viewport.*), onChange
+// events and accessibility attributes.
 package render
 
 import (
@@ -94,13 +95,16 @@ func (r *renderer) ctx() map[string]any {
 	if r.catalog == nil {
 		r.catalog = r.rt.Catalog() // resolve the i18n catalog once per render, not per node
 	}
+	if r.viewport == nil {
+		r.viewport = r.rt.ViewportVars() // constant during a single render too
+	}
 	if len(r.scope) == 0 {
 		if r.baseCtx == nil { // most nodes have no list scope — share one read-only ctx
-			r.baseCtx = map[string]any{"state": r.rt.State, "t": r.catalog}
+			r.baseCtx = map[string]any{"state": r.rt.State, "t": r.catalog, "viewport": r.viewport}
 		}
 		return r.baseCtx
 	}
-	m := map[string]any{"state": r.rt.State, "t": r.catalog}
+	m := map[string]any{"state": r.rt.State, "t": r.catalog, "viewport": r.viewport}
 	for k, v := range r.scope {
 		m[k] = v
 	}
@@ -142,6 +146,8 @@ func (r *renderer) renderInner(n *model.Node) {
 		for _, c := range r.compChildren {
 			r.node(c)
 		}
+	case "when":
+		r.when(n)
 	case "text":
 		r.text(n)
 	case "button":
@@ -416,6 +422,23 @@ func (r *renderer) unknown(n *model.Node) {
 		r.node(c)
 	}
 	r.sb.WriteString(`</div>`)
+}
+
+// when renders a responsive conditional node: its condition — typically over
+// viewport.width / viewport.height / viewport.orientation — selects the `then`
+// subtree when truthy and the `else` subtree otherwise. Unlike the
+// `if`/`visible`/`show` prop (see visible below), which shows or hides ONE
+// node in place, `when` swaps between two ALTERNATIVE subtrees. While the
+// viewport is unknown (0x0 — e.g. the server's first frame before the client
+// reports its size) the condition evaluates falsy and `else` renders.
+func (r *renderer) when(n *model.Node) {
+	branch := n.Else
+	if n.Condition != "" && asBool(runtime.EvalBinding(n.Condition, r.ctx())) {
+		branch = n.Then
+	}
+	if branch != nil {
+		r.node(branch)
+	}
 }
 
 // visible evaluates an `if` / `visible` / `show` condition (default true).

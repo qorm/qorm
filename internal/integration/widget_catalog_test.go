@@ -34,7 +34,7 @@ var allWidgetTypes = []string{
 	"speechinput", "spinner", "startatlogin", "stat", "stepper", "steps", "storage", "stt",
 	"switch", "switchlisttile", "table", "tabs", "tag", "text", "textarea", "textformfield",
 	"timeline", "torch", "transform", "tree", "tts", "verticaldivider", "vibrate", "video",
-	"volume", "wakelock", "wifi", "wrap",
+	"volume", "wakelock", "when", "wifi", "wrap",
 }
 
 func TestAllWidgetTypesRender(t *testing.T) {

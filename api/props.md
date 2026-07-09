@@ -23,6 +23,9 @@ Every node object may carry these top-level keys:
 | `renderItem` | node | item template for a bound `list` |
 | `data` | string | list data-binding expression (e.g. `state.todos`) |
 | `children` | node[] | child nodes |
+| `condition` | string | `when` nodes only: `{{ … }}` expression over `viewport.width` / `viewport.height` / `viewport.orientation` selecting `then` (truthy) or `else`; an unknown viewport (server first frame) is falsy |
+| `then` | node | `when` nodes only: subtree rendered when `condition` is truthy |
+| `else` | node | `when` nodes only: subtree rendered otherwise (unlike the `if` prop, which hides one node, `when` swaps two alternative subtrees) |
 | `…` | any | any other key is a widget-specific **prop** (table below) |
 
 ## Common style props
@@ -162,5 +165,6 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `video` | `src` |
 | `videocapture` | `label` |
 | `volume` | — |
+| `when` | — |
 | `wifi` | `label` |
 | `wrap` | `runSpacing` · `spacing` |

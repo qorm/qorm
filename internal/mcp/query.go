@@ -40,6 +40,9 @@ func queryNodes(root *model.Node, sel selector) []map[string]any {
 		if n.Template != nil {
 			walk(n.Template, childPath)
 		}
+		// both branches of a `when` node are searchable, whichever is live
+		walk(n.Then, childPath)
+		walk(n.Else, childPath)
 	}
 	walk(root, nil)
 	return out

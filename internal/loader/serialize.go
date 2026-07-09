@@ -11,6 +11,11 @@ var typedKeys = map[string]bool{
 	"children": true, "renderItem": true, "data": true,
 }
 
+// whenKeys are the fields of a "when" node held in struct fields
+// (Condition/Then/Else); on a when node they are emitted from the struct, not
+// carried through Props verbatim.
+var whenKeys = map[string]bool{"condition": true, "then": true, "else": true}
+
 // NodeToJSON serialises a node back to a QORM JSON object — the inverse of
 // BuildNode. Typed fields come from the struct (so patch edits are reflected);
 // unrecognised props are carried through verbatim.
@@ -38,8 +43,18 @@ func NodeToJSON(n *model.Node) map[string]any {
 	}
 	// carry through extra props not covered by typed fields
 	for k, v := range n.Props {
-		if !typedKeys[k] {
-			m[k] = v
+		if typedKeys[k] || (n.Type == "when" && whenKeys[k]) {
+			continue
+		}
+		m[k] = v
+	}
+	if n.Type == "when" {
+		putIf(m, "condition", n.Condition)
+		if n.Then != nil {
+			m["then"] = NodeToJSON(n.Then)
+		}
+		if n.Else != nil {
+			m["else"] = NodeToJSON(n.Else)
 		}
 	}
 	if len(n.Children) > 0 {

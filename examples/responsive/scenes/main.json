@@ -1,0 +1,64 @@
+{
+  "type": "scene",
+  "id": "main",
+  "root": {
+    "type": "column",
+    "id": "root",
+    "style": { "gap": 16, "padding": 20 },
+    "children": [
+      { "type": "text", "id": "title", "text": "Responsive Layout", "style": { "fontSize": 24, "fontWeight": "bold" } },
+      { "type": "text", "id": "viewport-readout", "text": "viewport: {{ viewport.width }} x {{ viewport.height }} ({{ viewport.orientation }})", "style": { "color": "#6b7280", "fontSize": 13 } },
+      { "type": "text", "id": "note", "text": "{{ state.note }}" },
+      {
+        "type": "when",
+        "id": "layout-switch",
+        "condition": "{{ viewport.width >= 768 }}",
+        "then": {
+          "type": "row",
+          "id": "cards-wide",
+          "style": { "gap": 12 },
+          "children": [
+            { "type": "card", "id": "card-a-wide", "style": { "flex": 1, "padding": 16 }, "children": [
+              { "type": "text", "id": "card-a-wide-title", "text": "Overview", "style": { "fontWeight": "bold" } },
+              { "type": "text", "id": "card-a-wide-body", "text": "Wide viewport: the three cards sit side by side in a row." }
+            ] },
+            { "type": "card", "id": "card-b-wide", "style": { "flex": 1, "padding": 16 }, "children": [
+              { "type": "text", "id": "card-b-wide-title", "text": "Activity", "style": { "fontWeight": "bold" } },
+              { "type": "text", "id": "card-b-wide-body", "text": "The when node picked its then branch because viewport.width >= 768." }
+            ] },
+            { "type": "card", "id": "card-c-wide", "style": { "flex": 1, "padding": 16 }, "children": [
+              { "type": "text", "id": "card-c-wide-title", "text": "Details", "style": { "fontWeight": "bold" } },
+              { "type": "text", "id": "card-c-wide-body", "text": "Shrink the window under 768px to collapse into a column." }
+            ] }
+          ]
+        },
+        "else": {
+          "type": "column",
+          "id": "cards-narrow",
+          "style": { "gap": 12 },
+          "children": [
+            { "type": "card", "id": "card-a-narrow", "style": { "padding": 16 }, "children": [
+              { "type": "text", "id": "card-a-narrow-title", "text": "Overview", "style": { "fontWeight": "bold" } },
+              { "type": "text", "id": "card-a-narrow-body", "text": "Narrow (or unknown) viewport: the cards stack in a column." }
+            ] },
+            { "type": "card", "id": "card-b-narrow", "style": { "padding": 16 }, "children": [
+              { "type": "text", "id": "card-b-narrow-title", "text": "Activity", "style": { "fontWeight": "bold" } },
+              { "type": "text", "id": "card-b-narrow-body", "text": "The when node fell back to its else branch (viewport.width < 768)." }
+            ] },
+            { "type": "card", "id": "card-c-narrow", "style": { "padding": 16 }, "children": [
+              { "type": "text", "id": "card-c-narrow-title", "text": "Details", "style": { "fontWeight": "bold" } },
+              { "type": "text", "id": "card-c-narrow-body", "text": "Widen the window past 768px to switch back to a row." }
+            ] }
+          ]
+        }
+      },
+      {
+        "type": "when",
+        "id": "orientation-switch",
+        "condition": "{{ viewport.orientation == 'portrait' }}",
+        "then": { "type": "badge", "id": "orient-portrait", "text": "portrait" },
+        "else": { "type": "badge", "id": "orient-landscape", "text": "landscape (or unknown)" }
+      }
+    ]
+  }
+}

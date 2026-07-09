@@ -1,0 +1,24 @@
+{
+  "type": "app",
+  "id": "qorm_responsive",
+  "name": "QORM Responsive Demo",
+  "entry": "main",
+  "globalState": {
+    "schema": {
+      "note": "string"
+    },
+    "initial": {
+      "note": "Resize the window to swap layouts."
+    }
+  },
+  "platforms": {
+    "desktop": {
+      "window": {
+        "width": 900,
+        "height": 640,
+        "title": "Responsive Demo",
+        "resizable": true
+      }
+    }
+  }
+}

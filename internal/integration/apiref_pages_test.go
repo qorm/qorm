@@ -63,6 +63,9 @@ var nodeSchema = [][4]string{
 	{"renderItem", "node", "item template for a bound `list`", "绑定 `list` 的条目模板"},
 	{"data", "string", "list data-binding expression (e.g. `state.todos`)", "列表数据绑定表达式(如 `state.todos`)"},
 	{"children", "node[]", "child nodes", "子节点"},
+	{"condition", "string", "`when` nodes only: `{{ … }}` expression over `viewport.width` / `viewport.height` / `viewport.orientation` selecting `then` (truthy) or `else`; an unknown viewport (server first frame) is falsy", "仅 `when` 节点:基于 `viewport.width` / `viewport.height` / `viewport.orientation` 的 `{{ … }}` 表达式,真值渲染 `then`,否则渲染 `else`;视口未知(服务端首帧)按假值处理"},
+	{"then", "node", "`when` nodes only: subtree rendered when `condition` is truthy", "仅 `when` 节点:`condition` 为真时渲染的子树"},
+	{"else", "node", "`when` nodes only: subtree rendered otherwise (unlike the `if` prop, which hides one node, `when` swaps two alternative subtrees)", "仅 `when` 节点:否则渲染的子树(与隐藏单个节点的 `if` 属性不同,`when` 在两棵备选子树间切换)"},
 	{"…", "any", "any other key is a widget-specific **prop** (table below)", "其余任何键都是组件专有**属性**(见下表)"},
 }
 
@@ -207,6 +210,7 @@ var routeDocs = map[string]routeDoc{
 	"/poll":          {"GET", "long-poll fallback when SSE is unavailable — returns the current revision + HTML if it advanced", "SSE 不可用时的长轮询兜底——返回当前修订号,若有更新则附带 HTML"},
 	"/log":           {"GET / POST", "GET activity entries after `?since=`; POST forwards a client console line", "GET 拉取 `?since=` 之后的活动条目;POST 转发一条客户端控制台日志"},
 	"/presence":      {"GET / POST", "collaboration presence — who (human/agent) is focused/typing where", "协作在场——谁(人 / 智能体)正聚焦或输入在何处"},
+	"/viewport":      {"GET / POST", "the browser reports its window size (debounced on resize) so responsive `when` nodes re-render server-side; GET reads the current value", "浏览器回报窗口尺寸(缩放去抖)以便响应式 `when` 节点在服务端重渲染;GET 读取当前值"},
 	"/console":       {"GET", "the log-window console feed page", "日志窗口的控制台信息流页面"},
 	"/logwindow":     {"GET", "the standalone log window that accompanies the desktop app", "伴随桌面应用的独立日志窗口"},
 	"/window":        {"POST", "desktop window control (move / resize / open / close / focus)", "桌面窗口控制(移动 / 缩放 / 打开 / 关闭 / 聚焦)"},
