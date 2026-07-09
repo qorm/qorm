@@ -22,7 +22,7 @@ QORM has 43 built-in hardware/native capabilities. For each: the widget type is 
 | `notify` | `notify` | notify | `qormOnNotify` | ios, mac, linux, windows, web | Local notification. (Android falls back to the Web Notification API; Windows shows a WinRT toast (balloon fallback)) |
 | `badge` | `dockbadge` | badge | `—` | ios, mac | App icon / Dock badge count. |
 | `screenshot` | `screenshot` | screenshot | `qormOnScreenshot` | ios, android, mac, linux, windows, web | Capture the screen / app view. (Linux needs grim, scrot or ImageMagick) |
-| `screenrecord` | `screenrecord` | screenRecordStart<br>screenRecordStop | `qormOnScreenRecord` | ios, mac, web | Record the screen. (Android needs MediaProjection (pending)) |
+| `screenrecord` | `screenrecord` | screenRecordStart<br>screenRecordStop | `qormOnScreenRecord` | ios, android, mac, web | Record the screen. (Android uses MediaProjection (needs a foreground service with type mediaProjection on Android 14+)) |
 | `share` | `share` | share | `qormOnShare` | ios, android, mac, linux, windows, web | Open the system share sheet. (Linux/Windows fall back to copying the text to the clipboard) |
 | `clipboard` | `clipboard` | clipboardSet<br>clipboardGet | `qormOnClipboard` | ios, android, mac, linux, windows, web | Read/write the clipboard. |
 | `deviceinfo` | `deviceinfo` | deviceInfo | `qormOnDeviceInfo` | ios, android, mac, linux, windows, web | Device model / OS / name. |
@@ -35,8 +35,8 @@ QORM has 43 built-in hardware/native capabilities. For each: the widget type is 
 | `securestorage` | `securestorage` | secureSet<br>secureGet | `qormOnSecure` | ios, android, mac, linux, windows, web | Secure key/value storage (iOS Keychain / Android Keystore / Windows DPAPI). (web falls back to localStorage (not hardware-encrypted); Linux uses the DBus Secret Service (GNOME Keyring / KWallet)) |
 | `filepicker` | `filepicker` | pickFile | `qormOnFile` | ios, android, web | Pick a file from storage (returns name/size/data URL). |
 | `photopicker` | `photopicker` | pickPhoto | `qormOnPhoto` | ios, android, web | Pick an existing photo from the library (returns a data URL). |
-| `orientation` | `orientation` | lockOrientation | `—` | android, web | Lock screen orientation (portrait/landscape). (iOS orientation lock needs AppDelegate support (pending)) |
-| `videocapture` | `videocapture` | recordVideo | `qormOnVideo` | ios, web | Record a video with the camera. (Android via MediaRecorder pending) |
+| `orientation` | `orientation` | lockOrientation | `—` | ios, android, web | Lock screen orientation (portrait/landscape). |
+| `videocapture` | `videocapture` | recordVideo | `qormOnVideo` | ios, android, web | Record a video with the camera. (Android uses the system camera Intent (ACTION_VIDEO_CAPTURE)) |
 | `qrscan` | `qrscan` | scanQR | `qormOnScan` | ios, web | Scan a QR code / barcode with the camera. (Android needs CameraX+MLKit (pending)) |
 | `tts` | `tts` | speak<br>speakStop | `—` | ios, android, mac, linux, windows, web | Text to speech (speak a string aloud). |
 | `compass` | `compass` | headingStart<br>headingStop | `qormOnHeading` | ios, android, web | Compass heading (degrees from magnetic north). |
@@ -54,8 +54,8 @@ QORM has 43 built-in hardware/native capabilities. For each: the widget type is 
 
 Every capability each target implements natively or via a Web API.
 
-- **iOS** (40) — `camera`, `location`, `recorder`, `sensors`, `biometric`, `bluetooth`, `wifi`, `nfc`, `volume`, `brightness`, `vibrate`, `torch`, `battery`, `notify`, `badge`, `screenshot`, `screenrecord`, `share`, `clipboard`, `deviceinfo`, `network`, `keepawake`, `haptics`, `storage`, `stt`, `securestorage`, `filepicker`, `photopicker`, `videocapture`, `qrscan`, `tts`, `compass`, `proximity`, `pedometer`, `barometer`, `contacts`, `calendar`, `systemmodes`, `insets`, `openurl`
-- **Android** (36) — `camera`, `location`, `recorder`, `sensors`, `biometric`, `bluetooth`, `wifi`, `nfc`, `volume`, `brightness`, `vibrate`, `torch`, `battery`, `screenshot`, `share`, `clipboard`, `deviceinfo`, `network`, `keepawake`, `haptics`, `storage`, `stt`, `securestorage`, `filepicker`, `photopicker`, `orientation`, `tts`, `compass`, `proximity`, `pedometer`, `barometer`, `contacts`, `calendar`, `systemmodes`, `insets`, `openurl`
+- **iOS** (41) — `camera`, `location`, `recorder`, `sensors`, `biometric`, `bluetooth`, `wifi`, `nfc`, `volume`, `brightness`, `vibrate`, `torch`, `battery`, `notify`, `badge`, `screenshot`, `screenrecord`, `share`, `clipboard`, `deviceinfo`, `network`, `keepawake`, `haptics`, `storage`, `stt`, `securestorage`, `filepicker`, `photopicker`, `orientation`, `videocapture`, `qrscan`, `tts`, `compass`, `proximity`, `pedometer`, `barometer`, `contacts`, `calendar`, `systemmodes`, `insets`, `openurl`
+- **Android** (38) — `camera`, `location`, `recorder`, `sensors`, `biometric`, `bluetooth`, `wifi`, `nfc`, `volume`, `brightness`, `vibrate`, `torch`, `battery`, `screenshot`, `screenrecord`, `share`, `clipboard`, `deviceinfo`, `network`, `keepawake`, `haptics`, `storage`, `stt`, `securestorage`, `filepicker`, `photopicker`, `orientation`, `videocapture`, `tts`, `compass`, `proximity`, `pedometer`, `barometer`, `contacts`, `calendar`, `systemmodes`, `insets`, `openurl`
 - **macOS** (25) — `camera`, `location`, `recorder`, `biometric`, `bluetooth`, `wifi`, `volume`, `brightness`, `battery`, `notify`, `badge`, `screenshot`, `screenrecord`, `share`, `clipboard`, `deviceinfo`, `network`, `keepawake`, `storage`, `loginitem`, `securestorage`, `tts`, `systemmodes`, `openurl`, `screens`
 - **Linux** (17) — `camera`, `location`, `recorder`, `volume`, `brightness`, `battery`, `notify`, `screenshot`, `share`, `clipboard`, `deviceinfo`, `network`, `keepawake`, `storage`, `securestorage`, `tts`, `openurl`
 - **Windows** (14) — `camera`, `location`, `recorder`, `volume`, `notify`, `screenshot`, `share`, `clipboard`, `deviceinfo`, `network`, `storage`, `securestorage`, `tts`, `openurl`

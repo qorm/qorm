@@ -145,10 +145,16 @@ func iosAppDelegate() string {
 	return `import UIKit
 
 var qormPendingShortcut: String?
+// Current allowed orientations; the lockOrientation op mutates this and iOS reads
+// it back through application(_:supportedInterfaceOrientationsFor:).
+var qormOrientationMask: UIInterfaceOrientationMask = .all
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
+    func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
+        return qormOrientationMask
+    }
     func application(_ application: UIApplication,
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         window = UIWindow(frame: UIScreen.main.bounds)
@@ -853,6 +859,17 @@ func iosBridgeBody() string {
                     if #available(iOS 16.0, *) { center.setBadgeCount(n) }
                     else { UIApplication.shared.applicationIconBadgeNumber = n }
                 }
+            }
+        case "lockOrientation":
+            switch body["mode"] as? String ?? "any" {
+            case "portrait": qormOrientationMask = .portrait
+            case "landscape": qormOrientationMask = .landscape
+            default: qormOrientationMask = .all
+            }
+            if #available(iOS 16.0, *) {
+                self.setNeedsUpdateOfSupportedInterfaceOrientations()
+            } else {
+                UIViewController.attemptRotationToDeviceIfNeeded()
             }
         default:
             self.qormUserOp(op, body)

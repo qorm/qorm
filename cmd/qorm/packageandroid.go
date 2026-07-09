@@ -551,12 +551,20 @@ public class MainActivity extends androidx.fragment.app.FragmentActivity impleme
     androidx.activity.result.ActivityResultLauncher<String> qormPhotoPick;
     androidx.activity.result.ActivityResultLauncher<String> qormFilePick;
     androidx.activity.result.ActivityResultLauncher<Void> qormContactPick;
+    androidx.activity.result.ActivityResultLauncher<Intent> qormScreenCap;
+    androidx.activity.result.ActivityResultLauncher<Intent> qormVideoCap;
     String qormPendingShortcut;
     SensorManager sm;
     Sensor rot;
     LocationManager lm;
     MediaRecorder mrec;
     String recPath;
+    // MediaProjection screen-recording state.
+    android.media.projection.MediaProjectionManager qormMpm;
+    android.media.projection.MediaProjection qormMp;
+    android.hardware.display.VirtualDisplay qormVd;
+    MediaRecorder qormScreenRec;
+    String qormScreenPath;
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -593,6 +601,29 @@ public class MainActivity extends androidx.fragment.app.FragmentActivity impleme
                 js("qormOnPhoto('data:image/jpeg;base64," + Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP) + "')");
             } catch (Exception e) { js("qormOnPhoto('')"); }
         });
+        // Screen recording: the MediaProjection consent dialog returns here; on OK
+        // we hold the projection token and start the MediaRecorder capture.
+        qormScreenCap = registerForActivityResult(new androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult(), result -> {
+            if (result.getResultCode() != android.app.Activity.RESULT_OK || result.getData() == null) { js("qormOnScreenRecord('permission denied')"); return; }
+            try {
+                if (qormMpm == null) qormMpm = (android.media.projection.MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+                qormMp = qormMpm.getMediaProjection(result.getResultCode(), result.getData());
+                qormStartScreenRec();
+            } catch (Exception e) { js("qormOnScreenRecord('error: " + e + "')"); }
+        });
+        // Video capture: system camera app records to a content URI we read back.
+        qormVideoCap = registerForActivityResult(new androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult(), result -> {
+            if (result.getResultCode() != android.app.Activity.RESULT_OK || result.getData() == null) { js("qormOnVideo('')"); return; }
+            try {
+                android.net.Uri uri = result.getData().getData();
+                if (uri == null) { js("qormOnVideo('')"); return; }
+                java.io.InputStream ins = getContentResolver().openInputStream(uri);
+                java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
+                byte[] buf = new byte[8192]; int n; while ((n = ins.read(buf)) > 0) baos.write(buf, 0, n);
+                ins.close();
+                js("qormOnVideo('data:video/mp4;base64," + Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP) + "')");
+            } catch (Exception e) { js("qormOnVideo('')"); }
+        });
         try {
             requestPermissions(new String[]{
                 "android.permission.CAMERA", "android.permission.RECORD_AUDIO",
@@ -628,8 +659,25 @@ public class MainActivity extends androidx.fragment.app.FragmentActivity impleme
                 } catch (Exception e) { js("qormOnScreenshot('')"); }
             });
         }
-        @JavascriptInterface public void screenRecordStart(String a) { runOnUiThread(() -> js("qormOnScreenRecord('Android screen recording needs MediaProjection (not yet wired)')")); }
-        @JavascriptInterface public void screenRecordStop(String a) { runOnUiThread(() -> js("qormOnScreenRecord('')")); }
+        @JavascriptInterface public void screenRecordStart(String a) {
+            runOnUiThread(() -> { try {
+                if (qormMpm == null) qormMpm = (android.media.projection.MediaProjectionManager) getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+                // Launches the system screen-capture consent dialog (the core
+                // MediaProjection entry point). NOTE: on Android 14+ (API 34) capture
+                // additionally requires a running foreground service declared with
+                // android:foregroundServiceType="mediaProjection"; the consent + capture
+                // path here is the standard MediaProjection API.
+                qormScreenCap.launch(qormMpm.createScreenCaptureIntent());
+            } catch (Exception e) { js("qormOnScreenRecord('error: " + e + "')"); } });
+        }
+        @JavascriptInterface public void screenRecordStop(String a) {
+            runOnUiThread(() -> { try {
+                if (qormScreenRec != null) { qormScreenRec.stop(); qormScreenRec.release(); qormScreenRec = null; }
+                if (qormVd != null) { qormVd.release(); qormVd = null; }
+                if (qormMp != null) { qormMp.stop(); qormMp = null; }
+                js("qormOnScreenRecord(" + jsStr("file://" + qormScreenPath) + ")");
+            } catch (Exception e) { js("qormOnScreenRecord('')"); } });
+        }
         @JavascriptInterface public void share(String a) {
             runOnUiThread(() -> { try {
                 org.json.JSONObject o = new org.json.JSONObject(a);
@@ -771,6 +819,11 @@ public class MainActivity extends androidx.fragment.app.FragmentActivity impleme
         }
         @JavascriptInterface public void pickFile(String a) { runOnUiThread(() -> { if (qormFilePick != null) qormFilePick.launch("*/*"); }); }
         @JavascriptInterface public void pickPhoto(String a) { runOnUiThread(() -> { if (qormPhotoPick != null) qormPhotoPick.launch("image/*"); }); }
+        @JavascriptInterface public void recordVideo(String a) {
+            runOnUiThread(() -> { try {
+                qormVideoCap.launch(new android.content.Intent(android.provider.MediaStore.ACTION_VIDEO_CAPTURE));
+            } catch (Exception e) { js("qormOnVideo('')"); } });
+        }
         @JavascriptInterface public void openURL(String a) {
             runOnUiThread(() -> { try {
                 String url = new org.json.JSONObject(a).optString("url", "");
@@ -989,6 +1042,28 @@ public class MainActivity extends androidx.fragment.app.FragmentActivity impleme
                 .setTitle("Authenticate").setNegativeButtonText("Cancel").build();
             bp.authenticate(info);
         } catch (Exception e) { js("qormOnBiometric(false,'" + e + "')"); }
+    }
+
+    // qormStartScreenRec wires a MediaRecorder (SURFACE video source) to the live
+    // MediaProjection via a mirrored VirtualDisplay and starts recording to a file.
+    void qormStartScreenRec() {
+        try {
+            qormScreenPath = getCacheDir().getAbsolutePath() + "/qorm-screen.mp4";
+            android.util.DisplayMetrics dm = getResources().getDisplayMetrics();
+            qormScreenRec = new MediaRecorder();
+            qormScreenRec.setVideoSource(MediaRecorder.VideoSource.SURFACE);
+            qormScreenRec.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+            qormScreenRec.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
+            qormScreenRec.setVideoSize(dm.widthPixels, dm.heightPixels);
+            qormScreenRec.setVideoFrameRate(30);
+            qormScreenRec.setVideoEncodingBitRate(6000000);
+            qormScreenRec.setOutputFile(qormScreenPath);
+            qormScreenRec.prepare();
+            qormVd = qormMp.createVirtualDisplay("qorm-screen", dm.widthPixels, dm.heightPixels, dm.densityDpi,
+                android.hardware.display.DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, qormScreenRec.getSurface(), null, null);
+            qormScreenRec.start();
+            js("qormOnScreenRecord('recording')");
+        } catch (Exception e) { js("qormOnScreenRecord('error: " + e + "')"); }
     }
 
     void startRec() {
