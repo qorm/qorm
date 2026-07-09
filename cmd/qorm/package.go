@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/qorm/qorm/internal/bundle"
+	"github.com/qorm/qorm/internal/keys"
 	"github.com/qorm/qorm/internal/loader"
 	"github.com/qorm/qorm/internal/miniapp"
 	qrt "github.com/qorm/qorm/internal/runtime"
@@ -63,6 +65,7 @@ type releaseOpts struct {
 func cmdPackage(args []string) int {
 	in, out, platform, team, dev := "", "", "web", "", ""
 	noBranding, subscribed := false, false
+	updateURL, trustPath := "", ""
 	var rel releaseOpts
 	strArg := func(i *int, dst *string) {
 		if *i+1 < len(args) {
@@ -114,16 +117,31 @@ func cmdPackage(args []string) int {
 			strArg(&i, &rel.KeychainProfile)
 		case "--no-dmg":
 			rel.NoDMG = true
+		case "--update-url":
+			strArg(&i, &updateURL)
+		case "--trust":
+			strArg(&i, &trustPath)
 		default:
 			in = args[i]
 		}
 	}
 	if in == "" {
-		fmt.Fprintln(os.Stderr, "usage: qorm package <app-dir> [-p web|android|ios|mac|miniapp] [-o out-dir] [--release]")
+		fmt.Fprintln(os.Stderr, "usage: qorm package <app-dir> [-p web|android|ios|mac|miniapp] [-o out-dir] [--release] [--update-url https://… --trust key.pub]")
 		return 2
 	}
 	if rel.Release && dev != "" {
 		fmt.Fprintln(os.Stderr, "error: --release and --dev are mutually exclusive (the dev client is always a debug build)")
+		return 2
+	}
+	// --update-url and --trust come as a pair: an OTA client without a trusted
+	// key cannot authenticate what it downloads, so OTA stays off — the same
+	// fail-closed model as the live server's /update (serveUpdate).
+	if (updateURL == "") != (trustPath == "") {
+		fmt.Fprintln(os.Stderr, "error: --update-url and --trust must be given together (updates are only applied when signed by the trusted key)")
+		return 2
+	}
+	if updateURL != "" && !strings.HasPrefix(updateURL, "http://") && !strings.HasPrefix(updateURL, "https://") {
+		fmt.Fprintf(os.Stderr, "error: --update-url must be an http(s) URL, got %q\n", updateURL)
 		return 2
 	}
 	if rel.AppVersion == "" {
@@ -135,6 +153,22 @@ func cmdPackage(args []string) int {
 	name := filepath.Base(strings.TrimRight(in, "/"))
 	if out == "" {
 		out = name + "-" + platform
+	}
+
+	// OTA client config, baked into the offline HTML as window.__QORM_UPDATE__.
+	// nil (no --update-url) keeps the packaged output byte-identical to before.
+	var update *server.UpdateConfig
+	if updateURL != "" {
+		pub, err := keys.LoadPublic(trustPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: --trust: %v\n", err)
+			return 1
+		}
+		update = &server.UpdateConfig{
+			URL:   strings.TrimRight(updateURL, "/"),
+			App:   name, // the rollout.json key the update server resolves by
+			Trust: base64.StdEncoding.EncodeToString(pub),
+		}
 	}
 
 	app, err := loader.LoadDir(in)
@@ -235,7 +269,7 @@ func cmdPackage(args []string) int {
 	}
 
 	rt := qrt.New(app)
-	html, err := server.OfflineHTML(rt, string(bj))
+	html, err := server.OfflineHTML(rt, string(bj), update)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
