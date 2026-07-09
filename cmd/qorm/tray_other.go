@@ -1,4 +1,4 @@
-//go:build desktop && !darwin
+//go:build desktop && !darwin && !linux
 
 package main
 
@@ -8,8 +8,9 @@ import (
 	webview "github.com/qorm/qorm/internal/webview"
 )
 
-// nativeTray: native trays for Linux (AppIndicator/DBus) and Windows
-// (Shell_NotifyIcon) are not wired yet, so the tray process simply exits.
+// nativeTray: a native Windows (Shell_NotifyIcon) / BSD tray is not wired yet,
+// so the tray process simply exits. Linux has a real DBus StatusNotifierItem
+// tray in tray_linux.go.
 func nativeTray(png []byte, items []string, tip string, onClick func(int)) {}
 
 func setDockIcon(png []byte) {}
