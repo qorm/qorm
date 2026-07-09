@@ -24,7 +24,7 @@ func ToolsMarkdown() string {
 
 var toolDescriptionsZH = map[string]string{
 	"qorm_window":          "控制桌面应用窗口：op=move 时需要 x,y,w,h（左上角像素坐标）；op=focus/minimize/pin/unpin 作用于窗口。控制引擎调整用户窗口的位置。支持 macOS 和 Windows 桌面应用。",
-	"qorm_inspect":         "检查 QORM 应用：id、名称、入口场景、场景 id 列表、状态模式 (schema)、当前状态、动作 (action) id 列表以及静态编译诊断警告。只读。",
+	"qorm_inspect":         "检查 QORM 应用：id、名称、入口场景、场景 id 列表、状态模式 (schema)、当前状态、动作 (action) id 列表、静态编译诊断警告，以及（若已声明）设计令牌系统（designTokens：名称 -> {type,value,enforce}）。声明为 enforce 的颜色令牌会硬约束 apply_patch：颜色样式只能设为这些令牌的值。只读。",
 	"qorm_render_html":     "将当前应用渲染为 HTML，以便智能体查看 UI 的外观。只读。",
 	"qorm_capabilities":    "列出所有内置的硬件/原生能力：每个能力的规范名称 + 组件类型、它接受的 qormToNative 操作字符串、它的 qormOn<Name> 回调，以及实现它的平台（ios/android/mac/linux/windows/web）。只读 —— 用于智能体发现存在哪些硬件以及如何调用它们。",
 	"qorm_get_node":        "通过节点 id 返回节点的类型、属性（props）和子节点 id 列表。只读。",
@@ -39,7 +39,7 @@ var toolDescriptionsZH = map[string]string{
 	"qorm_assert":          "测试应用：对当前状态和渲染后的 HTML 评估检查项。每个检查项为 {kind: 'stateEquals'|'htmlContains'|'nodeExists', ...}。返回每个检查项的通过/失败状态以及总体结果。",
 	"qorm_preview_patch":   "设计（安全）：将补丁操作应用到应用的副本，并返回生成的 HTML 以及一个 previewToken。无副作用 —— 运行中的应用不会被改变。操作类型：{op:'setProp',target,key,value} | {op:'addChild',target,node} | {op:'insertBefore'|'insertAfter',target,node} | {op:'replace',target,node} | {op:'wrap',target,node} | {op:'move',target,into} | {op:'remove',target}。",
 	"qorm_diff":            "设计（安全）：在不接触运行中应用的前提下，显示补丁将会产生的结构差异（新增/删除的节点 id，以及每个改变的节点中被修改的字段）。在应用前进行评审。",
-	"qorm_apply_patch":     "设计（提交）：将补丁操作应用到运行中的应用。必须传递由相同操作的 qorm_preview_patch 返回 of previewToken —— 提交应用绑定于评审。会对当前状态进行快照备份以便后续撤销。",
+	"qorm_apply_patch":     "设计（提交）：将补丁操作应用到运行中的应用。必须传递由相同操作的 qorm_preview_patch 返回 of previewToken —— 提交应用绑定于评审。会对当前状态进行快照备份以便后续撤销。若应用声明了 enforce 的颜色设计令牌（见 qorm_inspect 的 designTokens），将颜色样式设为非令牌值的 setProp style 操作会被拒绝（预览阶段亦然）。",
 	"qorm_undo":            "设计：撤销最后一次应用的补丁，将应用恢复到该应用前的状态。返回撤销后的 HTML 以及剩余的撤销深度。",
 	"qorm_measure":         "精确解析运行中的渲染：返回连接用户表达（类型、文本、状态绑定）与实际渲染方式的每一个组件细节 —— x,y,w,h, visible, 以及计算出的 color/background/fontSize/fontWeight/padding/borderRadius/border/opacity/zIndex/position/x-overflow —— 由运行中应用在其窗口中自行测量。要求应用在窗口/浏览器中打开（它在加载时以及每次更改后会进行自我测量）。用于查看用户应用的确切渲染情况。",
 	"qorm_check_layout":    "根据预期校验运行中的渲染；返回每个检查项的通过/失败状态以及实际值。`checks` 是由 {id, <assertions>} 组成的数组。断言：visible(bool) | type(组件类型 string) | text(组件必须包含的子字符串，与所表达或渲染后的文本匹配) | noOverflow(bool, 无水平溢出) | minW|maxW|minH|maxH(px 数值) | x|y(px 数值, ±3 容差) | within(id: 该盒子必须位于该 id 盒子的内部) | below(id: 必须在该 id 的下方开始) | backgroundNot|colorNot(必须不存在的子字符串 —— 例如在暗黑模式下断言 \"255, 255, 255\" 即非白色) | role(渲染后的 ARIA role 字符串，含渲染器隐式注入的 role) | hasAriaLabel(bool) | contrastRatio(最小 WCAG 对比度，如 AA 正文 4.5 —— 针对有效背景色计算)。示例：[{\"id\":\"wifi\",\"type\":\"switchlisttile\",\"visible\":true,\"within\":\"settings\"},{\"id\":\"chart\",\"noOverflow\":true}]。要求应用在窗口中打开（它会自我测量）。可选的 viewportW/viewportH（px）在校验前设置运行时视口，使响应式 `when` 分支按该窗口尺寸解析 —— 注意测得的矩形仍来自客户端的真实窗口（活动客户端也会在下次加载/缩放时覆盖该视口）。",

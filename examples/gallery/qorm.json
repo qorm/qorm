@@ -22,6 +22,11 @@
       "bio": "Building with QORM."
     }
   },
+  "designTokens": {
+    "color.primary": { "type": "color", "value": "#0a84ff", "enforce": true },
+    "color.bg":      { "type": "color", "value": "#f2f2f7", "enforce": true },
+    "spacing.md":    { "type": "number", "value": 16, "enforce": false }
+  },
   "platforms": {
     "desktop": { "window": { "width": 460, "height": 820, "title": "Gallery" } }
   }

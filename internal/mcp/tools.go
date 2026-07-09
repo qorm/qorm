@@ -40,7 +40,7 @@ func toolList() []tool {
 		},
 		{
 			Name:        "qorm_inspect",
-			Description: "Inspect the QORM app: id, name, entry scene, scene ids, state schema, current state, action ids, and static compiler diagnostics. Read-only.",
+			Description: "Inspect the QORM app: id, name, entry scene, scene ids, state schema, current state, action ids, static compiler diagnostics, and the design-token system (designTokens: name -> {type,value,enforce}) when declared. Enforced color tokens hard-constrain apply_patch: a color style may only be set to one of their values. Read-only.",
 			InputSchema: obj(nil),
 		},
 		{
@@ -136,7 +136,7 @@ func toolList() []tool {
 		},
 		{
 			Name:        "qorm_apply_patch",
-			Description: "DESIGN (commit): apply patch ops to the LIVE app. Must pass the previewToken returned by qorm_preview_patch for the same ops — apply is bound to a review. Snapshots the pre-image so it can be undone.",
+			Description: "DESIGN (commit): apply patch ops to the LIVE app. Must pass the previewToken returned by qorm_preview_patch for the same ops — apply is bound to a review. Snapshots the pre-image so it can be undone. If the app declares enforced color design tokens (see qorm_inspect designTokens), a setProp style op that sets a color style to a non-token value is rejected (also at preview time).",
 			InputSchema: obj(map[string]any{
 				"ops":          map[string]any{"type": "array"},
 				"previewToken": strProp,
@@ -483,7 +483,7 @@ func (s *Server) inspect() map[string]any {
 		actionIDs = append(actionIDs, id)
 	}
 	sort.Strings(actionIDs)
-	return map[string]any{
+	out := map[string]any{
 		"id":           s.rt.App.ID,
 		"name":         s.rt.App.Name,
 		"entry":        s.rt.App.Entry,
@@ -493,6 +493,12 @@ func (s *Server) inspect() map[string]any {
 		"currentState": s.rt.State,
 		"diagnostics":  s.rt.App.Diagnostics,
 	}
+	// Surface the design-token system so the agent knows which token values it
+	// may use; enforced color tokens hard-constrain apply_patch style edits.
+	if len(s.rt.App.DesignTokens) > 0 {
+		out["designTokens"] = s.rt.App.DesignTokens
+	}
+	return out
 }
 
 func (s *Server) listActions() []map[string]any {

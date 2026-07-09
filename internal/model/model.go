@@ -44,8 +44,26 @@ type App struct {
 	// Shortcuts are the app's home-screen / Dock quick actions (long-press the
 	// app icon). Selecting one launches the app and fires qormEmit('shortcut', id).
 	Shortcuts []Shortcut
+	// DesignTokens are the app's design-system tokens (qorm.json "designTokens"),
+	// keyed by token name (e.g. "color.primary"). A token with Type "color" and
+	// Enforce true constrains the agent's style edits: apply_patch may only set a
+	// color style to one of the enforced token values (see internal/mcp
+	// enforcement). Non-enforced tokens are advisory. Empty/absent map = no
+	// constraint (fully backward compatible).
+	DesignTokens map[string]DesignToken
 	// Diagnostics holds static compilation warnings or syntax errors found by the loader.
 	Diagnostics []string
+}
+
+// DesignToken is one entry in an app's design-token system: a named, typed value
+// the design system sanctions. Value is always stored as a string (numbers too,
+// e.g. "16"). When Type is "color" and Enforce is true, the agent's apply_patch
+// may only set color styles to this token's value; enforce:false tokens are
+// advisory (surfaced to the agent but not enforced).
+type DesignToken struct {
+	Type    string `json:"type"`    // "color" | "number" | ...
+	Value   string `json:"value"`   // canonical value (string form)
+	Enforce bool   `json:"enforce"` // hard-constrain agent edits to this value
 }
 
 // MenuItem is one entry in a system / tray / context menu. Items nests a submenu.

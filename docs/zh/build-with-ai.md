@@ -61,6 +61,43 @@ qorm run ./habits          # opens in your browser; agent endpoint at /mcp
 
 完整闭环见[人机协作](collaboration.md)。
 
+## 设计令牌（让 AI 守住配色）
+
+你可以在 `qorm.json` 中声明一套**设计令牌系统**，让 AI 的样式编辑守在你的设计
+系统之内，而不是漂移到任意颜色。加一个可选的 `designTokens` 映射——每一项都是一个
+有名称、有类型的值：
+
+```json
+"designTokens": {
+  "color.primary": { "type": "color", "value": "#0a84ff", "enforce": true },
+  "color.bg":      { "type": "color", "value": "#f2f2f7", "enforce": true },
+  "spacing.md":    { "type": "number", "value": 16,        "enforce": false }
+}
+```
+
+- **`type`** —— `color`、`number`……（值以字符串形式存储；`16` → `"16"`）。
+- **`enforce`** —— 在*硬约束*与*建议*之间的开关。
+
+**它如何约束智能体。** 当你把一个 `color` 令牌标为 `enforce: true` 时，
+`qorm_apply_patch`（以及无副作用的 `qorm_preview_patch`）会**拒绝**任何将颜色样式
+——`color`、`background`、`backgroundColor`、`borderColor`——设为非你所声明的
+enforce 颜色令牌值的 `setProp` style 操作。拒绝是一条清晰的、列出允许值的错误，例如：
+
+```
+design token violation: color "#ff0000" is not an allowed token (allowed: #0a84ff, #f2f2f7)
+```
+
+比较时会对十六进制大小写与前导 `#` 做归一化，因此 `#0A84FF`、`0a84ff` 和
+`#0a84ff` 都匹配同一个令牌。
+
+- `enforce: false` 的令牌是**建议性**的——会暴露给智能体，但绝不拦截。
+- 一个**未**声明 `designTokens`（或没有 enforce 颜色令牌）的应用行为与以往完全一致
+  ——不受任何约束。
+
+智能体通过 `qorm_inspect` 发现你的令牌——它现在会返回一个 `designTokens` 字段，
+从而在编辑前就知道自己被允许使用哪些值。可运行的声明示例见
+[gallery 示例](https://github.com/qorm/qorm/blob/main/examples/gallery/qorm.json)。
+
 ## 好用的提示词
 
 - "在设置场景里加一个深色主题开关,并验证布局。"

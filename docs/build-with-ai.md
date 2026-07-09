@@ -61,6 +61,46 @@ qorm run ./habits          # opens in your browser; agent endpoint at /mcp
 
 See [Human-AI collaboration](collaboration.md) for the full loop.
 
+## Design tokens (keep the AI on-palette)
+
+You can declare a **design-token system** in `qorm.json` so the AI's style edits
+stay inside your design system instead of drifting to arbitrary colors. Add an
+optional `designTokens` map — each entry is a named, typed value:
+
+```json
+"designTokens": {
+  "color.primary": { "type": "color", "value": "#0a84ff", "enforce": true },
+  "color.bg":      { "type": "color", "value": "#f2f2f7", "enforce": true },
+  "spacing.md":    { "type": "number", "value": 16,        "enforce": false }
+}
+```
+
+- **`type`** — `color`, `number`, … (values are stored as strings; `16` → `"16"`).
+- **`enforce`** — the switch between a *hard constraint* and a *suggestion*.
+
+**How it constrains the agent.** When you mark a `color` token `enforce: true`,
+`qorm_apply_patch` (and its side-effect-free `qorm_preview_patch`) will **reject**
+any `setProp` style op that sets a color style — `color`, `background`,
+`backgroundColor`, `borderColor` — to a value that isn't one of your enforced
+color tokens. The rejection is a clear error that lists the allowed values, e.g.:
+
+```
+design token violation: color "#ff0000" is not an allowed token (allowed: #0a84ff, #f2f2f7)
+```
+
+Comparison is normalized for hex case and the leading `#`, so `#0A84FF`,
+`0a84ff` and `#0a84ff` all match the same token.
+
+- `enforce: false` tokens are **advisory** — surfaced to the agent but never
+  blocking.
+- An app that declares **no** `designTokens` (or no enforced color tokens)
+  behaves exactly as before — nothing is constrained.
+
+The agent discovers your tokens through `qorm_inspect`, which now returns a
+`designTokens` field, so it knows which values it's allowed to use before it
+edits. See the [gallery example](https://github.com/qorm/qorm/blob/main/examples/gallery/qorm.json)
+for a working declaration.
+
 ## Prompts that work well
 
 - "Add a dark-theme toggle to the settings scene and verify the layout."
