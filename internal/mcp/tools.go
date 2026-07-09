@@ -14,6 +14,7 @@ import (
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/render"
 	qrt "github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/qorm/internal/sourcemap"
 )
 
 type tool struct {
@@ -62,6 +63,11 @@ func toolList() []tool {
 		{
 			Name:        "qorm_get_node",
 			Description: "Return a node's type, props, and child ids by node id. Read-only.",
+			InputSchema: obj(map[string]any{"id": strProp}, "id"),
+		},
+		{
+			Name:        "qorm_source_location",
+			Description: "Reverse-lookup: given a node id (e.g. one a human clicked in the devtool or you found via qorm_query), return where it is declared in the app's source — file (relative to the app dir), 1-based line, and that line's text. Lets you jump straight to the JSON to edit it. Unavailable for a signed bundle (no source tree) or a templated id. Read-only.",
 			InputSchema: obj(map[string]any{"id": strProp}, "id"),
 		},
 		{
@@ -281,6 +287,22 @@ func (s *Server) callTool(name string, args json.RawMessage) (string, error) {
 			return "", fmt.Errorf("node %q not found", a.ID)
 		}
 		return jsonPretty(nodeInfo(node)), nil
+	case "qorm_source_location":
+		var a struct {
+			ID string `json:"id"`
+		}
+		_ = json.Unmarshal(args, &a)
+		if a.ID == "" {
+			return "", fmt.Errorf("id is required")
+		}
+		loc, ok := sourcemap.Locate(s.rt.App.BaseDir, a.ID)
+		if !ok {
+			if s.rt.App.BaseDir == "" {
+				return "", fmt.Errorf("no source tree (app is a bundle, not a directory)")
+			}
+			return "", fmt.Errorf("id %q is not declared literally in the source (templated or unknown)", a.ID)
+		}
+		return jsonPretty(loc), nil
 	case "qorm_simulate_action":
 		var a struct {
 			Action string         `json:"action"`

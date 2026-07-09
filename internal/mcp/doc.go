@@ -29,6 +29,7 @@ var toolDescriptionsZH = map[string]string{
 	"qorm_a11y_tree":       "推导入口场景的无障碍（accessibility）树：每个节点的 ARIA role、可访问名称（accessible name）与语义状态（checked/disabled/required/value），并附带无障碍问题审计——会到达屏幕阅读器却没有可访问名称的交互控件与图片。用于检查无障碍覆盖或定位待修复项。只读。",
 	"qorm_capabilities":    "列出所有内置的硬件/原生能力：每个能力的规范名称 + 组件类型、它接受的 qormToNative 操作字符串、它的 qormOn<Name> 回调，以及实现它的平台（ios/android/mac/linux/windows/web）。只读 —— 用于智能体发现存在哪些硬件以及如何调用它们。",
 	"qorm_get_node":        "通过节点 id 返回节点的类型、属性（props）和子节点 id 列表。只读。",
+	"qorm_source_location": "反查：给定节点 id（例如用户在 devtool 里点击的、或你通过 qorm_query 找到的），返回它在应用源码中的声明位置——文件（相对应用目录）、1 起始的行号，以及该行文本。让你直接跳到 JSON 去修改。签名 bundle（无源码树）或模板化 id 不可用。只读。",
 	"qorm_query":           "查找与选择器匹配 of：type、textContains、idContains、hasProp（通过 AND 组合）。返回每个匹配项的 id、类型、标签和祖先路径。在应用补丁 (patch) 前使用此工具定位节点。只读。",
 	"qorm_list_actions":    "列出可用动作以及每个动作步骤的摘要。只读。",
 	"qorm_activity":        "读取共享会话的实时状态：返回 {events:[谁（人类/智能体）做了什么，从旧到新], humanFocus:{元素, 秒数前}, humanTyping:{输入内容, 秒数前}, humanFilled:{字段, 秒数前}} —— 从而使智能体看到人类刚刚做了什么、当前聚焦在哪个元素、最后输入的文本，以及填写了哪些隐藏（密码）字段（仅标签；密码值绝不会被捕获），实现上下文协同。仅在运行中的 `qorm run` session中可用。只读。",
