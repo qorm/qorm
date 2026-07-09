@@ -8,6 +8,29 @@ package main
 #import <Cocoa/Cocoa.h>
 #import <WebKit/WebKit.h>
 
+// captureWindow captures the on-screen window `win` by shelling out to Apple's
+// /usr/sbin/screencapture -l<windowNumber>. On macOS 15+/26 every in-process
+// capture API is broken — WKWebView takeSnapshot returns white, CGWindowListCreateImage
+// was removed (0xbad4007), and SCScreenshotManager gets SIGBUS-killed for an
+// unbundled CLI. The system screencapture tool is properly entitled and still
+// works (using the invoking terminal's Screen-Recording permission), and -l takes
+// a window number even if occluded. The window must be shown so it has a real
+// windowNumber. Returns 1 on success.
+static int captureWindow(NSWindow *win, const char *out) {
+    for (int i = 0; i < 6; i++) // let the compositor commit a frame
+        [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
+                                 beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
+    long wid = [win windowNumber];
+    if (wid <= 0) return 0;
+    NSTask *t = [[NSTask alloc] init];
+    t.launchPath = @"/usr/sbin/screencapture";
+    t.arguments = @[@"-x", @"-o", [NSString stringWithFormat:@"-l%ld", wid], [NSString stringWithUTF8String:out]];
+    @try { [t launch]; [t waitUntilExit]; }
+    @catch (id e) { return 0; }
+    return (t.terminationStatus == 0 &&
+            [[NSFileManager defaultManager] fileExistsAtPath:[NSString stringWithUTF8String:out]]) ? 1 : 0;
+}
+
 // qormFreezeAnimations disables CSS animations/transitions before a snapshot: an
 // offscreen WebView throttles them, so an in-progress entrance animation would be
 // captured at its opacity:0 start. Removing them renders each node at its base
@@ -33,34 +56,20 @@ static int qormShot(const char* html, int w, int h, const char* out) {
                           styleMask:NSWindowStyleMaskBorderless
                             backing:NSBackingStoreBuffered defer:NO];
         [win setContentView:wv];
+        // On-screen + key so ScreenCaptureKit can see the window to capture it.
+        [win center];
+        [win makeKeyAndOrderFront:nil];
+        [NSApp activateIgnoringOtherApps:YES];
         [wv loadHTMLString:[NSString stringWithUTF8String:html] baseURL:nil];
 
         // let it load, lay out, and paint
-        NSDate *loaded = [NSDate dateWithTimeIntervalSinceNow:1.6];
+        NSDate *loaded = [NSDate dateWithTimeIntervalSinceNow:1.8];
         while ([loaded timeIntervalSinceNow] > 0)
             [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
                                      beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
 
         qormFreezeAnimations(wv);
-
-        __block int ok = 0, done = 0;
-        WKSnapshotConfiguration *sc = [[WKSnapshotConfiguration alloc] init];
-        [wv takeSnapshotWithConfiguration:sc completionHandler:^(NSImage *img, NSError *err) {
-            if (img) {
-                CGImageRef cg = [img CGImageForProposedRect:NULL context:nil hints:nil];
-                if (cg) {
-                    NSBitmapImageRep *rep = [[NSBitmapImageRep alloc] initWithCGImage:cg];
-                    NSData *png = [rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}];
-                    if ([png writeToFile:[NSString stringWithUTF8String:out] atomically:YES]) ok = 1;
-                }
-            }
-            done = 1;
-        }];
-        NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:6.0];
-        while (!done && [deadline timeIntervalSinceNow] > 0)
-            [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
-                                     beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
-        return ok;
+        return captureWindow(win, out);
     }
 }
 
@@ -77,9 +86,11 @@ static int qormShotURL(const char* url, int w, int h, const char* out) {
                           styleMask:NSWindowStyleMaskBorderless
                             backing:NSBackingStoreBuffered defer:NO];
         [win setContentView:wv];
-        // A hidden window throttles JS timers/fetch, so /logwindow would never
-        // poll /log; show it (without stealing key focus) so its JS runs.
-        [win orderFrontRegardless];
+        // On-screen + key: a hidden window throttles JS (so /logwindow never polls)
+        // AND ScreenCaptureKit needs it visible to capture.
+        [win center];
+        [win makeKeyAndOrderFront:nil];
+        [NSApp activateIgnoringOtherApps:YES];
         NSURL *u = [NSURL URLWithString:[NSString stringWithUTF8String:url]];
         [wv loadRequest:[NSURLRequest requestWithURL:u]];
 
@@ -89,25 +100,7 @@ static int qormShotURL(const char* url, int w, int h, const char* out) {
                                      beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
 
         qormFreezeAnimations(wv);
-
-        __block int ok = 0, done = 0;
-        WKSnapshotConfiguration *sc = [[WKSnapshotConfiguration alloc] init];
-        [wv takeSnapshotWithConfiguration:sc completionHandler:^(NSImage *img, NSError *err) {
-            if (img) {
-                CGImageRef cg = [img CGImageForProposedRect:NULL context:nil hints:nil];
-                if (cg) {
-                    NSBitmapImageRep *rep = [[NSBitmapImageRep alloc] initWithCGImage:cg];
-                    NSData *png = [rep representationUsingType:NSBitmapImageFileTypePNG properties:@{}];
-                    if ([png writeToFile:[NSString stringWithUTF8String:out] atomically:YES]) ok = 1;
-                }
-            }
-            done = 1;
-        }];
-        NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:6.0];
-        while (!done && [deadline timeIntervalSinceNow] > 0)
-            [[NSRunLoop currentRunLoop] runMode:NSDefaultRunLoopMode
-                                     beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
-        return ok;
+        return captureWindow(win, out);
     }
 }
 */
@@ -116,6 +109,7 @@ import "C"
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -144,9 +138,32 @@ func runShotURL(url string, w, h int, out string) bool {
 	return C.qormShotURL(cu, C.int(w), C.int(h), co) != 0
 }
 
+// runShotLive captures an ALREADY-RUNNING window whose app/title contains `title`.
+// It resolves the window id via Python's Quartz binding — which, unlike the cgo
+// CoreGraphics binding, does NOT abort (0xbad4007) on macOS 26 — then captures it
+// with Apple's screencapture -l. No in-process capture API is touched, so nothing
+// gets SIGBUS-killed. Lets a recorder grab the live app + DevTool windows without
+// spinning up throwaway WebViews.
+func runShotLive(title, out string) bool {
+	const py = `import Quartz,sys
+t=sys.argv[1].lower()
+wl=Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListOptionOnScreenOnly|Quartz.kCGWindowListExcludeDesktopElements,Quartz.kCGNullWindowID)
+for w in wl:
+    hay=((w.get('kCGWindowOwnerName') or '')+' '+(w.get('kCGWindowName') or '')).lower()
+    b=w.get('kCGWindowBounds') or {}
+    if t in hay and b.get('Width',0)>60:
+        print(w['kCGWindowNumber']); break`
+	idb, err := exec.Command("python3", "-c", py, title).Output()
+	id := strings.TrimSpace(string(idb))
+	if err != nil || id == "" {
+		return false
+	}
+	return exec.Command("/usr/sbin/screencapture", "-x", "-o", "-l"+id, out).Run() == nil
+}
+
 // cmdShot renders a QORM app to a PNG via an offscreen WebKit WebView.
 func cmdShot(args []string) int {
-	in, out, htmlFile, urlArg, w, h := "", "", "", "", 440, 720
+	in, out, htmlFile, urlArg, liveArg, w, h := "", "", "", "", "", 440, 720
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "-o", "--out":
@@ -164,6 +181,11 @@ func cmdShot(args []string) int {
 				i++
 				urlArg = args[i]
 			}
+		case "--live":
+			if i+1 < len(args) {
+				i++
+				liveArg = args[i]
+			}
 		case "--width":
 			if i+1 < len(args) {
 				i++
@@ -177,6 +199,18 @@ func cmdShot(args []string) int {
 		default:
 			in = args[i]
 		}
+	}
+	if liveArg != "" {
+		if out == "" {
+			out = "shot.png"
+		}
+		if !runShotLive(liveArg, out) {
+			fmt.Fprintln(os.Stderr, "error: could not capture a live window matching "+strconv.Quote(liveArg)+
+				" (is the app running? and grant Screen Recording to your terminal in System Settings › Privacy)")
+			return 1
+		}
+		fmt.Printf("wrote %s (live window %q)\n", out, liveArg)
+		return 0
 	}
 	if urlArg != "" {
 		if out == "" {
