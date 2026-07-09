@@ -1,6 +1,7 @@
 { "type": "scene", "id": "profile", "root": { "type": "scaffold", "children": [
   { "type": "appbar", "title": "Profile" },
   { "type": "column", "style": { "padding": 20, "gap": 12 }, "children": [
+    { "type": "backbutton", "label": "Team" },
     { "type": "row", "style": { "gap": 14 }, "layout": { "align": "center" }, "children": [
       { "type": "avatar", "text": "{{ route.name }}", "style": { "width": 56, "height": 56 } },
       { "type": "column", "style": { "gap": 2 }, "children": [
@@ -9,6 +10,6 @@
       ]}
     ]},
     { "type": "text", "text": "User id: {{ route.userId }}", "style": { "color": "#8e8e93", "fontSize": 13 } },
-    { "type": "button", "text": "Back", "onPress": { "type": "invoke", "name": "back" }, "style": { "background": "#8e8e93", "color": "#fff", "padding": 14, "borderRadius": 10, "fontWeight": 700 } }
+    { "type": "text", "text": "The chevron above is a BackButton — it pops the nav stack through browser history (no action wired), so the URL returns to /?scene=home as well.", "style": { "color": "#8e8e93", "fontSize": 13 } }
   ]}
 ]}}
