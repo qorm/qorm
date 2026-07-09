@@ -77,7 +77,7 @@ var All = []Cap{
 	{Stem: "photopicker", Widget: "photopicker", Ops: []string{"pickPhoto"}, Callback: "qormOnPhoto", Platforms: []string{IOS, Android, Web}, Desc: "Pick an existing photo from the library (returns a data URL)."},
 	{Stem: "orientation", Widget: "orientation", Ops: []string{"lockOrientation"}, Callback: "", Platforms: []string{IOS, Android, Web}, Desc: "Lock screen orientation (portrait/landscape)."},
 	{Stem: "videocapture", Widget: "videocapture", Ops: []string{"recordVideo"}, Callback: "qormOnVideo", Platforms: []string{IOS, Android, Web}, Desc: "Record a video with the camera.", Notes: "Android uses the system camera Intent (ACTION_VIDEO_CAPTURE)"},
-	{Stem: "qrscan", Widget: "qrscan", Ops: []string{"scanQR"}, Callback: "qormOnScan", Platforms: []string{IOS, Web}, Desc: "Scan a QR code / barcode with the camera.", Notes: "Android needs CameraX+MLKit (pending)"},
+	{Stem: "qrscan", Widget: "qrscan", Ops: []string{"scanQR"}, Callback: "qormOnScan", Platforms: []string{IOS, Android, Web}, Desc: "Scan a QR code / barcode with the camera.", Notes: "Android uses CameraX + ML Kit barcode scanning"},
 	{Stem: "tts", Widget: "tts", Ops: []string{"speak", "speakStop"}, Callback: "", Platforms: []string{IOS, Android, Mac, Linux, Windows, Web}, Desc: "Text to speech (speak a string aloud)."},
 	{Stem: "compass", Widget: "compass", Ops: []string{"headingStart", "headingStop"}, Callback: "qormOnHeading", Platforms: []string{IOS, Android, Web}, Desc: "Compass heading (degrees from magnetic north)."},
 	{Stem: "proximity", Widget: "proximity", Ops: []string{"proximityStart", "proximityStop"}, Callback: "qormOnProximity", Platforms: []string{IOS, Android}, Desc: "Proximity sensor (near/far)."},
@@ -224,7 +224,7 @@ var notesZH = map[string]string{
 	"screens":       "Linux/Windows 枚举待完成（返回空列表）",
 	"securestorage": "Web 端会回退到 localStorage（无硬件加密）；Linux 走 DBus Secret Service（GNOME Keyring / KWallet）",
 	"videocapture":  "Android 使用系统相机 Intent（ACTION_VIDEO_CAPTURE）",
-	"qrscan":        "Android 端需要 CameraX+MLKit 支持（待完成）",
+	"qrscan":        "Android 端使用 CameraX + ML Kit 条码扫描",
 }
 
 // MarkdownZH renders the registry as a Chinese human-readable capability reference table.
