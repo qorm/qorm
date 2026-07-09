@@ -26,6 +26,7 @@ var toolDescriptionsZH = map[string]string{
 	"qorm_window":          "控制桌面应用窗口：op=move 时需要 x,y,w,h（左上角像素坐标）；op=focus/minimize/pin/unpin 作用于窗口。控制引擎调整用户窗口的位置。支持 macOS 和 Windows 桌面应用。",
 	"qorm_inspect":         "检查 QORM 应用：id、名称、入口场景、场景 id 列表、状态模式 (schema)、当前状态、动作 (action) id 列表、静态编译诊断警告，以及（若已声明）设计令牌系统（designTokens：名称 -> {type,value,enforce}）。声明为 enforce 的颜色令牌会硬约束 apply_patch：颜色样式只能设为这些令牌的值。只读。",
 	"qorm_render_html":     "将当前应用渲染为 HTML，以便智能体查看 UI 的外观。只读。",
+	"qorm_a11y_tree":       "推导入口场景的无障碍（accessibility）树：每个节点的 ARIA role、可访问名称（accessible name）与语义状态（checked/disabled/required/value），并附带无障碍问题审计——会到达屏幕阅读器却没有可访问名称的交互控件与图片。用于检查无障碍覆盖或定位待修复项。只读。",
 	"qorm_capabilities":    "列出所有内置的硬件/原生能力：每个能力的规范名称 + 组件类型、它接受的 qormToNative 操作字符串、它的 qormOn<Name> 回调，以及实现它的平台（ios/android/mac/linux/windows/web）。只读 —— 用于智能体发现存在哪些硬件以及如何调用它们。",
 	"qorm_get_node":        "通过节点 id 返回节点的类型、属性（props）和子节点 id 列表。只读。",
 	"qorm_query":           "查找与选择器匹配 of：type、textContains、idContains、hasProp（通过 AND 组合）。返回每个匹配项的 id、类型、标签和祖先路径。在应用补丁 (patch) 前使用此工具定位节点。只读。",
