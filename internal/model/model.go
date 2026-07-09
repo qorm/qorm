@@ -51,6 +51,11 @@ type App struct {
 	// enforcement). Non-enforced tokens are advisory. Empty/absent map = no
 	// constraint (fully backward compatible).
 	DesignTokens map[string]DesignToken
+	// PluginABI is the qormext middle-layer contract version the app's native
+	// Go code was authored against (qorm.json "pluginABI", e.g. "1"). The loader
+	// warns when its major differs from the runtime's qormext.ABIVersion.
+	// Empty = the app uses no versioned middle-layer.
+	PluginABI string
 	// Diagnostics holds static compilation warnings or syntax errors found by the loader.
 	Diagnostics []string
 }

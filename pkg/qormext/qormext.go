@@ -14,7 +14,38 @@
 //	}
 package qormext
 
-import "fmt"
+import (
+	"fmt"
+	"strconv"
+	"strings"
+)
+
+// ABIVersion is the plugin contract version of THIS runtime — the shape of the
+// qormext API an app's native/desktop.go compiles against (Op signature,
+// Register, Emit, the bridge). Bump the major on a breaking change so an app
+// authored against an incompatible contract is caught instead of misbehaving.
+// An app declares the ABI it expects via `"pluginABI": "1"` in qorm.json; the
+// loader compares the major and warns on a mismatch.
+const ABIVersion = 1
+
+// CompatibleABI reports whether an app's declared plugin ABI (e.g. "1" or
+// "1.2") is major-compatible with this runtime's ABIVersion. An empty/unset
+// declaration is always compatible (the app uses no versioned middle-layer).
+func CompatibleABI(declared string) bool {
+	declared = strings.TrimSpace(declared)
+	if declared == "" {
+		return true
+	}
+	major := declared
+	if i := strings.IndexByte(declared, '.'); i >= 0 {
+		major = declared[:i]
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(major))
+	if err != nil {
+		return false
+	}
+	return n == ABIVersion
+}
 
 // Op handles a custom native op: it receives the qormToNative payload and
 // returns a line of JS (e.g. qormOnFoo(...)) to eval back in the app, or "".

@@ -35,6 +35,16 @@ func CallJS(script string)
 
 CallJS runs a line of JS in the app's WebView (from the Go middle-layer).
 
+### `CompatibleABI`
+
+```go
+func CompatibleABI(declared string) bool
+```
+
+CompatibleABI reports whether an app's declared plugin ABI (e.g. "1" or
+"1.2") is major-compatible with this runtime's ABIVersion. An empty/unset
+declaration is always compatible (the app uses no versioned middle-layer).
+
 ### `Emit`
 
 ```go
