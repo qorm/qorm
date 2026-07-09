@@ -48,8 +48,18 @@ echo "================================================================"
 # Capture initial state (before any interaction)
 shot
 
-# Wait for user to interact with the native app
-read -r -p "按下回车键继续..."
+# Human clicks. Interactive by default (click the native window). With
+# QORM_DEMO_AUTO=1 the script plays the human itself over the same
+# token-authenticated /event channel a browser click uses — it scrapes the
+# page token exactly like the browser would. That is only legitimate here
+# because the recorder IS the human operator on their own machine.
+if [ "${QORM_DEMO_AUTO:-}" = "1" ]; then
+  TOK=$(curl -s "$U/" | grep -o "var __tok='[^']*'" | cut -d"'" -f2)
+  click(){ curl -s -X POST "$U/event" -H "X-Qorm-Token: $TOK" -H 'Content-Type: application/json' -d "{\"h\":$1,\"inputs\":{}}" >/dev/null; }
+  click 1; sleep 0.3; click 1; sleep 0.3; click 0; sleep 0.3; click 1
+else
+  read -r -p "按下回车键继续..."
+fi
 
 # Capture after user interaction (DevTool now shows user's click logs)
 shot
