@@ -120,26 +120,40 @@ mutating shared state that other screens can see.
 Rule of thumb: if navigating back should forget it, it is a route parameter; if
 it should persist, it belongs in global state.
 
-## URL routing (design convention — future track)
+## URL routing (implemented)
 
-The model above maps directly onto conventional URL routing, and QORM's route
-vocabulary is chosen so it can grow into it:
+The in-memory scene stack is mirrored into the browser address bar, so a
+deep-linked URL and the browser Back/Forward buttons both fall out of the same
+model. A URL encodes the current scene and its route params as a query string:
 
 ```
-/profile/u-101?tab=activity
-   │       │        └── query string  → route.tab
-   │       └── path parameter          → route.userId
-   └── scene id                        → navigate to "profile"
+/?scene=profile&userId=u-101&name=Ada
+   │       │        └────┬─────┘
+   │       │             └── route params  → route.userId, route.name
+   │       └── scene id                     → the "profile" scene
+   └── the entry scene is just "/"
 ```
 
-Under this convention a scene id is a path segment, path/query parameters are
-route params, and the browser history stack mirrors the scene back stack — so
-the browser Back button and a deep-linked URL both fall out of the same model.
+The rules:
 
-**This is a documented direction, not the current behaviour.** Today the stack
-and its parameters live entirely in memory on the runtime; navigation does not
-read or write `window.location`, and reloading the page returns to the entry
-scene. Wiring the in-memory stack to real URLs (path/query encoding, history
-sync, deep-link entry) is a separate, later track. Authoring against `route.*`
-now is forward-compatible: apps that pass identifiers as route params rather than
-stashing them in global state will map onto URL routing unchanged when it lands.
+- **`RoutePath`** — the runtime renders the current scene + route params as this
+  path (the entry scene with no params is `/`; keys are sorted for stability). It
+  is the single source of truth for what the address bar should show.
+- **Deep-link entry** — loading `/?scene=<id>&k=v` navigates the runtime to that
+  scene *before* the first render, so the page opens straight into it with the
+  query parameters bound to `route.*`. An unknown scene id is ignored and the app
+  falls back to the entry scene.
+- **Address-bar sync** — every navigation ships its `RoutePath` to the client
+  (the `X-Qorm-Route` header on the `/event` response and a `route` field on the
+  SSE/poll payload). The client `history.pushState`s it when it changes, so the
+  URL follows navigation without a reload.
+- **Back / Forward** — a browser history move reports the target URL's
+  scene + params to the server (`POST /navigate`, human-token-gated like
+  `/event`), which drives the runtime to match. Returning to the previous frame
+  pops the stack (restoring its params); going forward pushes.
+
+Route param values that arrive from a URL are strings (a query string is
+untyped), so a scene reached by deep link sees `route.userId` as `"u-101"`.
+Because a route parameter is the QORM analogue of a function argument, apps that
+pass identifiers as route params rather than stashing them in global state get
+shareable, reloadable deep links for free.

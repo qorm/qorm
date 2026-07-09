@@ -224,17 +224,18 @@ func (s *Server) bump() (int64, string, string) {
 	res := render.RenderScene(s.rt, s.rt.CurrentScene())
 	s.handlers = res.Handlers
 	nav := s.rt.TakeNavDir()
-	s.broadcast(rev, res.HTML, nav)
+	s.broadcast(rev, res.HTML, nav, s.rt.RoutePath())
 	return rev, res.HTML, nav
 }
 
 // broadcast pushes a revision+HTML payload to every subscriber, dropping it for
-// any client whose buffer is full rather than blocking.
-func (s *Server) broadcast(rev int64, html, nav string) {
+// any client whose buffer is full rather than blocking. route is the current
+// deep-link path (rt.RoutePath) so a client can keep the address bar in sync.
+func (s *Server) broadcast(rev int64, html, nav, route string) {
 	s.actMu.Lock()
 	src, det := s.lastSrc, s.lastDet
 	s.actMu.Unlock()
-	m := map[string]any{"rev": rev, "html": html, "theme": s.rt.CurrentTheme(), "source": src, "detail": det}
+	m := map[string]any{"rev": rev, "html": html, "theme": s.rt.CurrentTheme(), "source": src, "detail": det, "route": route}
 	if nav != "" {
 		m["nav"] = nav
 	}
@@ -633,6 +634,7 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", s.serveIndex)
 	mux.HandleFunc("/event", blockCrossOrigin(s.serveEvent))
+	mux.HandleFunc("/navigate", blockCrossOrigin(s.serveNavigate))
 	mux.HandleFunc("/events", s.serveEvents)
 	mux.HandleFunc("/poll", s.servePoll)
 	mux.HandleFunc("/log", s.serveLog)
@@ -743,11 +745,16 @@ func (s *Server) serveRollback(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *Server) serveIndex(w http.ResponseWriter, r *http.Request) {
-	scene := r.URL.Query().Get("scene")
 	s.mu.Lock()
-	if scene == "" { // no explicit scene (a desktop window may pin one): follow navigation
-		scene = s.rt.CurrentScene()
+	// Deep link: a `?scene=<id>&k=v` URL navigates the runtime (scene + route
+	// params) before rendering, so the page loads straight into that scene with
+	// its params bound to route.*. Unknown scenes are ignored by NavigateToPath
+	// (falls back to the entry scene). Without a scene query we follow the live
+	// navigation state as before.
+	if r.URL.Query().Get("scene") != "" {
+		s.rt.NavigateToPath(r.URL.RawQuery)
 	}
+	scene := s.rt.CurrentScene()
 	res := render.RenderScene(s.rt, scene)
 	s.handlers = res.Handlers
 	rev := s.rev.Load()
@@ -810,9 +817,10 @@ func (s *Server) servePoll(w http.ResponseWriter, r *http.Request) {
 		s.handlers = res.Handlers
 		html = res.HTML
 	}
+	route := s.rt.RoutePath()
 	s.mu.Unlock()
 	w.Header().Set("Content-Type", "application/json")
-	out := map[string]any{"rev": cur}
+	out := map[string]any{"rev": cur, "route": route}
 	if html != "" {
 		out["html"] = html
 	}
@@ -868,10 +876,45 @@ func (s *Server) serveEvent(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("X-Qorm-Rev", strconv.FormatInt(rev, 10))
 	w.Header().Set("X-Qorm-Theme", s.rt.CurrentTheme())
+	w.Header().Set("X-Qorm-Route", s.rt.RoutePath())
 	if nav != "" {
 		w.Header().Set("X-Qorm-Nav", nav)
 	}
 	fmt.Fprint(w, html)
+}
+
+// serveNavigate is the human-side URL-routing endpoint: the browser POSTs it on
+// a popstate (browser Back/Forward) so the runtime tracks the address bar. Body
+// is {scene, params} to go to a scene (params are strings) or {back:true} to
+// pop. Token-gated like /event so only the real page can drive it, and recorded
+// as a "human" navigation in the shared activity log.
+func (s *Server) serveNavigate(w http.ResponseWriter, r *http.Request) {
+	if r.Header.Get("X-Qorm-Token") != s.eventToken {
+		http.Error(w, "invalid event token — only the browser client can navigate", http.StatusForbidden)
+		return
+	}
+	var req struct {
+		Scene  string         `json:"scene"`
+		Params map[string]any `json:"params"`
+		Back   bool           `json:"back"`
+	}
+	if json.NewDecoder(r.Body).Decode(&req) != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	before := s.rt.RoutePath()
+	if req.Back {
+		s.rt.NavigateBack()
+	} else {
+		s.rt.NavigateTo(req.Scene, req.Params)
+	}
+	if s.rt.RoutePath() != before { // only log + re-render when it actually moved
+		s.logEvent("human", "navigate "+s.rt.RoutePath())
+		s.bump()
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // Page wraps rendered body HTML in a full document with the live shim.

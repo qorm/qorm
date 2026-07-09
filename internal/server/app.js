@@ -740,6 +740,10 @@ function qormTheme(t){ if(!t) return; var st=document.getElementById('qorm-stage
 function qormApply(d){
   if(d&&typeof d.inspectNode!=='undefined'){ qormHighlightNode(d.inspectNode); }
   if(d&&d.theme) qormTheme(d.theme);
+  // URL routing: mirror the current deep-link path into the address bar. Done
+  // before the rev guard so the human's OWN navigation (whose rev the POST
+  // /event response already applied) still updates the URL.
+  if(d&&typeof d.route!=='undefined' && window.__qormApplyRoute){ window.__qormApplyRoute(d.route); }
   if(!d||typeof d.rev==='undefined') return;
   if(d.rev<=__rev) return;   // already applied (e.g. via the POST /event response) — no double morph
   __rev=d.rev;
@@ -826,4 +830,32 @@ function qormSwipeActions(el){
   window.addEventListener('resize',function(){ if(t) clearTimeout(t); t=setTimeout(qormViewportSend,200); });
   if(document.readyState!=='loading'){ qormViewportSend(); }
   else { window.addEventListener('load',qormViewportSend); }
+})();
+// URL routing / deep-linking: keep the browser address bar and history in sync
+// with the navigation stack, and honor Back/Forward. The server ships the
+// current deep-link path with every update (X-Qorm-Route header on /event, a
+// `route` field on the SSE/poll payload read by qormApply above). __qormApplyRoute
+// pushes a new history entry when the path changes; a popstate reports the URL's
+// scene+params back to the server via /navigate so it drives the runtime. Initial
+// load needs nothing here — the server already renders the URL's scene. Offline
+// packages have no server (fetch fails silently) and no SSE, so this is inert.
+(function(){
+  if(typeof window==='undefined'||typeof history==='undefined'||!history.pushState) return;
+  window.__qormApplyRoute=function(route){
+    if(typeof route!=='string'||!route) return;
+    var cur=location.pathname+location.search;
+    if(route===cur) return;                 // already there (e.g. after a popstate) — no dup entry
+    try{ history.pushState(null,'',route); }catch(e){}
+  };
+  window.addEventListener('popstate',function(){
+    var scene='', params={};
+    if(location.search){
+      var sp=new URLSearchParams(location.search);
+      sp.forEach(function(v,k){ if(k==='scene'){ scene=v; } else { params[k]=v; } });
+    }
+    try{
+      fetch('/navigate',{method:'POST',headers:{'Content-Type':'application/json','X-Qorm-Token':__tok},
+        body:JSON.stringify({scene:scene,params:params})}).catch(function(){});
+    }catch(e){}
+  });
 })();
