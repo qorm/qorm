@@ -1,19 +1,11 @@
 package render
 
 import (
-	"encoding/json"
 	"fmt"
 	"html"
 
 	"github.com/qorm/qorm/internal/model"
 )
-
-// jsStr renders s as a JavaScript string literal (a JSON string is valid JS),
-// safe to embed inside an inline <script> — used to pass a drag payload.
-func jsStr(s string) string {
-	b, _ := json.Marshal(s)
-	return string(b)
-}
 
 // controlTile is Flutter's SwitchListTile/CheckboxListTile/RadioListTile: a
 // title/subtitle row with a bound control. The control reuses the existing
@@ -196,22 +188,28 @@ func (r *renderer) dismissible(n *model.Node) {
 
 // draggable is Flutter's Draggable / LongPressDraggable: its child can be picked
 // up and dropped onto a dragtarget, carrying the string payload in its `data`
-// prop (bindable). The receiving dragtarget's onDrop fires with that payload as
-// {{ _dragData }}. Uses native HTML5 drag-and-drop — pointer/mouse; touch drag
-// is limited, so verify the interaction in a browser.
+// prop (bindable, exposed as data-qorm-drag). The receiving dragtarget's onDrop
+// fires with that payload as {{ _dragData }}. Driven by pointer events (via a
+// single delegated document handler, qormDragInit) so it works in the desktop
+// WebView and on touch — HTML5 drag-and-drop is unreliable there.
 func (r *renderer) draggable(n *model.Node) {
 	data := r.interp(propStr(n, "data"))
-	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-draggable" style=%q%s>`, r.nid(n), r.boxCSS(n)+"cursor:grab;", a11y(n))
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-draggable" data-qorm-drag=%q style=%q%s>`,
+		r.nid(n), html.EscapeString(data), r.boxCSS(n)+"cursor:grab;touch-action:none;", a11y(n))
 	for _, c := range n.Children {
 		r.node(c)
 	}
 	r.sb.WriteString(`</div>`)
-	fmt.Fprintf(&r.sb, `<script>setTimeout(function(){qormDraggable(document.getElementById(%q),%s)})</script>`, r.nid(n), jsStr(data))
+	// idempotent: sets up the delegated document listener once (survives re-render
+	// morphs, which don't re-run inline scripts). A closure defers the lookup to
+	// fire time, so it works even if app.js loads after this inline script.
+	r.sb.WriteString(`<script>setTimeout(function(){qormDragInit()})</script>`)
 }
 
-// dragTarget is Flutter's DragTarget: a drop zone that dispatches onDrop (or
-// onPress) with the dropped draggable's payload as {{ _dragData }}. It highlights
-// (.qorm-dragover) while a drag hovers over it.
+// dragTarget is Flutter's DragTarget: a drop zone (data-qorm-drop=<handler>) that
+// dispatches onDrop (or onPress) with the dropped draggable's payload as
+// {{ _dragData }}. It highlights (.qorm-dragover) while a drag hovers over it.
+// No script of its own — the delegated draggable handler finds it by class.
 func (r *renderer) dragTarget(n *model.Node) {
 	h := -1
 	if d := parseInvokeProp(n, "onDrop"); d != nil {
@@ -219,14 +217,15 @@ func (r *renderer) dragTarget(n *model.Node) {
 	} else if n.OnPress != nil {
 		h = r.register(n.OnPress)
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-droptarget" style=%q%s>`, r.nid(n), r.boxCSS(n), a11y(n))
+	drop := ""
+	if h >= 0 {
+		drop = fmt.Sprintf(` data-qorm-drop="%d"`, h)
+	}
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-droptarget"%s style=%q%s>`, r.nid(n), drop, r.boxCSS(n), a11y(n))
 	for _, c := range n.Children {
 		r.node(c)
 	}
 	r.sb.WriteString(`</div>`)
-	if h >= 0 {
-		fmt.Fprintf(&r.sb, `<script>setTimeout(function(){qormDragTarget(document.getElementById(%q),%d)})</script>`, r.nid(n), h)
-	}
 }
 
 // swipeActions is a list row that reveals trailing action buttons on a left
