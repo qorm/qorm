@@ -6,9 +6,15 @@ Desktop is one of QORM's first-priority runtime platforms, well suited to develo
 
 ```sh
 qorm package examples/menus -p mac         # a macOS .app (per-platform cgo build)
+qorm package app -p mac --release [--notarize]   # Developer ID + hardened runtime + DMG
 ./scripts/build-desktop.sh                 # native-window binary for this OS (-tags desktop)
 qorm-desktop-... run examples/menus --app  # opens a native window
 ```
+
+On Linux the tray, notification click-through and secure storage speak DBus
+directly (StatusNotifierItem / org.freedesktop.Notifications / Secret
+Service — GNOME needs the AppIndicator extension for the tray; keys land in
+GNOME Keyring or KWallet).
 
 Examples that exercise desktop features: [`menus`](https://github.com/qorm/qorm/tree/main/examples/menus) (system
 menu bar / tray / right-click menus, with icons + submenus),

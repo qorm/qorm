@@ -11,6 +11,21 @@ qorm package examples/hardware -p ios     -o hardware-ios      # an Xcode projec
 qorm package examples/hardware -p android -o hardware-android  # an Android project
 ```
 
+可分发(可上架)构建加 `--release`:
+
+```sh
+qorm package app -p ios --release --team TEAMID \
+    [--export-method app-store-connect] [--upload]   # archive 并导出 .ipa
+qorm package app -p android --release [--apk]        # 用托管 keystore 签名产出 .aab
+    # keystore 自动生成于 <app>/.qorm/release.keystore —— 务必备份
+qorm package app -p ios|android --release --app-version 1.2.0 --build 42
+```
+
+已打包应用的空中更新(OTA):传 `--update-url <server> --trust <key.pub>`
+(两者必须成对),壳会在首帧后检查更新服务器,每次更新按信任公钥做 ed25519
+验签,不刷新页面热切换,并保留一级回滚副本——见
+[security-model.md](../security/security-model.md)。
+
 应用通过 Go→WASM 在 WebView 中于设备上离线运行。示例:[`hardware`](https://github.com/qorm/qorm/tree/main/examples/hardware)(演示能力目录)、[`i18n`](https://github.com/qorm/qorm/tree/main/examples/i18n)(语言环境、复数、货币、RTL)。有关各能力的平台支持情况,参见[支持矩阵](../../platforms/support-matrix.md)。
 
 ## 架构
