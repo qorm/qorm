@@ -108,6 +108,12 @@ dependencies {
     // transitive fragment/activity are too old to have ActivityResultContracts.
     implementation 'androidx.activity:activity:1.9.3'
     implementation 'androidx.fragment:fragment:1.8.5'
+    // QR / barcode scanning: CameraX preview + analysis feeding ML Kit's bundled
+    // (offline, no Play Services download) barcode scanner.
+    implementation 'com.google.mlkit:barcode-scanning:17.3.0'
+    implementation 'androidx.camera:camera-camera2:1.3.4'
+    implementation 'androidx.camera:camera-lifecycle:1.3.4'
+    implementation 'androidx.camera:camera-view:1.3.4'
 }
 `,
 		"app/src/main/AndroidManifest.xml": `<?xml version="1.0" encoding="utf-8"?>
@@ -124,6 +130,8 @@ dependencies {
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <activity android:name=".QormScanActivity" android:exported="false"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"/>
 ` + androidWidgetReceiver(hasWidget) + `    </application>
 </manifest>
 `,
@@ -131,6 +139,7 @@ dependencies {
 	}
 	// always ship the provider + resources so the updateWidget op compiles; the
 	// manifest <receiver> (added only when the app declares a widget) surfaces it.
+	files["app/src/main/java/com/qorm/"+id+"/QormScanActivity.java"] = androidScanActivity(ns)
 	files["app/src/main/java/com/qorm/"+id+"/QormWidget.java"] = androidWidgetProvider(ns, awProvider(awidgets, wName))
 	files["app/src/main/res/layout/qorm_widget.xml"] = androidWidgetLayout()
 	files["app/src/main/res/xml/qorm_widget_info.xml"] = androidWidgetInfo()
@@ -320,6 +329,121 @@ func androidWidgetReceiver(hasWidget bool) string {
             </intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/qorm_widget_info"/>
         </receiver>
+`
+}
+
+// androidScanActivity generates the full-screen QR/barcode scanner Activity:
+// a CameraX PreviewView (built in code, no XML) feeding an ImageAnalysis whose
+// frames go through ML Kit's bundled BarcodeScanner. The first decoded barcode
+// is returned to MainActivity via setResult(RESULT_OK) with a "qr" extra, then
+// the Activity finishes. Handles the runtime CAMERA permission itself.
+func androidScanActivity(ns string) string {
+	return `package ` + ns + `;
+
+import android.Manifest;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Bundle;
+import android.widget.FrameLayout;
+import androidx.camera.core.CameraSelector;
+import androidx.camera.core.ImageAnalysis;
+import androidx.camera.core.ImageProxy;
+import androidx.camera.core.Preview;
+import androidx.camera.lifecycle.ProcessCameraProvider;
+import androidx.camera.view.PreviewView;
+import androidx.core.content.ContextCompat;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.mlkit.vision.barcode.BarcodeScanner;
+import com.google.mlkit.vision.barcode.BarcodeScanning;
+import com.google.mlkit.vision.barcode.common.Barcode;
+import com.google.mlkit.vision.common.InputImage;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+// Full-screen CameraX + ML Kit barcode scanner. Returns the first decoded value
+// to the caller (MainActivity.qormScanLauncher) in the "qr" intent extra.
+public class QormScanActivity extends androidx.fragment.app.FragmentActivity {
+    private static final int QORM_CAMERA_REQ = 4711;
+    private PreviewView previewView;
+    private ExecutorService analysisExecutor;
+    private BarcodeScanner scanner;
+    private volatile boolean handled = false;
+
+    @Override protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        previewView = new PreviewView(this);
+        previewView.setLayoutParams(new FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        setContentView(previewView);
+        analysisExecutor = Executors.newSingleThreadExecutor();
+        scanner = BarcodeScanning.getClient();
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.CAMERA}, QORM_CAMERA_REQ);
+        } else {
+            startCamera();
+        }
+    }
+
+    @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == QORM_CAMERA_REQ) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                startCamera();
+            } else {
+                finish();
+            }
+        }
+    }
+
+    private void startCamera() {
+        final ListenableFuture<ProcessCameraProvider> future = ProcessCameraProvider.getInstance(this);
+        future.addListener(() -> {
+            try {
+                ProcessCameraProvider provider = future.get();
+                Preview preview = new Preview.Builder().build();
+                preview.setSurfaceProvider(previewView.getSurfaceProvider());
+                ImageAnalysis analysis = new ImageAnalysis.Builder()
+                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                    .build();
+                analysis.setAnalyzer(analysisExecutor, this::processFrame);
+                provider.unbindAll();
+                provider.bindToLifecycle(QormScanActivity.this, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis);
+            } catch (Exception e) {
+                finish();
+            }
+        }, ContextCompat.getMainExecutor(this));
+    }
+
+    @androidx.camera.core.ExperimentalGetImage
+    private void processFrame(ImageProxy imageProxy) {
+        android.media.Image media = imageProxy.getImage();
+        if (media == null || handled) { imageProxy.close(); return; }
+        InputImage image = InputImage.fromMediaImage(media, imageProxy.getImageInfo().getRotationDegrees());
+        scanner.process(image)
+            .addOnSuccessListener(barcodes -> {
+                if (!handled && barcodes != null && !barcodes.isEmpty()) {
+                    Barcode first = barcodes.get(0);
+                    String raw = first.getRawValue();
+                    if (raw != null) {
+                        handled = true;
+                        Intent data = new Intent();
+                        data.putExtra("qr", raw);
+                        setResult(RESULT_OK, data);
+                        finish();
+                    }
+                }
+            })
+            .addOnFailureListener(e -> {})
+            .addOnCompleteListener(task -> imageProxy.close());
+    }
+
+    @Override protected void onDestroy() {
+        super.onDestroy();
+        if (analysisExecutor != null) analysisExecutor.shutdown();
+        if (scanner != null) scanner.close();
+    }
+}
 `
 }
 
@@ -553,6 +677,7 @@ public class MainActivity extends androidx.fragment.app.FragmentActivity impleme
     androidx.activity.result.ActivityResultLauncher<Void> qormContactPick;
     androidx.activity.result.ActivityResultLauncher<Intent> qormScreenCap;
     androidx.activity.result.ActivityResultLauncher<Intent> qormVideoCap;
+    androidx.activity.result.ActivityResultLauncher<Intent> qormScanLauncher;
     String qormPendingShortcut;
     SensorManager sm;
     Sensor rot;
@@ -623,6 +748,16 @@ public class MainActivity extends androidx.fragment.app.FragmentActivity impleme
                 ins.close();
                 js("qormOnVideo('data:video/mp4;base64," + Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP) + "')");
             } catch (Exception e) { js("qormOnVideo('')"); }
+        });
+        // QR/barcode scan: the CameraX+ML Kit QormScanActivity returns the decoded
+        // value in the "qr" extra; deliver it (or an empty string) to qormOnScan.
+        qormScanLauncher = registerForActivityResult(new androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult(), result -> {
+            if (result.getResultCode() == android.app.Activity.RESULT_OK && result.getData() != null) {
+                String qr = result.getData().getStringExtra("qr");
+                js("qormOnScan(" + org.json.JSONObject.quote(qr == null ? "" : qr) + ")");
+            } else {
+                js("qormOnScan('')");
+            }
         });
         try {
             requestPermissions(new String[]{
@@ -823,6 +958,11 @@ public class MainActivity extends androidx.fragment.app.FragmentActivity impleme
             runOnUiThread(() -> { try {
                 qormVideoCap.launch(new android.content.Intent(android.provider.MediaStore.ACTION_VIDEO_CAPTURE));
             } catch (Exception e) { js("qormOnVideo('')"); } });
+        }
+        @JavascriptInterface public void scanQR(String a) {
+            runOnUiThread(() -> { try {
+                qormScanLauncher.launch(new android.content.Intent(MainActivity.this, QormScanActivity.class));
+            } catch (Exception e) { js("qormOnScan('')"); } });
         }
         @JavascriptInterface public void openURL(String a) {
             runOnUiThread(() -> { try {
