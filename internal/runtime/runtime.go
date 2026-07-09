@@ -34,37 +34,62 @@ type Runtime struct {
 	// viewport.orientation for responsive `when` nodes.
 	Viewport Viewport
 	// Scene is the id of the scene currently shown ("" = the manifest entry).
-	// NavStack holds the scenes to return to for navigate-back.
+	// NavStack holds the frames (scene + its route params) to return to for
+	// navigate-back, so popping restores both the previous scene and the route
+	// params it was shown with.
 	Scene    string
-	NavStack []string
+	NavStack []navFrame
+	// RouteParams are the parameters the current scene was navigated with,
+	// exposed to scene bindings as `route.*` (e.g. `{{ route.userId }}`). It is
+	// scene/frame-local — distinct from the cross-scene GlobalState store — and
+	// travels with the navigation stack: navigating back restores the previous
+	// frame's params. Never nil for a live runtime (empty map at the entry scene).
+	RouteParams map[string]any
 	// NavDir records the direction of the most recent navigation ("push" / "pop")
 	// so the client can play the matching page transition; cleared after it ships.
 	NavDir string
 }
 
+// navFrame is one entry on the navigation back stack: the scene to return to
+// and the route params it was shown with.
+type navFrame struct {
+	Scene  string
+	Params map[string]any
+}
+
 // CurrentScene is the scene id to render ("" falls back to the entry scene).
 func (r *Runtime) CurrentScene() string { return r.Scene }
 
-// Navigate pushes the current scene onto the back stack and shows `to`. Unknown
-// scenes and no-op navigations are ignored.
-func (r *Runtime) Navigate(to string) {
+// Navigate pushes the current scene (and its route params) onto the back stack
+// and shows `to` with the given params. params may be nil (→ an empty route).
+// Unknown scenes and no-op navigations are ignored.
+func (r *Runtime) Navigate(to string, params map[string]any) {
 	if to == "" || to == r.Scene {
 		return
 	}
 	if _, ok := r.App.Scenes[to]; !ok {
 		return
 	}
-	r.NavStack = append(r.NavStack, r.Scene)
+	r.NavStack = append(r.NavStack, navFrame{Scene: r.Scene, Params: r.RouteParams})
 	r.Scene = to
+	if params == nil {
+		params = map[string]any{}
+	}
+	r.RouteParams = params
 	r.NavDir = "push"
 }
 
-// NavigateBack returns to the previous scene, if any.
+// NavigateBack returns to the previous scene, restoring its route params.
 func (r *Runtime) NavigateBack() {
 	if len(r.NavStack) == 0 {
 		return
 	}
-	r.Scene = r.NavStack[len(r.NavStack)-1]
+	top := r.NavStack[len(r.NavStack)-1]
+	r.Scene = top.Scene
+	r.RouteParams = top.Params
+	if r.RouteParams == nil {
+		r.RouteParams = map[string]any{}
+	}
 	r.NavStack = r.NavStack[:len(r.NavStack)-1]
 	r.NavDir = "pop"
 }
@@ -78,7 +103,7 @@ func New(app *model.App) *Runtime {
 	if state == nil {
 		state = map[string]any{}
 	}
-	return &Runtime{App: app, State: state}
+	return &Runtime{App: app, State: state, RouteParams: map[string]any{}}
 }
 
 // Stringify renders a value as display text (re-exported from expr).
@@ -87,7 +112,13 @@ func Stringify(v any) string { return expr.Stringify(v) }
 // Clone returns a runtime sharing the same app but with a deep copy of state,
 // so simulations can run without touching the live instance.
 func (r *Runtime) Clone() *Runtime {
-	return &Runtime{App: r.App, State: deepCopyMap(r.State), Viewport: r.Viewport}
+	return &Runtime{
+		App:         r.App,
+		State:       deepCopyMap(r.State),
+		Viewport:    r.Viewport,
+		Scene:       r.Scene,
+		RouteParams: deepCopyMap(r.RouteParams),
+	}
 }
 
 // ViewportVars exposes the viewport to expressions: viewport.width,
@@ -112,9 +143,10 @@ func (r *Runtime) ViewportVars() map[string]any {
 var bindingRe = regexp.MustCompile(`\{\{(.*?)\}\}`)
 
 // sceneCtx is the evaluation context for scene bindings: `state.*`, the
-// active-locale message catalog `t.*` and the responsive `viewport.*` vars.
+// active-locale message catalog `t.*`, the responsive `viewport.*` vars and the
+// current scene's navigation parameters `route.*`.
 func (r *Runtime) sceneCtx() map[string]any {
-	return map[string]any{"state": r.State, "t": r.Catalog(), "viewport": r.ViewportVars()}
+	return map[string]any{"state": r.State, "t": r.Catalog(), "viewport": r.ViewportVars(), "route": r.RouteParams}
 }
 
 // CurrentLocale is state.locale, falling back to the app's default locale.
@@ -237,13 +269,27 @@ func (r *Runtime) Dispatch(name string, args map[string]any) {
 	}
 }
 
+// evalParams evaluates a navigate step's route-parameter expressions against
+// the action context, returning the typed values to attach to the target
+// scene's frame (exposed there as `route.*`). Returns nil when there are none.
+func evalParams(params map[string]string, ctx map[string]any) map[string]any {
+	if len(params) == 0 {
+		return nil
+	}
+	out := make(map[string]any, len(params))
+	for k, e := range params {
+		out[k] = EvalBinding(e, ctx)
+	}
+	return out
+}
+
 func (r *Runtime) applyStep(step model.Step, ctx map[string]any) {
 	switch step.Type {
 	case "navigate":
 		if step.Back {
 			r.NavigateBack()
 		} else {
-			r.Navigate(Stringify(EvalBinding(step.To, ctx)))
+			r.Navigate(Stringify(EvalBinding(step.To, ctx)), evalParams(step.Params, ctx))
 		}
 	case "state.set":
 		setPath(r.State, step.Path, EvalBinding(step.Value, ctx))

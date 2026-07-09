@@ -222,6 +222,10 @@ type Step struct {
 	To   string
 	Back bool
 	From string
+	// Params are the navigate step's route parameters: parameter name -> value
+	// expression. Each value is evaluated at dispatch time and attached to the
+	// target scene's stack frame, where it is read as `{{ route.<name> }}`.
+	Params map[string]string
 	// http.* steps: call a backend and store the parsed JSON response.
 	URL     string            // request URL (may contain {{bindings}})
 	Method  string            // override for http.request (else GET/POST by type)

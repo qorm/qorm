@@ -471,6 +471,12 @@ func buildAction(doc map[string]any, diags *[]string, vars map[string]string) *m
 					step.Headers[k] = asString(v)
 				}
 			}
+			if params, ok := sm["params"].(map[string]any); ok {
+				step.Params = map[string]string{}
+				for k, v := range params {
+					step.Params[k] = asString(v)
+				}
+			}
 			act.Steps = append(act.Steps, step)
 		}
 	}

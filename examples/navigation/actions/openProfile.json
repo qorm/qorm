@@ -1,1 +1,3 @@
-{ "type": "action", "id": "openProfile", "steps": [ { "type": "navigate", "to": "profile" } ] }
+{ "type": "action", "id": "openProfile", "steps": [
+  { "type": "navigate", "to": "profile", "params": { "userId": "{{ userId }}", "name": "{{ name }}", "role": "{{ role }}" } }
+] }
