@@ -56,8 +56,10 @@ type Server struct {
 	actMu    sync.Mutex
 	activity []LogEntry
 	actSeq   int
-	lastSrc  string // source of the most recent event (for live edit attribution)
-	lastDet  string // its short detail
+	lastSrc  string    // source of the most recent event (for live edit attribution)
+	lastDet  string    // its short detail
+	lastHash string    // tip of the entry hash chain (see LogEntry.Hash)
+	auditW   io.Writer // optional append-only JSONL audit sink (--audit-log)
 
 	// What the human is currently attending to (the focused / last-touched element),
 	// surfaced to the agent via qorm_activity so it collaborates in context.
@@ -248,36 +250,55 @@ func (s *Server) broadcast(rev int64, html, nav string) {
 	s.subsMu.Unlock()
 }
 
-// LogEntry is one line in the shared-session activity log.
+// LogEntry is one line in the shared-session activity log. Entries are
+// hash-chained (Hash covers the previous entry's hash + this entry's fields),
+// so a persisted audit log is tamper-evident: editing, dropping or reordering
+// any line breaks every hash after it. Verify with `qorm audit <file>`.
 type LogEntry struct {
 	Seq    int    `json:"seq"`
-	Time   string `json:"time"`
-	Source string `json:"source"` // "human" | "agent" | "system"
+	Time   string `json:"time"`         // display time (HH:MM:SS)
+	TS     string `json:"ts,omitempty"` // full RFC3339Nano timestamp (audit)
+	Source string `json:"source"`       // "human" | "agent" | "devtool" | "app" | "system"
 	Detail string `json:"detail"`
+	Hash   string `json:"hash,omitempty"` // sha256(prevHash|seq|ts|source|detail)
 }
 
-// logEvent records a collaboration event (keeps the last 200).
+// logEvent records a collaboration event (keeps the last 200 for display; the
+// hash chain — and the optional audit file — cover every entry ever logged).
 func (s *Server) logEvent(source, detail string) {
 	s.actMu.Lock()
 	s.actSeq++
-	s.activity = append(s.activity, LogEntry{Seq: s.actSeq, Time: time.Now().Format("15:04:05"), Source: source, Detail: detail})
+	now := time.Now()
+	e := LogEntry{Seq: s.actSeq, Time: now.Format("15:04:05"), TS: now.Format(time.RFC3339Nano), Source: source, Detail: detail}
+	e.Hash = auditHash(s.lastHash, e)
+	s.lastHash = e.Hash
+	s.activity = append(s.activity, e)
 	if len(s.activity) > 200 {
 		s.activity = s.activity[len(s.activity)-200:]
 	}
 	s.lastSrc, s.lastDet = source, detail // for live edit attribution in the broadcast
+	if s.auditW != nil {
+		if b, err := json.Marshal(e); err == nil {
+			s.auditW.Write(append(b, '\n'))
+		}
+	}
 	s.actMu.Unlock()
 }
 
 // serveLog returns activity entries after ?since=<seq> as JSON.
 func (s *Server) serveLog(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
+		// App-level log messages. Token-gated (the app's own web.js runs in
+		// the human's page and has it) and ALWAYS recorded as "app" — the
+		// wire can never mint "human"/"agent" entries, so log attribution
+		// stays trustworthy no matter who reaches this port.
+		if r.Header.Get("X-Qorm-Token") != s.eventToken {
+			http.Error(w, "invalid event token", http.StatusForbidden)
+			return
+		}
 		var e struct{ Source, Detail string }
 		if json.NewDecoder(r.Body).Decode(&e) == nil && e.Detail != "" {
-			src := e.Source
-			if src != "agent" && src != "human" {
-				src = "app"
-			}
-			s.logEvent(src, e.Detail)
+			s.logEvent("app", e.Detail)
 		}
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -753,6 +774,15 @@ func (s *Server) serveIndex(w http.ResponseWriter, r *http.Request) {
 // request in, one response out. The agent operates the same runtime the browser
 // renders, guarded by the same mutex.
 func (s *Server) serveMCP(w http.ResponseWriter, r *http.Request) {
+	// Symmetric isolation. /event requires the human token, so an agent (which
+	// never sees it) cannot pose as a human. The mirror: /mcp REFUSES the human
+	// token, so the human browser — the only holder of the token — cannot route
+	// operations through the agent channel and have them logged as "agent".
+	// Each identity has exactly one door; neither can walk through the other's.
+	if r.Header.Get("X-Qorm-Token") == s.eventToken {
+		http.Error(w, "the human client must use the UI (/event), not the agent channel (/mcp)", http.StatusForbidden)
+		return
+	}
 	body, err := io.ReadAll(io.LimitReader(r.Body, 8<<20))
 	if err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)

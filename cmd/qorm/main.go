@@ -37,6 +37,8 @@ func main() {
 		os.Exit(cmdNew(os.Args[2:]))
 	case "run":
 		os.Exit(cmdRun(os.Args[2:]))
+	case "audit":
+		os.Exit(cmdAudit(os.Args[2:]))
 	case "render":
 		os.Exit(cmdRender(os.Args[2:]))
 	case "build":
@@ -120,6 +122,8 @@ usage:
   qorm preview <package-dir> [--width N] [-o report.json]
                                                   render a packaged app and report its layout
   qorm docs [--docs docs] [-o site]                render the markdown docs to a static HTML site
+  qorm audit <audit-log.jsonl>                     verify a hash-chained activity audit log
+                                                  (written by qorm run --audit-log <file>)
   qorm updates <bundles-dir> [--port N]            OTA publish server (staged rollout via rollout.json)
   qorm update [--insecure-skip-verify]             update the CLI to the latest version (verifies signed checksums)
   qorm version                                     print the version
