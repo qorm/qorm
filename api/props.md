@@ -60,6 +60,7 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `battery` | `label` |
 | `biometric` | `label` |
 | `bluetooth` | `label` |
+| `bottomappbar` | — |
 | `bottomnav` | — |
 | `breadcrumb` | `items` · `separator` |
 | `brightness` | — |
@@ -101,6 +102,7 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `insets` | `label` |
 | `keepawake` | `label` |
 | `largetitle` | `background` · `subtitle` |
+| `limitedbox` | `maxHeight` · `maxWidth` |
 | `link` | `href` |
 | `list` | `itemHeight` · `onReorder` · `reorderable` · `virtualize` |
 | `listsection` | `footer` · `header` |
@@ -110,6 +112,7 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `materialstepper` | `active` |
 | `menu` | — |
 | `modal` | `open` · `title` |
+| `navigationdrawer` | — |
 | `navigationrail` | — |
 | `network` | `label` |
 | `nfc` | `label` |

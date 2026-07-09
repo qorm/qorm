@@ -60,6 +60,7 @@
 | `battery` | `label` |
 | `biometric` | `label` |
 | `bluetooth` | `label` |
+| `bottomappbar` | — |
 | `bottomnav` | — |
 | `breadcrumb` | `items` · `separator` |
 | `brightness` | — |
@@ -101,6 +102,7 @@
 | `insets` | `label` |
 | `keepawake` | `label` |
 | `largetitle` | `background` · `subtitle` |
+| `limitedbox` | `maxHeight` · `maxWidth` |
 | `link` | `href` |
 | `list` | `itemHeight` · `onReorder` · `reorderable` · `virtualize` |
 | `listsection` | `footer` · `header` |
@@ -110,6 +112,7 @@
 | `materialstepper` | `active` |
 | `menu` | — |
 | `modal` | `open` · `title` |
+| `navigationdrawer` | — |
 | `navigationrail` | — |
 | `network` | `label` |
 | `nfc` | `label` |

@@ -23,6 +23,7 @@ Each widget lists its **canonical name** first; the rest are equivalent aliases.
 | `battery` | — | `hwList` |
 | `biometric` | faceid, fingerprint | `biometric` |
 | `bluetooth` | — | `hwList` |
+| `bottomappbar` | — | `bottomAppBar` |
 | `bottomnav` | bottomnavigationbar, navigationbar | `bottomNav` |
 | `breadcrumb` | — | `breadcrumb` |
 | `brightness` | — | `hwAdjust` |
@@ -64,6 +65,7 @@ Each widget lists its **canonical name** first; the rest are equivalent aliases.
 | `insets` | safearea | `hwList` |
 | `keepawake` | wakelock | `hwList` |
 | `largetitle` | cupertinolargetitle, sliverappbar | `largeTitle` |
+| `limitedbox` | — | `limitedBox` |
 | `link` | — | `link` |
 | `list` | — | `list` |
 | `listsection` | cupertinolistsection | `listSection` |
@@ -73,6 +75,7 @@ Each widget lists its **canonical name** first; the rest are equivalent aliases.
 | `materialstepper` | — | `materialStepper` |
 | `menu` | — | `menu` |
 | `modal` | dialog | `modal` |
+| `navigationdrawer` | — | `navigationDrawer` |
 | `navigationrail` | — | `navigationRail` |
 | `network` | — | `hwList` |
 | `nfc` | — | `hwList` |

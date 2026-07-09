@@ -815,6 +815,42 @@ func TestIndexedStack(t *testing.T) {
 	}
 }
 
+// TestNavDrawerBottomBarLimited covers the last server-renderable catalog items:
+// NavigationDrawer (destination list, active highlight, onChange), BottomAppBar
+// (bottom toolbar of children), and LimitedBox (maxWidth/maxHeight cap).
+func TestNavDrawerBottomBarLimited(t *testing.T) {
+	root := &model.Node{Type: "scaffold", ID: "r", Children: []*model.Node{
+		{Type: "navigationdrawer", ID: "nd", Value: "home",
+			Props:    map[string]any{"items": `{{state.dest}}`},
+			OnChange: &model.Invoke{Name: "go", Args: map[string]string{}}},
+		{Type: "bottomappbar", ID: "bar", Children: []*model.Node{{Type: "text", ID: "t", Text: "toolbar"}}},
+		{Type: "limitedbox", ID: "lb", Style: map[string]any{"maxWidth": float64(320)},
+			Children: []*model.Node{{Type: "text", ID: "c", Text: "capped"}}},
+	}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root},
+		Actions: map[string]*model.Action{"go": {ID: "go"}}}
+	rt := qrt.New(app)
+	rt.State["dest"] = []any{
+		map[string]any{"value": "home", "label": "Home", "icon": "house"},
+		map[string]any{"value": "settings", "label": "Settings", "icon": "gear"},
+	}
+	html := render.Render(rt).HTML
+	for _, m := range []string{
+		`id="nd"`, `>Home</button>`, `>Settings</button>`, `onclick="qorm(`, // drawer destinations wired
+		`id="bar"`, `role="toolbar"`, `>toolbar<`, // bottom app bar
+		`id="lb"`, `max-width:320px`, `>capped<`, // limited box cap
+	} {
+		if !strings.Contains(html, m) {
+			t.Errorf("navdrawer/bottombar/limitedbox should render %q\n%s", m, html)
+		}
+	}
+	// active destination (home) is highlighted, the other is not
+	home := html[strings.Index(html, `>Home</button>`)-260 : strings.Index(html, `>Home</button>`)]
+	if !strings.Contains(home, "var(--accent)") {
+		t.Error("navigationdrawer should highlight the active destination")
+	}
+}
+
 // TestRenderItemUniqueIDs guards the fix for JS-wired widgets inside a list:
 // each item's Dismissible must get a unique id + matching swipe script, so
 // swipe-to-delete works on every row (canonical inbox pattern), not just the
