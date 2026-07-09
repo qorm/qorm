@@ -123,10 +123,12 @@ func FromDocs(docs []map[string]any) *model.App {
 // action expressions additionally see bare "count" (Runtime.Dispatch copies
 // top-level state keys into the context), enabled via bare.
 func stateVars(schema map[string]string, bare bool) map[string]string {
-	if len(schema) == 0 {
-		return nil
-	}
-	vars := make(map[string]string, len(schema)*2)
+	vars := make(map[string]string, len(schema)*2+3)
+	// The responsive viewport variables (see the `when` node) are always in
+	// scope, so `{{ viewport.width >= 768 }}` type-checks like state does.
+	vars["viewport.width"] = "number"
+	vars["viewport.height"] = "number"
+	vars["viewport.orientation"] = "string"
 	for k, t := range schema {
 		vars["state."+k] = t
 		if bare {
@@ -353,6 +355,16 @@ func buildNode(m map[string]any, diags *[]string, sceneID string, vars map[strin
 		n.Template = buildNode(ri, diags, sceneID, vars)
 	}
 	n.Data = asString(m["data"])
+	// "when" node: responsive conditional — condition picks then/else subtree.
+	if nodeType == "when" {
+		n.Condition = asString(m["condition"])
+		if tm, ok := m["then"].(map[string]any); ok {
+			n.Then = buildNode(tm, diags, sceneID, vars)
+		}
+		if em, ok := m["else"].(map[string]any); ok {
+			n.Else = buildNode(em, diags, sceneID, vars)
+		}
+	}
 	if kids, ok := m["children"].([]any); ok {
 		for _, k := range kids {
 			if km, ok := k.(map[string]any); ok {
@@ -464,8 +476,15 @@ func checkStepExprTypes(sm map[string]any, diags *[]string, actID string, vars m
 }
 
 func checkExpressions(m map[string]any, diags *[]string, sceneID, nodeID string, vars map[string]string) {
+	isWhen := asString(m["type"]) == "when"
 	for k, v := range m {
 		if k == "children" || k == "renderItem" {
+			continue
+		}
+		// A when node's branches are built as nodes themselves (buildNode
+		// recurses), so their expressions are checked there — skip the raw maps
+		// to avoid duplicate diagnostics attributed to the when node's id.
+		if isWhen && (k == "then" || k == "else") {
 			continue
 		}
 		strVal, ok := v.(string)

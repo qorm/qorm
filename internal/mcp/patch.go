@@ -277,6 +277,8 @@ func cloneNode(n *model.Node) *model.Node {
 		c.Children[i] = cloneNode(ch)
 	}
 	c.Template = cloneNode(n.Template)
+	c.Then = cloneNode(n.Then)
+	c.Else = cloneNode(n.Else)
 	return &c
 }
 

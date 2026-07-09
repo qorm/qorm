@@ -345,6 +345,38 @@ func (s *Server) servePresence(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// serveViewport records the browser client's viewport size (POST {w,h}) and
+// re-renders + broadcasts, so responsive `when` nodes track the real window.
+// Like /event and /presence it is a human-side call: it requires the
+// page-embedded event token. GET returns the current viewport as JSON.
+func (s *Server) serveViewport(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		s.mu.Lock()
+		vp := s.rt.Viewport
+		s.mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]int{"w": vp.W, "h": vp.H})
+		return
+	}
+	// Enforce human-only: reject reports without the page-embedded event token.
+	if r.Header.Get("X-Qorm-Token") != s.eventToken {
+		http.Error(w, "invalid event token", http.StatusForbidden)
+		return
+	}
+	var p struct{ W, H int }
+	if json.NewDecoder(r.Body).Decode(&p) != nil || p.W < 0 || p.H < 0 {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	s.mu.Lock()
+	if vp := (runtime.Viewport{W: p.W, H: p.H}); s.rt.Viewport != vp {
+		s.rt.Viewport = vp
+		s.bump() // re-render + push, so `when` branches swap live on resize
+	}
+	s.mu.Unlock()
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // serveMeasure stores (POST) or returns (GET) the app's self-reported layout:
 // each element's bounding rect + key computed styles, gathered by the running
 // app in its own runtime. Lets the framework verify its own styles/positions
@@ -584,6 +616,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/poll", s.servePoll)
 	mux.HandleFunc("/log", s.serveLog)
 	mux.HandleFunc("/presence", blockCrossOrigin(s.servePresence))
+	mux.HandleFunc("/viewport", blockCrossOrigin(s.serveViewport))
 	mux.HandleFunc("/console", s.serveConsole)
 	mux.HandleFunc("/logwindow", s.serveLogWindow)
 	mux.HandleFunc("/window", blockCrossOrigin(s.serveWindow))

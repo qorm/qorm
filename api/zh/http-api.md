@@ -12,6 +12,7 @@
 | `/poll` | GET | SSE 不可用时的长轮询兜底——返回当前修订号,若有更新则附带 HTML |
 | `/log` | GET / POST | GET 拉取 `?since=` 之后的活动条目;POST 转发一条客户端控制台日志 |
 | `/presence` | GET / POST | 协作在场——谁(人 / 智能体)正聚焦或输入在何处 |
+| `/viewport` | GET / POST | 浏览器回报窗口尺寸(缩放去抖)以便响应式 `when` 节点在服务端重渲染;GET 读取当前值 |
 | `/console` | GET | 日志窗口的控制台信息流页面 |
 | `/logwindow` | GET | 伴随桌面应用的独立日志窗口 |
 | `/window` | POST | 桌面窗口控制(移动 / 缩放 / 打开 / 关闭 / 聚焦) |

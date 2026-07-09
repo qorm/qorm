@@ -36,6 +36,9 @@ func NodeIndex(n *model.Node, m map[string]map[string]any) {
 		NodeIndex(c, m)
 	}
 	NodeIndex(n.Template, m)
+	// index both branches of a `when` node — whichever is live can be measured
+	NodeIndex(n.Then, m)
+	NodeIndex(n.Else, m)
 }
 
 func index(rt *qrt.Runtime) map[string]map[string]any {
@@ -224,6 +227,8 @@ func hscrollDescendants(n *model.Node, inside bool, out map[string]bool) {
 		hscrollDescendants(c, cur, out)
 	}
 	hscrollDescendants(n.Template, cur, out)
+	hscrollDescendants(n.Then, cur, out)
+	hscrollDescendants(n.Else, cur, out)
 }
 
 // Audit runs generic layout invariants over the measured render: every VISIBLE

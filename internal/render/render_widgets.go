@@ -44,8 +44,9 @@ type renderer struct {
 	compDepth    int
 	// per-render caches: state + the resolved i18n catalog are constant during a
 	// single render, so compute them once instead of per bound node.
-	catalog map[string]any
-	baseCtx map[string]any
+	catalog  map[string]any
+	baseCtx  map[string]any
+	viewport map[string]any // viewport.* vars for responsive `when` conditions
 }
 
 func (r *renderer) container(n *model.Node) {

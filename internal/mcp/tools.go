@@ -155,8 +155,8 @@ func toolList() []tool {
 		},
 		{
 			Name:        "qorm_check_layout",
-			Description: "VERIFY the LIVE render against expectations; returns per-check pass/fail with actual values. `checks` is an array of {id, <assertions>}. Assertions: visible(bool) | type(widget-type string) | text(substring the component must contain, matched vs expressed OR rendered text) | noOverflow(bool, no horizontal overflow) | minW|maxW|minH|maxH(px number) | x|y(px number, ±3 tolerance) | within(id: this box must sit inside that id's box) | below(id: must start below that id) | backgroundNot|colorNot(substring that must be ABSENT — e.g. \"255, 255, 255\" to assert not-white in dark mode). Example: [{\"id\":\"wifi\",\"type\":\"switchlisttile\",\"visible\":true,\"within\":\"settings\"},{\"id\":\"chart\",\"noOverflow\":true}]. Requires the app open in a window (it self-measures).",
-			InputSchema: obj(map[string]any{"checks": map[string]any{"type": "array"}}, "checks"),
+			Description: "VERIFY the LIVE render against expectations; returns per-check pass/fail with actual values. `checks` is an array of {id, <assertions>}. Assertions: visible(bool) | type(widget-type string) | text(substring the component must contain, matched vs expressed OR rendered text) | noOverflow(bool, no horizontal overflow) | minW|maxW|minH|maxH(px number) | x|y(px number, ±3 tolerance) | within(id: this box must sit inside that id's box) | below(id: must start below that id) | backgroundNot|colorNot(substring that must be ABSENT — e.g. \"255, 255, 255\" to assert not-white in dark mode). Example: [{\"id\":\"wifi\",\"type\":\"switchlisttile\",\"visible\":true,\"within\":\"settings\"},{\"id\":\"chart\",\"noOverflow\":true}]. Requires the app open in a window (it self-measures). Optional viewportW/viewportH (px) set the runtime viewport before evaluating, so responsive `when` branches resolve as if the window were that size — note the measured rects still come from the client's REAL window (a live client also overwrites the viewport on its next load/resize).",
+			InputSchema: obj(map[string]any{"checks": map[string]any{"type": "array"}, "viewportW": intProp, "viewportH": intProp}, "checks"),
 		},
 	}
 }
@@ -313,9 +313,17 @@ func (s *Server) callTool(name string, args json.RawMessage) (string, error) {
 		return string(rep), err
 	case "qorm_check_layout":
 		var a struct {
-			Checks json.RawMessage `json:"checks"`
+			Checks    json.RawMessage `json:"checks"`
+			ViewportW int             `json:"viewportW"`
+			ViewportH int             `json:"viewportH"`
 		}
 		json.Unmarshal(args, &a)
+		if a.ViewportW > 0 || a.ViewportH > 0 {
+			// Simulate a viewport so responsive `when` branches resolve for the
+			// check. The live browser client re-reports its real size on its next
+			// load/resize, overwriting this.
+			s.rt.Viewport = qrt.Viewport{W: a.ViewportW, H: a.ViewportH}
+		}
 		if s.measureProv == nil {
 			return "", fmt.Errorf("measurement unavailable")
 		}
@@ -425,7 +433,7 @@ func (s *Server) previewPatch(ops []PatchOp) map[string]any {
 	}
 	token := patchToken(ops)
 	s.preview = &previewState{token: token, ops: ops}
-	previewRt := &qrt.Runtime{App: clone, State: s.rt.State}
+	previewRt := &qrt.Runtime{App: clone, State: s.rt.State, Viewport: s.rt.Viewport}
 	return map[string]any{
 		"ok":           true,
 		"previewToken": token,
@@ -557,6 +565,12 @@ func findNode(n *model.Node, id string) *model.Node {
 	}
 	if n.Template != nil {
 		if got := findNode(n.Template, id); got != nil {
+			return got
+		}
+	}
+	// both branches of a `when` node are reachable, whichever is live
+	for _, b := range []*model.Node{n.Then, n.Else} {
+		if got := findNode(b, id); got != nil {
 			return got
 		}
 	}

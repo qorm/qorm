@@ -146,6 +146,16 @@ type Node struct {
 	Children    []*Node
 	Template    *Node  // list renderItem template
 	Data        string // list data binding expression
+	// "when" nodes (responsive conditional rendering): Condition is a {{...}}
+	// expression — typically over viewport.width / viewport.height /
+	// viewport.orientation — that selects the Then subtree when truthy and the
+	// Else subtree otherwise. This complements the `if`/`visible`/`show` prop
+	// (which shows or hides ONE node in place): `when` swaps between two
+	// ALTERNATIVE subtrees, e.g. a row layout on wide viewports and a column
+	// on narrow ones. Only nodes with Type "when" carry these fields.
+	Condition string
+	Then      *Node
+	Else      *Node
 }
 
 // Prop returns a props value with a fallback lookup into style.

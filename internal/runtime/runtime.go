@@ -17,10 +17,22 @@ import (
 	"github.com/qorm/qorm/internal/model"
 )
 
+// Viewport is a client viewport size in CSS pixels. The zero value means
+// "unknown" — e.g. the server's first frame before the browser has reported
+// its size — in which case viewport.width/height evaluate to 0, so a `when`
+// condition like `{{ viewport.width >= 768 }}` is falsy and the `else` branch
+// renders.
+type Viewport struct{ W, H int }
+
 // Runtime is a live instance of an app: its state plus a reference to the app.
 type Runtime struct {
 	App   *model.App
 	State map[string]any
+	// Viewport is the size of the client viewport driving this runtime (pushed
+	// by the browser via POST /viewport, or read from the JS globals in the
+	// WASM build). Exposed to expressions as viewport.width / viewport.height /
+	// viewport.orientation for responsive `when` nodes.
+	Viewport Viewport
 	// Scene is the id of the scene currently shown ("" = the manifest entry).
 	// NavStack holds the scenes to return to for navigate-back.
 	Scene    string
@@ -75,15 +87,34 @@ func Stringify(v any) string { return expr.Stringify(v) }
 // Clone returns a runtime sharing the same app but with a deep copy of state,
 // so simulations can run without touching the live instance.
 func (r *Runtime) Clone() *Runtime {
-	return &Runtime{App: r.App, State: deepCopyMap(r.State)}
+	return &Runtime{App: r.App, State: deepCopyMap(r.State), Viewport: r.Viewport}
+}
+
+// ViewportVars exposes the viewport to expressions: viewport.width,
+// viewport.height (CSS px, 0 while unknown) and viewport.orientation
+// ("landscape" when W >= H, "portrait" otherwise, "" while unknown).
+func (r *Runtime) ViewportVars() map[string]any {
+	orientation := ""
+	if r.Viewport.W > 0 || r.Viewport.H > 0 {
+		if r.Viewport.W >= r.Viewport.H {
+			orientation = "landscape"
+		} else {
+			orientation = "portrait"
+		}
+	}
+	return map[string]any{
+		"width":       float64(r.Viewport.W),
+		"height":      float64(r.Viewport.H),
+		"orientation": orientation,
+	}
 }
 
 var bindingRe = regexp.MustCompile(`\{\{(.*?)\}\}`)
 
-// sceneCtx is the evaluation context for scene bindings: `state.*` and the
-// active-locale message catalog `t.*` are exposed.
+// sceneCtx is the evaluation context for scene bindings: `state.*`, the
+// active-locale message catalog `t.*` and the responsive `viewport.*` vars.
 func (r *Runtime) sceneCtx() map[string]any {
-	return map[string]any{"state": r.State, "t": r.Catalog()}
+	return map[string]any{"state": r.State, "t": r.Catalog(), "viewport": r.ViewportVars()}
 }
 
 // CurrentLocale is state.locale, falling back to the app's default locale.
@@ -191,7 +222,7 @@ func (r *Runtime) Dispatch(name string, args map[string]any) {
 	if !ok {
 		return
 	}
-	ctx := map[string]any{"state": r.State, "t": r.Catalog()}
+	ctx := map[string]any{"state": r.State, "t": r.Catalog(), "viewport": r.ViewportVars()}
 	// Expose top-level state keys so a bare `count` in an action expression
 	// resolves to state.count (as the message-format context already does);
 	// otherwise `{{ count + 1 }}` reads nil and never accumulates.

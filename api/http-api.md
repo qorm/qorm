@@ -12,6 +12,7 @@
 | `/poll` | GET | long-poll fallback when SSE is unavailable — returns the current revision + HTML if it advanced |
 | `/log` | GET / POST | GET activity entries after `?since=`; POST forwards a client console line |
 | `/presence` | GET / POST | collaboration presence — who (human/agent) is focused/typing where |
+| `/viewport` | GET / POST | the browser reports its window size (debounced on resize) so responsive `when` nodes re-render server-side; GET reads the current value |
 | `/console` | GET | the log-window console feed page |
 | `/logwindow` | GET | the standalone log window that accompanies the desktop app |
 | `/window` | POST | desktop window control (move / resize / open / close / focus) |

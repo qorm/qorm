@@ -128,5 +128,6 @@ Each widget lists its **canonical name** first; the rest are equivalent aliases.
 | `video` | — | `video` |
 | `videocapture` | — | `hwList` |
 | `volume` | — | `hwAdjust` |
+| `when` | — | `when` |
 | `wifi` | — | `hwList` |
 | `wrap` | — | `wrap` |

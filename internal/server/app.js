@@ -771,3 +771,24 @@ function qormSwipeActions(el){
   content.addEventListener('click', function(e){ if(open){ e.preventDefault(); e.stopPropagation(); open=false; set(0,true); } }, true);
   Array.prototype.forEach.call(acts.children, function(b){ b.addEventListener('click', function(){ open=false; setTimeout(function(){ set(0,true); }, 0); }); });
 }
+// Viewport push: report the window size to the server on load and on resize
+// (debounced 200ms), so responsive `when` nodes ({{ viewport.width >= 768 }})
+// render against the real client viewport. The server re-renders + broadcasts
+// on change, so the matching branch swaps in live. Offline/WASM builds have no
+// server — the fetch fails silently (the WASM runtime reads the size itself).
+(function(){
+  if(typeof window==='undefined'||typeof fetch==='undefined') return;
+  var t=null, last='';
+  function qormViewportSend(){
+    var w=window.innerWidth||0, h=window.innerHeight||0, k=w+'x'+h;
+    if(!w||!h||k===last) return;
+    last=k;
+    try{
+      fetch('/viewport',{method:'POST',headers:{'Content-Type':'application/json','X-Qorm-Token':__tok},
+        body:JSON.stringify({w:w,h:h})}).catch(function(){});
+    }catch(e){}
+  }
+  window.addEventListener('resize',function(){ if(t) clearTimeout(t); t=setTimeout(qormViewportSend,200); });
+  if(document.readyState!=='loading'){ qormViewportSend(); }
+  else { window.addEventListener('load',qormViewportSend); }
+})();
