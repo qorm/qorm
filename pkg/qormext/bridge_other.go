@@ -9,14 +9,16 @@ var evaluator func(string)
 // SetEvaluator wires the host's JS evaluator (desktop only).
 func SetEvaluator(fn func(string)) { evaluator = fn }
 
-// CallJS runs a line of JS in the app window (from the Go middle-layer).
+// CallJS runs a line of JS in the app's WebView (from the Go middle-layer).
 func CallJS(script string) {
 	if evaluator != nil {
 		evaluator(script)
 	}
 }
 
-// Native triggers a framework low-level op directly from Go (desktop).
+// Native triggers a framework low-level op (hardware bridge / built-in) directly
+// from Go: e.g. Native("bluetoothScan", "{}") reaches the native bridge or Web
+// API. Results arrive at the app's qormOn<X> JS callback.
 func Native(op, dataJSON string) {
 	if dataJSON == "" {
 		dataJSON = "{}"
