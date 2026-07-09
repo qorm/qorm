@@ -1,8 +1,19 @@
 { "type": "scene", "id": "home", "root": { "type": "scaffold", "children": [
   { "type": "appbar", "title": "Home" },
   { "type": "column", "style": { "padding": 20, "gap": 12 }, "children": [
-    { "type": "text", "text": "Welcome back", "style": { "fontWeight": 800, "fontSize": 26 } },
-    { "type": "text", "text": "Tap below to navigate to another scene.", "style": { "color": "#8e8e93" } },
-    { "type": "button", "text": "Open profile", "onPress": { "type": "invoke", "name": "openProfile" }, "style": { "background": "#0a84ff", "color": "#fff", "padding": 14, "borderRadius": 10, "fontWeight": 700 } }
+    { "type": "text", "text": "Team", "style": { "fontWeight": 800, "fontSize": 26 } },
+    { "type": "text", "text": "Tap a teammate to open their profile — the row passes their id, name and role as route parameters.", "style": { "color": "#8e8e93" } },
+    { "type": "list", "id": "people", "data": "{{ state.users }}",
+      "renderItem": {
+        "type": "row", "style": { "gap": 12, "padding": 12, "borderRadius": 10, "background": "#f2f2f7" }, "layout": { "align": "center" },
+        "onPress": { "type": "invoke", "name": "openProfile", "args": { "userId": "{{ item.id }}", "name": "{{ item.name }}", "role": "{{ item.role }}" } },
+        "children": [
+          { "type": "avatar", "text": "{{ item.name }}", "style": { "width": 40, "height": 40 } },
+          { "type": "column", "style": { "gap": 2 }, "children": [
+            { "type": "text", "text": "{{ item.name }}", "style": { "fontWeight": 700, "fontSize": 16 } },
+            { "type": "text", "text": "{{ item.role }}", "style": { "color": "#8e8e93", "fontSize": 13 } }
+          ]}
+        ]
+      } }
   ]}
 ]}}

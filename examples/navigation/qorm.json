@@ -1,1 +1,6 @@
-{ "type": "app", "id": "navigation", "name": "Navigation", "entry": "home", "theme": "apple" }
+{ "type": "app", "id": "navigation", "name": "Navigation", "entry": "home", "theme": "apple",
+  "globalState": { "schema": { "users": "array" }, "initial": { "users": [
+    { "id": "u-101", "name": "Aurora Q.", "role": "Design Lead" },
+    { "id": "u-102", "name": "Milo R.", "role": "iOS Engineer" },
+    { "id": "u-103", "name": "Sana K.", "role": "Product Manager" }
+  ] } } }
