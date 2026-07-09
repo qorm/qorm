@@ -769,6 +769,74 @@ func (r *renderer) offstage(n *model.Node) {
 	r.sb.WriteString(`</div>`)
 }
 
+// navigationDrawer is Material's NavigationDrawer: a vertical list of icon+label
+// destinations bound to state; tapping dispatches onChange with {value}. Distinct
+// from `drawer` (an overlay panel of arbitrary children) — this is the
+// destination list itself, full-width pill rows with the active one highlighted.
+func (r *renderer) navigationDrawer(n *model.Node) {
+	cur := r.interp(n.Value)
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q role="navigation">`, r.nid(n),
+		r.boxCSS(n)+"display:flex;flex-direction:column;gap:2px;padding:12px;background:var(--surface);min-width:200px;")
+	for _, it := range r.boundArray(n, "items") {
+		obj, _ := it.(map[string]any)
+		if obj == nil {
+			continue
+		}
+		val := fmt.Sprint(obj["value"])
+		col, bg := "var(--label)", "transparent"
+		if val == cur {
+			col, bg = "var(--accent)", "color-mix(in srgb,var(--accent) 12%, transparent)"
+		}
+		attr := ""
+		if n.OnChange != nil {
+			args := map[string]string{"value": val}
+			for k, v := range n.OnChange.Args {
+				if k != "value" {
+					args[k] = v
+				}
+			}
+			attr = fmt.Sprintf(` onclick="qorm(%d)"`, r.register(&model.Invoke{Name: n.OnChange.Name, Args: args}))
+		}
+		fmt.Fprintf(&r.sb, `<button style="display:flex;align-items:center;gap:12px;padding:12px 16px;border:none;border-radius:28px;cursor:pointer;text-align:left;background:%s;color:%s;font-size:14px;"%s>`, bg, col, attr)
+		fmt.Fprintf(&r.sb, `<span style="display:inline-flex;align-items:center;">%s</span>%s</button>`,
+			iconOrText(fmt.Sprint(obj["icon"]), 22), html.EscapeString(fmt.Sprint(obj["label"])))
+	}
+	r.sb.WriteString(`</div>`)
+}
+
+// bottomAppBar is Material's BottomAppBar: a bottom-pinned toolbar holding action
+// children (icons/buttons), with a hairline top border like the iOS tab bar and
+// the bottom safe-area inset applied.
+func (r *renderer) bottomAppBar(n *model.Node) {
+	style := r.boxCSS(n) + "display:flex;align-items:center;gap:8px;padding:8px 12px;min-height:56px;background:var(--surface);border-top:.5px solid var(--sep);padding-bottom:calc(8px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));"
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s role="toolbar">`, r.nid(n), style, a11y(n))
+	for _, c := range n.Children {
+		r.node(c)
+	}
+	r.sb.WriteString(`</div>`)
+}
+
+// limitedBox is Flutter's LimitedBox: it caps its child via maxWidth / maxHeight
+// (px, read from style or props); a plain flow container otherwise.
+func (r *renderer) limitedBox(n *model.Node) {
+	lim := ""
+	if w, ok := numOK(n.Style, "maxWidth"); ok {
+		lim += fmt.Sprintf("max-width:%gpx;", w)
+	} else if w := propNum(n, "maxWidth", -1); w >= 0 {
+		lim += fmt.Sprintf("max-width:%gpx;", w)
+	}
+	if h, ok := numOK(n.Style, "maxHeight"); ok {
+		lim += fmt.Sprintf("max-height:%gpx;", h)
+	} else if h := propNum(n, "maxHeight", -1); h >= 0 {
+		lim += fmt.Sprintf("max-height:%gpx;", h)
+	}
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, r.nid(n), r.boxCSS(n)+lim, a11y(n))
+	for _, c := range n.Children {
+		r.node(c)
+	}
+	r.sb.WriteString(`</div>`)
+}
+
 // indexedStack is Flutter's IndexedStack: it mounts every child but paints only
 // the one at `index` (bindable, default 0). Hidden children keep their DOM/ids
 // and state — the reason to reach for this over swapping subtrees: a wizard step

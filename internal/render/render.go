@@ -372,6 +372,12 @@ func (r *renderer) renderInner(n *model.Node) {
 		r.offstage(n)
 	case "indexedstack":
 		r.indexedStack(n)
+	case "navigationdrawer":
+		r.navigationDrawer(n)
+	case "bottomappbar":
+		r.bottomAppBar(n)
+	case "limitedbox":
+		r.limitedBox(n)
 	case "fab", "floatingactionbutton":
 		r.fab(n)
 	case "scaffold":

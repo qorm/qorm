@@ -16,8 +16,8 @@ import (
 var allWidgetTypes = []string{
 	"accordion", "actionsheet", "activityindicator", "alert", "alertdialog", "animatedalign", "animatedcontainer", "animatedopacity",
 	"animatedpadding", "animatedpositioned", "appbar", "aspectratio", "audiorecorder", "autocomplete", "avatar", "badge",
-	"backbutton", "banner", "battery", "biometric", "bluetooth", "bottomnav", "bottomnavigationbar", "breadcrumb", "brightness",
-	"closebutton",
+	"backbutton", "banner", "battery", "biometric", "bluetooth", "bottomappbar", "bottomnav", "bottomnavigationbar", "breadcrumb", "brightness",
+	"closebutton", "limitedbox", "navigationdrawer",
 	"button", "camera", "carousel", "chart", "checkbox", "checkboxlisttile", "chip", "choicechip",
 	"circularprogress", "circularprogressindicator", "clipboard", "contextmenu", "cupertinoactionsheet", "cupertinoactivityindicator", "cupertinoalertdialog", "cupertinocontextmenu",
 	"cupertinodatepicker", "cupertinolargetitle", "cupertinolistsection", "cupertinopicker", "cupertinoslidingsegmentedcontrol", "datatable", "datepicker", "descriptions",
