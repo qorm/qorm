@@ -47,6 +47,13 @@ void qormRunTray(const unsigned char *png, int pngLen, const char **items, int n
 
 void qormSetDockIcon(const unsigned char *png, int len) {
     @autoreleasepool {
+        // macOS 26 ABORTS (SIGBUS 0xbad4007) on -[NSApp setApplicationIconImage:]
+        // when the process is a bare CLI tool with no bundle (older macOS tolerated
+        // it). `qorm run --app` is exactly that. The Dock icon is cosmetic and a
+        // packaged .app has its own icon + a bundle id, so only set it when we ARE a
+        // bundle; otherwise skip — the window still opens, just with a generic icon.
+        // This check touches no GUI/WindowServer state, so it can't itself abort.
+        if ([[NSBundle mainBundle] bundleIdentifier] == nil) return;
         [NSApplication sharedApplication];
         NSData *d = [NSData dataWithBytes:png length:len];
         NSImage *img = [[NSImage alloc] initWithData:d];
