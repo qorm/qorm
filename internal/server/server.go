@@ -1073,6 +1073,9 @@ func Page(rt *runtime.Runtime, body string, rev int64, eventToken ...string) str
   /* Interactive: iOS press feedback (tap-to-scale) on buttons & tappables. */
   .qorm-tap { transition:transform .12s ease, opacity .12s ease; -webkit-tap-highlight-color:transparent; }
   .qorm-tap:active { transform:scale(.96); opacity:.7; }
+  /* Draggable/DragTarget feedback: lift the item being dragged, highlight the drop zone. */
+  .qorm-draggable { transition:opacity .15s ease; } .qorm-dragging { opacity:.5; }
+  .qorm-dragover { outline:2px dashed var(--accent,#0a84ff); outline-offset:-2px; background:color-mix(in srgb,var(--accent,#0a84ff) 8%%,transparent); }
   /* Spatial attribution: a node the AI just changed pulses a blue outline. */
   .qorm-ai-touch { animation:qorm-ai-flash 1.3s ease-out; border-radius:inherit; }
   @keyframes qorm-ai-flash { 0%% { box-shadow:0 0 0 2px rgba(10,132,255,.9); } 60%% { box-shadow:0 0 0 2px rgba(10,132,255,.45); } 100%% { box-shadow:0 0 0 2px rgba(10,132,255,0); } }

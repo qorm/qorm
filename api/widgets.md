@@ -47,6 +47,8 @@ Each widget lists its **canonical name** first; the rest are equivalent aliases.
 | `dismissible` | — | `dismissible` |
 | `divider` | — | `divider` |
 | `dockbadge` | — | `dockBadge` |
+| `draggable` | longpressdraggable | `draggable` |
+| `dragtarget` | droptarget | `dragTarget` |
 | `drawer` | — | `drawer` |
 | `dropdownbutton` | — | `dropdownButton` |
 | `empty` | — | `empty` |

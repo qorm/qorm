@@ -372,6 +372,10 @@ func (r *renderer) renderInner(n *model.Node) {
 		r.offstage(n)
 	case "indexedstack":
 		r.indexedStack(n)
+	case "draggable", "longpressdraggable":
+		r.draggable(n)
+	case "dragtarget", "droptarget":
+		r.dragTarget(n)
 	case "navigationdrawer":
 		r.navigationDrawer(n)
 	case "bottomappbar":

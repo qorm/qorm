@@ -84,6 +84,8 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `dismissible` | `icon` · `onDismissed` |
 | `divider` | `orientation` |
 | `dockbadge` | — |
+| `draggable` | `data` |
+| `dragtarget` | `onDrop` |
 | `drawer` | `open` · `side` |
 | `dropdownbutton` | `hint` · `options` |
 | `empty` | `icon` · `title` |

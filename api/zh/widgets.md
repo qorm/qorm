@@ -47,6 +47,8 @@
 | `dismissible` | — | `dismissible` |
 | `divider` | — | `divider` |
 | `dockbadge` | — | `dockBadge` |
+| `draggable` | longpressdraggable | `draggable` |
+| `dragtarget` | droptarget | `dragTarget` |
 | `drawer` | — | `drawer` |
 | `dropdownbutton` | — | `dropdownButton` |
 | `empty` | — | `empty` |

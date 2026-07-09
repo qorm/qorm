@@ -84,6 +84,8 @@
 | `dismissible` | `icon` · `onDismissed` |
 | `divider` | `orientation` |
 | `dockbadge` | — |
+| `draggable` | `data` |
+| `dragtarget` | `onDrop` |
 | `drawer` | `open` · `side` |
 | `dropdownbutton` | `hint` · `options` |
 | `empty` | `icon` · `title` |

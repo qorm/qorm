@@ -21,7 +21,7 @@ var allWidgetTypes = []string{
 	"button", "camera", "carousel", "chart", "checkbox", "checkboxlisttile", "chip", "choicechip",
 	"circularprogress", "circularprogressindicator", "clipboard", "contextmenu", "cupertinoactionsheet", "cupertinoactivityindicator", "cupertinoalertdialog", "cupertinocontextmenu",
 	"cupertinodatepicker", "cupertinolargetitle", "cupertinolistsection", "cupertinopicker", "cupertinoslidingsegmentedcontrol", "datatable", "datepicker", "descriptions",
-	"deviceinfo", "dialog", "dismissible", "displays", "divider", "dockbadge", "drawer", "dropdown",
+	"deviceinfo", "dialog", "dismissible", "displays", "divider", "dockbadge", "draggable", "dragtarget", "drawer", "droptarget", "dropdown",
 	"dropdownbutton", "empty", "expansionpanel", "expansiontile", "fab", "faceid", "field", "file",
 	"filepicker", "filterchip", "fingerprint", "flashlight", "floatingactionbutton", "form", "formfield", "geolocation", "gesture",
 	"gesturedetector", "gridview", "haptics", "icon", "image", "inkwell", "input", "inputchip",

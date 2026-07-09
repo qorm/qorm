@@ -716,6 +716,31 @@ function qormLong(el,h){
   el.addEventListener('pointerup',cancel);
   el.addEventListener('pointerleave',cancel);
 }
+// Draggable/DragTarget: pick up a qorm-draggable (carrying string payload `data`)
+// and drop it on a qorm-droptarget, which fires its handler with {_dragData}.
+var __qormDrag=null;
+function qormDraggable(el,data){
+  if(!el) return;
+  el.setAttribute('draggable','true');
+  el.addEventListener('dragstart',function(e){ __qormDrag=data;
+    el.classList.add('qorm-dragging');
+    try{ e.dataTransfer.setData('text/plain',data); e.dataTransfer.effectAllowed='move'; }catch(_){} });
+  el.addEventListener('dragend',function(){ __qormDrag=null; el.classList.remove('qorm-dragging'); });
+}
+function qormDragTarget(el,h){
+  if(!el) return;
+  el.addEventListener('dragover',function(e){ e.preventDefault();
+    el.classList.add('qorm-dragover'); try{ e.dataTransfer.dropEffect='move'; }catch(_){} });
+  el.addEventListener('dragleave',function(){ el.classList.remove('qorm-dragover'); });
+  el.addEventListener('drop',function(e){ e.preventDefault(); el.classList.remove('qorm-dragover');
+    var data=__qormDrag; if(data===null){ try{ data=e.dataTransfer.getData('text/plain'); }catch(_){ data=''; } }
+    qormPostDrop(h,data); });
+}
+function qormPostDrop(h,data){
+  fetch('/event',{method:'POST',headers:{'Content-Type':'application/json','X-Qorm-Token':__tok},body:JSON.stringify({h:h,inputs:{_dragData:data}})})
+    .then(function(r){ var rv=parseInt(r.headers.get('X-Qorm-Rev'))||0; qormTheme(r.headers.get('X-Qorm-Theme')); return r.text().then(function(html){ return {rv:rv,html:html}; }); })
+    .then(function(o){ if(o.rv && o.rv<=__rev) return; if(o.rv) __rev=o.rv; qormMorphInto(document.getElementById('qorm-root'), o.html); });
+}
 // Live-sync: observe out-of-band changes (e.g. an AI agent editing the same
 // session over /mcp) and swap in the new UI. Prefer Server-Sent Events for
 // instant multi-client push; fall back to polling.
