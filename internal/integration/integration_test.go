@@ -851,6 +851,31 @@ func TestNavDrawerBottomBarLimited(t *testing.T) {
 	}
 }
 
+// TestDraggableDragTarget covers Draggable (carries a string payload, wired via
+// qormDraggable) and DragTarget (drop zone wired via qormDragTarget to an onDrop
+// handler). The actual drag interaction is browser-verified; this asserts the
+// server emits the payload + handler wiring.
+func TestDraggableDragTarget(t *testing.T) {
+	root := &model.Node{Type: "scaffold", ID: "r", Children: []*model.Node{
+		{Type: "draggable", ID: "card", Props: map[string]any{"data": "u-101"},
+			Children: []*model.Node{{Type: "text", ID: "t", Text: "drag me"}}},
+		{Type: "dragtarget", ID: "bin", OnPress: &model.Invoke{Name: "drop"},
+			Children: []*model.Node{{Type: "text", ID: "z", Text: "drop here"}}},
+	}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root},
+		Actions: map[string]*model.Action{"drop": {ID: "drop"}}}
+	html := render.Render(qrt.New(app)).HTML
+	for _, m := range []string{
+		`class="qorm-draggable"`, `qormDraggable(document.getElementById("card"),"u-101")`, // payload embedded
+		`class="qorm-droptarget"`, `qormDragTarget(document.getElementById("bin"),`, // drop zone wired
+		`>drag me<`, `>drop here<`,
+	} {
+		if !strings.Contains(html, m) {
+			t.Errorf("draggable/dragtarget should render %q\n%s", m, html)
+		}
+	}
+}
+
 // TestRenderItemUniqueIDs guards the fix for JS-wired widgets inside a list:
 // each item's Dismissible must get a unique id + matching swipe script, so
 // swipe-to-delete works on every row (canonical inbox pattern), not just the

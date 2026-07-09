@@ -1,11 +1,19 @@
 package render
 
 import (
+	"encoding/json"
 	"fmt"
 	"html"
 
 	"github.com/qorm/qorm/internal/model"
 )
+
+// jsStr renders s as a JavaScript string literal (a JSON string is valid JS),
+// safe to embed inside an inline <script> — used to pass a drag payload.
+func jsStr(s string) string {
+	b, _ := json.Marshal(s)
+	return string(b)
+}
 
 // controlTile is Flutter's SwitchListTile/CheckboxListTile/RadioListTile: a
 // title/subtitle row with a bound control. The control reuses the existing
@@ -183,6 +191,41 @@ func (r *renderer) dismissible(n *model.Node) {
 	r.sb.WriteString(`</div></div>`)
 	if h >= 0 {
 		fmt.Fprintf(&r.sb, `<script>setTimeout(function(){qormSwipe(document.getElementById(%q),%d)})</script>`, r.nid(n), h)
+	}
+}
+
+// draggable is Flutter's Draggable / LongPressDraggable: its child can be picked
+// up and dropped onto a dragtarget, carrying the string payload in its `data`
+// prop (bindable). The receiving dragtarget's onDrop fires with that payload as
+// {{ _dragData }}. Uses native HTML5 drag-and-drop — pointer/mouse; touch drag
+// is limited, so verify the interaction in a browser.
+func (r *renderer) draggable(n *model.Node) {
+	data := r.interp(propStr(n, "data"))
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-draggable" style=%q%s>`, r.nid(n), r.boxCSS(n)+"cursor:grab;", a11y(n))
+	for _, c := range n.Children {
+		r.node(c)
+	}
+	r.sb.WriteString(`</div>`)
+	fmt.Fprintf(&r.sb, `<script>setTimeout(function(){qormDraggable(document.getElementById(%q),%s)})</script>`, r.nid(n), jsStr(data))
+}
+
+// dragTarget is Flutter's DragTarget: a drop zone that dispatches onDrop (or
+// onPress) with the dropped draggable's payload as {{ _dragData }}. It highlights
+// (.qorm-dragover) while a drag hovers over it.
+func (r *renderer) dragTarget(n *model.Node) {
+	h := -1
+	if d := parseInvokeProp(n, "onDrop"); d != nil {
+		h = r.register(d)
+	} else if n.OnPress != nil {
+		h = r.register(n.OnPress)
+	}
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-droptarget" style=%q%s>`, r.nid(n), r.boxCSS(n), a11y(n))
+	for _, c := range n.Children {
+		r.node(c)
+	}
+	r.sb.WriteString(`</div>`)
+	if h >= 0 {
+		fmt.Fprintf(&r.sb, `<script>setTimeout(function(){qormDragTarget(document.getElementById(%q),%d)})</script>`, r.nid(n), h)
 	}
 }
 
