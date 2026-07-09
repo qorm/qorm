@@ -4,12 +4,14 @@ import (
 	"crypto/ed25519"
 	"crypto/tls"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/qorm/qorm/internal/bundle"
 	"github.com/qorm/qorm/internal/keys"
@@ -61,9 +63,12 @@ func cmdRun(args []string) int {
 	lan := false
 	tlsOn := false
 	mcpReadOnly := false
+	noWatch := false
 	var dir, trust, revoked, auditLog string
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
+		case "--no-watch":
+			noWatch = true
 		case "--mcp-read-only":
 			mcpReadOnly = true
 		case "--audit-log":
@@ -125,6 +130,15 @@ func cmdRun(args []string) int {
 			return 1
 		}
 		fmt.Printf("audit log -> %s (hash-chained; verify with: qorm audit %s)\n", auditLog, auditLog)
+	}
+	// Dev hot-reload: watch the app's source directory and live-reload every
+	// connected client when a file changes (disabled by --no-watch, or when the
+	// app is a signed bundle rather than a directory).
+	if !noWatch {
+		if info, serr := os.Stat(dir); serr == nil && info.IsDir() {
+			go watchAndReload(dir, trust, revoked, srv)
+			fmt.Println("  hot-reload: watching source — edit a scene/action and it updates live (--no-watch to disable)")
+		}
 	}
 	host := "127.0.0.1"
 	if lan {
@@ -633,4 +647,56 @@ func cmdAudit(args []string) int {
 	}
 	fmt.Printf("AUDIT OK: %d entries, hash chain intact\n", n)
 	return 0
+}
+
+// watchAndReload polls the app's source directory and hot-reloads the running
+// server whenever a file changes. It re-parses the app and swaps it into the
+// live session (preserving state/scene/viewport). A parse error mid-edit (e.g. a
+// half-written JSON file) is reported and the current app kept, so a bad save
+// never takes the app down — the next good save recovers. Dependency-free: a
+// coarse mtime poll, which is plenty for the small handful of files in an app.
+func watchAndReload(dir, trust, revoked string, srv *server.Server) {
+	last := latestModTime(dir)
+	for {
+		time.Sleep(400 * time.Millisecond)
+		m := latestModTime(dir)
+		if !m.After(last) {
+			continue
+		}
+		last = m
+		rt, err := loadRuntime(dir, trust, revoked)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  hot-reload: %v — keeping the current app\n", err)
+			continue
+		}
+		srv.Reload(rt)
+		fmt.Printf("  ↻ hot-reloaded (%s)\n", time.Now().Format("15:04:05"))
+	}
+}
+
+// latestModTime returns the newest mod time among the app's source files. Hidden
+// entries (.git, editor temp/swap files) are skipped so they don't trigger
+// spurious reloads.
+func latestModTime(dir string) time.Time {
+	var t time.Time
+	_ = filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		name := d.Name()
+		if name != "." && strings.HasPrefix(name, ".") {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if info, e := d.Info(); e == nil && info.ModTime().After(t) {
+			t = info.ModTime()
+		}
+		return nil
+	})
+	return t
 }

@@ -653,6 +653,42 @@ func (s *Server) Handler() http.Handler {
 	return mux
 }
 
+// Reload swaps in a freshly-parsed runtime after its source files changed on
+// disk (dev hot-reload), then re-renders and pushes the new UI to every client.
+// The live session is carried across Flutter-style: in-progress state, the
+// current scene + nav stack, and the viewport survive the reload, so editing a
+// file doesn't reset where the user is or what they've typed. State keys the
+// edit newly introduced get their fresh initials; if the current scene no longer
+// exists, it falls back to the entry. A parse failure never reaches here — the
+// caller keeps the current app on error (reload-by-inaction).
+func (s *Server) Reload(next *runtime.Runtime) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if old := s.rt; old != nil && next != nil {
+		for k, v := range old.State { // keep in-progress values; new keys keep initials
+			next.State[k] = v
+		}
+		next.Scene = old.Scene
+		next.NavStack = old.NavStack
+		if old.RouteParams != nil {
+			next.RouteParams = old.RouteParams
+		}
+		next.Viewport = old.Viewport
+		if next.Scene != "" {
+			if _, ok := next.App.Scenes[next.Scene]; !ok { // scene deleted by the edit
+				next.Scene = ""
+				next.NavStack = nil
+				next.RouteParams = map[string]any{}
+			}
+		}
+	}
+	s.rt = next
+	s.handlers = nil
+	s.initAgent()
+	s.logEvent("system", "hot-reload: app source changed")
+	s.bump()
+}
+
 // activate swaps in a new bundle, remembering the previous one for rollback.
 // Caller must hold s.mu.
 func (s *Server) activate(b *bundle.Bundle) {
