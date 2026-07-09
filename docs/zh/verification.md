@@ -54,6 +54,13 @@ qorm check <app-dir> --checks checks.json [-o report.json]
 | `within: "<id>"` | 该组件的盒子位于那个 id 的盒子之内 |
 | `below: "<id>"` | 起始位置在那个 id 的下方 |
 | `backgroundNot / colorNot: "<substr>"` | 那个子串**不存在**(例如用 `"255, 255, 255"` 来断言深色模式下非白色) |
+| `role: "<role>"` | 渲染后的 ARIA role(含渲染器隐式注入的,如 root→`main`、modal→`dialog`) |
+| `hasAriaLabel: true` | 元素带有 `aria-label` |
+| `contrastRatio: <n>` | 文本/背景对比度至少为 `n`(WCAG AA:正文 4.5、大字号 3.0),针对有效背景色计算 |
+
+无障碍断言读取的是**渲染后**的 DOM,因此能捕捉渲染器隐式注入的 role 和 label,
+而不只是 JSON 里声明的。`focusTrap` 目前被刻意拒绝:焦点陷阱是动态的 Tab 键序行为,
+不是静态快照,验证工具绝不应为一个它实际做不到的检查背书。
 
 ```json
 [

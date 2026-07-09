@@ -55,6 +55,15 @@ against the real render; the report gives per-check pass/fail with actual values
 | `within: "<id>"` | this component's box sits inside that id's box |
 | `below: "<id>"` | starts below that id |
 | `backgroundNot / colorNot: "<substr>"` | that substring is ABSENT (e.g. `"255, 255, 255"` to assert not-white in dark mode) |
+| `role: "<role>"` | the rendered ARIA role (incl. roles the renderer injects, e.g. root→`main`, modal→`dialog`) |
+| `hasAriaLabel: true` | the element exposes an `aria-label` |
+| `contrastRatio: <n>` | text/background contrast is at least `n` (WCAG AA: 4.5 normal, 3.0 large), computed against the effective background |
+
+Accessibility assertions read the **rendered** DOM, so they catch roles and
+labels the renderer injects implicitly — not just what the JSON declared.
+`focusTrap` is intentionally rejected for now: focus containment is a dynamic
+Tab-order behavior, not a static snapshot, and a verifier must never vouch for
+a check it cannot actually make.
 
 ```json
 [

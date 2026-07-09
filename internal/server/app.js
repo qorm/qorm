@@ -3,6 +3,39 @@
 // morphChildren diffs the new HTML into the live DOM in place, so unchanged
 // nodes are never re-created — no flicker, entrance animations don't replay on
 // every click, and input focus/scroll survive.
+// qormParseRGB parses a computed "rgb(r,g,b)"/"rgba(r,g,b,a)" string to [r,g,b,a].
+function qormParseRGB(s){
+  var m=/rgba?\(([^)]+)\)/.exec(s||''); if(!m) return null;
+  var p=m[1].split(',').map(function(x){return parseFloat(x);});
+  return [p[0]||0, p[1]||0, p[2]||0, p.length>3?p[3]:1];
+}
+// qormLum returns the WCAG relative luminance of an [r,g,b] triple.
+function qormLum(c){
+  var f=c.map(function(v){ v=v/255; return v<=0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055,2.4); });
+  return 0.2126*f[0]+0.7152*f[1]+0.0722*f[2];
+}
+// qormContrast returns the WCAG contrast ratio between el's text colour and its
+// EFFECTIVE background — walking up ancestors and compositing translucent layers
+// (element backgrounds are usually transparent, so the self colour vs bg is wrong
+// without this). Returns 0 when it can't be determined.
+function qormContrast(el, cs){
+  try{
+    var fg=qormParseRGB(cs.color); if(!fg) return 0;
+    var bg=[255,255,255], node=el, found=false;
+    while(node && node.nodeType===1){
+      var b=qormParseRGB(getComputedStyle(node).backgroundColor);
+      if(b && b[3]>0){
+        var a=b[3];
+        bg=[Math.round(b[0]*a+bg[0]*(1-a)), Math.round(b[1]*a+bg[1]*(1-a)), Math.round(b[2]*a+bg[2]*(1-a))];
+        if(a>=0.999){ found=true; break; }
+      }
+      node=node.parentElement;
+    }
+    var L1=qormLum([fg[0],fg[1],fg[2]]), L2=qormLum(bg);
+    var hi=Math.max(L1,L2), lo=Math.min(L1,L2);
+    return Math.round(((hi+0.05)/(lo+0.05))*100)/100;
+  }catch(e){ return 0; }
+}
 // Self-measurement: report each id'd element's rect + key styles to /measure,
 // so the framework can verify its own layout/styles without an external browser.
 function qormMeasure(){
@@ -20,7 +53,9 @@ function qormMeasure(){
         padding:cs.padding, margin:cs.margin, borderRadius:cs.borderRadius,
         border:(cs.borderTopWidth!=='0px'?cs.borderTopWidth+' '+cs.borderTopStyle+' '+cs.borderTopColor:'none'),
         opacity:cs.opacity, zIndex:cs.zIndex, position:cs.position,
-        overflowX:el.scrollWidth>el.clientWidth+1});
+        overflowX:el.scrollWidth>el.clientWidth+1,
+        role:el.getAttribute('role')||'', ariaLabel:el.getAttribute('aria-label')||'',
+        tabindex:el.getAttribute('tabindex')||'', contrast:qormContrast(el,cs)});
     });
     fetch('/measure',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(out)});
   }catch(e){}

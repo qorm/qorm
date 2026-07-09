@@ -185,10 +185,38 @@ func Eval(rt *qrt.Runtime, measured, checksJSON []byte) ([]byte, error) {
 					if strings.Contains(fmt.Sprint(r["color"]), fmt.Sprint(want)) {
 						fails = append(fails, fmt.Sprintf("color %v contains %v", r["color"], want))
 					}
+				case "role":
+					// The rendered DOM role (includes roles the renderer injects
+					// implicitly, e.g. root=main, modal=dialog), not just what the
+					// author wrote — so the assertion reflects what assistive tech sees.
+					if fmt.Sprint(r["role"]) != fmt.Sprint(want) {
+						fails = append(fails, fmt.Sprintf("role=%q want %q", r["role"], want))
+					}
+				case "hasAriaLabel":
+					has := fmt.Sprint(r["ariaLabel"]) != ""
+					if has != (want == true) {
+						fails = append(fails, fmt.Sprintf("hasAriaLabel=%v want %v", has, want))
+					}
+				case "contrastRatio":
+					// Minimum WCAG contrast (client computes it against the effective
+					// background). WCAG AA: 4.5 for normal text, 3.0 for large text.
+					wv, _ := num(want)
+					got, ok := num(r["contrast"])
+					if !ok || got == 0 {
+						fails = append(fails, "contrastRatio unavailable (no client measurement)")
+					} else if got < wv {
+						fails = append(fails, fmt.Sprintf("contrastRatio=%.2f want >=%.2f", got, wv))
+					}
+				case "focusTrap":
+					// Focus containment is a DYNAMIC behaviour (Tab-order simulation),
+					// not a static snapshot. Reject rather than silently pass — a
+					// verification tool must never report a check it cannot make.
+					fails = append(fails, "focusTrap assertion not supported yet (dynamic; tracked in planning/real-env-acceptance.md)")
 				}
 			}
 			res["actual"] = map[string]any{"x": r["x"], "y": r["y"], "w": r["w"], "h": r["h"],
-				"visible": r["visible"], "type": r["type"], "color": r["color"], "background": r["background"]}
+				"visible": r["visible"], "type": r["type"], "color": r["color"], "background": r["background"],
+				"role": r["role"], "ariaLabel": r["ariaLabel"], "contrast": r["contrast"]}
 		}
 		if len(fails) == 0 {
 			res["pass"] = true
