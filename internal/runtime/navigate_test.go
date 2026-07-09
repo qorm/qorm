@@ -97,6 +97,57 @@ func TestNavigateBackRestoresParams(t *testing.T) {
 	}
 }
 
+// TestRoutePath verifies the deep-link path RoutePath generates for the entry
+// scene, a plain scene, and a scene carrying route params (keys sorted).
+func TestRoutePath(t *testing.T) {
+	rt := New(navApp())
+	rt.Scene = "home" // == app.Entry, so it is addressed as "/"
+	if got := rt.RoutePath(); got != "/" {
+		t.Fatalf("entry scene path = %q, want /", got)
+	}
+	rt.Navigate("profile", map[string]any{"userId": "u-101", "name": "Aurora"})
+	if got := rt.RoutePath(); got != "/?name=Aurora&scene=profile&userId=u-101" {
+		t.Fatalf("profile path = %q", got)
+	}
+	rt.NavigateBack()
+	if got := rt.RoutePath(); got != "/" {
+		t.Fatalf("after back path = %q, want /", got)
+	}
+}
+
+// TestNavigateToPath round-trips a URL query into scene + string params and back
+// out via RoutePath, and exercises Back-detection against the stack.
+func TestNavigateToPath(t *testing.T) {
+	rt := New(navApp())
+	rt.Scene = "home"
+
+	rt.NavigateToPath("scene=profile&userId=u-9&name=Zed")
+	if rt.Scene != "profile" {
+		t.Fatalf("NavigateToPath scene = %q, want profile", rt.Scene)
+	}
+	if rt.RouteParams["userId"] != "u-9" || rt.RouteParams["name"] != "Zed" {
+		t.Fatalf("params not parsed as strings: %#v", rt.RouteParams)
+	}
+	if dir := rt.TakeNavDir(); dir != "push" {
+		t.Fatalf("forward deep link should be push, got %q", dir)
+	}
+
+	// Navigating to the URL of the frame below the top is a Back (pop).
+	rt.NavigateToPath("") // no scene -> entry, which is the previous frame
+	if rt.Scene != "home" || len(rt.RouteParams) != 0 {
+		t.Fatalf("back via path: scene=%q params=%#v", rt.Scene, rt.RouteParams)
+	}
+	if dir := rt.TakeNavDir(); dir != "pop" {
+		t.Fatalf("back deep link should be pop, got %q", dir)
+	}
+
+	// Unknown scene is ignored (stays put).
+	rt.NavigateToPath("scene=nope")
+	if rt.Scene != "home" {
+		t.Fatalf("unknown scene should be ignored, scene=%q", rt.Scene)
+	}
+}
+
 // TestNavigateNilParams ensures a param-less navigate yields an empty (non-nil)
 // route map so `{{ route.x }}` reads nil cleanly instead of panicking.
 func TestNavigateNilParams(t *testing.T) {

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/url"
 	"regexp"
 	"sort"
 	"strconv"
@@ -96,6 +97,81 @@ func (r *Runtime) NavigateBack() {
 
 // TakeNavDir returns and clears the pending navigation direction.
 func (r *Runtime) TakeNavDir() string { d := r.NavDir; r.NavDir = ""; return d }
+
+// RoutePath renders the current scene + route params as a deep-link URL path —
+// the inverse of NavigateToPath. The entry scene with no params is "/"; any
+// other scene is "/?scene=<id>&k=v" with the scene id and every route param
+// (values stringified). url.Values.Encode sorts keys, so the path is stable.
+func (r *Runtime) RoutePath() string {
+	scene := r.Scene
+	if scene == r.App.Entry { // the entry scene is addressed as "/", not by id
+		scene = ""
+	}
+	q := url.Values{}
+	if scene != "" {
+		q.Set("scene", scene)
+	}
+	for k, v := range r.RouteParams {
+		q.Set(k, expr.Stringify(v))
+	}
+	if len(q) == 0 {
+		return "/"
+	}
+	return "/?" + q.Encode()
+}
+
+// NavigateTo drives navigation to an explicit scene id with typed params — the
+// engine behind URL routing (deep-link entry and browser back/forward). Unlike
+// Navigate (the action-step push), it can return to the entry scene (addressed
+// as "" or the entry id) and, when the target is the frame directly below the
+// top of the stack, it unwinds via NavigateBack so a browser Back matches the
+// in-memory stack (pop transition included). Unknown scenes and a no-op
+// navigation (already showing the target) are ignored.
+func (r *Runtime) NavigateTo(scene string, params map[string]any) {
+	if scene == r.App.Entry {
+		scene = ""
+	}
+	// The entry scene has two spellings ("" and the entry id); treat them as one
+	// so a no-op / Back is detected however the current frame recorded it.
+	isEntry := func(s string) bool { return s == "" || s == r.App.Entry }
+	if scene == r.Scene || (isEntry(scene) && isEntry(r.Scene)) {
+		return
+	}
+	if scene != "" {
+		if _, ok := r.App.Scenes[scene]; !ok {
+			return
+		}
+	}
+	if n := len(r.NavStack); n > 0 {
+		if top := r.NavStack[n-1].Scene; top == scene || (isEntry(top) && isEntry(scene)) {
+			r.NavigateBack() // URL points at the previous frame: this is a Back
+			return
+		}
+	}
+	if params == nil {
+		params = map[string]any{}
+	}
+	r.NavStack = append(r.NavStack, navFrame{Scene: r.Scene, Params: r.RouteParams})
+	r.Scene = scene
+	r.RouteParams = params
+	r.NavDir = "push"
+}
+
+// NavigateToPath drives navigation from a URL query string (the part after "?"
+// produced by RoutePath): `scene` selects the target scene (absent = entry) and
+// every other parameter becomes a string route param. It is the inverse of
+// RoutePath, used for deep links and browser history sync.
+func (r *Runtime) NavigateToPath(rawQuery string) {
+	vals, _ := url.ParseQuery(rawQuery)
+	params := map[string]any{}
+	for k, vs := range vals {
+		if k == "scene" || len(vs) == 0 {
+			continue
+		}
+		params[k] = vs[0] // route param values are strings when they come from a URL
+	}
+	r.NavigateTo(vals.Get("scene"), params)
+}
 
 // New creates a runtime with state seeded from the manifest's initial values.
 func New(app *model.App) *Runtime {

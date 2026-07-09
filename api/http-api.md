@@ -8,6 +8,7 @@
 |---|---|---|
 | `/` | GET | the app shell — server-rendered HTML + the thin client runtime |
 | `/event` | POST | dispatch a UI event (action / input change) and re-render |
+| `/navigate` | POST | URL routing — the browser drives navigation from the address bar (`{scene,params}` or `{back:true}`) on Back/Forward |
 | `/events` | GET (SSE) | Server-Sent Events stream: the server pushes fresh HTML + log lines |
 | `/poll` | GET | long-poll fallback when SSE is unavailable — returns the current revision + HTML if it advanced |
 | `/log` | GET / POST | GET activity entries after `?since=`; POST forwards a client console line |

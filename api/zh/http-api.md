@@ -8,6 +8,7 @@
 |---|---|---|
 | `/` | GET | 应用外壳——服务端渲染的 HTML + 轻量客户端运行时 |
 | `/event` | POST | 派发一个 UI 事件(动作 / 输入变化)并重新渲染 |
+| `/navigate` | POST | URL 路由——浏览器在前进/后退时依据地址栏驱动导航(`{scene,params}` 或 `{back:true}`) |
 | `/events` | GET (SSE) | SSE 事件流:服务端推送最新 HTML + 日志行 |
 | `/poll` | GET | SSE 不可用时的长轮询兜底——返回当前修订号,若有更新则附带 HTML |
 | `/log` | GET / POST | GET 拉取 `?since=` 之后的活动条目;POST 转发一条客户端控制台日志 |
