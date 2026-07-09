@@ -1,13 +1,13 @@
 {
   "type": "app", "id": "qorm_tasks", "name": "Task Board", "entry": "main",
   "globalState": {
-    "schema": { "tasks": "array", "newTitle": "string", "filter": "string" },
+    "schema": { "tasks": "array", "newTitle": "string", "filter": "string", "error": "string", "saving": "bool" },
     "initial": {
       "tasks": [
         { "id": "a", "title": "Ship native renderer", "done": false },
         { "id": "b", "title": "Write the docs", "done": true }
       ],
-      "newTitle": "", "filter": "all"
+      "newTitle": "", "filter": "all", "error": "", "saving": false
     }
   }
 }

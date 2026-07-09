@@ -2,7 +2,11 @@
   "type": "app", "id": "qorm_form", "name": "Sign up",
   "entry": "main",
   "globalState": {
-    "schema": { "email": "string", "password": "string" },
-    "initial": { "email": "", "password": "" }
+    "schema": { "email": "string", "password": "string", "fieldErrors": "object", "status": "string" },
+    "initial": {
+      "email": "", "password": "",
+      "fieldErrors": { "email": "", "password": "" },
+      "status": ""
+    }
   }
 }
