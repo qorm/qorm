@@ -164,7 +164,10 @@ func desktopNotify(title, body, id string) {
 	case "darwin":
 		nativeNotify(title, body, id) // in-process → click routes back to the app
 	case "linux":
-		exec.Command("notify-send", title, body).Run()
+		// DBus org.freedesktop.Notifications with a "default" action, so a
+		// click routes back to notifyClickHandler like on macOS; nativeNotify
+		// itself falls back to notify-send when no daemon answers on the bus.
+		nativeNotify(title, body, id)
 	case "windows":
 		// WinRT toast first (real Action Center notification). The AppId is
 		// PowerShell's own AUMID, so no Start-menu shortcut registration is
@@ -195,6 +198,20 @@ func desktopNotify(title, body, id string) {
 func desktopHardwareLinux(op string, m map[string]interface{}, cb func(string)) {
 	num := func(s string) int { n, _ := strconv.Atoi(strings.TrimSpace(s)); return n }
 	switch op {
+	case "secureSet":
+		k, _ := m["key"].(string)
+		v, _ := m["value"].(string)
+		if nativeSecureSet(k, v) {
+			cb("qormOnSecure(" + strconv.Quote(k) + ", " + strconv.Quote("saved") + ")")
+		} else {
+			cb("qormOnSecure(" + strconv.Quote(k) + ", " + strconv.Quote("error") + ")")
+		}
+		return
+	case "secureGet":
+		k, _ := m["key"].(string)
+		val := nativeSecureGet(k)
+		cb("qormOnSecure(" + strconv.Quote(k) + ", " + strconv.Quote(val) + ")")
+		return
 	case "volumeSet":
 		if v, ok := m["value"].(float64); ok {
 			exec.Command("pactl", "set-sink-volume", "@DEFAULT_SINK@", fmt.Sprintf("%d%%", int(v*100))).Run()
