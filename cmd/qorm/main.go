@@ -97,9 +97,10 @@ func usage() {
 
 usage:
   qorm new <dir> [--name "App Name"]              scaffold a new runnable app
-  qorm run <app-dir|bundle> [--trust pub.key] [--revoked list.json] [--app] [--port N=10383] [--no-open] [--mcp-read-only]
+  qorm run <app-dir|bundle> [--trust pub.key] [--revoked list.json] [--app] [--port N=10383] [--no-open] [--mcp-read-only] [--no-watch]
                                                   run app live (verifies signed bundles; --app = standalone window;
-                                                  --mcp-read-only = agents may inspect but not mutate)
+                                                  --mcp-read-only = agents may inspect but not mutate;
+                                                  a directory hot-reloads on file change — --no-watch disables it)
   qorm render <app-dir|scene.json> [-o out.html]  write a static HTML snapshot
   qorm shot <app-dir> -o out.png                 render an app to a PNG (macOS, -tags desktop)
   qorm measure <app-dir> [-o report.json]          render + self-measure layout & styles (needs -tags desktop)

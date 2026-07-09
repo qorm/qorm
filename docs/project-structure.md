@@ -52,6 +52,15 @@ the global state:
 | `platforms` | per-platform config — desktop `window`, and packaging options |
 | `defaultLocale` | initial language for multi-locale apps |
 
+## Live development (hot-reload)
+
+`qorm run <dir>` watches the app folder: edit a scene, action or the manifest and
+save, and every connected browser/window updates instantly — no restart. The live
+session is preserved across the reload (your in-progress state, the current scene
+and the viewport survive), so you keep exactly where you were. A half-written file
+that fails to parse is reported and the running app is kept until the next good
+save. Pass `--no-watch` to turn it off.
+
 ## `scenes/` — screens
 
 Each scene is one JSON file: `{ "type": "scene", "id": …, "root": <node> }`. The
