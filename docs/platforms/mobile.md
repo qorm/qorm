@@ -9,6 +9,22 @@ qorm package examples/hardware -p ios     -o hardware-ios      # an Xcode projec
 qorm package examples/hardware -p android -o hardware-android  # an Android project
 ```
 
+Distributable (store-ready) builds add `--release`:
+
+```sh
+qorm package app -p ios --release --team TEAMID \
+    [--export-method app-store-connect] [--upload]   # archives and exports an .ipa
+qorm package app -p android --release [--apk]        # signs an .aab with a managed keystore
+    # keystore auto-generated at <app>/.qorm/release.keystore — BACK IT UP
+qorm package app -p ios|android --release --app-version 1.2.0 --build 42
+```
+
+Over-the-air updates for a packaged app: pass `--update-url <server> --trust
+<key.pub>` (strictly paired) and the shell checks the update server after
+first paint, verifies each update against the trust key (ed25519), hot-swaps
+without a reload, and keeps a one-step rollback copy — see
+[security-model.md](../security/security-model.md).
+
 The app runs offline on device via Go→WASM in a WebView. Examples:
 [`hardware`](https://github.com/qorm/qorm/tree/main/examples/hardware) (the capability catalog exercised),
 [`i18n`](https://github.com/qorm/qorm/tree/main/examples/i18n) (locales, plurals, currency, RTL). See the

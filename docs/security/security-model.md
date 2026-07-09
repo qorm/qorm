@@ -107,6 +107,30 @@ A Plugin can only narrow its own capabilities; it must not widen the scope allow
 - An injected/custom HttpClient is only a transport adapter; it cannot skip domain, method, credential, and approval checks.
 - A browser native permission prompt is not equivalent to a QORM approval; both must be satisfied before access is granted.
 
+## OTA Trust for Packaged Apps
+
+A package built with `--update-url` MUST also carry `--trust <key.pub>` —
+the flags are enforced as a pair. The trust split is deliberate:
+
+- **The bundled payload** (bundle.json shipped inside the .ipa / .apk / PWA)
+  is trusted via its installation channel — store signing, TLS origin — the
+  same channel that delivered the WASM runtime itself. It is not re-verified
+  at boot.
+- **Every OTA-origin bundle** (fetched from the update server, or restored
+  from local storage where an earlier update persisted it) is verified with
+  ed25519 against the embedded trust key before activation; a bundle that
+  fails verification is discarded and the app falls back one tier (previous
+  update → bundled payload). A failed update never touches the running app.
+
+## CLI Self-Update Trust
+
+`qorm update` downloads a release binary only after verifying the release's
+`SHA256SUMS` manifest against an ed25519 signature from the keys embedded in
+the running binary, then checking the binary's own sha256 against that
+manifest. Missing or unverifiable signatures fail closed
+(`--insecure-skip-verify` is the explicit escape hatch); the embedded key
+list supports rotation by shipping old + new keys in a transition release.
+
 ## Prohibited Behaviors
 
 - A Bundle dynamically adding an unreviewed Native API.

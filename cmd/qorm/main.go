@@ -113,6 +113,10 @@ usage:
   qorm mcp <app-dir|bundle> [--trust pub.key]      serve the app to agents over MCP (stdio)
   qorm package <app-dir> -p web|ios|android|mac [-o out] [--dev URL] [--team ID] [--no-branding] [--subscribed]
                                                   package as an installable app for a platform
+       --release [--app-version V --build N]      distributable build — iOS .ipa (--export-method / --upload /
+                                                  --api-key*), Android signed .aab (--keystore / --key-alias /
+                                                  --apk), macOS Developer ID + DMG (--identity / --notarize)
+       --update-url URL --trust pub.key           wire the package to an OTA update server (flags are paired)
   qorm preview <package-dir> [--width N] [-o report.json]
                                                   render a packaged app and report its layout
   qorm docs [--docs docs] [-o site]                render the markdown docs to a static HTML site
