@@ -17,6 +17,7 @@ Each widget lists its **canonical name** first; the rest are equivalent aliases.
 | `aspectratio` | — | `aspectRatio` |
 | `autocomplete` | — | `autocomplete` |
 | `avatar` | — | `avatar` |
+| `backbutton` | — | `backButton` |
 | `badge` | — | `badge` |
 | `barometer` | — | `hwList` |
 | `battery` | — | `hwList` |
@@ -34,6 +35,7 @@ Each widget lists its **canonical name** first; the rest are equivalent aliases.
 | `chip` | inputchip, choicechip, filterchip | `chip` |
 | `circularprogress` | circularprogressindicator | `circularProgress` |
 | `clipboard` | — | `hwList` |
+| `closebutton` | — | `closeButton` |
 | `compass` | heading | `hwList` |
 | `contacts` | — | `hwList` |
 | `contextmenu` | cupertinocontextmenu | `contextMenu` |
