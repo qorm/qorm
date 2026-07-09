@@ -5,6 +5,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/qorm/qorm/internal/loader"
 	"github.com/qorm/qorm/internal/model"
@@ -47,6 +49,13 @@ func applyOne(app *model.App, op PatchOp) error {
 		n := findInScenes(app, op.Target)
 		if n == nil {
 			return fmt.Errorf("target %q not found", op.Target)
+		}
+		if op.Key == "style" {
+			if m, ok := op.Value.(map[string]any); ok {
+				if err := enforceDesignTokens(app, m); err != nil {
+					return err
+				}
+			}
 		}
 		setProp(n, op.Key, op.Value)
 		return nil
@@ -246,6 +255,78 @@ func removeChild(parent *model.Node, id string) bool {
 		}
 	}
 	return false
+}
+
+// ---- design-token enforcement ----
+
+// colorStyleKeys are the style keys whose value is a color. Design-token
+// enforcement applies only to these; it mirrors the color-valued style keys the
+// renderer understands (see internal/render render_style.go: background,
+// borderColor, color) plus the common `backgroundColor` alias.
+var colorStyleKeys = map[string]bool{
+	"color":           true,
+	"background":      true,
+	"backgroundColor": true,
+	"borderColor":     true,
+}
+
+// enforceDesignTokens rejects a style merge that sets a color style key to a
+// value that is not one of the app's enforced color tokens. If the app declares
+// no enforced color tokens the behaviour is unchanged (backward compatible), so
+// apps that don't opt in are never affected.
+func enforceDesignTokens(app *model.App, style map[string]any) error {
+	allowed, display := enforcedColorTokens(app)
+	if len(allowed) == 0 {
+		return nil
+	}
+	// Deterministic key order so a violation reports the first offending key
+	// stably (map iteration is randomised).
+	keys := make([]string, 0, len(style))
+	for k := range style {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		if !colorStyleKeys[k] {
+			continue
+		}
+		val, ok := style[k].(string)
+		if !ok || val == "" {
+			continue
+		}
+		if !allowed[normalizeColor(val)] {
+			return fmt.Errorf("design token violation: color %q is not an allowed token (allowed: %s)", val, strings.Join(display, ", "))
+		}
+	}
+	return nil
+}
+
+// enforcedColorTokens returns the set of normalized enforced color-token values
+// (for matching) and the sorted list of their original values (for the error
+// message). Both are empty when the app declares no enforced color tokens.
+func enforcedColorTokens(app *model.App) (map[string]bool, []string) {
+	if len(app.DesignTokens) == 0 {
+		return nil, nil
+	}
+	set := map[string]bool{}
+	var display []string
+	for _, tok := range app.DesignTokens {
+		if tok.Type != "color" || !tok.Enforce {
+			continue
+		}
+		set[normalizeColor(tok.Value)] = true
+		display = append(display, tok.Value)
+	}
+	sort.Strings(display)
+	return set, display
+}
+
+// normalizeColor canonicalises a color for comparison: trims whitespace,
+// lowercases, and drops a leading '#' so "#0A84FF", "0a84ff" and "#0a84ff" all
+// compare equal.
+func normalizeColor(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	return strings.TrimPrefix(s, "#")
 }
 
 // ---- deep clone (for side-effect-free preview) ----

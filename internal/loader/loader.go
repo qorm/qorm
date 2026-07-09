@@ -275,6 +275,20 @@ func applyManifest(app *model.App, doc map[string]any, diags *[]string) {
 			}
 		}
 	}
+	if dt, ok := doc["designTokens"].(map[string]any); ok {
+		app.DesignTokens = map[string]model.DesignToken{}
+		for name, def := range dt {
+			m, ok := def.(map[string]any)
+			if !ok {
+				continue
+			}
+			app.DesignTokens[name] = model.DesignToken{
+				Type:    asString(m["type"]),
+				Value:   asString(m["value"]),
+				Enforce: asBool(m["enforce"]),
+			}
+		}
+	}
 	if scs, ok := doc["shortcuts"].([]any); ok {
 		for _, it := range scs {
 			if m, ok := it.(map[string]any); ok {
