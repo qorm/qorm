@@ -25,7 +25,7 @@ var allWidgetTypes = []string{
 	"dropdownbutton", "empty", "expansionpanel", "expansiontile", "fab", "faceid", "field", "file",
 	"filepicker", "filterchip", "fingerprint", "flashlight", "floatingactionbutton", "form", "formfield", "geolocation", "gesture",
 	"gesturedetector", "gridview", "haptics", "icon", "image", "inkwell", "input", "inputchip",
-	"keepawake", "keychain", "keyvalue", "largetitle", "link", "list", "listitem", "listsection",
+	"indexedstack", "keepawake", "keychain", "keyvalue", "largetitle", "link", "list", "listitem", "listsection",
 	"listtile", "location", "loginitem", "materialstepper", "menu", "metric", "modal", "navigationbar",
 	"navigationrail", "network", "nfc", "notify", "offstage", "openlink", "openurl", "orientation", "pageview",
 	"pagination", "photo", "photopicker", "picker", "progress", "radio", "radiolisttile", "rangeslider",

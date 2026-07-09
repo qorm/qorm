@@ -59,6 +59,7 @@ Each widget lists its **canonical name** first; the rest are equivalent aliases.
 | `haptics` | — | `hwList` |
 | `icon` | — | `icon` |
 | `image` | — | `image` |
+| `indexedstack` | — | `indexedStack` |
 | `input` | — | `input` |
 | `insets` | safearea | `hwList` |
 | `keepawake` | wakelock | `hwList` |

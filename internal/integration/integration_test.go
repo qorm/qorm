@@ -785,6 +785,36 @@ func TestFormOffstage(t *testing.T) {
 	}
 }
 
+// TestIndexedStack covers IndexedStack: all children mount (their ids stay in
+// the DOM) but only the bound index paints; the rest are display:none.
+func TestIndexedStack(t *testing.T) {
+	root := &model.Node{Type: "scaffold", ID: "r", Children: []*model.Node{
+		{Type: "indexedstack", ID: "wiz", Props: map[string]any{"index": "{{state.step}}"}, Children: []*model.Node{
+			{Type: "text", ID: "s0", Text: "step-zero"},
+			{Type: "text", ID: "s1", Text: "step-one"},
+		}},
+	}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root},
+		GlobalState: model.GlobalState{Initial: map[string]any{"step": float64(1)}}}
+	rt := qrt.New(app)
+	rt.State["step"] = float64(1)
+	html := render.Render(rt).HTML
+	// both children present (state preserved), only index 1 painted
+	for _, m := range []string{">step-zero<", ">step-one<"} {
+		if !strings.Contains(html, m) {
+			t.Errorf("indexedstack should mount every child, missing %q", m)
+		}
+	}
+	z := html[strings.Index(html, ">step-zero<")-80 : strings.Index(html, ">step-zero<")]
+	if !strings.Contains(z, "display:none") {
+		t.Error("indexedstack should hide the non-selected child (index 0)")
+	}
+	o := html[strings.Index(html, ">step-one<")-80 : strings.Index(html, ">step-one<")]
+	if strings.Contains(o, "display:none") {
+		t.Error("indexedstack should paint the selected child (index 1)")
+	}
+}
+
 // TestRenderItemUniqueIDs guards the fix for JS-wired widgets inside a list:
 // each item's Dismissible must get a unique id + matching swipe script, so
 // swipe-to-delete works on every row (canonical inbox pattern), not just the

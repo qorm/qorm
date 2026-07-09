@@ -769,6 +769,28 @@ func (r *renderer) offstage(n *model.Node) {
 	r.sb.WriteString(`</div>`)
 }
 
+// indexedStack is Flutter's IndexedStack: it mounts every child but paints only
+// the one at `index` (bindable, default 0). Hidden children keep their DOM/ids
+// and state — the reason to reach for this over swapping subtrees: a wizard step
+// or tab body that must not lose its inputs when you flip away and back.
+func (r *renderer) indexedStack(n *model.Node) {
+	idx := 0
+	if raw, ok := n.Prop("index"); ok {
+		idx = int(asFloat(runtime.EvalBinding(fmt.Sprint(raw), r.ctx())))
+	}
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, r.nid(n), r.boxCSS(n)+"position:relative;", a11y(n))
+	for i, c := range n.Children {
+		disp := "display:none;"
+		if i == idx {
+			disp = ""
+		}
+		fmt.Fprintf(&r.sb, `<div style="%s">`, disp)
+		r.node(c)
+		r.sb.WriteString(`</div>`)
+	}
+	r.sb.WriteString(`</div>`)
+}
+
 // selectableText is Flutter's SelectableText: text the user can select/copy.
 func (r *renderer) selectableText(n *model.Node) {
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q>%s</div>`, n.ID,
