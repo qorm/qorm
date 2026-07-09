@@ -752,6 +752,39 @@ func TestBackCloseButton(t *testing.T) {
 	}
 }
 
+// TestFormOffstage covers Form (submit-gating via a real <form> + onPress) and
+// Offstage (renders the subtree but hides it from paint, default hidden).
+func TestFormOffstage(t *testing.T) {
+	root := &model.Node{Type: "scaffold", ID: "r", Children: []*model.Node{
+		{Type: "form", ID: "f", OnPress: &model.Invoke{Name: "save"}, Children: []*model.Node{
+			{Type: "input", ID: "email"},
+		}},
+		{Type: "offstage", ID: "hid", Children: []*model.Node{{Type: "text", ID: "secret", Text: "peekaboo"}}},
+		{Type: "offstage", ID: "shown", Props: map[string]any{"offstage": "false"},
+			Children: []*model.Node{{Type: "text", ID: "vis", Text: "onstage"}}},
+	}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root},
+		Actions: map[string]*model.Action{"save": {ID: "save"}}}
+	html := render.Render(qrt.New(app)).HTML
+	for _, m := range []string{
+		`<form id="f"`, `onsubmit="qorm(`, `;return false"`, `id="email"`, // form submits its action, no reload
+		`>peekaboo<`, // offstage keeps the subtree in the DOM (ids stay wired)...
+	} {
+		if !strings.Contains(html, m) {
+			t.Errorf("form/offstage should render %q\n%s", m, html)
+		}
+	}
+	// default offstage is hidden; offstage:false paints normally
+	hid := html[strings.Index(html, `id="hid"`):]
+	if !strings.Contains(hid[:120], "display:none") {
+		t.Error("offstage default should hide the subtree from paint")
+	}
+	shown := html[strings.Index(html, `id="shown"`):]
+	if strings.Contains(shown[:120], "display:none") {
+		t.Error("offstage:false should paint the subtree")
+	}
+}
+
 // TestRenderItemUniqueIDs guards the fix for JS-wired widgets inside a list:
 // each item's Dismissible must get a unique id + matching swipe script, so
 // swipe-to-delete works on every row (canonical inbox pattern), not just the

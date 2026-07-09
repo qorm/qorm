@@ -366,6 +366,10 @@ func (r *renderer) renderInner(n *model.Node) {
 		r.backButton(n)
 	case "closebutton":
 		r.closeButton(n)
+	case "form":
+		r.form(n)
+	case "offstage":
+		r.offstage(n)
 	case "fab", "floatingactionbutton":
 		r.fab(n)
 	case "scaffold":
