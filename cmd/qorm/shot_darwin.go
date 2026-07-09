@@ -145,14 +145,20 @@ func runShotURL(url string, w, h int, out string) bool {
 // gets SIGBUS-killed. Lets a recorder grab the live app + DevTool windows without
 // spinning up throwaway WebViews.
 func runShotLive(title, out string) bool {
+	// Prefer an exact window-title match (so "QORM Premium Counter" picks the app
+	// window, not the "QORM Premium Counter — Activity log" one), then fall back to
+	// the first substring match on owner+title.
 	const py = `import Quartz,sys
 t=sys.argv[1].lower()
 wl=Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListOptionOnScreenOnly|Quartz.kCGWindowListExcludeDesktopElements,Quartz.kCGNullWindowID)
+sub=None
 for w in wl:
-    hay=((w.get('kCGWindowOwnerName') or '')+' '+(w.get('kCGWindowName') or '')).lower()
+    name=(w.get('kCGWindowName') or ''); owner=(w.get('kCGWindowOwnerName') or '')
     b=w.get('kCGWindowBounds') or {}
-    if t in hay and b.get('Width',0)>60:
-        print(w['kCGWindowNumber']); break`
+    if b.get('Width',0)<=60: continue
+    if name.lower()==t: print(w['kCGWindowNumber']); sys.exit()
+    if sub is None and t in (owner+' '+name).lower(): sub=w['kCGWindowNumber']
+print(sub if sub is not None else '')`
 	idb, err := exec.Command("python3", "-c", py, title).Output()
 	id := strings.TrimSpace(string(idb))
 	if err != nil || id == "" {
