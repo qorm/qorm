@@ -447,7 +447,7 @@ func fmtDate(y, m, d int) string { return fmt.Sprintf("%04d-%02d-%02d", y, m, d)
 
 func (r *renderer) picker(n *model.Node) {
 	cur := r.interp(n.Value)
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, r.boxCSS(n)+"position:relative;height:180px;min-height:180px;flex-shrink:0;overflow:hidden;")
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, n.ID, r.boxCSS(n)+"position:relative;height:180px;min-height:180px;flex-shrink:0;overflow:hidden;", a11y(n))
 	// center selection band
 	r.sb.WriteString(`<div style="position:absolute;left:0;right:0;top:72px;height:36px;background:var(--fill);border-radius:8px;pointer-events:none;"></div>`)
 	r.sb.WriteString(`<div style="height:100%;overflow-y:auto;scroll-snap-type:y mandatory;padding:72px 0;">`)

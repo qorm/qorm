@@ -218,7 +218,7 @@ func (r *renderer) rangeSlider(n *model.Node) {
 	hiPath := boundPath(propStr(n, "high"))
 	lo := asFloat(runtime.EvalBinding(propStr(n, "low"), r.ctx()))
 	hi := asFloat(runtime.EvalBinding(propStr(n, "high"), r.ctx()))
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, r.boxCSS(n)+"position:relative;height:32px;")
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, n.ID, r.boxCSS(n)+"position:relative;height:32px;", a11y(n))
 	track := "position:absolute;left:0;right:0;top:14px;width:100%;margin:0;-webkit-appearance:none;background:transparent;pointer-events:none;"
 	fmt.Fprintf(&r.sb, `<input type="range" min=%q max=%q step=%q value=%q style=%q class="qorm-range-lo"%s%s>`,
 		num(min), num(max), num(step), num(lo), track, dataStateAttr(loPath), r.changeAttr(n, loPath != ""))
