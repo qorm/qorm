@@ -445,6 +445,7 @@
       {
         "type": "rangeslider",
         "id": "rng",
+        "ariaLabel": "Value range",
         "low": "{{state.lo}}",
         "high": "{{state.hi}}",
         "min": 0,
@@ -542,6 +543,7 @@
       {
         "type": "dropdownbutton",
         "id": "ddb",
+        "ariaLabel": "Sort field",
         "value": "{{state.sortField}}",
         "onChange": {
           "type": "invoke",
@@ -800,6 +802,7 @@
       {
         "type": "picker",
         "id": "pk",
+        "ariaLabel": "City",
         "value": "{{state.city}}",
         "onChange": {
           "type": "invoke",
@@ -836,6 +839,7 @@
       {
         "type": "slider",
         "id": "volsl",
+        "ariaLabel": "Volume",
         "value": "{{state.vol}}",
         "min": 0,
         "max": 100
