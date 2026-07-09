@@ -54,6 +54,7 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `aspectratio` | `ratio` |
 | `autocomplete` | `options` |
 | `avatar` | `initials` · `name` · `size` · `src` |
+| `backbutton` | — |
 | `badge` | `color` · `showZero` · `smallSize` |
 | `barometer` | `label` |
 | `battery` | `label` |
@@ -71,6 +72,7 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `chip` | `avatar` · `selected` · `showCheck` |
 | `circularprogress` | `color` · `size` · `stroke` · `value` |
 | `clipboard` | `label` |
+| `closebutton` | — |
 | `compass` | `label` |
 | `contacts` | `label` |
 | `contextmenu` | `items` · `menuStyle` |
