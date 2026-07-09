@@ -26,8 +26,8 @@ func TestDragDropExample(t *testing.T) {
 	rt := qrt.New(app)
 	html := render.RenderScene(rt, rt.CurrentScene()).HTML
 	for _, m := range []string{
-		`class="qorm-droptarget"`, `qormDragTarget(`, // drop zones wired
-		`qormDraggable(document.getElementById`, `"t1")`, `"t3")`, // cards carry their id payload
+		`class="qorm-droptarget" data-qorm-drop="`,   // drop zones carry their handler
+		`data-qorm-drag="t1"`, `data-qorm-drag="t3"`, // cards carry their id payload
 		">Design the icon<", ">Ship v0.2.2<", // card labels render
 	} {
 		if !strings.Contains(html, m) {

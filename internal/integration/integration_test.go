@@ -866,8 +866,8 @@ func TestDraggableDragTarget(t *testing.T) {
 		Actions: map[string]*model.Action{"drop": {ID: "drop"}}}
 	html := render.Render(qrt.New(app)).HTML
 	for _, m := range []string{
-		`class="qorm-draggable"`, `qormDraggable(document.getElementById("card"),"u-101")`, // payload embedded
-		`class="qorm-droptarget"`, `qormDragTarget(document.getElementById("bin"),`, // drop zone wired
+		`class="qorm-draggable" data-qorm-drag="u-101"`, `qormDragInit`, // payload on the card, delegated init
+		`class="qorm-droptarget" data-qorm-drop="`, // drop zone carries its handler index
 		`>drag me<`, `>drop here<`,
 	} {
 		if !strings.Contains(html, m) {

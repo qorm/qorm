@@ -716,25 +716,41 @@ function qormLong(el,h){
   el.addEventListener('pointerup',cancel);
   el.addEventListener('pointerleave',cancel);
 }
-// Draggable/DragTarget: pick up a qorm-draggable (carrying string payload `data`)
-// and drop it on a qorm-droptarget, which fires its handler with {_dragData}.
-var __qormDrag=null;
-function qormDraggable(el,data){
-  if(!el) return;
-  el.setAttribute('draggable','true');
-  el.addEventListener('dragstart',function(e){ __qormDrag=data;
-    el.classList.add('qorm-dragging');
-    try{ e.dataTransfer.setData('text/plain',data); e.dataTransfer.effectAllowed='move'; }catch(_){} });
-  el.addEventListener('dragend',function(){ __qormDrag=null; el.classList.remove('qorm-dragging'); });
-}
-function qormDragTarget(el,h){
-  if(!el) return;
-  el.addEventListener('dragover',function(e){ e.preventDefault();
-    el.classList.add('qorm-dragover'); try{ e.dataTransfer.dropEffect='move'; }catch(_){} });
-  el.addEventListener('dragleave',function(){ el.classList.remove('qorm-dragover'); });
-  el.addEventListener('drop',function(e){ e.preventDefault(); el.classList.remove('qorm-dragover');
-    var data=__qormDrag; if(data===null){ try{ data=e.dataTransfer.getData('text/plain'); }catch(_){ data=''; } }
-    qormPostDrop(h,data); });
+// Draggable/DragTarget via pointer events (works in the desktop WebView + touch,
+// unlike HTML5 drag-and-drop): press a .qorm-draggable (data-qorm-drag=payload),
+// drag it onto a .qorm-droptarget (data-qorm-drop=handler), release to fire that
+// handler with {_dragData}. One delegated document listener, set up once, so it
+// keeps working across re-render morphs (which don't re-run inline scripts).
+function qormDragInit(){
+  if(window.__qormDragReady) return; window.__qormDragReady=true;
+  document.addEventListener('pointerdown', function(e){
+    var el=e.target && e.target.closest && e.target.closest('.qorm-draggable'); if(!el) return;
+    if(e.button && e.button!==0) return;
+    var x0=e.clientX, y0=e.clientY, started=false, cur=null;
+    var data=el.getAttribute('data-qorm-drag')||'';
+    function start(){ started=true; el.classList.add('qorm-dragging');
+      el.style.transition='none'; el.style.position='relative'; el.style.zIndex='1000';
+      document.body.style.userSelect='none';
+      try{ el.setPointerCapture(e.pointerId); }catch(_){} }
+    function targetAt(x,y){ var v=el.style.visibility; el.style.visibility='hidden';
+      var n=document.elementFromPoint(x,y); el.style.visibility=v;
+      return (n&&n.closest)? n.closest('.qorm-droptarget[data-qorm-drop]') : null; }
+    function onMove(ev){ var dx=ev.clientX-x0, dy=ev.clientY-y0;
+      if(!started){ if(Math.abs(dx)>4||Math.abs(dy)>4) start(); else return; }
+      ev.preventDefault();
+      el.style.transform='translate('+dx+'px,'+dy+'px)';
+      var t=targetAt(ev.clientX,ev.clientY);
+      if(t!==cur){ if(cur) cur.classList.remove('qorm-dragover'); cur=t; if(cur) cur.classList.add('qorm-dragover'); } }
+    function onUp(){ cleanup(); if(!started) return;
+      document.body.style.userSelect='';
+      el.classList.remove('qorm-dragging');
+      el.style.transition=''; el.style.transform=''; el.style.position=''; el.style.zIndex='';
+      var t=cur; if(cur) cur.classList.remove('qorm-dragover');
+      if(t){ var h=parseInt(t.getAttribute('data-qorm-drop')); if(!isNaN(h)) qormPostDrop(h,data); } }
+    function cleanup(){ document.removeEventListener('pointermove',onMove); document.removeEventListener('pointerup',onUp); }
+    document.addEventListener('pointermove', onMove, {passive:false});
+    document.addEventListener('pointerup', onUp);
+  });
 }
 function qormPostDrop(h,data){
   fetch('/event',{method:'POST',headers:{'Content-Type':'application/json','X-Qorm-Token':__tok},body:JSON.stringify({h:h,inputs:{_dragData:data}})})
