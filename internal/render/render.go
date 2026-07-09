@@ -370,6 +370,8 @@ func (r *renderer) renderInner(n *model.Node) {
 		r.form(n)
 	case "offstage":
 		r.offstage(n)
+	case "indexedstack":
+		r.indexedStack(n)
 	case "fab", "floatingactionbutton":
 		r.fab(n)
 	case "scaffold":

@@ -96,6 +96,7 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `haptics` | `label` |
 | `icon` | `glyph` · `icon` · `size` |
 | `image` | `alt` · `fit` · `src` |
+| `indexedstack` | `index` |
 | `input` | `inputType` |
 | `insets` | `label` |
 | `keepawake` | `label` |
