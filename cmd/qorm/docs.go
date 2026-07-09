@@ -34,6 +34,9 @@ func cmdDocs(args []string) int {
 		// default the header label to the source folder's base name (docs, api, …)
 		siteName = filepath.Base(docsDir)
 	}
+	// Stamp the header with the release this binary reports, so /docs and /api
+	// always show the version they were rendered from.
+	mdsite.Version = version
 	n, err := mdsite.BuildSite(docsDir, outDir, siteName)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)

@@ -283,9 +283,18 @@ func sidebarHTML(all []page, lang, current string) string {
 	return b.String()
 }
 
+// Version is the QORM release the site documents (e.g. "0.2.2"); when set it
+// renders a version badge in the header linking to the releases. Empty = hidden.
+// The docs command sets it from the built binary's version.
+var Version string
+
 func pageHTML(title, lang, siteName, langSwitch, nav, body string) string {
 	if lang == "" {
 		lang = "en"
+	}
+	verBadge := ""
+	if Version != "" {
+		verBadge = fmt.Sprintf(`<a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v%s</a>`, html.EscapeString(Version))
 	}
 	homeLabel := "Home"
 	if lang == "zh" {
@@ -321,6 +330,8 @@ func pageHTML(title, lang, siteName, langSwitch, nav, body string) string {
   :root[data-theme="dark"] header.top .brand img{filter:invert(1) brightness(1.7)}
   :root[data-theme="light"] header.top .brand img{filter:none}
   header.top .doc{color:var(--faint);font-weight:600;font-size:15px}
+  header.top a.ver{font-size:11.5px;font-weight:700;color:var(--muted);border:.5px solid var(--line);border-radius:999px;padding:2px 8px;letter-spacing:.01em}
+  header.top a.ver:hover{color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 40%%,var(--line));text-decoration:none}
   header.top .sp{flex:1}
   header.top a.tl{color:var(--muted);font-size:14px;font-weight:500} header.top a.tl:hover{color:var(--ink);text-decoration:none} header.top a.tl.active-nav{color:var(--ink);font-weight:700}
   .tbtn{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:transform 0.2s ease, background 0.2s, color 0.2s, border-color 0.2s}
@@ -364,6 +375,7 @@ func pageHTML(title, lang, siteName, langSwitch, nav, body string) string {
 <body>
 <header class="top"><div class="tnav">
   <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
+  %s
   <span class="doc">%s</span>
   <span class="sp"></span>
   <a class="tl" href="/">%s</a>
@@ -394,7 +406,7 @@ func pageHTML(title, lang, siteName, langSwitch, nav, body string) string {
 </script>
 </body>
 </html>
-`, lang, html.EscapeString(title), html.EscapeString(siteName), homeLabel, navLinks, patronLabel, patronLabel, langSwitch, nav, body)
+`, lang, html.EscapeString(title), verBadge, html.EscapeString(siteName), homeLabel, navLinks, patronLabel, patronLabel, langSwitch, nav, body)
 }
 
 // docs & api top navigation tabs builder
