@@ -696,6 +696,41 @@ func (r *renderer) navigationRail(n *model.Node) {
 	r.sb.WriteString(`</div>`)
 }
 
+// backButton is Flutter/iOS BackButton: a leading chevron that pops the
+// navigation stack. With no explicit onPress it drives the URL router via
+// history.back() (→ popstate → /navigate), matching the browser Back button; an
+// optional label (iOS-style "Back" text) sits next to the chevron.
+func (r *renderer) backButton(n *model.Node) {
+	glyph := `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>`
+	r.navButton(n, glyph, r.interp(labelOf(n)), "Back")
+}
+
+// closeButton is Flutter/iOS CloseButton: an "×" that dismisses. Like
+// backButton it defaults to history.back() when no onPress is given.
+func (r *renderer) closeButton(n *model.Node) {
+	r.navButton(n, iconSVG("x", 22), "", "Close")
+}
+
+// navButton renders an icon-only nav affordance (back/close): a 44pt tap target
+// whose default action is history.back(), overridable by onPress. aria names the
+// button when the app supplies no ariaLabel, so the icon stays accessible.
+func (r *renderer) navButton(n *model.Node, glyph, label, aria string) {
+	onclick := ` onclick="history.back()"`
+	if n.OnPress != nil {
+		onclick = r.pressAttr(n)
+	}
+	al := a11y(n)
+	if !strings.Contains(al, "aria-label") {
+		al += fmt.Sprintf(` aria-label=%q`, aria)
+	}
+	style := r.boxCSS(n) + "display:inline-flex;align-items:center;gap:2px;min-width:44px;min-height:44px;padding:0 6px;border:none;background:none;cursor:pointer;color:var(--accent);font-size:17px;"
+	fmt.Fprintf(&r.sb, `<button id=%q style=%q%s%s>%s`, r.nid(n), style, al, onclick, glyph)
+	if label != "" {
+		fmt.Fprintf(&r.sb, `<span>%s</span>`, html.EscapeString(label))
+	}
+	r.sb.WriteString(`</button>`)
+}
+
 // selectableText is Flutter's SelectableText: text the user can select/copy.
 func (r *renderer) selectableText(n *model.Node) {
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q>%s</div>`, n.ID,

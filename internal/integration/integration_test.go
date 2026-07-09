@@ -725,6 +725,33 @@ func TestNavLargeTitleSelectable(t *testing.T) {
 	}
 }
 
+// TestBackCloseButton covers BackButton/CloseButton: they default to the URL
+// router (history.back() → popstate → /navigate), name themselves for a11y when
+// icon-only, and hand control to an explicit onPress action when given one.
+func TestBackCloseButton(t *testing.T) {
+	root := &model.Node{Type: "scaffold", ID: "r", Children: []*model.Node{
+		{Type: "backbutton", ID: "back", Label: "Settings"},
+		{Type: "closebutton", ID: "close"},
+		{Type: "backbutton", ID: "custom", OnPress: &model.Invoke{Name: "dismiss"}},
+	}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root},
+		Actions: map[string]*model.Action{"dismiss": {ID: "dismiss"}}}
+	html := render.Render(qrt.New(app)).HTML
+	for _, m := range []string{
+		`id="back"`, `onclick="history.back()"`, `aria-label="Back"`, `<span>Settings</span>`, // default back + label
+		`id="close"`, `aria-label="Close"`, // default close
+	} {
+		if !strings.Contains(html, m) {
+			t.Errorf("back/close button should render %q\n%s", m, html)
+		}
+	}
+	// an explicit onPress overrides the default history.back()
+	i := strings.Index(html, `id="custom"`)
+	if i < 0 || strings.Contains(html[i:i+200], "history.back()") {
+		t.Error("backbutton with onPress must dispatch the action, not history.back()")
+	}
+}
+
 // TestRenderItemUniqueIDs guards the fix for JS-wired widgets inside a list:
 // each item's Dismissible must get a unique id + matching swipe script, so
 // swipe-to-delete works on every row (canonical inbox pattern), not just the

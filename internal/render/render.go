@@ -362,6 +362,10 @@ func (r *renderer) renderInner(n *model.Node) {
 		r.navigationRail(n)
 	case "selectabletext":
 		r.selectableText(n)
+	case "backbutton":
+		r.backButton(n)
+	case "closebutton":
+		r.closeButton(n)
 	case "fab", "floatingactionbutton":
 		r.fab(n)
 	case "scaffold":
