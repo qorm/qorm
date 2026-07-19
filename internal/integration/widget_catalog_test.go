@@ -14,17 +14,17 @@ import (
 // isolation to prove none is broken (renders, no unknown marker, no panic on
 // minimal input) — a regression gate for the whole 160+ widget catalog.
 var allWidgetTypes = []string{
-	"accordion", "actionsheet", "activityindicator", "alert", "alertdialog", "animatedalign", "animatedcontainer", "animatedopacity",
+	"absorbpointer", "accordion", "actionsheet", "activityindicator", "alert", "alertdialog", "animatedalign", "animatedcontainer", "animatedopacity",
 	"animatedpadding", "animatedpositioned", "appbar", "aspectratio", "audiorecorder", "autocomplete", "avatar", "badge",
 	"backbutton", "banner", "battery", "biometric", "bluetooth", "bottomappbar", "bottomnav", "bottomnavigationbar", "breadcrumb", "brightness",
 	"closebutton", "limitedbox", "navigationdrawer",
 	"button", "camera", "carousel", "chart", "checkbox", "checkboxlisttile", "chip", "choicechip",
 	"circularprogress", "circularprogressindicator", "clipboard", "contextmenu", "cupertinoactionsheet", "cupertinoactivityindicator", "cupertinoalertdialog", "cupertinocontextmenu",
-	"cupertinodatepicker", "cupertinolargetitle", "cupertinolistsection", "cupertinopicker", "cupertinoslidingsegmentedcontrol", "datatable", "datepicker", "descriptions",
+	"cupertinodatepicker", "cupertinolargetitle", "cupertinolistsection", "cupertinopicker", "cupertinoslidingsegmentedcontrol", "cupertinotimepicker", "datatable", "datepicker", "descriptions",
 	"deviceinfo", "dialog", "dismissible", "displays", "divider", "dockbadge", "draggable", "dragtarget", "drawer", "droptarget", "dropdown",
 	"dropdownbutton", "empty", "expansionpanel", "expansiontile", "fab", "faceid", "field", "file",
 	"filepicker", "filterchip", "fingerprint", "flashlight", "floatingactionbutton", "form", "formfield", "geolocation", "gesture",
-	"gesturedetector", "gridview", "haptics", "icon", "image", "inkwell", "input", "inputchip",
+	"gesturedetector", "gridview", "haptics", "icon", "ignorepointer", "image", "inkwell", "input", "inputchip",
 	"indexedstack", "keepawake", "keychain", "keyvalue", "largetitle", "link", "list", "listitem", "listsection",
 	"listtile", "location", "loginitem", "materialstepper", "menu", "metric", "modal", "navigationbar",
 	"navigationrail", "network", "nfc", "notify", "offstage", "openlink", "openurl", "orientation", "pageview",
@@ -34,7 +34,7 @@ var allWidgetTypes = []string{
 	"share", "skeleton", "slider", "slidingsegmentedcontrol", "sliverappbar", "snackbar", "spacer", "speak",
 	"speechinput", "spinner", "startatlogin", "stat", "stepper", "steps", "storage", "stt",
 	"switch", "switchlisttile", "table", "tabs", "tag", "text", "textarea", "textformfield",
-	"timeline", "torch", "transform", "tree", "tts", "verticaldivider", "vibrate", "video",
+	"timeline", "timepicker", "torch", "transform", "tree", "tts", "verticaldivider", "vibrate", "video",
 	"volume", "wakelock", "when", "wifi", "wrap",
 }
 

@@ -445,6 +445,53 @@ func parseDate3(s string) (y, m, d int) {
 
 func fmtDate(y, m, d int) string { return fmt.Sprintf("%04d-%02d-%02d", y, m, d) }
 
+// timepicker is a Cupertino-style 2-wheel time picker (hour / minute) — the
+// time analogue of datepicker. Each wheel item, when clicked, dispatches
+// onChange with the full recomposed "HH:MM" value (keeping the other wheel's
+// current value), so it works with the standard onChange mechanism without
+// extra JS. minuteStep (default 1) spaces the minute wheel.
+func (r *renderer) timepicker(n *model.Node) {
+	h, m := parseTime2(r.interp(n.Value))
+	step := int(propNum(n, "minuteStep", 1))
+	if step < 1 {
+		step = 1
+	}
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, r.boxCSS(n)+"position:relative;height:180px;min-height:180px;flex-shrink:0;overflow:hidden;display:flex;")
+	// shared center selection band + top/bottom fades (iOS look)
+	r.sb.WriteString(`<div style="position:absolute;left:6px;right:6px;top:72px;height:36px;background:var(--fill);border-radius:8px;pointer-events:none;z-index:0;"></div>`)
+	r.sb.WriteString(`<div style="position:absolute;inset:0;pointer-events:none;z-index:2;background:linear-gradient(var(--surface),transparent 30%,transparent 70%,var(--surface));"></div>`)
+	// hour wheel 0..23
+	hopts := make([]dwItem, 24)
+	for i := 0; i < 24; i++ {
+		hopts[i] = dwItem{label: fmt.Sprintf("%02d", i), value: fmtTime(i, m)}
+	}
+	r.dateWheel(n, hopts, h, "1")
+	// minute wheel 0..59 in minuteStep increments
+	mopts := make([]dwItem, 0, 60/step)
+	for i := 0; i < 60; i += step {
+		mopts = append(mopts, dwItem{label: fmt.Sprintf("%02d", i), value: fmtTime(h, i)})
+	}
+	r.dateWheel(n, mopts, m/step, "1")
+	r.sb.WriteString(`</div>`)
+}
+
+// parseTime2 parses "HH:MM" into ints, with sane fallbacks.
+func parseTime2(s string) (h, m int) {
+	h, m = 9, 0
+	parts := strings.Split(strings.TrimSpace(s), ":")
+	if len(parts) == 2 {
+		if v, err := strconv.Atoi(parts[0]); err == nil && v >= 0 && v <= 23 {
+			h = v
+		}
+		if v, err := strconv.Atoi(parts[1]); err == nil && v >= 0 && v <= 59 {
+			m = v
+		}
+	}
+	return
+}
+
+func fmtTime(h, m int) string { return fmt.Sprintf("%02d:%02d", h, m) }
+
 func (r *renderer) picker(n *model.Node) {
 	cur := r.interp(n.Value)
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, n.ID, r.boxCSS(n)+"position:relative;height:180px;min-height:180px;flex-shrink:0;overflow:hidden;", a11y(n))
@@ -763,6 +810,18 @@ func (r *renderer) offstage(n *model.Node) {
 		style += "display:none;"
 	}
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, r.nid(n), style, a11y(n))
+	for _, c := range n.Children {
+		r.node(c)
+	}
+	r.sb.WriteString(`</div>`)
+}
+
+// ignorePointer is Flutter's IgnorePointer/AbsorbPointer: the whole subtree is
+// transparent to pointer events (taps pass through to whatever is beneath).
+// display:contents keeps the wrapper out of layout, so children lay out exactly
+// as if unwrapped; pointer-events:none then inherits down the DOM subtree.
+func (r *renderer) ignorePointer(n *model.Node) {
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, r.nid(n), r.boxCSS(n)+"display:contents;pointer-events:none;", a11y(n))
 	for _, c := range n.Children {
 		r.node(c)
 	}

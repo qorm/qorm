@@ -1,6 +1,9 @@
 package expr
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestBuiltins(t *testing.T) {
 	ctx := map[string]any{
@@ -9,6 +12,8 @@ func TestBuiltins(t *testing.T) {
 			"email": "ada@example.com",
 			"bad":   "nope",
 			"age":   float64(30),
+			"list":  []any{"a", "b", "c"},
+			"page":  float64(2),
 		},
 	}
 	cases := []struct {
@@ -28,6 +33,15 @@ func TestBuiltins(t *testing.T) {
 		{`not(contains(state.email, "@"))`, false},
 		{`default(state.missing, "fallback")`, "fallback"},
 		{`state.age >= 18 ? "adult" : "minor"`, "adult"},
+		{`len(slice(state.list, 0, 2))`, float64(2)},
+		{`len(slice(state.list, (state.page-1)*2, state.page*2))`, float64(1)},
+		{`slice(state.list, 0, 2)`, []any{"a", "b"}},
+		{`slice(state.list, -3, 99)`, []any{"a", "b", "c"}},
+		{`len(slice(state.list, 2, 1))`, float64(0)},
+		{`len(slice(state.list, 0, 0))`, float64(0)},
+		{`slice(state.list, 5)`, []any{}},
+		{`slice(state.list, 1)`, []any{"b", "c"}},
+		{`slice(state.missing, 0, 2)`, []any{}},
 	}
 	for _, c := range cases {
 		got, err := Eval(c.src, ctx)
@@ -35,7 +49,7 @@ func TestBuiltins(t *testing.T) {
 			t.Errorf("Eval(%q) error: %v", c.src, err)
 			continue
 		}
-		if got != c.want {
+		if !reflect.DeepEqual(got, c.want) {
 			t.Errorf("Eval(%q) = %v (%T), want %v", c.src, got, got, c.want)
 		}
 	}

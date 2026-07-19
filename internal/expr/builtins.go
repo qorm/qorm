@@ -54,6 +54,30 @@ func callBuiltin(name string, a []any) any {
 		return re.MatchString(Stringify(arg(0)))
 	case "str":
 		return Stringify(arg(0))
+	case "slice":
+		arr, _ := arg(0).([]any)
+		if arr == nil {
+			return []any{}
+		}
+		lo, hi := 0, len(arr)
+		if arg(1) != nil {
+			lo = int(num(arg(1)))
+		}
+		if arg(2) != nil {
+			hi = int(num(arg(2)))
+		}
+		// bounds-clamped: a negative start reads as 0, an oversized end as len,
+		// and an inverted range collapses to empty — bindings never panic.
+		if lo < 0 {
+			lo = 0
+		}
+		if hi > len(arr) {
+			hi = len(arr)
+		}
+		if lo > hi {
+			lo = hi
+		}
+		return arr[lo:hi]
 	case "number", "num":
 		return num(arg(0))
 	case "int":

@@ -276,7 +276,8 @@ func (r *renderer) dropdownButton(n *model.Node) {
 }
 
 // autocomplete is Flutter's Autocomplete: a text field backed by a native
-// <datalist> of suggestions; the value two-way-binds to state.
+// <datalist> of suggestions; the value two-way-binds to state. `options` may be
+// a literal array or a binding to a state array (e.g. "{{state.suggestions}}").
 func (r *renderer) autocomplete(n *model.Node) {
 	path := boundPath(n.Value)
 	listID := n.ID + "-ac"
@@ -288,7 +289,7 @@ func (r *renderer) autocomplete(n *model.Node) {
 		n.ID, listID, html.EscapeString(r.interp(n.Value)), html.EscapeString(n.Placeholder),
 		style, dataStateAttr(path), a11y(n), r.changeAttr(n, path != ""))
 	fmt.Fprintf(&r.sb, `<datalist id=%q>`, listID)
-	for _, o := range optionList(n.Props["options"]) {
+	for _, o := range optionList(r.boundArray(n, "options")) {
 		lbl := o.label
 		if lbl == "" {
 			lbl = o.value

@@ -190,6 +190,8 @@ func (r *renderer) renderInner(n *model.Node) {
 		r.picker(n)
 	case "datepicker", "cupertinodatepicker":
 		r.datepicker(n)
+	case "timepicker", "cupertinotimepicker":
+		r.timepicker(n)
 	case "camera":
 		r.camera(n)
 	case "location", "geolocation":
@@ -370,6 +372,8 @@ func (r *renderer) renderInner(n *model.Node) {
 		r.form(n)
 	case "offstage":
 		r.offstage(n)
+	case "ignorepointer", "absorbpointer":
+		r.ignorePointer(n)
 	case "indexedstack":
 		r.indexedStack(n)
 	case "draggable", "longpressdraggable":

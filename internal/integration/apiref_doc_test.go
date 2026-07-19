@@ -84,7 +84,7 @@ func syncDoc(t *testing.T, path, want string) {
 // keyArgIndex maps a prop-accessor helper to the arg position of its key string.
 var keyArgIndex = map[string]int{
 	"propStr": 1, "propStrOr": 1, "propNum": 1, "propBool": 1,
-	"numProp": 1, "parseInvokeProp": 1,
+	"numProp": 1, "parseInvokeProp": 1, "boundArray": 1,
 }
 
 // stopMethods are renderer methods we neither attribute props to nor descend

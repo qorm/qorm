@@ -385,7 +385,9 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any) {
 		arr = append(arr, obj)
 		setPath(r.State, step.Path, arr)
 	case "state.toggle":
-		toggleInArray(getPath(r.State, step.Path), step.MatchKey, EvalBinding(step.Match, ctx), step.Field)
+		if arr, ok := getPath(r.State, step.Path).([]any); ok {
+			setPath(r.State, step.Path, toggleInArray(arr, step.MatchKey, EvalBinding(step.Match, ctx), step.Field))
+		}
 	case "state.increment":
 		by := 1.0
 		if step.Value != "" {
@@ -444,6 +446,19 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any) {
 			setPath(r.State, step.Path, 0.0)
 		default:
 			setPath(r.State, step.Path, "")
+		}
+	case "state.reset":
+		// Restore the manifest's initial values: with `path` just that one key,
+		// otherwise every key declared in globalState (a form reset). Values are
+		// deep-copied so state never aliases the manifest.
+		if step.Path != "" {
+			if v := getPath(r.App.GlobalState.Initial, step.Path); v != nil {
+				setPath(r.State, step.Path, deepCopy(v))
+			}
+		} else {
+			for k, v := range r.App.GlobalState.Initial {
+				r.State[k] = deepCopy(v)
+			}
 		}
 	case "http.get", "http.post", "http.put", "http.delete", "http.request":
 		r.applyHTTP(step, ctx)
@@ -594,24 +609,34 @@ func toNum(v any) float64 {
 }
 
 // toggleInArray flips a boolean field on the array element whose matchKey
-// equals matchVal.
-func toggleInArray(arr any, matchKey string, matchVal any, field string) {
-	items, ok := arr.([]any)
-	if !ok {
-		return
-	}
+// equals matchVal, returning the array. For an array of scalars (e.g. a
+// selection of row keys) it toggles membership instead: matchVal is removed
+// when present and appended when absent; an empty match is a no-op there, so
+// one action can branch on its args (e.g. a select-all key).
+func toggleInArray(arr []any, matchKey string, matchVal any, field string) []any {
 	want := expr.Stringify(matchVal)
-	for _, it := range items {
+	scalar := true
+	for _, it := range arr {
 		m, ok := it.(map[string]any)
 		if !ok {
 			continue
 		}
+		scalar = false
 		if expr.Stringify(m[matchKey]) == want {
 			b, _ := m[field].(bool)
 			m[field] = !b
-			return
+			return arr
 		}
 	}
+	if !scalar || want == "" {
+		return arr
+	}
+	for i, it := range arr {
+		if expr.Stringify(it) == want {
+			return append(arr[:i:i], arr[i+1:]...) // capped append copies — never clobbers the shared tail
+		}
+	}
+	return append(arr, matchVal)
 }
 
 // ---- path helpers (dotted) ----

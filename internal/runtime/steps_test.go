@@ -76,3 +76,61 @@ func TestSortByDynamicField(t *testing.T) {
 		t.Errorf("dynamic sort: first should be A, got %v", rt.State["rows"].([]any)[0])
 	}
 }
+
+func TestToggleScalarMembership(t *testing.T) {
+	// scalar array: toggle membership of match (append when absent)
+	rt := rtWith(map[string]any{"sel": []any{"r1"}},
+		model.Step{Type: "state.toggle", Path: "sel", Match: "{{ key }}"})
+	rt.Dispatch("a", map[string]any{"key": "r2"})
+	if got := rt.State["sel"].([]any); len(got) != 2 {
+		t.Errorf("toggle append: got %v", got)
+	}
+	// remove when present
+	rt.Dispatch("a", map[string]any{"key": "r1"})
+	if got := rt.State["sel"].([]any); len(got) != 1 || got[0] != "r2" {
+		t.Errorf("toggle remove: got %v", got)
+	}
+	// an empty match is a no-op (a handler's select-all sentinel stays out)
+	rt.Dispatch("a", map[string]any{"key": ""})
+	if got := rt.State["sel"].([]any); len(got) != 1 {
+		t.Errorf("empty match should be a no-op: got %v", got)
+	}
+	// object arrays still flip the field, unchanged
+	rt = rtWith(map[string]any{"items": []any{map[string]any{"id": "a", "on": false}}},
+		model.Step{Type: "state.toggle", Path: "items", MatchKey: "id", Match: "{{ key }}", Field: "on"})
+	rt.Dispatch("a", map[string]any{"key": "a"})
+	if rt.State["items"].([]any)[0].(map[string]any)["on"] != true {
+		t.Error("object toggle should still flip the field")
+	}
+}
+
+func TestStateResetStep(t *testing.T) {
+	initial := map[string]any{"name": "Ada", "tags": []any{"a", "b"}, "n": float64(1)}
+	mk := func(steps ...model.Step) *Runtime {
+		app := &model.App{GlobalState: model.GlobalState{Initial: initial},
+			Actions: map[string]*model.Action{"a": {ID: "a", Steps: steps}}}
+		return New(app)
+	}
+	// no path: every declared key returns to its initial value
+	rt := mk(model.Step{Type: "state.reset"})
+	rt.State["name"] = "Grace"
+	rt.State["tags"] = []any{"x"}
+	rt.State["n"] = float64(9)
+	rt.Dispatch("a", nil)
+	if rt.State["name"] != "Ada" || rt.State["n"] != float64(1) || len(rt.State["tags"].([]any)) != 2 {
+		t.Errorf("reset all: got %v", rt.State)
+	}
+	// the restored value is a copy — mutating state must not corrupt the manifest
+	rt.State["tags"].([]any)[0] = "zzz"
+	if initial["tags"].([]any)[0] != "a" {
+		t.Error("reset should deep-copy the initial values")
+	}
+	// with path: only that one key resets
+	rt = mk(model.Step{Type: "state.reset", Path: "name"})
+	rt.State["name"] = "Grace"
+	rt.State["n"] = float64(9)
+	rt.Dispatch("a", nil)
+	if rt.State["name"] != "Ada" || rt.State["n"] != float64(9) {
+		t.Errorf("reset path: got %v", rt.State)
+	}
+}

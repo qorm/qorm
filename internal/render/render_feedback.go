@@ -114,16 +114,58 @@ func (r *renderer) skeleton(n *model.Node) {
 	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-skel" style=%q aria-hidden="true"></div>`, n.ID, style)
 }
 
-// menu renders a trigger label plus a client-toggled dropdown panel of children.
+// menu renders a trigger label plus a client-toggled dropdown panel. An `items`
+// prop ([{label, icon?, disabled?, onPress?}], parsed like dialogActions) renders
+// action rows inside the panel: a row dispatches its onPress via the standard
+// qorm(h) mechanism, while a disabled row renders dimmed with no handler. Icon
+// names resolve against the built-in icon set. Children still render below the
+// items, so a children-built menu keeps working.
 func (r *renderer) menu(n *model.Node) {
 	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-menu" style=%q>`, n.ID, r.boxCSS(n)+"position:relative;display:inline-block;")
 	fmt.Fprintf(&r.sb, `<button onclick="qormMenu(this)" style="display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border:1px solid var(--sep);border-radius:8px;background:var(--surface);cursor:pointer;font-size:14px;">%s ▾</button>`,
 		html.EscapeString(r.interp(labelOf(n))))
 	r.sb.WriteString(`<div class="qorm-menu-panel" style="display:none;position:absolute;top:100%;left:0;margin-top:4px;background:var(--surface);border:1px solid var(--sep);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);min-width:160px;z-index:40;padding:4px;">`)
+	if raw, ok := n.Prop("items"); ok {
+		if items, ok := raw.([]any); ok {
+			r.menuItems(items)
+		}
+	}
 	for _, c := range n.Children {
 		r.node(c)
 	}
 	r.sb.WriteString(`</div></div>`)
+}
+
+// menuItems renders the rows of a menu's `items` prop.
+func (r *renderer) menuItems(items []any) {
+	for _, it := range items {
+		m, ok := it.(map[string]any)
+		if !ok {
+			continue
+		}
+		disabled := asBool(m["disabled"])
+		style := "display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;font-size:14px;"
+		attr := ""
+		if disabled {
+			style += "opacity:.45;cursor:default;"
+		} else {
+			style += "cursor:pointer;"
+			if op, ok := m["onPress"].(map[string]any); ok {
+				inv := &model.Invoke{Name: str(op, "name"), Args: map[string]string{}}
+				if a, ok := op["args"].(map[string]any); ok {
+					for k, v := range a {
+						inv.Args[k] = fmt.Sprint(v)
+					}
+				}
+				attr = fmt.Sprintf(` onclick="qorm(%d)"`, r.register(inv))
+			}
+		}
+		icon := `<span style="width:18px;"></span>`
+		if svg := iconSVG(str(m, "icon"), 15); svg != "" {
+			icon = `<span style="width:18px;display:inline-flex;justify-content:center;color:var(--label2);">` + svg + `</span>`
+		}
+		fmt.Fprintf(&r.sb, `<div style=%q%s>%s<span>%s</span></div>`, style, attr, icon, html.EscapeString(r.interp(str(m, "label"))))
+	}
 }
 
 // circularProgress is Flutter's CircularProgressIndicator: an SVG ring. With a
