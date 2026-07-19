@@ -999,23 +999,11 @@ func Page(rt *runtime.Runtime, body string, rev int64, eventToken ...string) str
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>%s</title>
 <style>
-  /* ---- Design tokens (themes). Apple/iOS is the default; a manifest theme
-     or state.theme selects another. Switch by class on the stage. ---- */
-  :root, .qorm-theme-apple {
-    --accent:#007aff; --on-accent:#fff; --success:#34c759; --danger:#ff3b30; --warning:#ff9500;
-    --bg:#f2f2f7; --surface:#fff; --label:#000; --label2:#3c3c4399; --sep:#3c3c4949;
-    --fill:#78788033; --radius:12px; --radius-lg:20px; --stage-radius:38px;
-    --font:-apple-system,BlinkMacSystemFont,'SF Pro Text','SF Pro Display','Helvetica Neue',Arial,sans-serif; color-scheme:light; }
-  .qorm-theme-material {
-    --accent:#2e7df6; --on-accent:#fff; --success:#16a34a; --danger:#dc2626; --warning:#f59e0b;
-    --bg:#eef0f4; --surface:#fff; --label:#111827; --label2:#6b7280; --sep:#e5e7eb;
-    --fill:#e5e7eb; --radius:8px; --radius-lg:12px; --stage-radius:14px;
-    --font:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif; color-scheme:light; }
-  .qorm-theme-dark {
-    --accent:#0a84ff; --on-accent:#fff; --success:#30d158; --danger:#ff453a; --warning:#ff9f0a;
-    --bg:#000; --surface:#1c1c1e; --label:#fff; --label2:#ebebf599; --sep:#54545899;
-    --fill:#7676803d; --radius:12px; --radius-lg:20px; --stage-radius:38px;
-    --font:-apple-system,BlinkMacSystemFont,'SF Pro Text','SF Pro Display','Helvetica Neue',Arial,sans-serif; color-scheme:dark; }
+  /* ---- Design tokens (themes). Palettes live in internal/render/theme.go
+     (single source of truth, shared with the miniapp export); "auto" — the
+     implicit default — follows the OS light/dark setting. The app's manifest
+     designTokens land after it as var(--qorm-token-*) on the stage. ---- */
+  %s
   * { margin:0; padding:0; box-sizing:border-box; -webkit-font-smoothing:antialiased;
       touch-action:manipulation; -webkit-touch-callout:none;
       -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; }
@@ -1141,7 +1129,17 @@ func Page(rt *runtime.Runtime, body string, rev int64, eventToken ...string) str
 <div id="qorm-stage" class="qorm-theme-%s"><div id="qorm-root">%s</div></div>
 <script>%s</script>
 </body>
-</html>`, lang, dir, htmlEscape(title), width, height, theme, body, qormAppJS(rev, tok))
+</html>`, lang, dir, htmlEscape(title), themeCSS(rt), width, height, theme, body, qormAppJS(rev, tok))
+}
+
+// themeCSS is the shell's theme block: the shared built-in palettes plus the
+// app's own manifest designTokens rendered as var(--qorm-token-*) on the
+// stage, so scenes can style against them.
+func themeCSS(rt *runtime.Runtime) string {
+	if css := render.TokenCSS("#qorm-stage", rt.App.DesignTokens); css != "" {
+		return render.ThemeCSS + "\n  " + css
+	}
+	return render.ThemeCSS
 }
 
 func htmlEscape(s string) string {

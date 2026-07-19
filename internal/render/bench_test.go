@@ -1,9 +1,10 @@
-package render
+package render_test
 
 import (
 	"testing"
 
 	"github.com/qorm/qorm/internal/loader"
+	"github.com/qorm/qorm/internal/render"
 	qrt "github.com/qorm/qorm/internal/runtime"
 )
 
@@ -20,7 +21,7 @@ func BenchmarkRenderDashboard(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = Render(rt)
+		_ = render.Render(rt)
 	}
 }
 
@@ -29,6 +30,6 @@ func BenchmarkRenderGallery(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = Render(rt)
+		_ = render.Render(rt)
 	}
 }

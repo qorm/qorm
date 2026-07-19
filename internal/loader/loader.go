@@ -8,10 +8,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/qorm/qorm/internal/expr"
 	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/qorm/internal/render"
 	"github.com/qorm/qorm/pkg/qormext"
 )
 
@@ -348,6 +350,21 @@ func buildNode(m map[string]any, diags *[]string, sceneID string, vars map[strin
 			valStr := asString(val)
 			if valStr != "" && nodeType != "input" && nodeType != "textarea" && nodeType != "select" && nodeType != "slider" {
 				*diags = append(*diags, fmt.Sprintf("[Scene: %s] 节点 (id: %q, type: %q) 错误地配置了 'value': %q。普通文本节点请使用 'text' 属性，状态绑定请使用 '{{state.xxx}}'。", sceneID, nodeID, nodeType, valStr))
+			}
+		}
+
+		// 校验 style 中的未知键：渲染器只识别固定的键集合（render.KnownStyleKeys），
+		// 未知键会被静默忽略，这里给出非致命告警。排序保证诊断顺序稳定。
+		if style, hasStyle := m["style"].(map[string]any); hasStyle {
+			var unknown []string
+			for k := range style {
+				if !render.KnownStyleKeys[k] {
+					unknown = append(unknown, k)
+				}
+			}
+			sort.Strings(unknown)
+			for _, k := range unknown {
+				*diags = append(*diags, fmt.Sprintf("warning: [Scene: %s] 节点 (id: %q, type: %q) 的 style 包含未知键 %q，渲染器将忽略该键。", sceneID, nodeID, nodeType, k))
 			}
 		}
 

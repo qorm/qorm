@@ -413,6 +413,8 @@ func flexAlign(v string) string {
 	switch v {
 	case "center":
 		return "center"
+	case "baseline":
+		return "baseline"
 	case "start", "left", "top":
 		return "flex-start"
 	case "end", "right", "bottom":

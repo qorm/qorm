@@ -234,7 +234,8 @@ func (r *Runtime) CurrentLocale() string {
 }
 
 // CurrentTheme is the active design theme: state.theme, else the manifest
-// theme, else "apple" (the default Cupertino look).
+// theme, else "auto" — the default Cupertino look that follows the OS
+// light/dark setting. An explicit theme:"auto" means the same.
 func (r *Runtime) CurrentTheme() string {
 	if t, ok := r.State["theme"].(string); ok && t != "" {
 		return t
@@ -242,7 +243,7 @@ func (r *Runtime) CurrentTheme() string {
 	if r.App != nil && r.App.Theme != "" {
 		return r.App.Theme
 	}
-	return "apple"
+	return "auto"
 }
 
 // rtlLangs are the base language codes that render right-to-left.

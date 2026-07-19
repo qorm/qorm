@@ -1,4 +1,4 @@
-package render
+package render_test
 
 import (
 	"os"
@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/qorm/qorm/internal/loader"
+	"github.com/qorm/qorm/internal/render"
 	qrt "github.com/qorm/qorm/internal/runtime"
 )
 
@@ -33,7 +34,7 @@ func TestUniversalAnimation(t *testing.T) {
 	if app.Components["Chip"] == nil {
 		t.Fatal("Chip component was not loaded from the manifest")
 	}
-	html := Render(qrt.New(app)).HTML
+	html := render.Render(qrt.New(app)).HTML
 	if !strings.Contains(html, "animation:qa-pop") {
 		t.Error("component instance with animation:pop was not wrapped in qa-pop")
 	}
@@ -66,7 +67,7 @@ func TestNestedStyleBinding(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	html := Render(qrt.New(app)).HTML
+	html := render.Render(qrt.New(app)).HTML
 	if !strings.Contains(html, "240px") {
 		t.Error("nested style binding margin.left did not resolve (expected 240px)")
 	}
@@ -84,7 +85,7 @@ func TestAnimatedContainerLayout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	html := Render(qrt.New(app)).HTML
+	html := render.Render(qrt.New(app)).HTML
 	if !strings.Contains(html, "align-items:center") || !strings.Contains(html, "justify-content:center") {
 		t.Error("animatedcontainer did not apply layout align/justify")
 	}
@@ -111,14 +112,14 @@ func TestNavigation(t *testing.T) {
 		t.Fatal(err)
 	}
 	rt := qrt.New(app)
-	if !strings.Contains(Render(rt).HTML, "HOME") {
+	if !strings.Contains(render.Render(rt).HTML, "HOME") {
 		t.Fatal("entry scene should be home")
 	}
 	rt.Dispatch("go", nil)
 	if rt.CurrentScene() != "details" {
 		t.Fatalf("navigate: current scene = %q, want details", rt.CurrentScene())
 	}
-	if !strings.Contains(RenderScene(rt, rt.CurrentScene()).HTML, "DETAILS") {
+	if !strings.Contains(render.RenderScene(rt, rt.CurrentScene()).HTML, "DETAILS") {
 		t.Error("details scene did not render after navigate")
 	}
 	rt.Dispatch("back", nil)
@@ -146,7 +147,7 @@ func TestReorder(t *testing.T) {
 		t.Fatal(err)
 	}
 	rt := qrt.New(app)
-	if !strings.Contains(Render(rt).HTML, "qormReorder(") {
+	if !strings.Contains(render.Render(rt).HTML, "qormReorder(") {
 		t.Error("reorderable list did not wire the qormReorder client helper")
 	}
 	rt.Dispatch("onReorder", map[string]any{"_reorderFrom": 0.0, "_reorderTo": 2.0})
@@ -173,7 +174,7 @@ func TestSwipeActions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	html := Render(qrt.New(app)).HTML
+	html := render.Render(qrt.New(app)).HTML
 	if strings.Contains(html, "data-qorm-unknown") {
 		t.Error("swipeactions rendered as unknown")
 	}

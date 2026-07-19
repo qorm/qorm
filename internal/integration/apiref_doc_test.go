@@ -15,8 +15,8 @@ import (
 
 // This file generates the API-reference pages of the docs site straight from the
 // source of truth, so what a human or an AI reads is exactly what the runtime
-// does. Four surfaces, each with an English page under docs/reference/ and a
-// Chinese mirror under docs/zh/reference/ (the tables are language-neutral; only
+// does. Four surfaces, each with an English page under api/ and a
+// Chinese mirror under api/zh/ (the tables are language-neutral; only
 // the surrounding prose differs):
 //
 //   props.md    — the declarative UI contract: node schema, common style props,
