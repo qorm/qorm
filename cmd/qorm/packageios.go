@@ -869,7 +869,7 @@ func iosBridgeBody() string {
             if #available(iOS 16.0, *) {
                 self.setNeedsUpdateOfSupportedInterfaceOrientations()
             } else {
-                UIViewController.attemptRotationToDeviceIfNeeded()
+                UIViewController.attemptRotationToDeviceOrientation()
             }
         default:
             self.qormUserOp(op, body)
