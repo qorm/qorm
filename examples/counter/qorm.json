@@ -3,6 +3,7 @@
   "id": "qorm_counter",
   "name": "QORM Premium Counter",
   "entry": "main",
+  "theme": "dark",
   "globalState": {
     "schema": {
       "count": "number",

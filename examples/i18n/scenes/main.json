@@ -5,7 +5,7 @@
   "type": "column",
   "id": "root",
   "style": {
-   "background": "#0F172A",
+   "background": "var(--bg)",
    "padding": 32,
    "gap": 12
   },
@@ -21,7 +21,7 @@
     "id": "title",
     "text": "{{ t.title }}",
     "style": {
-     "color": "#F8FAFC",
+     "color": "var(--label)",
      "fontSize": 28,
      "fontWeight": 800,
      "textAlign": "center"
@@ -32,7 +32,7 @@
     "id": "subtitle",
     "text": "{{ t.subtitle }}",
     "style": {
-     "color": "#94A3B8",
+     "color": "var(--label2)",
      "fontSize": 15,
      "textAlign": "center"
     }
@@ -52,7 +52,7 @@
     "text": "{{ t.cart }}",
     "style": {
      "fontSize": 16,
-     "color": "#8e8e93"
+     "color": "var(--label2)"
     }
    },
    {
@@ -70,12 +70,12 @@
     "id": "lang",
     "label": "{{ t.switch }}",
     "style": {
-     "background": "#38BDF8",
-     "color": "#0F172A",
+     "background": "var(--accent)",
+     "color": "var(--on-accent)",
      "fontWeight": 700,
      "width": 200,
      "height": 44,
-     "borderRadius": 22
+     "borderRadius": 12
     },
     "onPress": {
      "type": "invoke",

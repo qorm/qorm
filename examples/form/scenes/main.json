@@ -2,42 +2,42 @@
   "type": "scene", "id": "main",
   "root": {
     "type": "column", "id": "root",
-    "style": { "background": "#f8fafc", "padding": 28, "gap": 8 },
+    "style": { "background": "var(--bg)", "padding": 28, "gap": 8 },
     "layout": { "width": "fill", "height": "fill", "justify": "center" },
     "children": [
-      { "type": "text", "id": "h", "text": "Create account", "style": { "fontSize": 22, "fontWeight": 800, "color": "#0f172a", "margin": { "bottom": 8 } } },
+      { "type": "text", "id": "h", "text": "Create account", "style": { "fontSize": 22, "fontWeight": 800, "color": "var(--label)", "margin": { "bottom": 8 } } },
 
-      { "type": "text", "text": "Email", "style": { "fontSize": 13, "fontWeight": 600, "color": "#334155" } },
+      { "type": "text", "text": "Email", "style": { "fontSize": 13, "fontWeight": 600, "color": "var(--label2)" } },
       { "type": "input", "id": "email", "value": "{{state.email}}", "placeholder": "you@example.com",
-        "style": { "background": "#fff", "height": 42, "padding": { "left": 12 }, "borderRadius": 8, "borderWidth": 1, "borderColor": "#cbd5e1" } },
+        "style": { "background": "var(--surface)", "height": 42, "padding": { "left": 12 }, "borderRadius": 8, "borderWidth": 1, "borderColor": "var(--sep)" } },
       { "type": "text", "id": "email_err", "text": "Please enter a valid email address",
-        "if": "{{ len(state.email) > 0 && !matches(state.email, \"^[^@\\\\s]+@[^@\\\\s]+\\\\.[^@\\\\s]+$\") }}",
-        "style": { "fontSize": 12, "color": "#ef4444" } },
+        "if": "{{ len(state.email) > 0 && !matches(state.email, \"^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$\") }}",
+        "style": { "fontSize": 12, "color": "var(--danger)" } },
       { "type": "text", "id": "email_field_err", "text": "{{ state.fieldErrors.email }}",
         "if": "{{ len(state.fieldErrors.email) > 0 }}",
-        "style": { "fontSize": 12, "fontWeight": 600, "color": "#dc2626" } },
+        "style": { "fontSize": 12, "fontWeight": 600, "color": "var(--danger)" } },
 
-      { "type": "text", "text": "Password", "style": { "fontSize": 13, "fontWeight": 600, "color": "#334155", "margin": { "top": 8 } } },
+      { "type": "text", "text": "Password", "style": { "fontSize": 13, "fontWeight": 600, "color": "var(--label2)", "margin": { "top": 8 } } },
       { "type": "input", "id": "password", "value": "{{state.password}}", "placeholder": "Choose a password",
-        "style": { "background": "#fff", "height": 42, "padding": { "left": 12 }, "borderRadius": 8, "borderWidth": 1, "borderColor": "#cbd5e1" } },
+        "style": { "background": "var(--surface)", "height": 42, "padding": { "left": 12 }, "borderRadius": 8, "borderWidth": 1, "borderColor": "var(--sep)" } },
       { "type": "text", "id": "pw_err", "text": "Password must be at least 6 characters",
         "if": "{{ len(state.password) > 0 && len(state.password) < 6 }}",
-        "style": { "fontSize": 12, "color": "#ef4444" } },
+        "style": { "fontSize": 12, "color": "var(--danger)" } },
       { "type": "text", "id": "pw_field_err", "text": "{{ state.fieldErrors.password }}",
         "if": "{{ len(state.fieldErrors.password) > 0 }}",
-        "style": { "fontSize": 12, "fontWeight": 600, "color": "#dc2626" } },
+        "style": { "fontSize": 12, "fontWeight": 600, "color": "var(--danger)" } },
 
       { "type": "text", "id": "ok", "text": "Looks good — ready to submit",
-        "if": "{{ matches(state.email, \"^[^@\\\\s]+@[^@\\\\s]+\\\\.[^@\\\\s]+$\") && len(state.password) >= 6 }}",
-        "style": { "fontSize": 13, "fontWeight": 700, "color": "#16a34a", "margin": { "top": 12 } } },
+        "if": "{{ matches(state.email, \"^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$\") && len(state.password) >= 6 }}",
+        "style": { "fontSize": 13, "fontWeight": 700, "color": "var(--success)", "margin": { "top": 12 } } },
 
       { "type": "button", "id": "submit", "label": "Create account",
-        "style": { "background": "#2e7df6", "color": "#fff", "fontWeight": 700, "height": 44, "borderRadius": 8, "margin": { "top": 12 } },
+        "style": { "background": "var(--accent)", "color": "var(--on-accent)", "fontWeight": 700, "height": 44, "borderRadius": 8, "margin": { "top": 12 } },
         "onPress": { "type": "invoke", "name": "submit", "args": {} } },
 
       { "type": "text", "id": "status", "text": "{{ state.status }}",
         "if": "{{ len(state.status) > 0 }}",
-        "style": { "fontSize": 13, "fontWeight": 700, "color": "#0f172a", "margin": { "top": 8 } } }
+        "style": { "fontSize": 13, "fontWeight": 700, "color": "var(--label)", "margin": { "top": 8 } } }
     ]
   }
 }

@@ -8,8 +8,10 @@
    "background": "transparent",
    "width": "100%",
    "height": "100%",
-   "justify": "center",
    "padding": 10
+  },
+  "layout": {
+   "justify": "center"
   },
   "children": [
    {
@@ -26,7 +28,9 @@
       "type": "row",
       "id": "top",
       "style": {
-       "gap": 8,
+       "gap": 8
+      },
+      "layout": {
        "align": "center"
       },
       "children": [

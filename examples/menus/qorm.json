@@ -3,7 +3,6 @@
   "id": "menus",
   "name": "Menus",
   "entry": "main",
-  "theme": "apple",
   "platforms": {
     "desktop": {
       "window": {

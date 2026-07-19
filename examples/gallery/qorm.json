@@ -25,6 +25,9 @@
   "designTokens": {
     "color.primary": { "type": "color", "value": "#0a84ff", "enforce": true },
     "color.bg":      { "type": "color", "value": "#f2f2f7", "enforce": true },
+    "color.info":    { "type": "color", "value": "#2e7df6", "enforce": true },
+    "color.success": { "type": "color", "value": "#10b981", "enforce": true },
+    "color.warning": { "type": "color", "value": "#f59e0b", "enforce": true },
     "spacing.md":    { "type": "number", "value": 16, "enforce": false }
   },
   "platforms": {

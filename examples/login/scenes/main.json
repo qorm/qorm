@@ -5,7 +5,7 @@
     "type": "column",
     "id": "root",
     "style": {
-      "background": "#FDFCFE",
+      "background": "var(--bg)",
       "padding": 48
     },
     "layout": {
@@ -26,7 +26,7 @@
             "id": "title",
             "text": "Welcome Back",
             "style": {
-              "color": "#1F2937",
+              "color": "var(--label)",
               "fontSize": 28,
               "fontWeight": 700
             }
@@ -36,7 +36,7 @@
             "id": "subtitle",
             "text": "Sign in to your QORM account",
             "style": {
-              "color": "#6B7280",
+              "color": "var(--label2)",
               "fontSize": 14,
               "margin": { "top": 8 }
             }
@@ -53,14 +53,14 @@
             "type": "text",
             "id": "lbl_email",
             "text": "Email Address",
-            "style": { "color": "#374151", "fontSize": 14, "fontWeight": 600 }
+            "style": { "color": "var(--label)", "fontSize": 14, "fontWeight": 600 }
           },
           {
             "type": "input",
             "id": "input_email",
             "placeholder": "admin@qorm.dev",
             "style": {
-              "background": "#F3F4F6",
+              "background": "var(--fill)",
               "height": 48,
               "padding": { "left": 12, "right": 12 },
               "borderRadius": 8
@@ -70,7 +70,7 @@
             "type": "text",
             "id": "lbl_pwd",
             "text": "Password",
-            "style": { "color": "#374151", "fontSize": 14, "fontWeight": 600, "margin": { "top": 8 } }
+            "style": { "color": "var(--label)", "fontSize": 14, "fontWeight": 600, "margin": { "top": 8 } }
           },
           {
             "type": "input",
@@ -78,7 +78,7 @@
             "placeholder": "••••••••",
             "secure": true,
             "style": {
-              "background": "#F3F4F6",
+              "background": "var(--fill)",
               "height": 48,
               "padding": { "left": 12, "right": 12 },
               "borderRadius": 8
@@ -92,7 +92,7 @@
         "label": "Sign In",
         "style": {
           "background": "#4F46E5",
-          "color": "#FFFFFF",
+          "color": "var(--on-accent)",
           "height": 50,
           "borderRadius": 8,
           "margin": { "top": 32 },
@@ -112,7 +112,7 @@
         "id": "error_msg",
         "text": "{{state.errorMessage}}",
         "style": {
-          "color": "#EF4444",
+          "color": "var(--danger)",
           "fontSize": 13,
           "margin": { "top": 16 },
           "textAlign": "center"

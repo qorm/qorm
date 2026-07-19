@@ -93,7 +93,9 @@
             "type": "row",
             "id": "h_vol",
             "style": {
-             "gap": 8,
+             "gap": 8
+            },
+            "layout": {
              "align": "center"
             },
             "children": [
@@ -137,7 +139,9 @@
             "type": "row",
             "id": "h_brt",
             "style": {
-             "gap": 8,
+             "gap": 8
+            },
+            "layout": {
              "align": "center"
             },
             "children": [
@@ -181,7 +185,9 @@
             "type": "row",
             "id": "h_awake",
             "style": {
-             "gap": 8,
+             "gap": 8
+            },
+            "layout": {
              "align": "center"
             },
             "children": [
@@ -225,7 +231,9 @@
             "type": "row",
             "id": "h_ntf",
             "style": {
-             "gap": 8,
+             "gap": 8
+            },
+            "layout": {
              "align": "center"
             },
             "children": [
@@ -272,7 +280,9 @@
             "type": "row",
             "id": "h_dbg",
             "style": {
-             "gap": 8,
+             "gap": 8
+            },
+            "layout": {
              "align": "center"
             },
             "children": [
@@ -316,7 +326,9 @@
             "type": "row",
             "id": "h_lgi",
             "style": {
-             "gap": 8,
+             "gap": 8
+            },
+            "layout": {
              "align": "center"
             },
             "children": [
@@ -360,7 +372,9 @@
             "type": "row",
             "id": "h_scr",
             "style": {
-             "gap": 8,
+             "gap": 8
+            },
+            "layout": {
              "align": "center"
             },
             "children": [
@@ -436,7 +450,9 @@
             "type": "row",
             "id": "h_cam",
             "style": {
-             "gap": 8,
+             "gap": 8
+            },
+            "layout": {
              "align": "center"
             },
             "children": [
@@ -482,7 +498,9 @@
             "type": "row",
             "id": "h_mic",
             "style": {
-             "gap": 8,
+             "gap": 8
+            },
+            "layout": {
              "align": "center"
             },
             "children": [
@@ -528,7 +546,9 @@
             "type": "row",
             "id": "h_shot",
             "style": {
-             "gap": 8,
+             "gap": 8
+            },
+            "layout": {
              "align": "center"
             },
             "children": [
@@ -573,7 +593,9 @@
             "type": "row",
             "id": "h_srec",
             "style": {
-             "gap": 8,
+             "gap": 8
+            },
+            "layout": {
              "align": "center"
             },
             "children": [
@@ -618,7 +640,9 @@
             "type": "row",
             "id": "h_tts",
             "style": {
-             "gap": 8,
+             "gap": 8
+            },
+            "layout": {
              "align": "center"
             },
             "children": [
@@ -696,7 +720,9 @@
             "type": "row",
             "id": "h_clip",
             "style": {
-             "gap": 8,
+             "gap": 8
+            },
+            "layout": {
              "align": "center"
             },
             "children": [
@@ -741,7 +767,9 @@
             "type": "row",
             "id": "h_store",
             "style": {
-             "gap": 8,
+             "gap": 8
+            },
+            "layout": {
              "align": "center"
             },
             "children": [
@@ -786,7 +814,9 @@
             "type": "row",
             "id": "h_ss",
             "style": {
-             "gap": 8,
+             "gap": 8
+            },
+            "layout": {
              "align": "center"
             },
             "children": [
@@ -831,7 +861,9 @@
             "type": "row",
             "id": "h_shr",
             "style": {
-             "gap": 8,
+             "gap": 8
+            },
+            "layout": {
              "align": "center"
             },
             "children": [
@@ -876,7 +908,9 @@
             "type": "row",
             "id": "h_url",
             "style": {
-             "gap": 8,
+             "gap": 8
+            },
+            "layout": {
              "align": "center"
             },
             "children": [
@@ -954,7 +988,9 @@
             "type": "row",
             "id": "h_dev",
             "style": {
-             "gap": 8,
+             "gap": 8
+            },
+            "layout": {
              "align": "center"
             },
             "children": [
@@ -999,7 +1035,9 @@
             "type": "row",
             "id": "h_net",
             "style": {
-             "gap": 8,
+             "gap": 8
+            },
+            "layout": {
              "align": "center"
             },
             "children": [
@@ -1044,7 +1082,9 @@
             "type": "row",
             "id": "h_bt",
             "style": {
-             "gap": 8,
+             "gap": 8
+            },
+            "layout": {
              "align": "center"
             },
             "children": [
@@ -1089,7 +1129,9 @@
             "type": "row",
             "id": "h_wf",
             "style": {
-             "gap": 8,
+             "gap": 8
+            },
+            "layout": {
              "align": "center"
             },
             "children": [
@@ -1134,7 +1176,9 @@
             "type": "row",
             "id": "h_bio",
             "style": {
-             "gap": 8,
+             "gap": 8
+            },
+            "layout": {
              "align": "center"
             },
             "children": [
@@ -1179,7 +1223,9 @@
             "type": "row",
             "id": "h_gps",
             "style": {
-             "gap": 8,
+             "gap": 8
+            },
+            "layout": {
              "align": "center"
             },
             "children": [
@@ -1225,7 +1271,9 @@
             "type": "row",
             "id": "h_modes",
             "style": {
-             "gap": 8,
+             "gap": 8
+            },
+            "layout": {
              "align": "center"
             },
             "children": [

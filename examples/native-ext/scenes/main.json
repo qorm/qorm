@@ -2,10 +2,10 @@
  "type": "scene",
  "id": "main",
  "root": { "type": "scaffold", "id": "root", "children": [
- { "type": "body", "id": "body", "children": [
- { "type": "card", "id": "c", "children": [
- { "type": "text", "id": "title", "text": "Custom Native Capability", "style": { "fontSize": 13, "fontWeight": 700, "color": "#8e8e93" } },
- { "type": "text", "id": "result", "text": "{{ state.result }}", "style": { "fontSize": 16, "color": "#111" } },
+ { "type": "body", "id": "body", "style": { "padding": 16 }, "children": [
+ { "type": "card", "id": "c", "style": { "gap": 8 }, "children": [
+ { "type": "text", "id": "title", "text": "Custom Native Capability", "style": { "fontSize": 13, "fontWeight": 700, "color": "var(--label2)" } },
+ { "type": "text", "id": "result", "text": "{{ state.result }}", "style": { "fontSize": 16, "color": "var(--label)" } },
  { "type": "button", "id": "payBtn", "label": "Pay via Native SDK" }
  ] }
  ] }

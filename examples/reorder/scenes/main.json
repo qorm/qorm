@@ -1,8 +1,8 @@
-{ "type": "scene", "id": "main", "root": { "type": "column", "style": { "padding": 20, "gap": 12, "background": "#f2f2f7" }, "children": [
-  { "type": "text", "text": "Press-hold & drag to reorder", "style": { "fontWeight": 800, "fontSize": 22 } },
+{ "type": "scene", "id": "main", "root": { "type": "column", "style": { "padding": 20, "gap": 12, "background": "var(--bg)" }, "children": [
+  { "type": "text", "text": "Press-hold & drag to reorder", "style": { "fontWeight": 800, "fontSize": 22, "color": "var(--label)" } },
   { "type": "list", "id": "tasks", "reorderable": true, "onReorder": { "type": "invoke", "name": "onReorder" }, "data": "{{state.items}}",
-    "renderItem": { "type": "card", "style": { "padding": 16, "gap": 12, "marginBottom": 8 }, "layout": { "align": "center" }, "children": [
-      { "type": "icon", "icon": "menu", "size": 20, "style": { "color": "#c7c7cc" } },
-      { "type": "text", "text": "{{item.label}}", "style": { "fontWeight": 600, "fontSize": 17 } }
+    "renderItem": { "type": "card", "style": { "padding": 16, "gap": 12, "margin": { "bottom": 8 }, "borderRadius": 12 }, "layout": { "align": "center" }, "children": [
+      { "type": "icon", "icon": "menu", "size": 20, "style": { "color": "var(--label2)" } },
+      { "type": "text", "text": "{{item.label}}", "style": { "fontWeight": 600, "fontSize": 17, "color": "var(--label)" } }
     ] } }
 ] } }

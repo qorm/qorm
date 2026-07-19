@@ -1,8 +1,8 @@
 {"type":"scene","id":"main","root":{"type":"scaffold","id":"root","children":[
   {"type":"appbar","id":"bar","label":"Nav Demo"},
-  {"type":"column","id":"body","style":{"padding":16,"gap":8},"children":[
-    {"type":"text","id":"hdr","text":"Current tab: {{state.tab}}","style":{"fontSize":17,"fontWeight":600}},
-    {"type":"card","id":"c1","children":[{"type":"text","id":"t1","text":"Content area — the nav bar sits at the bottom on phones and moves to the top on desktop."}]}
+  {"type":"column","id":"body","style":{"padding":16,"gap":12},"children":[
+    {"type":"text","id":"hdr","text":"Current tab: {{state.tab}}","style":{"fontSize":17,"fontWeight":600,"color":"var(--label)"}},
+    {"type":"card","id":"c1","children":[{"type":"text","id":"t1","text":"Content area — the nav bar sits at the bottom on phones and moves to the top on desktop.","style":{"fontSize":15,"color":"var(--label2)"}}]}
   ]},
   {"type":"bottomnav","id":"nav","value":"{{state.tab}}",
    "items":[

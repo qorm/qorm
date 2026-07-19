@@ -14,13 +14,18 @@
         "type": "column",
         "id": "body",
         "style": {
-          "padding": 16,
-          "gap": 14
+          "padding": 20,
+          "gap": 16
         },
         "children": [
           {
             "type": "card",
             "id": "card",
+            "style": {
+              "padding": 18,
+              "gap": 6,
+              "borderRadius": 12
+            },
             "children": [
               {
                 "type": "text",
@@ -29,7 +34,7 @@
                 "style": {
                   "fontSize": 13,
                   "fontWeight": 700,
-                  "color": "#8e8e93"
+                  "color": "var(--label2)"
                 }
               },
               {
@@ -38,7 +43,8 @@
                 "text": "{{state.resp.fact}}",
                 "style": {
                   "fontSize": 17,
-                  "lineHeight": 1.4
+                  "lineHeight": 1.4,
+                  "color": "var(--label)"
                 }
               }
             ]
@@ -49,7 +55,7 @@
             "text": "{{state.err}}",
             "style": {
               "fontSize": 13,
-              "color": "#ff3b30"
+              "color": "var(--danger)"
             }
           },
           {
@@ -74,7 +80,7 @@
             "style": {
               "fontSize": 13,
               "fontWeight": 700,
-              "color": "#8e8e93"
+              "color": "var(--label2)"
             }
           },
           {

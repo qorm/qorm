@@ -3,12 +3,12 @@
   {"type":"list","data":"{{state.items}}","renderItem":{
     "type":"swipeactions",
     "actions":[
-      {"label":"Archive","icon":"inbox","color":"#0a84ff","name":"remove","args":{"id":"{{item.id}}"}},
-      {"label":"Delete","icon":"trash","color":"#ff3b30","name":"remove","args":{"id":"{{item.id}}"}}
+      {"label":"Archive","icon":"inbox","color":"var(--accent)","name":"remove","args":{"id":"{{item.id}}"}},
+      {"label":"Delete","icon":"trash","color":"var(--danger)","name":"remove","args":{"id":"{{item.id}}"}}
     ],
     "children":[{"type":"row","style":{"padding":16,"gap":4},"layout":{"direction":"column"},"children":[
-      {"type":"text","text":"{{item.from}}","style":{"fontWeight":700,"fontSize":16}},
-      {"type":"text","text":"{{item.subject}}","style":{"color":"#8e8e93","fontSize":14}}
+      {"type":"text","text":"{{item.from}}","style":{"color":"var(--label)","fontWeight":700,"fontSize":16}},
+      {"type":"text","text":"{{item.subject}}","style":{"color":"var(--label2)","fontSize":14}}
     ]}]
   }}
 ]}}

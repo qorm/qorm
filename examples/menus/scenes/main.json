@@ -24,7 +24,7 @@
       "text": "Use the menu bar (File / View), right-click below, or the tray icon. The last action shows here.",
       "style": {
        "fontSize": 14,
-       "color": "var(--label)"
+       "color": "var(--label2)"
       }
      },
      {
@@ -32,7 +32,8 @@
       "id": "out",
       "style": {
        "padding": 18,
-       "gap": 6
+       "gap": 6,
+       "borderRadius": 12
       },
       "children": [
        {
@@ -42,7 +43,8 @@
         "style": {
          "fontSize": 12,
          "fontWeight": 800,
-         "color": "#8e8e93"
+         "color": "var(--label2)",
+         "letterSpacing": "0.04em"
         }
        },
        {
@@ -103,7 +105,8 @@
         "id": "ctxarea",
         "style": {
          "padding": 24,
-         "background": "var(--fill)"
+         "background": "var(--fill)",
+         "borderRadius": 12
         },
         "children": [
          {

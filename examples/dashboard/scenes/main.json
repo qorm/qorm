@@ -22,7 +22,9 @@
         "type": "row",
         "id": "head",
         "style": {
-         "gap": 10,
+         "gap": 10
+        },
+        "layout": {
          "align": "center"
         },
         "children": [
@@ -50,227 +52,467 @@
         ]
        },
        {
-        "type": "grid",
-        "id": "stats",
-        "columns": 3,
-        "style": {
-         "gap": 14
+        "type": "when",
+        "id": "stats-switch",
+        "condition": "{{ viewport.width >= 720 }}",
+        "then": {
+         "type": "grid",
+         "id": "stats",
+         "columns": 3,
+         "style": {
+          "gap": 14
+         },
+         "children": [
+          {
+           "type": "card",
+           "id": "rev",
+           "style": {
+            "padding": 18,
+            "gap": 8,
+            "borderRadius": 16
+           },
+           "children": [
+            {
+             "type": "text",
+             "id": "lrev",
+             "text": "REVENUE",
+             "style": {
+              "fontSize": 12,
+              "fontWeight": 700,
+              "color": "#8e8e93",
+              "letterSpacing": "0.04em"
+             }
+            },
+            {
+             "type": "row",
+             "id": "rrev",
+             "style": {
+              "gap": 8
+             },
+             "layout": {
+              "align": "baseline"
+             },
+             "children": [
+              {
+               "type": "text",
+               "id": "vrev",
+               "text": "$48.2k",
+               "style": {
+                "fontSize": 30,
+                "fontWeight": 800,
+                "color": "var(--label)"
+               }
+              },
+              {
+               "type": "text",
+               "id": "drev",
+               "text": "+12%",
+               "style": {
+                "fontSize": 12,
+                "fontWeight": 700,
+                "color": "#34c759"
+               }
+              }
+             ]
+            },
+            {
+             "type": "chart",
+             "id": "crev",
+             "chartType": "area",
+             "data": [
+              22,
+              28,
+              25,
+              34,
+              31,
+              40,
+              38,
+              46
+             ],
+             "color": "var(--accent)",
+             "style": {
+              "height": 40
+             }
+            }
+           ]
+          },
+          {
+           "type": "card",
+           "id": "usr",
+           "style": {
+            "padding": 18,
+            "gap": 8,
+            "borderRadius": 16
+           },
+           "children": [
+            {
+             "type": "text",
+             "id": "lusr",
+             "text": "ACTIVE USERS",
+             "style": {
+              "fontSize": 12,
+              "fontWeight": 700,
+              "color": "#8e8e93",
+              "letterSpacing": "0.04em"
+             }
+            },
+            {
+             "type": "row",
+             "id": "rusr",
+             "style": {
+              "gap": 8
+             },
+             "layout": {
+              "align": "baseline"
+             },
+             "children": [
+              {
+               "type": "text",
+               "id": "vusr",
+               "text": "12,431",
+               "style": {
+                "fontSize": 30,
+                "fontWeight": 800,
+                "color": "var(--label)"
+               }
+              },
+              {
+               "type": "text",
+               "id": "dusr",
+               "text": "+6%",
+               "style": {
+                "fontSize": 12,
+                "fontWeight": 700,
+                "color": "#34c759"
+               }
+              }
+             ]
+            },
+            {
+             "type": "chart",
+             "id": "cusr",
+             "chartType": "area",
+             "data": [
+              10,
+              12,
+              11,
+              15,
+              17,
+              16,
+              19,
+              21
+             ],
+             "color": "#5e5ce6",
+             "style": {
+              "height": 40
+             }
+            }
+           ]
+          },
+          {
+           "type": "card",
+           "id": "ord",
+           "style": {
+            "padding": 18,
+            "gap": 8,
+            "borderRadius": 16
+           },
+           "children": [
+            {
+             "type": "text",
+             "id": "lord",
+             "text": "ORDERS",
+             "style": {
+              "fontSize": 12,
+              "fontWeight": 700,
+              "color": "#8e8e93",
+              "letterSpacing": "0.04em"
+             }
+            },
+            {
+             "type": "row",
+             "id": "rord",
+             "style": {
+              "gap": 8
+             },
+             "layout": {
+              "align": "baseline"
+             },
+             "children": [
+              {
+               "type": "text",
+               "id": "vord",
+               "text": "1,832",
+               "style": {
+                "fontSize": 30,
+                "fontWeight": 800,
+                "color": "var(--label)"
+               }
+              },
+              {
+               "type": "text",
+               "id": "dord",
+               "text": "+9%",
+               "style": {
+                "fontSize": 12,
+                "fontWeight": 700,
+                "color": "#34c759"
+               }
+              }
+             ]
+            },
+            {
+             "type": "chart",
+             "id": "cord",
+             "chartType": "area",
+             "data": [
+              30,
+              26,
+              34,
+              32,
+              38,
+              35,
+              41,
+              44
+             ],
+             "color": "#34c759",
+             "style": {
+              "height": 40
+             }
+            }
+           ]
+          }
+         ]
         },
-        "children": [
-         {
-          "type": "card",
-          "id": "rev",
-          "style": {
-           "padding": 18,
-           "gap": 8,
-           "borderRadius": 16
-          },
-          "children": [
-           {
-            "type": "text",
-            "id": "lrev",
-            "text": "REVENUE",
-            "style": {
-             "fontSize": 12,
-             "fontWeight": 700,
-             "color": "#8e8e93",
-             "letterSpacing": "0.04em"
-            }
-           },
-           {
-            "type": "row",
-            "id": "rrev",
-            "style": {
-             "gap": 8,
-             "align": "baseline"
-            },
-            "children": [
-             {
-              "type": "text",
-              "id": "vrev",
-              "text": "$48.2k",
-              "style": {
-               "fontSize": 30,
-               "fontWeight": 800,
-               "color": "var(--label)"
-              }
-             },
-             {
-              "type": "text",
-              "id": "drev",
-              "text": "+12%",
-              "style": {
-               "fontSize": 12,
-               "fontWeight": 700,
-               "color": "#34c759"
-              }
-             }
-            ]
-           },
-           {
-            "type": "chart",
-            "id": "crev",
-            "chartType": "area",
-            "data": [
-             22,
-             28,
-             25,
-             34,
-             31,
-             40,
-             38,
-             46
-            ],
-            "color": "var(--accent)",
-            "style": {
-             "height": 40
-            }
-           }
-          ]
+        "else": {
+         "type": "grid",
+         "id": "stats-narrow",
+         "columns": 1,
+         "style": {
+          "gap": 14
          },
-         {
-          "type": "card",
-          "id": "usr",
-          "style": {
-           "padding": 18,
-           "gap": 8,
-           "borderRadius": 16
-          },
-          "children": [
-           {
-            "type": "text",
-            "id": "lusr",
-            "text": "ACTIVE USERS",
-            "style": {
-             "fontSize": 12,
-             "fontWeight": 700,
-             "color": "#8e8e93",
-             "letterSpacing": "0.04em"
-            }
+         "children": [
+          {
+           "type": "card",
+           "id": "rev-narrow",
+           "style": {
+            "padding": 18,
+            "gap": 8,
+            "borderRadius": 16
            },
-           {
-            "type": "row",
-            "id": "rusr",
-            "style": {
-             "gap": 8,
-             "align": "baseline"
-            },
-            "children": [
-             {
-              "type": "text",
-              "id": "vusr",
-              "text": "12,431",
-              "style": {
-               "fontSize": 30,
-               "fontWeight": 800,
-               "color": "var(--label)"
-              }
-             },
-             {
-              "type": "text",
-              "id": "dusr",
-              "text": "+6%",
-              "style": {
-               "fontSize": 12,
-               "fontWeight": 700,
-               "color": "#34c759"
-              }
+           "children": [
+            {
+             "type": "text",
+             "id": "lrev-narrow",
+             "text": "REVENUE",
+             "style": {
+              "fontSize": 12,
+              "fontWeight": 700,
+              "color": "#8e8e93",
+              "letterSpacing": "0.04em"
              }
-            ]
-           },
-           {
-            "type": "chart",
-            "id": "cusr",
-            "chartType": "area",
-            "data": [
-             10,
-             12,
-             11,
-             15,
-             17,
-             16,
-             19,
-             21
-            ],
-            "color": "#5e5ce6",
-            "style": {
-             "height": 40
-            }
-           }
-          ]
-         },
-         {
-          "type": "card",
-          "id": "ord",
-          "style": {
-           "padding": 18,
-           "gap": 8,
-           "borderRadius": 16
-          },
-          "children": [
-           {
-            "type": "text",
-            "id": "lord",
-            "text": "ORDERS",
-            "style": {
-             "fontSize": 12,
-             "fontWeight": 700,
-             "color": "#8e8e93",
-             "letterSpacing": "0.04em"
-            }
-           },
-           {
-            "type": "row",
-            "id": "rord",
-            "style": {
-             "gap": 8,
-             "align": "baseline"
             },
-            "children": [
-             {
-              "type": "text",
-              "id": "vord",
-              "text": "1,832",
-              "style": {
-               "fontSize": 30,
-               "fontWeight": 800,
-               "color": "var(--label)"
-              }
+            {
+             "type": "row",
+             "id": "rrev-narrow",
+             "style": {
+              "gap": 8
              },
-             {
-              "type": "text",
-              "id": "dord",
-              "text": "+9%",
-              "style": {
-               "fontSize": 12,
-               "fontWeight": 700,
-               "color": "#34c759"
+             "layout": {
+              "align": "baseline"
+             },
+             "children": [
+              {
+               "type": "text",
+               "id": "vrev-narrow",
+               "text": "$48.2k",
+               "style": {
+                "fontSize": 30,
+                "fontWeight": 800,
+                "color": "var(--label)"
+               }
+              },
+              {
+               "type": "text",
+               "id": "drev-narrow",
+               "text": "+12%",
+               "style": {
+                "fontSize": 12,
+                "fontWeight": 700,
+                "color": "#34c759"
+               }
               }
+             ]
+            },
+            {
+             "type": "chart",
+             "id": "crev-narrow",
+             "chartType": "area",
+             "data": [
+              22,
+              28,
+              25,
+              34,
+              31,
+              40,
+              38,
+              46
+             ],
+             "color": "var(--accent)",
+             "style": {
+              "height": 40
              }
-            ]
-           },
-           {
-            "type": "chart",
-            "id": "cord",
-            "chartType": "area",
-            "data": [
-             30,
-             26,
-             34,
-             32,
-             38,
-             35,
-             41,
-             44
-            ],
-            "color": "#34c759",
-            "style": {
-             "height": 40
             }
-           }
-          ]
-         }
-        ]
+           ]
+          },
+          {
+           "type": "card",
+           "id": "usr-narrow",
+           "style": {
+            "padding": 18,
+            "gap": 8,
+            "borderRadius": 16
+           },
+           "children": [
+            {
+             "type": "text",
+             "id": "lusr-narrow",
+             "text": "ACTIVE USERS",
+             "style": {
+              "fontSize": 12,
+              "fontWeight": 700,
+              "color": "#8e8e93",
+              "letterSpacing": "0.04em"
+             }
+            },
+            {
+             "type": "row",
+             "id": "rusr-narrow",
+             "style": {
+              "gap": 8
+             },
+             "layout": {
+              "align": "baseline"
+             },
+             "children": [
+              {
+               "type": "text",
+               "id": "vusr-narrow",
+               "text": "12,431",
+               "style": {
+                "fontSize": 30,
+                "fontWeight": 800,
+                "color": "var(--label)"
+               }
+              },
+              {
+               "type": "text",
+               "id": "dusr-narrow",
+               "text": "+6%",
+               "style": {
+                "fontSize": 12,
+                "fontWeight": 700,
+                "color": "#34c759"
+               }
+              }
+             ]
+            },
+            {
+             "type": "chart",
+             "id": "cusr-narrow",
+             "chartType": "area",
+             "data": [
+              10,
+              12,
+              11,
+              15,
+              17,
+              16,
+              19,
+              21
+             ],
+             "color": "#5e5ce6",
+             "style": {
+              "height": 40
+             }
+            }
+           ]
+          },
+          {
+           "type": "card",
+           "id": "ord-narrow",
+           "style": {
+            "padding": 18,
+            "gap": 8,
+            "borderRadius": 16
+           },
+           "children": [
+            {
+             "type": "text",
+             "id": "lord-narrow",
+             "text": "ORDERS",
+             "style": {
+              "fontSize": 12,
+              "fontWeight": 700,
+              "color": "#8e8e93",
+              "letterSpacing": "0.04em"
+             }
+            },
+            {
+             "type": "row",
+             "id": "rord-narrow",
+             "style": {
+              "gap": 8
+             },
+             "layout": {
+              "align": "baseline"
+             },
+             "children": [
+              {
+               "type": "text",
+               "id": "vord-narrow",
+               "text": "1,832",
+               "style": {
+                "fontSize": 30,
+                "fontWeight": 800,
+                "color": "var(--label)"
+               }
+              },
+              {
+               "type": "text",
+               "id": "dord-narrow",
+               "text": "+9%",
+               "style": {
+                "fontSize": 12,
+                "fontWeight": 700,
+                "color": "#34c759"
+               }
+              }
+             ]
+            },
+            {
+             "type": "chart",
+             "id": "cord-narrow",
+             "chartType": "area",
+             "data": [
+              30,
+              26,
+              34,
+              32,
+              38,
+              35,
+              41,
+              44
+             ],
+             "color": "#34c759",
+             "style": {
+              "height": 40
+             }
+            }
+           ]
+          }
+         ]
+        }
        },
        {
         "type": "card",
@@ -317,213 +559,427 @@
         ]
        },
        {
-        "type": "grid",
-        "id": "low",
-        "columns": 2,
-        "style": {
-         "gap": 14
-        },
-        "children": [
-         {
-          "type": "card",
-          "id": "goals",
-          "style": {
-           "padding": 18,
-           "gap": 14,
-           "borderRadius": 16
-          },
-          "children": [
-           {
-            "type": "text",
-            "id": "gt",
-            "text": "Quarterly goals",
-            "style": {
-             "fontSize": 15,
-             "fontWeight": 700,
-             "color": "var(--label)"
-            }
-           },
-           {
-            "type": "column",
-            "id": "sales",
-            "style": {
-             "gap": 6
-            },
-            "children": [
-             {
-              "type": "row",
-              "id": "grsales",
-              "style": {
-               "gap": 8
-              },
-              "children": [
-               {
-                "type": "text",
-                "id": "glsales",
-                "text": "Sales target",
-                "style": {
-                 "fontSize": 14,
-                 "color": "var(--label)",
-                 "flexGrow": 1
-                }
-               },
-               {
-                "type": "text",
-                "id": "gpsales",
-                "text": "72%",
-                "style": {
-                 "fontSize": 14,
-                 "fontWeight": 700,
-                 "color": "var(--label)"
-                }
-               }
-              ]
-             },
-             {
-              "type": "progress",
-              "id": "gbsales",
-              "value": 0.72,
-              "color": "var(--accent)"
-             }
-            ]
-           },
-           {
-            "type": "column",
-            "id": "signups",
-            "style": {
-             "gap": 6
-            },
-            "children": [
-             {
-              "type": "row",
-              "id": "grsignups",
-              "style": {
-               "gap": 8
-              },
-              "children": [
-               {
-                "type": "text",
-                "id": "glsignups",
-                "text": "Signups",
-                "style": {
-                 "fontSize": 14,
-                 "color": "var(--label)",
-                 "flexGrow": 1
-                }
-               },
-               {
-                "type": "text",
-                "id": "gpsignups",
-                "text": "45%",
-                "style": {
-                 "fontSize": 14,
-                 "fontWeight": 700,
-                 "color": "var(--label)"
-                }
-               }
-              ]
-             },
-             {
-              "type": "progress",
-              "id": "gbsignups",
-              "value": 0.45,
-              "color": "#5e5ce6"
-             }
-            ]
-           },
-           {
-            "type": "column",
-            "id": "retention",
-            "style": {
-             "gap": 6
-            },
-            "children": [
-             {
-              "type": "row",
-              "id": "grretention",
-              "style": {
-               "gap": 8
-              },
-              "children": [
-               {
-                "type": "text",
-                "id": "glretention",
-                "text": "Retention",
-                "style": {
-                 "fontSize": 14,
-                 "color": "var(--label)",
-                 "flexGrow": 1
-                }
-               },
-               {
-                "type": "text",
-                "id": "gpretention",
-                "text": "88%",
-                "style": {
-                 "fontSize": 14,
-                 "fontWeight": 700,
-                 "color": "var(--label)"
-                }
-               }
-              ]
-             },
-             {
-              "type": "progress",
-              "id": "gbretention",
-              "value": 0.88,
-              "color": "#34c759"
-             }
-            ]
-           }
-          ]
+        "type": "when",
+        "id": "low-switch",
+        "condition": "{{ viewport.width >= 720 }}",
+        "then": {
+         "type": "grid",
+         "id": "low",
+         "columns": 2,
+         "style": {
+          "gap": 14
          },
-         {
-          "type": "card",
-          "id": "traffic",
-          "style": {
-           "padding": 18,
-           "gap": 8,
-           "borderRadius": 16
+         "children": [
+          {
+           "type": "card",
+           "id": "goals",
+           "style": {
+            "padding": 18,
+            "gap": 14,
+            "borderRadius": 16
+           },
+           "children": [
+            {
+             "type": "text",
+             "id": "gt",
+             "text": "Quarterly goals",
+             "style": {
+              "fontSize": 15,
+              "fontWeight": 700,
+              "color": "var(--label)"
+             }
+            },
+            {
+             "type": "column",
+             "id": "sales",
+             "style": {
+              "gap": 6
+             },
+             "children": [
+              {
+               "type": "row",
+               "id": "grsales",
+               "style": {
+                "gap": 8
+               },
+               "children": [
+                {
+                 "type": "text",
+                 "id": "glsales",
+                 "text": "Sales target",
+                 "style": {
+                  "fontSize": 14,
+                  "color": "var(--label)",
+                  "flexGrow": 1
+                 }
+                },
+                {
+                 "type": "text",
+                 "id": "gpsales",
+                 "text": "72%",
+                 "style": {
+                  "fontSize": 14,
+                  "fontWeight": 700,
+                  "color": "var(--label)"
+                 }
+                }
+               ]
+              },
+              {
+               "type": "progress",
+               "id": "gbsales",
+               "value": 0.72,
+               "color": "var(--accent)"
+              }
+             ]
+            },
+            {
+             "type": "column",
+             "id": "signups",
+             "style": {
+              "gap": 6
+             },
+             "children": [
+              {
+               "type": "row",
+               "id": "grsignups",
+               "style": {
+                "gap": 8
+               },
+               "children": [
+                {
+                 "type": "text",
+                 "id": "glsignups",
+                 "text": "Signups",
+                 "style": {
+                  "fontSize": 14,
+                  "color": "var(--label)",
+                  "flexGrow": 1
+                 }
+                },
+                {
+                 "type": "text",
+                 "id": "gpsignups",
+                 "text": "45%",
+                 "style": {
+                  "fontSize": 14,
+                  "fontWeight": 700,
+                  "color": "var(--label)"
+                 }
+                }
+               ]
+              },
+              {
+               "type": "progress",
+               "id": "gbsignups",
+               "value": 0.45,
+               "color": "#5e5ce6"
+              }
+             ]
+            },
+            {
+             "type": "column",
+             "id": "retention",
+             "style": {
+              "gap": 6
+             },
+             "children": [
+              {
+               "type": "row",
+               "id": "grretention",
+               "style": {
+                "gap": 8
+               },
+               "children": [
+                {
+                 "type": "text",
+                 "id": "glretention",
+                 "text": "Retention",
+                 "style": {
+                  "fontSize": 14,
+                  "color": "var(--label)",
+                  "flexGrow": 1
+                 }
+                },
+                {
+                 "type": "text",
+                 "id": "gpretention",
+                 "text": "88%",
+                 "style": {
+                  "fontSize": 14,
+                  "fontWeight": 700,
+                  "color": "var(--label)"
+                 }
+                }
+               ]
+              },
+              {
+               "type": "progress",
+               "id": "gbretention",
+               "value": 0.88,
+               "color": "#34c759"
+              }
+             ]
+            }
+           ]
           },
-          "children": [
-           {
-            "type": "text",
-            "id": "tt",
-            "text": "Traffic by source",
-            "style": {
-             "fontSize": 15,
-             "fontWeight": 700,
-             "color": "var(--label)"
-            }
+          {
+           "type": "card",
+           "id": "traffic",
+           "style": {
+            "padding": 18,
+            "gap": 8,
+            "borderRadius": 16
            },
-           {
-            "type": "chart",
-            "id": "bars",
-            "chartType": "bar",
-            "data": [
-             64,
-             42,
-             28,
-             16,
-             9
-            ],
-            "color": "var(--accent)",
-            "style": {
-             "height": 150
+           "children": [
+            {
+             "type": "text",
+             "id": "tt",
+             "text": "Traffic by source",
+             "style": {
+              "fontSize": 15,
+              "fontWeight": 700,
+              "color": "var(--label)"
+             }
+            },
+            {
+             "type": "chart",
+             "id": "bars",
+             "chartType": "bar",
+             "data": [
+              64,
+              42,
+              28,
+              16,
+              9
+             ],
+             "color": "var(--accent)",
+             "style": {
+              "height": 150
+             }
+            },
+            {
+             "type": "text",
+             "id": "tl",
+             "text": "Direct · Search · Social · Email · Referral",
+             "style": {
+              "fontSize": 12,
+              "color": "#8e8e93"
+             }
             }
+           ]
+          }
+         ]
+        },
+        "else": {
+         "type": "grid",
+         "id": "low-narrow",
+         "columns": 1,
+         "style": {
+          "gap": 14
+         },
+         "children": [
+          {
+           "type": "card",
+           "id": "goals-narrow",
+           "style": {
+            "padding": 18,
+            "gap": 14,
+            "borderRadius": 16
            },
-           {
-            "type": "text",
-            "id": "tl",
-            "text": "Direct · Search · Social · Email · Referral",
-            "style": {
-             "fontSize": 12,
-             "color": "#8e8e93"
+           "children": [
+            {
+             "type": "text",
+             "id": "gt-narrow",
+             "text": "Quarterly goals",
+             "style": {
+              "fontSize": 15,
+              "fontWeight": 700,
+              "color": "var(--label)"
+             }
+            },
+            {
+             "type": "column",
+             "id": "sales-narrow",
+             "style": {
+              "gap": 6
+             },
+             "children": [
+              {
+               "type": "row",
+               "id": "grsales-narrow",
+               "style": {
+                "gap": 8
+               },
+               "children": [
+                {
+                 "type": "text",
+                 "id": "glsales-narrow",
+                 "text": "Sales target",
+                 "style": {
+                  "fontSize": 14,
+                  "color": "var(--label)",
+                  "flexGrow": 1
+                 }
+                },
+                {
+                 "type": "text",
+                 "id": "gpsales-narrow",
+                 "text": "72%",
+                 "style": {
+                  "fontSize": 14,
+                  "fontWeight": 700,
+                  "color": "var(--label)"
+                 }
+                }
+               ]
+              },
+              {
+               "type": "progress",
+               "id": "gbsales-narrow",
+               "value": 0.72,
+               "color": "var(--accent)"
+              }
+             ]
+            },
+            {
+             "type": "column",
+             "id": "signups-narrow",
+             "style": {
+              "gap": 6
+             },
+             "children": [
+              {
+               "type": "row",
+               "id": "grsignups-narrow",
+               "style": {
+                "gap": 8
+               },
+               "children": [
+                {
+                 "type": "text",
+                 "id": "glsignups-narrow",
+                 "text": "Signups",
+                 "style": {
+                  "fontSize": 14,
+                  "color": "var(--label)",
+                  "flexGrow": 1
+                 }
+                },
+                {
+                 "type": "text",
+                 "id": "gpsignups-narrow",
+                 "text": "45%",
+                 "style": {
+                  "fontSize": 14,
+                  "fontWeight": 700,
+                  "color": "var(--label)"
+                 }
+                }
+               ]
+              },
+              {
+               "type": "progress",
+               "id": "gbsignups-narrow",
+               "value": 0.45,
+               "color": "#5e5ce6"
+              }
+             ]
+            },
+            {
+             "type": "column",
+             "id": "retention-narrow",
+             "style": {
+              "gap": 6
+             },
+             "children": [
+              {
+               "type": "row",
+               "id": "grretention-narrow",
+               "style": {
+                "gap": 8
+               },
+               "children": [
+                {
+                 "type": "text",
+                 "id": "glretention-narrow",
+                 "text": "Retention",
+                 "style": {
+                  "fontSize": 14,
+                  "color": "var(--label)",
+                  "flexGrow": 1
+                 }
+                },
+                {
+                 "type": "text",
+                 "id": "gpretention-narrow",
+                 "text": "88%",
+                 "style": {
+                  "fontSize": 14,
+                  "fontWeight": 700,
+                  "color": "var(--label)"
+                 }
+                }
+               ]
+              },
+              {
+               "type": "progress",
+               "id": "gbretention-narrow",
+               "value": 0.88,
+               "color": "#34c759"
+              }
+             ]
             }
-           }
-          ]
-         }
-        ]
+           ]
+          },
+          {
+           "type": "card",
+           "id": "traffic-narrow",
+           "style": {
+            "padding": 18,
+            "gap": 8,
+            "borderRadius": 16
+           },
+           "children": [
+            {
+             "type": "text",
+             "id": "tt-narrow",
+             "text": "Traffic by source",
+             "style": {
+              "fontSize": 15,
+              "fontWeight": 700,
+              "color": "var(--label)"
+             }
+            },
+            {
+             "type": "chart",
+             "id": "bars-narrow",
+             "chartType": "bar",
+             "data": [
+              64,
+              42,
+              28,
+              16,
+              9
+             ],
+             "color": "var(--accent)",
+             "style": {
+              "height": 150
+             }
+            },
+            {
+             "type": "text",
+             "id": "tl-narrow",
+             "text": "Direct · Search · Social · Email · Referral",
+             "style": {
+              "fontSize": 12,
+              "color": "#8e8e93"
+             }
+            }
+           ]
+          }
+         ]
+        }
        }
       ]
      }

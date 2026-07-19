@@ -5,7 +5,7 @@
     "type": "column",
     "id": "root",
     "style": {
-      "background": "#0F172A",
+      "background": "var(--bg)",
       "padding": 32
     },
     "layout": {
@@ -20,7 +20,7 @@
         "id": "title",
         "text": "COUNTER",
         "style": {
-          "color": "#38BDF8",
+          "color": "var(--accent)",
           "fontSize": 14,
           "fontWeight": 700,
           "textAlign": "center"
@@ -52,7 +52,7 @@
             "id": "status_text",
             "text": "{{state.status}}",
             "style": {
-              "color": "#64748B",
+              "color": "var(--label2)",
               "fontSize": 14,
               "margin": { "top": 8 }
             }
@@ -71,8 +71,8 @@
             "id": "btn_minus",
             "label": "-",
             "style": {
-              "background": "#1E293B",
-              "color": "#F8FAFC",
+              "background": "var(--surface)",
+              "color": "var(--label)",
               "fontSize": 24,
               "width": 60,
               "height": 60,
@@ -89,8 +89,8 @@
             "id": "btn_plus",
             "label": "+",
             "style": {
-              "background": "#38BDF8",
-              "color": "#0F172A",
+              "background": "var(--accent)",
+              "color": "var(--on-accent)",
               "fontSize": 24,
               "width": 60,
               "height": 60,
