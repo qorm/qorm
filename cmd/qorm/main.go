@@ -97,9 +97,11 @@ func usage() {
 
 usage:
   qorm new <dir> [--name "App Name"]              scaffold a new runnable app
-  qorm run <app-dir|bundle> [--trust pub.key] [--revoked list.json] [--app] [--port N=10383] [--no-open] [--mcp-read-only] [--no-watch]
+  qorm run <app-dir|bundle> [--trust pub.key] [--revoked list.json] [--app] [--console] [--port N=10383] [--no-open]
+                            [--lan] [--tls] [--mcp-read-only] [--no-watch] [--audit-log file.jsonl]
                                                   run app live (verifies signed bundles; --app = standalone window;
-                                                  --mcp-read-only = agents may inspect but not mutate;
+                                                  --console = DevTool window; --lan/--tls = serve the LAN (TLS needs
+                                                  certs); --mcp-read-only = agents may inspect but not mutate;
                                                   a directory hot-reloads on file change — --no-watch disables it)
   qorm render <app-dir|scene.json> [-o out.html]  write a static HTML snapshot
   qorm shot <app-dir> -o out.png                 render an app to a PNG (macOS, -tags desktop)
@@ -113,7 +115,8 @@ usage:
   qorm sign <bundle> --key priv.key [-o out]       sign an existing (e.g. agent-exported) bundle
   qorm verify <bundle> [--trust pub.key] [--revoked list.json]
                                                   verify integrity (+ signature, + revocation)
-  qorm mcp <app-dir|bundle> [--trust pub.key]      serve the app to agents over MCP (stdio)
+  qorm mcp <app-dir|bundle> [--trust pub.key] [--revoked list.json]
+                                                  serve the app to agents over MCP (stdio)
   qorm package <app-dir> -p web|ios|android|mac [-o out] [--dev URL] [--team ID] [--no-branding] [--subscribed]
                                                   package as an installable app for a platform
        --release [--app-version V --build N]      distributable build — iOS .ipa (--export-method / --upload /
@@ -122,7 +125,7 @@ usage:
        --update-url URL --trust pub.key           wire the package to an OTA update server (flags are paired)
   qorm preview <package-dir> [--width N] [-o report.json]
                                                   render a packaged app and report its layout
-  qorm docs [--docs docs] [-o site]                render the markdown docs to a static HTML site
+  qorm docs [--docs docs] [-o docs-site]           render the markdown docs to a static HTML site
   qorm audit <audit-log.jsonl>                     verify a hash-chained activity audit log
                                                   (written by qorm run --audit-log <file>)
   qorm updates <bundles-dir> [--port N]            OTA publish server (staged rollout via rollout.json)

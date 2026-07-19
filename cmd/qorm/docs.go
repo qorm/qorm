@@ -10,7 +10,7 @@ import (
 
 // cmdDocs renders the markdown docs tree into a static HTML site (pure Go).
 func cmdDocs(args []string) int {
-	docsDir, outDir, siteName := "docs", "site", ""
+	docsDir, outDir, siteName := "docs", "docs-site", ""
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--docs":
