@@ -33,8 +33,9 @@ An error line binds to state so a failed attempt shows a message:
 { "type": "text", "id": "err", "text": "{{state.errorMessage}}" }
 ```
 
-The login flow is exercised by [`login.test.json`](https://github.com/qorm/qorm/blob/main/examples/login/login.test.json)
-(a `type: test` fixture the loader skips at run time but the harness runs).
+This flow can be exercised against the running app with `qorm check` (layout
+audit) or the agent-side `qorm_assert` / `qorm_dispatch` MCP tools — see
+[verification](../verification.md).
 
 ## Format notes
 

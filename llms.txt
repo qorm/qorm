@@ -25,7 +25,7 @@ references below (the runnable sources are the contract).
 ## The format (write apps in this)
 
 - [examples/](examples) — the canonical runnable patterns: text via `text`, bind with `{{state.x}}`, `onPress` names an action in `actions/`, components in `qorm.json` with `{{prop.x}}`.
-- [Widget catalog](docs/reference/widgets.md) — every node `type` the renderer accepts (auto-generated from `internal/render`, guarded by `TestWidgetCatalogInSync`).
+- [Widget catalog](api/widgets.md) — every node `type` the renderer accepts (auto-generated from `internal/render`, guarded by `TestWidgetCatalogInSync`).
 - [Capabilities](docs/platforms/capabilities.md) — built-in hardware/OS ops, callbacks, and platforms (auto-generated from `internal/capability`).
 
 ## Middle-layer — add your own native ops
@@ -54,7 +54,7 @@ references below (the runnable sources are the contract).
 - [Agent skill](integrations/skill/SKILL.md) — the runnable format, the MCP tools, and how to self-verify.
 - [MCP tools](docs/agent/mcp-tools.md) — the Model Context Protocol surface to read/edit a live app.
 - [Verifying an app](docs/verification.md) — `qorm measure` / `qorm check` render the app and report real geometry, so you can self-verify your own edits against ground truth.
-- CLI: `qorm new | run | render | build | keygen | verify | package | measure | check | mcp | docs | updates`.
+- CLI: `qorm new | run | render | shot | measure | check | build | keygen | sign | verify | mcp | preview | package | docs | audit | updates | update | version` — full reference: [api/cli.md](api/cli.md).
 
 ## Trust & security
 

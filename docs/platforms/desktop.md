@@ -82,13 +82,15 @@ graph, text cache, texture atlas) is roadmap work — see `planning/`.
 
 ## Development tools
 
-Desktop should provide:
+Desktop provides:
 
 ```text
 qorm run
-qorm inspect
-qorm validate
-qorm preview-patch
-qorm profile
 qorm build
+qorm preview
+qorm measure
+qorm check
 ```
+
+See [the CLI reference](/api/cli.md). A desktop inspect / validate / profile
+toolchain is roadmap work — see `planning/`.

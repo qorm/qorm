@@ -1,5 +1,10 @@
 # First Platform Pack
 
+> **Design intent — not implemented.** Platform Packs are the planned packaging
+> format; the runtime does not load them yet and the CLI has no `--target`
+> flag. For what packaging does today, see [Mobile](../platforms/mobile.md),
+> [Desktop](../platforms/desktop.md) and [Web](../platforms/web.md).
+
 A Platform Pack describes how QORM runs on a given platform.
 
 ## Directory

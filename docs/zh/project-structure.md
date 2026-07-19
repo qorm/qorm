@@ -16,7 +16,6 @@ myapp/
     desktop.go         Go 原生操作(同时编译进桌面与移动/web WASM)
     web.js             可选——纯 web 构建的浏览器端操作
   assets/             节点引用的图片 / 图标(如 "assets/icon.png")
-  *.test.json          可选——由 `qorm test` 运行的声明式测试
 ```
 
 ## `qorm.json` —— 清单
@@ -44,7 +43,7 @@ myapp/
 |---|---|
 | `id` · `name` | 应用标识与显示名 |
 | `entry` | 首先显示的场景 id |
-| `theme` | 设计令牌集(如 `apple`) |
+| `theme` | `apple` / `material` / `dark`,或 `auto`(默认——跟随系统明暗的 Apple 配色) |
 | `globalState` | 供 `state.*` 使用的 `schema`(类型化结构)+ `initial`(初始值) |
 | `components` | 可复用的组件定义(或一个组件文件夹) |
 | `platforms` | 各平台配置——桌面 `window`、以及打包选项 |

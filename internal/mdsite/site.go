@@ -394,8 +394,9 @@ func pageHTML(title, lang, siteName, langSwitch, nav, body string) string {
    var sun='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>';
    var moon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
    function c(){return r.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');}
+   try{var s=localStorage.getItem('qorm-theme');if(s)r.setAttribute('data-theme',s);}catch(e){}
    function p(){b.innerHTML=c()==='dark'?sun:moon;} p();
-   b.onclick=function(){r.setAttribute('data-theme',c()==='dark'?'light':'dark');p();};})();
+   b.onclick=function(){var t=c()==='dark'?'light':'dark';r.setAttribute('data-theme',t);try{localStorage.setItem('qorm-theme',t);}catch(e){}p();};})();
   (function(){/* remember the reader's language across pages + both sites */
    try{var cur=document.documentElement.lang;
      document.querySelectorAll('header [data-lang]').forEach(function(el){

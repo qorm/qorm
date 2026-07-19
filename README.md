@@ -20,7 +20,9 @@ shot` captured each frame via WebKit. No browser automation; see
 ### The same app, packaged for iOS
 
 <p align="center">
+  <img src="assets/screenshots/showcase.png" width="200" alt="Showcase app on iOS">
   <img src="assets/screenshots/dashboard.png" width="200" alt="Dashboard on iOS">
+  <img src="assets/screenshots/gallery.png" width="200" alt="Widget gallery on iOS">
   <img src="assets/screenshots/uikit.png" width="200" alt="Custom components on iOS">
   <img src="assets/screenshots/login.png" width="200" alt="Login form on iOS">
   <img src="assets/screenshots/counter.png" width="200" alt="Counter on iOS">
@@ -34,7 +36,7 @@ a static HTML snapshot, ed25519-signs it into a distributable bundle, serves it
 over-the-air with rollback, exposes it to agents over MCP, and packages it for
 web / iOS / Android / desktop / mini-program — cross-compiled from any machine.
 
-Developed in collaboration with Claude (Anthropic) and Gemini (Google) — fitting, since human-AI
+Developed in collaboration with Kimi (Moonshot AI), Claude (Anthropic), and Gemini (Google) — fitting, since human-AI
 collaboration is QORM's whole premise.
 
 ## Build with your AI assistant
@@ -201,7 +203,7 @@ app JSON (manifest + scenes + actions)
 | `internal/keys`    | ed25519 keypair generation and storage |
 | `internal/ota`     | fetch (http/file) + verify-before-activate, rollback by inaction |
 | `internal/mcp`     | MCP stdio JSON-RPC server (agent tools) |
-| `cmd/qorm`         | `run` / `render` / `build` / `keygen` / `verify` / `mcp` CLI |
+| `cmd/qorm`         | `new` / `run` / `render` / `shot` / `measure` / `check` / `build` / `keygen` / `sign` / `verify` / `mcp` / `preview` / `package` / `docs` / `audit` / `updates` / `update` / `version` CLI |
 
 ## Widget coverage
 
@@ -220,7 +222,7 @@ Top-tier widget vocabulary, all mapped to semantic HTML/CSS:
 - **Animation**: an `animation` prop on *any* node (or component) plays an entrance
   effect on mount (`fadeup`, `pop`, `bounce`, …); `animatedcontainer` /
   `animatedopacity` do value-driven transitions; buttons get iOS press feedback.
-  See [animation](docs/reference/animation.md) and `examples/animations` /
+  See [animation](api/animation.md) and `examples/animations` /
   `examples/payment`.
 
 Plus cross-cutting features on every node: conditional rendering
@@ -241,7 +243,7 @@ QORM is dual-consumer — the same artifacts serve human developers and AI agent
 
 - **Humans** start at [`docs/`](docs/): the [getting-started
   tutorial](docs/tutorials/getting-started.md), the [widget
-  catalog](docs/reference/widgets.md) and [capabilities](docs/platforms/capabilities.md)
+  catalog](api/widgets.md) and [capabilities](docs/platforms/capabilities.md)
   (both auto-generated from the code), platform guides, and the [user
   middle-layer](docs/platforms/native-middlelayer.md) — add your own native ops
   in one `native/desktop.go` that compiles into the desktop binary *and* the
@@ -292,7 +294,7 @@ again to renew).
 HTTPS OTA (`qorm run --tls`), key-revocation lists (`--revoked`), and the
 agent `apply_patch` tool have all landed. Remaining direction — a hosted docs
 portal, a sandboxed Playground, and the ecosystem registry — is tracked in
-`docs/planning/`.
+`planning/`.
 
 ## Acknowledgments
 

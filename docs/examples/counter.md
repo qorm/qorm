@@ -43,5 +43,7 @@ The action (`actions/increment.json`) computes the new value:
 - Text is the `text` field (not `value`); bind with `{{ state.x }}`.
 - A button's callback is `onPress` (not `on: { press }`), naming an action.
 - Inside the action, `value` sees the args from `onPress` (here `count`), so
-  `{{ count + 1 }}` works. The [JSON format spec] design-intent draft diverges —
-  trust the examples.
+  `{{ count + 1 }}` works. (You can also read global state directly —
+  `{{ state.count + 1 }}` — as the getting-started tutorial does; the arg form
+  here shows how `onPress` args come through.) The [JSON format spec]
+  design-intent draft diverges — trust the examples.

@@ -78,6 +78,18 @@ optional `designTokens` map — each entry is a named, typed value:
 - **`type`** — `color`, `number`, … (values are stored as strings; `16` → `"16"`).
 - **`enforce`** — the switch between a *hard constraint* and a *suggestion*.
 
+**How tokens reach the UI.** At render time every token becomes a stage-scoped
+CSS variable: `color.primary` → `--qorm-token-color-primary` (dots become
+dashes). Scenes style against them with `var(...)`, exactly like the built-in
+theme variables (`var(--accent)`):
+
+```json
+{ "type": "card", "style": { "background": "var(--qorm-token-color-primary)" } }
+```
+
+So the palette you declare is both the AI's fence *and* the app's real styling
+channel — change one token and every reference follows.
+
 **How it constrains the agent.** When you mark a `color` token `enforce: true`,
 `qorm_apply_patch` (and its side-effect-free `qorm_preview_patch`) will **reject**
 any `setProp` style op that sets a color style — `color`, `background`,

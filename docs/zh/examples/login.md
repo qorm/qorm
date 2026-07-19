@@ -34,8 +34,8 @@ qorm run examples/login
 { "type": "text", "id": "err", "text": "{{state.errorMessage}}" }
 ```
 
-登录流程由 [`login.test.json`](https://github.com/qorm/qorm/blob/main/examples/login/login.test.json) 进行验证
-(这是一个 `type: test` 测试装置,加载器在运行时会跳过它,但测试框架会运行它)。
+可以针对运行中的应用,用 `qorm check`(布局审计)或智能体侧的
+`qorm_assert` / `qorm_dispatch` MCP 工具来验证这个流程——见[验证](../verification.md)。
 
 ## 格式说明
 

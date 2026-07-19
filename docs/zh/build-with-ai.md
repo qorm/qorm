@@ -78,6 +78,17 @@ qorm run ./habits          # opens in your browser; agent endpoint at /mcp
 - **`type`** —— `color`、`number`……（值以字符串形式存储；`16` → `"16"`）。
 - **`enforce`** —— 在*硬约束*与*建议*之间的开关。
 
+**令牌如何进入界面。** 渲染时每个令牌都会生成一个 stage 作用域的 CSS 变量:
+`color.primary` → `--qorm-token-color-primary`(点号转为连字符)。场景用
+`var(...)` 引用它们,与内置主题变量(`var(--accent)`)完全同一通道:
+
+```json
+{ "type": "card", "style": { "background": "var(--qorm-token-color-primary)" } }
+```
+
+因此你声明的调色板既是 AI 的围栏,*也是*应用真实的样式通道——改一个令牌,
+所有引用随之更新。
+
 **它如何约束智能体。** 当你把一个 `color` 令牌标为 `enforce: true` 时，
 `qorm_apply_patch`（以及无副作用的 `qorm_preview_patch`）会**拒绝**任何将颜色样式
 ——`color`、`background`、`backgroundColor`、`borderColor`——设为非你所声明的

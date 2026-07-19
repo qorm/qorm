@@ -17,7 +17,6 @@ myapp/
     desktop.go         Go native ops (compiled into BOTH desktop and mobile/web WASM)
     web.js             optional browser-side ops for the pure-web build
   assets/             images / icons referenced by nodes (e.g. "assets/icon.png")
-  *.test.json          optional — declarative tests run by `qorm test`
 ```
 
 ## `qorm.json` — the manifest
@@ -46,7 +45,7 @@ the global state:
 |---|---|
 | `id` · `name` | app identifier and display name |
 | `entry` | the scene id shown first |
-| `theme` | design token set (e.g. `apple`) |
+| `theme` | `apple` / `material` / `dark`, or `auto` (default — Apple palette that follows the OS light/dark setting) |
 | `globalState` | `schema` (typed shape) + `initial` (starting values) for `state.*` |
 | `components` | reusable component definitions (or a folder of them) |
 | `platforms` | per-platform config — desktop `window`, and packaging options |

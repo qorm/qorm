@@ -16,10 +16,12 @@ guides see the [docs](/docs/).
 
 ## The runtime surface
 
+- [CLI: qorm](cli.md) — every command, flag, and exit code of the `qorm` binary
 - [HTTP & SSE](http-api.md) — the endpoints `qorm run` serves (browser, MCP, OTA)
 - [Go package: qormext](go-api.md) — the one public Go package, for app-owned native ops
 - [MCP tools](/docs/agent/mcp-tools.html) — the tools an AI agent drives the live app with
 - [Capabilities](/docs/platforms/capabilities.html) — built-in hardware / OS ops and callbacks
 
-> Every page here is regenerated from source by `QORM_UPDATE_DOCS=1 go test ./...`
-> — do not hand-edit.
+> Every page here except [cli.md](cli.md) is regenerated from source by
+> `QORM_UPDATE_DOCS=1 go test ./...` — do not hand-edit those. `cli.md` is
+> maintained by hand against `cmd/qorm/`; update it when the CLI changes.

@@ -18,7 +18,9 @@ Rendering Model,可查询对象渲染模型)是一个面向智能体的
 ### 同一个 app,打包成 iOS
 
 <p align="center">
+  <img src="assets/screenshots/showcase.png" width="200" alt="iOS 上的精选应用">
   <img src="assets/screenshots/dashboard.png" width="200" alt="iOS 上的仪表盘">
+  <img src="assets/screenshots/gallery.png" width="200" alt="iOS 上的组件目录">
   <img src="assets/screenshots/uikit.png" width="200" alt="iOS 上的自定义组件">
   <img src="assets/screenshots/login.png" width="200" alt="iOS 上的登录表单">
   <img src="assets/screenshots/counter.png" width="200" alt="iOS 上的计数器">
@@ -31,7 +33,7 @@ Rendering Model,可查询对象渲染模型)是一个面向智能体的
 签名打包成可分发的 bundle,通过空中下发(OTA)带回滚地提供服务,经由 MCP 向智能体开放,
 并将其打包为 web / iOS / Android / 桌面 / 小程序——可从任意机器交叉编译。
 
-与 Claude(Anthropic) 和 Gemini(Google) 协作开发——这很贴切,毕竟人机协作正是 QORM 的全部前提。
+与 Kimi(Moonshot AI)、Claude(Anthropic) 和 Gemini(Google) 协作开发——这很贴切,毕竟人机协作正是 QORM 的全部前提。
 
 ## 与你的 AI 助手一起构建
 
@@ -215,7 +217,7 @@ min/max width/height、opacity、transition)。参见 `examples/gallery`。
 QORM 是双消费者的——同一批产物同时服务于人类开发者和 AI 智能体。
 
 - **人类**从 [`docs/`](docs) 开始:[入门教程](docs/zh/tutorials/getting-started.md)、
-  [组件目录](docs/reference/widgets.md)和[能力清单](docs/platforms/capabilities.md)
+  [组件目录](api/zh/widgets.md)和[能力清单](docs/platforms/capabilities.md)
   (两者均由代码自动生成)、平台指南,以及[用户中间层](docs/zh/platforms/native-middlelayer.md)——
   在一个 `native/desktop.go` 中添加你自己的原生操作,它会同时编译进桌面二进制*和*
   移动/web WASM。

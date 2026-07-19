@@ -77,13 +77,15 @@ system.automation
 
 ## 开发工具
 
-桌面应提供:
+桌面提供:
 
 ```text
 qorm run
-qorm inspect
-qorm validate
-qorm preview-patch
-qorm profile
 qorm build
+qorm preview
+qorm measure
+qorm check
 ```
+
+见 [CLI 参考](/api/zh/cli.md)。桌面端 inspect / validate / profile 工具链属
+路线图规划——见 `planning/`。

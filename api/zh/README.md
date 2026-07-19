@@ -14,9 +14,10 @@ QORM 应用的权威、机器生成的契约——直接从运行时源码抽取
 
 ## 运行时接口面
 
+- [CLI:qorm](cli.md)——`qorm` 二进制的全部命令、标志与退出码
 - [HTTP 与 SSE](http-api.md)——`qorm run` 提供的端点(浏览器、MCP、OTA)
 - [Go 包:qormext](go-api.md)——唯一的公开 Go 包,用于应用自有的原生操作
 - [MCP 工具](/docs/agent/mcp-tools.html)——AI 智能体驱动活动应用所用的工具
 - [能力清单](/docs/platforms/capabilities.html)——内置的硬件 / OS 操作与回调
 
-> 本站每一页都由 `QORM_UPDATE_DOCS=1 go test ./...` 从源码重生成——请勿手工编辑。
+> 除 [cli.md](cli.md) 外,本站每一页都由 `QORM_UPDATE_DOCS=1 go test ./...` 从源码重生成——请勿手工编辑这些页面;`cli.md` 对照 `cmd/qorm/` 手工维护,CLI 变化时请同步更新。

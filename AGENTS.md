@@ -21,11 +21,16 @@ the acronym as verbs and you have the API surface: **Query** (HTTP/MCP reads),
   `{{state.x}}`, `onPress` names an action in `actions/`, components in
   `qorm.json` use `{{prop.x}}`. See
   [getting-started](docs/tutorials/getting-started.md) and the
-  [widget catalog](docs/reference/widgets.md) (auto-generated from the code, canonical).
+  [widget catalog](api/widgets.md) (auto-generated from the code, canonical).
 - Do **not** use the old `value` / `on:{press}` / `{{count}}` / `scene://` forms —
   the runtime ignores them. When docs and a runnable example disagree, the example wins.
 - **No emoji** in UI, code, or docs — use the built-in SVG icon set (icon *names*
   like `heart` / `star` / `zap`, listed in `internal/render/icons.go`).
+- Style against the theme variables (`var(--accent)`, `var(--label)`, …) so apps
+  follow the OS light/dark setting (default theme is `auto`). Manifest
+  `designTokens` render as stage-scoped CSS vars too — `color.primary` →
+  `var(--qorm-token-color-primary)`. Unknown `style` keys are load-time
+  warnings (the renderer ignores them).
 
 ## Drive a live app as an agent
 - [`integrations/`](integrations) — drop-in MCP config + per-agent setup + a QORM **skill**.

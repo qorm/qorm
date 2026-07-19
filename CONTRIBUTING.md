@@ -44,7 +44,7 @@ needs WebKitGTK; Windows needs WebView2) and uses cgo.
 - **No emoji or pictographic/status symbols** anywhere (code, UI, docs, examples,
   logs, commit messages). Use the built-in SVG icon set (`internal/render/icons.go`).
   Typographic arrows/box-drawing are fine.
-- Auto-generated docs (`docs/reference/widgets.md`, `docs/platforms/capabilities.md`,
+- Auto-generated docs (`api/widgets.md`, `docs/platforms/capabilities.md`,
   `docs/platforms/support-matrix.md`, `docs/agent/mcp-tools.md`) are generated from
   code and guarded by tests — edit the generator, then run
   `QORM_UPDATE_DOCS=1 go test ./...`, not the file.

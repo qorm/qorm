@@ -1,0 +1,207 @@
+# Changelog
+
+All notable changes to QORM are documented here. The format is based on
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Releases are tagged
+`vX.Y.Z`; curated release notes live in the tag annotations.
+
+## [Unreleased]
+
+### Added
+- Manifest `designTokens` now render as stage-scoped CSS variables
+  (`color.primary` → `var(--qorm-token-color-primary)`), so scenes can style
+  against the declared palette — in the live server, the offline/WASM package,
+  and the miniapp export. Palette source-of-truth consolidated in
+  `internal/render/theme.go`.
+- The default theme is now `auto`: the Apple palette follows the OS
+  light/dark setting via `prefers-color-scheme`. An explicit manifest
+  `theme` or `state.theme` (including `"apple"`) opts out.
+- Loader warns about unknown `style` keys (the renderer silently ignored
+  them before). The valid key set is exported as `render.KnownStyleKeys`.
+- `api/cli.md` — a full CLI reference page (EN + ZH).
+- `CHANGELOG.md` (this file).
+- Screenshots: `scripts/shoot-ios.sh` reshoots example apps in the iOS
+  Simulator; gallery/showcase shots added, counter/dashboard reshot.
+
+### Changed
+- Examples restyled onto theme variables (`var(--label)`/`var(--surface)`/
+  `var(--bg)`…), so they follow the OS dark mode; gallery now dogfoods its
+  own `designTokens`.
+- `qorm docs` default output is `docs-site/` (was `site/`, which clobbered a
+  hand-kept landing copy).
+- Website: theme choice persists across pages; landing pages fixed (zh meta
+  description, Inter `@import` position).
+
+### Fixed
+- iOS packager: generated `ViewController.swift` called the nonexistent
+  `UIViewController.attemptRotationToDeviceIfNeeded()` — now the real
+  `attemptRotationToDeviceOrientation()` API (Xcode 26 build works again).
+- Dashboard example no longer overflows at phone width (`when`-switched
+  grid columns).
+- Docs: removed/replaced references to unimplemented commands (`qorm test`,
+  `--target`, `qorm inspect/validate/preview-patch/profile`); stale
+  `docs/reference/` links point at `api/`; `bundle-signing.md` rewritten to
+  match the implementation.
+- `scripts/verify.sh` works on macOS (no GNU `timeout` dependency).
+
+## [v0.2.5] - 2026-07-10
+
+### Added
+- Demo-recording pipelines: `scripts/record-demo-headless.sh` (Docker/Chromium)
+  and `scripts/record-demo-live.sh`, plus refreshed demo GIFs (live desktop
+  capture of a shared human + AI session).
+
+### Fixed
+- `qorm shot --live` prefers an exact window title, so the app window and the
+  DevTool window are distinguishable.
+- `qorm shot` captures via Apple `screencapture` instead of the broken macOS 26
+  APIs.
+- Desktop: no longer crashes when setting the Dock icon on macOS 26.
+
+## [v0.2.4] - 2026-07-10
+
+### Added
+- MCP source reverse-lookup: map a rendered node id to the `file:line` it is
+  declared in.
+- Accessibility: the runtime derives an accessibility tree + audit, exposed to
+  the agent.
+- `qorm run` filesystem hot-reload: edit a source file and the live app
+  updates (parse errors keep the current app).
+
+### Fixed
+- Accessibility audit now names the flagged controls; picker and rangeslider
+  emit aria attributes.
+
+## [v0.2.3] - 2026-07-10
+
+### Added
+- Widgets: `Draggable` / `DragTarget` for free-form drag-and-drop, with a
+  kanban example (`examples/dragdrop`).
+- The release version is stamped into the docs/api site header.
+
+### Fixed
+- `Draggable` / `DragTarget` use pointer events instead of HTML5 drag-and-drop.
+- qormext: deterministic go-api docs (unified CallJS/Native comments).
+
+## [v0.2.2] - 2026-07-09
+
+### Added
+- URL routing + deep-linking: the address bar and the navigation stack stay in
+  sync.
+- Widgets: `NavigationDrawer`, `BottomAppBar`, `LimitedBox`, `IndexedStack`
+  (mount all children, paint one by index), `Form` (submit-gating), `Offstage`,
+  and `BackButton` / `CloseButton` built on the URL router.
+- Regenerated `api/props.md` for the new back/close buttons.
+
+## [v0.2.1] - 2026-07-09
+
+### Added
+- Navigation parameters, with a navigation/routing spec.
+- qormext: plugin ABI versioning.
+- MCP: design-token constraint layer for agent edits.
+- Mobile: Android qrscan via CameraX + ML Kit barcode scanning; iOS orientation
+  lock; Android screenrecord/videocapture.
+- Release workflow: `scripts/release.sh` + `RELEASE.md`.
+- Docs: standard action pattern library; docs-site icon nav with a fluid,
+  landing-consistent header.
+
+## [v0.2.0] - 2026-07-09
+
+Trust, release pipelines, and platform depth.
+
+### Added
+- Bundle `requiredCapabilities` gate: a bundle declares the capabilities it
+  needs and the runtime refuses to activate it where they are missing; MCP
+  read-only mode disables mutating agent tools.
+- OTA update loop for packaged mobile/PWA shells: updates are verified with
+  ed25519 against an embedded trust key before activation, with tiered fallback
+  to the bundled payload (`qorm package --update-url` + `--trust`, enforced as
+  a pair).
+- CLI self-update verifies downloaded release binaries (ed25519-signed
+  checksums) before install.
+- Release packaging: iOS `--release` archives/exports a distributable .ipa;
+  Android `--release` signs an AAB with full-density adaptive icons; macOS
+  `--release` signs with Developer ID, builds a DMG, and notarizes.
+- Static expression type checking for `{{ }}` bindings; static compile
+  diagnostics surfaced through MCP inspect and printed at build/run time.
+- Responsive `when` node with a live viewport channel.
+- Accessibility assertions in `qorm check` / `qorm_check_layout`.
+- Human/agent isolation: `/event` and `/presence` bound to a page-embedded
+  human token; tamper-evident, hash-chained activity audit log
+  (`qorm run --audit-log`, `qorm audit`).
+- Desktop native layer: Linux tray, notification click-through, and Secret
+  Service storage; Windows volume (Core Audio COM), WinRT toast, and
+  screenshot.
+- DevTool: the log window is prefilled with buffered activity entries.
+
+### Fixed
+- Android packaging: the generated project compiles (Kotlin BOM alignment,
+  JSON quote escaping in the generated Java bridge).
+- Desktop: Windows notify was dead code; `speakStop` killed every PowerShell.
+
+## [v0.1.3] - 2026-07-08
+
+### Added
+- QORM DevTool: the log window upgraded to a full developer tool with a
+  Properties Inspector panel, unit + SSE integration tests.
+- `qorm update` self-update command.
+- Patreon links and licensing details on the landing pages and in the docs.
+
+## [v0.1.2] - 2026-07-08
+
+Re-tag of the v0.1.1 commit; no code changes.
+
+## [v0.1.1] - 2026-07-08
+
+### Added
+- Gestures: swipe-to-reveal row actions (`swipeactions`) and drag-to-reorder
+  lists.
+- Navigation: scene navigation actions plus coordinated iOS-style page
+  transitions (push/pop, parallax, depth).
+- Human-AI collaboration: human presence surfaced to the agent, spatial
+  attribution (flash the elements the AI just edited), hidden-field privacy
+  (the agent is told a hidden field was filled, never its value), and retained
+  human input visible to the agent.
+- `animation` as a cross-cutting prop on widgets and components;
+  `examples/animations` and `examples/payment` (coordinated complex animation).
+- `qorm shot --url` capture with frozen animations.
+- Generated API-reference site (props, actions, HTTP/SSE, Go package) as a
+  sibling of the docs site; docs restyled to the QORM brand; Chinese docs and
+  a localized landing page with a persistent language switcher.
+
+### Fixed
+- `AnimatedContainer` honours layout align/justify; `{{ }}` bindings resolve
+  inside nested style objects; top safe-area inset applies to app-bar-less
+  scaffolds; the navigation transition actually plays.
+
+## [v0.1.0] - 2026-07-07
+
+Initial release: QORM, an agent-native declarative-UI runtime in pure Go.
+
+### Added
+- A QORM app is JSON — a manifest (`qorm.json`) plus `scenes/*.json` and
+  `actions/*.json` — rendered to HTML/CSS by one runtime, with examples under
+  `examples/`.
+- ed25519-signed, content-addressed bundles with verification, plus OTA
+  delivery primitives.
+- MCP agent surface (`qorm mcp`, `/mcp` on a running server) with
+  collaboration tools: the agent sees the human's live actions, and "AI
+  edited" presence is visible to the human.
+- Packaging for web (WASM), iOS, Android, desktop, and a mini-program
+  (小程序) foundation.
+- Built-in SVG icon set (emoji removed from UI, code, and docs).
+- English docs with a Simplified Chinese mirror (`docs/zh/`, `README.zh.md`).
+- CI: cross-compiled downloadable binaries on every push; Docker execution
+  environment published to GHCR.
+- Render performance: cached parsed expressions and reflection-free CSS
+  numeric writes in the hot path.
+
+[v0.2.5]: https://github.com/qorm/qorm/compare/v0.2.4...v0.2.5
+[v0.2.4]: https://github.com/qorm/qorm/compare/v0.2.3...v0.2.4
+[v0.2.3]: https://github.com/qorm/qorm/compare/v0.2.2...v0.2.3
+[v0.2.2]: https://github.com/qorm/qorm/compare/v0.2.1...v0.2.2
+[v0.2.1]: https://github.com/qorm/qorm/compare/v0.2.0...v0.2.1
+[v0.2.0]: https://github.com/qorm/qorm/compare/v0.1.3...v0.2.0
+[v0.1.3]: https://github.com/qorm/qorm/compare/v0.1.2...v0.1.3
+[v0.1.2]: https://github.com/qorm/qorm/compare/v0.1.1...v0.1.2
+[v0.1.1]: https://github.com/qorm/qorm/compare/v0.1.0...v0.1.1
+[v0.1.0]: https://github.com/qorm/qorm/releases/tag/v0.1.0
