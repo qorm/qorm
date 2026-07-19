@@ -1,11 +1,11 @@
 {
   "type": "scene", "id": "main",
   "root": {
-    "type": "column", "style": { "padding": 20, "gap": 12, "background": "#f2f2f7" }, "layout": { "width": "fill" },
+    "type": "column", "style": { "padding": 20, "gap": 12, "background": "var(--bg)" }, "layout": { "width": "fill" },
     "children": [
       { "type": "text", "text": "QORM animations", "style": { "fontWeight": 800, "fontSize": 26 } },
-      { "type": "text", "text": "Tap to add a card — it animates in as it mounts.", "style": { "color": "#8e8e93", "fontSize": 14 } },
-      { "type": "button", "text": "Add a card", "onPress": { "type": "invoke", "name": "add", "args": { "seq": "{{state.seq}}" } }, "style": { "background": "#0a84ff", "color": "#fff", "padding": 14, "borderRadius": 10, "fontWeight": 700, "fontSize": 16 } },
+      { "type": "text", "text": "Tap to add a card — it animates in as it mounts.", "style": { "color": "var(--label2)", "fontSize": 14 } },
+      { "type": "button", "text": "Add a card", "onPress": { "type": "invoke", "name": "add", "args": { "seq": "{{state.seq}}" } }, "style": { "background": "var(--accent)", "color": "var(--on-accent)", "padding": 14, "borderRadius": 10, "fontWeight": 700, "fontSize": 16 } },
       { "type": "list", "data": "{{state.items}}", "renderItem": { "type": "card", "animation": "pop", "duration": 500, "style": { "padding": 18 }, "children": [ { "type": "text", "text": "{{item.label}}", "style": { "fontWeight": 700, "fontSize": 17 } } ] } }
     ]
   }

@@ -14,6 +14,8 @@ Rendering Model,可查询对象渲染模型)是一个面向智能体的
 
 <sub>上面这段 GIF 是 QORM 自己录的——AI 通过 MCP 驱动编辑,`qorm shot` 用 WebKit 逐帧截图,无浏览器自动化工具。见 <a href="scripts/record-demo.sh">scripts/record-demo.sh</a>。</sub>
 
+<p align="center"><b><a href="https://qorm.com/demo/">在线演示</a>——计数器应用打包为离线 PWA(Go → WASM),完全在你的浏览器里运行。</b></p>
+
 
 ### 同一个 app,打包成 iOS
 

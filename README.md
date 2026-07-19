@@ -17,6 +17,8 @@ you; it edits, you watch it happen.
 shot` captured each frame via WebKit. No browser automation; see
 [`scripts/record-demo.sh`](scripts/record-demo.sh).</sub>
 
+<p align="center"><b><a href="https://qorm.com/demo/">Live demo</a> — the counter app as an offline PWA (Go → WASM), running entirely in your browser.</b></p>
+
 ### The same app, packaged for iOS
 
 <p align="center">
