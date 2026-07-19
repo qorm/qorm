@@ -61,7 +61,7 @@
 | `biometric` | `label` |
 | `bluetooth` | `label` |
 | `bottomappbar` | — |
-| `bottomnav` | — |
+| `bottomnav` | `items` |
 | `breadcrumb` | `items` · `separator` |
 | `brightness` | — |
 | `button` | `variant` |
@@ -77,9 +77,9 @@
 | `compass` | `label` |
 | `contacts` | `label` |
 | `contextmenu` | `items` · `menuStyle` |
-| `datatable` | `columns` · `rowKey` · `selectable` · `sortDir` · `sortField` |
+| `datatable` | `columns` · `data` · `rowKey` · `selectable` · `selected` · `sortDir` · `sortField` |
 | `datepicker` | `maxYear` · `minYear` |
-| `descriptions` | — |
+| `descriptions` | `items` |
 | `deviceinfo` | `label` |
 | `dismissible` | `icon` · `onDismissed` |
 | `divider` | `orientation` |
@@ -98,6 +98,7 @@
 | `gridview` | `crossAxisCount` · `minItemWidth` · `spacing` |
 | `haptics` | `label` |
 | `icon` | `glyph` · `icon` · `size` |
+| `ignorepointer` | — |
 | `image` | `alt` · `fit` · `src` |
 | `indexedstack` | `index` |
 | `input` | `inputType` |
@@ -111,11 +112,11 @@
 | `listtile` | `chevron` · `leading` · `subtitle` · `trailing` |
 | `location` | `label` |
 | `loginitem` | — |
-| `materialstepper` | `active` |
-| `menu` | — |
+| `materialstepper` | `active` · `steps` |
+| `menu` | `items` |
 | `modal` | `open` · `title` |
-| `navigationdrawer` | — |
-| `navigationrail` | — |
+| `navigationdrawer` | `items` |
+| `navigationrail` | `items` |
 | `network` | `label` |
 | `nfc` | `label` |
 | `notify` | — |
@@ -159,16 +160,17 @@
 | `swipeactions` | `actions` |
 | `switchlisttile` | `subtitle` · `value` |
 | `systemmodes` | `label` |
-| `table` | `columns` |
+| `table` | `columns` · `data` |
 | `tabs` | `tabs` |
 | `tag` | — |
 | `text` | — |
 | `textarea` | `rows` |
 | `textformfield` | `error` · `helper` · `inputType` · `label` · `maxLength` · `prefix` · `suffix` |
-| `timeline` | — |
+| `timeline` | `items` |
+| `timepicker` | `minuteStep` |
 | `torch` | `label` |
 | `transform` | `rotate` · `scale` · `scaleX` · `scaleY` · `skew` · `translateX` · `translateY` |
-| `tree` | — |
+| `tree` | `data` |
 | `tts` | `label` |
 | `verticaldivider` | `orientation` |
 | `vibrate` | `label` |

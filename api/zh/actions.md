@@ -14,7 +14,7 @@
 | `state.set` | 把状态路径设为某值 |
 | `state.append` | 向数组追加一个值 |
 | `state.appendObject` | 追加一个对象(由 `item` 字段表达式构建) |
-| `state.toggle` | 翻转布尔值,或匹配数组元素上的某个 `field` |
+| `state.toggle` | 翻转布尔值,或匹配数组元素上的某个 `field`;对标量数组则切换 `match` 的成员资格 |
 | `state.increment` | 对数字累加(`value` 为增量,默认 +1) |
 | `state.remove` | 移除 `match` 选中的数组元素 |
 | `state.updateWhere` | 更新所有匹配 `match` 的元素的 `field` |
@@ -22,6 +22,7 @@
 | `state.sort` | 按 `field` 对数组排序 |
 | `state.move` | 把数组元素从 `from` 移到 `to` |
 | `state.clear` | 清空数组,或清除字符串 / 数字 |
+| `state.reset` | 恢复清单中的初始值——带 `path` 时仅重置该键,不带则重置全部状态 |
 | `http.get` | GET 一个 URL,把解析后的 JSON 存到 `result` |
 | `http.post` | POST `body`,把响应存到 `result` |
 | `http.put` | PUT `body`,把响应存到 `result` |

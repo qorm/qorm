@@ -4,6 +4,39 @@ All notable changes to QORM are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Releases are tagged
 `vX.Y.Z`; curated release notes live in the tag annotations.
 
+## [Unreleased]
+
+### Added
+- `timepicker` widget (alias `cupertinotimepicker`): iOS hour/minute wheels,
+  `value` "HH:MM" with `minuteStep`, dispatches the plain time string.
+- `ignorepointer` / `absorbpointer`: layout-transparent behavior wrapper
+  (`display:contents` + `pointer-events:none`) — the subtree becomes inert
+  with zero layout impact.
+- `menu` accepts a declarative `items` prop ([{label, icon, disabled,
+  onPress}]) alongside arbitrary children — PopupMenuButton complete.
+- `autocomplete` `options` accepts a bound array (`{{state.suggestions}}`)
+  in addition to a literal list.
+- `slice(array, start, end)` expression builtin — expression-linked paging
+  between `pagination` and `datatable` (no baked-in coupling).
+- `state.reset` action step: restore one path (or all) to the manifest's
+  initial state — form reset recipe.
+- DataTable recipes in `examples/components`: row-select/select-all/sort +
+  paged windows; datepicker-in-modal dialog recipe; `state.toggle` now
+  toggles scalar membership in arrays.
+- `qorm.com/demo` — the counter as an offline WASM PWA linked from the
+  landing page; README links it too.
+- Tests for `internal/model`, `internal/keys`, `internal/ota` (previously
+  none), incl. the OTA verify-before-activate guarantees.
+
+### Fixed
+- Audit bounds in `qorm check --audit` come from the measured `#qorm-root`
+  (was: hardcoded 400px fallback when the scene root wasn't id'd `root`).
+- `Node.Prop` is nil-receiver safe.
+- Docs extractor documents props read via `boundArray` (datatable/table/
+  tree/bottomnav/steps rows were `—`).
+- Examples animations/payment migrated to theme variables (all 27 examples
+  now follow OS dark mode).
+
 ## [v0.2.6] - 2026-07-19
 
 ### Added

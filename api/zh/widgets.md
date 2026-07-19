@@ -61,6 +61,7 @@
 | `gridview` | — | `gridView` |
 | `haptics` | — | `hwList` |
 | `icon` | — | `icon` |
+| `ignorepointer` | absorbpointer | `ignorePointer` |
 | `image` | — | `image` |
 | `indexedstack` | — | `indexedStack` |
 | `input` | — | `input` |
@@ -129,6 +130,7 @@
 | `textarea` | — | `textarea` |
 | `textformfield` | — | `textFormField` |
 | `timeline` | — | `timeline` |
+| `timepicker` | cupertinotimepicker | `timepicker` |
 | `torch` | flashlight | `hwList` |
 | `transform` | rotatedbox | `transform` |
 | `tree` | — | `tree` |

@@ -14,7 +14,7 @@ Extracted from the runtime dispatch (`internal/runtime`):
 | `state.set` | set a state path to a value |
 | `state.append` | append a value to an array |
 | `state.appendObject` | append an object (built from `item` field expressions) |
-| `state.toggle` | flip a boolean, or a `field` on a matched array element |
+| `state.toggle` | flip a boolean, or a `field` on a matched array element; on a scalar array toggles membership of `match` |
 | `state.increment` | add to a number (`value` is the delta, default +1) |
 | `state.remove` | remove the array element selected by `match` |
 | `state.updateWhere` | update `field` on every element matching `match` |
@@ -22,6 +22,7 @@ Extracted from the runtime dispatch (`internal/runtime`):
 | `state.sort` | sort an array by `field` |
 | `state.move` | move an array element `from` index `to` index |
 | `state.clear` | empty an array or clear a string/number |
+| `state.reset` | restore the manifest's initial values — one key with `path`, all state without |
 | `http.get` | GET a URL, store the parsed JSON at `result` |
 | `http.post` | POST `body`, store the response at `result` |
 | `http.put` | PUT `body`, store the response at `result` |
