@@ -4,7 +4,7 @@ All notable changes to QORM are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Releases are tagged
 `vX.Y.Z`; curated release notes live in the tag annotations.
 
-## [Unreleased]
+## [v0.2.6] - 2026-07-19
 
 ### Added
 - Manifest `designTokens` now render as stage-scoped CSS variables
@@ -42,6 +42,10 @@ All notable changes to QORM are documented here. The format is based on
   `docs/reference/` links point at `api/`; `bundle-signing.md` rewritten to
   match the implementation.
 - `scripts/verify.sh` works on macOS (no GNU `timeout` dependency).
+- `qorm check --audit` bounded elements against a hardcoded 400px box whenever
+  the scene's root node wasn't literally id'd `root` — six examples
+  (animations/dragdrop/navigation/payment/reorder/swipe) false-failed at
+  desktop widths. Bounds now come from the measured `#qorm-root` container.
 
 ## [v0.2.5] - 2026-07-10
 

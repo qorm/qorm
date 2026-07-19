@@ -267,11 +267,19 @@ func Audit(rt *qrt.Runtime, measured []byte) ([]byte, error) {
 	rows, _ := joinRows(rt, measured)
 	num := func(v any) float64 { f, _ := v.(float64); return f }
 	// The stage may be centered in a wider window (desktop), so bounds are the
-	// root element's actual box, not just its width at x=0.
+	// app container's actual box, not just its width at x=0. Prefer qorm-root
+	// (the DOM container — always measured, whatever the scene's root node is
+	// called); a scene node literally id'd "root" is the legacy fallback.
 	var rootL float64 = 0
 	var rootR float64 = 400
 	for _, r := range rows {
 		if id, _ := r["id"].(string); id == "root" {
+			rootL = num(r["x"])
+			rootR = num(r["x"]) + num(r["w"])
+		}
+	}
+	for _, r := range rows {
+		if id, _ := r["id"].(string); id == "qorm-root" {
 			rootL = num(r["x"])
 			rootR = num(r["x"]) + num(r["w"])
 		}
@@ -284,12 +292,15 @@ func Audit(rt *qrt.Runtime, measured []byte) ([]byte, error) {
 	var issues []map[string]any
 	visible := 0
 	for _, r := range rows {
+		id, _ := r["id"].(string)
+		if id == "qorm-root" {
+			continue // the bounds source itself, not a component
+		}
 		vis, _ := r["visible"].(bool)
 		if !vis {
 			continue
 		}
 		visible++
-		id, _ := r["id"].(string)
 		typ := fmt.Sprint(r["type"])
 		x, y, w, h := num(r["x"]), num(r["y"]), num(r["w"]), num(r["h"])
 		add := func(kind, detail string) {

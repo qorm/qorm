@@ -42,7 +42,10 @@ function qormMeasure(){
   try{
     var out=[];
     document.querySelectorAll('[id]').forEach(function(el){
-      if(el.id==='qorm-root'||el.id==='qorm-stage') return;
+      // qorm-root (the app container) IS measured: the audit bounds every
+      // element against its actual box, whatever the scene's root id is.
+      // qorm-stage (the device frame) is not a component — skip it.
+      if(el.id==='qorm-stage') return;
       var r=el.getBoundingClientRect(), cs=getComputedStyle(el);
       var vis = r.width>0 && r.height>0 && cs.display!=='none' && cs.visibility!=='hidden' && parseFloat(cs.opacity)>0.01;
       out.push({id:el.id, tag:el.tagName.toLowerCase(),
