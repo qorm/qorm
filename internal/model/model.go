@@ -181,8 +181,12 @@ type Node struct {
 	Else      *Node
 }
 
-// Prop returns a props value with a fallback lookup into style.
+// Prop returns a props value; the second result reports whether the key was
+// present. Nil-safe: a nil node has no props.
 func (n *Node) Prop(key string) (any, bool) {
+	if n == nil {
+		return nil, false
+	}
 	if n.Props != nil {
 		if v, ok := n.Props[key]; ok {
 			return v, true
