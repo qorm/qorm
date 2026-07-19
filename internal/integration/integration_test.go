@@ -890,3 +890,231 @@ func TestRenderItemUniqueIDs(t *testing.T) {
 		}
 	}
 }
+
+// TestWidgetParityDataTable covers the datatable's selection (single row +
+// select-all) and its pagination linkage through the slice() binding.
+func TestWidgetParityDataTable(t *testing.T) {
+	app, err := loader.LoadDir(examplesDir(t, "components"))
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	rt := qrt.New(app)
+	html := render.Render(rt).HTML
+	for _, m := range []string{
+		`class="qorm-datatable"`, "qdt-check", "qdt-sort", // table, selection checkboxes, sortable headers
+		">Moss<", // a page-1 row
+	} {
+		if !strings.Contains(html, m) {
+			t.Errorf("datatable showcase should render %q", m)
+		}
+	}
+	// 12 rows at 10 per page: row 11 waits for page 2
+	if strings.Contains(html, ">Margaret<") {
+		t.Error("page 1 should not render row 11")
+	}
+	// single-row toggle selects, then deselects
+	rt.Dispatch("dtToggle", map[string]any{"key": "r3"})
+	if got := rt.State["dtSel"].([]any); len(got) != 1 || got[0] != "r3" {
+		t.Fatalf("row toggle: got %v", rt.State["dtSel"])
+	}
+	if !strings.Contains(render.Render(rt).HTML, `class="qdt-sel"`) {
+		t.Error("the selected row should carry the qdt-sel class")
+	}
+	rt.Dispatch("dtToggle", map[string]any{"key": "r3"})
+	if len(rt.State["dtSel"].([]any)) != 0 {
+		t.Error("toggling the same row again should deselect it")
+	}
+	// the header checkbox toggles the whole selection
+	rt.Dispatch("dtToggle", map[string]any{"key": "__all__"})
+	if got := rt.State["dtSel"].([]any); len(got) != 12 {
+		t.Fatalf("select-all: got %d keys", len(got))
+	}
+	rt.Dispatch("dtToggle", map[string]any{"key": "__all__"})
+	if len(rt.State["dtSel"].([]any)) != 0 {
+		t.Error("select-all again should clear the selection")
+	}
+	// pagination dispatches {page} → the slice window moves to rows 11-12
+	rt.Dispatch("dtPage", map[string]any{"page": "2"})
+	if rt.State["dtPage"] != float64(2) {
+		t.Fatalf("dtPage dispatch: got %v", rt.State["dtPage"])
+	}
+	p2 := render.Render(rt).HTML
+	if !strings.Contains(p2, ">Margaret<") || strings.Contains(p2, ">Moss<") {
+		t.Error("page 2 should show rows 11-12 only")
+	}
+	// sorting by name reorders rows (Moss first → Ada first)
+	rt.Dispatch("dtSort", map[string]any{"column": "name"})
+	rows := rt.State["dtRows"].([]any)
+	if rows[0].(map[string]any)["name"] != "Ada" {
+		t.Errorf("after sort by name, first row should be Ada, got %v", rows[0])
+	}
+	if rt.State["dtSort"] != "name" {
+		t.Error("dtSort should record the sorted column")
+	}
+}
+
+// TestStateReset covers the state.reset step: the showcase's Reset button
+// restores every globalState key to its manifest initial value.
+func TestStateReset(t *testing.T) {
+	app, err := loader.LoadDir(examplesDir(t, "components"))
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	rt := qrt.New(app)
+	if !strings.Contains(render.Render(rt).HTML, ">Reset form<") {
+		t.Fatal("reset button should render")
+	}
+	// dirty a handful of keys, then dispatch the reset action
+	rt.State["email"] = "a@b.com"
+	rt.State["city"] = "Paris"
+	rt.State["dtSel"] = []any{"r1", "r2"}
+	rt.Dispatch("resetForm", nil)
+	if rt.State["email"] != "" || rt.State["city"] != "Tokyo" {
+		t.Errorf("reset should restore initial scalars, got email=%v city=%v", rt.State["email"], rt.State["city"])
+	}
+	if got := rt.State["dtSel"].([]any); len(got) != 0 {
+		t.Errorf("reset should restore initial arrays, got dtSel=%v", got)
+	}
+}
+
+// TestWidgetParityTimePicker covers the timepicker's iOS-style hour/minute
+// wheels (minuteStep spacing) and its {value} dispatch.
+func TestWidgetParityTimePicker(t *testing.T) {
+	app, err := loader.LoadDir(examplesDir(t, "components"))
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	rt := qrt.New(app)
+	html := render.Render(rt).HTML
+	for _, m := range []string{
+		`id="tp"`,
+		"scroll-snap-type:y mandatory", // wheel columns
+		">09<", ">30<",                 // the current value 09:30 on the wheels
+		">55<", // minuteStep=5 still reaches 55
+	} {
+		if !strings.Contains(html, m) {
+			t.Errorf("timepicker showcase should render %q", m)
+		}
+	}
+	if strings.Contains(html, ">57<") {
+		t.Error("minuteStep=5 should not offer a 57 minute")
+	}
+	// clicking a wheel item dispatches the full HH:MM value
+	rt.Dispatch("setTime", map[string]any{"value": "14:45"})
+	if rt.State["time"] != "14:45" {
+		t.Errorf("setTime dispatch: got %v", rt.State["time"])
+	}
+	if !strings.Contains(render.Render(rt).HTML, ">45<") {
+		t.Error("re-render should show the new minute")
+	}
+}
+
+// TestWidgetParityMenuItems covers the menu's items prop: action rows with
+// icons that dispatch their onPress, and a disabled row without a handler.
+func TestWidgetParityMenuItems(t *testing.T) {
+	app, err := loader.LoadDir(examplesDir(t, "components"))
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	html := render.Render(qrt.New(app)).HTML
+	for _, m := range []string{
+		`id="mni"`, ">File ▾<", // trigger
+		">New Tab<", ">Share<", // enabled items
+		"M12 5v14M5 12h14", // plus icon SVG path on the first item
+	} {
+		if !strings.Contains(html, m) {
+			t.Errorf("menu items showcase should render %q", m)
+		}
+	}
+	// the disabled row renders dimmed and carries no click handler (search
+	// within the items-based menu — the children-based one has a "Delete" too)
+	mni := html[strings.Index(html, `id="mni"`):]
+	di := strings.Index(mni, ">Delete<")
+	dseg := mni[strings.LastIndex(mni[:di], `<div style=`):di]
+	if !strings.Contains(dseg, "opacity:.45") {
+		t.Error("disabled menu item should render dimmed")
+	}
+	if strings.Contains(dseg, "onclick") {
+		t.Error("disabled menu item must not dispatch")
+	}
+	// an enabled row dispatches its onPress via qorm(h)
+	ni := strings.Index(mni, ">New Tab<")
+	nseg := mni[strings.LastIndex(mni[:ni], `<div style=`):ni]
+	if !strings.Contains(nseg, `onclick="qorm(`) {
+		t.Error("enabled menu item should dispatch its onPress")
+	}
+}
+
+// TestWidgetParityBoundAutocomplete covers autocomplete options bound to a
+// state array (static arrays still work — see TestWidgetParityGestureAutocomplete).
+func TestWidgetParityBoundAutocomplete(t *testing.T) {
+	app, err := loader.LoadDir(examplesDir(t, "components"))
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	rt := qrt.New(app)
+	html := render.Render(rt).HTML
+	for _, m := range []string{
+		`<datalist id="acb-ac"`, `list="acb-ac"`, // bound autocomplete datalist
+		`value="Cameroon"`, // a suggestion from state.countries
+	} {
+		if !strings.Contains(html, m) {
+			t.Errorf("bound autocomplete showcase should render %q", m)
+		}
+	}
+	// the datalist follows state
+	rt.State["countries"] = append(rt.State["countries"].([]any), "Chad")
+	if !strings.Contains(render.Render(rt).HTML, `value="Chad"`) {
+		t.Error("options should re-render from state")
+	}
+}
+
+// TestWidgetParityIgnorePointer covers IgnorePointer/AbsorbPointer: the subtree
+// renders (ids stay wired) but is transparent to pointer events, and the
+// wrapper stays out of layout.
+func TestWidgetParityIgnorePointer(t *testing.T) {
+	app, err := loader.LoadDir(examplesDir(t, "components"))
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	html := render.Render(qrt.New(app)).HTML
+	for _, m := range []string{
+		`id="ignp"`, "display:contents;pointer-events:none", // the wrapper
+		`id="ignb"`, ">Cannot click me<", // the child still renders
+	} {
+		if !strings.Contains(html, m) {
+			t.Errorf("ignorepointer showcase should render %q", m)
+		}
+	}
+}
+
+// TestDatePickerModal covers the date-dialog recipe: a modal whose open is
+// bound to state, hosting a datepicker with Done/Cancel actions.
+func TestDatePickerModal(t *testing.T) {
+	app, err := loader.LoadDir(examplesDir(t, "components"))
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	rt := qrt.New(app)
+	// closed by default — no modal markup at all
+	if strings.Contains(render.Render(rt).HTML, `id="dpm"`) {
+		t.Error("date modal should stay closed while showDateDlg is false")
+	}
+	// the trigger opens it; the datepicker wheels render inside
+	rt.Dispatch("openDateDlg", nil)
+	html := render.Render(rt).HTML
+	for _, m := range []string{
+		`id="dpm"`, `role="dialog"`, ">Pick a date<", // modal open
+		`id="dpd"`, "scroll-snap-type:y mandatory", // the datepicker wheels
+		">Done<", ">Cancel<",
+	} {
+		if !strings.Contains(html, m) {
+			t.Errorf("open date modal should render %q", m)
+		}
+	}
+	// Done closes it again
+	rt.Dispatch("closeDateDlg", nil)
+	if strings.Contains(render.Render(rt).HTML, `id="dpm"`) {
+		t.Error("Done should close the date modal")
+	}
+}

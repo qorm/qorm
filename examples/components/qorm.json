@@ -28,7 +28,16 @@
       "angle": "number",
       "rail": "string",
       "inbox": "array",
-      "date": "string"
+      "date": "string",
+      "dtRows": "array",
+      "dtSel": "array",
+      "dtAll": "array",
+      "dtPage": "number",
+      "dtSort": "string",
+      "time": "string",
+      "country": "string",
+      "countries": "array",
+      "showDateDlg": "boolean"
     },
     "initial": {
       "showModal": true,
@@ -87,7 +96,29 @@
           "t": "Beta"
         }
       ],
-      "date": "2026-07-04"
+      "date": "2026-07-04",
+      "dtRows": [
+        { "id": "r1", "name": "Moss", "role": "Eng" },
+        { "id": "r2", "name": "Ada", "role": "Compiler" },
+        { "id": "r3", "name": "Linus", "role": "Kernel" },
+        { "id": "r4", "name": "Grace", "role": "Compiler" },
+        { "id": "r5", "name": "Alan", "role": "Eng" },
+        { "id": "r6", "name": "Edsger", "role": "Eng" },
+        { "id": "r7", "name": "Barbara", "role": "OS" },
+        { "id": "r8", "name": "Donald", "role": "Eng" },
+        { "id": "r9", "name": "Radia", "role": "OS" },
+        { "id": "r10", "name": "Guido", "role": "Eng" },
+        { "id": "r11", "name": "Margaret", "role": "Apollo" },
+        { "id": "r12", "name": "Dennis", "role": "Kernel" }
+      ],
+      "dtSel": [],
+      "dtAll": ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12"],
+      "dtPage": 1,
+      "dtSort": "name",
+      "time": "09:30",
+      "country": "",
+      "countries": ["Canada", "Cameroon", "Chile", "China"],
+      "showDateDlg": false
     }
   }
 }

@@ -1120,6 +1120,192 @@
             }
           ]
         }
+      },
+      {
+        "type": "datatable",
+        "id": "dt",
+        "data": "{{ slice(state.dtRows, (state.dtPage-1)*10, state.dtPage*10) }}",
+        "rowKey": "id",
+        "selectable": true,
+        "selected": "{{state.dtSel}}",
+        "sortField": "{{state.dtSort}}",
+        "sortDir": "asc",
+        "columns": [
+          {
+            "value": "id",
+            "label": "ID"
+          },
+          {
+            "value": "name",
+            "label": "Name"
+          },
+          {
+            "value": "role",
+            "label": "Role"
+          }
+        ],
+        "onPress": {
+          "type": "invoke",
+          "name": "dtToggle",
+          "args": {}
+        },
+        "onChange": {
+          "type": "invoke",
+          "name": "dtSort",
+          "args": {}
+        }
+      },
+      {
+        "type": "pagination",
+        "id": "dtpg",
+        "page": "{{state.dtPage}}",
+        "total": 2,
+        "onPress": {
+          "type": "invoke",
+          "name": "dtPage",
+          "args": {}
+        }
+      },
+      {
+        "type": "timepicker",
+        "id": "tp",
+        "ariaLabel": "Start time",
+        "value": "{{state.time}}",
+        "minuteStep": 5,
+        "onChange": {
+          "type": "invoke",
+          "name": "setTime",
+          "args": {}
+        }
+      },
+      {
+        "type": "menu",
+        "id": "mni",
+        "label": "File",
+        "items": [
+          {
+            "label": "New Tab",
+            "icon": "plus",
+            "onPress": {
+              "type": "invoke",
+              "name": "noop",
+              "args": {}
+            }
+          },
+          {
+            "label": "Delete",
+            "icon": "trash",
+            "disabled": true
+          },
+          {
+            "label": "Share",
+            "icon": "share",
+            "onPress": {
+              "type": "invoke",
+              "name": "noop",
+              "args": {}
+            }
+          }
+        ]
+      },
+      {
+        "type": "autocomplete",
+        "id": "acb",
+        "value": "{{state.country}}",
+        "placeholder": "Country…",
+        "options": "{{state.countries}}"
+      },
+      {
+        "type": "ignorepointer",
+        "id": "ignp",
+        "children": [
+          {
+            "type": "button",
+            "id": "ignb",
+            "label": "Cannot click me",
+            "onPress": {
+              "type": "invoke",
+              "name": "noop",
+              "args": {}
+            }
+          }
+        ]
+      },
+      {
+        "type": "button",
+        "id": "rstf",
+        "label": "Reset form",
+        "variant": "outlined",
+        "onPress": {
+          "type": "invoke",
+          "name": "resetForm",
+          "args": {}
+        }
+      },
+      {
+        "type": "button",
+        "id": "dpopen",
+        "label": "Pick date…",
+        "variant": "outlined",
+        "onPress": {
+          "type": "invoke",
+          "name": "openDateDlg",
+          "args": {}
+        }
+      },
+      {
+        "type": "modal",
+        "id": "dpm",
+        "open": "{{state.showDateDlg}}",
+        "title": "Pick a date",
+        "children": [
+          {
+            "type": "datepicker",
+            "id": "dpd",
+            "value": "{{state.date}}",
+            "minYear": 2024,
+            "maxYear": 2030,
+            "onChange": {
+              "type": "invoke",
+              "name": "setDate",
+              "args": {}
+            }
+          },
+          {
+            "type": "row",
+            "id": "dprow",
+            "style": {
+              "gap": 8
+            },
+            "layout": {
+              "justify": "end"
+            },
+            "children": [
+              {
+                "type": "button",
+                "id": "dpcancel",
+                "label": "Cancel",
+                "variant": "text",
+                "onPress": {
+                  "type": "invoke",
+                  "name": "closeDateDlg",
+                  "args": {}
+                }
+              },
+              {
+                "type": "button",
+                "id": "dpdone",
+                "label": "Done",
+                "variant": "filled",
+                "onPress": {
+                  "type": "invoke",
+                  "name": "closeDateDlg",
+                  "args": {}
+                }
+              }
+            ]
+          }
+        ]
       }
     ]
   }

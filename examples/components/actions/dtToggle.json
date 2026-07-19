@@ -1,0 +1,4 @@
+{ "type": "action", "id": "dtToggle", "steps": [
+  { "type": "state.set", "path": "dtSel", "value": "{{ key == \"__all__\" ? (len(state.dtSel) >= len(state.dtAll) ? slice(state.dtAll, 0, 0) : state.dtAll) : state.dtSel }}" },
+  { "type": "state.toggle", "path": "dtSel", "match": "{{ key == \"__all__\" ? \"\" : key }}" }
+] }
