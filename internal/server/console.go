@@ -80,26 +80,41 @@ const consoleHTML = `<!doctype html>
 <body>
   <div class="device">
     <div class="phone"><div class="screen"><div class="statusbar"><span>9:41</span><span class="r">5G   ᛒ</span></div><iframe src="/" title="{{title}}"></iframe></div></div>
-    <div class="caption"><b>{{title}}</b> · live app — tap it, it's real</div>
+    <div class="caption"><b>{{title}}</b> · <span data-i18n="caption">live app — tap it, it's real</span></div>
   </div>
 
   <aside class="console">
-    <div class="con-head"><span class="dot"></span><b>Collaboration log</b><small>one shared session</small></div>
+    <div class="con-head"><span class="dot"></span><b data-i18n="head">Collaboration log</b><small data-i18n="headSub">one shared session</small><button id="langbtn" onclick="toggleLang()" style="margin-left:10px;background:#161922;color:#c7ccd6;border:1px solid #2c313b;border-radius:7px;padding:2px 8px;font-size:11px;cursor:pointer;">中文</button></div>
     <div class="legend">
-      <span class="k"><span class="sw" style="background:var(--human)"></span>you</span>
-      <span class="k"><span class="sw" style="background:var(--agent)"></span>AI agent</span>
-      <span class="k"><span class="sw" style="background:#8a93a3"></span>system</span>
+      <span class="k"><span class="sw" style="background:var(--human)"></span><span data-i18n="legendYou">you</span></span>
+      <span class="k"><span class="sw" style="background:var(--agent)"></span><span data-i18n="legendAgent">AI agent</span></span>
+      <span class="k"><span class="sw" style="background:#8a93a3"></span><span data-i18n="legendSystem">system</span></span>
     </div>
-    <div class="log" id="log"><div class="e system"><span class="t">--:--:--</span><span class="who">system</span><span class="d">connected — waiting for activity…</span></div></div>
-    <div class="con-foot">Human taps and agent MCP calls on the <code>same</code> app appear here, live.</div>
+    <div class="log" id="log"><div class="e system"><span class="t">--:--:--</span><span class="who">system</span><span class="d" data-i18n="waiting">connected — waiting for activity…</span></div></div>
+    <div class="con-foot" data-i18n="foot">Human taps and agent MCP calls on the <code>same</code> app appear here, live.</div>
   </aside>
 <script>
+  var I18N={
+    en:{caption:"live app — tap it, it's real",head:'Collaboration log',headSub:'one shared session',legendYou:'you',legendAgent:'AI agent',legendSystem:'system',waiting:'connected — waiting for activity…',footPre:'Human taps and agent MCP calls on the ',footPost:' app appear here, live.'},
+    zh:{caption:'真实应用——点它,是真的',head:'协作日志',headSub:'同一个共享会话',legendYou:'你',legendAgent:'AI 智能体',legendSystem:'系统',waiting:'已连接——等待活动…',footPre:'你的点击与 agent 的 MCP 调用都会实时出现在这里(同一个',footPost:' 应用)。'}
+  };
+  function curLang(){ try{ var l=localStorage.getItem('qorm-lang'); if(l==='zh'||l==='en') return l; }catch(e){} return (navigator.language||'en').indexOf('zh')===0?'zh':'en'; }
+  var LANG=curLang();
+  function T(k){ return (I18N[LANG]&&I18N[LANG][k])||I18N.en[k]||k; }
+  function applyLang(){ document.documentElement.lang=LANG;
+    document.querySelectorAll('[data-i18n]').forEach(function(el){
+      var k=el.getAttribute('data-i18n');
+      if(k==='foot'){ el.innerHTML=T('footPre')+'<code>same</code>'+T('footPost'); }
+      else { el.textContent=T(k); }
+    });
+    var b=document.getElementById('langbtn'); if(b) b.textContent=(LANG==='zh'?'EN':'中文'); }
+  function toggleLang(){ LANG=(LANG==='zh'?'en':'zh'); try{ localStorage.setItem('qorm-lang',LANG); }catch(e){} applyLang(); }
   var log=document.getElementById('log'), since=0, first=true;
   function add(e){
     var d=document.createElement('div'); d.className='e '+e.source;
     d.innerHTML='<span class="t"></span><span class="who"></span><span class="d"></span>';
     d.querySelector('.t').textContent=e.time;
-    d.querySelector('.who').textContent=(e.source==='human'?'you':e.source);
+    d.querySelector('.who').textContent=(e.source==='human'?T('legendYou'):e.source);
     d.querySelector('.d').textContent=e.detail;
     log.appendChild(d); log.scrollTop=log.scrollHeight;
   }
@@ -109,7 +124,7 @@ const consoleHTML = `<!doctype html>
         rows.forEach(function(e){ since=Math.max(since,e.seq); add(e); }); }
     }).catch(function(){});
   }
-  setInterval(poll,600); poll();
+  setInterval(poll,600); poll(); applyLang();
 </script>
 </body></html>`
 
@@ -201,61 +216,73 @@ const logWindowHTML = `<!doctype html>
     background:#0c0e13;}
   .pres .lbl{color:#7d8493;} .pres b{color:#30d158;font-weight:600;} .pres .pw{color:#ffd60a;}
 </style></head><body>
-  <header><span class="dot"></span><b>QORM DevTool</b><small>active session</small></header>
+  <header><span class="dot"></span><b>QORM DevTool</b><small data-i18n="active">active session</small><button id="langbtn" onclick="toggleLang()" style="margin-left:12px;background:#1a1d24;color:#c7ccd6;border:1px solid #2c313b;border-radius:7px;padding:3px 9px;font-size:11.5px;cursor:pointer;">中文</button></header>
   <div class="tabs-bar">
-    <button class="tab-btn active" id="btn-logs" onclick="showTab('logs')">Activity Logs</button>
-    <button class="tab-btn" id="btn-state" onclick="showTab('state')">State Manager</button>
-    <button class="tab-btn" id="btn-tree" onclick="showTab('tree')">Component Tree</button>
+    <button class="tab-btn active" id="btn-logs" onclick="showTab('logs')" data-i18n="tabLogs">Activity Logs</button>
+    <button class="tab-btn" id="btn-state" onclick="showTab('state')" data-i18n="tabState">State Manager</button>
+    <button class="tab-btn" id="btn-tree" onclick="showTab('tree')" data-i18n="tabTree">Component Tree</button>
   </div>
   
   <div class="panel-body">
     <!-- Logs Panel -->
     <div class="tab-panel active" id="panel-logs">
       <div class="legend">
-        <span class="k"><span class="sw" style="background:#30d158"></span>you</span>
-        <span class="k"><span class="sw" style="background:#5ac8fa"></span>AI agent</span>
-        <span class="k"><span class="sw" style="background:#8a93a3"></span>system</span>
+        <span class="k"><span class="sw" style="background:#30d158"></span><span data-i18n="legendYou">you</span></span>
+        <span class="k"><span class="sw" style="background:#5ac8fa"></span><span data-i18n="legendAgent">AI agent</span></span>
+        <span class="k"><span class="sw" style="background:#8a93a3"></span><span data-i18n="legendSystem">system</span></span>
       </div>
-      <div id="log"><div class="e system"><span class="t">--:--:--</span><span class="who">system</span><span class="d">waiting for activity…</span></div></div>
+      <div id="log"><div class="e system"><span class="t">--:--:--</span><span class="who">system</span><span class="d" data-i18n="waiting">waiting for activity…</span></div></div>
     </div>
     
     <!-- State Panel -->
     <div class="tab-panel" id="panel-state">
-      <div class="state-title">Live App State</div>
+      <div class="state-title" data-i18n="stateTitle">Live App State</div>
       <div id="state-list">Loading...</div>
     </div>
     
     <!-- Tree Panel -->
     <div class="tab-panel" id="panel-tree">
-      <div class="tree-title">Rendered Component Architecture</div>
+      <div class="tree-title" data-i18n="treeTitle">Rendered Component Architecture</div>
       <div id="tree-root" style="flex:1;overflow-y:auto;margin-bottom:12px;">Loading...</div>
       <div id="node-properties" style="height:180px;border-top:1px solid #22252d;padding-top:10px;font-size:12px;display:flex;flex-direction:column;overflow:hidden;">
-        <div style="color:#7d8493;font-style:italic;">Click a component node to inspect its properties.</div>
+        <div style="color:#7d8493;font-style:italic;" data-i18n="treeHint">Click a component node to inspect its properties.</div>
       </div>
     </div>
   </div>
 
   <div class="ctrl">
-    <span class="cl">window</span>
-    <button onclick="qw(40,40,400,820)"> left</button>
-    <button onclick="qw((screen.width-400)/2,(screen.height-820)/2,400,820)"> center</button>
-    <button onclick="qw(screen.width-440,40,400,820)">right </button>
-    <button onclick="qw(0,0,screen.availWidth/2,screen.availHeight)"> half-L</button>
-    <button onclick="qw(screen.availWidth/2,0,screen.availWidth/2,screen.availHeight)">half-R </button>
-    <button onclick="qw(0,0,screen.availWidth,screen.availHeight)"> max</button>
-    <button onclick="qw(40,40,900,680)"> wide</button>
-    <button onclick="qw(40,40,400,820)"> phone</button>
-    <button onclick="qo(&quot;focus&quot;)">⤒ focus</button>
-    <button onclick="qo(&quot;minimize&quot;)">— min</button>
-    <button onclick="qo(&quot;pin&quot;)"> pin</button>
-    <button onclick="qo(&quot;unpin&quot;)">unpin</button>
-    <span class="cl" style="margin-left:8px">multi</span>
-    <button onclick="qopen(&quot;win&quot;+(++qn),location.origin+&quot;/&quot;,400,600)">＋ window</button>
-    <button onclick="qo(&quot;tile&quot;)"> tile all</button>
+    <span class="cl" data-i18n="winLabel">window</span>
+    <button onclick="qw(40,40,400,820)" data-i18n="winLeft"> left</button>
+    <button onclick="qw((screen.width-400)/2,(screen.height-820)/2,400,820)" data-i18n="winCenter"> center</button>
+    <button onclick="qw(screen.width-440,40,400,820)" data-i18n="winRight">right </button>
+    <button onclick="qw(0,0,screen.availWidth/2,screen.availHeight)" data-i18n="winHalfL"> half-L</button>
+    <button onclick="qw(screen.availWidth/2,0,screen.availWidth/2,screen.availHeight)" data-i18n="winHalfR">half-R </button>
+    <button onclick="qw(0,0,screen.availWidth,screen.availHeight)" data-i18n="winMax"> max</button>
+    <button onclick="qw(40,40,900,680)" data-i18n="winWide"> wide</button>
+    <button onclick="qw(40,40,400,820)" data-i18n="winPhone"> phone</button>
+    <button onclick="qo(&quot;focus&quot;)">⤒ <span data-i18n="winFocus">focus</span></button>
+    <button onclick="qo(&quot;minimize&quot;)">— <span data-i18n="winMin">min</span></button>
+    <button onclick="qo(&quot;pin&quot;)"> <span data-i18n="winPin">pin</span></button>
+    <button onclick="qo(&quot;unpin&quot;)"><span data-i18n="winUnpin">unpin</span></button>
+    <span class="cl" style="margin-left:8px" data-i18n="multiLabel">multi</span>
+    <button onclick="qopen(&quot;win&quot;+(++qn),location.origin+&quot;/&quot;,400,600)">＋ <span data-i18n="winNew">window</span></button>
+    <button onclick="qo(&quot;tile&quot;)"> <span data-i18n="winTile">tile all</span></button>
   </div>
-  <div class="pres"><span class="lbl">shared with the AI:</span> <span id="qpres">nothing yet</span></div>
+  <div class="pres"><span class="lbl" data-i18n="pres">shared with the AI:</span> <span id="qpres" data-i18n="presNone">nothing yet</span></div>
 
 <script>
+  // DevTool i18n: EN/中文, shared preference key with the website (qorm-lang).
+  var I18N={
+    en:{tabLogs:'Activity Logs',tabState:'State Manager',tabTree:'Component Tree',legendYou:'you',legendAgent:'AI agent',legendSystem:'system',waiting:'waiting for activity…',stateTitle:'Live App State',loading:'Loading...',noState:'No state variables defined yet.',stateErr:'Error loading state: ',treeTitle:'Rendered Component Architecture',treeHint:'Click a component node to inspect its properties.',treeErr:'Error loading node tree: ',editPromptPre:'Edit value for "',editPromptSuf:'" (JSON formatted):',badJson:'Invalid JSON representation: ',pres:'shared with the AI:',presNone:'nothing yet',presOn:'on',presTyped:'typed',presFilled:'filled (value hidden)',active:'active session',winLabel:'window',multiLabel:'multi',winLeft:' left',winCenter:' center',winRight:'right ',winHalfL:' half-L',winHalfR:'half-R ',winMax:' max',winWide:' wide',winPhone:' phone',winFocus:'focus',winMin:'min',winPin:'pin',winUnpin:'unpin',winNew:'window',winTile:'tile all'},
+    zh:{tabLogs:'活动日志',tabState:'状态管理',tabTree:'组件树',legendYou:'你',legendAgent:'AI 智能体',legendSystem:'系统',waiting:'等待活动…',stateTitle:'实时应用状态',loading:'加载中…',noState:'还没有定义状态变量。',stateErr:'加载状态出错:',treeTitle:'渲染组件结构',treeHint:'点击组件节点查看属性。',treeErr:'加载组件树出错:',editPromptPre:'编辑 "',editPromptSuf:'" 的值(JSON 格式):',badJson:'JSON 格式无效:',pres:'与 AI 共享:',presNone:'暂无',presOn:'聚焦',presTyped:'输入了',presFilled:'已填写(值已隐藏)',active:'会话进行中',winLabel:'窗口',multiLabel:'多窗',winLeft:' 靠左',winCenter:' 居中',winRight:'靠右 ',winHalfL:' 左半屏',winHalfR:'右半屏 ',winMax:' 最大化',winWide:' 宽屏',winPhone:' 手机',winFocus:'聚焦',winMin:'最小化',winPin:'置顶',winUnpin:'取消置顶',winNew:'窗口',winTile:'全部平铺'}
+  };
+  function curLang(){ try{ var l=localStorage.getItem('qorm-lang'); if(l==='zh'||l==='en') return l; }catch(e){} return (navigator.language||'en').indexOf('zh')===0?'zh':'en'; }
+  var LANG=curLang();
+  function T(k){ return (I18N[LANG]&&I18N[LANG][k])||I18N.en[k]||k; }
+  function applyLang(){ document.documentElement.lang=LANG;
+    document.querySelectorAll('[data-i18n]').forEach(function(el){ el.textContent=T(el.getAttribute('data-i18n')); });
+    var b=document.getElementById('langbtn'); if(b) b.textContent=(LANG==='zh'?'EN':'中文'); }
+  function toggleLang(){ LANG=(LANG==='zh'?'en':'zh'); try{ localStorage.setItem('qorm-lang',LANG); }catch(e){} applyLang(); }
   var log=document.getElementById('log'),since=0,first=true,activeTab='logs';
   var initialLogs = {{initial_logs}};
   if (initialLogs && initialLogs.length) {
@@ -267,7 +294,7 @@ const logWindowHTML = `<!doctype html>
       d.className = 'e ' + e.source;
       d.innerHTML = '<span class="t"></span><span class="who"></span><span class="d"></span>';
       d.querySelector('.t').textContent = e.time;
-      d.querySelector('.who').textContent = (e.source === 'human' ? 'you' : e.source);
+      d.querySelector('.who').textContent = (e.source === 'human' ? T('legendYou') : e.source);
       d.querySelector('.d').textContent = e.detail;
       log.appendChild(d);
     });
@@ -292,7 +319,7 @@ const logWindowHTML = `<!doctype html>
         rows.forEach(function(e){since=Math.max(since,e.seq);
           var d=document.createElement('div');d.className='e '+e.source;
           d.innerHTML='<span class="t"></span><span class="who"></span><span class="d"></span>';
-          d.querySelector('.t').textContent=e.time;d.querySelector('.who').textContent=(e.source==='human'?'you':e.source);
+          d.querySelector('.t').textContent=e.time;d.querySelector('.who').textContent=(e.source==='human'?T('legendYou'):e.source);
           d.querySelector('.d').textContent=e.detail;log.appendChild(d);});
         log.scrollTop=log.scrollHeight;}
     }).catch(function(){});
@@ -306,7 +333,7 @@ const logWindowHTML = `<!doctype html>
     fetch('/dev/state').then(r => r.json()).then(data => {
       container.innerHTML = '';
       if (!Object.keys(data).length) {
-        container.innerHTML = '<div style="color:#7d8493;font-size:12.5px;">No state variables defined yet.</div>';
+        container.innerHTML = '<div style="color:#7d8493;font-size:12.5px;">' + T('noState') + '</div>';
         return;
       }
       for (var k in data) {
@@ -317,11 +344,11 @@ const logWindowHTML = `<!doctype html>
           '<span class="state-val" onclick="editState(\''+esc(k)+'\','+esc(valStr)+')">' + esc(valStr) + '</span>';
         container.appendChild(row);
       }
-    }).catch(err => { container.innerHTML = 'Error loading state: ' + err; });
+    }).catch(err => { container.innerHTML = T('stateErr') + ' ' + err; });
   }
 
   function editState(key, oldVal) {
-    var newVal = prompt('Edit value for "' + key + '" (JSON formatted):', JSON.stringify(oldVal));
+    var newVal = prompt(T('editPromptPre') + key + T('editPromptSuf'), JSON.stringify(oldVal));
     if (newVal !== null) {
       try {
         var parsed = JSON.parse(newVal);
@@ -334,7 +361,7 @@ const logWindowHTML = `<!doctype html>
           }).then(function(){ loadState(); });
         });
       } catch(e) {
-        alert('Invalid JSON representation: ' + e.message);
+        alert(T('badJson') + ' ' + e.message);
       }
     }
   }
@@ -345,7 +372,7 @@ const logWindowHTML = `<!doctype html>
     fetch('/dev/tree').then(r => r.json()).then(data => {
       root.innerHTML = '';
       root.appendChild(renderNode(data));
-    }).catch(err => { root.innerHTML = 'Error loading node tree: ' + err; });
+    }).catch(err => { root.innerHTML = T('treeErr') + ' ' + err; });
   }
 
   function renderNode(node) {
@@ -431,13 +458,14 @@ const logWindowHTML = `<!doctype html>
   function qpres(){
     fetch('/presence').then(function(r){return r.json();}).then(function(p){
       var el=document.getElementById('qpres'); if(!el) return; var parts=[];
-      if(p.focus) parts.push('on <b>'+esc(p.focus)+'</b>');
-      if(p.typing) parts.push('typed <b>'+esc(p.typing)+'</b>');
-      if(p.filled) parts.push('<span class="pw">'+esc(p.filled)+' filled (value hidden)</span>');
-      el.innerHTML = parts.length ? parts.join(' &middot; ') : 'nothing yet';
+      if(p.focus) parts.push(T('presOn')+' <b>'+esc(p.focus)+'</b>');
+      if(p.typing) parts.push(T('presTyped')+' <b>'+esc(p.typing)+'</b>');
+      if(p.filled) parts.push('<span class="pw">'+esc(p.filled)+' '+T('presFilled')+'</span>');
+      el.innerHTML = parts.length ? parts.join(' &middot; ') : T('presNone');
     }).catch(function(){});
   }
   setInterval(qpres,900); qpres();
+  applyLang();
   if (window.location.search.indexOf('demo=1') !== -1) {
     setTimeout(function(){
       showTab('tree');

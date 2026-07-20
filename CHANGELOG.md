@@ -57,6 +57,9 @@ All notable changes to QORM are documented here. The format is based on
   the gray fill + grid borders for hairlines, and sort indicators follow the
   macOS Finder convention — hidden until header hover, except the sorted
   column's persistent accent chevron (hover effects pointer-devices only).
+- The DevTool (logwindow) and collaboration console are bilingual
+  (EN/中文): header toggle, persisted in the shared `qorm-lang`
+  localStorage key — the same preference the website and docs use.
 
 ## [v0.2.6] - 2026-07-19
 
