@@ -710,12 +710,7 @@
         "actions": [
           {
             "label": "Cancel",
-            "style": "cancel",
-            "onPress": {
-              "type": "invoke",
-              "name": "noop",
-              "args": {}
-            }
+            "style": "cancel"
           },
           {
             "label": "Delete",
@@ -754,12 +749,7 @@
         ],
         "cancel": [
           {
-            "label": "Cancel",
-            "onPress": {
-              "type": "invoke",
-              "name": "noop",
-              "args": {}
-            }
+            "label": "Cancel"
           }
         ]
       },

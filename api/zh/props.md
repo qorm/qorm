@@ -44,10 +44,10 @@
 | 组件 | 属性 |
 |---|---|
 | `accordion` | `title` |
-| `actionsheet` | `open` · `title` |
+| `actionsheet` | `dismissable` · `open` · `title` |
 | `activityindicator` | `size` |
 | `alert` | `title` · `variant` |
-| `alertdialog` | `message` · `open` · `title` |
+| `alertdialog` | `dismissable` · `message` · `open` · `title` |
 | `animatedcontainer` | `curve` · `duration` |
 | `animatedopacity` | `duration` · `opacity` |
 | `appbar` | `background` · `leading` |
@@ -114,7 +114,7 @@
 | `loginitem` | — |
 | `materialstepper` | `active` · `steps` |
 | `menu` | `items` |
-| `modal` | `open` · `title` |
+| `modal` | `dismissable` · `open` · `title` |
 | `navigationdrawer` | `items` |
 | `navigationrail` | `items` |
 | `network` | `label` |

@@ -70,6 +70,22 @@ func (r *renderer) spinner(n *model.Node) {
 	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-spin" style=%q role="status" aria-label="loading"></div>`, n.ID, r.boxCSS(n)+style)
 }
 
+// dismissH wires the default dismiss behavior of overlay widgets: when `open`
+// is a pure {{state.x}} binding and the app hasn't opted out (dismissable:false),
+// it registers the runtime's built-in __dismiss action against that path — so
+// backdrop taps, Escape and un-wired cancel buttons close the overlay with no
+// app-authored action. An explicit onPress anywhere always wins over this.
+func (r *renderer) dismissH(n *model.Node) (int, bool) {
+	if v, ok := n.Prop("dismissable"); ok && !asBool(v) {
+		return 0, false
+	}
+	bp := boundPath(propStr(n, "open"))
+	if bp == "" {
+		return 0, false
+	}
+	return r.register(&model.Invoke{Name: runtime.BuiltinDismiss, Args: map[string]string{"path": bp}}), true
+}
+
 // modal renders an overlay dialog when its `open` binding is truthy.
 func (r *renderer) modal(n *model.Node) {
 	if !asBool(runtime.EvalBinding(propStr(n, "open"), r.ctx())) {
@@ -77,7 +93,12 @@ func (r *renderer) modal(n *model.Node) {
 	}
 	overlay := "position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:50;padding:20px;"
 	panel := r.boxCSS(n) + "background:var(--surface);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.3);width:min(92vw,560px);max-height:90%;overflow:auto;padding:20px;display:flex;flex-direction:column;gap:12px;"
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q role="dialog" aria-modal="true"><div style=%q>`, n.ID, overlay, panel)
+	backdrop, esc := "", ""
+	if h, ok := r.dismissH(n); ok {
+		backdrop = fmt.Sprintf(` onclick="if(event.target===this)qorm(%d)"`, h)
+		esc = fmt.Sprintf(` data-dismiss-h="%d"`, h)
+	}
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q role="dialog" aria-modal="true"%s%s><div style=%q>`, n.ID, overlay, backdrop, esc, panel)
 	if t := r.interp(propStr(n, "title")); t != "" {
 		fmt.Fprintf(&r.sb, `<div style="font-size:18px;font-weight:700;">%s</div>`, html.EscapeString(t))
 	}
@@ -259,6 +280,11 @@ func (r *renderer) alertDialog(n *model.Node) {
 		attr := ""
 		if a.inv != nil {
 			attr = fmt.Sprintf(` onclick="qorm(%d)"`, r.register(a.inv))
+		} else if a.style == "cancel" {
+			// an un-wired cancel button closes the dialog by default
+			if h, ok := r.dismissH(n); ok {
+				attr = fmt.Sprintf(` onclick="qorm(%d)"`, h)
+			}
 		}
 		fmt.Fprintf(&r.sb, `<button style="flex:1;padding:12px;background:none;border:none;%sfont-size:17px;font-weight:%s;color:%s;cursor:pointer;"%s>%s</button>`,
 			sep, weight, r.actionColor(a.style), attr, html.EscapeString(a.label))
@@ -274,7 +300,12 @@ func (r *renderer) actionSheet(n *model.Node) {
 			return
 		}
 	}
-	r.sb.WriteString(`<div class="qorm-sheet" style="position:fixed;inset:0;background:rgba(0,0,0,.28);display:flex;align-items:flex-end;justify-content:center;z-index:70;padding:8px;">`)
+	backdrop, esc := "", ""
+	if h, ok := r.dismissH(n); ok {
+		backdrop = fmt.Sprintf(` onclick="if(event.target===this)qorm(%d)"`, h)
+		esc = fmt.Sprintf(` data-dismiss-h="%d"`, h)
+	}
+	fmt.Fprintf(&r.sb, `<div class="qorm-sheet" style="position:fixed;inset:0;background:rgba(0,0,0,.28);display:flex;align-items:flex-end;justify-content:center;z-index:70;padding:8px;"%s%s>`, backdrop, esc)
 	fmt.Fprintf(&r.sb, `<div id=%q style="width:100%%;max-width:400px;">`, n.ID)
 	// group card
 	r.sb.WriteString(`<div style="background:var(--surface);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-radius:14px;overflow:hidden;text-align:center;">`)
@@ -290,11 +321,13 @@ func (r *renderer) actionSheet(n *model.Node) {
 			r.actionColor(a.style), attr, html.EscapeString(a.label))
 	}
 	r.sb.WriteString(`</div>`)
-	// separated cancel
+	// separated cancel — without an onPress it closes the sheet by default
 	if c := r.dialogActions(n, "cancel"); len(c) > 0 {
 		attr := ""
 		if c[0].inv != nil {
 			attr = fmt.Sprintf(` onclick="qorm(%d)"`, r.register(c[0].inv))
+		} else if h, ok := r.dismissH(n); ok {
+			attr = fmt.Sprintf(` onclick="qorm(%d)"`, h)
 		}
 		fmt.Fprintf(&r.sb, `<button style="width:100%%;margin-top:8px;padding:16px;background:var(--surface);border:none;border-radius:14px;font-size:20px;font-weight:600;color:var(--accent);cursor:pointer;"%s>%s</button>`,
 			attr, html.EscapeString(c[0].label))

@@ -44,10 +44,10 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | Widget | Props |
 |---|---|
 | `accordion` | `title` |
-| `actionsheet` | `open` · `title` |
+| `actionsheet` | `dismissable` · `open` · `title` |
 | `activityindicator` | `size` |
 | `alert` | `title` · `variant` |
-| `alertdialog` | `message` · `open` · `title` |
+| `alertdialog` | `dismissable` · `message` · `open` · `title` |
 | `animatedcontainer` | `curve` · `duration` |
 | `animatedopacity` | `duration` · `opacity` |
 | `appbar` | `background` · `leading` |
@@ -114,7 +114,7 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `loginitem` | — |
 | `materialstepper` | `active` · `steps` |
 | `menu` | `items` |
-| `modal` | `open` · `title` |
+| `modal` | `dismissable` · `open` · `title` |
 | `navigationdrawer` | `items` |
 | `navigationrail` | `items` |
 | `network` | `label` |

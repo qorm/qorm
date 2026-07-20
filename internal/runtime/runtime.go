@@ -324,9 +324,22 @@ func (r *Runtime) EvalArgs(args map[string]string) map[string]any {
 	return out
 }
 
+// BuiltinDismiss is the runtime's reserved built-in action: it sets the state
+// path named by its "path" arg to false. The renderer registers it for
+// default overlay behaviors (backdrop tap / Escape / an un-wired cancel
+// button), so a plainly state-bound `open` closes without the app writing an
+// action file. It works identically over the server, WASM and MCP dispatch.
+const BuiltinDismiss = "__dismiss"
+
 // Dispatch runs a named action with the given evaluated args. Missing actions
 // are ignored (with no state change) so partially-authored apps still run.
 func (r *Runtime) Dispatch(name string, args map[string]any) {
+	if name == BuiltinDismiss {
+		if p, ok := args["path"].(string); ok && p != "" {
+			setPath(r.State, p, false)
+		}
+		return
+	}
 	act, ok := r.App.Actions[name]
 	if !ok {
 		return

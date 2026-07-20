@@ -631,6 +631,15 @@ function qormMenu(btn){
   document.querySelectorAll('.qorm-menu-panel').forEach(function(p){ if(p!==panel) p.style.display='none'; });
   if(panel){ panel.style.display = (panel.style.display==='none')?'block':'none'; }
 }
+// Default dismiss: Escape closes the topmost dismissable overlay. Overlays
+// with a plainly state-bound `open` carry data-dismiss-h — the handler index
+// of the runtime's built-in __dismiss action (registered by the renderer).
+document.addEventListener('keydown',function(e){
+  if(e.key!=='Escape') return;
+  var els=document.querySelectorAll('[data-dismiss-h]');
+  if(!els.length) return;
+  qorm(parseInt(els[els.length-1].getAttribute('data-dismiss-h'),10));
+});
 // SearchBar: while the input is focused and non-empty, show the anchored panel
 // with the entries whose label contains the query (client-side filtering).
 function qormSearch(inp){

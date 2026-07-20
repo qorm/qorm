@@ -313,6 +313,59 @@ func TestModalHiddenWhenClosed(t *testing.T) {
 	}
 }
 
+// Overlays ship default actions: a plainly state-bound `open` closes on
+// backdrop tap / Escape / an un-wired cancel button — via the runtime's
+// built-in __dismiss action, with no app-authored action file.
+func TestDefaultDismiss(t *testing.T) {
+	app, err := loader.LoadDir(examplesDir(t, "components"))
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	rt := qrt.New(app)
+
+	// actionsheet open: backdrop click-through + Escape wiring + the cancel
+	// button's default handler must all be present
+	rt.State["showSheet"] = true
+	html := render.Render(rt).HTML
+	for _, m := range []string{
+		`if(event.target===this)qorm(`, // backdrop only
+		`data-dismiss-h="`,             // Escape hook
+	} {
+		if !strings.Contains(html, m) {
+			t.Errorf("open actionsheet should carry default dismiss %q", m)
+		}
+	}
+
+	// dispatching the built-in action clears the binding — no action file
+	rt.Dispatch(qrt.BuiltinDismiss, map[string]any{"path": "showSheet"})
+	if v, _ := rt.State["showSheet"].(bool); v {
+		t.Error("__dismiss should set showSheet=false")
+	}
+	if h := render.Render(rt).HTML; strings.Contains(h, "qorm-sheet") {
+		t.Error("actionsheet should be gone after __dismiss")
+	}
+
+	// alertdialog: no backdrop/Escape default (explicit choice required), but
+	// the un-wired cancel button gets the default dismiss handler
+	rt.State["showModal"] = false // keep the showcase modal out of this render
+	rt.State["showAlert"] = true
+	html = render.Render(rt).HTML
+	if !strings.Contains(html, "Delete file?") {
+		t.Fatal("alertdialog should render while open")
+	}
+	if strings.Contains(html, `data-dismiss-h=`) {
+		t.Error("alertdialog should NOT get backdrop/Escape default dismiss")
+	}
+	if !strings.Contains(html, `cursor:pointer;" onclick="qorm(`) ||
+		!strings.Contains(html, `>Cancel</button>`) {
+		t.Error("alertdialog's un-wired cancel button should carry the default dismiss handler")
+	}
+	rt.Dispatch(qrt.BuiltinDismiss, map[string]any{"path": "showAlert"})
+	if v, _ := rt.State["showAlert"].(bool); v {
+		t.Error("__dismiss should set showAlert=false")
+	}
+}
+
 func TestComponentBatch2(t *testing.T) {
 	app, err := loader.LoadDir(examplesDir(t, "components"))
 	if err != nil {

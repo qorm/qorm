@@ -14,6 +14,12 @@ All notable changes to QORM are documented here. The format is based on
   in state, membership via `state.toggle`.
 - `table`/`datatable` column widths (`width` column key, emitted as
   `<colgroup>` only when used).
+- Overlays ship default actions: a plainly state-bound `open` on `modal` /
+  `actionsheet` closes on backdrop tap and Escape, and an un-wired
+  cancel-style button on `actionsheet` / `alertdialog` closes by default —
+  all via the runtime's built-in `__dismiss` action (works over server, WASM
+  and MCP). Opt out with `dismissable: false`; an explicit `onPress` always
+  wins.
 - `timepicker` widget (alias `cupertinotimepicker`): iOS hour/minute wheels,
   `value` "HH:MM" with `minuteStep`, dispatches the plain time string.
 - `ignorepointer` / `absorbpointer`: layout-transparent behavior wrapper
