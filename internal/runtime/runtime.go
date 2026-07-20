@@ -331,12 +331,40 @@ func (r *Runtime) EvalArgs(args map[string]string) map[string]any {
 // action file. It works identically over the server, WASM and MCP dispatch.
 const BuiltinDismiss = "__dismiss"
 
+// BuiltinSort is the reserved built-in action for default table sorting. Args:
+// "data" (bound array path), "column" (clicked column key), "field" and "dir"
+// (the sortField/sortDir state paths). Clicking the already-sorted column
+// flips its direction; a new column sorts ascending. It works identically
+// over the server, WASM and MCP dispatch.
+const BuiltinSort = "__sort"
+
 // Dispatch runs a named action with the given evaluated args. Missing actions
 // are ignored (with no state change) so partially-authored apps still run.
 func (r *Runtime) Dispatch(name string, args map[string]any) {
 	if name == BuiltinDismiss {
 		if p, ok := args["path"].(string); ok && p != "" {
 			setPath(r.State, p, false)
+		}
+		return
+	}
+	if name == BuiltinSort {
+		col := Stringify(args["column"])
+		dataPath := Stringify(args["data"])
+		fieldPath := Stringify(args["field"])
+		dirPath := Stringify(args["dir"])
+		dir := "asc"
+		if col != "" && Stringify(getPath(r.State, fieldPath)) == col {
+			if Stringify(getPath(r.State, dirPath)) == "asc" {
+				dir = "desc"
+			}
+		} else if fieldPath != "" {
+			setPath(r.State, fieldPath, col)
+		}
+		if dirPath != "" {
+			setPath(r.State, dirPath, dir)
+		}
+		if dataPath != "" {
+			sortArray(getPath(r.State, dataPath), col, dir)
 		}
 		return
 	}

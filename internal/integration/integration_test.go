@@ -467,11 +467,24 @@ func TestSortableTable(t *testing.T) {
 		!strings.Contains(h, "qorm-sort-ind") {
 		t.Error("sortable table should render clickable headers with the sort indicator")
 	}
-	// sorting by the 'name' column reorders rows (Zoe, Ada, Linus -> Ada, Linus, Zoe)
-	rt.Dispatch("sortRows", map[string]any{"column": "name"})
+	// default sort (no app action file): sort by name asc (Zoe, Ada, Linus -> Ada, Linus, Zoe)
+	args := map[string]any{"data": "rows", "column": "name", "field": "rowsSort", "dir": "rowsDir"}
+	rt.Dispatch(qrt.BuiltinSort, args)
 	rows := rt.State["rows"].([]any)
 	if rows[0].(map[string]any)["name"] != "Ada" {
 		t.Errorf("after sort by name, first row should be Ada, got %v", rows[0])
+	}
+	if rt.State["rowsSort"] != "name" || rt.State["rowsDir"] != "asc" {
+		t.Error("__sort should record the column and ascending direction")
+	}
+	// clicking the same column again flips to descending (Ada first -> Zoe first)
+	rt.Dispatch(qrt.BuiltinSort, args)
+	rows = rt.State["rows"].([]any)
+	if rows[0].(map[string]any)["name"] != "Zoe" {
+		t.Errorf("second click should flip to descending (Zoe first), got %v", rows[0])
+	}
+	if rt.State["rowsDir"] != "desc" {
+		t.Error("direction should toggle to desc")
 	}
 }
 
@@ -996,14 +1009,24 @@ func TestWidgetParityDataTable(t *testing.T) {
 	if !strings.Contains(p2, ">Margaret<") || strings.Contains(p2, ">Moss<") {
 		t.Error("page 2 should show rows 11-12 only")
 	}
-	// sorting by name reorders rows (Moss first → Ada first)
-	rt.Dispatch("dtSort", map[string]any{"column": "name"})
+	// default sort: the showcase starts sorted by name asc — clicking that
+	// column flips to desc, clicking again flips back, a new column sorts asc
+	rt.Dispatch(qrt.BuiltinSort, map[string]any{"data": "dtRows", "column": "name", "field": "dtSort", "dir": "dtSortDir"})
 	rows := rt.State["dtRows"].([]any)
-	if rows[0].(map[string]any)["name"] != "Ada" {
-		t.Errorf("after sort by name, first row should be Ada, got %v", rows[0])
+	if rows[0].(map[string]any)["name"] != "Radia" {
+		t.Errorf("clicking the sorted name column should flip to descending (Radia first), got %v", rows[0])
 	}
-	if rt.State["dtSort"] != "name" {
-		t.Error("dtSort should record the sorted column")
+	if rt.State["dtSortDir"] != "desc" {
+		t.Error("direction should toggle to desc")
+	}
+	rt.Dispatch(qrt.BuiltinSort, map[string]any{"data": "dtRows", "column": "name", "field": "dtSort", "dir": "dtSortDir"})
+	rows = rt.State["dtRows"].([]any)
+	if rows[0].(map[string]any)["name"] != "Ada" {
+		t.Errorf("third click should return to ascending (Ada first), got %v", rows[0])
+	}
+	rt.Dispatch(qrt.BuiltinSort, map[string]any{"data": "dtRows", "column": "role", "field": "dtSort", "dir": "dtSortDir"})
+	if rt.State["dtSort"] != "role" || rt.State["dtSortDir"] != "asc" {
+		t.Error("a new column should record itself and start ascending")
 	}
 }
 

@@ -81,11 +81,8 @@
             "width": "30%"
           }
         ],
-        "onChange": {
-          "type": "invoke",
-          "name": "sortRows",
-          "args": {}
-        }
+        "sortField": "{{state.rowsSort}}",
+        "sortDir": "{{state.rowsDir}}"
       },
       {
         "type": "accordion",
@@ -1157,7 +1154,8 @@
         "selectable": true,
         "selected": "{{state.dtSel}}",
         "sortField": "{{state.dtSort}}",
-        "sortDir": "asc",
+        "sortDir": "{{state.dtSortDir}}",
+        "sortData": "{{state.dtRows}}",
         "columns": [
           {
             "value": "id",
@@ -1176,11 +1174,6 @@
         "onPress": {
           "type": "invoke",
           "name": "dtToggle",
-          "args": {}
-        },
-        "onChange": {
-          "type": "invoke",
-          "name": "dtSort",
           "args": {}
         }
       },

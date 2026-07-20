@@ -77,7 +77,7 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `compass` | `label` |
 | `contacts` | `label` |
 | `contextmenu` | `items` · `menuStyle` |
-| `datatable` | `columns` · `data` · `rowKey` · `selectable` · `selected` · `sortDir` · `sortField` |
+| `datatable` | `columns` · `data` · `rowKey` · `selectable` · `selected` · `sortData` · `sortDir` · `sortField` |
 | `datepicker` | `maxYear` · `minYear` |
 | `descriptions` | `items` |
 | `deviceinfo` | `label` |
@@ -161,7 +161,7 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `swipeactions` | `actions` |
 | `switchlisttile` | `subtitle` · `value` |
 | `systemmodes` | `label` |
-| `table` | `columns` · `data` |
+| `table` | `columns` · `data` · `sortData` · `sortDir` · `sortField` |
 | `tabs` | `tabs` |
 | `tag` | — |
 | `text` | — |

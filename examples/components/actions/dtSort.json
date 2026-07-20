@@ -1,4 +1,0 @@
-{ "type": "action", "id": "dtSort", "steps": [
-  { "type": "state.set", "path": "dtSort", "value": "{{ column }}" },
-  { "type": "state.sort", "path": "dtRows", "field": "{{ column }}", "value": "asc" }
-] }

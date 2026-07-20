@@ -139,6 +139,26 @@ func (r *renderer) listTile(n *model.Node) {
 // {column}, with a ▲/▼ indicator when it matches sortField/sortDir) and
 // selectable rows (a checkbox column; OnPress dispatches {key} per row and
 // {key:"__all__"} for select-all). rowKey (default "id") identifies rows; the
+// sortHandler is a column header's default sort dispatch when the app wires
+// no onChange: available when sortField and sortDir are plainly state-bound
+// and the array to sort is too — `sortData` (an explicit bound path for apps
+// whose `data` is a sliced/filtered window) or the bound `data` itself. It
+// registers the runtime's built-in __sort: clicking the sorted column flips
+// direction, a new column sorts ascending. An explicit onChange always wins.
+func (r *renderer) sortHandler(n *model.Node, column string) (int, bool) {
+	data := boundPath(propStr(n, "sortData"))
+	if data == "" {
+		data = boundPath(propStr(n, "data"))
+	}
+	field, dir := boundPath(propStr(n, "sortField")), boundPath(propStr(n, "sortDir"))
+	if data == "" || field == "" || dir == "" {
+		return 0, false
+	}
+	return r.register(&model.Invoke{Name: runtime.BuiltinSort, Args: map[string]string{
+		"data": data, "field": field, "dir": dir, "column": column,
+	}}), true
+}
+
 // bound `selected` array holds the chosen keys. Columns accept `width` too.
 func (r *renderer) datatable(n *model.Node) {
 	cols := optionList(n.Props["columns"])
@@ -180,17 +200,23 @@ func (r *renderer) datatable(n *model.Node) {
 		}
 	}
 	for _, c := range cols {
+		idx, sortable := -1, false
 		if n.OnChange != nil {
-			cls, glyph := indCls, "&#8250;"
-			if c.value == sortField {
-				cls, glyph = indCls+" on", ind
-			}
-			idx := r.register(&model.Invoke{Name: n.OnChange.Name, Args: mergeArgs(n.OnChange.Args, "column", c.value)})
-			fmt.Fprintf(&r.sb, `<th><button class="qdt-sort" onclick="qorm(%d)">%s<span class="%s">%s</span></button></th>`,
-				idx, html.EscapeString(c.label), cls, glyph)
-		} else {
-			r.sb.WriteString("<th>" + html.EscapeString(c.label) + "</th>")
+			idx = r.register(&model.Invoke{Name: n.OnChange.Name, Args: mergeArgs(n.OnChange.Args, "column", c.value)})
+			sortable = true
+		} else if h, def := r.sortHandler(n, c.value); def {
+			idx, sortable = h, true
 		}
+		if !sortable {
+			r.sb.WriteString("<th>" + html.EscapeString(c.label) + "</th>")
+			continue
+		}
+		cls, glyph := indCls, "&#8250;"
+		if c.value == sortField {
+			cls, glyph = indCls+" on", ind
+		}
+		fmt.Fprintf(&r.sb, `<th><button class="qdt-sort" onclick="qorm(%d)">%s<span class="%s">%s</span></button></th>`,
+			idx, html.EscapeString(c.label), cls, glyph)
 	}
 	r.sb.WriteString("</tr></thead><tbody>")
 	for _, row := range rows {
@@ -222,23 +248,40 @@ func (r *renderer) datatable(n *model.Node) {
 func (r *renderer) table(n *model.Node) {
 	cols := optionList(n.Props["columns"]) // reuse {value,label} shape: value=key, label=title
 	rows := r.boundArray(n, "data")
+	sortField := r.interp(propStr(n, "sortField"))
+	sortDir := r.interp(propStr(n, "sortDir"))
 	fmt.Fprintf(&r.sb, `<table id=%q class="qorm-table" style=%q>`, n.ID, r.boxCSS(n))
 	r.sb.WriteString(colGroup(colWidths(n.Props["columns"]), false))
 	r.sb.WriteString("<thead><tr>")
 	for _, c := range cols {
-		if n.OnChange != nil { // sortable: header dispatches onChange with {column}
+		idx, sortable := -1, false
+		if n.OnChange != nil { // app-wired sort: header dispatches onChange with {column}
 			args := map[string]string{"column": c.value}
 			for k, v := range n.OnChange.Args {
 				args[k] = v
 			}
-			idx := r.register(&model.Invoke{Name: n.OnChange.Name, Args: args})
-			// macOS Finder convention: the chevron only shows on hover (or when
-			// the column is the sorted one — see datatable).
-			fmt.Fprintf(&r.sb, `<th><button class="qdt-sort" onclick="qorm(%d)">%s<span class="qorm-sort-ind">&#8250;</span></button></th>`,
-				idx, html.EscapeString(c.label))
-		} else {
-			r.sb.WriteString("<th>" + html.EscapeString(c.label) + "</th>")
+			idx = r.register(&model.Invoke{Name: n.OnChange.Name, Args: args})
+			sortable = true
+		} else if h, def := r.sortHandler(n, c.value); def {
+			idx, sortable = h, true
 		}
+		if !sortable {
+			r.sb.WriteString("<th>" + html.EscapeString(c.label) + "</th>")
+			continue
+		}
+		// macOS Finder convention: the chevron only shows on hover, except on
+		// the sorted column (persistent accent ▴ asc / ▾ desc).
+		cls, glyph := "qorm-sort-ind", "&#8250;"
+		if c.value == sortField && sortField != "" {
+			cls = "qorm-sort-ind on"
+			if sortDir == "desc" {
+				glyph = "▾"
+			} else {
+				glyph = "▴"
+			}
+		}
+		fmt.Fprintf(&r.sb, `<th><button class="qdt-sort" onclick="qorm(%d)">%s<span class="%s">%s</span></button></th>`,
+			idx, html.EscapeString(c.label), cls, glyph)
 	}
 	r.sb.WriteString("</tr></thead><tbody>")
 	for _, row := range rows {
