@@ -141,8 +141,9 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `screenrecord` | `label` |
 | `screens` | — |
 | `screenshot` | `label` |
+| `searchbar` | `hint` · `items` · `onSelect` |
 | `securestorage` | `label` |
-| `segmented` | `options` |
+| `segmented` | `multiple` · `options` |
 | `select` | `options` |
 | `selectabletext` | — |
 | `sensors` | `label` |

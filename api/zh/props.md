@@ -141,8 +141,9 @@
 | `screenrecord` | `label` |
 | `screens` | — |
 | `screenshot` | `label` |
+| `searchbar` | `hint` · `items` · `onSelect` |
 | `securestorage` | `label` |
-| `segmented` | `options` |
+| `segmented` | `multiple` · `options` |
 | `select` | `options` |
 | `selectabletext` | — |
 | `sensors` | `label` |

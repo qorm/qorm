@@ -104,6 +104,7 @@ Each widget lists its **canonical name** first; the rest are equivalent aliases.
 | `screenrecord` | screenrecording | `hwList` |
 | `screens` | displays | `screens` |
 | `screenshot` | screencapture | `hwList` |
+| `searchbar` | — | `searchbar` |
 | `securestorage` | keychain | `hwList` |
 | `segmented` | slidingsegmentedcontrol, cupertinoslidingsegmentedcontrol | `segmented` |
 | `select` | dropdown | `selectBox` |

@@ -7,6 +7,13 @@ All notable changes to QORM are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- `searchbar` widget: SearchBar + anchored results panel — declarative
+  `items` (literal or bound), client-side label filter, `onSelect` emits a
+  plain label string.
+- `segmented` `multiple: true` (ToggleButtons): selection is a plain array
+  in state, membership via `state.toggle`.
+- `table`/`datatable` column widths (`width` column key, emitted as
+  `<colgroup>` only when used).
 - `timepicker` widget (alias `cupertinotimepicker`): iOS hour/minute wheels,
   `value` "HH:MM" with `minuteStep`, dispatches the plain time string.
 - `ignorepointer` / `absorbpointer`: layout-transparent behavior wrapper
@@ -36,6 +43,8 @@ All notable changes to QORM are documented here. The format is based on
   tree/bottomnav/steps rows were `—`).
 - Examples animations/payment migrated to theme variables (all 27 examples
   now follow OS dark mode).
+- OTA payloads over the 32 MiB cap now fail with an explicit error instead of
+  being silently truncated; the file source enforces the same cap.
 
 ## [v0.2.6] - 2026-07-19
 

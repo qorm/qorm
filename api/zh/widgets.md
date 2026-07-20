@@ -104,6 +104,7 @@
 | `screenrecord` | screenrecording | `hwList` |
 | `screens` | displays | `screens` |
 | `screenshot` | screencapture | `hwList` |
+| `searchbar` | — | `searchbar` |
 | `securestorage` | keychain | `hwList` |
 | `segmented` | slidingsegmentedcontrol, cupertinoslidingsegmentedcontrol | `segmented` |
 | `select` | dropdown | `selectBox` |
