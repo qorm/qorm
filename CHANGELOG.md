@@ -6,6 +6,8 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+## [v0.3.0] - 2026-07-20
+
 ### Added
 - `searchbar` widget: SearchBar + anchored results panel — declarative
   `items` (literal or bound), client-side label filter, `onSelect` emits a
