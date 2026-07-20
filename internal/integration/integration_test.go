@@ -1118,3 +1118,136 @@ func TestDatePickerModal(t *testing.T) {
 		t.Error("Done should close the date modal")
 	}
 }
+
+// TestWidgetParitySearchBar covers the searchbar: the two-way-bound input, the
+// anchored results panel rendered from a bound items array (label/detail/icon),
+// the client-side filter/close hooks, and onSelect dispatching the chosen
+// entry's {label} as a plain string.
+func TestWidgetParitySearchBar(t *testing.T) {
+	app, err := loader.LoadDir(examplesDir(t, "components"))
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	rt := qrt.New(app)
+	html := render.Render(rt).HTML
+	for _, m := range []string{
+		`id="sb"`, `class="qorm-search"`, "qorm-search-panel", // input + anchored panel
+		`placeholder="Search countries…"`,                                     // hint
+		`data-state="query"`,                                                  // value two-way bound
+		`oninput="qormSearch(this)"`, `onkeydown="qormSearchKey(this,event)"`, // filter + Escape
+		`data-label="Cameroon"`, ">Africa<", // an entry from the bound array + its detail
+		"qormSearchPick", // entry click fills + dispatches
+		"M3 12h18",       // the globe icon on the Canada entry
+	} {
+		if !strings.Contains(html, m) {
+			t.Errorf("searchbar showcase should render %q", m)
+		}
+	}
+	// the panel follows the bound items array
+	rt.State["countryItems"] = append(rt.State["countryItems"].([]any), map[string]any{"label": "Chad", "detail": "Africa"})
+	if !strings.Contains(render.Render(rt).HTML, `data-label="Chad"`) {
+		t.Error("items should re-render from state")
+	}
+	// picking an entry dispatches onSelect with its {label} — a plain string
+	rt.Dispatch("setCountry", map[string]any{"label": "Chile"})
+	if rt.State["country"] != "Chile" {
+		t.Errorf("onSelect should set state.country, got %v", rt.State["country"])
+	}
+	if rt.State["query"] != "Chile" {
+		t.Errorf("picking should fill the query text, got %v", rt.State["query"])
+	}
+	// the selection shows up in the other state-bound control (data flows
+	// through state only, never widget-to-widget)
+	if !strings.Contains(render.Render(rt).HTML, `value="Chile"`) {
+		t.Error("the country-bound autocomplete should reflect the selection")
+	}
+}
+
+// TestWidgetParitySegmentedMultiple covers segmented with multiple:true
+// (ToggleButtons): the bound value path holds an array of selected values,
+// membership marks the pressed options, and clicking dispatches onChange with
+// {value} — the fmtToggle action's state.toggle flips membership both ways.
+func TestWidgetParitySegmentedMultiple(t *testing.T) {
+	app, err := loader.LoadDir(examplesDir(t, "components"))
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	rt := qrt.New(app)
+	html := render.Render(rt).HTML
+	segm := html[strings.Index(html, `id="segm"`):]
+	segm = segm[:strings.Index(segm, `</div>`)]
+	for _, m := range []string{
+		`role="group"`,
+		`aria-pressed="true"`, // bold is selected initially
+		`onclick="qorm(`,      // options dispatch (no data-state: the array must not be scalar-squashed)
+		">Bold<", ">Italic<", ">Underline<",
+	} {
+		if !strings.Contains(segm, m) {
+			t.Errorf("multi segmented showcase should render %q", m)
+		}
+	}
+	if strings.Contains(segm, `type="radio"`) || strings.Contains(segm, "data-state") {
+		t.Error("multiple selection must not use scalar radio/state-fold wiring")
+	}
+	pressed := strings.Count(segm, `aria-pressed="true"`)
+	if pressed != 1 {
+		t.Errorf("initially exactly one option (bold) should be pressed, got %d", pressed)
+	}
+	// toggle italic on, bold off — membership flips both ways through state
+	rt.Dispatch("fmtToggle", map[string]any{"value": "italic"})
+	rt.Dispatch("fmtToggle", map[string]any{"value": "bold"})
+	got := rt.State["formats"].([]any)
+	if len(got) != 1 || got[0] != "italic" {
+		t.Fatalf("after toggling italic on and bold off, formats = %v", got)
+	}
+	segm2 := render.Render(rt).HTML
+	segm2 = segm2[strings.Index(segm2, `id="segm"`):]
+	segm2 = segm2[:strings.Index(segm2, `</div>`)]
+	pressedOf := func(label string) string {
+		i := strings.Index(segm2, ">"+label+"<")
+		span := segm2[strings.LastIndex(segm2[:i], `<span role="button"`):i]
+		if strings.Contains(span, `aria-pressed="true"`) {
+			return "true"
+		}
+		return "false"
+	}
+	if pressedOf("Bold") != "false" {
+		t.Error("bold should render unpressed after being toggled off")
+	}
+	if pressedOf("Italic") != "true" {
+		t.Error("italic should render pressed after being toggled on")
+	}
+	// the single-select segmented beside it still works (unchanged behavior)
+	if !strings.Contains(render.Render(rt).HTML, `role="radiogroup"`) {
+		t.Error("single-select segmented should keep its radio wiring")
+	}
+}
+
+// TestWidgetParityTableColumnWidths covers the column `width` prop on both
+// table and datatable: numbers become px, CSS strings pass through, and a
+// <colgroup> sizes the columns (datatable's checkbox column stays unsized).
+func TestWidgetParityTableColumnWidths(t *testing.T) {
+	app, err := loader.LoadDir(examplesDir(t, "components"))
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	html := render.Render(qrt.New(app)).HTML
+	// table: Name 180px (number → px), Role 30% (CSS string passthrough)
+	tbl := html[strings.Index(html, `id="tbl"`):]
+	tbl = tbl[:strings.Index(tbl, "<thead>")]
+	for _, m := range []string{
+		"<colgroup>",
+		`<col style="width:180px">`,
+		`<col style="width:30%">`,
+	} {
+		if !strings.Contains(tbl, m) {
+			t.Errorf("table with column widths should render %q", m)
+		}
+	}
+	// datatable: ID column 72px; the leading checkbox column is an unsized <col>
+	dt := html[strings.Index(html, `id="dt"`):]
+	dt = dt[:strings.Index(dt, "<thead>")]
+	if !strings.Contains(dt, "<colgroup><col><col style=\"width:72px\">") {
+		t.Errorf("datatable should size the ID column and leave the checkbox column unsized, got: %s", dt)
+	}
+}

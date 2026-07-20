@@ -17,7 +17,13 @@ import (
 	"github.com/qorm/qorm/internal/bundle"
 )
 
+// maxBundle is the largest accepted bundle payload: 32 MiB. Anything bigger
+// is a hard error (never a silent truncation) — the caller treats a failed
+// fetch as "no update" and keeps running the current bundle.
+const maxBundle = 32 << 20
+
 // Fetch retrieves raw bundle bytes from an http(s) URL or a local file path.
+// Both paths enforce the maxBundle size cap: an oversize payload is an error.
 func Fetch(source string) ([]byte, error) {
 	if strings.HasPrefix(source, "http://") || strings.HasPrefix(source, "https://") {
 		client := &http.Client{Timeout: 30 * time.Second}
@@ -29,9 +35,28 @@ func Fetch(source string) ([]byte, error) {
 		if resp.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("fetch %s: status %d", source, resp.StatusCode)
 		}
-		return io.ReadAll(io.LimitReader(resp.Body, 32<<20)) // 32 MiB cap
+		return readCapped(resp.Body)
 	}
-	return os.ReadFile(source)
+	f, err := os.Open(source)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return readCapped(f)
+}
+
+// readCapped reads up to maxBundle bytes, erroring when the source holds more
+// — so a truncated payload can never slip through to the verifier as if it
+// were the whole bundle.
+func readCapped(r io.Reader) ([]byte, error) {
+	data, err := io.ReadAll(io.LimitReader(r, maxBundle+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) > maxBundle {
+		return nil, fmt.Errorf("bundle exceeds the %d MiB size cap", maxBundle>>20)
+	}
+	return data, nil
 }
 
 // FetchVerified fetches, decodes and verifies a bundle in one step, rejecting

@@ -157,8 +157,13 @@ func (r *renderer) field(n *model.Node) {
 }
 
 // segmented is a horizontal single-choice control bound to state (styled radios,
-// so the existing state-fold mechanism applies).
+// so the existing state-fold mechanism applies). With `multiple: true` it is
+// Flutter's ToggleButtons — see segmentedMulti.
 func (r *renderer) segmented(n *model.Node) {
+	if propBool(n, "multiple") {
+		r.segmentedMulti(n)
+		return
+	}
 	path := boundPath(n.Value)
 	cur := r.interp(n.Value)
 	changeAttr := r.changeAttr(n, path != "")
@@ -172,6 +177,33 @@ func (r *renderer) segmented(n *model.Node) {
 		fmt.Fprintf(&r.sb, `<label style="position:relative;"><input type="radio" name=%q value=%q%s%s%s style="position:absolute;opacity:0;width:0;height:0;"><span style="display:inline-block;padding:6px 14px;border-radius:6px;font-size:13px;cursor:pointer;%s">%s</span></label>`,
 			n.ID, html.EscapeString(opt.value), checked, dataStateAttr(path), changeAttr,
 			segStyle(opt.value == cur), html.EscapeString(opt.label))
+	}
+	r.sb.WriteString(`</div>`)
+}
+
+// segmentedMulti is the multiple:true form of segmented (ToggleButtons): the
+// bound value path holds an ARRAY of selected values and an option is "on"
+// while its value is a member. Clicking an option dispatches the node's
+// onChange with {value} — pair it with a state.toggle step to flip membership,
+// so selection still flows only through state (no data-state on the options:
+// the client must not overwrite the array with a scalar).
+func (r *renderer) segmentedMulti(n *model.Node) {
+	sel := map[string]bool{}
+	if arr, ok := runtime.EvalBinding(n.Value, r.ctx()).([]any); ok {
+		for _, v := range arr {
+			sel[runtime.Stringify(v)] = true
+		}
+	}
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-seg" style=%q role="group">`, n.ID,
+		r.boxCSS(n)+"display:inline-flex;background:var(--fill);border-radius:8px;padding:3px;gap:2px;")
+	for _, opt := range optionList(n.Props["options"]) {
+		on := sel[opt.value]
+		attr := ""
+		if n.OnChange != nil {
+			attr = fmt.Sprintf(` onclick="qorm(%d)"`, r.register(&model.Invoke{Name: n.OnChange.Name, Args: mergeArgs(n.OnChange.Args, "value", opt.value)}))
+		}
+		fmt.Fprintf(&r.sb, `<span role="button" aria-pressed="%t" style="display:inline-block;padding:6px 14px;border-radius:6px;font-size:13px;cursor:pointer;%s"%s>%s</span>`,
+			on, segStyle(on), attr, html.EscapeString(opt.label))
 	}
 	r.sb.WriteString(`</div>`)
 }
@@ -297,6 +329,46 @@ func (r *renderer) autocomplete(n *model.Node) {
 		fmt.Fprintf(&r.sb, `<option value=%q>`, html.EscapeString(lbl))
 	}
 	r.sb.WriteString(`</datalist>`)
+}
+
+// searchbar is Flutter's SearchBar + SearchAnchor: a text field with an
+// anchored results panel. `value` two-way-binds the query text; `hint` is the
+// placeholder. `items` ([{label, detail?, icon?}] — a literal array or a
+// binding to a state array, e.g. "{{state.results}}") renders the result
+// entries. While the input is focused and non-empty the panel lists the items
+// whose label contains the query (client-side filtering in qormSearch);
+// clicking an entry fills the input and dispatches onSelect with the entry's
+// {label} as a plain string. Escape or clicking away closes the panel.
+func (r *renderer) searchbar(n *model.Node) {
+	path := boundPath(n.Value)
+	onSelect := parseInvokeProp(n, "onSelect")
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-search" style=%q>`, n.ID, r.boxCSS(n)+"position:relative;display:inline-block;")
+	fmt.Fprintf(&r.sb, `<input type="text" value=%q placeholder=%q autocomplete="off" style="width:100%%;min-width:220px;box-sizing:border-box;height:40px;padding:0 12px;border:1px solid var(--sep);border-radius:8px;font-size:14px;outline:none;"%s%s%s onfocus="qormSearch(this)" oninput="qormSearch(this)" onblur="qormSearchBlur(this)" onkeydown="qormSearchKey(this,event)">`,
+		html.EscapeString(r.interp(n.Value)), html.EscapeString(propStrOr(n, "hint", n.Placeholder)),
+		dataStateAttr(path), a11y(n), r.changeAttr(n, path != ""))
+	r.sb.WriteString(`<div class="qorm-search-panel" style="display:none;position:absolute;top:100%;left:0;right:0;margin-top:4px;background:var(--surface);border:1px solid var(--sep);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);max-height:260px;overflow-y:auto;z-index:40;padding:4px;">`)
+	for _, it := range r.boundArray(n, "items") {
+		m, ok := it.(map[string]any)
+		if !ok { // a bare string is a label-only entry
+			m = map[string]any{"label": fmt.Sprint(it)}
+		}
+		label := r.interp(str(m, "label"))
+		attr := ""
+		if onSelect != nil {
+			attr = fmt.Sprintf(` onclick="qormSearchPick(this,%d)"`, r.register(&model.Invoke{Name: onSelect.Name, Args: mergeArgs(onSelect.Args, "label", label)}))
+		}
+		fmt.Fprintf(&r.sb, `<div class="qorm-search-item" data-label=%q style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:6px;cursor:pointer;font-size:14px;"%s>`,
+			html.EscapeString(label), attr)
+		if svg := iconSVG(str(m, "icon"), 15); svg != "" {
+			fmt.Fprintf(&r.sb, `<span style="width:18px;display:inline-flex;justify-content:center;color:var(--label2);flex:none;">%s</span>`, svg)
+		}
+		fmt.Fprintf(&r.sb, `<span>%s</span>`, html.EscapeString(label))
+		if d := r.interp(str(m, "detail")); d != "" {
+			fmt.Fprintf(&r.sb, `<span style="margin-left:auto;color:var(--label2);font-size:12px;">%s</span>`, html.EscapeString(d))
+		}
+		r.sb.WriteString(`</div>`)
+	}
+	r.sb.WriteString(`</div></div>`)
 }
 
 // textFormField is Flutter's TextFormField with InputDecoration: label, prefix/

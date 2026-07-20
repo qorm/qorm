@@ -30,7 +30,7 @@ var allWidgetTypes = []string{
 	"navigationrail", "network", "nfc", "notify", "offstage", "openlink", "openurl", "orientation", "pageview",
 	"pagination", "photo", "photopicker", "picker", "progress", "radio", "radiolisttile", "rangeslider",
 	"rating", "recorder", "refreshindicator", "richtext", "rotatedbox", "scaffold", "screencapture", "screenrecord",
-	"screenrecording", "screens", "screenshot", "securestorage", "segmented", "select", "selectabletext", "sensors",
+	"screenrecording", "screens", "screenshot", "searchbar", "securestorage", "segmented", "select", "selectabletext", "sensors",
 	"share", "skeleton", "slider", "slidingsegmentedcontrol", "sliverappbar", "snackbar", "spacer", "speak",
 	"speechinput", "spinner", "startatlogin", "stat", "stepper", "steps", "storage", "stt",
 	"switch", "switchlisttile", "table", "tabs", "tag", "text", "textarea", "textformfield",

@@ -1,0 +1,4 @@
+{ "type": "action", "id": "setCountry", "steps": [
+  { "type": "state.set", "path": "country", "value": "{{ label }}" },
+  { "type": "state.set", "path": "query", "value": "{{ label }}" }
+] }

@@ -418,6 +418,8 @@ func (r *renderer) renderInner(n *model.Node) {
 		r.gestureDetector(n)
 	case "autocomplete":
 		r.autocomplete(n)
+	case "searchbar":
+		r.searchbar(n)
 	case "textformfield":
 		r.textFormField(n)
 	case "circularprogress", "circularprogressindicator":

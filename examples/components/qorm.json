@@ -8,6 +8,7 @@
       "showModal": "boolean",
       "rows": "array",
       "plan": "string",
+      "formats": "array",
       "lo": "number",
       "hi": "number",
       "filterGo": "boolean",
@@ -37,6 +38,8 @@
       "time": "string",
       "country": "string",
       "countries": "array",
+      "query": "string",
+      "countryItems": "array",
       "showDateDlg": "boolean"
     },
     "initial": {
@@ -56,6 +59,7 @@
         }
       ],
       "plan": "m",
+      "formats": ["bold"],
       "lo": 20,
       "hi": 70,
       "filterGo": true,
@@ -118,6 +122,13 @@
       "time": "09:30",
       "country": "",
       "countries": ["Canada", "Cameroon", "Chile", "China"],
+      "query": "",
+      "countryItems": [
+        { "label": "Canada", "detail": "North America", "icon": "globe" },
+        { "label": "Cameroon", "detail": "Africa" },
+        { "label": "Chile", "detail": "South America" },
+        { "label": "China", "detail": "Asia" }
+      ],
       "showDateDlg": false
     }
   }

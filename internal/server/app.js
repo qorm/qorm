@@ -631,6 +631,36 @@ function qormMenu(btn){
   document.querySelectorAll('.qorm-menu-panel').forEach(function(p){ if(p!==panel) p.style.display='none'; });
   if(panel){ panel.style.display = (panel.style.display==='none')?'block':'none'; }
 }
+// SearchBar: while the input is focused and non-empty, show the anchored panel
+// with the entries whose label contains the query (client-side filtering).
+function qormSearch(inp){
+  var box=inp.closest('.qorm-search'), panel=box&&box.querySelector('.qorm-search-panel'); if(!panel) return;
+  var q=(inp.value||'').toLowerCase(), any=false;
+  panel.querySelectorAll('.qorm-search-item').forEach(function(it){
+    var show=q!=='' && (it.getAttribute('data-label')||'').toLowerCase().indexOf(q)>=0;
+    it.style.display=show?'':'none'; if(show) any=true;
+  });
+  panel.style.display=any?'block':'none';
+}
+// SearchBar: close the panel on blur (deferred so an entry click lands first).
+function qormSearchBlur(inp){
+  var box=inp.closest('.qorm-search'), panel=box&&box.querySelector('.qorm-search-panel');
+  setTimeout(function(){ if(panel) panel.style.display='none'; },120);
+}
+// SearchBar: Escape closes the panel.
+function qormSearchKey(inp,e){
+  if(e.key!=='Escape') return;
+  var box=inp.closest('.qorm-search'), panel=box&&box.querySelector('.qorm-search-panel');
+  if(panel) panel.style.display='none';
+}
+// SearchBar: pick a result entry — fill the input (qorm(h) then syncs the
+// bound value too), close the panel, and dispatch onSelect with {label}.
+function qormSearchPick(item,h){
+  var box=item.closest('.qorm-search'); if(!box){ qorm(h); return; }
+  var inp=box.querySelector('input'); if(inp) inp.value=item.getAttribute('data-label')||'';
+  var panel=box.querySelector('.qorm-search-panel'); if(panel) panel.style.display='none';
+  qorm(h);
+}
 // Context menu (CupertinoContextMenu): long-press to reveal the action panel.
 function qormCtx(el){
   var t=null, panel=el.querySelector('.qorm-ctx-panel');

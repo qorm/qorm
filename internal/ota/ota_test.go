@@ -106,18 +106,43 @@ func TestFetchFile(t *testing.T) {
 }
 
 func TestFetchSizeCap(t *testing.T) {
-	// HTTP responses are capped at 32 MiB; the excess is silently truncated
-	// (Fetch itself does not error — integrity checking happens in Verify).
+	// Payloads over the 32 MiB cap are a hard error naming the cap — never a
+	// silent truncation (a truncated bundle must not reach the verifier).
 	const cap32 = 32 << 20
 	srv := serve(t, func(w http.ResponseWriter, r *http.Request) {
 		w.Write(make([]byte, cap32+1))
 	})
 	got, err := Fetch(srv.URL)
-	if err != nil {
-		t.Fatalf("Fetch: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "32 MiB") {
+		t.Fatalf("oversize payload should error naming the 32 MiB cap, got=%d bytes err=%v", len(got), err)
 	}
-	if len(got) != cap32 {
-		t.Errorf("Fetch returned %d bytes, want the %d-byte cap", len(got), cap32)
+	if got != nil {
+		t.Error("an oversize fetch must return no bytes")
+	}
+	// Exactly at the cap is still accepted.
+	srvOK := serve(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Write(make([]byte, cap32))
+	})
+	got, err = Fetch(srvOK.URL)
+	if err != nil || len(got) != cap32 {
+		t.Errorf("a payload at the cap should pass, got=%d bytes err=%v", len(got), err)
+	}
+}
+
+func TestFetchFileSizeCap(t *testing.T) {
+	// The file source enforces the same 32 MiB cap as HTTP (it used to be
+	// unbounded via os.ReadFile).
+	const cap32 = 32 << 20
+	path := filepath.Join(t.TempDir(), "big-bundle.json")
+	if err := os.WriteFile(path, make([]byte, cap32+1), 0o600); err != nil {
+		t.Fatalf("write fixture: %v", err)
+	}
+	got, err := Fetch(path)
+	if err == nil || !strings.Contains(err.Error(), "32 MiB") {
+		t.Fatalf("oversize file should error naming the 32 MiB cap, got=%d bytes err=%v", len(got), err)
+	}
+	if got != nil {
+		t.Error("an oversize fetch must return no bytes")
 	}
 }
 

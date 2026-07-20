@@ -133,12 +133,13 @@ func (r *renderer) listTile(n *model.Node) {
 }
 
 // table renders a data table from `columns` ([{key,title}] or strings) and
-// `data` (bound array of objects or literal).
+// `data` (bound array of objects or literal). A column may carry `width`
+// (number = px, or a CSS string like "30%") applied via a <colgroup>.
 // datatable is a richer table: sortable column headers (OnChange dispatches
 // {column}, with a ▲/▼ indicator when it matches sortField/sortDir) and
 // selectable rows (a checkbox column; OnPress dispatches {key} per row and
 // {key:"__all__"} for select-all). rowKey (default "id") identifies rows; the
-// bound `selected` array holds the chosen keys.
+// bound `selected` array holds the chosen keys. Columns accept `width` too.
 func (r *renderer) datatable(n *model.Node) {
 	cols := optionList(n.Props["columns"])
 	rows := r.boundArray(n, "data")
@@ -163,7 +164,9 @@ func (r *renderer) datatable(n *model.Node) {
 			break
 		}
 	}
-	fmt.Fprintf(&r.sb, `<table id=%q class="qorm-datatable" style=%q><thead><tr>`, n.ID, r.boxCSS(n))
+	fmt.Fprintf(&r.sb, `<table id=%q class="qorm-datatable" style=%q>`, n.ID, r.boxCSS(n))
+	r.sb.WriteString(colGroup(colWidths(n.Props["columns"]), selectable))
+	r.sb.WriteString("<thead><tr>")
 	if selectable {
 		box := checkboxCell(allSel)
 		if n.OnPress != nil {
@@ -218,7 +221,9 @@ func (r *renderer) datatable(n *model.Node) {
 func (r *renderer) table(n *model.Node) {
 	cols := optionList(n.Props["columns"]) // reuse {value,label} shape: value=key, label=title
 	rows := r.boundArray(n, "data")
-	fmt.Fprintf(&r.sb, `<table id=%q class="qorm-table" style=%q><thead><tr>`, n.ID, r.boxCSS(n))
+	fmt.Fprintf(&r.sb, `<table id=%q class="qorm-table" style=%q>`, n.ID, r.boxCSS(n))
+	r.sb.WriteString(colGroup(colWidths(n.Props["columns"]), false))
+	r.sb.WriteString("<thead><tr>")
 	for _, c := range cols {
 		if n.OnChange != nil { // sortable: header dispatches onChange with {column}
 			args := map[string]string{"column": c.value}
@@ -244,8 +249,70 @@ func (r *renderer) table(n *model.Node) {
 	r.sb.WriteString("</tbody></table>")
 }
 
-// accordion renders collapsible sections; each child container's `title` prop is
-// the header. First section is open; toggling is client-side.
+// colWidths returns the optional per-column `width` of a table columns prop,
+// aligned with optionList's output ("" for width-less columns and for the
+// plain-string column form).
+func colWidths(v any) []string {
+	arr, ok := v.([]any)
+	if !ok {
+		return nil
+	}
+	out := make([]string, 0, len(arr))
+	for _, e := range arr {
+		switch t := e.(type) {
+		case string:
+			out = append(out, "")
+		case map[string]any:
+			out = append(out, colWidth(t["width"]))
+		}
+	}
+	return out
+}
+
+// colWidth normalizes a column `width`: a number means px, a string passes
+// through as CSS (a bare numeric string still means px).
+func colWidth(v any) string {
+	switch t := v.(type) {
+	case float64:
+		return num(t) + "px"
+	case string:
+		if _, err := strconv.ParseFloat(strings.TrimSpace(t), 64); err == nil {
+			return t + "px"
+		}
+		return t
+	}
+	return ""
+}
+
+// colGroup emits a <colgroup> sizing the columns when any carries a width —
+// otherwise "", and the table lays out as before. extraLeading prepends an
+// unsized <col> for datatable's checkbox column.
+func colGroup(widths []string, extraLeading bool) string {
+	anyW := false
+	for _, w := range widths {
+		if w != "" {
+			anyW = true
+			break
+		}
+	}
+	if !anyW {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("<colgroup>")
+	if extraLeading {
+		b.WriteString("<col>")
+	}
+	for _, w := range widths {
+		if w == "" {
+			b.WriteString("<col>")
+		} else {
+			fmt.Fprintf(&b, `<col style="width:%s">`, html.EscapeString(w))
+		}
+	}
+	b.WriteString("</colgroup>")
+	return b.String()
+}
 func (r *renderer) accordion(n *model.Node) {
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, r.boxCSS(n)+"display:flex;flex-direction:column;border:1px solid var(--sep);border-radius:10px;overflow:hidden;")
 	for i, c := range n.Children {

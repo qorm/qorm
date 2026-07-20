@@ -72,11 +72,13 @@
         "columns": [
           {
             "value": "name",
-            "label": "Name"
+            "label": "Name",
+            "width": 180
           },
           {
             "value": "role",
-            "label": "Role"
+            "label": "Role",
+            "width": "30%"
           }
         ],
         "onChange": {
@@ -305,6 +307,32 @@
             "label": "Yearly"
           }
         ]
+      },
+      {
+        "type": "segmented",
+        "id": "segm",
+        "multiple": true,
+        "ariaLabel": "Formatting",
+        "value": "{{state.formats}}",
+        "options": [
+          {
+            "value": "bold",
+            "label": "Bold"
+          },
+          {
+            "value": "italic",
+            "label": "Italic"
+          },
+          {
+            "value": "underline",
+            "label": "Underline"
+          }
+        ],
+        "onChange": {
+          "type": "invoke",
+          "name": "fmtToggle",
+          "args": {}
+        }
       },
       {
         "type": "descriptions",
@@ -1133,7 +1161,8 @@
         "columns": [
           {
             "value": "id",
-            "label": "ID"
+            "label": "ID",
+            "width": 72
           },
           {
             "value": "name",
@@ -1214,6 +1243,19 @@
         "value": "{{state.country}}",
         "placeholder": "Country…",
         "options": "{{state.countries}}"
+      },
+      {
+        "type": "searchbar",
+        "id": "sb",
+        "ariaLabel": "Country search",
+        "value": "{{state.query}}",
+        "hint": "Search countries…",
+        "items": "{{state.countryItems}}",
+        "onSelect": {
+          "type": "invoke",
+          "name": "setCountry",
+          "args": {}
+        }
       },
       {
         "type": "ignorepointer",
