@@ -51,6 +51,12 @@ All notable changes to QORM are documented here. The format is based on
   now follow OS dark mode).
 - OTA payloads over the 32 MiB cap now fail with an explicit error instead of
   being silently truncated; the file source enforces the same cap.
+- Widget style pass (Apple HIG): tabs are real iOS underline tabs (accent
+  indicator, secondary inactive, 44px targets); tree is a Finder outline
+  (rotating chevron, indent, hover fill); table/datatable headers dropped
+  the gray fill + grid borders for hairlines, and sort indicators follow the
+  macOS Finder convention — hidden until header hover, except the sorted
+  column's persistent accent chevron (hover effects pointer-devices only).
 
 ## [v0.2.6] - 2026-07-19
 

@@ -462,9 +462,10 @@ func TestSortableTable(t *testing.T) {
 		t.Fatalf("load: %v", err)
 	}
 	rt := qrt.New(app)
-	// header renders a clickable sort button
-	if !strings.Contains(render.Render(rt).HTML, "⇅") {
-		t.Error("sortable table should render clickable headers")
+	// header renders a clickable sort button with the hover-reveal indicator
+	if h := render.Render(rt).HTML; !strings.Contains(h, "qdt-sort") ||
+		!strings.Contains(h, "qorm-sort-ind") {
+		t.Error("sortable table should render clickable headers with the sort indicator")
 	}
 	// sorting by the 'name' column reorders rows (Zoe, Ada, Linus -> Ada, Linus, Zoe)
 	rt.Dispatch("sortRows", map[string]any{"column": "name"})

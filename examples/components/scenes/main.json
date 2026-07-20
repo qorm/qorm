@@ -374,6 +374,16 @@
         ]
       },
       {
+        "type": "tabs",
+        "id": "tb",
+        "tabs": ["Overview", "Specs", "Reviews"],
+        "children": [
+          { "type": "text", "id": "tb1", "text": "Overview panel — tabs switch client-side, no server round-trip." },
+          { "type": "text", "id": "tb2", "text": "Specs panel." },
+          { "type": "text", "id": "tb3", "text": "Reviews panel." }
+        ]
+      },
+      {
         "type": "listtile",
         "id": "lt",
         "leading": "folder",

@@ -62,13 +62,13 @@ func (r *renderer) list(n *model.Node) {
 func (r *renderer) tabs(n *model.Node) {
 	labels := stringList(n.Props["tabs"])
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, r.boxCSS(n)+"display:flex;flex-direction:column;")
-	r.sb.WriteString(`<div class="qorm-tabbar" style="display:flex;gap:4px;border-bottom:1px solid var(--sep);">`)
+	r.sb.WriteString(`<div class="qorm-tabbar" style="display:flex;gap:2px;border-bottom:1px solid var(--sep);">`)
 	for i, lbl := range labels {
 		active := ""
 		if i == 0 {
 			active = " qorm-tab-active"
 		}
-		fmt.Fprintf(&r.sb, `<button class="qorm-tab%s" data-tab="%d" onclick="qormTab(this)" style="border:none;background:none;padding:10px 16px;cursor:pointer;font-size:14px;">%s</button>`,
+		fmt.Fprintf(&r.sb, `<button class="qorm-tab%s" data-tab="%d" onclick="qormTab(this)">%s</button>`,
 			active, i, html.EscapeString(lbl))
 	}
 	r.sb.WriteString(`</div>`)
@@ -151,11 +151,14 @@ func (r *renderer) datatable(n *model.Node) {
 	}
 	sortField := r.interp(propStr(n, "sortField"))
 	sortDir := r.interp(propStr(n, "sortDir"))
-	arrow := " ⇅"
+	// Sorted column: persistent accent chevron (▼ desc / ▲ asc). Unsorted:
+	// the indicator only appears on header hover (macOS Finder convention).
+	ind := "&#8250;"
+	indCls := "qorm-sort-ind"
 	if sortDir == "desc" {
-		arrow = " ▼"
+		ind = "▾"
 	} else {
-		arrow = " ▲"
+		ind = "▴"
 	}
 	allSel := len(rows) > 0
 	for _, row := range rows {
@@ -178,15 +181,13 @@ func (r *renderer) datatable(n *model.Node) {
 	}
 	for _, c := range cols {
 		if n.OnChange != nil {
-			ind := ""
+			cls, glyph := indCls, "&#8250;"
 			if c.value == sortField {
-				ind = arrow
-			} else {
-				ind = " ⇅"
+				cls, glyph = indCls+" on", ind
 			}
 			idx := r.register(&model.Invoke{Name: n.OnChange.Name, Args: mergeArgs(n.OnChange.Args, "column", c.value)})
-			fmt.Fprintf(&r.sb, `<th><button class="qdt-sort" onclick="qorm(%d)">%s<span style="opacity:.6;">%s</span></button></th>`,
-				idx, html.EscapeString(c.label), strings.TrimSpace(ind))
+			fmt.Fprintf(&r.sb, `<th><button class="qdt-sort" onclick="qorm(%d)">%s<span class="%s">%s</span></button></th>`,
+				idx, html.EscapeString(c.label), cls, glyph)
 		} else {
 			r.sb.WriteString("<th>" + html.EscapeString(c.label) + "</th>")
 		}
@@ -231,7 +232,9 @@ func (r *renderer) table(n *model.Node) {
 				args[k] = v
 			}
 			idx := r.register(&model.Invoke{Name: n.OnChange.Name, Args: args})
-			fmt.Fprintf(&r.sb, `<th><button onclick="qorm(%d)" style="background:none;border:none;font:inherit;font-weight:700;cursor:pointer;padding:0;color:inherit;">%s ⇅</button></th>`,
+			// macOS Finder convention: the chevron only shows on hover (or when
+			// the column is the sorted one — see datatable).
+			fmt.Fprintf(&r.sb, `<th><button class="qdt-sort" onclick="qorm(%d)">%s<span class="qorm-sort-ind">&#8250;</span></button></th>`,
 				idx, html.EscapeString(c.label))
 		} else {
 			r.sb.WriteString("<th>" + html.EscapeString(c.label) + "</th>")
@@ -418,7 +421,7 @@ func (r *renderer) pagination(n *model.Node) {
 
 // tree renders a nested, natively-collapsible view from `data` ([{label,children}]).
 func (r *renderer) tree(n *model.Node) {
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, r.boxCSS(n)+"font-size:14px;")
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-tree" style=%q>`, n.ID, r.boxCSS(n)+"font-size:14px;")
 	for _, it := range r.boundArray(n, "data") {
 		r.treeItem(it)
 	}
@@ -435,10 +438,10 @@ func (r *renderer) treeItem(v any) {
 	}
 	kids, _ := obj["children"].([]any)
 	if len(kids) == 0 {
-		fmt.Fprintf(&r.sb, `<div style="padding:3px 0 3px 18px;">%s</div>`, html.EscapeString(label))
+		fmt.Fprintf(&r.sb, `<div class="qorm-tree-leaf">%s</div>`, html.EscapeString(label))
 		return
 	}
-	fmt.Fprintf(&r.sb, `<details open><summary style="cursor:pointer;padding:3px 0;">%s</summary><div style="padding-left:16px;">`, html.EscapeString(label))
+	fmt.Fprintf(&r.sb, `<details class="qorm-tree-n" open><summary class="qorm-tree-sum">%s</summary><div class="qorm-tree-kids">`, html.EscapeString(label))
 	for _, c := range kids {
 		r.treeItem(c)
 	}

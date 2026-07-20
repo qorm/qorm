@@ -1047,7 +1047,10 @@ func Page(rt *runtime.Runtime, body string, rev int64, eventToken ...string) str
   @media (hover:hover) {
     button:hover { filter:brightness(0.96); }
     a:hover { opacity:0.85; }
-    .qorm-tab:hover, .qorm-acc:hover, .qorm-menu-panel button:hover, .qorm-navitem:hover { background:var(--fill); }
+    .qorm-tab:hover { color:var(--label); }
+    th:hover .qorm-sort-ind { opacity:.45; }
+    .qorm-tree-sum:hover, .qorm-tree-leaf:hover { background:var(--fill); }
+    .qorm-acc:hover, .qorm-menu-panel button:hover, .qorm-navitem:hover { background:var(--fill); }
     .qorm-datatable tbody tr:hover { background:var(--fill); }
   }
   input,button,select,textarea { font-family:inherit; letter-spacing:inherit; }
@@ -1063,16 +1066,35 @@ func Page(rt *runtime.Runtime, body string, rev int64, eventToken ...string) str
   #qorm-root > * { flex:1; }
   @keyframes qorm-spin { to { transform: rotate(360deg); } }
   .qorm-spin { animation: qorm-spin .8s linear infinite; }
-  .qorm-tab-active { border-bottom:2px solid #007aff !important; color:#007aff; font-weight:600; }
-  .qorm-table { border-collapse:collapse; width:100%%; }
-  .qorm-table th, .qorm-table td { border:1px solid var(--sep); padding:8px 12px; text-align:left; font-size:14px; }
-  .qorm-table th { background:var(--fill); font-weight:600; }
+  /* Tabs: iOS underline tabs — active = accent underline + weight; inactive =
+     secondary label; hover shifts text color, never a gray fill. */
+  .qorm-tab { border:none; background:none; padding:12px 16px; min-height:44px; cursor:pointer; font-size:14px;
+    color:var(--label2); font-weight:400; border-bottom:2px solid transparent; margin-bottom:-1px;
+    transition:color .15s ease, border-color .15s ease; }
+  .qorm-tab:active { opacity:.7; }
+  .qorm-tab-active { border-bottom-color:var(--accent) !important; color:var(--accent); font-weight:600; }
+  /* Tables: iOS hairline rows — no gray header fill, no full grid borders. */
+  .qorm-table { border-collapse:collapse; width:100%%; font-size:14px; }
+  .qorm-table th { text-align:left; font-weight:600; color:var(--label2); font-size:13px; padding:10px 12px; border-bottom:1px solid var(--sep); white-space:nowrap; }
+  .qorm-table td { padding:10px 12px; border-bottom:1px solid var(--sep); color:var(--label); }
   .qorm-datatable { border-collapse:collapse; width:100%%; font-size:14px; }
   .qorm-datatable th { text-align:left; font-weight:600; color:var(--label2); padding:10px 12px; border-bottom:1px solid var(--sep); white-space:nowrap; }
   .qorm-datatable td { padding:10px 12px; border-bottom:1px solid var(--sep); color:var(--label); }
   .qorm-datatable tbody tr.qdt-sel { background:var(--fill); }
   .qorm-datatable .qdt-check { width:36px; text-align:center; cursor:pointer; }
-  .qorm-datatable button.qdt-sort { background:none; border:none; font:inherit; font-weight:600; color:var(--label2); cursor:pointer; padding:0; display:inline-flex; align-items:center; gap:4px; }
+  /* Sort headers: macOS Finder convention — the indicator is hidden until the
+     header is hovered, except the sorted column's persistent accent chevron. */
+  .qorm-table button.qdt-sort, .qorm-datatable button.qdt-sort { background:none; border:none; font:inherit; font-weight:600; color:var(--label2); cursor:pointer; padding:0; display:inline-flex; align-items:center; gap:3px; min-height:32px; }
+  .qorm-sort-ind { opacity:0; transition:opacity .15s ease, color .15s ease; font-size:11px; line-height:1; }
+  .qorm-sort-ind.on { opacity:1; color:var(--accent); }
+  /* Tree: Finder outline — custom chevron with a rotate transition, rounded
+     rows, hover fill on pointer devices. */
+  .qorm-tree summary.qorm-tree-sum { list-style:none; display:flex; align-items:center; gap:6px; padding:5px 8px; border-radius:6px; cursor:pointer; font-weight:500; color:var(--label); }
+  .qorm-tree summary.qorm-tree-sum::-webkit-details-marker { display:none; }
+  .qorm-tree summary.qorm-tree-sum::before { content:"›"; color:var(--label2); font-weight:700; display:inline-block; transition:transform .15s ease; }
+  .qorm-tree details[open] > summary.qorm-tree-sum::before { transform:rotate(90deg); }
+  .qorm-tree-kids { padding-left:18px; }
+  .qorm-tree-leaf { padding:5px 8px 5px 26px; border-radius:6px; color:var(--label); }
   @keyframes qorm-shimmer { 0%% { background-position:200%% 0; } 100%% { background-position:-200%% 0; } }
   .qorm-skel { background:linear-gradient(90deg,#e9ecef 25%%,#f3f5f7 50%%,#e9ecef 75%%); background-size:200%% 100%%; animation:qorm-shimmer 1.3s ease-in-out infinite; }
   /* Range slider: two overlaid thumbs must stay interactive over a pass-through track. */
