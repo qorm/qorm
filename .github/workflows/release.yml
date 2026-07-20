@@ -16,10 +16,10 @@ jobs:
       # step-level `if:` can gate on whether the signing secret is configured.
       QORM_RELEASE_KEY_DATA: ${{ secrets.QORM_RELEASE_KEY }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0   # full history so `git describe` stamps the version
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
@@ -42,7 +42,7 @@ jobs:
           QORM_RELEASE_KEY="$RUNNER_TEMP/release.key" go run ./cmd/qorm __release-sign --verify dist
           rm -f "$RUNNER_TEMP/release.key"
       - name: Publish GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: dist/*
           generate_release_notes: true
