@@ -54,9 +54,10 @@ All notable changes to QORM are documented here. The format is based on
 - Widget style pass (Apple HIG): tabs are real iOS underline tabs (accent
   indicator, secondary inactive, 44px targets); tree is a Finder outline
   (rotating chevron, indent, hover fill); table/datatable headers dropped
-  the gray fill + grid borders for hairlines, and sort indicators follow the
-  macOS Finder convention — hidden until header hover, except the sorted
-  column's persistent accent chevron (hover effects pointer-devices only).
+  the gray fill + grid borders for hairlines, and every sortable column shows
+  a faint chevron at all times (discoverable without hover — touch-friendly),
+  deepening on hover, with the sorted column's persistent accent chevron
+  (hover effects pointer-devices only).
 - The DevTool (logwindow) and collaboration console are multilingual
   (English · 中文 · 日本語 · 한국어 · Español · Français · Deutsch): a
   header language picker, persisted in the shared `qorm-lang` localStorage

@@ -1048,7 +1048,7 @@ func Page(rt *runtime.Runtime, body string, rev int64, eventToken ...string) str
     button:hover { filter:brightness(0.96); }
     a:hover { opacity:0.85; }
     .qorm-tab:hover { color:var(--label); }
-    th:hover .qorm-sort-ind { opacity:.45; }
+    th:hover .qorm-sort-ind { opacity:.7; }
     .qorm-tree-sum:hover, .qorm-tree-leaf:hover { background:var(--fill); }
     .qorm-acc:hover, .qorm-menu-panel button:hover, .qorm-navitem:hover { background:var(--fill); }
     .qorm-datatable tbody tr:hover { background:var(--fill); }
@@ -1082,10 +1082,11 @@ func Page(rt *runtime.Runtime, body string, rev int64, eventToken ...string) str
   .qorm-datatable td { padding:10px 12px; border-bottom:1px solid var(--sep); color:var(--label); }
   .qorm-datatable tbody tr.qdt-sel { background:var(--fill); }
   .qorm-datatable .qdt-check { width:36px; text-align:center; cursor:pointer; }
-  /* Sort headers: macOS Finder convention — the indicator is hidden until the
-     header is hovered, except the sorted column's persistent accent chevron. */
+  /* Sort headers: every sortable column shows a faint chevron at all times so
+     the affordance is discoverable (no hover on touch); hover deepens it, and
+     the sorted column gets a persistent accent chevron. */
   .qorm-table button.qdt-sort, .qorm-datatable button.qdt-sort { background:none; border:none; font:inherit; font-weight:600; color:var(--label2); cursor:pointer; padding:0; display:inline-flex; align-items:center; gap:3px; min-height:32px; }
-  .qorm-sort-ind { opacity:0; transition:opacity .15s ease, color .15s ease; font-size:11px; line-height:1; }
+  .qorm-sort-ind { opacity:.3; transition:opacity .15s ease, color .15s ease; font-size:11px; line-height:1; }
   .qorm-sort-ind.on { opacity:1; color:var(--accent); }
   /* Tree: Finder outline — custom chevron with a rotate transition, rounded
      rows, hover fill on pointer devices. */
