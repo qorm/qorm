@@ -57,9 +57,15 @@ All notable changes to QORM are documented here. The format is based on
   the gray fill + grid borders for hairlines, and sort indicators follow the
   macOS Finder convention — hidden until header hover, except the sorted
   column's persistent accent chevron (hover effects pointer-devices only).
-- The DevTool (logwindow) and collaboration console are bilingual
-  (EN/中文): header toggle, persisted in the shared `qorm-lang`
-  localStorage key — the same preference the website and docs use.
+- The DevTool (logwindow) and collaboration console are multilingual
+  (English · 中文 · 日本語 · 한국어 · Español · Français · Deutsch): a
+  header language picker, persisted in the shared `qorm-lang` localStorage
+  key — the same preference the website and docs use — defaulting from
+  navigator.language.
+- Sortable table/datatable headers toggle asc/desc by default via the
+  runtime's built-in `__sort` action (clicking the sorted column flips
+  direction; a new column starts ascending). `sortData` names an explicit
+  bound array when `data` is a sliced window.
 
 ## [v0.2.6] - 2026-07-19
 

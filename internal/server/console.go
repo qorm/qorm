@@ -84,7 +84,7 @@ const consoleHTML = `<!doctype html>
   </div>
 
   <aside class="console">
-    <div class="con-head"><span class="dot"></span><b data-i18n="head">Collaboration log</b><small data-i18n="headSub">one shared session</small><button id="langbtn" onclick="toggleLang()" style="margin-left:10px;background:#161922;color:#c7ccd6;border:1px solid #2c313b;border-radius:7px;padding:2px 8px;font-size:11px;cursor:pointer;">中文</button></div>
+    <div class="con-head"><span class="dot"></span><b data-i18n="head">Collaboration log</b><small data-i18n="headSub">one shared session</small><select id="langsel" onchange="setLang(this.value)" style="margin-left:10px;background:#161922;color:#c7ccd6;border:1px solid #2c313b;border-radius:7px;padding:2px 6px;font-size:11px;cursor:pointer;"></select></div>
     <div class="legend">
       <span class="k"><span class="sw" style="background:var(--human)"></span><span data-i18n="legendYou">you</span></span>
       <span class="k"><span class="sw" style="background:var(--agent)"></span><span data-i18n="legendAgent">AI agent</span></span>
@@ -94,21 +94,30 @@ const consoleHTML = `<!doctype html>
     <div class="con-foot" data-i18n="foot">Human taps and agent MCP calls on the <code>same</code> app appear here, live.</div>
   </aside>
 <script>
+  var LANGNAMES={en:'English',zh:'中文',ja:'日本語',ko:'한국어',es:'Español',fr:'Français',de:'Deutsch'};
   var I18N={
-    en:{caption:"live app — tap it, it's real",head:'Collaboration log',headSub:'one shared session',legendYou:'you',legendAgent:'AI agent',legendSystem:'system',waiting:'connected — waiting for activity…',footPre:'Human taps and agent MCP calls on the ',footPost:' app appear here, live.'},
-    zh:{caption:'真实应用——点它,是真的',head:'协作日志',headSub:'同一个共享会话',legendYou:'你',legendAgent:'AI 智能体',legendSystem:'系统',waiting:'已连接——等待活动…',footPre:'你的点击与 agent 的 MCP 调用都会实时出现在这里(同一个',footPost:' 应用)。'}
+    en:{caption:"live app — tap it, it's real",head:'Collaboration log',headSub:'one shared session',legendYou:'you',legendAgent:'AI agent',legendSystem:'system',waiting:'connected — waiting for activity…',foot:'Human taps and agent MCP calls on the {same} app appear here, live.'},
+    zh:{caption:'真实应用——点它,是真的',head:'协作日志',headSub:'同一个共享会话',legendYou:'你',legendAgent:'AI 智能体',legendSystem:'系统',waiting:'已连接——等待活动…',foot:'你的点击与 agent 的 MCP 调用都会实时出现在这里({same} 应用)。'},
+    ja:{caption:'実アプリ——タップできます',head:'コラボレーションログ',headSub:'1つの共有セッション',legendYou:'あなた',legendAgent:'AI エージェント',legendSystem:'システム',waiting:'接続しました——アクティビティを待っています…',foot:'人間のタップと agent の MCP 呼び出しが {same} アプリにライブ表示されます。'},
+    ko:{caption:'실제 앱입니다——탭해 보세요',head:'협업 로그',headSub:'하나의 공유 세션',legendYou:'나',legendAgent:'AI 에이전트',legendSystem:'시스템',waiting:'연결됨——활동 대기 중…',foot:'사람의 탭과 에이전트의 MCP 호출이 {same} 앱에서 여기에 실시간으로 표시됩니다.'},
+    es:{caption:'app real en vivo — tócala, es de verdad',head:'Registro de colaboración',headSub:'una sesión compartida',legendYou:'tú',legendAgent:'agente IA',legendSystem:'sistema',waiting:'conectado — esperando actividad…',foot:'Los toques humanos y las llamadas MCP del agente en la {same} app aparecen aquí en vivo.'},
+    fr:{caption:"app réelle en direct — touchez-la, elle fonctionne",head:'Journal de collaboration',headSub:'une seule session partagée',legendYou:'vous',legendAgent:'agent IA',legendSystem:'système',waiting:"connecté — en attente d'activité…",foot:"Les taps humains et les appels MCP de l'agent sur la {same} app apparaissent ici en direct."},
+    de:{caption:'echte Live-App — antippen, sie ist echt',head:'Kollaborationsprotokoll',headSub:'eine gemeinsame Sitzung',legendYou:'du',legendAgent:'KI-Agent',legendSystem:'System',waiting:'verbunden — warte auf Aktivität…',foot:'Menschliche Taps und Agent-MCP-Aufrufe in {same} App erscheinen hier live.'}
   };
-  function curLang(){ try{ var l=localStorage.getItem('qorm-lang'); if(l==='zh'||l==='en') return l; }catch(e){} return (navigator.language||'en').indexOf('zh')===0?'zh':'en'; }
+  function curLang(){ try{ var l=localStorage.getItem('qorm-lang'); if(l&&I18N[l]) return l; }catch(e){}
+    var n=(navigator.language||'en').toLowerCase().split('-')[0]; return I18N[n]?n:'en'; }
   var LANG=curLang();
   function T(k){ return (I18N[LANG]&&I18N[LANG][k])||I18N.en[k]||k; }
   function applyLang(){ document.documentElement.lang=LANG;
     document.querySelectorAll('[data-i18n]').forEach(function(el){
       var k=el.getAttribute('data-i18n');
-      if(k==='foot'){ el.innerHTML=T('footPre')+'<code>same</code>'+T('footPost'); }
+      if(k==='foot'){ el.innerHTML=T('foot').replace('{same}','<code>same</code>'); }
       else { el.textContent=T(k); }
     });
-    var b=document.getElementById('langbtn'); if(b) b.textContent=(LANG==='zh'?'EN':'中文'); }
-  function toggleLang(){ LANG=(LANG==='zh'?'en':'zh'); try{ localStorage.setItem('qorm-lang',LANG); }catch(e){} applyLang(); }
+    var s=document.getElementById('langsel');
+    if(s && !s.options.length){ Object.keys(LANGNAMES).forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=LANGNAMES[k]; s.appendChild(o); }); }
+    if(s) s.value=LANG; }
+  function setLang(l){ if(!I18N[l]) return; LANG=l; try{ localStorage.setItem('qorm-lang',l); }catch(e){} applyLang(); }
   var log=document.getElementById('log'), since=0, first=true;
   function add(e){
     var d=document.createElement('div'); d.className='e '+e.source;
@@ -216,7 +225,7 @@ const logWindowHTML = `<!doctype html>
     background:#0c0e13;}
   .pres .lbl{color:#7d8493;} .pres b{color:#30d158;font-weight:600;} .pres .pw{color:#ffd60a;}
 </style></head><body>
-  <header><span class="dot"></span><b>QORM DevTool</b><small data-i18n="active">active session</small><button id="langbtn" onclick="toggleLang()" style="margin-left:12px;background:#1a1d24;color:#c7ccd6;border:1px solid #2c313b;border-radius:7px;padding:3px 9px;font-size:11.5px;cursor:pointer;">中文</button></header>
+  <header><span class="dot"></span><b>QORM DevTool</b><small data-i18n="active">active session</small><select id="langsel" onchange="setLang(this.value)" style="margin-left:12px;background:#1a1d24;color:#c7ccd6;border:1px solid #2c313b;border-radius:7px;padding:2px 6px;font-size:11.5px;cursor:pointer;"></select></header>
   <div class="tabs-bar">
     <button class="tab-btn active" id="btn-logs" onclick="showTab('logs')" data-i18n="tabLogs">Activity Logs</button>
     <button class="tab-btn" id="btn-state" onclick="showTab('state')" data-i18n="tabState">State Manager</button>
@@ -271,18 +280,27 @@ const logWindowHTML = `<!doctype html>
   <div class="pres"><span class="lbl" data-i18n="pres">shared with the AI:</span> <span id="qpres" data-i18n="presNone">nothing yet</span></div>
 
 <script>
-  // DevTool i18n: EN/中文, shared preference key with the website (qorm-lang).
+  // DevTool i18n: 7 languages, shared preference key with the website (qorm-lang).
+  var LANGNAMES={en:'English',zh:'中文',ja:'日本語',ko:'한국어',es:'Español',fr:'Français',de:'Deutsch'};
   var I18N={
     en:{tabLogs:'Activity Logs',tabState:'State Manager',tabTree:'Component Tree',legendYou:'you',legendAgent:'AI agent',legendSystem:'system',waiting:'waiting for activity…',stateTitle:'Live App State',loading:'Loading...',noState:'No state variables defined yet.',stateErr:'Error loading state: ',treeTitle:'Rendered Component Architecture',treeHint:'Click a component node to inspect its properties.',treeErr:'Error loading node tree: ',editPromptPre:'Edit value for "',editPromptSuf:'" (JSON formatted):',badJson:'Invalid JSON representation: ',pres:'shared with the AI:',presNone:'nothing yet',presOn:'on',presTyped:'typed',presFilled:'filled (value hidden)',active:'active session',winLabel:'window',multiLabel:'multi',winLeft:' left',winCenter:' center',winRight:'right ',winHalfL:' half-L',winHalfR:'half-R ',winMax:' max',winWide:' wide',winPhone:' phone',winFocus:'focus',winMin:'min',winPin:'pin',winUnpin:'unpin',winNew:'window',winTile:'tile all'},
-    zh:{tabLogs:'活动日志',tabState:'状态管理',tabTree:'组件树',legendYou:'你',legendAgent:'AI 智能体',legendSystem:'系统',waiting:'等待活动…',stateTitle:'实时应用状态',loading:'加载中…',noState:'还没有定义状态变量。',stateErr:'加载状态出错:',treeTitle:'渲染组件结构',treeHint:'点击组件节点查看属性。',treeErr:'加载组件树出错:',editPromptPre:'编辑 "',editPromptSuf:'" 的值(JSON 格式):',badJson:'JSON 格式无效:',pres:'与 AI 共享:',presNone:'暂无',presOn:'聚焦',presTyped:'输入了',presFilled:'已填写(值已隐藏)',active:'会话进行中',winLabel:'窗口',multiLabel:'多窗',winLeft:' 靠左',winCenter:' 居中',winRight:'靠右 ',winHalfL:' 左半屏',winHalfR:'右半屏 ',winMax:' 最大化',winWide:' 宽屏',winPhone:' 手机',winFocus:'聚焦',winMin:'最小化',winPin:'置顶',winUnpin:'取消置顶',winNew:'窗口',winTile:'全部平铺'}
+    zh:{tabLogs:'活动日志',tabState:'状态管理',tabTree:'组件树',legendYou:'你',legendAgent:'AI 智能体',legendSystem:'系统',waiting:'等待活动…',stateTitle:'实时应用状态',loading:'加载中…',noState:'还没有定义状态变量。',stateErr:'加载状态出错:',treeTitle:'渲染组件结构',treeHint:'点击组件节点查看属性。',treeErr:'加载组件树出错:',editPromptPre:'编辑 "',editPromptSuf:'" 的值(JSON 格式):',badJson:'JSON 格式无效:',pres:'与 AI 共享:',presNone:'暂无',presOn:'聚焦',presTyped:'输入了',presFilled:'已填写(值已隐藏)',active:'会话进行中',winLabel:'窗口',multiLabel:'多窗',winLeft:' 靠左',winCenter:' 居中',winRight:'靠右 ',winHalfL:' 左半屏',winHalfR:'右半屏 ',winMax:' 最大化',winWide:' 宽屏',winPhone:' 手机',winFocus:'聚焦',winMin:'最小化',winPin:'置顶',winUnpin:'取消置顶',winNew:'窗口',winTile:'全部平铺'},
+    ja:{tabLogs:'アクティビティログ',tabState:'状態管理',tabTree:'コンポーネントツリー',legendYou:'あなた',legendAgent:'AI エージェント',legendSystem:'システム',waiting:'アクティビティを待っています…',stateTitle:'ライブアプリ状態',loading:'読み込み中…',noState:'状態変数はまだ定義されていません。',stateErr:'状態の読み込みエラー:',treeTitle:'レンダリング済みコンポーネント構造',treeHint:'ノードをクリックするとプロパティを表示します。',treeErr:'ツリーの読み込みエラー:',editPromptPre:'「',editPromptSuf:'」の値を編集(JSON 形式):',badJson:'JSON が無効です:',pres:'AI と共有:',presNone:'まだなし',presOn:'フォーカス',presTyped:'入力',presFilled:'入力済み(値は非表示)',active:'セッション中',winLabel:'ウィンドウ',multiLabel:'マルチ',winLeft:' 左寄せ',winCenter:' 中央',winRight:'右寄せ ',winHalfL:' 左半分',winHalfR:'右半分 ',winMax:' 最大化',winWide:' ワイド',winPhone:' フォン',winFocus:'フォーカス',winMin:'最小化',winPin:'ピン留め',winUnpin:'ピン解除',winNew:'ウィンドウ',winTile:'すべて並べる'},
+    ko:{tabLogs:'활동 로그',tabState:'상태 관리',tabTree:'컴포넌트 트리',legendYou:'나',legendAgent:'AI 에이전트',legendSystem:'시스템',waiting:'활동 대기 중…',stateTitle:'실시간 앱 상태',loading:'로딩 중…',noState:'정의된 상태 변수가 없습니다.',stateErr:'상태 로드 오류:',treeTitle:'렌더링된 컴포넌트 구조',treeHint:'컴포넌트 노드를 클릭하면 속성을 볼 수 있습니다.',treeErr:'트리 로드 오류:',editPromptPre:'"',editPromptSuf:'" 값 편집(JSON 형식):',badJson:'잘못된 JSON:',pres:'AI와 공유:',presNone:'아직 없음',presOn:'포커스',presTyped:'입력',presFilled:'입력됨(값 숨김)',active:'세션 진행 중',winLabel:'창',multiLabel:'멀티',winLeft:' 왼쪽',winCenter:' 가울데',winRight:'오른쪽 ',winHalfL:' 왼쪽 절반',winHalfR:'오른쪽 절반 ',winMax:' 최대화',winWide:' 와이드',winPhone:' 폰',winFocus:'포커스',winMin:'최소화',winPin:'고정',winUnpin:'고정 해제',winNew:'창',winTile:'모두 타일'},
+    es:{tabLogs:'Registro de actividad',tabState:'Gestor de estado',tabTree:'Árbol de componentes',legendYou:'tú',legendAgent:'agente IA',legendSystem:'sistema',waiting:'esperando actividad…',stateTitle:'Estado en vivo de la app',loading:'Cargando…',noState:'Aún no hay variables de estado definidas.',stateErr:'Error al cargar el estado: ',treeTitle:'Arquitectura de componentes renderizados',treeHint:'Haz clic en un nodo para inspeccionar sus propiedades.',treeErr:'Error al cargar el árbol: ',editPromptPre:'Editar el valor de "',editPromptSuf:'" (formato JSON):',badJson:'JSON no válido: ',pres:'compartido con la IA:',presNone:'nada aún',presOn:'en',presTyped:'escribió',presFilled:'completado (valor oculto)',active:'sesión activa',winLabel:'ventana',multiLabel:'multi',winLeft:' izquierda',winCenter:' centro',winRight:'derecha ',winHalfL:' mitad izq.',winHalfR:'mitad der. ',winMax:' maximizar',winWide:' ancha',winPhone:' teléfono',winFocus:'enfocar',winMin:'minimizar',winPin:'fijar',winUnpin:'soltar',winNew:'ventana',winTile:'organizar'},
+    fr:{tabLogs:"Journal d'activité",tabState:"Gestionnaire d'état",tabTree:'Arbre des composants',legendYou:'vous',legendAgent:'agent IA',legendSystem:'système',waiting:"en attente d'activité…",stateTitle:"État de l'app en direct",loading:'Chargement…',noState:"Aucune variable d'état définie pour le moment.",stateErr:"Erreur de chargement de l'état : ",treeTitle:'Architecture des composants rendus',treeHint:'Cliquez sur un nœud pour inspecter ses propriétés.',treeErr:"Erreur de chargement de l'arbre : ",editPromptPre:'Modifier la valeur de « ',editPromptSuf:' » (format JSON) :',badJson:'JSON invalide : ',pres:"partagé avec l'IA :",presNone:"rien pour l'instant",presOn:'sur',presTyped:'a saisi',presFilled:'rempli (valeur masquée)',active:'session active',winLabel:'fenêtre',multiLabel:'multi',winLeft:' gauche',winCenter:' centre',winRight:'droite ',winHalfL:' moitié G',winHalfR:'moitié D ',winMax:' agrandir',winWide:' large',winPhone:' téléphone',winFocus:'focus',winMin:'réduire',winPin:'épingler',winUnpin:'désépingler',winNew:'fenêtre',winTile:'mosaïque'},
+    de:{tabLogs:'Aktivitätsprotokoll',tabState:'Statusverwaltung',tabTree:'Komponentenbaum',legendYou:'du',legendAgent:'KI-Agent',legendSystem:'System',waiting:'warte auf Aktivität…',stateTitle:'Live-App-Status',loading:'Laden…',noState:'Noch keine Statusvariablen definiert.',stateErr:'Fehler beim Laden des Status: ',treeTitle:'Gerenderte Komponentenstruktur',treeHint:'Klicke einen Knoten an, um seine Eigenschaften zu sehen.',treeErr:'Fehler beim Laden des Baums: ',editPromptPre:'Wert für „',editPromptSuf:'“ bearbeiten (JSON-Format):',badJson:'Ungültiges JSON: ',pres:'mit der KI geteilt:',presNone:'noch nichts',presOn:'auf',presTyped:'tippte',presFilled:'ausgefüllt (Wert verborgen)',active:'aktive Sitzung',winLabel:'Fenster',multiLabel:'Multi',winLeft:' links',winCenter:' Mitte',winRight:'rechts ',winHalfL:' linke Hälfte',winHalfR:'rechte Hälfte ',winMax:' maximieren',winWide:' breit',winPhone:' Telefon',winFocus:'fokussieren',winMin:'minimieren',winPin:'anheften',winUnpin:'lösen',winNew:'Fenster',winTile:'alle kacheln'}
   };
-  function curLang(){ try{ var l=localStorage.getItem('qorm-lang'); if(l==='zh'||l==='en') return l; }catch(e){} return (navigator.language||'en').indexOf('zh')===0?'zh':'en'; }
+  function curLang(){ try{ var l=localStorage.getItem('qorm-lang'); if(l&&I18N[l]) return l; }catch(e){}
+    var n=(navigator.language||'en').toLowerCase().split('-')[0]; return I18N[n]?n:'en'; }
   var LANG=curLang();
   function T(k){ return (I18N[LANG]&&I18N[LANG][k])||I18N.en[k]||k; }
   function applyLang(){ document.documentElement.lang=LANG;
     document.querySelectorAll('[data-i18n]').forEach(function(el){ el.textContent=T(el.getAttribute('data-i18n')); });
-    var b=document.getElementById('langbtn'); if(b) b.textContent=(LANG==='zh'?'EN':'中文'); }
-  function toggleLang(){ LANG=(LANG==='zh'?'en':'zh'); try{ localStorage.setItem('qorm-lang',LANG); }catch(e){} applyLang(); }
+    var s=document.getElementById('langsel');
+    if(s && !s.options.length){ Object.keys(LANGNAMES).forEach(function(k){ var o=document.createElement('option'); o.value=k; o.textContent=LANGNAMES[k]; s.appendChild(o); }); }
+    if(s) s.value=LANG; }
+  function setLang(l){ if(!I18N[l]) return; LANG=l; try{ localStorage.setItem('qorm-lang',l); }catch(e){} applyLang(); }
   var log=document.getElementById('log'),since=0,first=true,activeTab='logs';
   var initialLogs = {{initial_logs}};
   if (initialLogs && initialLogs.length) {
