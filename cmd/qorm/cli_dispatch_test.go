@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -59,8 +60,10 @@ func TestCLIDispatch(t *testing.T) {
 			if code != 0 {
 				t.Errorf("%s: exit = %d, want 0", arg, code)
 			}
-			if !strings.HasPrefix(out, "qorm 0.3.0") {
-				t.Errorf("%s: stdout = %q, want prefix %q", arg, out, "qorm 0.3.0")
+			// The version is bumped by scripts/release.sh at release time —
+			// pin the semver shape, never a specific version string.
+			if !regexp.MustCompile(`^qorm \d+\.\d+\.\d+ `).MatchString(out) {
+				t.Errorf("%s: stdout = %q, want prefix %q", arg, out, "qorm <semver> ")
 			}
 		}
 	})
