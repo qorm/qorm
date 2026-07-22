@@ -297,13 +297,19 @@ func TestCloneIndependence(t *testing.T) {
 		t.Errorf("live state must not change from clone dispatch, count = %v", live.State["count"])
 	}
 
-	// Navigating on the clone leaves the live scene and stack alone. NOTE: Clone
-	// does not copy NavStack, so the simulation starts with an empty back stack
-	// and NavigateBack is a no-op there — see the bug note on Clone. This test
-	// pins the current behavior.
+	// Navigating on the clone leaves the live scene and stack alone. Clone
+	// deep-copies the back stack, so the simulation can navigate back exactly
+	// like the live runtime — popping returns to the entry scene.
+	if len(sim.NavStack) != 1 {
+		t.Fatalf("clone should copy the back stack, got %v", sim.NavStack)
+	}
 	sim.NavigateBack()
-	if sim.Scene != "detail" || len(sim.NavStack) != 0 {
-		t.Errorf("clone should start with an empty back stack: scene=%q stack=%v", sim.Scene, sim.NavStack)
+	if sim.Scene != "" || len(sim.NavStack) != 0 {
+		t.Errorf("clone back should pop to the entry: scene=%q stack=%v", sim.Scene, sim.NavStack)
+	}
+	// Popping the clone must not drain the live stack.
+	if live.Scene != "detail" || len(live.NavStack) != 1 {
+		t.Errorf("live navigation state changed by clone back: scene=%q stack=%d", live.Scene, len(live.NavStack))
 	}
 	sim.Navigate("home", nil)
 	if sim.Scene != "home" {
@@ -311,6 +317,49 @@ func TestCloneIndependence(t *testing.T) {
 	}
 	if live.Scene != "detail" || len(live.NavStack) != 1 {
 		t.Errorf("live navigation state changed by clone: scene=%q stack=%d", live.Scene, len(live.NavStack))
+	}
+}
+
+// TestCloneCopiesNavStackAndDir is a regression test: Clone must carry over the
+// navigation back stack (deep-copied) and the pending direction, so a simulation
+// clone can navigate back instead of starting from an empty stack.
+func TestCloneCopiesNavStackAndDir(t *testing.T) {
+	app := &model.App{
+		Entry:  "home",
+		Scenes: map[string]*model.Node{"home": {}, "profile": {}, "settings": {}},
+	}
+	live := New(app)
+	live.Scene = "home"
+	live.Navigate("profile", map[string]any{"userId": "u-9"})
+	live.Navigate("settings", map[string]any{"tab": "general"})
+	// live: scene=settings, stack=[home, profile(+u-9)], NavDir=push
+
+	// The stack and the pending direction are copied onto the clone.
+	sim := live.Clone()
+	if len(sim.NavStack) != 2 || sim.NavDir != "push" {
+		t.Fatalf("clone should copy stack and direction: stack=%v dir=%q", sim.NavStack, sim.NavDir)
+	}
+
+	// The copy is deep: mutating a stacked frame's params must not touch live.
+	sim.NavStack[1].Params["userId"] = "changed"
+	if got := live.NavStack[1].Params["userId"]; got != "u-9" {
+		t.Errorf("clone stack aliases the live frame params: live userId = %v", got)
+	}
+
+	// A fresh clone can navigate back, restoring the previous frame's params.
+	sim2 := live.Clone()
+	sim2.NavigateBack()
+	if sim2.Scene != "profile" || sim2.RouteParams["userId"] != "u-9" {
+		t.Fatalf("clone back should restore the profile frame: scene=%q params=%v", sim2.Scene, sim2.RouteParams)
+	}
+	if dir := sim2.TakeNavDir(); dir != "pop" {
+		t.Fatalf("clone back should set pop direction, got %q", dir)
+	}
+
+	// The live runtime is untouched by the clones' navigation.
+	if live.Scene != "settings" || len(live.NavStack) != 2 || live.NavDir != "push" {
+		t.Errorf("live nav state changed by clone: scene=%q stack=%d dir=%q",
+			live.Scene, len(live.NavStack), live.NavDir)
 	}
 }
 

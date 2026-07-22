@@ -226,11 +226,40 @@ func TestCurrencyVariants(t *testing.T) {
 	if got := msg("{v, currency}", "en", map[string]any{"v": 9.5}); got != "$9.50" {
 		t.Errorf("default code USD = %q", got)
 	}
-	// Negative amounts: the minus currently lands between symbol and digits.
-	// This is a cosmetic flaw (CLDR puts the sign before the symbol) — pinned
-	// here as the present behavior; see the bug note.
-	if got := cur(-1234.5, "en", "USD"); got != "$-1,234.50" {
+	// Negative amounts: the leading minus precedes the symbol (CLDR convention),
+	// never landing between the symbol and the digits.
+	if got := cur(-1234.5, "en", "USD"); got != "-$1,234.50" {
 		t.Errorf("negative currency = %q", got)
+	}
+	// Symbol-after locales keep the sign at the very front too.
+	if got := cur(-1234.5, "de", "EUR"); got != "-1.234,50 €" {
+		t.Errorf("negative currency (symbol after) = %q", got)
+	}
+}
+
+// TestCurrencyNegativeSignPlacement is a regression test: the minus sign must
+// lead the whole formatted amount, so a symbol-before locale renders "-$1,234.50"
+// (not "$-1,234.50") and an unknown code's ISO prefix stays behind the sign.
+func TestCurrencyNegativeSignPlacement(t *testing.T) {
+	cur := func(v float64, locale, code string) string {
+		return msg("{v, currency, "+code+"}", locale, map[string]any{"v": v})
+	}
+	cases := []struct {
+		v            float64
+		locale, code string
+		want         string
+	}{
+		{-1234.5, "en", "USD", "-$1,234.50"},    // symbol before: sign leads the symbol
+		{-5, "en", "GBP", "-£5.00"},             // symbol before, small amount
+		{-1000, "ko", "KRW", "-₩1,000"},         // symbol before, zero-decimal
+		{-1234.5, "de", "EUR", "-1.234,50 €"},   // symbol after: sign leads the digits
+		{-1234.5, "ru", "RUB", "-1 234,50 ₽"},   // symbol after, NBSP grouping
+		{-1234.5, "en", "abc", "-ABC 1,234.50"}, // unknown code: sign before the ISO prefix
+	}
+	for _, c := range cases {
+		if got := cur(c.v, c.locale, c.code); got != c.want {
+			t.Errorf("cur(%v, %s, %s) = %q, want %q", c.v, c.locale, c.code, got, c.want)
+		}
 	}
 }
 

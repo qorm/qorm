@@ -15,11 +15,11 @@ import (
 )
 
 // rpc sends one raw JSON-RPC line through the in-process handler and returns
-// the decoded response, or nil when the server produces none (notifications,
-// unparseable input).
+// the decoded response, or nil when the server produces none (notifications).
+// Unparseable input is NOT nil: it decodes to the -32700 parse-error response.
 func rpc(t *testing.T, s *Server, line string) map[string]any {
 	t.Helper()
-	resp := s.HandleLine([]byte(line))
+	resp, _ := s.HandleLine([]byte(line))
 	if resp == nil {
 		return nil
 	}
@@ -146,9 +146,21 @@ func TestRPCFraming(t *testing.T) {
 	if m := rpc(t, s, `{"jsonrpc":"2.0","method":"bogus/method"}`); m != nil {
 		t.Errorf("unknown notification must not respond, got %v", m)
 	}
-	// Unparseable input is dropped silently.
-	if m := rpc(t, s, `this is not json`); m != nil {
-		t.Errorf("garbage input must not respond, got %v", m)
+	// Unparseable input is a JSON-RPC -32700 parse error with a null id — it
+	// must not be dropped silently (a transport maps it to a client error).
+	m = rpc(t, s, `this is not json`)
+	if m == nil {
+		t.Fatal("garbage input must yield a parse-error response, got none")
+	}
+	errObj, ok = m["error"].(map[string]any)
+	if !ok {
+		t.Fatalf("garbage input should return an error object, got %v", m)
+	}
+	if code, _ := errObj["code"].(float64); code != -32700 {
+		t.Errorf("parse error code = %v, want -32700", errObj["code"])
+	}
+	if m["id"] != nil {
+		t.Errorf("parse-error response must carry a null id, got %v", m["id"])
 	}
 	// tools/call with malformed params is a -32602 error.
 	m = rpc(t, s, `{"jsonrpc":"2.0","id":3,"method":"tools/call","params":42}`)
@@ -187,7 +199,10 @@ func TestServeReturnsReadError(t *testing.T) {
 func TestHandleHTTP(t *testing.T) {
 	s := newCounterHandler(t)
 
-	data := s.HandleHTTP([]byte(`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`))
+	data, err := s.HandleHTTP([]byte(`{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`))
+	if err != nil {
+		t.Fatalf("initialize: %v", err)
+	}
 	var m map[string]any
 	if err := json.Unmarshal(data, &m); err != nil {
 		t.Fatalf("HandleHTTP returned invalid JSON: %v", err)
@@ -196,11 +211,23 @@ func TestHandleHTTP(t *testing.T) {
 	if result["protocolVersion"] != protocolVersion {
 		t.Errorf("protocolVersion = %v, want %v", result["protocolVersion"], protocolVersion)
 	}
-	if got := s.HandleHTTP([]byte(`{"jsonrpc":"2.0","method":"notifications/initialized"}`)); got != nil {
-		t.Errorf("notification over HTTP must return an empty body, got %s", got)
+	if got, err := s.HandleHTTP([]byte(`{"jsonrpc":"2.0","method":"notifications/initialized"}`)); got != nil || err != nil {
+		t.Errorf("notification over HTTP must return an empty body and no error, got %s (%v)", got, err)
 	}
-	if got := s.HandleHTTP([]byte(`{nope`)); got != nil {
-		t.Errorf("unparseable body over HTTP must return an empty body, got %s", got)
+	// An unparseable body is NOT a notification: it yields the JSON-RPC
+	// -32700 parse-error payload plus ErrParse, so the HTTP transport can
+	// answer 4xx instead of a silent 204.
+	got, err := s.HandleHTTP([]byte(`{nope`))
+	if !errors.Is(err, ErrParse) {
+		t.Fatalf("unparseable body over HTTP must return ErrParse, got %v", err)
+	}
+	var pe map[string]any
+	if err := json.Unmarshal(got, &pe); err != nil {
+		t.Fatalf("parse-error payload must be valid JSON, got %q (%v)", got, err)
+	}
+	errObj, ok := pe["error"].(map[string]any)
+	if !ok || errObj["code"].(float64) != -32700 {
+		t.Errorf("parse-error payload should carry code -32700, got %v", pe)
 	}
 }
 

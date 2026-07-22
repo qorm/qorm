@@ -126,7 +126,10 @@ func TestMCPSurfaceNeverLeaksEventToken(t *testing.T) {
 		"qorm_inspect", "qorm_render_html", "qorm_list_actions",
 		"qorm_capabilities", "qorm_activity", "qorm_get_node",
 	} {
-		out := s.agent.HandleHTTP([]byte(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"` + tool + `","arguments":{"id":"btn_plus"}}}`))
+		out, err := s.agent.HandleHTTP([]byte(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"` + tool + `","arguments":{"id":"btn_plus"}}}`))
+		if err != nil {
+			t.Fatalf("%s: %v", tool, err)
+		}
 		if strings.Contains(string(out), s.eventToken) {
 			t.Fatalf("%s leaks the human event token", tool)
 		}

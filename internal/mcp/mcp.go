@@ -12,6 +12,7 @@ package mcp
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"sync"
@@ -24,7 +25,17 @@ const (
 	protocolVersion = "2024-11-05"
 	serverName      = "qorm"
 	serverVersion   = "0.1.0"
+
+	// codeParseError is the JSON-RPC 2.0 reserved code for "invalid JSON was
+	// received by the server".
+	codeParseError = -32700
 )
+
+// ErrParse signals that a request body was not parseable as JSON. It
+// accompanies the JSON-RPC -32700 parse-error response so a transport can
+// tell a malformed request (an HTTP client error) apart from a notification
+// (which legitimately receives no response).
+var ErrParse = errors.New("mcp: parse error (invalid JSON)")
 
 // Server processes MCP messages against a runtime. It may own its runtime
 // (stdio mode) or share one with an HTTP server (live-session mode).
@@ -119,7 +130,7 @@ func (s *Server) Serve() error {
 		if len(line) == 0 {
 			continue
 		}
-		if resp := s.HandleLine(line); resp != nil {
+		if resp, _ := s.HandleLine(line); resp != nil {
 			s.writeLine(resp)
 		}
 	}
@@ -127,24 +138,30 @@ func (s *Server) Serve() error {
 }
 
 // HandleLine processes one raw JSON-RPC message and returns the response, or
-// nil for notifications / unparseable input. Used by both transports.
-func (s *Server) HandleLine(line []byte) *response {
+// nil for notifications (which by definition receive no response).
+// Unparseable input is NOT a notification: it yields a JSON-RPC -32700
+// parse-error response (with a null id, per the spec) together with ErrParse,
+// so transports can tell a malformed request apart from a notification. Used
+// by both transports.
+func (s *Server) HandleLine(line []byte) (*response, error) {
 	var req request
 	if err := json.Unmarshal(line, &req); err != nil {
-		return nil
+		return fail(json.RawMessage("null"), codeParseError, "parse error: "+err.Error()), ErrParse
 	}
-	return s.dispatch(req)
+	return s.dispatch(req), nil
 }
 
 // HandleHTTP processes one JSON-RPC request body and returns response bytes
-// (empty for notifications).
-func (s *Server) HandleHTTP(body []byte) []byte {
-	resp := s.HandleLine(body)
+// (empty for notifications). For an unparseable body it returns the JSON-RPC
+// -32700 parse-error payload together with ErrParse, so the HTTP transport
+// can answer 4xx instead of a silent 204.
+func (s *Server) HandleHTTP(body []byte) ([]byte, error) {
+	resp, err := s.HandleLine(body)
 	if resp == nil {
-		return nil
+		return nil, err
 	}
 	data, _ := json.Marshal(resp)
-	return data
+	return data, err
 }
 
 func (s *Server) dispatch(req request) *response {

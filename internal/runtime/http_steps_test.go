@@ -193,9 +193,10 @@ func TestHTTPErrorStatus(t *testing.T) {
 	if rt.State["err"] != "500 Internal Server Error" {
 		t.Errorf("error path should hold the status text, got %v", rt.State["err"])
 	}
-	// The runtime still stores the (JSON) error body at the result path.
-	if _, ok := rt.State["resp"].(map[string]any); !ok {
-		t.Errorf("error body should still be decoded into result, got %T", rt.State["resp"])
+	// On failure the body is NOT stored at the result path: only the Error path
+	// is written, honoring the "On success" contract (the body is discarded).
+	if _, exists := rt.State["resp"]; exists {
+		t.Errorf("error body must not be stored at the result path, got %v", rt.State["resp"])
 	}
 
 	// Without an Error path configured, a failure is silent (no panic, no store).
@@ -215,6 +216,29 @@ func TestHTTPNotFoundStatus(t *testing.T) {
 	}, nil)
 	if rt.State["err"] != "404 Not Found" {
 		t.Errorf("404 should record the status, got %v", rt.State["err"])
+	}
+}
+
+// TestHTTPErrorDoesNotStoreBody is a regression test: a non-2xx response must
+// not write the body to the result path (any previous value is preserved); the
+// status text is recorded on the error path instead.
+func TestHTTPErrorDoesNotStoreBody(t *testing.T) {
+	for _, status := range []int{
+		http.StatusBadRequest, http.StatusNotFound, http.StatusInternalServerError,
+	} {
+		h := &echoHandler{status: status, respBody: `{"error":"boom"}`}
+		srv := httptest.NewServer(h)
+		// A pre-existing result value proves the failure leaves it untouched.
+		rt := dispatchHTTP(t, map[string]any{"resp": "kept", "err": "stale"}, model.Step{
+			Type: "http.get", URL: srv.URL, Result: "resp", Error: "err",
+		}, nil)
+		srv.Close()
+		if rt.State["resp"] != "kept" {
+			t.Errorf("status %d: result path should be preserved on error, got %v", status, rt.State["resp"])
+		}
+		if e, _ := rt.State["err"].(string); e == "" || e == "stale" {
+			t.Errorf("status %d: error path should hold the status text, got %v", status, rt.State["err"])
+		}
 	}
 }
 

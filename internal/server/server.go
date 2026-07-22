@@ -317,6 +317,11 @@ func (s *Server) serveLog(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(out)
 }
 
+// focusMaxRunes caps how much of a presence element label is stored. Counted
+// in runes so over-long labels are truncated on a rune boundary — a byte cut
+// could split a multi-byte UTF-8 sequence and store invalid UTF-8.
+const focusMaxRunes = 120
+
 // servePresence records what the human is currently attending to (the focused or
 // just-touched element), so the agent sees it via qorm_activity — the human side
 // of presence, mirroring the human's "AI edited" flash.
@@ -345,25 +350,32 @@ func (s *Server) servePresence(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var p struct{ Element string }
-	if json.NewDecoder(r.Body).Decode(&p) == nil {
-		el := strings.TrimSpace(p.Element)
-		if len(el) > 120 {
-			el = el[:120]
-		}
-		s.actMu.Lock()
-		s.humanFocus = el
-		s.humanFocusAt = time.Now()
-		// A typed entry ("<field> = <value>") is retained separately so a later tap
-		// doesn't erase it; "(hidden)" password markers are not.
-		if strings.HasSuffix(el, "= (hidden)") {
-			s.humanFilled = strings.TrimSuffix(el, " = (hidden)")
-			s.humanFilledAt = time.Now()
-		} else if strings.Contains(el, " = ") {
-			s.humanTyping = el
-			s.humanTypingAt = time.Now()
-		}
-		s.actMu.Unlock()
+	if json.NewDecoder(r.Body).Decode(&p) != nil {
+		// Malformed JSON is a client error — consistent with /event and
+		// /viewport, never a silent 204.
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
 	}
+	el := strings.TrimSpace(p.Element)
+	// Cap the stored label at focusMaxRunes RUNES (not bytes), so truncation
+	// lands on a rune boundary and never splits a multi-byte UTF-8 sequence
+	// into invalid bytes for a non-ASCII label.
+	if runes := []rune(el); len(runes) > focusMaxRunes {
+		el = string(runes[:focusMaxRunes])
+	}
+	s.actMu.Lock()
+	s.humanFocus = el
+	s.humanFocusAt = time.Now()
+	// A typed entry ("<field> = <value>") is retained separately so a later tap
+	// doesn't erase it; "(hidden)" password markers are not.
+	if strings.HasSuffix(el, "= (hidden)") {
+		s.humanFilled = strings.TrimSuffix(el, " = (hidden)")
+		s.humanFilledAt = time.Now()
+	} else if strings.Contains(el, " = ") {
+		s.humanTyping = el
+		s.humanTypingAt = time.Now()
+	}
+	s.actMu.Unlock()
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -747,11 +759,18 @@ func versionOr(b *bundle.Bundle) string {
 }
 
 func (s *Server) serveUpdate(w http.ResponseWriter, r *http.Request) {
-	if s.current == nil {
+	// Snapshot the OTA gate state under the lock. activate() swaps s.current
+	// under s.mu on a concurrently handled /update or /rollback, so reading
+	// it bare here is a data race. The lock is dropped before Update takes it
+	// again, so there is no re-entrancy (or deadlock) hazard.
+	s.mu.Lock()
+	hasBundle, hasTrust := s.current != nil, s.trust != nil
+	s.mu.Unlock()
+	if !hasBundle {
 		http.Error(w, "OTA not enabled (run from a bundle)", http.StatusBadRequest)
 		return
 	}
-	if s.trust == nil {
+	if !hasTrust {
 		http.Error(w, "OTA disabled: authenticity is not verifiable without a trusted key — restart with --trust <key.pub>", http.StatusForbidden)
 		return
 	}
@@ -832,11 +851,17 @@ func (s *Server) serveMCP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.recordAgentCall(body)
-	resp := s.agent.HandleHTTP(body)
+	resp, err := s.agent.HandleHTTP(body)
 	w.Header().Set("Content-Type", "application/json")
 	if resp == nil {
+		// A notification: by definition it receives no response.
 		w.WriteHeader(http.StatusNoContent)
 		return
+	}
+	if err != nil {
+		// An unparseable JSON-RPC body is a client error, answered with the
+		// -32700 parse-error payload — never a silent 204.
+		w.WriteHeader(http.StatusBadRequest)
 	}
 	_, _ = w.Write(resp)
 }

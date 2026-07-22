@@ -533,15 +533,18 @@ func TestBuiltinSort(t *testing.T) {
 		t.Errorf("new column sort: first age = %v", got)
 	}
 
-	// Without a column, nothing is sorted. NOTE: the runtime still writes the
-	// empty column to the field state (the else-if only checks fieldPath), so a
-	// column-less invocation clobbers a previously-recorded sort field — see the
-	// bug note on Dispatch/__sort. This test pins the current behavior.
+	// Without a column the dispatch is a full no-op: it does not reorder the
+	// data and, crucially, does not erase a previously-recorded sort field or
+	// direction (a missing column must never clear a prior sort).
 	rt = newRT()
 	rt.State["sortField"] = "name"
+	rt.State["sortDir"] = "desc"
 	rt.Dispatch(BuiltinSort, map[string]any{"data": "rows", "field": "sortField", "dir": "sortDir"})
-	if rt.State["sortField"] != "" {
-		t.Errorf("column-less __sort currently clears the field, got %v", rt.State["sortField"])
+	if rt.State["sortField"] != "name" {
+		t.Errorf("column-less __sort must preserve the sort field, got %v", rt.State["sortField"])
+	}
+	if rt.State["sortDir"] != "desc" {
+		t.Errorf("column-less __sort must preserve the sort direction, got %v", rt.State["sortDir"])
 	}
 	if got := names(rt); got[0] != "B" {
 		t.Errorf("no-column __sort should not reorder: %v", got)
@@ -557,6 +560,39 @@ func TestBuiltinSort(t *testing.T) {
 	rt.Dispatch(BuiltinSort, map[string]any{"column": "name", "data": "rows", "field": "sortField"})
 	if got := names(rt); got[0] != "A" {
 		t.Errorf("dirless repeat click stays asc: %v", got)
+	}
+}
+
+// TestBuiltinSortColumnLessIsNoOp is a regression test: a __sort dispatch with
+// no column must leave the recorded sort field, direction and row order exactly
+// as they were. It previously wrote "" into the field, erasing a prior sort.
+func TestBuiltinSortColumnLessIsNoOp(t *testing.T) {
+	newRT := func() *Runtime {
+		return rtWith(map[string]any{
+			"sortField": "age",
+			"sortDir":   "desc",
+			"rows": []any{
+				map[string]any{"name": "B", "age": float64(30)},
+				map[string]any{"name": "A", "age": float64(10)},
+			},
+		})
+	}
+	// Both a missing "column" arg and an explicit empty one must be no-ops.
+	for _, args := range []map[string]any{
+		{"data": "rows", "field": "sortField", "dir": "sortDir"},
+		{"data": "rows", "field": "sortField", "dir": "sortDir", "column": ""},
+	} {
+		rt := newRT()
+		rt.Dispatch(BuiltinSort, args)
+		if rt.State["sortField"] != "age" {
+			t.Errorf("args %v: sort field clobbered, got %v", args, rt.State["sortField"])
+		}
+		if rt.State["sortDir"] != "desc" {
+			t.Errorf("args %v: sort direction clobbered, got %v", args, rt.State["sortDir"])
+		}
+		if got := rt.State["rows"].([]any)[0].(map[string]any)["name"]; got != "B" {
+			t.Errorf("args %v: rows reordered, first = %v", args, got)
+		}
 	}
 }
 

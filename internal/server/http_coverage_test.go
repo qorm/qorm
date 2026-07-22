@@ -15,6 +15,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/qorm/qorm/internal/keys"
 	"github.com/qorm/qorm/internal/model"
@@ -117,14 +118,15 @@ func TestPresenceEndpointHumanGating(t *testing.T) {
 		t.Fatalf("humanFilled = %q, want the label Password", filled)
 	}
 
-	// Over-long elements are truncated to 120 chars before storage.
+	// Over-long elements are truncated to 120 runes before storage (see
+	// TestPresenceTruncatesOnRuneBoundary for the rune-boundary guarantee).
 	long := strings.Repeat("a", 200)
 	doJSON(t, http.MethodPost, ts.URL+"/presence", tok, "", `{"element":"`+long+`"}`)
 	s.actMu.Lock()
 	focus = s.humanFocus
 	s.actMu.Unlock()
-	if len(focus) != 120 {
-		t.Fatalf("element should be truncated to 120 chars, got %d", len(focus))
+	if utf8.RuneCountInString(focus) != 120 {
+		t.Fatalf("element should be truncated to 120 runes, got %d", utf8.RuneCountInString(focus))
 	}
 
 	// The human's own panel reads back exactly what is shared with the agent.
@@ -138,6 +140,64 @@ func TestPresenceEndpointHumanGating(t *testing.T) {
 	}
 	if got["focus"] != strings.Repeat("a", 120) || got["typing"] != "Email = ada@example.com" || got["filled"] != "Password" {
 		t.Fatalf("GET /presence = %#v", got)
+	}
+}
+
+// TestPresenceTruncatesOnRuneBoundary: an over-long non-ASCII label is
+// truncated on a rune boundary — the stored focus is exactly 120 runes of
+// valid UTF-8, never a byte-sliced fragment of a multi-byte sequence.
+func TestPresenceTruncatesOnRuneBoundary(t *testing.T) {
+	s := counterServer(t)
+	ts := httptest.NewServer(s.Handler())
+	defer ts.Close()
+	tok := pageEventToken(t, ts.URL)
+
+	cases := []struct {
+		name  string
+		label string
+	}{
+		{"two-byte runes", strings.Repeat("é", 130)},     // 2 bytes per rune
+		{"three-byte runes", strings.Repeat("世", 130)},   // 3 bytes per rune
+		{"mixed widths", "x" + strings.Repeat("界", 130)}, // a byte cut would split rune 41
+	}
+	for _, tc := range cases {
+		code, _ := doJSON(t, http.MethodPost, ts.URL+"/presence", tok, "", `{"element":"`+tc.label+`"}`)
+		if code != http.StatusNoContent {
+			t.Fatalf("%s: POST /presence: want 204, got %d", tc.name, code)
+		}
+		s.actMu.Lock()
+		focus := s.humanFocus
+		s.actMu.Unlock()
+		if !utf8.ValidString(focus) {
+			t.Errorf("%s: stored focus is invalid UTF-8: %q", tc.name, focus)
+		}
+		if n := utf8.RuneCountInString(focus); n != 120 {
+			t.Errorf("%s: stored focus = %d runes, want 120", tc.name, n)
+		}
+	}
+}
+
+// TestPresenceMalformedJSONBadRequest: /presence rejects malformed JSON with
+// 400 — consistent with /event and /viewport, never a silent 204.
+func TestPresenceMalformedJSONBadRequest(t *testing.T) {
+	s := counterServer(t)
+	ts := httptest.NewServer(s.Handler())
+	defer ts.Close()
+	tok := pageEventToken(t, ts.URL)
+
+	doJSON(t, http.MethodPost, ts.URL+"/presence", tok, "", `{"element":"#email"}`)
+	for _, body := range []string{`{garbage`, `{"element":`, ``} {
+		code, _ := doJSON(t, http.MethodPost, ts.URL+"/presence", tok, "", body)
+		if code != http.StatusBadRequest {
+			t.Fatalf("malformed POST /presence %q: want 400, got %d", body, code)
+		}
+	}
+	// The rejected reports must not have disturbed the stored focus.
+	s.actMu.Lock()
+	focus := s.humanFocus
+	s.actMu.Unlock()
+	if focus != "#email" {
+		t.Fatalf("malformed presence reports must not change focus, got %q", focus)
 	}
 }
 
@@ -188,8 +248,12 @@ func TestPresenceSurfacedThroughAgentActivity(t *testing.T) {
 
 	// With no presence at all the activity payload carries no human blocks.
 	fresh := counterServer(t)
-	out := string(fresh.agent.HandleHTTP([]byte(
-		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"qorm_activity","arguments":{}}`)))
+	freshData, err := fresh.agent.HandleHTTP([]byte(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"qorm_activity","arguments":{}}}`))
+	if err != nil {
+		t.Fatalf("qorm_activity: %v", err)
+	}
+	out := string(freshData)
 	for _, banned := range []string{"humanFocus", "humanTyping", "humanFilled"} {
 		if strings.Contains(out, banned) {
 			t.Errorf("empty session must not report %s: %s", banned, out)
@@ -675,6 +739,39 @@ func TestMCPNotificationReturnsNoContent(t *testing.T) {
 	defer ts.Close()
 	code, body := doJSON(t, http.MethodPost, ts.URL+"/mcp", "", "", `{"jsonrpc":"2.0","method":"notifications/initialized"}`)
 	if code != http.StatusNoContent || body != "" {
+		t.Fatalf("MCP notification: want 204 empty, got %d %q", code, body)
+	}
+}
+
+// TestMCPParseErrorReturnsBadRequest: an UNPARSEABLE JSON-RPC body is a client
+// error — 400 carrying the -32700 parse-error payload — not a silent 204. A
+// well-formed notification (which also has no response) must stay a 204, so
+// the two cases are no longer conflated at the mcp layer.
+func TestMCPParseErrorReturnsBadRequest(t *testing.T) {
+	ts := httptest.NewServer(counterServer(t).Handler())
+	defer ts.Close()
+
+	for _, body := range []string{`{garbage!!`, `this is not json`, `{"id":1`} {
+		code, resp := doJSON(t, http.MethodPost, ts.URL+"/mcp", "", "", body)
+		if code != http.StatusBadRequest {
+			t.Fatalf("POST /mcp %q: want 400, got %d (%q)", body, code, resp)
+		}
+		var rpc struct {
+			Error *struct {
+				Code    int    `json:"code"`
+				Message string `json:"message"`
+			} `json:"error"`
+		}
+		if err := json.Unmarshal([]byte(resp), &rpc); err != nil || rpc.Error == nil {
+			t.Fatalf("parse error must carry a JSON-RPC error payload, got %q (%v)", resp, err)
+		}
+		if rpc.Error.Code != -32700 {
+			t.Fatalf("parse error code = %d, want -32700", rpc.Error.Code)
+		}
+	}
+
+	// A well-formed notification is still an empty 204 (it is not a parse error).
+	if code, body := doJSON(t, http.MethodPost, ts.URL+"/mcp", "", "", `{"jsonrpc":"2.0","method":"notifications/initialized"}`); code != http.StatusNoContent || body != "" {
 		t.Fatalf("MCP notification: want 204 empty, got %d %q", code, body)
 	}
 }

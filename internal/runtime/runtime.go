@@ -186,14 +186,25 @@ func New(app *model.App) *Runtime {
 func Stringify(v any) string { return expr.Stringify(v) }
 
 // Clone returns a runtime sharing the same app but with a deep copy of state,
-// so simulations can run without touching the live instance.
+// so simulations can run without touching the live instance. The navigation
+// stack and direction are copied too (each frame's params deep-copied), so a
+// clone can navigate back exactly like the live runtime without aliasing it.
 func (r *Runtime) Clone() *Runtime {
+	var stack []navFrame
+	if r.NavStack != nil {
+		stack = make([]navFrame, len(r.NavStack))
+		for i, f := range r.NavStack {
+			stack[i] = navFrame{Scene: f.Scene, Params: deepCopyMap(f.Params)}
+		}
+	}
 	return &Runtime{
 		App:         r.App,
 		State:       deepCopyMap(r.State),
 		Viewport:    r.Viewport,
 		Scene:       r.Scene,
+		NavStack:    stack,
 		RouteParams: deepCopyMap(r.RouteParams),
+		NavDir:      r.NavDir,
 	}
 }
 
@@ -334,8 +345,9 @@ const BuiltinDismiss = "__dismiss"
 // BuiltinSort is the reserved built-in action for default table sorting. Args:
 // "data" (bound array path), "column" (clicked column key), "field" and "dir"
 // (the sortField/sortDir state paths). Clicking the already-sorted column
-// flips its direction; a new column sorts ascending. It works identically
-// over the server, WASM and MCP dispatch.
+// flips its direction; a new column sorts ascending. A dispatch without a
+// column is a no-op — it never reorders the data or erases a recorded sort.
+// It works identically over the server, WASM and MCP dispatch.
 const BuiltinSort = "__sort"
 
 // Dispatch runs a named action with the given evaluated args. Missing actions
@@ -352,8 +364,14 @@ func (r *Runtime) Dispatch(name string, args map[string]any) {
 		dataPath := Stringify(args["data"])
 		fieldPath := Stringify(args["field"])
 		dirPath := Stringify(args["dir"])
+		// A column is required to sort: without one this is a no-op, so a
+		// stray column-less dispatch never reorders the data or clobbers a
+		// previously-recorded sort field/direction with an empty column.
+		if col == "" {
+			return
+		}
 		dir := "asc"
-		if col != "" && Stringify(getPath(r.State, fieldPath)) == col {
+		if Stringify(getPath(r.State, fieldPath)) == col {
 			if Stringify(getPath(r.State, dirPath)) == "asc" {
 				dir = "desc"
 			}
@@ -510,9 +528,10 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any) {
 var httpClient = &http.Client{Timeout: 20 * time.Second}
 
 // applyHTTP calls a backend and stores the parsed JSON response into state.
-// The URL, body and header values may contain {{bindings}}. On success the
-// response (JSON decoded, or raw string if not JSON) is written to Result (or
-// Path); any error message is written to Error. Blocks until the call returns.
+// The URL, body and header values may contain {{bindings}}. On success (a 2xx
+// status) the response (JSON decoded, or raw string if not JSON) is written to
+// Result (or Path) and any stale Error is cleared; on any other status the body
+// is discarded and the status text is written to Error. Blocks until it returns.
 func (r *Runtime) applyHTTP(step model.Step, ctx map[string]any) {
 	method := strings.ToUpper(step.Method)
 	if method == "" {
@@ -559,8 +578,9 @@ func (r *Runtime) applyHTTP(step model.Step, ctx map[string]any) {
 	}
 	defer resp.Body.Close()
 	data, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
-	if resp.StatusCode >= 400 {
-		fail(resp.Status)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		fail(resp.Status) // non-success: record the status, never the body
+		return
 	}
 	if resultPath != "" {
 		var parsed any
@@ -570,7 +590,7 @@ func (r *Runtime) applyHTTP(step model.Step, ctx map[string]any) {
 			setPath(r.State, resultPath, string(data)) // non-JSON body → raw text
 		}
 	}
-	if step.Error != "" && resp.StatusCode < 400 {
+	if step.Error != "" {
 		setPath(r.State, step.Error, "") // clear stale error on success
 	}
 }

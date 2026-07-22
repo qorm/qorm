@@ -198,6 +198,10 @@ func formatNumberFixed(n float64, locale string, frac int) string {
 	return out
 }
 
+// formatCurrency renders v with the currency's symbol, locale-aware. The sign
+// leads the whole formatted amount (CLDR convention): a symbol-before locale
+// renders "-$1,234.50" (minus before the symbol), a symbol-after locale renders
+// "-1.234,50 €" (minus before the digits) — never "$-1,234.50".
 func formatCurrency(v float64, locale, code string) string {
 	sym := currencySymbols[strings.ToUpper(code)]
 	if sym == "" {
@@ -207,11 +211,16 @@ func formatCurrency(v float64, locale, code string) string {
 	if zeroDecimalCurrencies[strings.ToUpper(code)] {
 		frac = 0
 	}
+	sign := ""
+	if v < 0 {
+		sign = "-"
+		v = -v
+	}
 	amount := formatNumberFixed(v, locale, frac)
 	if symbolAfterLocales[baseLocale(locale)] {
-		return amount + " " + sym
+		return sign + amount + " " + sym
 	}
-	return sym + amount
+	return sign + sym + amount
 }
 
 // parseDate accepts an epoch number (seconds or millis) or an ISO/RFC3339 string.

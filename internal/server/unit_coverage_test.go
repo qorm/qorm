@@ -149,8 +149,12 @@ func TestSetWindowControlWiresAgent(t *testing.T) {
 	rec := &winRecorder{}
 	s.SetWindowControl(rec.mover, rec.op, rec.open, rec.eval)
 
-	out := string(s.agent.HandleHTTP([]byte(
-		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"qorm_window","arguments":{"op":"move","x":5,"y":6,"w":7,"h":8}}}`)))
+	data, err := s.agent.HandleHTTP([]byte(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"qorm_window","arguments":{"op":"move","x":5,"y":6,"w":7,"h":8}}}`))
+	if err != nil {
+		t.Fatalf("qorm_window: %v", err)
+	}
+	out := string(data)
 	if strings.Contains(out, `"error"`) {
 		t.Fatalf("qorm_window with control registered: %s", out)
 	}
@@ -163,8 +167,12 @@ func TestSetWindowControlWiresAgent(t *testing.T) {
 
 	// Without registration the tool errors instead of panicking.
 	bare := counterServer(t)
-	out = string(bare.agent.HandleHTTP([]byte(
-		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"qorm_window","arguments":{"op":"move"}}}`)))
+	bareData, err := bare.agent.HandleHTTP([]byte(
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"qorm_window","arguments":{"op":"move"}}}`))
+	if err != nil {
+		t.Fatalf("qorm_window (unregistered): %v", err)
+	}
+	out = string(bareData)
 	if !strings.Contains(out, "window control unavailable") {
 		t.Fatalf("qorm_window without control should error, got %s", out)
 	}
