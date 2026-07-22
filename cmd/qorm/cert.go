@@ -22,11 +22,15 @@ func selfSignedTLS() (*tls.Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	// A real decade of validity, backdated an hour to tolerate clock skew.
+	// (NotAfter must stay below the year 10000: x509 encodes it as ASN.1
+	// GeneralizedTime, which cannot represent anything later.)
+	notBefore := time.Now().Add(-time.Hour)
 	tmpl := &x509.Certificate{
 		SerialNumber: big.NewInt(1),
 		Subject:      pkix.Name{Organization: []string{"QORM Dev"}, CommonName: "QORM Dev Server"},
-		NotBefore:    time.Unix(0, 0),
-		NotAfter:     time.Unix(1<<40, 0),
+		NotBefore:    notBefore,
+		NotAfter:     notBefore.AddDate(10, 0, 0),
 		KeyUsage:     x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		DNSNames:     []string{"localhost"},

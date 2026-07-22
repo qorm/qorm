@@ -170,7 +170,10 @@ func Eval(rt *qrt.Runtime, measured, checksJSON []byte) ([]byte, error) {
 						}
 					}
 				case "below":
-					if p := byID[fmt.Sprint(want)]; p != nil {
+					p := byID[fmt.Sprint(want)]
+					if p == nil {
+						fails = append(fails, fmt.Sprintf("below: %v not found", want))
+					} else {
 						_, cy, _, _ := rectOf(r)
 						_, py, _, ph := rectOf(p)
 						if cy < py+ph-3 {
@@ -212,6 +215,12 @@ func Eval(rt *qrt.Runtime, measured, checksJSON []byte) ([]byte, error) {
 					// not a static snapshot. Reject rather than silently pass — a
 					// verification tool must never report a check it cannot make.
 					fails = append(fails, "focusTrap assertion not supported yet (dynamic; tracked in planning/real-env-acceptance.md)")
+				default:
+					// An assertion the tool does not recognise (a typo such as
+					// {'minWidth':100} or {'visble':true}) must fail, not be ignored
+					// into a vacuous pass — the same "never report a check you cannot
+					// make" principle as focusTrap.
+					fails = append(fails, fmt.Sprintf("unknown check key %q", k))
 				}
 			}
 			res["actual"] = map[string]any{"x": r["x"], "y": r["y"], "w": r["w"], "h": r["h"],

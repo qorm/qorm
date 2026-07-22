@@ -6,6 +6,7 @@ dist/
 
 # packaged apps
 *-web/
+*-web-opt/
 *-android/
 *-ios/
 
@@ -22,6 +23,9 @@ donors.env
 /qorm-desktop-*
 *.test
 *.wasm
+# optimized wasm build outputs (targeted — do not broaden to block demo assets)
+/qorm_optimized.wasm
+/qorm_optimized.wasm.gz
 BUNDLE_ONLY
 
 # private operations material (go-to-market, drafts) — local only

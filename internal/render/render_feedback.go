@@ -357,14 +357,12 @@ func (r *renderer) notify(n *model.Node) {
 	}
 	body := n.Text
 	if body == "" {
-		body = "Hello from your QORM app \U0001f44b"
-	}
-	label := n.Label
-	if label == "" {
-		label = "\U0001f514 Send Notification"
+		// Plain text: the OS renders the notification body, so neither the
+		// framework's SVG icons nor emoji can appear here.
+		body = "Hello from your QORM app"
 	}
 	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-notify" data-title=%q data-body=%q style=%q>`, n.ID, title, body, r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;align-items:stretch;")
 	fmt.Fprintf(&r.sb, `<div id="%s-out" class="qorm-notify-out" style="font-size:15px;color:var(--label);min-height:20px;">%s</div>`, n.ID, "")
-	fmt.Fprintf(&r.sb, `<button type="button" onclick="qormNotify(this)" style="padding:12px;border:none;border-radius:12px;background:var(--accent);color:var(--on-accent);font-size:16px;font-weight:600;cursor:pointer;">%s</button>`, html.EscapeString(label))
+	fmt.Fprintf(&r.sb, `<button type="button" onclick="qormNotify(this)" style="padding:12px;border:none;border-radius:12px;background:var(--accent);color:var(--on-accent);font-size:16px;font-weight:600;cursor:pointer;">%s</button>`, iconLabel(n.Label, "bell", "Send Notification"))
 	r.sb.WriteString(`</div>`)
 }

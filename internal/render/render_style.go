@@ -38,6 +38,18 @@ func iconOrText(s string, size float64) string {
 	return html.EscapeString(s)
 }
 
+// iconLabel builds a hardware-widget button's content: an app-authored label
+// renders as plain escaped text; when empty, the default is the built-in SVG
+// icon (the framework's alternative to emoji) prefixed to defLabel, in a
+// centered inline-flex row. The label prop read stays at the call site so the
+// API-ref prop extractor (internal/integration) attributes it to the widget.
+func iconLabel(label, icon, defLabel string) string {
+	if label != "" {
+		return html.EscapeString(label)
+	}
+	return `<span style="display:inline-flex;align-items:center;justify-content:center;gap:8px;">` + iconSVG(icon, 18) + html.EscapeString(defLabel) + `</span>`
+}
+
 // checkboxCell renders a small square checkbox glyph without emoji: an empty
 // bordered box when unchecked, or an accent-filled box with a check icon when
 // checked.

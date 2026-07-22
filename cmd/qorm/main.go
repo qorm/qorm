@@ -100,15 +100,19 @@ usage:
   qorm run <app-dir|bundle> [--trust pub.key] [--revoked list.json] [--app] [--console] [--port N=10383] [--no-open]
                             [--lan] [--tls] [--mcp-read-only] [--no-watch] [--audit-log file.jsonl]
                                                   run app live (verifies signed bundles; --app = standalone window;
-                                                  --console = DevTool window; --lan/--tls = serve the LAN (TLS needs
-                                                  certs); --mcp-read-only = agents may inspect but not mutate;
+                                                  --console = DevTool window; --lan/--tls = serve the LAN (--tls =
+                                                  auto self-signed HTTPS); --mcp-read-only = agents may inspect but
+                                                  not mutate;
                                                   a directory hot-reloads on file change — --no-watch disables it)
-  qorm render <app-dir|scene.json> [-o out.html]  write a static HTML snapshot
-  qorm shot <app-dir> -o out.png                 render an app to a PNG (macOS, -tags desktop)
-  qorm measure <app-dir> [-o report.json]          render + self-measure layout & styles (needs -tags desktop)
-  qorm check <app-dir> (--checks c.json | --audit) [-o r.json]
+  qorm render <app-dir|scene.json|bundle> [-o out.html]
+                                                  write a static HTML snapshot
+  qorm shot <app-dir> -o out.png [--html page.html] [--url URL] [--live "title"] [--width W --height H]
+                                                  rasterize an app/page/URL/live window to a PNG (macOS, -tags desktop)
+  qorm measure <app-dir> [--width N] [-o report.json]
+                                                  render + self-measure layout & styles (needs -tags desktop)
+  qorm check <app-dir> (--checks c.json | --audit) [--width N] [-o r.json]
                                                   verify layout/styles/behaviour vs expectations (or generic audit)
-  qorm build <app-dir> -o app.qorm.bundle [--key priv.key] [--require-capability camera,location]
+  qorm build <app-dir> -o app.qorm.bundle [--key priv.key] [--version V] [--require-capability camera,location]
                                                   compile (+optionally sign) a bundle; declared capabilities are
                                                   enforced at startup on the running platform
   qorm keygen [--out-dir .]                        generate an ed25519 signing keypair
@@ -117,18 +121,20 @@ usage:
                                                   verify integrity (+ signature, + revocation)
   qorm mcp <app-dir|bundle> [--trust pub.key] [--revoked list.json]
                                                   serve the app to agents over MCP (stdio)
-  qorm package <app-dir> -p web|ios|android|mac [-o out] [--dev URL] [--team ID] [--no-branding] [--subscribed]
+  qorm package <app-dir> -p web|ios|android|mac|miniapp [-o out] [--dev URL] [--team ID] [--no-branding] [--subscribed]
                                                   package as an installable app for a platform
        --release [--app-version V --build N]      distributable build — iOS .ipa (--export-method / --upload /
                                                   --api-key*), Android signed .aab (--keystore / --key-alias /
-                                                  --apk), macOS Developer ID + DMG (--identity / --notarize)
+                                                  --apk), macOS Developer ID + DMG (--identity /
+                                                  --notarize [--keychain-profile P] / --no-dmg)
        --update-url URL --trust pub.key           wire the package to an OTA update server (flags are paired)
-  qorm preview <package-dir> [--width N] [-o report.json]
+  qorm preview <package-dir> [--width N] [--eval JS] [-o report.json]
                                                   render a packaged app and report its layout
-  qorm docs [--docs docs] [-o docs-site]           render the markdown docs to a static HTML site
+  qorm docs [--docs docs] [-o docs-site] [--name Name]
+                                                  render the markdown docs to a static HTML site
   qorm audit <audit-log.jsonl>                     verify a hash-chained activity audit log
                                                   (written by qorm run --audit-log <file>)
-  qorm updates <bundles-dir> [--port N]            OTA publish server (staged rollout via rollout.json)
+  qorm updates [bundles-dir] [--port N]            OTA publish server (default dir '.'; staged rollout via rollout.json)
   qorm update [--insecure-skip-verify]             update the CLI to the latest version (verifies signed checksums)
   qorm version                                     print the version
 `)

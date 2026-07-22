@@ -228,10 +228,10 @@ Android release signing without `--keystore` uses a managed keystore at `<app-di
 ## docs
 
 ```
-qorm docs [--docs docs] [-o site] [--name Name]
+qorm docs [--docs docs] [-o docs-site] [--name Name]
 ```
 
-Renders a markdown tree into a static HTML site (this documentation site is built with it). Defaults: source `docs/`, output `site/`, header label = the source directory's base name. The header is stamped with the version of the `qorm` binary doing the render.
+Renders a markdown tree into a static HTML site (this documentation site is built with it). Defaults: source `docs/`, output `docs-site/`, header label = the source directory's base name. The header is stamped with the version of the `qorm` binary doing the render.
 
 ## audit
 

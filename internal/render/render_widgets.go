@@ -338,7 +338,7 @@ func (r *renderer) dockBadge(n *model.Node) {
 func (r *renderer) camera(n *model.Node) {
 	val := r.interp(n.Value)
 	path := boundPath(n.Value)
-	label := propStrOr(n, "label", "\U0001F4F7 Take Photo")
+	label := iconLabel(propStr(n, "label"), "camera", "Take Photo")
 	hattr := ""
 	if n.OnChange != nil {
 		hattr = fmt.Sprintf(` data-h="%d"`, r.register(n.OnChange))
@@ -354,11 +354,11 @@ func (r *renderer) camera(n *model.Node) {
 	// Live camera (desktop/web via getUserMedia — localhost is a secure context);
 	// hidden until qormCameraInit shows the live button on capable platforms.
 	r.sb.WriteString(`<video class="qorm-cam-video" playsinline muted style="display:none;max-width:100%;border-radius:12px;"></video>`)
-	fmt.Fprintf(&r.sb, `<button type="button" class="qorm-cam-live" style="display:none;text-align:center;padding:12px 16px;border:none;border-radius:12px;background:var(--accent);color:var(--on-accent);font-size:16px;font-weight:600;cursor:pointer;" onclick="qormCameraLive(this)">%s</button>`, html.EscapeString(label))
+	fmt.Fprintf(&r.sb, `<button type="button" class="qorm-cam-live" style="display:none;text-align:center;padding:12px 16px;border:none;border-radius:12px;background:var(--accent);color:var(--on-accent);font-size:16px;font-weight:600;cursor:pointer;" onclick="qormCameraLive(this)">%s</button>`, label)
 	// A <label> wrapping the file input triggers the camera natively — the most
 	// reliable path on iOS (a hidden input + programmatic .click() is blocked).
 	fmt.Fprintf(&r.sb, `<label class="qorm-cam-file" style="display:inline-block;text-align:center;padding:12px 16px;border-radius:12px;background:var(--accent);color:var(--on-accent);font-size:16px;font-weight:600;cursor:pointer;">%s<input type="file" accept="image/*" capture="environment" style="position:absolute;width:1px;height:1px;opacity:0;" onchange="qormCamera(this)"></label>`,
-		html.EscapeString(label))
+		label)
 	r.sb.WriteString(`</div>`)
 }
 

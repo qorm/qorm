@@ -228,10 +228,10 @@ Android 发布签名不带 `--keystore` 时使用托管 keystore `<app-dir>/.qor
 ## docs
 
 ```
-qorm docs [--docs docs] [-o site] [--name Name]
+qorm docs [--docs docs] [-o docs-site] [--name Name]
 ```
 
-把 markdown 文档树渲染为静态 HTML 站点(本文档站即由它构建)。默认值:源 `docs/`,输出 `site/`,页眉标签 = 源目录基名。页眉会盖上执行渲染的 `qorm` 二进制的版本。
+把 markdown 文档树渲染为静态 HTML 站点(本文档站即由它构建)。默认值:源 `docs/`,输出 `docs-site/`,页眉标签 = 源目录基名。页眉会盖上执行渲染的 `qorm` 二进制的版本。
 
 ## audit
 

@@ -229,7 +229,7 @@ function qormOnLoginItem(on,ok){ document.querySelectorAll('.qorm-loginitem').fo
 function qormOnNotifyClick(id){ var box=document.getElementById(id); if(box){ var o=box.querySelector('.qorm-notify-out'); if(o) o.textContent='Notification clicked '; } }
 function qormBadge(btn,d){ var box=btn.closest('.qorm-dockbadge'); var n=Math.max(0,(parseInt(box.getAttribute('data-count'))||0)+d); box.setAttribute('data-count',n); box.querySelector('.qorm-dockbadge-out').textContent='Badge: '+n; if(qormHasNative()){ qormToNative('badge',{count:n}); } }
 function qormNotify(btn){
-  var box=btn.closest('.qorm-notify'), title=box.getAttribute('data-title')||'QORM', body=box.getAttribute('data-body')||'Hello from your QORM app ';
+  var box=btn.closest('.qorm-notify'), title=box.getAttribute('data-title')||'QORM', body=box.getAttribute('data-body')||'Hello from your QORM app';
   var out=box.querySelector('.qorm-notify-out');
   if(qormHasNative()){ qormToNative('notify',{title:title,body:body,id:box.id}); out.textContent='Sent '; }
   else if('Notification'in window){ Notification.requestPermission().then(function(p){ if(p==='granted'){ new Notification(title,{body:body}); out.textContent='Sent '; } else { out.textContent='permission denied'; } }); }

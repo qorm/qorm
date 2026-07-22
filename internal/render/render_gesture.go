@@ -122,7 +122,6 @@ func (r *renderer) biometric(n *model.Node) {
 func (r *renderer) location(n *model.Node) {
 	path := boundPath(n.Value)
 	val := r.interp(n.Value)
-	label := propStrOr(n, "label", "\U0001F4CD Get Location")
 	out := val
 	if out == "" {
 		out = "Location not set"
@@ -130,7 +129,7 @@ func (r *renderer) location(n *model.Node) {
 	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-location" style=%q>`, n.ID, r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;align-items:stretch;")
 	fmt.Fprintf(&r.sb, `<div id="%s-out" class="qorm-loc-out" style="font-size:15px;color:var(--label);min-height:20px;">%s</div>`, n.ID, html.EscapeString(out))
 	fmt.Fprintf(&r.sb, `<input type="hidden"%s value=%q>`, dataStateAttr(path), val)
-	fmt.Fprintf(&r.sb, `<button type="button" onclick="qormGeo(this)" style="padding:12px 16px;border:none;border-radius:12px;background:var(--accent);color:var(--on-accent);font-size:16px;font-weight:600;cursor:pointer;">%s</button>`, html.EscapeString(label))
+	fmt.Fprintf(&r.sb, `<button type="button" onclick="qormGeo(this)" style="padding:12px 16px;border:none;border-radius:12px;background:var(--accent);color:var(--on-accent);font-size:16px;font-weight:600;cursor:pointer;">%s</button>`, iconLabel(propStr(n, "label"), "location", "Get Location"))
 	r.sb.WriteString(`</div>`)
 }
 
@@ -139,7 +138,7 @@ func (r *renderer) location(n *model.Node) {
 func (r *renderer) sensors(n *model.Node) {
 	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-motion" style=%q>`, n.ID, r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;align-items:stretch;")
 	fmt.Fprintf(&r.sb, `<div id="%s-out" class="qorm-motion-out" style="font-family:ui-monospace,Menlo,monospace;font-size:15px;color:var(--label);min-height:20px;">tilt: —</div>`, n.ID)
-	fmt.Fprintf(&r.sb, `<button type="button" onclick="qormMotion(this)" style="padding:12px 16px;border:none;border-radius:12px;background:var(--accent);color:var(--on-accent);font-size:16px;font-weight:600;cursor:pointer;">%s</button>`, html.EscapeString(propStrOr(n, "label", "\U0001F9ED Enable Motion")))
+	fmt.Fprintf(&r.sb, `<button type="button" onclick="qormMotion(this)" style="padding:12px 16px;border:none;border-radius:12px;background:var(--accent);color:var(--on-accent);font-size:16px;font-weight:600;cursor:pointer;">%s</button>`, iconLabel(propStr(n, "label"), "compass", "Enable Motion"))
 	r.sb.WriteString(`</div>`)
 }
 
@@ -155,7 +154,7 @@ func (r *renderer) recorder(n *model.Node) {
 	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-recorder" style=%q>`, n.ID, r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;align-items:stretch;")
 	fmt.Fprintf(&r.sb, `<audio class="qorm-rec-audio" controls src=%q style="width:100%%;display:%s;"></audio>`, val, disp)
 	fmt.Fprintf(&r.sb, `<input type="hidden"%s value=%q>`, dataStateAttr(path), val)
-	fmt.Fprintf(&r.sb, `<button type="button" onclick="qormRec(this)" style="padding:12px 16px;border:none;border-radius:12px;background:var(--danger);color:#fff;font-size:16px;font-weight:600;cursor:pointer;">%s</button>`, html.EscapeString(propStrOr(n, "label", "\U0001F3A4 Record")))
+	fmt.Fprintf(&r.sb, `<button type="button" onclick="qormRec(this)" style="padding:12px 16px;border:none;border-radius:12px;background:var(--danger);color:#fff;font-size:16px;font-weight:600;cursor:pointer;">%s</button>`, iconLabel(propStr(n, "label"), "mic", "Record"))
 	r.sb.WriteString(`</div>`)
 }
 
