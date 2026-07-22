@@ -6,6 +6,8 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+## [v0.3.1] - 2026-07-22
+
 ### Added
 - Test-coverage push (115 new tests / 13 files): `internal/render`
   15.2% → 85.4% (widgets, handlers, components, soft-fail),
@@ -309,6 +311,8 @@ Initial release: QORM, an agent-native declarative-UI runtime in pure Go.
 - Render performance: cached parsed expressions and reflection-free CSS
   numeric writes in the hot path.
 
+[v0.3.1]: https://github.com/qorm/qorm/compare/v0.3.0...v0.3.1
+[v0.3.0]: https://github.com/qorm/qorm/compare/v0.2.6...v0.3.0
 [v0.2.5]: https://github.com/qorm/qorm/compare/v0.2.4...v0.2.5
 [v0.2.4]: https://github.com/qorm/qorm/compare/v0.2.3...v0.2.4
 [v0.2.3]: https://github.com/qorm/qorm/compare/v0.2.2...v0.2.3
