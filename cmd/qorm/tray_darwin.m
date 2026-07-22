@@ -4,6 +4,7 @@
 #import <WebKit/WebKit.h>
 #import <Security/Security.h>
 #import <IOKit/pwr_mgt/IOPMLib.h>
+#import <AVFoundation/AVFoundation.h>
 #include "_cgo_export.h"
 
 @interface QormTrayTarget : NSObject
@@ -662,13 +663,20 @@ void qormKeepAwake(int on) {
     }
 }
 
-static NSSpeechSynthesizer *gSpeechSynth;
+// gSpeechSynth is held in a static so it stays retained for the life of the
+// process — releasing an AVSpeechSynthesizer mid-speech cuts the utterance off
+// (same pattern as gLAContext above).
+static AVSpeechSynthesizer *gSpeechSynth;
 void qormSpeak(const char* text) {
     NSString *s = [NSString stringWithUTF8String:(text ? text : "")];
     dispatch_async(dispatch_get_main_queue(), ^{
         @autoreleasepool {
-            if (!gSpeechSynth) gSpeechSynth = [[NSSpeechSynthesizer alloc] init];
-            [gSpeechSynth startSpeakingString:s];
+            if (!gSpeechSynth) gSpeechSynth = [[AVSpeechSynthesizer alloc] init];
+            // NSSpeechSynthesizer's startSpeakingString: interrupted any
+            // in-flight speech; speakUtterance: queues instead, so stop first
+            // to keep the old cut-in behavior.
+            [gSpeechSynth stopSpeakingAtBoundary:AVSpeechBoundaryImmediate];
+            [gSpeechSynth speakUtterance:[AVSpeechUtterance speechUtteranceWithString:s]];
         }
     });
 }
@@ -676,7 +684,7 @@ void qormSpeak(const char* text) {
 void qormSpeakStop(void) {
     dispatch_async(dispatch_get_main_queue(), ^{
         @autoreleasepool {
-            if (gSpeechSynth) [gSpeechSynth stopSpeaking];
+            if (gSpeechSynth) [gSpeechSynth stopSpeakingAtBoundary:AVSpeechBoundaryImmediate];
         }
     });
 }

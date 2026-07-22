@@ -172,6 +172,19 @@ function qormCameraInit(){
     if(file) file.style.display='none';
   });
 }
+// Set the live button's label without wiping the leading SVG icon: the Go
+// renderer emits icon+text inside a wrapper span (iconLabel in render_style.go),
+// so update the span's last text node rather than assigning textContent. A
+// custom label prop renders as plain text (no span, no icon) — textContent is
+// safe then.
+function qormCamLabel(btn, text){
+  var span=btn.querySelector('span');
+  if(!span){ btn.textContent=text; return; }
+  for(var c=span.lastChild;c;c=c.previousSibling){
+    if(c.nodeType===3){ c.nodeValue=text; return; }
+  }
+  span.appendChild(document.createTextNode(text));
+}
 function qormCameraLive(btn){
   var box=btn.closest('.qorm-camera'); if(!box) return;
   var video=box.querySelector('.qorm-cam-video');
@@ -182,12 +195,12 @@ function qormCameraLive(btn){
     var img=box.querySelector('.qorm-cam-preview'); if(img){ img.src=data; img.style.display='block'; }
     var hid=box.querySelector('input[type=hidden]'); if(hid){ hid.value=data; }
     box._stream.getTracks().forEach(function(t){ t.stop(); }); box._stream=null;
-    video.style.display='none'; btn.textContent='Retake';
+    video.style.display='none'; qormCamLabel(btn,'Retake');
     var h=box.getAttribute('data-h'); qorm(h?parseInt(h):-1);
     return;
   }
   navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}}).then(function(stream){
-    box._stream=stream; video.srcObject=stream; video.style.display='block'; video.play(); btn.textContent='Capture';
+    box._stream=stream; video.srcObject=stream; video.style.display='block'; video.play(); qormCamLabel(btn,'Capture');
   }).catch(function(e){
     var wrap=box.querySelector('.qorm-cam-file'); var fi=wrap&&wrap.querySelector('input');
     if(wrap){ wrap.style.display='inline-block'; } if(fi){ fi.click(); }

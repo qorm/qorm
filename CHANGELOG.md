@@ -6,6 +6,50 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+- Test-coverage push (115 new tests / 13 files): `internal/render`
+  15.2% → 85.4% (widgets, handlers, components, soft-fail),
+  `internal/measure` 55.2% → 100% (audit bounds, eval checks, report),
+  `pkg/qormext` 37.0% → 100% (ABI compat, `Emit`/`jsStr` escaping),
+  `cmd/qorm` 16.9% → 42.3% (CLI dispatch, sign/verify flow, helpers).
+- `TestAPIRefCLI` contract test: guards the hand-written `api/cli.md`
+  (EN + ZH) against the `cmd/qorm` implementation — every documented
+  flag and subcommand must exist in the code, and the two language
+  pages must document the same subcommand set.
+
+### Changed
+- `.gitignore` covers optimized WASM outputs (`qorm_optimized.wasm[.gz]`)
+  and `*-web-opt/` package directories.
+
+### Fixed
+- `qorm run --tls` always failed: the self-signed certificate's
+  `NotAfter` was the year 36812 (an unencodable ASN.1 GeneralizedTime);
+  certificates are now valid for +10y, covered by a real-handshake
+  test.
+- `qorm check` / `qorm_check_layout` fail loud: a `within`/`below`
+  target id that was not measured now fails as not-found (was: a
+  silent pass), and an unrecognised assertion key (a typo such as
+  `visble`) fails instead of being ignored into a vacuous pass. The
+  MCP tool descriptions carry the same note.
+- qormext: the native bridge's `jsStr` escaped only quote and
+  backslash; it now escapes newline, CR, tab, BS/FF, all C0 controls,
+  and U+2028/U+2029.
+- Hardware-widget default button labels (camera, notification,
+  location, motion, audio recorder) no longer hardcode emoji — the
+  defaults now render the built-in SVG icon set via a shared
+  `iconLabel` helper; an app-authored `label` still renders as plain
+  text.
+- The camera's live-capture button no longer wipes its SVG icon when
+  its label switches Retake/Capture (the client now replaces just the
+  label text).
+- `qorm check` prints `[--width N]` in its inline usage (the flag was
+  parsed but absent from the usage line).
+- Docs: `api/cli.md` (EN + ZH) gave the wrong default output for
+  `qorm docs` (`site/`, which clobbers the hand-kept landing copy —
+  correct: `docs-site/`), and the `qorm` usage text now matches the
+  implemented flags (miniapp platform, `--version`, `--width`,
+  `--eval`, the `shot` flags, `--name`, optional `[bundles-dir]`).
+
 ## [v0.3.0] - 2026-07-20
 
 ### Added

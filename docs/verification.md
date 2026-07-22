@@ -65,6 +65,10 @@ labels the renderer injects implicitly — not just what the JSON declared.
 Tab-order behavior, not a static snapshot, and a verifier must never vouch for
 a check it cannot actually make.
 
+Checks fail loud: an unrecognised assertion key (e.g. a typo) fails, and a
+`within`/`below` target id that was not measured fails as 'not found' —
+nothing silently passes.
+
 ```json
 [
   {"id": "nav",      "type": "appbar", "visible": true, "y": 0, "text": "Today"},

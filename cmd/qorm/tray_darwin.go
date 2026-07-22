@@ -4,7 +4,7 @@ package main
 
 /*
 #cgo CFLAGS: -x objective-c -fobjc-arc
-#cgo LDFLAGS: -framework Cocoa -framework ServiceManagement -framework WebKit -framework LocalAuthentication -framework CoreWLAN -framework CoreBluetooth -framework CoreAudio -framework AudioToolbox -framework Security -framework IOKit
+#cgo LDFLAGS: -framework Cocoa -framework ServiceManagement -framework WebKit -framework LocalAuthentication -framework CoreWLAN -framework CoreBluetooth -framework CoreAudio -framework AudioToolbox -framework Security -framework IOKit -framework AVFoundation
 #include <stdlib.h>
 void qormRunTray(const unsigned char* png, int pngLen, const char** items, int n, const char* tip);
 void qormRunTrayJSON(const unsigned char* png, int pngLen, const char* menuJSON, const char* tip);

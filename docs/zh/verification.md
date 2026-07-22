@@ -62,6 +62,10 @@ qorm check <app-dir> --checks checks.json [-o report.json]
 而不只是 JSON 里声明的。`focusTrap` 目前被刻意拒绝:焦点陷阱是动态的 Tab 键序行为,
 不是静态快照,验证工具绝不应为一个它实际做不到的检查背书。
 
+检查明确失败:无法识别的断言键(如拼写错误)会判定为失败,未被测量的
+`within`/`below` 目标 id 会以 'not found' 判定为失败 —— 绝不会有检查项被
+静默通过。
+
 ```json
 [
   {"id": "nav",      "type": "appbar", "visible": true, "y": 0, "text": "Today"},

@@ -581,7 +581,7 @@ func cmdCheck(args []string) int {
 		}
 	}
 	if in == "" || (checks == "" && !audit) {
-		fmt.Fprintln(os.Stderr, "usage: qorm check <app-dir> (--checks checks.json | --audit) [-o report.json]")
+		fmt.Fprintln(os.Stderr, "usage: qorm check <app-dir> (--checks checks.json | --audit) [--width N] [-o report.json]")
 		return 2
 	}
 	if err := runCheck(in, checks, out, audit, width); err != nil {
