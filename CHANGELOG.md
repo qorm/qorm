@@ -6,6 +6,29 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+## [v0.3.2] - 2026-07-22
+
+### Fixed
+- Data race in the OTA update path: `serveUpdate` read the current
+  bundle/trust flag without the server lock (confirmed with `-race`);
+  it is now snapshotted under the lock.
+- `/mcp` returned a silent `204` on an unparseable request body; it now
+  returns a JSON-RPC `-32700` parse-error with HTTP `400`, and the stdio
+  server emits the spec-required parse-error line.
+- `/presence` with malformed JSON now returns `400` (matching `/event`
+  and `/viewport`), and its focus truncation is rune-based so multi-byte
+  UTF-8 labels are never split into invalid bytes.
+- Runtime: a column-less `__sort` is now a no-op instead of clobbering
+  the recorded sort field; `Clone()` deep-copies the navigation stack so
+  simulation clones can navigate back; negative amounts format as
+  `-$1,234.50` (CLDR sign placement); `http.*` steps store the response
+  body only on a 2xx success.
+
+### Added
+- Test coverage for the server / runtime / mcp core (`internal/server`
+  64.9% → 98.3%, `internal/runtime` 66.4% → 100%, `internal/mcp` 67.0% →
+  99.4%; 129 new tests) — the round that surfaced every fix above.
+
 ## [v0.3.1] - 2026-07-22
 
 ### Added
@@ -311,6 +334,7 @@ Initial release: QORM, an agent-native declarative-UI runtime in pure Go.
 - Render performance: cached parsed expressions and reflection-free CSS
   numeric writes in the hot path.
 
+[v0.3.2]: https://github.com/qorm/qorm/compare/v0.3.1...v0.3.2
 [v0.3.1]: https://github.com/qorm/qorm/compare/v0.3.0...v0.3.1
 [v0.3.0]: https://github.com/qorm/qorm/compare/v0.2.6...v0.3.0
 [v0.2.5]: https://github.com/qorm/qorm/compare/v0.2.4...v0.2.5
