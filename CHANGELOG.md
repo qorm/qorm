@@ -6,6 +6,41 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+## [v0.3.3] - 2026-07-23
+
+### Security
+- Stored / reflected XSS in the renderer: node `id`s were interpolated
+  into the `id=` attribute (and notification `data-title` / `data-body`)
+  with Go `%q` but no HTML escaping, so a `"><script>…` id or title broke
+  out into live markup. All 123 `id` sites now route through an
+  `html.EscapeString` helper, and the notify data attributes are escaped
+  too. Transparent to clients — the browser decodes entities back into
+  `element.id`, safe ids render byte-identically, and handler tables are
+  index-based.
+- Bundle revocation failed open: `LoadRevocation` accepted `null` / `{}`
+  / `{"revoked":null}` / foreign JSON as an *empty* revocation list, so a
+  hijacked revocation endpoint could silently re-enable a revoked signing
+  key. It now fails closed; only `{"revoked":[]}` (and the array
+  shorthand) is a valid "nothing revoked" list.
+
+### Fixed
+- Loader round-trip data loss (MCP patch / bundle re-packaging):
+  `NodeToJSON` dropped `data` without a template; `ActionToJSON` dropped
+  navigate `to` / `back` / `from` / `params`; `ManifestToJSON` dropped
+  branding / designTokens / pluginABI / widgets / menu / tray and zeroed
+  window dimensions on a direct `FromDocs` round trip; a missing entry
+  scene produced no diagnostic; `forEachExpr` mis-split `}}` inside string
+  literals into a false binding warning.
+- Expression parser: malformed number literals (`1.2.3`) silently
+  evaluated to `0`, and unterminated strings were accepted; both now error.
+- `colWidth(" 50 ")` emitted invalid ` 50 px`; now `50px`.
+
+### Added
+- Test coverage + adversarial bug-hunt for the parse / validate / sign /
+  render core (`internal/expr` → 100%, `internal/render` → 99.5%,
+  `internal/bundle` → 99.2%, `internal/loader` → 95.6%; 134 new tests) —
+  the round that surfaced every fix above.
+
 ## [v0.3.2] - 2026-07-22
 
 ### Fixed
@@ -334,6 +369,7 @@ Initial release: QORM, an agent-native declarative-UI runtime in pure Go.
 - Render performance: cached parsed expressions and reflection-free CSS
   numeric writes in the hot path.
 
+[v0.3.3]: https://github.com/qorm/qorm/compare/v0.3.2...v0.3.3
 [v0.3.2]: https://github.com/qorm/qorm/compare/v0.3.1...v0.3.2
 [v0.3.1]: https://github.com/qorm/qorm/compare/v0.3.0...v0.3.1
 [v0.3.0]: https://github.com/qorm/qorm/compare/v0.2.6...v0.3.0
