@@ -7,6 +7,17 @@ All notable changes to QORM are documented here. The format is based on
 ## [Unreleased]
 
 ### Security
+- Renderer injection hardening completed: the style-attribute breakout
+  (author / bound style values interpolated raw into the quoted `style="…"`)
+  and the SVG `fill=` / `stroke=` breakout (chart / circular-progress
+  colours) are now entity-encoded — closing the last of the attribute-
+  injection classes alongside the `id=` / `name=` / `data-scene` /
+  `data-title` / `data-body` escaping, the `</script>` close-tag
+  neutralisation and the `safeURL` href scheme allowlist from v0.3.3.
+- Cross-origin leaks on the live server: `/events` (an `EventSource` does
+  not enforce CORS, so any page could read the live UI) and the
+  unauthenticated `/measure` sink (CSRF / DNS-rebind write poisoning of the
+  agent's layout decisions) are now behind the cross-origin guard.
 - Self-update downgrade gap: `qorm update` decided "update available" by
   version equality only, so a compromised or misconfigured release endpoint
   serving an OLDER validly-signed release would have been installed as a
@@ -15,10 +26,27 @@ All notable changes to QORM are documented here. The format is based on
   (numeric `X.Y.Z` core, optional leading `v`, a prerelease of the same
   `X.Y.Z` sorts older than the release, build metadata ignored) and installs
   only a STRICTLY NEWER release; equal, older, and unparseable remote tags
-  are refused without replacing the binary and exit 0. Covered by
-  table-driven compare unit tests and an end-to-end loopback test (an older
-  or malformed served signed release is not installed; a strictly newer
-  signed release still is).
+  are refused without replacing the binary and exit 0.
+- `qorm verify --revoked` without `--trust` silently skipped the revocation
+  check yet reported the bundle as revocation-verified; it now fails closed.
+
+### Fixed
+- Server live-sync: SSE reconnect now honours `Last-Event-ID` (catch-up
+  snapshot when behind) and a first-connect revision handshake closes the
+  lost-mutation window between page render and `EventSource` open; frames
+  carry `id: <rev>`. The audit hash chain now covers the display time field
+  (a timestamp edit was previously undetectable); a deep-link no longer
+  leaks a navigation direction into the next broadcast; `/measure` rejects
+  empty / non-JSON bodies with `400`.
+- Runtime correctness: descending `state.sort` was unstable (an invalid
+  `!less` comparator reversed equal-key runs); a nested ICU plural `#`
+  resolved to the outer argument; `state.clear` on a boolean yielded `""`
+  instead of `false`; an `http.*` step with a structured (map / list) body
+  sent Go `%v` syntax instead of valid JSON.
+
+### Added
+- Regression / adversarial coverage for all of the above; the round-7
+  top-up returns `internal/loader` and `internal/bundle` to 100%.
 
 ## [v0.3.3] - 2026-07-23
 
@@ -383,6 +411,7 @@ Initial release: QORM, an agent-native declarative-UI runtime in pure Go.
 - Render performance: cached parsed expressions and reflection-free CSS
   numeric writes in the hot path.
 
+[v0.3.4]: https://github.com/qorm/qorm/compare/v0.3.3...v0.3.4
 [v0.3.3]: https://github.com/qorm/qorm/compare/v0.3.2...v0.3.3
 [v0.3.2]: https://github.com/qorm/qorm/compare/v0.3.1...v0.3.2
 [v0.3.1]: https://github.com/qorm/qorm/compare/v0.3.0...v0.3.1
