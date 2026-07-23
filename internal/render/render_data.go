@@ -30,7 +30,7 @@ func (r *renderer) list(n *model.Node) {
 			reorderH = r.register(inv)
 		}
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, r.containerCSS(n)+"flex-direction:column;")
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), r.containerCSS(n)+"flex-direction:column;")
 	prev := r.scope
 	prevSuf := r.idSuffix
 	for i, it := range items {
@@ -61,7 +61,7 @@ func (r *renderer) list(n *model.Node) {
 // the active tab. Tab switching is handled client-side (no state round-trip).
 func (r *renderer) tabs(n *model.Node) {
 	labels := stringList(n.Props["tabs"])
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, r.boxCSS(n)+"display:flex;flex-direction:column;")
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;")
 	r.sb.WriteString(`<div class="qorm-tabbar" style="display:flex;gap:2px;border-bottom:1px solid var(--sep);">`)
 	for i, lbl := range labels {
 		active := ""
@@ -91,7 +91,7 @@ func (r *renderer) expansionTile(n *model.Node) {
 	if propStr(n, "initiallyExpanded") == "true" {
 		open = " open"
 	}
-	fmt.Fprintf(&r.sb, `<details id=%q style=%q%s>`, n.ID, r.boxCSS(n)+"border-bottom:1px solid var(--sep);", open)
+	fmt.Fprintf(&r.sb, `<details id=%q style=%q%s>`, attrID(n.ID), r.boxCSS(n)+"border-bottom:1px solid var(--sep);", open)
 	fmt.Fprintf(&r.sb, `<summary style="display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;list-style:none;">`)
 	if lead := r.interp(propStr(n, "leading")); lead != "" {
 		fmt.Fprintf(&r.sb, `<span style="font-size:20px;display:inline-flex;align-items:center;">%s</span>`, iconOrText(lead, 20))
@@ -111,7 +111,7 @@ func (r *renderer) listTile(n *model.Node) {
 	if n.OnPress != nil {
 		style += "cursor:pointer;"
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s%s>`, n.ID, style, a11y(n), r.pressAttr(n))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s%s>`, attrID(n.ID), style, a11y(n), r.pressAttr(n))
 	if lead := r.interp(propStr(n, "leading")); lead != "" {
 		fmt.Fprintf(&r.sb, `<div style="font-size:22px;flex:none;display:inline-flex;align-items:center;">%s</div>`, iconOrText(lead, 22))
 	}
@@ -187,7 +187,7 @@ func (r *renderer) datatable(n *model.Node) {
 			break
 		}
 	}
-	fmt.Fprintf(&r.sb, `<table id=%q class="qorm-datatable" style=%q>`, n.ID, r.boxCSS(n))
+	fmt.Fprintf(&r.sb, `<table id=%q class="qorm-datatable" style=%q>`, attrID(n.ID), r.boxCSS(n))
 	r.sb.WriteString(colGroup(colWidths(n.Props["columns"]), selectable))
 	r.sb.WriteString("<thead><tr>")
 	if selectable {
@@ -250,7 +250,7 @@ func (r *renderer) table(n *model.Node) {
 	rows := r.boundArray(n, "data")
 	sortField := r.interp(propStr(n, "sortField"))
 	sortDir := r.interp(propStr(n, "sortDir"))
-	fmt.Fprintf(&r.sb, `<table id=%q class="qorm-table" style=%q>`, n.ID, r.boxCSS(n))
+	fmt.Fprintf(&r.sb, `<table id=%q class="qorm-table" style=%q>`, attrID(n.ID), r.boxCSS(n))
 	r.sb.WriteString(colGroup(colWidths(n.Props["columns"]), false))
 	r.sb.WriteString("<thead><tr>")
 	for _, c := range cols {
@@ -316,14 +316,17 @@ func colWidths(v any) []string {
 }
 
 // colWidth normalizes a column `width`: a number means px, a string passes
-// through as CSS (a bare numeric string still means px).
+// through as CSS (a bare numeric string still means px). A numeric string is
+// trimmed before appending px so " 50 " yields valid CSS ("50px"), not the
+// untrimmed " 50 px" the browser drops as malformed.
 func colWidth(v any) string {
 	switch t := v.(type) {
 	case float64:
 		return num(t) + "px"
 	case string:
-		if _, err := strconv.ParseFloat(strings.TrimSpace(t), 64); err == nil {
-			return t + "px"
+		trimmed := strings.TrimSpace(t)
+		if _, err := strconv.ParseFloat(trimmed, 64); err == nil {
+			return trimmed + "px"
 		}
 		return t
 	}
@@ -360,7 +363,7 @@ func colGroup(widths []string, extraLeading bool) string {
 	return b.String()
 }
 func (r *renderer) accordion(n *model.Node) {
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, r.boxCSS(n)+"display:flex;flex-direction:column;border:1px solid var(--sep);border-radius:10px;overflow:hidden;")
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;border:1px solid var(--sep);border-radius:10px;overflow:hidden;")
 	for i, c := range n.Children {
 		open := i == 0
 		disp := "none"
@@ -382,7 +385,7 @@ func (r *renderer) rating(n *model.Node) {
 	max := int(propNum(n, "max", 5))
 	style := r.boxCSS(n) + "display:inline-flex;gap:2px;font-size:" + num(propNum(n, "size", 18)) + "px;color:#f59e0b;"
 	sz := propNum(n, "size", 18)
-	fmt.Fprintf(&r.sb, `<span id=%q style=%q role="img" aria-label="%d of %d">`, n.ID, style, val, max)
+	fmt.Fprintf(&r.sb, `<span id=%q style=%q role="img" aria-label="%d of %d">`, attrID(n.ID), style, val, max)
 	for i := 1; i <= max; i++ {
 		if i <= val {
 			r.sb.WriteString(iconSVG("star", sz))
@@ -398,7 +401,7 @@ func (r *renderer) rating(n *model.Node) {
 func (r *renderer) steps(n *model.Node) {
 	labels := stringList(n.Props["steps"])
 	active := int(asFloat(runtime.EvalBinding(propStr(n, "active"), r.ctx())))
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, r.boxCSS(n)+"display:flex;align-items:center;gap:6px;")
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), r.boxCSS(n)+"display:flex;align-items:center;gap:6px;")
 	for i, lbl := range labels {
 		done := i <= active
 		circleBg, circleFg := "var(--sep)", "var(--label2)"
@@ -419,7 +422,7 @@ func (r *renderer) steps(n *model.Node) {
 func (r *renderer) breadcrumb(n *model.Node) {
 	items := stringList(n.Props["items"])
 	sep := propStrOr(n, "separator", "/")
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, r.boxCSS(n)+"display:flex;gap:8px;align-items:center;font-size:14px;color:var(--label2);")
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), r.boxCSS(n)+"display:flex;gap:8px;align-items:center;font-size:14px;color:var(--label2);")
 	for i, it := range items {
 		color := "#6b7280"
 		if i == len(items)-1 {
@@ -438,7 +441,7 @@ func (r *renderer) breadcrumb(n *model.Node) {
 func (r *renderer) pagination(n *model.Node) {
 	page := int(asFloat(runtime.EvalBinding(propStr(n, "page"), r.ctx())))
 	total := int(propNum(n, "total", 1))
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, r.boxCSS(n)+"display:flex;gap:6px;align-items:center;")
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), r.boxCSS(n)+"display:flex;gap:6px;align-items:center;")
 	btn := func(label string, target int, disabled, active bool) {
 		style := "min-width:32px;height:32px;border:1px solid var(--sep);border-radius:6px;background:var(--surface);cursor:pointer;font-size:14px;"
 		if active {
@@ -464,7 +467,7 @@ func (r *renderer) pagination(n *model.Node) {
 
 // tree renders a nested, natively-collapsible view from `data` ([{label,children}]).
 func (r *renderer) tree(n *model.Node) {
-	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-tree" style=%q>`, n.ID, r.boxCSS(n)+"font-size:14px;")
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-tree" style=%q>`, attrID(n.ID), r.boxCSS(n)+"font-size:14px;")
 	for _, it := range r.boundArray(n, "data") {
 		r.treeItem(it)
 	}
@@ -493,7 +496,7 @@ func (r *renderer) treeItem(v any) {
 
 // timeline renders a vertical dotted timeline from `items` ([{title,text}]).
 func (r *renderer) timeline(n *model.Node) {
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, r.boxCSS(n)+"display:flex;flex-direction:column;")
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;")
 	items := r.boundArray(n, "items")
 	for i, it := range items {
 		obj, _ := it.(map[string]any)
@@ -521,7 +524,7 @@ func (r *renderer) stat(n *model.Node) {
 	if value == "" {
 		value = r.interp(n.Text)
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, r.boxCSS(n)+"display:flex;flex-direction:column;gap:2px;")
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;gap:2px;")
 	if label := r.interp(propStr(n, "label")); label != "" {
 		fmt.Fprintf(&r.sb, `<div style="font-size:12px;color:var(--label2);text-transform:uppercase;letter-spacing:.04em;">%s</div>`, html.EscapeString(label))
 	}
@@ -542,7 +545,7 @@ func (r *renderer) stat(n *model.Node) {
 // empty renders a centered empty-state with icon, title and text.
 func (r *renderer) empty(n *model.Node) {
 	style := r.boxCSS(n) + "display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:32px;text-align:center;"
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, style)
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), style)
 	emptyIcon := propStrOr(n, "icon", "inbox")
 	if svg := iconSVG(emptyIcon, 40); svg != "" {
 		fmt.Fprintf(&r.sb, `<div style="opacity:.6;color:var(--label2);">%s</div>`, svg)
@@ -563,7 +566,7 @@ func (r *renderer) empty(n *model.Node) {
 
 // descriptions renders a two-column key/value list from `items` ([{label,value}]).
 func (r *renderer) descriptions(n *model.Node) {
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, r.boxCSS(n)+"display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:14px;")
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), r.boxCSS(n)+"display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:14px;")
 	for _, it := range r.boundArray(n, "items") {
 		obj, _ := it.(map[string]any)
 		if obj == nil {
@@ -582,7 +585,7 @@ func (r *renderer) descriptions(n *model.Node) {
 func (r *renderer) materialStepper(n *model.Node) {
 	active := int(asFloat(runtime.EvalBinding(propStr(n, "active"), r.ctx())))
 	titles := r.boundArray(n, "steps")
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, r.boxCSS(n)+"display:flex;flex-direction:column;")
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;")
 	for i, t := range titles {
 		done := i < active
 		cur := i == active
@@ -626,7 +629,7 @@ func (r *renderer) materialStepper(n *model.Node) {
 // uppercase header over a rounded surface card whose children are separated by
 // inset hairlines (the standard iOS Settings-style list).
 func (r *renderer) listSection(n *model.Node) {
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, r.boxCSS(n)+"padding:16px;")
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), r.boxCSS(n)+"padding:16px;")
 	if h := r.interp(propStr(n, "header")); h != "" {
 		fmt.Fprintf(&r.sb, `<div style="font-size:13px;color:var(--label2);text-transform:uppercase;letter-spacing:.02em;padding:0 16px 6px;">%s</div>`, html.EscapeString(h))
 	}

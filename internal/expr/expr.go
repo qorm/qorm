@@ -8,6 +8,7 @@
 package expr
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -57,7 +58,11 @@ func parseUncached(src string) (node, error) {
 	if len(src) > maxExprLen {
 		return nil, fmt.Errorf("expression too long (%d bytes, max %d)", len(src), maxExprLen)
 	}
-	p := &parser{toks: lex(src)}
+	toks, err := lex(src)
+	if err != nil {
+		return nil, err
+	}
+	p := &parser{toks: toks}
 	node, err := p.parseExpr()
 	if err != nil {
 		return nil, err
@@ -94,7 +99,11 @@ type token struct {
 	text string
 }
 
-func lex(s string) []token {
+// lex tokenizes s. It reports an error for malformed lexemes — an
+// unterminated string literal, in particular — rather than coercing them into
+// a plausible value: binding expressions come from authored, untrusted JSON,
+// so malformed input must fail loudly.
+func lex(s string) ([]token, error) {
 	var toks []token
 	r := []rune(s)
 	i := 0
@@ -120,6 +129,9 @@ func lex(s string) []token {
 				}
 				sb.WriteRune(r[j])
 				j++
+			}
+			if j >= len(r) {
+				return nil, fmt.Errorf("unterminated string literal (missing closing %q)", string(quote))
 			}
 			toks = append(toks, token{tString, sb.String()})
 			i = j + 1
@@ -147,7 +159,7 @@ func lex(s string) []token {
 		}
 	}
 	toks = append(toks, token{tEOF, ""})
-	return toks
+	return toks, nil
 }
 
 // ---- parser (produces a tiny AST of nodes) ----
@@ -275,7 +287,16 @@ func (p *parser) parsePrimary() (node, error) {
 	switch t.kind {
 	case tNumber:
 		p.next()
-		f, _ := strconv.ParseFloat(t.text, 64)
+		// The lexer greedily consumes digits and dots into one lexeme, so a
+		// malformed literal like "1.2.3" or "9.." arrives here intact; it must
+		// be a parse error, never a silent 0 (bindings are authored JSON).
+		// strconv.ErrRange (a well-formed literal overflowing to +/-Inf or
+		// underflowing to 0) stays lenient, preserving the values the lexer
+		// and evaluator have always produced for such literals.
+		f, err := strconv.ParseFloat(t.text, 64)
+		if err != nil && !errors.Is(err, strconv.ErrRange) {
+			return nil, fmt.Errorf("invalid number literal %q", t.text)
+		}
 		return numLit{f}, nil
 	case tString:
 		p.next()

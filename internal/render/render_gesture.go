@@ -18,7 +18,7 @@ func (r *renderer) controlTile(n *model.Node) {
 	case "radiolisttile":
 		kind = "radio"
 	}
-	fmt.Fprintf(&r.sb, `<label id=%q style=%q>`, n.ID, r.boxCSS(n)+"display:flex;align-items:center;gap:12px;padding:8px 14px;cursor:pointer;")
+	fmt.Fprintf(&r.sb, `<label id=%q style=%q>`, attrID(n.ID), r.boxCSS(n)+"display:flex;align-items:center;gap:12px;padding:8px 14px;cursor:pointer;")
 	ctrl := func() {
 		path := boundPath(n.Value)
 		checked := ""
@@ -74,7 +74,7 @@ func (r *renderer) gestureDetector(n *model.Node) {
 	if attrs != "" || initJS != "" {
 		cursor = "cursor:pointer;"
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s%s>`, r.nid(n), r.boxCSS(n)+cursor, a11y(n), attrs)
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s%s>`, attrID(r.nid(n)), r.boxCSS(n)+cursor, a11y(n), attrs)
 	for _, c := range n.Children {
 		r.node(c)
 	}
@@ -85,8 +85,8 @@ func (r *renderer) gestureDetector(n *model.Node) {
 // hwAdjust renders a hardware widget with -/+ buttons and a live readout
 // (volume, brightness).
 func (r *renderer) hwAdjust(n *model.Node, kind, jsFn string) {
-	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-%s" style=%q>`, n.ID, kind, r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;align-items:stretch;")
-	fmt.Fprintf(&r.sb, `<div id="%s-out" class="qorm-%s-out" style="font-size:15px;color:var(--label);min-height:20px;">—</div>`, n.ID, kind)
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-%s" style=%q>`, attrID(n.ID), kind, r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;align-items:stretch;")
+	fmt.Fprintf(&r.sb, `<div id="%s-out" class="qorm-%s-out" style="font-size:15px;color:var(--label);min-height:20px;">—</div>`, attrID(n.ID), kind)
 	fmt.Fprintf(&r.sb, `<div style="display:flex;gap:8px;"><button type="button" onclick="%s(this,-1)" style="flex:1;padding:12px;border:none;border-radius:12px;background:var(--fill);color:var(--label);font-size:20px;font-weight:600;cursor:pointer;">−</button><button type="button" onclick="%s(this,1)" style="flex:1;padding:12px;border:none;border-radius:12px;background:var(--accent);color:var(--on-accent);font-size:20px;font-weight:600;cursor:pointer;">+</button></div>`, jsFn, jsFn)
 	r.sb.WriteString(`</div>`)
 }
@@ -94,8 +94,8 @@ func (r *renderer) hwAdjust(n *model.Node, kind, jsFn string) {
 // hwList renders a hardware widget that lists results (bluetooth scan, wifi
 // info): a scrolling output area + a scan button wired to a native bridge op.
 func (r *renderer) hwList(n *model.Node, kind, jsFn, defLabel string) {
-	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-%s" style=%q>`, n.ID, kind, r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;align-items:stretch;")
-	fmt.Fprintf(&r.sb, `<div id="%s-out" class="qorm-%s-out" style="font-size:14px;color:var(--label);min-height:20px;white-space:pre-line;font-family:ui-monospace,Menlo,monospace;">—</div>`, n.ID, kind)
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-%s" style=%q>`, attrID(n.ID), kind, r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;align-items:stretch;")
+	fmt.Fprintf(&r.sb, `<div id="%s-out" class="qorm-%s-out" style="font-size:14px;color:var(--label);min-height:20px;white-space:pre-line;font-family:ui-monospace,Menlo,monospace;">—</div>`, attrID(n.ID), kind)
 	fmt.Fprintf(&r.sb, `<button type="button" onclick="%s(this)" style="padding:12px 16px;border:none;border-radius:12px;background:var(--accent);color:var(--on-accent);font-size:16px;font-weight:600;cursor:pointer;">%s</button>`,
 		jsFn, html.EscapeString(propStrOr(n, "label", defLabel)))
 	r.sb.WriteString(`</div>`)
@@ -110,8 +110,8 @@ func (r *renderer) biometric(n *model.Node) {
 	if out == "" {
 		out = "Not authenticated"
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-biometric" style=%q>`, n.ID, r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;align-items:stretch;")
-	fmt.Fprintf(&r.sb, `<div id="%s-out" class="qorm-bio-out" style="font-size:15px;color:var(--label);min-height:20px;">%s</div>`, n.ID, html.EscapeString(out))
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-biometric" style=%q>`, attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;align-items:stretch;")
+	fmt.Fprintf(&r.sb, `<div id="%s-out" class="qorm-bio-out" style="font-size:15px;color:var(--label);min-height:20px;">%s</div>`, attrID(n.ID), html.EscapeString(out))
 	fmt.Fprintf(&r.sb, `<input type="hidden"%s value=%q>`, dataStateAttr(path), val)
 	fmt.Fprintf(&r.sb, `<button type="button" onclick="qormBio(this)" style="padding:12px 16px;border:none;border-radius:12px;background:var(--accent);color:var(--on-accent);font-size:16px;font-weight:600;cursor:pointer;">%s</button>`, html.EscapeString(propStrOr(n, "label", "Authenticate")))
 	r.sb.WriteString(`</div>`)
@@ -126,8 +126,8 @@ func (r *renderer) location(n *model.Node) {
 	if out == "" {
 		out = "Location not set"
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-location" style=%q>`, n.ID, r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;align-items:stretch;")
-	fmt.Fprintf(&r.sb, `<div id="%s-out" class="qorm-loc-out" style="font-size:15px;color:var(--label);min-height:20px;">%s</div>`, n.ID, html.EscapeString(out))
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-location" style=%q>`, attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;align-items:stretch;")
+	fmt.Fprintf(&r.sb, `<div id="%s-out" class="qorm-loc-out" style="font-size:15px;color:var(--label);min-height:20px;">%s</div>`, attrID(n.ID), html.EscapeString(out))
 	fmt.Fprintf(&r.sb, `<input type="hidden"%s value=%q>`, dataStateAttr(path), val)
 	fmt.Fprintf(&r.sb, `<button type="button" onclick="qormGeo(this)" style="padding:12px 16px;border:none;border-radius:12px;background:var(--accent);color:var(--on-accent);font-size:16px;font-weight:600;cursor:pointer;">%s</button>`, iconLabel(propStr(n, "label"), "location", "Get Location"))
 	r.sb.WriteString(`</div>`)
@@ -136,8 +136,8 @@ func (r *renderer) location(n *model.Node) {
 // sensors streams device orientation (accelerometer/gyroscope) live. On iOS it
 // requests DeviceOrientation permission on the enable tap.
 func (r *renderer) sensors(n *model.Node) {
-	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-motion" style=%q>`, n.ID, r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;align-items:stretch;")
-	fmt.Fprintf(&r.sb, `<div id="%s-out" class="qorm-motion-out" style="font-family:ui-monospace,Menlo,monospace;font-size:15px;color:var(--label);min-height:20px;">tilt: —</div>`, n.ID)
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-motion" style=%q>`, attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;align-items:stretch;")
+	fmt.Fprintf(&r.sb, `<div id="%s-out" class="qorm-motion-out" style="font-family:ui-monospace,Menlo,monospace;font-size:15px;color:var(--label);min-height:20px;">tilt: —</div>`, attrID(n.ID))
 	fmt.Fprintf(&r.sb, `<button type="button" onclick="qormMotion(this)" style="padding:12px 16px;border:none;border-radius:12px;background:var(--accent);color:var(--on-accent);font-size:16px;font-weight:600;cursor:pointer;">%s</button>`, iconLabel(propStr(n, "label"), "compass", "Enable Motion"))
 	r.sb.WriteString(`</div>`)
 }
@@ -151,7 +151,7 @@ func (r *renderer) recorder(n *model.Node) {
 	if val != "" {
 		disp = "block"
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-recorder" style=%q>`, n.ID, r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;align-items:stretch;")
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-recorder" style=%q>`, attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;align-items:stretch;")
 	fmt.Fprintf(&r.sb, `<audio class="qorm-rec-audio" controls src=%q style="width:100%%;display:%s;"></audio>`, val, disp)
 	fmt.Fprintf(&r.sb, `<input type="hidden"%s value=%q>`, dataStateAttr(path), val)
 	fmt.Fprintf(&r.sb, `<button type="button" onclick="qormRec(this)" style="padding:12px 16px;border:none;border-radius:12px;background:var(--danger);color:#fff;font-size:16px;font-weight:600;cursor:pointer;">%s</button>`, iconLabel(propStr(n, "label"), "mic", "Record"))
@@ -173,7 +173,7 @@ func (r *renderer) dismissible(n *model.Node) {
 	if svg := iconSVG(icon, 20); svg != "" {
 		iconHTML = svg
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, r.nid(n), r.boxCSS(n)+"position:relative;transition:height .2s,opacity .2s;")
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(r.nid(n)), r.boxCSS(n)+"position:relative;transition:height .2s,opacity .2s;")
 	fmt.Fprintf(&r.sb, `<div style="position:absolute;inset:0;background:var(--danger);display:flex;align-items:center;justify-content:flex-end;padding:0 22px;color:#fff;font-size:20px;">%s</div>`, iconHTML)
 	r.sb.WriteString(`<div class="qorm-dismiss-content" style="position:relative;background:var(--surface);touch-action:pan-y;">`)
 	for _, c := range n.Children {
@@ -194,7 +194,7 @@ func (r *renderer) dismissible(n *model.Node) {
 func (r *renderer) draggable(n *model.Node) {
 	data := r.interp(propStr(n, "data"))
 	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-draggable" data-qorm-drag=%q style=%q%s>`,
-		r.nid(n), html.EscapeString(data), r.boxCSS(n)+"cursor:grab;touch-action:none;", a11y(n))
+		attrID(r.nid(n)), html.EscapeString(data), r.boxCSS(n)+"cursor:grab;touch-action:none;", a11y(n))
 	for _, c := range n.Children {
 		r.node(c)
 	}
@@ -220,7 +220,7 @@ func (r *renderer) dragTarget(n *model.Node) {
 	if h >= 0 {
 		drop = fmt.Sprintf(` data-qorm-drop="%d"`, h)
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-droptarget"%s style=%q%s>`, r.nid(n), drop, r.boxCSS(n), a11y(n))
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-droptarget"%s style=%q%s>`, attrID(r.nid(n)), drop, r.boxCSS(n), a11y(n))
 	for _, c := range n.Children {
 		r.node(c)
 	}
@@ -232,7 +232,7 @@ func (r *renderer) dragTarget(n *model.Node) {
 // tap the content or swipe back to close. actions: [{label,icon,color,name,args}].
 func (r *renderer) swipeActions(n *model.Node) {
 	id := r.nid(n)
-	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-swa" style=%q>`, id, r.boxCSS(n)+"position:relative;overflow:hidden;")
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-swa" style=%q>`, attrID(id), r.boxCSS(n)+"position:relative;overflow:hidden;")
 	r.sb.WriteString(`<div class="qorm-swa-actions" style="position:absolute;top:0;right:0;bottom:0;display:flex;">`)
 	if raw, ok := n.Prop("actions"); ok {
 		if arr, ok := raw.([]any); ok {

@@ -64,9 +64,12 @@ func NodeToJSON(n *model.Node) map[string]any {
 		}
 		m["children"] = kids
 	}
+	// `data` is a typed field (it is in typedKeys, so the extra-props loop
+	// above never carries it through) and is valid with or without a
+	// renderItem template — emit it whenever it is set.
+	putIf(m, "data", n.Data)
 	if n.Template != nil {
 		m["renderItem"] = NodeToJSON(n.Template)
-		putIf(m, "data", n.Data)
 	}
 	return m
 }
@@ -83,6 +86,14 @@ func ManifestToJSON(app *model.App) map[string]any {
 	putIf(m, "name", app.Name)
 	putIf(m, "entry", app.Entry)
 	putIf(m, "defaultLocale", app.DefaultLocale)
+	putIf(m, "theme", app.Theme)
+	// The loader defaults branding to true when the key is absent, so only
+	// an explicit false must be written out for the round trip to preserve
+	// the white-label opt-out.
+	if !app.Branding {
+		m["branding"] = false
+	}
+	putIf(m, "pluginABI", app.PluginABI)
 	gs := map[string]any{}
 	if len(app.GlobalState.Schema) > 0 {
 		gs["schema"] = copyStrMap(app.GlobalState.Schema)
@@ -92,6 +103,50 @@ func ManifestToJSON(app *model.App) map[string]any {
 	}
 	if len(gs) > 0 {
 		m["globalState"] = gs
+	}
+	if len(app.DesignTokens) > 0 {
+		toks := map[string]any{}
+		for name, dt := range app.DesignTokens {
+			tok := map[string]any{}
+			putIf(tok, "type", dt.Type)
+			putIf(tok, "value", dt.Value)
+			if dt.Enforce {
+				tok["enforce"] = true
+			}
+			toks[name] = tok
+		}
+		m["designTokens"] = toks
+	}
+	if len(app.Widgets) > 0 {
+		ws := make([]any, 0, len(app.Widgets))
+		for _, w := range app.Widgets {
+			item := map[string]any{}
+			putIf(item, "id", w.ID)
+			putIf(item, "name", w.Name)
+			putIf(item, "title", w.Title)
+			if len(w.Lines) > 0 {
+				lines := make([]any, 0, len(w.Lines))
+				for _, ln := range w.Lines {
+					lines = append(lines, map[string]any{"label": ln.Label, "value": ln.Value})
+				}
+				item["lines"] = lines
+			}
+			ws = append(ws, item)
+		}
+		m["widgets"] = ws
+	}
+	desktop := map[string]any{}
+	if len(app.DesktopMenu) > 0 {
+		desktop["menu"] = menuGroupsToJSON(app.DesktopMenu)
+	}
+	if app.Tray.Icon != "" || app.Tray.Tip != "" || len(app.Tray.Items) > 0 {
+		tray := map[string]any{}
+		putIf(tray, "icon", app.Tray.Icon)
+		putIf(tray, "tip", app.Tray.Tip)
+		if len(app.Tray.Items) > 0 {
+			tray["items"] = menuItemsToJSON(app.Tray.Items)
+		}
+		desktop["tray"] = tray
 	}
 	if app.Window != (model.Window{}) {
 		win := map[string]any{}
@@ -111,9 +166,11 @@ func ManifestToJSON(app *model.App) map[string]any {
 		if app.Window.Resizable {
 			win["resizable"] = true
 		}
-		m["platforms"] = map[string]any{"desktop": map[string]any{"window": win}}
+		desktop["window"] = win
 	}
-	putIf(m, "theme", app.Theme)
+	if len(desktop) > 0 {
+		m["platforms"] = map[string]any{"desktop": desktop}
+	}
 	if len(app.Components) > 0 {
 		comps := map[string]any{}
 		for name, node := range app.Components {
@@ -149,6 +206,16 @@ func ActionToJSON(a *model.Action) map[string]any {
 		putIf(s, "body", st.Body)
 		putIf(s, "result", st.Result)
 		putIf(s, "error", st.Error)
+		// navigate (and state.move) targeting fields: without these a
+		// re-serialised navigate step loses its target scene.
+		putIf(s, "to", st.To)
+		if st.Back {
+			s["back"] = true
+		}
+		putIf(s, "from", st.From)
+		if len(st.Params) > 0 {
+			s["params"] = copyStrMap(st.Params)
+		}
 		if st.Object != nil {
 			s["item"] = copyStrMap(st.Object)
 		}
@@ -175,6 +242,41 @@ func AppToDocs(app *model.App) []map[string]any {
 
 func invokeToJSON(inv *model.Invoke) map[string]any {
 	return map[string]any{"type": "invoke", "name": inv.Name, "args": copyStrMap(inv.Args)}
+}
+
+// menuGroupsToJSON serialises menu-bar groups — the inverse of
+// parseMenuGroups.
+func menuGroupsToJSON(groups []model.MenuGroup) []any {
+	out := make([]any, 0, len(groups))
+	for _, g := range groups {
+		item := map[string]any{"title": g.Title}
+		if len(g.Items) > 0 {
+			item["items"] = menuItemsToJSON(g.Items)
+		}
+		out = append(out, item)
+	}
+	return out
+}
+
+// menuItemsToJSON serialises menu items — the inverse of parseMenuItems.
+func menuItemsToJSON(items []model.MenuItem) []any {
+	out := make([]any, 0, len(items))
+	for _, it := range items {
+		item := map[string]any{}
+		putIf(item, "id", it.ID)
+		putIf(item, "title", it.Title)
+		putIf(item, "icon", it.Icon)
+		putIf(item, "shortcut", it.Shortcut)
+		putIf(item, "role", it.Role)
+		if it.Separator {
+			item["separator"] = true
+		}
+		if len(it.Items) > 0 {
+			item["items"] = menuItemsToJSON(it.Items)
+		}
+		out = append(out, item)
+	}
+	return out
 }
 
 // copyStrMap copies a map[string]string into a fresh map[string]any, so the

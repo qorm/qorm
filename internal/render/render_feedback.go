@@ -16,7 +16,7 @@ func (r *renderer) snackbar(n *model.Node) {
 		}
 	}
 	style := r.boxCSS(n) + "position:fixed;left:50%;bottom:20px;transform:translateX(-50%);display:flex;align-items:center;gap:16px;background:#323232;color:#fff;padding:12px 18px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.3);z-index:60;"
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q role="status">`, n.ID, style)
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q role="status">`, attrID(n.ID), style)
 	fmt.Fprintf(&r.sb, `<span style="font-size:14px;">%s</span>`, html.EscapeString(r.interp(labelOf(n))))
 	if act := r.interp(propStr(n, "action")); act != "" {
 		fmt.Fprintf(&r.sb, `<button style="background:none;border:none;color:#7cc0ff;font-weight:600;cursor:pointer;"%s>%s</button>`,
@@ -30,7 +30,7 @@ func (r *renderer) badge(n *model.Node) {
 	// Flutter Badge(child): with children, render a corner count/dot over the
 	// wrapped child; a "0"/empty count is hidden unless showZero.
 	if len(n.Children) > 0 {
-		fmt.Fprintf(&r.sb, `<span id=%q style=%q>`, n.ID, r.boxCSS(n)+"position:relative;display:inline-flex;")
+		fmt.Fprintf(&r.sb, `<span id=%q style=%q>`, attrID(n.ID), r.boxCSS(n)+"position:relative;display:inline-flex;")
 		for _, c := range n.Children {
 			r.node(c)
 		}
@@ -48,7 +48,7 @@ func (r *renderer) badge(n *model.Node) {
 	}
 	style := r.boxCSS(n) + r.textCSS(n) +
 		"display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;background:var(--fill);color:var(--label2);"
-	fmt.Fprintf(&r.sb, `<span id=%q style=%q%s>%s</span>`, n.ID, style, a11y(n), html.EscapeString(label))
+	fmt.Fprintf(&r.sb, `<span id=%q style=%q%s>%s</span>`, attrID(n.ID), style, a11y(n), html.EscapeString(label))
 }
 
 func (r *renderer) progress(n *model.Node) {
@@ -60,14 +60,14 @@ func (r *renderer) progress(n *model.Node) {
 	fill := propStrOr(n, "color", "var(--accent)")
 	track := r.boxCSS(n) + "background:var(--fill);overflow:hidden;border-radius:999px;min-height:8px;width:100%;"
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q role="progressbar"><div style="width:%g%%;height:100%%;background:%s;transition:width .2s;"></div></div>`,
-		n.ID, track, pct, fill)
+		attrID(n.ID), track, pct, fill)
 }
 
 func (r *renderer) spinner(n *model.Node) {
 	size := propNum(n, "size", 24)
 	color := propStrOr(n, "color", "var(--accent)")
 	style := fmt.Sprintf("width:%gpx;height:%gpx;border:3px solid var(--sep);border-top-color:%s;border-radius:50%%;", size, size, color)
-	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-spin" style=%q role="status" aria-label="loading"></div>`, n.ID, r.boxCSS(n)+style)
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-spin" style=%q role="status" aria-label="loading"></div>`, attrID(n.ID), r.boxCSS(n)+style)
 }
 
 // dismissH wires the default dismiss behavior of overlay widgets: when `open`
@@ -98,7 +98,7 @@ func (r *renderer) modal(n *model.Node) {
 		backdrop = fmt.Sprintf(` onclick="if(event.target===this)qorm(%d)"`, h)
 		esc = fmt.Sprintf(` data-dismiss-h="%d"`, h)
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q role="dialog" aria-modal="true"%s%s><div style=%q>`, n.ID, overlay, backdrop, esc, panel)
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q role="dialog" aria-modal="true"%s%s><div style=%q>`, attrID(n.ID), overlay, backdrop, esc, panel)
 	if t := r.interp(propStr(n, "title")); t != "" {
 		fmt.Fprintf(&r.sb, `<div style="font-size:18px;font-weight:700;">%s</div>`, html.EscapeString(t))
 	}
@@ -112,7 +112,7 @@ func (r *renderer) modal(n *model.Node) {
 func (r *renderer) alert(n *model.Node) {
 	bg, fg, icon := alertColors(propStrOr(n, "variant", "info"))
 	style := r.boxCSS(n) + fmt.Sprintf("display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:12px;background:%s;color:%s;", bg, fg)
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q role="alert"><span>%s</span><div style="display:flex;flex-direction:column;gap:2px;">`, n.ID, style, icon)
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q role="alert"><span>%s</span><div style="display:flex;flex-direction:column;gap:2px;">`, attrID(n.ID), style, icon)
 	if t := r.interp(propStr(n, "title")); t != "" {
 		fmt.Fprintf(&r.sb, `<div style="font-weight:700;">%s</div>`, html.EscapeString(t))
 	}
@@ -122,7 +122,7 @@ func (r *renderer) alert(n *model.Node) {
 // tag renders a pill/chip, optionally removable.
 func (r *renderer) tag(n *model.Node) {
 	style := r.boxCSS(n) + r.textCSS(n) + "display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:999px;background:var(--fill);color:var(--label2);font-size:13px;"
-	fmt.Fprintf(&r.sb, `<span id=%q style=%q>%s`, n.ID, style, html.EscapeString(r.interp(labelOf(n))))
+	fmt.Fprintf(&r.sb, `<span id=%q style=%q>%s`, attrID(n.ID), style, html.EscapeString(r.interp(labelOf(n))))
 	if n.OnPress != nil { // acts as remove
 		fmt.Fprintf(&r.sb, `<button onclick="qorm(%d)" style="border:none;background:none;cursor:pointer;color:inherit;font-size:14px;line-height:1;">×</button>`, r.register(n.OnPress))
 	}
@@ -132,7 +132,7 @@ func (r *renderer) tag(n *model.Node) {
 // skeleton renders a shimmering loading placeholder.
 func (r *renderer) skeleton(n *model.Node) {
 	style := r.boxCSS(n) + "min-height:14px;border-radius:6px;"
-	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-skel" style=%q aria-hidden="true"></div>`, n.ID, style)
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-skel" style=%q aria-hidden="true"></div>`, attrID(n.ID), style)
 }
 
 // menu renders a trigger label plus a client-toggled dropdown panel. An `items`
@@ -142,7 +142,7 @@ func (r *renderer) skeleton(n *model.Node) {
 // names resolve against the built-in icon set. Children still render below the
 // items, so a children-built menu keeps working.
 func (r *renderer) menu(n *model.Node) {
-	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-menu" style=%q>`, n.ID, r.boxCSS(n)+"position:relative;display:inline-block;")
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-menu" style=%q>`, attrID(n.ID), r.boxCSS(n)+"position:relative;display:inline-block;")
 	fmt.Fprintf(&r.sb, `<button onclick="qormMenu(this)" style="display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border:1px solid var(--sep);border-radius:8px;background:var(--surface);cursor:pointer;font-size:14px;">%s ▾</button>`,
 		html.EscapeString(r.interp(labelOf(n))))
 	r.sb.WriteString(`<div class="qorm-menu-panel" style="display:none;position:absolute;top:100%;left:0;margin-top:4px;background:var(--surface);border:1px solid var(--sep);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);min-width:160px;z-index:40;padding:4px;">`)
@@ -199,7 +199,7 @@ func (r *renderer) circularProgress(n *model.Node) {
 	color := propStrOr(n, "color", "var(--accent)")
 	cx := size / 2
 	fmt.Fprintf(&r.sb, `<svg id=%q width="%g" height="%g" viewBox="0 0 %g %g" style=%q%s>`,
-		n.ID, size, size, size, size, r.boxCSS(n), a11y(n))
+		attrID(n.ID), size, size, size, size, r.boxCSS(n), a11y(n))
 	fmt.Fprintf(&r.sb, `<circle cx="%g" cy="%g" r="%g" fill="none" stroke="var(--sep)" stroke-width="%g"/>`, cx, cx, rad, stroke)
 	if v := propStr(n, "value"); v != "" {
 		frac := asFloat(runtime.EvalBinding(v, r.ctx()))
@@ -252,7 +252,7 @@ func (r *renderer) alertDialog(n *model.Node) {
 		}
 	}
 	r.sb.WriteString(`<div style="position:fixed;inset:0;background:rgba(0,0,0,.28);display:flex;align-items:center;justify-content:center;z-index:70;">`)
-	fmt.Fprintf(&r.sb, `<div id=%q style="width:270px;background:var(--surface);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-radius:14px;overflow:hidden;text-align:center;">`, n.ID)
+	fmt.Fprintf(&r.sb, `<div id=%q style="width:270px;background:var(--surface);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-radius:14px;overflow:hidden;text-align:center;">`, attrID(n.ID))
 	r.sb.WriteString(`<div style="padding:18px 16px 14px;">`)
 	if t := r.interp(propStr(n, "title")); t != "" {
 		fmt.Fprintf(&r.sb, `<div style="font-size:17px;font-weight:600;color:#000;">%s</div>`, html.EscapeString(t))
@@ -306,7 +306,7 @@ func (r *renderer) actionSheet(n *model.Node) {
 		esc = fmt.Sprintf(` data-dismiss-h="%d"`, h)
 	}
 	fmt.Fprintf(&r.sb, `<div class="qorm-sheet" style="position:fixed;inset:0;background:rgba(0,0,0,.28);display:flex;align-items:flex-end;justify-content:center;z-index:70;padding:8px;"%s%s>`, backdrop, esc)
-	fmt.Fprintf(&r.sb, `<div id=%q style="width:100%%;max-width:400px;">`, n.ID)
+	fmt.Fprintf(&r.sb, `<div id=%q style="width:100%%;max-width:400px;">`, attrID(n.ID))
 	// group card
 	r.sb.WriteString(`<div style="background:var(--surface);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-radius:14px;overflow:hidden;text-align:center;">`)
 	if t := r.interp(propStr(n, "title")); t != "" {
@@ -340,7 +340,7 @@ func (r *renderer) actionSheet(n *model.Node) {
 func (r *renderer) activityIndicator(n *model.Node) {
 	size := propNum(n, "size", 20)
 	fmt.Fprintf(&r.sb, `<span id=%q class="qorm-activity" style=%q><svg width="%g" height="%g" viewBox="0 0 20 20">`,
-		n.ID, r.boxCSS(n), size, size)
+		attrID(n.ID), r.boxCSS(n), size, size)
 	for i := 0; i < 8; i++ {
 		op := 0.25 + 0.75*float64(i)/7
 		fmt.Fprintf(&r.sb, `<rect x="9" y="2" width="2" height="5" rx="1" fill="var(--label2)" opacity="%g" transform="rotate(%d 10 10)"/>`, op, i*45)
@@ -361,8 +361,11 @@ func (r *renderer) notify(n *model.Node) {
 		// framework's SVG icons nor emoji can appear here.
 		body = "Hello from your QORM app"
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-notify" data-title=%q data-body=%q style=%q>`, n.ID, title, body, r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;align-items:stretch;")
-	fmt.Fprintf(&r.sb, `<div id="%s-out" class="qorm-notify-out" style="font-size:15px;color:var(--label);min-height:20px;">%s</div>`, n.ID, "")
+	// data-title/data-body are HTML attributes, so they need html.EscapeString
+	// (not just %q, whose backslash quoting an HTML parser ignores — a raw quote
+	// would terminate the attribute and let an untrusted title/body inject markup).
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-notify" data-title=%q data-body=%q style=%q>`, attrID(n.ID), html.EscapeString(title), html.EscapeString(body), r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;align-items:stretch;")
+	fmt.Fprintf(&r.sb, `<div id="%s-out" class="qorm-notify-out" style="font-size:15px;color:var(--label);min-height:20px;">%s</div>`, attrID(n.ID), "")
 	fmt.Fprintf(&r.sb, `<button type="button" onclick="qormNotify(this)" style="padding:12px;border:none;border-radius:12px;background:var(--accent);color:var(--on-accent);font-size:16px;font-weight:600;cursor:pointer;">%s</button>`, iconLabel(n.Label, "bell", "Send Notification"))
 	r.sb.WriteString(`</div>`)
 }

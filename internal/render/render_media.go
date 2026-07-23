@@ -13,14 +13,14 @@ func (r *renderer) image(n *model.Node) {
 	src := propStr(n, "src")
 	style := r.boxCSS(n) + "object-fit:" + propStrOr(n, "fit", "cover") + ";"
 	fmt.Fprintf(&r.sb, `<img id=%q src=%q style=%q alt=%q%s>`,
-		n.ID, html.EscapeString(src), style, html.EscapeString(propStr(n, "alt")), a11y(n))
+		attrID(n.ID), html.EscapeString(src), style, html.EscapeString(propStr(n, "alt")), a11y(n))
 }
 
 func (r *renderer) avatar(n *model.Node) {
 	size := propNum(n, "size", 40)
 	base := fmt.Sprintf("width:%gpx;height:%gpx;border-radius:50%%;overflow:hidden;flex-shrink:0;", size, size)
 	if src := propStr(n, "src"); src != "" {
-		fmt.Fprintf(&r.sb, `<img id=%q src=%q style=%q alt="">`, n.ID, html.EscapeString(src), r.boxCSS(n)+base+"object-fit:cover;")
+		fmt.Fprintf(&r.sb, `<img id=%q src=%q style=%q alt="">`, attrID(n.ID), html.EscapeString(src), r.boxCSS(n)+base+"object-fit:cover;")
 		return
 	}
 	initials := r.interp(propStrOr(n, "initials", propStr(n, "name")))
@@ -29,7 +29,7 @@ func (r *renderer) avatar(n *model.Node) {
 	}
 	style := r.boxCSS(n) + base + r.textCSS(n) +
 		"display:inline-flex;align-items:center;justify-content:center;background:#6366f1;color:#fff;font-weight:600;"
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>%s</div>`, n.ID, style, html.EscapeString(strings.ToUpper(initials)))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q>%s</div>`, attrID(n.ID), style, html.EscapeString(strings.ToUpper(initials)))
 }
 
 func (r *renderer) icon(n *model.Node) {
@@ -38,10 +38,10 @@ func (r *renderer) icon(n *model.Node) {
 	// Prefer a built-in SVG icon (the framework's alternative to emoji); fall
 	// back to the raw text/glyph for names we don't ship.
 	if svg := iconSVG(name, propNum(n, "size", 22)); svg != "" {
-		fmt.Fprintf(&r.sb, `<span id=%q style=%q%s>%s</span>`, n.ID, style, a11y(n), svg)
+		fmt.Fprintf(&r.sb, `<span id=%q style=%q%s>%s</span>`, attrID(n.ID), style, a11y(n), svg)
 		return
 	}
-	fmt.Fprintf(&r.sb, `<span id=%q style=%q%s>%s</span>`, n.ID, style, a11y(n), html.EscapeString(name))
+	fmt.Fprintf(&r.sb, `<span id=%q style=%q%s>%s</span>`, attrID(n.ID), style, a11y(n), html.EscapeString(name))
 }
 
 // chart renders a bar / line / area / sparkline as inline SVG. Data is a bound
@@ -68,7 +68,7 @@ func (r *renderer) chart(n *model.Node) {
 	// width, caps at the container (no overflow), and keeps a non-zero
 	// max-content so it never collapses a shrink-to-fit parent to 0.
 	fmt.Fprintf(&r.sb, `<svg id=%q width="%g" height="%g" viewBox="0 0 %g %g" preserveAspectRatio="none" style="display:block;max-width:100%%;height:%gpx;%s">%s</svg>`,
-		n.ID, w, h, w, h, h, extra, inner)
+		attrID(n.ID), w, h, w, h, h, extra, inner)
 }
 
 func (r *renderer) chartData(n *model.Node) []float64 {
@@ -86,5 +86,5 @@ func (r *renderer) chartData(n *model.Node) []float64 {
 
 func (r *renderer) video(n *model.Node) {
 	fmt.Fprintf(&r.sb, `<video id=%q src=%q controls style=%q></video>`,
-		n.ID, html.EscapeString(propStr(n, "src")), r.boxCSS(n))
+		attrID(n.ID), html.EscapeString(propStr(n, "src")), r.boxCSS(n))
 }

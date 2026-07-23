@@ -117,6 +117,19 @@ func FromDocs(docs []map[string]any) *model.App {
 	if app.Entry == "" {
 		app.Entry = "main"
 	}
+	// A dangling entry used to be silently masked by EntryRoot's any-scene
+	// fallback; surface it so a misconfigured manifest is diagnosed. (No
+	// scenes at all is not an error: a manifest-less or still-empty app.)
+	if len(app.Scenes) > 0 {
+		if _, ok := app.Scenes[app.Entry]; !ok {
+			ids := make([]string, 0, len(app.Scenes))
+			for id := range app.Scenes {
+				ids = append(ids, id)
+			}
+			sort.Strings(ids)
+			diags = append(diags, fmt.Sprintf("error: entry scene %q does not exist (scenes: %s)", app.Entry, strings.Join(ids, ", ")))
+		}
+	}
 	app.Diagnostics = diags
 	return app
 }
@@ -539,7 +552,11 @@ func checkExpressions(m map[string]any, diags *[]string, sceneID, nodeID string,
 			continue
 		}
 		forEachExpr(strVal, func(src string) {
-			if len(src) > 0 && !strings.Contains(src, ".") &&
+			// A string-literal expression (e.g. {{ '}}' }} or {{ "x" }}) is a
+			// constant, not a bare state/prop binding, so the "add a prefix"
+			// suggestion does not apply.
+			isStrLit := len(src) > 0 && (src[0] == '\'' || src[0] == '"')
+			if len(src) > 0 && !isStrLit && !strings.Contains(src, ".") &&
 				!strings.Contains(src, "(") &&
 				src != "true" && src != "false" {
 				*diags = append(*diags, fmt.Sprintf("[Scene: %s] 节点 (id: %q) 表达式 %q 使用了非标准的绑定，属性值绑定建议加上前缀，如 'state.%s' 或 'prop.%s'。", sceneID, nodeID, "{{"+src+"}}", src, src))
@@ -558,13 +575,43 @@ func forEachExpr(s string, fn func(src string)) {
 		if start == -1 {
 			return
 		}
-		end := strings.Index(s[start:], "}}")
+		end := exprCloseIndex(s[start+2:])
 		if end == -1 {
 			return
 		}
-		fn(strings.TrimSpace(s[start+2 : start+end]))
-		s = s[start+end+2:]
+		fn(strings.TrimSpace(s[start+2 : start+2+end]))
+		s = s[start+end+4:]
 	}
+}
+
+// exprCloseIndex returns the offset of the first "}}" in s that lies outside
+// a string literal, or -1 if there is none. Quote tracking mirrors the
+// expression lexer (single or double quotes with backslash escapes) so a
+// "}}" inside a binding's string literal — e.g. {{ '}}' }} — is not mistaken
+// for the closing delimiter.
+func exprCloseIndex(s string) int {
+	var quote byte
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if quote != 0 {
+			switch {
+			case c == '\\':
+				i++ // skip the escaped character
+			case c == quote:
+				quote = 0
+			}
+			continue
+		}
+		switch c {
+		case '\'', '"':
+			quote = c
+		case '}':
+			if i+1 < len(s) && s[i+1] == '}' {
+				return i
+			}
+		}
+	}
+	return -1
 }
 
 // ---- coercion helpers ----
@@ -587,9 +634,18 @@ func asString(v any) string {
 	}
 }
 
+// asFloat coerces a JSON number to float64. Integer Go types are accepted as
+// well, so ManifestToJSON's output — which writes window dimensions as Go
+// ints — can be re-read by applyManifest without an intermediate JSON
+// encode/decode (JSON decoding yields float64, which also keeps working).
 func asFloat(v any) float64 {
-	if f, ok := v.(float64); ok {
-		return f
+	switch t := v.(type) {
+	case float64:
+		return t
+	case int:
+		return float64(t)
+	case int64:
+		return float64(t)
 	}
 	return 0
 }

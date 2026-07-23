@@ -54,7 +54,7 @@ func (r *renderer) container(n *model.Node) {
 	if n.ID == r.rootID && !strings.Contains(a, "role=") {
 		a += ` role="main"` // landmark for assistive tech
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s%s%s>`, n.ID, r.containerCSS(n), a, r.pressAttr(n), dragAttr(n))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s%s%s>`, attrID(n.ID), r.containerCSS(n), a, r.pressAttr(n), dragAttr(n))
 	for _, c := range n.Children {
 		r.node(c)
 	}
@@ -63,14 +63,14 @@ func (r *renderer) container(n *model.Node) {
 
 func (r *renderer) text(n *model.Node) {
 	style := r.boxCSS(n) + r.textCSS(n)
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>%s</div>`, r.nid(n), style, a11y(n), html.EscapeString(r.interp(n.Text)))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>%s</div>`, attrID(r.nid(n)), style, a11y(n), html.EscapeString(r.interp(n.Text)))
 }
 
 // scaffold is Flutter's Scaffold: an appbar child pins to the top, a bottomnav
 // child to the bottom, fab children float bottom-right, the rest is the body.
 func (r *renderer) scaffold(n *model.Node) {
 	style := r.boxCSS(n) + "position:relative;display:flex;flex-direction:column;min-height:100%;"
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, style)
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), style)
 	var body, bottom, fabs []*model.Node
 	hasAppbar := false
 	for _, c := range n.Children {
@@ -115,7 +115,7 @@ func (r *renderer) scaffold(n *model.Node) {
 func (r *renderer) bottomNav(n *model.Node) {
 	cur := r.interp(n.Value)
 	style := r.boxCSS(n) + "display:flex;border-top:1px solid var(--sep);background:var(--surface);"
-	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-bottomnav" style=%q role="navigation">`, n.ID, style)
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-bottomnav" style=%q role="navigation">`, attrID(n.ID), style)
 	for _, it := range r.boundArray(n, "items") {
 		obj, _ := it.(map[string]any)
 		if obj == nil {
@@ -153,7 +153,7 @@ func (r *renderer) wrap(n *model.Node) {
 	gap := propNum(n, "spacing", 8)
 	run := propNum(n, "runSpacing", gap)
 	style := fmt.Sprintf("display:flex;flex-wrap:wrap;column-gap:%gpx;row-gap:%gpx;", gap, run)
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, n.ID, r.boxCSS(n)+style, a11y(n))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), r.boxCSS(n)+style, a11y(n))
 	for _, c := range n.Children {
 		r.node(c)
 	}
@@ -164,7 +164,7 @@ func (r *renderer) wrap(n *model.Node) {
 func (r *renderer) appbar(n *model.Node) {
 	bg := propStrOr(n, "background", "var(--surface)")
 	style := fmt.Sprintf("display:flex;align-items:center;gap:6px;height:calc(44px + var(--safe-top, env(safe-area-inset-top, 0px)));padding:var(--safe-top, env(safe-area-inset-top, 0px)) 8px 0 8px;box-sizing:border-box;background:%s;-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-bottom:.5px solid var(--sep);", bg)
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, n.ID, r.boxCSS(n)+style, a11y(n))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), r.boxCSS(n)+style, a11y(n))
 	if lead := r.interp(propStr(n, "leading")); lead != "" {
 		fmt.Fprintf(&r.sb, `<div style="min-width:44px;color:var(--accent);font-size:17px;display:inline-flex;align-items:center;">%s</div>`, iconOrText(lead, 20))
 	} else {
@@ -191,7 +191,7 @@ func (r *renderer) fab(n *model.Node) {
 	}
 	style := r.boxCSS(n) + "display:inline-flex;align-items:center;justify-content:center;border:none;cursor:pointer;background:var(--accent);color:#fff;box-shadow:0 6px 16px rgba(0,0,0,.18);" + shape
 	fmt.Fprintf(&r.sb, `<button id=%q class="qorm-tap" style=%q%s%s>%s</button>`,
-		n.ID, style, a11y(n), r.pressAttr(n), html.EscapeString(label))
+		attrID(n.ID), style, a11y(n), r.pressAttr(n), html.EscapeString(label))
 }
 
 func (r *renderer) link(n *model.Node) {
@@ -201,7 +201,7 @@ func (r *renderer) link(n *model.Node) {
 	}
 	style := r.boxCSS(n) + r.textCSS(n) + "cursor:pointer;text-decoration:none;"
 	fmt.Fprintf(&r.sb, `<a id=%q href=%q style=%q%s%s>%s</a>`,
-		n.ID, html.EscapeString(href), style, a11y(n), r.pressAttr(n), html.EscapeString(r.interp(labelOf(n))))
+		attrID(n.ID), html.EscapeString(href), style, a11y(n), r.pressAttr(n), html.EscapeString(r.interp(labelOf(n))))
 }
 
 var stateBindRe = regexp.MustCompile(`^\s*\{\{\s*state\.([a-zA-Z0-9_.]+)\s*\}\}\s*$`)
@@ -212,7 +212,7 @@ func (r *renderer) divider(n *model.Node) {
 	if vertical {
 		line = "width:1px;align-self:stretch;background:var(--sep);margin:0 8px;"
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q></div>`, n.ID, r.boxCSS(n)+line)
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q></div>`, attrID(n.ID), r.boxCSS(n)+line)
 }
 
 func (r *renderer) spacer(n *model.Node) {
@@ -220,7 +220,7 @@ func (r *renderer) spacer(n *model.Node) {
 	if v, ok := numOK(n.Style, "size"); ok {
 		style = fmt.Sprintf("width:%gpx;height:%gpx;flex-shrink:0;", v, v)
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q></div>`, n.ID, style)
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q></div>`, attrID(n.ID), style)
 }
 
 // drawer renders an off-canvas panel (state-controlled `open`) anchored to a side.
@@ -235,7 +235,7 @@ func (r *renderer) drawer(n *model.Node) {
 	}
 	overlay := "position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:60;"
 	panel := r.boxCSS(n) + "position:absolute;" + anchor + "width:min(80%,320px);background:var(--surface);box-shadow:0 0 40px rgba(0,0,0,.25);padding:20px;overflow:auto;display:flex;flex-direction:column;gap:12px;"
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q role="dialog"><div style=%q>`, n.ID, overlay, panel)
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q role="dialog"><div style=%q>`, attrID(n.ID), overlay, panel)
 	for _, c := range n.Children {
 		r.node(c)
 	}
@@ -245,7 +245,7 @@ func (r *renderer) drawer(n *model.Node) {
 // carousel renders a horizontally scroll-snapping row of children.
 func (r *renderer) carousel(n *model.Node) {
 	style := r.boxCSS(n) + "display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:12px;-webkit-overflow-scrolling:touch;"
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, style)
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), style)
 	for _, c := range n.Children {
 		r.sb.WriteString(`<div style="scroll-snap-align:start;flex:0 0 auto;">`)
 		r.node(c)
@@ -271,7 +271,7 @@ func (r *renderer) gridView(n *model.Node) {
 	}
 	gap := propNum(n, "spacing", 10)
 	style := fmt.Sprintf("display:grid;grid-template-columns:%s;gap:%gpx;", tmpl, gap)
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, r.boxCSS(n)+style)
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), r.boxCSS(n)+style)
 	prev := r.scope
 	prevSuf := r.idSuffix
 	for i, it := range items {
@@ -293,7 +293,7 @@ func (r *renderer) gridView(n *model.Node) {
 // scroll-snap, so each child is a swipeable page.
 func (r *renderer) pageView(n *model.Node) {
 	style := r.boxCSS(n) + "display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;"
-	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-pageview" style=%q>`, n.ID, style)
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-pageview" style=%q>`, attrID(n.ID), style)
 	for _, c := range n.Children {
 		r.sb.WriteString(`<div style="flex:0 0 100%;scroll-snap-align:start;min-width:0;">`)
 		r.node(c)
@@ -306,8 +306,8 @@ func (r *renderer) pageView(n *model.Node) {
 // center band; tapping an option selects it (dispatches onChange with {value}).
 // screens shows the connected displays (multi-monitor awareness) on desktop.
 func (r *renderer) screens(n *model.Node) {
-	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-screens" style=%q>`, n.ID, r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;align-items:stretch;")
-	fmt.Fprintf(&r.sb, `<div id="%s-out" class="qorm-screens-out" style="font-size:14px;color:var(--label);min-height:20px;white-space:pre-line;font-family:ui-monospace,Menlo,monospace;">—</div>`, n.ID)
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-screens" style=%q>`, attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;align-items:stretch;")
+	fmt.Fprintf(&r.sb, `<div id="%s-out" class="qorm-screens-out" style="font-size:14px;color:var(--label);min-height:20px;white-space:pre-line;font-family:ui-monospace,Menlo,monospace;">—</div>`, attrID(n.ID))
 	r.sb.WriteString(`</div>`)
 }
 
@@ -317,8 +317,8 @@ func (r *renderer) loginItem(n *model.Node) {
 	if label == "" {
 		label = "Toggle Start at Login"
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-loginitem" data-on="0" style=%q>`, n.ID, r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;align-items:stretch;")
-	fmt.Fprintf(&r.sb, `<div id="%s-out" class="qorm-loginitem-out" style="font-size:15px;color:var(--label);min-height:20px;">Start at Login: —</div>`, n.ID)
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-loginitem" data-on="0" style=%q>`, attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;align-items:stretch;")
+	fmt.Fprintf(&r.sb, `<div id="%s-out" class="qorm-loginitem-out" style="font-size:15px;color:var(--label);min-height:20px;">Start at Login: —</div>`, attrID(n.ID))
 	fmt.Fprintf(&r.sb, `<button type="button" onclick="qormLoginItem(this)" style="padding:12px;border:none;border-radius:12px;background:var(--accent);color:var(--on-accent);font-size:16px;font-weight:600;cursor:pointer;">%s</button>`, html.EscapeString(label))
 	r.sb.WriteString(`</div>`)
 }
@@ -326,8 +326,8 @@ func (r *renderer) loginItem(n *model.Node) {
 // dockBadge renders -/+ buttons that set the Dock icon badge (unread count) on
 // desktop.
 func (r *renderer) dockBadge(n *model.Node) {
-	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-dockbadge" data-count="0" style=%q>`, n.ID, r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;align-items:stretch;")
-	fmt.Fprintf(&r.sb, `<div id="%s-out" class="qorm-dockbadge-out" style="font-size:15px;color:var(--label);min-height:20px;">Badge: 0</div>`, n.ID)
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-dockbadge" data-count="0" style=%q>`, attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;align-items:stretch;")
+	fmt.Fprintf(&r.sb, `<div id="%s-out" class="qorm-dockbadge-out" style="font-size:15px;color:var(--label);min-height:20px;">Badge: 0</div>`, attrID(n.ID))
 	r.sb.WriteString(`<div style="display:flex;gap:8px;"><button type="button" onclick="qormBadge(this,-1)" style="flex:1;padding:12px;border:none;border-radius:12px;background:var(--fill);color:var(--label);font-size:20px;font-weight:600;cursor:pointer;">−</button><button type="button" onclick="qormBadge(this,1)" style="flex:1;padding:12px;border:none;border-radius:12px;background:var(--accent);color:var(--on-accent);font-size:20px;font-weight:600;cursor:pointer;">+</button></div>`)
 	r.sb.WriteString(`</div>`)
 }
@@ -343,7 +343,7 @@ func (r *renderer) camera(n *model.Node) {
 	if n.OnChange != nil {
 		hattr = fmt.Sprintf(` data-h="%d"`, r.register(n.OnChange))
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-camera"%s style=%q>`, n.ID, hattr,
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-camera"%s style=%q>`, attrID(n.ID), hattr,
 		r.boxCSS(n)+"display:flex;flex-direction:column;gap:10px;align-items:stretch;")
 	disp := "none"
 	if val != "" {
@@ -373,7 +373,7 @@ func (r *renderer) datepicker(n *model.Node) {
 	if maxY < minY {
 		maxY = minY
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, r.boxCSS(n)+"position:relative;height:180px;min-height:180px;flex-shrink:0;overflow:hidden;display:flex;")
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), r.boxCSS(n)+"position:relative;height:180px;min-height:180px;flex-shrink:0;overflow:hidden;display:flex;")
 	// shared center selection band + top/bottom fades (iOS look)
 	r.sb.WriteString(`<div style="position:absolute;left:6px;right:6px;top:72px;height:36px;background:var(--fill);border-radius:8px;pointer-events:none;z-index:0;"></div>`)
 	r.sb.WriteString(`<div style="position:absolute;inset:0;pointer-events:none;z-index:2;background:linear-gradient(var(--surface),transparent 30%,transparent 70%,var(--surface));"></div>`)
@@ -456,7 +456,7 @@ func (r *renderer) timepicker(n *model.Node) {
 	if step < 1 {
 		step = 1
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, r.boxCSS(n)+"position:relative;height:180px;min-height:180px;flex-shrink:0;overflow:hidden;display:flex;")
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), r.boxCSS(n)+"position:relative;height:180px;min-height:180px;flex-shrink:0;overflow:hidden;display:flex;")
 	// shared center selection band + top/bottom fades (iOS look)
 	r.sb.WriteString(`<div style="position:absolute;left:6px;right:6px;top:72px;height:36px;background:var(--fill);border-radius:8px;pointer-events:none;z-index:0;"></div>`)
 	r.sb.WriteString(`<div style="position:absolute;inset:0;pointer-events:none;z-index:2;background:linear-gradient(var(--surface),transparent 30%,transparent 70%,var(--surface));"></div>`)
@@ -494,7 +494,7 @@ func fmtTime(h, m int) string { return fmt.Sprintf("%02d:%02d", h, m) }
 
 func (r *renderer) picker(n *model.Node) {
 	cur := r.interp(n.Value)
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, n.ID, r.boxCSS(n)+"position:relative;height:180px;min-height:180px;flex-shrink:0;overflow:hidden;", a11y(n))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), r.boxCSS(n)+"position:relative;height:180px;min-height:180px;flex-shrink:0;overflow:hidden;", a11y(n))
 	// center selection band
 	r.sb.WriteString(`<div style="position:absolute;left:0;right:0;top:72px;height:36px;background:var(--fill);border-radius:8px;pointer-events:none;"></div>`)
 	r.sb.WriteString(`<div style="height:100%;overflow-y:auto;scroll-snap-type:y mandatory;padding:72px 0;">`)
@@ -557,7 +557,7 @@ func (r *renderer) ctxItems(items []any) {
 			continue
 		}
 		fmt.Fprintf(&r.sb, `<button class="qorm-ctxmenu-item qorm-tap" data-id=%q style="%s">%s<span style="flex:1;">%s</span></button>`,
-			id, ctxItemCSS, iconHTML, html.EscapeString(title))
+			attrID(id), ctxItemCSS, iconHTML, html.EscapeString(title))
 	}
 }
 
@@ -566,7 +566,7 @@ func (r *renderer) contextMenu(n *model.Node) {
 	// submenus, selection fires qormEmit('context', {id}).
 	if raw, ok := n.Prop("items"); ok {
 		if items, ok := raw.([]any); ok && len(items) > 0 {
-			fmt.Fprintf(&r.sb, `<div id=%q class="qorm-ctxmenu" style=%q>`, r.nid(n), r.boxCSS(n)+"position:relative;")
+			fmt.Fprintf(&r.sb, `<div id=%q class="qorm-ctxmenu" style=%q>`, attrID(r.nid(n)), r.boxCSS(n)+"position:relative;")
 			for _, c := range n.Children {
 				r.node(c)
 			}
@@ -577,7 +577,7 @@ func (r *renderer) contextMenu(n *model.Node) {
 			return
 		}
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-ctx" style=%q>`, r.nid(n), r.boxCSS(n)+"position:relative;")
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-ctx" style=%q>`, attrID(r.nid(n)), r.boxCSS(n)+"position:relative;")
 	for _, c := range n.Children {
 		r.node(c)
 	}
@@ -608,7 +608,7 @@ func (r *renderer) refreshIndicator(n *model.Node) {
 	} else if n.OnPress != nil {
 		h = r.register(n.OnPress)
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, r.nid(n), r.boxCSS(n)+"overflow-y:auto;overscroll-behavior:contain;")
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(r.nid(n)), r.boxCSS(n)+"overflow-y:auto;overscroll-behavior:contain;")
 	r.sb.WriteString(`<div class="qorm-refresh-spin" style="height:0;opacity:0;display:flex;align-items:center;justify-content:center;overflow:hidden;transition:height .2s;"><span class="qorm-activity"><svg width="20" height="20" viewBox="0 0 20 20">`)
 	for i := 0; i < 8; i++ {
 		fmt.Fprintf(&r.sb, `<rect x="9" y="2" width="2" height="5" rx="1" fill="var(--label2)" opacity="%g" transform="rotate(%d 10 10)"/>`, 0.25+0.75*float64(i)/7, i*45)
@@ -649,7 +649,7 @@ func (r *renderer) numProp(n *model.Node, key string) *float64 {
 // ratio.
 func (r *renderer) aspectRatio(n *model.Node) {
 	ratio := propNum(n, "ratio", 1)
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, r.boxCSS(n)+fmt.Sprintf("aspect-ratio:%g;overflow:hidden;", ratio))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), r.boxCSS(n)+fmt.Sprintf("aspect-ratio:%g;overflow:hidden;", ratio))
 	for _, c := range n.Children {
 		r.node(c)
 	}
@@ -659,7 +659,7 @@ func (r *renderer) aspectRatio(n *model.Node) {
 // richText is Flutter's RichText / Text.rich: a paragraph of styled spans
 // ([{text, color, fontSize, fontWeight, italic, underline}]).
 func (r *renderer) richText(n *model.Node) {
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID, r.boxCSS(n)+"line-height:1.5;")
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), r.boxCSS(n)+"line-height:1.5;")
 	spans, _ := n.Prop("spans")
 	arr, _ := spans.([]any)
 	for _, it := range arr {
@@ -692,7 +692,7 @@ func (r *renderer) richText(n *model.Node) {
 // a compact bar row over a big bold title, translucent with a hairline.
 func (r *renderer) largeTitle(n *model.Node) {
 	bg := propStrOr(n, "background", "var(--bg)")
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID,
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID),
 		r.boxCSS(n)+fmt.Sprintf("background:%s;-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-bottom:.5px solid var(--sep);", bg))
 	// compact action row
 	r.sb.WriteString(`<div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;height:36px;padding:0 12px;color:var(--accent);">`)
@@ -713,7 +713,7 @@ func (r *renderer) largeTitle(n *model.Node) {
 // wide (desktop) layouts; tapping dispatches onChange with {value}.
 func (r *renderer) navigationRail(n *model.Node) {
 	cur := r.interp(n.Value)
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, n.ID,
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID),
 		r.boxCSS(n)+"display:flex;flex-direction:column;align-items:stretch;gap:4px;padding:12px 8px;border-right:.5px solid var(--sep);background:var(--surface);")
 	for _, it := range r.boundArray(n, "items") {
 		obj, _ := it.(map[string]any)
@@ -771,7 +771,7 @@ func (r *renderer) navButton(n *model.Node, glyph, label, aria string) {
 		al += fmt.Sprintf(` aria-label=%q`, aria)
 	}
 	style := r.boxCSS(n) + "display:inline-flex;align-items:center;gap:2px;min-width:44px;min-height:44px;padding:0 6px;border:none;background:none;cursor:pointer;color:var(--accent);font-size:17px;"
-	fmt.Fprintf(&r.sb, `<button id=%q style=%q%s%s>%s`, r.nid(n), style, al, onclick, glyph)
+	fmt.Fprintf(&r.sb, `<button id=%q style=%q%s%s>%s`, attrID(r.nid(n)), style, al, onclick, glyph)
 	if label != "" {
 		fmt.Fprintf(&r.sb, `<span>%s</span>`, html.EscapeString(label))
 	}
@@ -789,7 +789,7 @@ func (r *renderer) form(n *model.Node) {
 	if n.OnPress != nil {
 		submit = fmt.Sprintf(` onsubmit="qorm(%d);return false"`, r.register(n.OnPress))
 	}
-	fmt.Fprintf(&r.sb, `<form id=%q style=%q%s%s>`, r.nid(n), r.containerCSS(n), a11y(n), submit)
+	fmt.Fprintf(&r.sb, `<form id=%q style=%q%s%s>`, attrID(r.nid(n)), r.containerCSS(n), a11y(n), submit)
 	for _, c := range n.Children {
 		r.node(c)
 	}
@@ -809,7 +809,7 @@ func (r *renderer) offstage(n *model.Node) {
 	if off {
 		style += "display:none;"
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, r.nid(n), style, a11y(n))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(r.nid(n)), style, a11y(n))
 	for _, c := range n.Children {
 		r.node(c)
 	}
@@ -821,7 +821,7 @@ func (r *renderer) offstage(n *model.Node) {
 // display:contents keeps the wrapper out of layout, so children lay out exactly
 // as if unwrapped; pointer-events:none then inherits down the DOM subtree.
 func (r *renderer) ignorePointer(n *model.Node) {
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, r.nid(n), r.boxCSS(n)+"display:contents;pointer-events:none;", a11y(n))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(r.nid(n)), r.boxCSS(n)+"display:contents;pointer-events:none;", a11y(n))
 	for _, c := range n.Children {
 		r.node(c)
 	}
@@ -834,7 +834,7 @@ func (r *renderer) ignorePointer(n *model.Node) {
 // destination list itself, full-width pill rows with the active one highlighted.
 func (r *renderer) navigationDrawer(n *model.Node) {
 	cur := r.interp(n.Value)
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q role="navigation">`, r.nid(n),
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q role="navigation">`, attrID(r.nid(n)),
 		r.boxCSS(n)+"display:flex;flex-direction:column;gap:2px;padding:12px;background:var(--surface);min-width:200px;")
 	for _, it := range r.boundArray(n, "items") {
 		obj, _ := it.(map[string]any)
@@ -868,7 +868,7 @@ func (r *renderer) navigationDrawer(n *model.Node) {
 // the bottom safe-area inset applied.
 func (r *renderer) bottomAppBar(n *model.Node) {
 	style := r.boxCSS(n) + "display:flex;align-items:center;gap:8px;padding:8px 12px;min-height:56px;background:var(--surface);border-top:.5px solid var(--sep);padding-bottom:calc(8px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));"
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s role="toolbar">`, r.nid(n), style, a11y(n))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s role="toolbar">`, attrID(r.nid(n)), style, a11y(n))
 	for _, c := range n.Children {
 		r.node(c)
 	}
@@ -889,7 +889,7 @@ func (r *renderer) limitedBox(n *model.Node) {
 	} else if h := propNum(n, "maxHeight", -1); h >= 0 {
 		lim += fmt.Sprintf("max-height:%gpx;", h)
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, r.nid(n), r.boxCSS(n)+lim, a11y(n))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(r.nid(n)), r.boxCSS(n)+lim, a11y(n))
 	for _, c := range n.Children {
 		r.node(c)
 	}
@@ -905,7 +905,7 @@ func (r *renderer) indexedStack(n *model.Node) {
 	if raw, ok := n.Prop("index"); ok {
 		idx = int(asFloat(runtime.EvalBinding(fmt.Sprint(raw), r.ctx())))
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, r.nid(n), r.boxCSS(n)+"position:relative;", a11y(n))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(r.nid(n)), r.boxCSS(n)+"position:relative;", a11y(n))
 	for i, c := range n.Children {
 		disp := "display:none;"
 		if i == idx {
@@ -920,7 +920,7 @@ func (r *renderer) indexedStack(n *model.Node) {
 
 // selectableText is Flutter's SelectableText: text the user can select/copy.
 func (r *renderer) selectableText(n *model.Node) {
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>%s</div>`, n.ID,
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q>%s</div>`, attrID(n.ID),
 		r.boxCSS(n)+r.textCSS(n)+"user-select:text;-webkit-user-select:text;cursor:text;",
 		html.EscapeString(r.interp(n.Text)))
 }

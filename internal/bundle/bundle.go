@@ -208,20 +208,53 @@ func (b *Bundle) Version() string {
 type RevocationList map[string]bool
 
 // LoadRevocation reads a revocation list from a JSON file. Accepts either a bare
-// array `["keyid", ...]` or an object `{"revoked": ["keyid", ...]}`.
+// array `["keyid", ...]` or an object `{"revoked": ["keyid", ...]}`. Extra object
+// keys alongside "revoked" are ignored.
+//
+// It fails CLOSED: JSON null, any non-object/non-array document, an object with
+// no "revoked" key, and a "revoked" value that is null or not an array of
+// strings are all rejected with a *VerifyError rather than parsed as "nobody is
+// revoked". A misconfigured or hijacked revocation endpoint serving `null` must
+// not be able to silently disable the leaked-key defence. The well-formed empty
+// lists `[]` and `{"revoked":[]}` remain valid — a legitimate "nothing revoked".
 func LoadRevocation(data []byte) (RevocationList, error) {
-	var arr []string
-	if err := json.Unmarshal(data, &arr); err != nil {
-		var obj struct {
-			Revoked []string `json:"revoked"`
-		}
-		if err2 := json.Unmarshal(data, &obj); err2 != nil {
-			return nil, fmt.Errorf("revocation list must be a JSON array or {revoked:[...]}: %w", err)
-		}
-		arr = obj.Revoked
+	var v any
+	if err := json.Unmarshal(data, &v); err != nil {
+		return nil, &VerifyError{Reason: fmt.Sprintf("revocation list is not valid JSON: %v", err)}
 	}
-	rl := make(RevocationList, len(arr))
-	for _, id := range arr {
+	var ids []string
+	switch tv := v.(type) {
+	case []any:
+		ids = make([]string, 0, len(tv))
+		for i, e := range tv {
+			id, ok := e.(string)
+			if !ok {
+				return nil, &VerifyError{Reason: fmt.Sprintf("revocation list entry %d is not a key id string", i)}
+			}
+			ids = append(ids, id)
+		}
+	case map[string]any:
+		revoked, present := tv["revoked"]
+		if !present {
+			return nil, &VerifyError{Reason: `revocation object has no "revoked" array; refusing to treat it as an empty list`}
+		}
+		arr, ok := revoked.([]any) // JSON null decodes to a nil any, so null is rejected here too
+		if !ok {
+			return nil, &VerifyError{Reason: `"revoked" must be an array of key id strings`}
+		}
+		ids = make([]string, 0, len(arr))
+		for i, e := range arr {
+			id, ok := e.(string)
+			if !ok {
+				return nil, &VerifyError{Reason: fmt.Sprintf(`"revoked" entry %d is not a key id string`, i)}
+			}
+			ids = append(ids, id)
+		}
+	default: // includes JSON null, strings, numbers, booleans
+		return nil, &VerifyError{Reason: `revocation list must be a JSON array of key ids or {"revoked":[...]}; null and other JSON types are rejected`}
+	}
+	rl := make(RevocationList, len(ids))
+	for _, id := range ids {
 		rl[id] = true
 	}
 	return rl, nil

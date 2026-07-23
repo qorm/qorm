@@ -21,6 +21,17 @@ import (
 // press) work when repeated in a renderItem.
 func (r *renderer) nid(n *model.Node) string { return n.ID + r.idSuffix }
 
+// attrID escapes an id for interpolation into a double-quoted HTML id
+// attribute. Node ids come from arbitrary scene JSON, and Go's %q renders a
+// double quote as \" — the backslash is literal to an HTML parser, so the
+// quote still TERMINATES the attribute and an adversarial id injects markup.
+// html.EscapeString entity-encodes the quote (and <, >, &); the browser
+// decodes entities back to the raw id in element.id, so this is transparent
+// to clients — MCP/measure/a11y key on the model id, not the HTML attribute.
+// Use at every id-attribute emission site; never inside a <script>, where the
+// browser does not decode entities (getElementById(%q) wiring stays raw).
+func attrID(id string) string { return html.EscapeString(id) }
+
 // Render renders the entry scene of a runtime.
 func Render(rt *runtime.Runtime) Result { return RenderScene(rt, "") }
 
@@ -443,7 +454,7 @@ func (r *renderer) renderInner(n *model.Node) {
 func (r *renderer) unknown(n *model.Node) {
 	r.unknowns = append(r.unknowns, n.Type)
 	fmt.Fprintf(&r.sb, `<div id=%q data-qorm-unknown=%q style=%q%s>`,
-		n.ID, html.EscapeString(n.Type), r.containerCSS(n), a11y(n))
+		attrID(n.ID), html.EscapeString(n.Type), r.containerCSS(n), a11y(n))
 	for _, c := range n.Children {
 		r.node(c)
 	}
