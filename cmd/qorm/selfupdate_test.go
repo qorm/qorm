@@ -117,6 +117,46 @@ func TestVerifyReleaseAssetGarbageSig(t *testing.T) {
 	}
 }
 
+// TestParseVersionLine pins extraction of X.Y.Z from the `qorm version` output
+// line (`qorm X.Y.Z (go... ...)`, the format main.go prints) that the
+// go-install post-install check compares against the approved target. The
+// extracted field itself is validated by compareSemver at the call site;
+// parseVersionLine only rejects output that is not a `qorm <version> ...` line.
+func TestParseVersionLine(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string
+		bad  bool
+	}{
+		{"qorm 1.2.3 (go1.24.0 linux/amd64)\n", "1.2.3", false},
+		{"qorm 10.0.0 (go1.24.0 darwin/arm64)", "10.0.0", false},
+		{"qorm 9.9.9-rc1 (go1.21.5 linux/amd64)\n", "9.9.9-rc1", false},
+		{"qorm 1.2.3 (go1.24.0 linux/amd64)\nsome trailing noise\n", "1.2.3", false}, // first line wins
+		{"  qorm 1.2.3 (go1.24.0 linux/amd64)  \n", "1.2.3", false},                  // surrounding whitespace
+		{"", "", true},
+		{"\n", "", true},
+		{"not the version line", "", true},
+		{"qorm", "", true},                   // no version field
+		{"qormx 1.2.3 (go1.24.0)", "", true}, // wrong program name
+	}
+	for _, c := range cases {
+		got, err := parseVersionLine(c.in)
+		if c.bad {
+			if err == nil {
+				t.Errorf("parseVersionLine(%q) = %q, want an error", c.in, got)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("parseVersionLine(%q): unexpected error: %v", c.in, err)
+			continue
+		}
+		if got != c.want {
+			t.Errorf("parseVersionLine(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
 func TestParseReleasePubKeys(t *testing.T) {
 	pub, _, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {

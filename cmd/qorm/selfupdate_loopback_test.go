@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -130,6 +131,43 @@ func TestUpdateLoopback(t *testing.T) {
 // install path; a self-update that runs must replace exactly these bytes.
 const installedBinaryBody = "the currently installed qorm binary"
 
+// stubBinary returns the test binary's own bytes. Exec'd with
+// QORM_TEST_STUB_VERSION=v in the environment (TestMain intercepts before any
+// test runs), those bytes are a real, EXECUTABLE binary that prints
+// `qorm v (go... ...)` and exits 0 — a deterministic, toolchain-free stand-in
+// for a downloaded release binary that reports a pinned version.
+func stubBinary(t *testing.T) []byte {
+	t.Helper()
+	b, err := os.ReadFile(os.Args[0])
+	if err != nil {
+		t.Fatalf("read the test binary for the stub payload: %v", err)
+	}
+	return b
+}
+
+// withStubVersionEnv pins the version a stubBinary payload reports when the
+// update flow execs it (the exec'd child inherits this environment).
+func withStubVersionEnv(t *testing.T, v string) {
+	t.Helper()
+	t.Setenv("QORM_TEST_STUB_VERSION", v)
+}
+
+// writeVersionScript writes an executable POSIX shell script that prints one
+// `qorm <v> (...)` line — a pinned-version stub for the GOBIN binary in tests
+// where the GOBIN binary and selfExe must report DIFFERENT versions (the
+// TestMain interceptor stub reports whatever QORM_TEST_STUB_VERSION pins for
+// every copy of the test binary in the same run).
+func writeVersionScript(t *testing.T, path, v string) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("the POSIX shell version stub is not available on Windows")
+	}
+	script := fmt.Sprintf("#!/bin/sh\necho 'qorm %s (go1.99.9 %s/%s)'\n", v, runtime.GOOS, runtime.GOARCH)
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func withVersion(t *testing.T, v string) {
 	t.Helper()
 	old := version
@@ -140,8 +178,40 @@ func withVersion(t *testing.T, v string) {
 func withoutGoInstallPhase(t *testing.T) {
 	t.Helper()
 	old := goInstallPhase
-	goInstallPhase = false
+	goInstallPhase = func() error { return errGoInstallUnavailable }
 	t.Cleanup(func() { goInstallPhase = old })
+}
+
+// withNoopGoInstallPhase makes the 'go install' fast path report success
+// without touching the network or a Go toolchain, so only the post-install
+// version check (driven by the selfExe stub) decides the update's outcome.
+func withNoopGoInstallPhase(t *testing.T) {
+	t.Helper()
+	old := goInstallPhase
+	goInstallPhase = func() error { return nil }
+	t.Cleanup(func() { goInstallPhase = old })
+}
+
+// withStubSelfExe points selfExe at the test binary itself acting as a fake
+// installed qorm: TestMain intercepts QORM_TEST_STUB_VERSION before any test
+// runs and prints `qorm <reported> (go... ...)` instead of testing, so the
+// post-install check execs a deterministic stub and never the real binary.
+func withStubSelfExe(t *testing.T, reported string) {
+	t.Helper()
+	t.Setenv("QORM_TEST_STUB_VERSION", reported)
+	withSelfExe(t, os.Args[0])
+}
+
+// TestMain doubles as the stub "installed binary" for the post-install version
+// check tests: when QORM_TEST_STUB_VERSION is set the test binary was exec'd as
+// `qorm version`, so print the pinned version line (main.go's exact format)
+// and exit 0 instead of running tests.
+func TestMain(m *testing.M) {
+	if v, ok := os.LookupEnv("QORM_TEST_STUB_VERSION"); ok {
+		fmt.Printf("qorm %s (%s %s/%s)\n", v, runtime.Version(), runtime.GOOS, runtime.GOARCH)
+		os.Exit(0)
+	}
+	os.Exit(m.Run())
 }
 
 func withSelfExe(t *testing.T, path string) {
@@ -156,6 +226,26 @@ func withReleaseAPIURL(t *testing.T, url string) {
 	old := releaseAPIURL
 	releaseAPIURL = url
 	t.Cleanup(func() { releaseAPIURL = old })
+}
+
+// withGoInstallBinDir points the GOBIN/GOPATH-bin resolution seam at dir so
+// the go-install post-check runs against a temp directory — never a real
+// `go env`, keeping the test offline and toolchain-free.
+func withGoInstallBinDir(t *testing.T, dir string) {
+	t.Helper()
+	old := goInstallBinDir
+	goInstallBinDir = func() (string, error) { return dir, nil }
+	t.Cleanup(func() { goInstallBinDir = old })
+}
+
+// withUnresolvableGoInstallBinDir makes the GOBIN resolution seam fail (as
+// `go env` would when no toolchain is on PATH), exercising the warn-and-fall-
+// back-to-selfExe path.
+func withUnresolvableGoInstallBinDir(t *testing.T) {
+	t.Helper()
+	old := goInstallBinDir
+	goInstallBinDir = func() (string, error) { return "", errors.New("go toolchain not available (test seam)") }
+	t.Cleanup(func() { goInstallBinDir = old })
 }
 
 // updateFlow wires `qorm update` end-to-end against a loopback release server:
@@ -205,6 +295,11 @@ func updateFlow(t *testing.T, trustedPub ed25519.PublicKey, currentVersion, tag 
 	withReleasePubKeys(t, trustedPub)
 	withVersion(t, currentVersion)
 	withoutGoInstallPhase(t)
+	// Keep the go-install post-check off the real toolchain: the GOBIN seam
+	// resolves to an existing-but-empty temp dir by default (the "no qorm
+	// binary at the resolved destination" fallback to selfExe). GOBIN-specific
+	// subtests override this.
+	withGoInstallBinDir(t, filepath.Join(t.TempDir(), "empty-gobin"))
 
 	dir := t.TempDir()
 	exePath = filepath.Join(dir, "qorm")
@@ -324,7 +419,11 @@ func TestUpdateLoopbackVersionGate(t *testing.T) {
 	})
 
 	t.Run("newer signed release is installed", func(t *testing.T) {
-		exePath, binHits := updateFlow(t, pub, "9.9.9", "v10.0.0", newBin, priv)
+		// The downloaded payload is an EXECUTABLE stub reporting the approved
+		// version: the pre-swap check execs it before the swap (an inert
+		// payload would be refused as unrunnable).
+		exePath, binHits := updateFlow(t, pub, "9.9.9", "v10.0.0", stubBinary(t), priv)
+		withStubVersionEnv(t, "10.0.0")
 		code, out, _ := runUpdate(t)
 		if code != 0 {
 			t.Fatalf("a strictly newer signed release must install; exit = %d, out = %q", code, out)
@@ -333,8 +432,8 @@ func TestUpdateLoopbackVersionGate(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !bytes.Equal(got, newBin) {
-			t.Errorf("installed binary = %q, want the served release binary", got)
+		if !bytes.Equal(got, stubBinary(t)) {
+			t.Errorf("installed binary is not the served release binary")
 		}
 		if n := binHits.Load(); n != 1 {
 			t.Errorf("binary downloads = %d, want exactly 1", n)
@@ -351,7 +450,8 @@ func TestUpdateLoopbackVersionGate(t *testing.T) {
 	})
 
 	t.Run("final release of a prerelease build is installed", func(t *testing.T) {
-		exePath, _ := updateFlow(t, pub, "9.9.9-rc1", "v9.9.9", newBin, priv)
+		exePath, _ := updateFlow(t, pub, "9.9.9-rc1", "v9.9.9", stubBinary(t), priv)
+		withStubVersionEnv(t, "9.9.9") // the stub reports the approved target exactly
 		code, out, _ := runUpdate(t)
 		if code != 0 {
 			t.Fatalf("the final release after a prerelease must install; exit = %d, out = %q", code, out)
@@ -360,8 +460,8 @@ func TestUpdateLoopbackVersionGate(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !bytes.Equal(got, newBin) {
-			t.Errorf("installed binary = %q, want the served release binary", got)
+		if !bytes.Equal(got, stubBinary(t)) {
+			t.Errorf("installed binary is not the served release binary")
 		}
 	})
 
@@ -384,6 +484,335 @@ func TestUpdateLoopbackVersionGate(t *testing.T) {
 		}
 		if !strings.Contains(errOut, "verification failed") {
 			t.Errorf("stderr = %q, want a verification failure", errOut)
+		}
+	})
+}
+
+// TestUpdateLoopbackGoInstallPostCheck pins the post-install version check on
+// the 'go install' fast path. That phase trusts the Go module proxy — a
+// compromised proxy could resolve @latest to a module OLDER than the
+// strictly-newer release the version gate approved — so after the phase
+// "succeeds" the freshly installed binary must report a version >= the
+// approved target, or the update is refused with a non-zero exit. The phase is
+// stubbed as a no-op success and selfExe points at a deterministic stub binary
+// (the test binary via TestMain), so nothing touches the network, the Go
+// toolchain, or the real binary.
+func TestUpdateLoopbackGoInstallPostCheck(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate release key: %v", err)
+	}
+	newBin := []byte("the newer signed release binary")
+
+	t.Run("stub reporting the approved version succeeds", func(t *testing.T) {
+		exePath, binHits := updateFlow(t, pub, "9.9.9", "v10.0.0", newBin, priv)
+		withNoopGoInstallPhase(t)
+		withStubSelfExe(t, "10.0.0")
+		code, out, errOut := runUpdate(t)
+		if code != 0 {
+			t.Fatalf("a stub reporting the approved version must succeed; exit = %d, out = %q, err = %q", code, out, errOut)
+		}
+		if !strings.Contains(out, "successfully via go install") {
+			t.Errorf("stdout should confirm the go-install update, got %q", out)
+		}
+		if n := binHits.Load(); n != 0 {
+			t.Errorf("binary downloads = %d; the go-install branch must not download the signed asset", n)
+		}
+		got, err := os.ReadFile(exePath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != installedBinaryBody {
+			t.Errorf("the go-install branch must not replace the binary itself (that is 'go install's job); it now contains %q", got)
+		}
+	})
+
+	t.Run("stub reporting a NEWER version succeeds", func(t *testing.T) {
+		updateFlow(t, pub, "9.9.9", "v10.0.0", newBin, priv)
+		withNoopGoInstallPhase(t)
+		withStubSelfExe(t, "10.0.1") // proxy served something even newer than the gate's target
+		code, out, errOut := runUpdate(t)
+		if code != 0 {
+			t.Fatalf("a version newer than the approved target is still >= it; exit = %d, out = %q, err = %q", code, out, errOut)
+		}
+	})
+
+	t.Run("stub reporting an OLDER version fails closed", func(t *testing.T) {
+		exePath, binHits := updateFlow(t, pub, "9.9.9", "v10.0.0", newBin, priv)
+		withNoopGoInstallPhase(t)
+		withStubSelfExe(t, "9.9.8") // a stale module the compromised proxy served as @latest
+		code, out, errOut := runUpdate(t)
+		if code == 0 {
+			t.Fatalf("a stub reporting a version older than the approved target must fail; out = %q, err = %q", out, errOut)
+		}
+		if !strings.Contains(errOut, "post-install version check failed") {
+			t.Errorf("stderr = %q, want the post-install check failure", errOut)
+		}
+		if !strings.Contains(errOut, "WARNING") {
+			t.Errorf("stderr = %q, want a loud warning that success is NOT being reported", errOut)
+		}
+		if strings.Contains(out, "successfully") {
+			t.Errorf("stdout must not claim a successful update, got %q", out)
+		}
+		if binHits.Load() != 0 {
+			t.Error("a failed post-install check must exit, not fall through to the binary download")
+		}
+		got, err := os.ReadFile(exePath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != installedBinaryBody {
+			t.Errorf("the go-install branch must not replace the binary itself; it now contains %q", got)
+		}
+	})
+
+	t.Run("stub reporting an unparseable version fails closed", func(t *testing.T) {
+		updateFlow(t, pub, "9.9.9", "v10.0.0", newBin, priv)
+		withNoopGoInstallPhase(t)
+		withStubSelfExe(t, "banana")
+		code, _, errOut := runUpdate(t)
+		if code == 0 {
+			t.Fatal("a stub reporting an unparseable version must fail")
+		}
+		if !strings.Contains(errOut, "unparseable version") {
+			t.Errorf("stderr = %q, want an unparseable-version failure", errOut)
+		}
+	})
+
+	t.Run("version command that cannot run fails closed", func(t *testing.T) {
+		updateFlow(t, pub, "9.9.9", "v10.0.0", newBin, priv)
+		withNoopGoInstallPhase(t)
+		withSelfExe(t, filepath.Join(t.TempDir(), "no-such-qorm"))
+		code, _, errOut := runUpdate(t)
+		if code == 0 {
+			t.Fatal("an unrunnable installed binary must fail the post-install check")
+		}
+		if !strings.Contains(errOut, "cannot verify the installed version") {
+			t.Errorf("stderr = %q, want a verification failure", errOut)
+		}
+	})
+}
+
+// TestUpdateLoopbackPreSwapVersionCheck pins the pre-swap version check on the
+// signed-binary download path. That path writes the verified binary to a temp
+// file and THEN swaps it over the running binary — once swapped it cannot be
+// undone, and a signature only proves the publisher signed THIS file, not that
+// the file is the release its tag claims (the release pipeline itself could
+// publish a stale build under a newer tag). So BEFORE the swap the update flow
+// execs the downloaded binary's `version` command and refuses unless it
+// reports >= the approved target — while the current binary is still in place.
+// The downloaded payload is the executable TestMain stub (stubBinary), so the
+// check runs a real binary without a network or toolchain.
+func TestUpdateLoopbackPreSwapVersionCheck(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate release key: %v", err)
+	}
+
+	t.Run("stub reporting an OLDER version is refused before the swap", func(t *testing.T) {
+		exePath, binHits := updateFlow(t, pub, "9.9.9", "v10.0.0", stubBinary(t), priv)
+		withStubVersionEnv(t, "9.9.8") // the release pipeline published a stale build under v10.0.0
+		code, out, errOut := runUpdate(t)
+		if code == 0 {
+			t.Fatalf("a downloaded binary OLDER than the approved target must not be swapped in; out = %q, err = %q", out, errOut)
+		}
+		got, err := os.ReadFile(exePath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != installedBinaryBody {
+			t.Errorf("a refused swap must leave the current binary byte-identical; it now contains %q", got)
+		}
+		if n := binHits.Load(); n != 1 {
+			t.Errorf("downloads = %d, want 1: the check runs after download+signature verification, before the swap", n)
+		}
+		if !strings.Contains(errOut, "refusing to install the downloaded binary") {
+			t.Errorf("stderr = %q, want a loud refusal notice", errOut)
+		}
+		if !strings.Contains(errOut, "OLDER than the approved target") {
+			t.Errorf("stderr = %q, want the pre-swap version failure", errOut)
+		}
+		if strings.Contains(out, "successfully") {
+			t.Errorf("stdout must not claim a successful update, got %q", out)
+		}
+		// The temp download must be cleaned up and no backup left behind
+		// (refusal happens before the running binary is ever renamed).
+		entries, err := os.ReadDir(filepath.Dir(exePath))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, e := range entries {
+			if strings.HasPrefix(e.Name(), "qorm_download_") {
+				t.Errorf("temp download file %s should be removed after a refused swap", e.Name())
+			}
+		}
+		if _, err := os.Stat(exePath + ".old"); !os.IsNotExist(err) {
+			t.Errorf("no backup should exist after a refusal that never swapped (stat err = %v)", err)
+		}
+	})
+
+	t.Run("stub reporting an unparseable version is refused", func(t *testing.T) {
+		exePath, _ := updateFlow(t, pub, "9.9.9", "v10.0.0", stubBinary(t), priv)
+		withStubVersionEnv(t, "banana")
+		code, _, errOut := runUpdate(t)
+		if code == 0 {
+			t.Fatal("a downloaded binary reporting an unparseable version must not be swapped in")
+		}
+		if !strings.Contains(errOut, "unparseable version") {
+			t.Errorf("stderr = %q, want an unparseable-version failure", errOut)
+		}
+		got, err := os.ReadFile(exePath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != installedBinaryBody {
+			t.Errorf("a refused swap must leave the current binary untouched; it now contains %q", got)
+		}
+	})
+
+	t.Run("unrunnable downloaded binary is refused", func(t *testing.T) {
+		inert := []byte("valid signature, valid checksums, but not an executable")
+		exePath, _ := updateFlow(t, pub, "9.9.9", "v10.0.0", inert, priv)
+		code, _, errOut := runUpdate(t)
+		if code == 0 {
+			t.Fatal("a downloaded binary whose version command cannot run must not be swapped in")
+		}
+		if !strings.Contains(errOut, "cannot verify the downloaded binary") {
+			t.Errorf("stderr = %q, want a cannot-verify failure", errOut)
+		}
+		got, err := os.ReadFile(exePath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != installedBinaryBody {
+			t.Errorf("a refused swap must leave the current binary untouched; it now contains %q", got)
+		}
+	})
+}
+
+// TestUpdateLoopbackGoInstallGOBIN pins the GOBIN/GOPATH-bin reconciliation on
+// the go-install post-install check. `go install` writes to GOBIN (or
+// GOPATH/bin), which may differ from the running binary's directory (selfExe);
+// reading only selfExe would then see the STALE binary and fail closed on a
+// LEGITIMATE install. So the check runs against the resolved install location
+// when it exists and differs from selfExe, succeeds when EITHER location
+// reports the expected version, fails closed only when neither does, and —
+// when the resolved location cannot be checked (go env unavailable / no binary
+// there) — warns and falls back to selfExe instead of a hard failure. The seam
+// keeps every subtest off the real toolchain.
+func TestUpdateLoopbackGoInstallGOBIN(t *testing.T) {
+	pub, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate release key: %v", err)
+	}
+	newBin := []byte("the newer signed release binary")
+
+	t.Run("GOBIN binary reporting the approved version succeeds with a stale selfExe", func(t *testing.T) {
+		exePath, _ := updateFlow(t, pub, "9.9.9", "v10.0.0", newBin, priv)
+		withNoopGoInstallPhase(t)
+		gobin := t.TempDir()
+		withGoInstallBinDir(t, gobin)
+		// `go install` wrote the fresh binary into GOBIN; selfExe's directory
+		// (updateFlow's inert installedBinaryBody file) still holds the OLD one.
+		if err := os.WriteFile(filepath.Join(gobin, qormBinaryName()), stubBinary(t), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		withStubVersionEnv(t, "10.0.0")
+		code, out, errOut := runUpdate(t)
+		if code != 0 {
+			t.Fatalf("a GOBIN binary reporting the approved version must succeed even when selfExe is stale; exit = %d, out = %q, err = %q", code, out, errOut)
+		}
+		if !strings.Contains(out, "successfully via go install") {
+			t.Errorf("stdout should confirm the go-install update, got %q", out)
+		}
+		got, err := os.ReadFile(exePath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != installedBinaryBody {
+			t.Errorf("the go-install branch must not touch selfExe's file; it now contains %q", got)
+		}
+	})
+
+	t.Run("older GOBIN binary still succeeds when selfExe reports the approved version", func(t *testing.T) {
+		updateFlow(t, pub, "9.9.9", "v10.0.0", newBin, priv)
+		withNoopGoInstallPhase(t)
+		gobin := t.TempDir()
+		withGoInstallBinDir(t, gobin)
+		// The two locations must report DIFFERENT versions in one run: the
+		// GOBIN binary is a shell script pinned to an OLD version, while
+		// selfExe is the TestMain stub pinned (via env) to the approved one.
+		writeVersionScript(t, filepath.Join(gobin, qormBinaryName()), "9.9.8")
+		withStubSelfExe(t, "10.0.0")
+		code, out, errOut := runUpdate(t)
+		if code != 0 {
+			t.Fatalf("the check must pass when EITHER location reports the approved version; exit = %d, out = %q, err = %q", code, out, errOut)
+		}
+		if !strings.Contains(out, "successfully via go install") {
+			t.Errorf("stdout should confirm the go-install update, got %q", out)
+		}
+	})
+
+	t.Run("unresolvable GOBIN falls back to selfExe and succeeds when selfExe is correct", func(t *testing.T) {
+		updateFlow(t, pub, "9.9.9", "v10.0.0", newBin, priv)
+		withNoopGoInstallPhase(t)
+		withUnresolvableGoInstallBinDir(t) // `go env` unavailable
+		withStubSelfExe(t, "10.0.0")
+		code, out, errOut := runUpdate(t)
+		if code != 0 {
+			t.Fatalf("an unresolvable GOBIN must fall back to selfExe, not hard-fail; exit = %d, out = %q, err = %q", code, out, errOut)
+		}
+		if !strings.Contains(errOut, "warn: cannot resolve the 'go install' destination") {
+			t.Errorf("stderr = %q, want a warning that the GOBIN location could not be resolved", errOut)
+		}
+		if !strings.Contains(out, "successfully via go install") {
+			t.Errorf("stdout should confirm the go-install update, got %q", out)
+		}
+	})
+
+	t.Run("GOBIN dir without a qorm binary falls back to selfExe and fails when selfExe is stale", func(t *testing.T) {
+		exePath, _ := updateFlow(t, pub, "9.9.9", "v10.0.0", newBin, priv)
+		withNoopGoInstallPhase(t)
+		withGoInstallBinDir(t, t.TempDir()) // resolved dir exists but holds no qorm binary
+		// selfExe is updateFlow's inert installed binary: its version command
+		// cannot run, so the fallback check fails closed.
+		code, _, errOut := runUpdate(t)
+		if code == 0 {
+			t.Fatal("a fallback to a stale selfExe must fail closed")
+		}
+		if !strings.Contains(errOut, "no qorm binary at the resolved 'go install' destination") {
+			t.Errorf("stderr = %q, want the missing-binary warning", errOut)
+		}
+		if !strings.Contains(errOut, "cannot verify the installed version") {
+			t.Errorf("stderr = %q, want the selfExe verification failure", errOut)
+		}
+		got, err := os.ReadFile(exePath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != installedBinaryBody {
+			t.Errorf("the go-install branch must not touch selfExe's file; it now contains %q", got)
+		}
+	})
+
+	t.Run("older GOBIN binary AND stale selfExe fail closed", func(t *testing.T) {
+		updateFlow(t, pub, "9.9.9", "v10.0.0", newBin, priv)
+		withNoopGoInstallPhase(t)
+		gobin := t.TempDir()
+		withGoInstallBinDir(t, gobin)
+		if err := os.WriteFile(filepath.Join(gobin, qormBinaryName()), stubBinary(t), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		withStubVersionEnv(t, "9.9.8") // GOBIN reports older; selfExe is inert
+		code, _, errOut := runUpdate(t)
+		if code == 0 {
+			t.Fatal("neither location reporting the approved version must fail closed")
+		}
+		if !strings.Contains(errOut, "neither") {
+			t.Errorf("stderr = %q, want a failure naming both checked locations", errOut)
+		}
+		if !strings.Contains(errOut, "post-install version check failed") {
+			t.Errorf("stderr = %q, want the post-install check failure", errOut)
 		}
 	})
 }

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/base64"
@@ -33,19 +35,85 @@ type githubRelease struct {
 // It is a package variable so loopback tests can point it at a local server.
 var releaseAPIURL = "https://api.github.com/repos/qorm/qorm/releases/latest"
 
-// goInstallPhase controls whether the 'go install' fast path is attempted
-// before the signed-binary download. Loopback tests disable it so the update
-// flow stays deterministic and offline.
-var goInstallPhase = true
+// errGoInstallUnavailable marks a go-install phase that was skipped because no
+// Go toolchain is on PATH: a silent fallback to the signed-binary download,
+// distinct from a phase that ran and failed (which warns before falling back).
+var errGoInstallUnavailable = errors.New("go toolchain not available")
+
+// goInstallPhase runs the 'go install ...@latest' fast path that precedes the
+// signed-binary download and reports its outcome: nil means the install
+// command succeeded (the caller STILL verifies the installed version before
+// reporting success), errGoInstallUnavailable means the phase was skipped, and
+// any other error means it ran and failed. Loopback tests override it so the
+// update flow stays deterministic and offline: returning nil exercises the
+// post-install version check without a network or toolchain, and returning
+// errGoInstallUnavailable keeps the signed-binary flow on its own path.
+var goInstallPhase = defaultGoInstallPhase
+
+func defaultGoInstallPhase() error {
+	if _, err := exec.LookPath("go"); err != nil {
+		return errGoInstallUnavailable
+	}
+	fmt.Println("Updating via 'go install'...")
+	cmd := exec.Command("go", "install", "github.com/qorm/qorm/cmd/qorm@latest")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
 
 // selfExe resolves the executable a self-update replaces. Loopback tests
 // override it so they never touch the running test binary.
 var selfExe = os.Executable
 
+// goInstallBinDir resolves the directory `go install` writes executables to:
+// `go env GOBIN` when set, otherwise the bin directory of the first `go env
+// GOPATH` entry. It is a package variable so loopback tests can point it at a
+// temp directory without invoking the real Go toolchain.
+var goInstallBinDir = defaultGoInstallBinDir
+
+func defaultGoInstallBinDir() (string, error) {
+	if gobin := strings.TrimSpace(runGoEnv("GOBIN")); gobin != "" {
+		return gobin, nil
+	}
+	gopath := strings.TrimSpace(runGoEnv("GOPATH"))
+	first, _, _ := strings.Cut(gopath, string(os.PathListSeparator)) // GOPATH may be a list; `go install` uses the first entry
+	if first == "" {
+		return "", errors.New("neither GOBIN nor GOPATH resolves to a directory (is the Go toolchain on PATH?)")
+	}
+	return filepath.Join(first, "bin"), nil
+}
+
+// runGoEnv returns `go env <key>`'s output, or "" when go is unavailable or
+// the command fails.
+func runGoEnv(key string) string {
+	out, err := exec.Command("go", "env", key).Output()
+	if err != nil {
+		return ""
+	}
+	return string(out)
+}
+
+// qormBinaryName is the platform file name `go install` writes for this
+// command (qorm.exe on Windows).
+func qormBinaryName() string {
+	if runtime.GOOS == "windows" {
+		return "qorm.exe"
+	}
+	return "qorm"
+}
+
 // cmdUpdate checks for QORM CLI updates on GitHub and performs a self-update.
 // Downloaded binaries are verified against the release's ed25519-signed
 // SHA256SUMS manifest before they replace the current executable, unless
-// --insecure-skip-verify is given.
+// --insecure-skip-verify is given. Both install paths are additionally
+// version-checked against the release the version gate approved: the 'go
+// install' fast path performs no signature verification of its own, so after
+// it runs the freshly installed binary (at the GOBIN/GOPATH-bin destination or
+// the running binary's location) must report a version at least as new as the
+// approved target; the signed-binary path execs the downloaded binary BEFORE
+// swapping it in and refuses the swap unless it reports the approved version
+// (the signature proves the file was signed, not that it is the release its
+// tag claims). Either check failing refuses the update, fail-closed.
 func cmdUpdate(args []string) int {
 	skipVerify := false
 	for _, a := range args {
@@ -114,18 +182,25 @@ func cmdUpdate(args []string) int {
 	fmt.Printf("A new version of QORM is available: v%s (current: v%s)\n", latestVersion, currentVersion)
 
 	// Phase 1: Try using 'go install' if Go toolchain is locally available
-	if goInstallPhase {
-		if _, err := exec.LookPath("go"); err == nil {
-			fmt.Println("Updating via 'go install'...")
-			cmd := exec.Command("go", "install", "github.com/qorm/qorm/cmd/qorm@latest")
-			cmd.Stdout = os.Stdout
-			cmd.Stderr = os.Stderr
-			if err := cmd.Run(); err == nil {
-				fmt.Println("QORM updated successfully via go install!")
-				return 0
-			}
-			fmt.Println("warn: go install failed, falling back to pre-compiled binary update...")
+	if err := goInstallPhase(); err == nil {
+		// The 'go install @latest' phase trusts the Go module proxy, which is
+		// never asked to prove what it served: a compromised (or stale) proxy
+		// could resolve @latest to a module OLDER than the strictly-newer
+		// signed release the version gate above approved. Defense in depth:
+		// run the freshly installed binary's `version` command and refuse to
+		// report success unless it reports >= the approved target version.
+		// verifyInstalledVersion checks the resolved GOBIN/GOPATH-bin install
+		// location AND the running binary's location (selfExe), since `go
+		// install` may write somewhere other than selfExe.
+		if err := verifyInstalledVersion(latestVersion); err != nil {
+			fmt.Fprintln(os.Stderr, "WARNING: 'go install' exited successfully, but the installed binary fails the post-install version check — NOT reporting a successful update.")
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			return 1
 		}
+		fmt.Println("QORM updated successfully via go install!")
+		return 0
+	} else if !errors.Is(err, errGoInstallUnavailable) {
+		fmt.Println("warn: go install failed, falling back to pre-compiled binary update...")
 	}
 
 	// Phase 2: Self-update by downloading the pre-compiled binary asset
@@ -198,6 +273,20 @@ func cmdUpdate(args []string) int {
 		return 1
 	}
 
+	// Defense in depth for the release pipeline itself: a valid ed25519
+	// signature proves the publisher signed THIS file, not that the file is
+	// the release its tag claims — a misbuilt or stale binary published under
+	// a newer tag would otherwise be swapped over the running binary. Exec the
+	// downloaded binary's `version` command BEFORE the swap and refuse unless
+	// it reports >= the approved target. Refusing here is cheap precisely
+	// because it happens while the current binary is still in place: the swap
+	// below cannot be undone, but this check can still veto it.
+	if err := verifyPreSwapVersion(tmpPath, latestVersion); err != nil {
+		fmt.Fprintln(os.Stderr, "error: refusing to install the downloaded binary — the current binary has NOT been replaced.")
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1 // the deferred os.Remove(tmpPath) cleans up the refused download
+	}
+
 	// Rename current executable to backup
 	oldPath := exePath + ".old"
 	_ = os.Remove(oldPath)
@@ -217,6 +306,155 @@ func cmdUpdate(args []string) int {
 
 	fmt.Printf("QORM updated successfully to version v%s!\n", latestVersion)
 	return 0
+}
+
+// installedVersionTimeout bounds the post-install / pre-swap `version` command
+// so a wedged replacement binary cannot hang `qorm update` forever.
+const installedVersionTimeout = 10 * time.Second
+
+// verifyPreSwapVersion runs the downloaded binary's `version` command at
+// tmpPath (already verified and executable on disk) and fails closed unless it
+// reports a version >= want — the strictly-newer remote version the version
+// gate approved. It guards the signed-binary download path: the ed25519
+// signature proves the release publisher signed the file, not that the file is
+// the release its tag claims, and once the caller swaps it in the replacement
+// cannot be undone. A failure here refuses the swap while the current binary
+// is still untouched.
+func verifyPreSwapVersion(tmpPath, want string) error {
+	got, err := installedBinaryVersion(tmpPath)
+	if err != nil {
+		return fmt.Errorf("cannot verify the downloaded binary: %v", err)
+	}
+	cmp, err := compareSemver(got, want)
+	if err != nil {
+		return fmt.Errorf("downloaded binary reports an unparseable version %q (expected v%s or newer): %v", got, want, err)
+	}
+	if cmp < 0 {
+		return fmt.Errorf("pre-swap version check failed: the downloaded binary reports v%s, which is OLDER than the approved target v%s — the release pipeline published a stale binary under a newer tag; refusing to replace the current binary", got, want)
+	}
+	return nil
+}
+
+// verifyInstalledVersion checks that the freshly installed binary reports a
+// version >= want — the strictly-newer remote version the version gate already
+// approved — and fails closed otherwise. This is defense in depth for the
+// 'go install @latest' fast path: that phase trusts the Go module proxy, which
+// (if compromised) could resolve @latest to a module OLDER than the signed
+// release the gate checked, and nothing about that phase is signed.
+//
+// GOBIN reconciliation: `go install` writes to GOBIN (or GOPATH/bin), which
+// may differ from the running binary's directory (selfExe) — e.g. the user
+// installed via a package manager but has a Go toolchain. Reading only selfExe
+// would then see the STALE binary and fail closed on a legitimate install. So
+// the check runs against the resolved install location (goInstallBinDir) when
+// it exists and differs from selfExe, and succeeds when EITHER location
+// reports the expected version; it fails closed only when NEITHER does. When
+// the resolved location cannot be checked (go env unavailable, no binary
+// there), the check warns and falls back to selfExe instead of hard-failing.
+//
+// Honest limitation: 'go install' may already have replaced the binary on disk
+// by the time this check runs, and that cannot be un-done from here. A failing
+// check therefore does NOT roll anything back; it refuses to report success,
+// exits non-zero, and warns loudly so the user can reinstall a known-good
+// release manually.
+func verifyInstalledVersion(want string) error {
+	selfPath, selfErr := selfExe()
+
+	// Resolve the `go install` destination and check it first when it holds a
+	// binary that is not selfExe itself.
+	resolvedPath := ""
+	var resolvedFail error
+	if dir, err := goInstallBinDir(); err != nil {
+		fmt.Fprintf(os.Stderr, "warn: cannot resolve the 'go install' destination (%v); checking the running binary's location instead.\n", err)
+	} else {
+		candidate := filepath.Join(dir, qormBinaryName())
+		switch fi, statErr := os.Stat(candidate); {
+		case statErr != nil || fi.IsDir():
+			fmt.Fprintf(os.Stderr, "warn: no qorm binary at the resolved 'go install' destination %s; checking the running binary's location instead.\n", candidate)
+		case selfErr == nil && samePath(candidate, selfPath):
+			// The install landed exactly where the running binary lives: the
+			// selfExe check below covers it, no need to run the same file twice.
+		default:
+			resolvedPath = candidate
+		}
+	}
+	if resolvedPath != "" {
+		if resolvedFail = installedVersionAtLeast(resolvedPath, want); resolvedFail == nil {
+			return nil
+		}
+	}
+
+	var selfFail error
+	if selfErr != nil {
+		selfFail = fmt.Errorf("cannot verify the installed version: resolving the executable path failed: %v", selfErr)
+	} else {
+		selfFail = installedVersionAtLeast(selfPath, want)
+	}
+	if selfFail == nil {
+		return nil
+	}
+	if resolvedFail != nil {
+		// Neither location reports the expected version: fail closed.
+		return fmt.Errorf("post-install version check failed: neither the 'go install' destination (%s) nor the running binary reports v%s or newer (%v; %v); the Go module proxy may have served a stale or compromised module; refusing to report a successful update", resolvedPath, want, resolvedFail, selfFail)
+	}
+	return selfFail
+}
+
+// installedVersionAtLeast runs exe's `version` command and fails closed unless
+// it reports a version >= want.
+func installedVersionAtLeast(exe, want string) error {
+	got, err := installedBinaryVersion(exe)
+	if err != nil {
+		return fmt.Errorf("cannot verify the installed version: %v", err)
+	}
+	cmp, err := compareSemver(got, want)
+	if err != nil {
+		return fmt.Errorf("installed binary reports an unparseable version %q (expected v%s or newer): %v", got, want, err)
+	}
+	if cmp < 0 {
+		return fmt.Errorf("post-install version check failed: the installed binary at %s reports v%s, which is OLDER than the approved target v%s; the Go module proxy may have served a stale or compromised module; refusing to report a successful update", exe, got, want)
+	}
+	return nil
+}
+
+// samePath reports whether a and b refer to the same file, comparing cleaned
+// symlink-resolved paths (selfExe and the resolved install location may reach
+// the same binary through different links).
+func samePath(a, b string) bool {
+	if ra, err := filepath.EvalSymlinks(a); err == nil {
+		a = ra
+	}
+	if rb, err := filepath.EvalSymlinks(b); err == nil {
+		b = rb
+	}
+	return filepath.Clean(a) == filepath.Clean(b)
+}
+
+// installedBinaryVersion runs `exe version` with a bounded timeout and extracts
+// the version the binary reports from its first output line.
+func installedBinaryVersion(exe string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), installedVersionTimeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, exe, "version")
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("running %q version failed: %v", exe, err)
+	}
+	return parseVersionLine(stdout.String())
+}
+
+// parseVersionLine extracts X.Y.Z from a `qorm version` output line of the form
+// `qorm X.Y.Z (go1.2.3 os/arch)` — the exact format main.go prints. The
+// extracted field is validated by compareSemver at the call site; here only
+// the line shape is checked.
+func parseVersionLine(out string) (string, error) {
+	line, _, _ := strings.Cut(strings.TrimSpace(out), "\n")
+	fields := strings.Fields(line)
+	if len(fields) < 2 || fields[0] != "qorm" {
+		return "", fmt.Errorf("unexpected version output %q", line)
+	}
+	return fields[1], nil
 }
 
 // semver is a parsed release version: a numeric X.Y.Z core plus optional
