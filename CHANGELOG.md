@@ -6,6 +6,33 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+## [v0.3.5] - 2026-07-23
+
+### Security
+- Renderer attribute-injection regression lint: a new
+  `internal/integration` test (`TestAttrInjectionLint`) statically scans
+  every `fmt` verb interpolated into an HTML attribute in the renderer and
+  fails CI unless the value is escaped by a known helper, is a constant, or
+  is on a comment-justified allowlist — with a self-proof subtest that
+  plants a raw interpolation and asserts it is flagged. This puts the
+  attribute-injection class (the bug behind the v0.3.3 / v0.3.4 fixes)
+  under a permanent static lock; the current tree scans 448 interpolations
+  as 428 safe-by-rule + 20 allowlisted + 0 unsafe.
+- Self-update trust chain completed: the `go install @latest` path now
+  checks the installed binary's reported version (a compromised / stale
+  module proxy resolving `@latest` to an older module no longer reports
+  success), and the signed-binary path checks the downloaded binary's
+  version *before* swapping it over the running one (a stale-but-validly-
+  signed binary is refused while the old binary is still in place).
+  `go install` into a `GOBIN` / `GOPATH/bin` other than the running
+  binary's dir is now reconciled instead of falsely failing closed.
+
+### Added
+- 8 new loopback self-update subtests (executable-stub payloads, no network
+  / toolchain) plus the lint test; no existing test weakened.
+
+## [v0.3.4] - 2026-07-23
+
 ### Security
 - Renderer injection hardening completed: the style-attribute breakout
   (author / bound style values interpolated raw into the quoted `style="…"`)
@@ -411,6 +438,7 @@ Initial release: QORM, an agent-native declarative-UI runtime in pure Go.
 - Render performance: cached parsed expressions and reflection-free CSS
   numeric writes in the hot path.
 
+[v0.3.5]: https://github.com/qorm/qorm/compare/v0.3.4...v0.3.5
 [v0.3.4]: https://github.com/qorm/qorm/compare/v0.3.3...v0.3.4
 [v0.3.3]: https://github.com/qorm/qorm/compare/v0.3.2...v0.3.3
 [v0.3.2]: https://github.com/qorm/qorm/compare/v0.3.1...v0.3.2
