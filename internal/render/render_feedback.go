@@ -39,7 +39,8 @@ func (r *renderer) badge(n *model.Node) {
 			if propStr(n, "smallSize") == "true" {
 				dot = "width:8px;height:8px;border-radius:4px;"
 			}
-			bg := propStrOr(n, "color", "#ef4444")
+			// colour is an author prop interpolated into a quoted style attribute.
+			bg := styleAttr(propStrOr(n, "color", "#ef4444"))
 			fmt.Fprintf(&r.sb, `<span style="position:absolute;top:-6px;right:-6px;display:inline-flex;align-items:center;justify-content:center;background:%s;color:#fff;font-weight:700;box-shadow:0 0 0 2px var(--surface);%s">%s</span>`,
 				bg, dot, html.EscapeString(label))
 		}
@@ -57,7 +58,8 @@ func (r *renderer) progress(n *model.Node) {
 		v *= 100
 	}
 	pct := clampPct(v)
-	fill := propStrOr(n, "color", "var(--accent)")
+	// colour is an author prop interpolated into a quoted style attribute.
+	fill := styleAttr(propStrOr(n, "color", "var(--accent)"))
 	track := r.boxCSS(n) + "background:var(--fill);overflow:hidden;border-radius:999px;min-height:8px;width:100%;"
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q role="progressbar"><div style="width:%g%%;height:100%%;background:%s;transition:width .2s;"></div></div>`,
 		attrID(n.ID), track, pct, fill)
@@ -65,7 +67,8 @@ func (r *renderer) progress(n *model.Node) {
 
 func (r *renderer) spinner(n *model.Node) {
 	size := propNum(n, "size", 24)
-	color := propStrOr(n, "color", "var(--accent)")
+	// colour is an author prop interpolated into a quoted style attribute.
+	color := styleAttr(propStrOr(n, "color", "var(--accent)"))
 	style := fmt.Sprintf("width:%gpx;height:%gpx;border:3px solid var(--sep);border-top-color:%s;border-radius:50%%;", size, size, color)
 	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-spin" style=%q role="status" aria-label="loading"></div>`, attrID(n.ID), r.boxCSS(n)+style)
 }
@@ -196,7 +199,10 @@ func (r *renderer) circularProgress(n *model.Node) {
 	stroke := propNum(n, "stroke", 4)
 	rad := (size - stroke) / 2
 	circ := 2 * 3.14159265 * rad
-	color := propStrOr(n, "color", "var(--accent)")
+	// colour is an author prop interpolated into a quoted SVG stroke
+	// attribute: entity-encode the value (not the surrounding constant
+	// markup) so a double quote cannot break out and inject attributes.
+	color := html.EscapeString(propStrOr(n, "color", "var(--accent)"))
 	cx := size / 2
 	fmt.Fprintf(&r.sb, `<svg id=%q width="%g" height="%g" viewBox="0 0 %g %g" style=%q%s>`,
 		attrID(n.ID), size, size, size, size, r.boxCSS(n), a11y(n))

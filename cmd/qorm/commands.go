@@ -501,6 +501,15 @@ func cmdVerify(args []string) int {
 			return 1
 		}
 	}
+	// Revocation is checked against the ACTUAL verifying key (see
+	// bundle.VerifyWithRevocation), so it is meaningless — and a fail-open trap —
+	// without a trust key: with trust==nil the library does integrity only and
+	// silently ignores the revocation list. Refuse rather than report a green
+	// "integrity + revocation" for a bundle whose revocation was never checked.
+	if revoked != nil && trust == nil {
+		fmt.Fprintln(os.Stderr, "error: --revoked requires --trust <key.pub>: revocation is checked against the trusted signing key, so a trust key is mandatory")
+		return 2
+	}
 	if err := bundle.VerifyWithRevocation(b, trust, revoked); err != nil {
 		fmt.Fprintf(os.Stderr, "VERIFY FAILED: %v\n", err)
 		return 1

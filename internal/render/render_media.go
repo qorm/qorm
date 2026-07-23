@@ -11,7 +11,8 @@ import (
 
 func (r *renderer) image(n *model.Node) {
 	src := propStr(n, "src")
-	style := r.boxCSS(n) + "object-fit:" + propStrOr(n, "fit", "cover") + ";"
+	// fit is an author prop interpolated into a quoted style attribute.
+	style := r.boxCSS(n) + "object-fit:" + styleAttr(propStrOr(n, "fit", "cover")) + ";"
 	fmt.Fprintf(&r.sb, `<img id=%q src=%q style=%q alt=%q%s>`,
 		attrID(n.ID), html.EscapeString(src), style, html.EscapeString(propStr(n, "alt")), a11y(n))
 }

@@ -133,7 +133,7 @@ var stepFields = [][4]string{
 	{"from", "string", "`state.move`: source index", "`state.move`:源索引"},
 	{"url", "string", "`http.*`: request URL (may contain `{{ bindings }}`)", "`http.*`:请求 URL(可含 `{{ bindings }}`)"},
 	{"method", "string", "`http.request`: HTTP method override", "`http.request`:覆盖 HTTP 方法"},
-	{"body", "string", "`http.*`: request body", "`http.*`:请求体"},
+	{"body", "string", "`http.*`: request body — a string is sent verbatim (an inline JSON template is not double-encoded); a bound non-string value (map/list/number/bool) is JSON-encoded", "`http.*`:请求体——字符串原样发送(内联 JSON 模板不会被二次编码);绑定的非字符串值(map/list/number/bool)会被 JSON 编码"},
 	{"headers", "object", "`http.*`: request headers", "`http.*`:请求头"},
 	{"result", "string", "`http.*`: state path to store the parsed response", "`http.*`:存放解析后响应的状态路径"},
 	{"error", "string", "`http.*`: state path to store an error message", "`http.*`:存放错误信息的状态路径"},
@@ -152,7 +152,7 @@ func stepDesc(typ string) (en, zh string) {
 		"state.merge":        {"shallow-merge an object into a state path", "把一个对象浅合并进状态路径"},
 		"state.sort":         {"sort an array by `field`", "按 `field` 对数组排序"},
 		"state.move":         {"move an array element `from` index `to` index", "把数组元素从 `from` 移到 `to`"},
-		"state.clear":        {"empty an array or clear a string/number", "清空数组,或清除字符串 / 数字"},
+		"state.clear":        {"empty an array, or clear a string/number/boolean to its zero", "清空数组,或把字符串 / 数字 / 布尔值清除为其零值"},
 		"state.reset":        {"restore the manifest's initial values — one key with `path`, all state without", "恢复清单中的初始值——带 `path` 时仅重置该键,不带则重置全部状态"},
 		"http.get":           {"GET a URL, store the parsed JSON at `result`", "GET 一个 URL,把解析后的 JSON 存到 `result`"},
 		"http.post":          {"POST `body`, store the response at `result`", "POST `body`,把响应存到 `result`"},
@@ -247,8 +247,8 @@ func TestAPIRefHTTP(t *testing.T) {
 		zh.WriteString("| `" + r + "` | " + d.method + " | " + d.purposeZH + " |\n")
 	}
 
-	en.WriteString("\n## The `/events` stream\n\nThe client opens `GET /events` and holds it open. The server writes one SSE message per change:\n\n```\n: connected\n\ndata: <html for the changed region>\n\n```\n\nEach `data:` frame carries the re-rendered HTML the client swaps in. Log and presence updates arrive on the same stream. When a proxy buffers SSE, the client falls back to `GET /poll?rev=<n>`.\n")
-	zh.WriteString("\n## `/events` 事件流\n\n客户端打开 `GET /events` 并保持连接。服务端每次变化写入一条 SSE 消息:\n\n```\n: connected\n\ndata: <变化区域的 html>\n\n```\n\n每个 `data:` 帧携带客户端替换用的重渲染 HTML。日志与在场更新走同一条流。当代理缓冲 SSE 时,客户端回退到 `GET /poll?rev=<n>`。\n")
+	en.WriteString("\n## The `/events` stream\n\nThe client opens `GET /events?rev=<n>` — `<n>` the revision of the page render that produced its HTML — and holds it open. The server writes one SSE message per change:\n\n```\n: connected\n\ndata: <html for the changed region>\n\n```\n\nEach `data:` frame carries the re-rendered HTML the client swaps in, and ships an `id: <rev>` line so a reconnecting browser replays it as `Last-Event-Id`. If a client connects (or reconnects) behind the live revision — a mutation landed between its page render and the stream opening — the server first pushes a current snapshot (`rev`+`html`+`theme`+`route`) to resync it, then streams; a client already at the tip gets no redundant snapshot. Log and presence updates arrive on the same stream. When a proxy buffers SSE, the client falls back to `GET /poll?rev=<n>`.\n")
+	zh.WriteString("\n## `/events` 事件流\n\n客户端打开 `GET /events?rev=<n>`(`<n>` 为生成其 HTML 的页面渲染修订号)并保持连接。服务端每次变化写入一条 SSE 消息:\n\n```\n: connected\n\ndata: <变化区域的 html>\n\n```\n\n每个 `data:` 帧携带客户端替换用的重渲染 HTML,并附带一行 `id: <rev>`,以便重连的浏览器作为 `Last-Event-Id` 回放。若客户端连接(或重连)时落后于活动修订号——即在其页面渲染与流打开之间有变更落定——服务端会先推送一份当前快照(`rev`+`html`+`theme`+`route`)使其重新同步,然后再继续推送;已处于最新修订号的客户端不会收到多余快照。日志与在场更新走同一条流。当代理缓冲 SSE 时,客户端回退到 `GET /poll?rev=<n>`。\n")
 
 	syncDoc(t, "../../api/http-api.md", en.String())
 	syncDoc(t, "../../api/zh/http-api.md", zh.String())

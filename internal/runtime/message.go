@@ -342,7 +342,7 @@ func resolveChoice(varName, rest string, ctx map[string]any) string {
 		} else {
 			chosen = forms["other"]
 		}
-		chosen = strings.ReplaceAll(chosen, "#", trimNum(n))
+		chosen = replaceHash(chosen, trimNum(n))
 	} else {
 		key := expr.Stringify(val)
 		if f, ok := forms[key]; ok {
@@ -352,6 +352,50 @@ func resolveChoice(varName, rest string, ctx map[string]any) string {
 		}
 	}
 	return fillMessage(chosen, ctx) // expand nested params
+}
+
+// replaceHash substitutes the plural marker `#` with repl throughout s — except
+// inside a nested `{…, plural, …}` block. ICU gives `#` the value of the
+// INNERMOST enclosing plural, so a nested plural supplies its own `#` from its
+// own argument when it is expanded by the recursive fillMessage; replacing it
+// here with the outer value would clobber it. A `#` inside a nested select or a
+// simple placeholder still refers to THIS (the enclosing) plural's value — a
+// select does not shadow `#` — so those are replaced normally.
+func replaceHash(s, repl string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); {
+		if s[i] == '{' && startsPluralBlock(s, i) {
+			j, _ := matchBrace(s, i) // copy the nested plural through verbatim
+			b.WriteString(s[i : j+1])
+			i = j + 1
+			continue
+		}
+		if s[i] == '#' {
+			b.WriteString(repl)
+		} else {
+			b.WriteByte(s[i])
+		}
+		i++
+	}
+	return b.String()
+}
+
+// startsPluralBlock reports whether s[i] (a '{') opens a `{var, plural, …}`
+// block, reading only as far as the keyword after the var name (no full brace
+// scan), so replaceHash stays cheap on non-plural braces.
+func startsPluralBlock(s string, i int) bool {
+	j := i + 1
+	for j < len(s) && s[j] != ',' && s[j] != '{' && s[j] != '}' {
+		j++
+	}
+	if j >= len(s) || s[j] != ',' {
+		return false
+	}
+	k := j + 1
+	for k < len(s) && (s[k] == ' ' || s[k] == '\t' || s[k] == '\n') {
+		k++
+	}
+	return strings.HasPrefix(s[k:], "plural,")
 }
 
 // parseForms reads "cat {text} cat {text} ..." into a map.

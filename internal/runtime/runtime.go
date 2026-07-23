@@ -498,11 +498,16 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any) {
 			setPath(r.State, step.Path, moveElem(arr, from, to))
 		}
 	case "state.clear":
+		// Reset to the value's own type zero so a cleared flag stays a boolean
+		// (not the string ""): arrays empty, numbers go to 0, booleans to false,
+		// everything else to "".
 		switch getPath(r.State, step.Path).(type) {
 		case []any:
 			setPath(r.State, step.Path, []any{})
 		case float64:
 			setPath(r.State, step.Path, 0.0)
+		case bool:
+			setPath(r.State, step.Path, false)
 		default:
 			setPath(r.State, step.Path, "")
 		}
@@ -528,7 +533,10 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any) {
 var httpClient = &http.Client{Timeout: 20 * time.Second}
 
 // applyHTTP calls a backend and stores the parsed JSON response into state.
-// The URL, body and header values may contain {{bindings}}. On success (a 2xx
+// The URL, body and header values may contain {{bindings}}. A body that
+// resolves to a string is sent verbatim (an inline JSON template is not
+// double-encoded); a body that resolves to a non-string value (map/list/number/
+// bool) is JSON-encoded so it is valid under the JSON Content-Type. On success (a 2xx
 // status) the response (JSON decoded, or raw string if not JSON) is written to
 // Result (or Path) and any stale Error is cleared; on any other status the body
 // is discarded and the status text is written to Error. Blocks until it returns.
@@ -558,7 +566,20 @@ func (r *Runtime) applyHTTP(step model.Step, ctx map[string]any) {
 	}
 	var body io.Reader
 	if step.Body != "" {
-		body = strings.NewReader(expr.Stringify(EvalBinding(step.Body, ctx)))
+		bv := EvalBinding(step.Body, ctx)
+		if s, ok := bv.(string); ok {
+			// A string body is sent verbatim: the documented pattern is an inline
+			// JSON template (e.g. `{"name":"{{ name }}"}`), which must not be
+			// double-encoded.
+			body = strings.NewReader(s)
+		} else if enc, err := json.Marshal(bv); err == nil {
+			// A whole structured value bound as the body (a map/list/number/bool)
+			// is JSON-encoded so it is valid on the wire under the JSON
+			// Content-Type — not Go's %v syntax ("map[a:1]").
+			body = strings.NewReader(string(enc))
+		} else {
+			body = strings.NewReader(expr.Stringify(bv)) // unmarshalable fallback
+		}
 	}
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
@@ -627,11 +648,14 @@ func sortArray(v any, key string, dir any) {
 	}
 	desc := expr.Stringify(dir) == "desc"
 	sort.SliceStable(arr, func(i, j int) bool {
-		less := lessValue(fieldOf(arr[i], key), fieldOf(arr[j], key))
+		a, b := fieldOf(arr[i], key), fieldOf(arr[j], key)
 		if desc {
-			return !less
+			// Swap the operands rather than negating: !less returns true for
+			// equal keys in both directions (an invalid comparator) and reverses
+			// equal runs, breaking the stability SliceStable is chosen for.
+			return lessValue(b, a)
 		}
-		return less
+		return lessValue(a, b)
 	})
 }
 

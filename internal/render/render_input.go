@@ -40,7 +40,7 @@ func (r *renderer) input(n *model.Node) {
 		inputType = "password"
 	}
 	fmt.Fprintf(&r.sb, `<input id=%q type=%q value=%q placeholder=%q style=%q%s%s%s>`,
-		attrID(n.ID), inputType, html.EscapeString(r.interp(n.Value)),
+		attrID(n.ID), html.EscapeString(inputType), html.EscapeString(r.interp(n.Value)),
 		html.EscapeString(n.Placeholder), style, dataStateAttr(path), a11y(n), r.changeAttr(n, path != ""))
 }
 
@@ -105,7 +105,10 @@ func (r *renderer) checkedState(n *model.Node) bool {
 func (r *renderer) radio(n *model.Node) {
 	path := boundPath(n.Value)
 	cur := r.interp(n.Value)
-	name := n.ID
+	// The radio-group name is the node id; like the id attribute it is
+	// author-controlled and lands in a quoted HTML attribute, so it needs the
+	// same entity-encoding (%q alone leaves the quote-breakout open).
+	name := attrID(n.ID)
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;gap:6px;", a11y(n))
 	for _, opt := range optionList(n.Props["options"]) {
 		checked := ""
@@ -175,7 +178,7 @@ func (r *renderer) segmented(n *model.Node) {
 			checked = " checked"
 		}
 		fmt.Fprintf(&r.sb, `<label style="position:relative;"><input type="radio" name=%q value=%q%s%s%s style="position:absolute;opacity:0;width:0;height:0;"><span style="display:inline-block;padding:6px 14px;border-radius:6px;font-size:13px;cursor:pointer;%s">%s</span></label>`,
-			n.ID, html.EscapeString(opt.value), checked, dataStateAttr(path), changeAttr,
+			attrID(n.ID), html.EscapeString(opt.value), checked, dataStateAttr(path), changeAttr,
 			segStyle(opt.value == cur), html.EscapeString(opt.label))
 	}
 	r.sb.WriteString(`</div>`)
@@ -393,7 +396,7 @@ func (r *renderer) textFormField(n *model.Node) {
 	}
 	itype := propStrOr(n, "inputType", "text")
 	fmt.Fprintf(&r.sb, `<input type=%q value=%q placeholder=%q style="flex:1;border:none;outline:none;font-size:14px;background:transparent;"%s%s%s>`,
-		itype, html.EscapeString(r.interp(n.Value)), html.EscapeString(n.Placeholder), dataStateAttr(path), a11y(n), r.changeAttr(n, path != ""))
+		html.EscapeString(itype), html.EscapeString(r.interp(n.Value)), html.EscapeString(n.Placeholder), dataStateAttr(path), a11y(n), r.changeAttr(n, path != ""))
 	if suf := r.interp(propStr(n, "suffix")); suf != "" {
 		fmt.Fprintf(&r.sb, `<span style="color:var(--label2);">%s</span>`, html.EscapeString(suf))
 	}

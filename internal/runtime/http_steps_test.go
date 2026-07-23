@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"encoding/json"
 	"errors"
 	"io"
 	"net"
@@ -147,6 +148,66 @@ func TestHTTPBodyAndHeaders(t *testing.T) {
 	}
 	if h2.body != "plain text" {
 		t.Errorf("body = %q", h2.body)
+	}
+}
+
+// TestHTTPStructuredBody verifies that a whole-body binding that resolves to a
+// non-string value (a map/list/number/bool) is JSON-encoded on the wire — not
+// rendered with Go's %v syntax ("map[a:1]"), which is invalid JSON under the
+// application/json Content-Type the runtime adds.
+func TestHTTPStructuredBody(t *testing.T) {
+	cases := []struct {
+		name  string
+		value any
+	}{
+		{"map", map[string]any{"a": float64(1), "b": "x"}},
+		{"list", []any{float64(1), float64(2), float64(3)}},
+		{"number", float64(42)},
+		{"bool", true},
+	}
+	for _, c := range cases {
+		h := &echoHandler{respBody: `{}`}
+		srv := httptest.NewServer(h)
+		dispatchHTTP(t, map[string]any{"payload": c.value}, model.Step{
+			Type: "http.post", URL: srv.URL, Body: "{{ payload }}",
+		}, nil)
+		srv.Close()
+
+		want, err := json.Marshal(c.value)
+		if err != nil {
+			t.Fatalf("%s: json.Marshal: %v", c.name, err)
+		}
+		if h.body != string(want) {
+			t.Errorf("%s: structured body should be JSON-encoded\n got  %q\n want %q", c.name, h.body, string(want))
+		}
+		// The encoded body must be valid JSON (the whole point of the fix).
+		var decoded any
+		if err := json.Unmarshal([]byte(h.body), &decoded); err != nil {
+			t.Errorf("%s: body on the wire is not valid JSON: %q (%v)", c.name, h.body, err)
+		}
+		// Content-Type handling is unchanged: JSON is added when unset.
+		if h.contentType != "application/json" {
+			t.Errorf("%s: default Content-Type should be application/json, got %q", c.name, h.contentType)
+		}
+	}
+}
+
+// TestHTTPStringBodyVerbatim confirms a body binding that resolves to a string
+// is sent byte-for-byte (a JSON template string is NOT double-encoded), and an
+// explicit Content-Type is still respected.
+func TestHTTPStringBodyVerbatim(t *testing.T) {
+	h := &echoHandler{respBody: `{}`}
+	srv := httptest.NewServer(h)
+	defer srv.Close()
+
+	dispatchHTTP(t, map[string]any{"payload": `{"a":1}`}, model.Step{
+		Type: "http.post", URL: srv.URL, Body: "{{ payload }}",
+	}, nil)
+	if h.body != `{"a":1}` {
+		t.Errorf("string body should be sent verbatim, got %q", h.body)
+	}
+	if h.contentType != "application/json" {
+		t.Errorf("default Content-Type should be application/json, got %q", h.contentType)
 	}
 }
 

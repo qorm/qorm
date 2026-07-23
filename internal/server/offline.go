@@ -45,7 +45,11 @@ func OfflineHTML(rt *runtime.Runtime, bundleJSON string, update *UpdateConfig) (
 
 	// 2. drop live-sync (SSE/poll) — an offline app has no server to sync with
 	liveSync := `if(window.EventSource){
-  var es=new EventSource('/events');
+  // Open the stream carrying the revision this page was rendered at (?rev=), so
+  // the server can resync us if a mutation landed between the page render and
+  // this connection opening. On the auto-reconnect the browser replays the same
+  // URL plus the last frame's id; the server takes the newer of the two.
+  var es=new EventSource('/events?rev='+__rev);
   es.onmessage=function(e){ try{ qormApply(JSON.parse(e.data)); }catch(_){} };
 }else{
   setInterval(function(){

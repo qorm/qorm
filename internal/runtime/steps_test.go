@@ -66,6 +66,41 @@ func TestActionSteps(t *testing.T) {
 	}
 }
 
+func TestStateClearResetsByType(t *testing.T) {
+	// clear resets each value to its own type's zero: arrays empty, numbers to
+	// 0, strings to "", and — critically — booleans to false (not the string
+	// ""). A cleared boolean flag must stay a boolean.
+	rt := rtWith(map[string]any{
+		"on":  true,
+		"off": false,
+		"arr": []any{float64(1), float64(2)},
+		"s":   "x",
+		"n":   float64(7),
+	},
+		model.Step{Type: "state.clear", Path: "on"},
+		model.Step{Type: "state.clear", Path: "off"},
+		model.Step{Type: "state.clear", Path: "arr"},
+		model.Step{Type: "state.clear", Path: "s"},
+		model.Step{Type: "state.clear", Path: "n"})
+	rt.Dispatch("a", nil)
+
+	if got, ok := rt.State["on"].(bool); !ok || got != false {
+		t.Errorf("clear(true) should yield bool false, got %T %v", rt.State["on"], rt.State["on"])
+	}
+	if got, ok := rt.State["off"].(bool); !ok || got != false {
+		t.Errorf("clear(false) should stay bool false, got %T %v", rt.State["off"], rt.State["off"])
+	}
+	if arr, ok := rt.State["arr"].([]any); !ok || len(arr) != 0 {
+		t.Errorf("clear(array) should empty it, got %T %v", rt.State["arr"], rt.State["arr"])
+	}
+	if rt.State["s"] != "" {
+		t.Errorf("clear(string) should yield \"\", got %T %v", rt.State["s"], rt.State["s"])
+	}
+	if rt.State["n"] != 0.0 {
+		t.Errorf("clear(number) should yield 0, got %T %v", rt.State["n"], rt.State["n"])
+	}
+}
+
 func TestSortByDynamicField(t *testing.T) {
 	// field comes from an arg (e.g. a clicked table column)
 	rt := rtWith(map[string]any{"rows": []any{

@@ -53,7 +53,7 @@ func (r *renderer) list(n *model.Node) {
 	r.idSuffix = prevSuf
 	r.sb.WriteString(`</div>`)
 	if reorderH >= 0 && n.ID != "" {
-		fmt.Fprintf(&r.sb, `<script>setTimeout(function(){qormReorder(document.getElementById(%q),%d)})</script>`, n.ID, reorderH)
+		fmt.Fprintf(&r.sb, `<script>setTimeout(function(){qormReorder(document.getElementById(%s),%d)})</script>`, jsStringID(n.ID), reorderH)
 	}
 }
 

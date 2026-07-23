@@ -3,10 +3,12 @@ package loader
 import (
 	"encoding/json"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/qorm/pkg/qormext"
 )
 
 func TestNodeToJSONNil(t *testing.T) {
@@ -513,5 +515,206 @@ func TestBraceLiteralNoFalsePositiveBindingWarning(t *testing.T) {
 	app := FromDocs(docs)
 	if len(app.Diagnostics) != 0 {
 		t.Fatalf("a '}}' inside a string literal must not diagnose, got %v", app.Diagnostics)
+	}
+}
+
+// TestManifestDesktopMenuTrayFullFidelity round-trips a manifest carrying a
+// real desktop menu (groups + items with id/title/icon/shortcut/role,
+// separators and a nested submenu, plus an itemless group) and a tray with
+// items through ManifestToJSON -> FromDocs. This is the inverse of
+// parseMenuGroups/parseMenuItems that the round-6 fix added
+// (menuGroupsToJSON/menuItemsToJSON): every field must survive and serialise
+// must be a fixpoint. Widgets (with and without lines), branding:false,
+// pluginABI and the window dims (asFloat's Go-int path, since ManifestToJSON
+// emits them as ints) ride along in the same fidelity pass.
+func TestManifestDesktopMenuTrayFullFidelity(t *testing.T) {
+	doc := map[string]any{
+		"type": "app", "id": "desk", "name": "D", "entry": "home",
+		"branding":  false,
+		"pluginABI": strconv.Itoa(qormext.ABIVersion),
+		"widgets": []any{
+			map[string]any{
+				"id": "w1", "name": "Disk", "title": "Disk usage",
+				"lines": []any{
+					map[string]any{"label": "Used", "value": "10 GB"},
+					map[string]any{"label": "Free", "value": "90 GB"},
+				},
+			},
+			map[string]any{"id": "w2", "name": "Clock"}, // no lines: the omit branch
+		},
+		"platforms": map[string]any{"desktop": map[string]any{
+			"menu": []any{
+				map[string]any{
+					"title": "File",
+					"items": []any{
+						map[string]any{"id": "new", "title": "New", "icon": "new.png", "shortcut": "CmdOrCtrl+N"},
+						map[string]any{"separator": true},
+						map[string]any{
+							"title": "Recent",
+							"items": []any{
+								map[string]any{"id": "r1", "title": "doc.qorm"},
+								map[string]any{"title": "About", "role": "about"},
+							},
+						},
+					},
+				},
+				map[string]any{"title": "Empty"}, // itemless group: the omit branch
+			},
+			"tray": map[string]any{
+				"icon": "tray.png", "tip": "Running",
+				"items": []any{
+					map[string]any{"id": "show", "title": "Show"},
+					map[string]any{"separator": true},
+					map[string]any{"title": "Quit", "role": "quit", "shortcut": "CmdOrCtrl+Q"},
+				},
+			},
+			"window": map[string]any{"width": float64(640), "height": float64(480), "title": "D"},
+		}},
+	}
+	app1 := FromDocs([]map[string]any{doc})
+	if len(app1.Diagnostics) != 0 {
+		t.Fatalf("precondition: manifest must load clean, got %v", app1.Diagnostics)
+	}
+	if len(app1.DesktopMenu) != 2 || app1.Tray.Icon != "tray.png" || len(app1.Tray.Items) != 3 {
+		t.Fatalf("precondition: menu/tray must parse, got menu=%+v tray=%+v", app1.DesktopMenu, app1.Tray)
+	}
+
+	out := ManifestToJSON(app1)
+
+	// The emitted document must carry the menu items (not just the group
+	// titles), the tray items, the widget lines and branding:false.
+	if out["branding"] != false {
+		t.Errorf("branding:false must be serialised, got %v", out["branding"])
+	}
+	d := out["platforms"].(map[string]any)["desktop"].(map[string]any)
+	file := d["menu"].([]any)[0].(map[string]any)
+	fileItems, _ := file["items"].([]any)
+	if len(fileItems) != 3 {
+		t.Fatalf("menu group items must be serialised, got %v", file["items"])
+	}
+	if _, ok := d["menu"].([]any)[1].(map[string]any)["items"]; ok {
+		t.Errorf("itemless group must omit 'items': %v", d["menu"].([]any)[1])
+	}
+	trayOut, _ := d["tray"].(map[string]any)
+	if trayOut == nil || len(trayOut["items"].([]any)) != 3 {
+		t.Fatalf("tray items must be serialised, got %v", d["tray"])
+	}
+	w0 := out["widgets"].([]any)[0].(map[string]any)
+	if lines, _ := w0["lines"].([]any); len(lines) != 2 {
+		t.Errorf("widget lines must be serialised, got %v", w0)
+	}
+	if _, ok := out["widgets"].([]any)[1].(map[string]any)["lines"]; ok {
+		t.Errorf("widget without lines must omit 'lines': %v", out["widgets"].([]any)[1])
+	}
+
+	// Reloading the emitted manifest must reproduce the model exactly —
+	// nested submenus, roles, shortcuts, separators and all.
+	app2 := FromDocs([]map[string]any{out})
+	if len(app2.Diagnostics) != 0 {
+		t.Errorf("reloaded manifest must stay clean, got %v", app2.Diagnostics)
+	}
+	if !reflect.DeepEqual(app1.DesktopMenu, app2.DesktopMenu) {
+		t.Errorf("desktop menu lost fidelity:\nfirst  %+v\nsecond %+v", app1.DesktopMenu, app2.DesktopMenu)
+	}
+	if !reflect.DeepEqual(app1.Tray, app2.Tray) {
+		t.Errorf("tray lost fidelity:\nfirst  %+v\nsecond %+v", app1.Tray, app2.Tray)
+	}
+	if !reflect.DeepEqual(app1.Widgets, app2.Widgets) {
+		t.Errorf("widgets lost fidelity:\nfirst  %+v\nsecond %+v", app1.Widgets, app2.Widgets)
+	}
+	if app2.Branding {
+		t.Error("branding:false must survive the round trip (no flip back to true)")
+	}
+	if app2.PluginABI != strconv.Itoa(qormext.ABIVersion) {
+		t.Errorf("pluginABI lost on reload: %q", app2.PluginABI)
+	}
+	// ManifestToJSON wrote the dims as Go ints (no intermediate JSON encode),
+	// so this reload exercises asFloat's integer path and must not zero them.
+	if app2.Window.Width != 640 || app2.Window.Height != 480 || app2.Window.Title != "D" {
+		t.Errorf("window lost on reload (asFloat int path): %+v", app2.Window)
+	}
+	if sub := app2.DesktopMenu[0].Items[2].Items; len(sub) != 2 || sub[1].Role != "about" {
+		t.Errorf("nested submenu lost on reload: %+v", sub)
+	}
+
+	// Serialise is a fixpoint over these sections.
+	if out2 := ManifestToJSON(app2); !reflect.DeepEqual(out, out2) {
+		t.Errorf("serialise is not a fixpoint:\nfirst  %v\nsecond %v", out, out2)
+	}
+}
+
+// TestEscapedQuoteBindingNoFalsePositiveBindingWarning verifies forEachExpr's
+// quote tracking honours backslash escapes: an ESCAPED quote inside a
+// binding's string literal ({{ 'a\'b' }}) must not terminate the literal, so
+// the binding is extracted whole (no spurious "non-standard binding"
+// diagnostic), and scanning continues to the FOLLOWING binding so its real
+// expression is still type-checked. Without escape handling the first literal
+// would swallow the rest of the string and the type error would go unreported.
+func TestEscapedQuoteBindingNoFalsePositiveBindingWarning(t *testing.T) {
+	docs := []map[string]any{
+		{
+			"type": "app", "id": "a", "entry": "main",
+			"globalState": map[string]any{"schema": map[string]any{"name": "string"}},
+		},
+		{
+			"type": "scene", "id": "main",
+			"root": map[string]any{"type": "text", "id": "t", "text": "{{ 'a\\'b' }}{{ state.name - 1 }}"},
+		},
+	}
+	app := FromDocs(docs)
+	var mismatches, spurious []string
+	for _, d := range app.Diagnostics {
+		if strings.Contains(d, "非标准的绑定") {
+			spurious = append(spurious, d)
+		}
+		if strings.Contains(d, "type mismatch") {
+			mismatches = append(mismatches, d)
+		}
+	}
+	if len(spurious) != 0 {
+		t.Errorf("escaped-quote string literal must not warn as a bare binding: %v", spurious)
+	}
+	// The real expression after the literal must still be type-checked:
+	// state.name is string, so `state.name - 1` is exactly one mismatch.
+	if len(mismatches) != 1 || !strings.Contains(mismatches[0], "state.name - 1") {
+		t.Fatalf("type-checking must run on the real expression after the escaped-quote literal, got %v", app.Diagnostics)
+	}
+	if len(app.Diagnostics) != 1 {
+		t.Errorf("want exactly the one type-mismatch diagnostic, got %v", app.Diagnostics)
+	}
+}
+
+// TestEscapedBraceInLiteralNoFalsePositiveBindingWarning covers a "}}" that
+// is preceded by a backslash inside a binding's string literal (alongside an
+// escaped quote): the escape skip keeps the literal intact, so the binding
+// emits no diagnostic and the trailing real expression is still checked.
+func TestEscapedBraceInLiteralNoFalsePositiveBindingWarning(t *testing.T) {
+	docs := []map[string]any{
+		{
+			"type": "app", "id": "a", "entry": "main",
+			"globalState": map[string]any{"schema": map[string]any{"name": "string"}},
+		},
+		{
+			"type": "scene", "id": "main",
+			"root": map[string]any{"type": "text", "id": "t", "text": "x {{ 'a\\'b\\}}c' }} y {{ state.name - 2 }}"},
+		},
+	}
+	app := FromDocs(docs)
+	for _, d := range app.Diagnostics {
+		if strings.Contains(d, "非标准的绑定") {
+			t.Errorf("literal with escaped quote + escaped }} must not warn: %v", d)
+		}
+	}
+	found := false
+	for _, d := range app.Diagnostics {
+		if strings.Contains(d, "type mismatch") && strings.Contains(d, "state.name - 2") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("type-checking must still reach the real expression, got %v", app.Diagnostics)
+	}
+	if len(app.Diagnostics) != 1 {
+		t.Errorf("want exactly the one type-mismatch diagnostic, got %v", app.Diagnostics)
 	}
 }

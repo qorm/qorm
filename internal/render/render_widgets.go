@@ -162,7 +162,8 @@ func (r *renderer) wrap(n *model.Node) {
 
 // appbar is Flutter's AppBar: leading + title + actions row.
 func (r *renderer) appbar(n *model.Node) {
-	bg := propStrOr(n, "background", "var(--surface)")
+	// background is an author prop interpolated into a quoted style attribute.
+	bg := styleAttr(propStrOr(n, "background", "var(--surface)"))
 	style := fmt.Sprintf("display:flex;align-items:center;gap:6px;height:calc(44px + var(--safe-top, env(safe-area-inset-top, 0px)));padding:var(--safe-top, env(safe-area-inset-top, 0px)) 8px 0 8px;box-sizing:border-box;background:%s;-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-bottom:.5px solid var(--sep);", bg)
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), r.boxCSS(n)+style, a11y(n))
 	if lead := r.interp(propStr(n, "leading")); lead != "" {
@@ -195,9 +196,14 @@ func (r *renderer) fab(n *model.Node) {
 }
 
 func (r *renderer) link(n *model.Node) {
+	// Default is the renderer's own constant — a harmless no-navigation
+	// placeholder that keeps an onPress-only link clickable without a scroll
+	// jump — not author data, so it bypasses safeURL. An author-supplied href
+	// IS untrusted: safeURL allowlists its scheme (a "javascript:"/"data:"
+	// href would be stored XSS / phishing the moment a user taps the link).
 	href := "javascript:void(0)"
 	if v, ok := n.Prop("href"); ok {
-		href = fmt.Sprint(v)
+		href = safeURL(fmt.Sprint(v))
 	}
 	style := r.boxCSS(n) + r.textCSS(n) + "cursor:pointer;text-decoration:none;"
 	fmt.Fprintf(&r.sb, `<a id=%q href=%q style=%q%s%s>%s</a>`,
@@ -349,8 +355,11 @@ func (r *renderer) camera(n *model.Node) {
 	if val != "" {
 		disp = "block"
 	}
-	fmt.Fprintf(&r.sb, `<img class="qorm-cam-preview" alt="" src=%q style="max-width:100%%;border-radius:12px;display:%s;">`, val, disp)
-	fmt.Fprintf(&r.sb, `<input type="hidden"%s value=%q>`, dataStateAttr(path), val)
+	// src is a non-navigating media context and val is the capture's data:
+	// URL by design — entity-encode so a bound value cannot break out of the
+	// attribute (no scheme filter: nothing executes script off an <img> src).
+	fmt.Fprintf(&r.sb, `<img class="qorm-cam-preview" alt="" src=%q style="max-width:100%%;border-radius:12px;display:%s;">`, html.EscapeString(val), disp)
+	fmt.Fprintf(&r.sb, `<input type="hidden"%s value=%q>`, dataStateAttr(path), html.EscapeString(val))
 	// Live camera (desktop/web via getUserMedia — localhost is a secure context);
 	// hidden until qormCameraInit shows the live button on capable platforms.
 	r.sb.WriteString(`<video class="qorm-cam-video" playsinline muted style="display:none;max-width:100%;border-radius:12px;"></video>`)
@@ -570,7 +579,9 @@ func (r *renderer) contextMenu(n *model.Node) {
 			for _, c := range n.Children {
 				r.node(c)
 			}
-			panelStyle := "display:none;position:fixed;z-index:80;min-width:200px;background:var(--surface);border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.28);padding:6px;border:.5px solid var(--sep);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);" + propStr(n, "menuStyle")
+			// menuStyle is author-written CSS appended into a quoted style
+			// attribute: entity-encode it so a double quote cannot break out.
+			panelStyle := "display:none;position:fixed;z-index:80;min-width:200px;background:var(--surface);border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.28);padding:6px;border:.5px solid var(--sep);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);" + styleAttr(propStr(n, "menuStyle"))
 			r.sb.WriteString(`<div class="qorm-ctxmenu-panel" style="` + panelStyle + `">`)
 			r.ctxItems(items)
 			r.sb.WriteString(`</div></div>`)
@@ -596,7 +607,7 @@ func (r *renderer) contextMenu(n *model.Node) {
 			sep, r.actionColor(a.style), attr, html.EscapeString(a.label))
 	}
 	r.sb.WriteString(`</div></div></div>`)
-	fmt.Fprintf(&r.sb, `<script>setTimeout(function(){qormCtx(document.getElementById(%q))})</script>`, r.nid(n))
+	fmt.Fprintf(&r.sb, `<script>setTimeout(function(){qormCtx(document.getElementById(%s))})</script>`, jsStringID(r.nid(n)))
 }
 
 // refreshIndicator is Flutter's RefreshIndicator: pull the scroll content down
@@ -619,7 +630,7 @@ func (r *renderer) refreshIndicator(n *model.Node) {
 	}
 	r.sb.WriteString(`</div>`)
 	if h >= 0 {
-		fmt.Fprintf(&r.sb, `<script>setTimeout(function(){qormRefresh(document.getElementById(%q),%d)})</script>`, r.nid(n), h)
+		fmt.Fprintf(&r.sb, `<script>setTimeout(function(){qormRefresh(document.getElementById(%s),%d)})</script>`, jsStringID(r.nid(n)), h)
 	}
 }
 
@@ -683,7 +694,9 @@ func (r *renderer) richText(n *model.Node) {
 		if b, _ := m["underline"].(bool); b {
 			st.WriteString("text-decoration:underline;")
 		}
-		fmt.Fprintf(&r.sb, `<span style="%s">%s</span>`, st.String(), html.EscapeString(r.interp(str(m, "text"))))
+		// the span colour is author input interpolated into a quoted style
+		// attribute: entity-encode the assembled declarations (styleAttr).
+		fmt.Fprintf(&r.sb, `<span style="%s">%s</span>`, styleAttr(st.String()), html.EscapeString(r.interp(str(m, "text"))))
 	}
 	r.sb.WriteString(`</div>`)
 }
@@ -691,7 +704,8 @@ func (r *renderer) richText(n *model.Node) {
 // largeTitle is the iOS large-title navigation bar (CupertinoSliverNavigationBar):
 // a compact bar row over a big bold title, translucent with a hairline.
 func (r *renderer) largeTitle(n *model.Node) {
-	bg := propStrOr(n, "background", "var(--bg)")
+	// background is an author prop interpolated into a quoted style attribute.
+	bg := styleAttr(propStrOr(n, "background", "var(--bg)"))
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID),
 		r.boxCSS(n)+fmt.Sprintf("background:%s;-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-bottom:.5px solid var(--sep);", bg))
 	// compact action row

@@ -131,6 +131,16 @@ manifest. Missing or unverifiable signatures fail closed
 (`--insecure-skip-verify` is the explicit escape hatch); the embedded key
 list supports rotation by shipping old + new keys in a transition release.
 
+A valid signature is necessary but not sufficient: the release's tag must
+also parse as a semver (`X.Y.Z` with an optional leading `v`) and be
+STRICTLY NEWER than the running version before anything is replaced. An
+equal or older tag — including a prerelease of the running `X.Y.Z`, which
+sorts older than the release — is reported as already up to date (or
+refused as a downgrade) and the binary is left untouched, so a compromised
+or misconfigured release endpoint cannot roll the CLI back to a stale,
+potentially vulnerable build by serving an old signed release. An
+unparseable remote tag fails closed the same way.
+
 ## Prohibited Behaviors
 
 - A Bundle dynamically adding an unreviewed Native API.

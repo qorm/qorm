@@ -275,6 +275,45 @@ func TestStateSortEdgeCases(t *testing.T) {
 	}
 }
 
+// TestSortDescIsStable is a regression test: a descending sort must remain
+// stable — rows whose sort key is equal keep their original relative order.
+// sortArray uses sort.SliceStable, so equal keys must never be reordered; the
+// old `!less` descending idiom returned true for equal keys in both directions
+// (an invalid comparator) and reversed equal runs.
+func TestSortDescIsStable(t *testing.T) {
+	rt := rtWith(map[string]any{"xs": []any{
+		map[string]any{"v": float64(1), "tag": "a"},
+		map[string]any{"v": float64(1), "tag": "b"},
+		map[string]any{"v": float64(1), "tag": "c"},
+	}}, model.Step{Type: "state.sort", Path: "xs", Field: "v", Value: "desc"})
+	rt.Dispatch("a", nil)
+	var tags []string
+	for _, e := range rt.State["xs"].([]any) {
+		tags = append(tags, e.(map[string]any)["tag"].(string))
+	}
+	if len(tags) != 3 || tags[0] != "a" || tags[1] != "b" || tags[2] != "c" {
+		t.Errorf("desc sort of equal keys must be stable, got order %v, want [a b c]", tags)
+	}
+
+	// Descending still orders distinct keys correctly AND keeps the equal high
+	// rows in their original order ahead of the lower row.
+	rt = rtWith(map[string]any{"xs": []any{
+		map[string]any{"v": float64(2), "tag": "p"},
+		map[string]any{"v": float64(3), "tag": "q"},
+		map[string]any{"v": float64(3), "tag": "r"},
+		map[string]any{"v": float64(1), "tag": "s"},
+	}}, model.Step{Type: "state.sort", Path: "xs", Field: "v", Value: "desc"})
+	rt.Dispatch("a", nil)
+	tags = nil
+	for _, e := range rt.State["xs"].([]any) {
+		tags = append(tags, e.(map[string]any)["tag"].(string))
+	}
+	// 3,3,2,1 with the two 3s keeping their p-before-q order.
+	if len(tags) != 4 || tags[0] != "q" || tags[1] != "r" || tags[2] != "p" || tags[3] != "s" {
+		t.Errorf("desc sort mixed keys: got %v, want [q r p s]", tags)
+	}
+}
+
 func TestStateMoveStep(t *testing.T) {
 	mk := func() *Runtime {
 		return rtWith(map[string]any{"xs": []any{"a", "b", "c", "d"}},

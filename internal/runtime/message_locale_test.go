@@ -153,6 +153,33 @@ func TestPluralExactAndHash(t *testing.T) {
 	}
 }
 
+// TestNestedPluralHash is a regression test: inside a nested plural, `#` is the
+// INNERMOST plural's argument (ICU semantics), not the enclosing one. The old
+// code did a blanket ReplaceAll of `#` on the chosen branch before recursing, so
+// an inner plural's `#` was clobbered with the outer value. A `#` inside a
+// nested select must keep referring to the enclosing plural (select does not
+// shadow `#`), so that case is asserted too.
+func TestNestedPluralHash(t *testing.T) {
+	// Inner # takes the inner argument (m=3), not the outer (n=5).
+	got := msg("{n, plural, other {{m, plural, other {# inner}}}}", "en",
+		map[string]any{"n": float64(5), "m": float64(3)})
+	if got != "3 inner" {
+		t.Errorf("nested plural #: got %q, want \"3 inner\"", got)
+	}
+	// The outer # (outside the nested block) still resolves to the outer value.
+	got = msg("{n, plural, other {# and {m, plural, other {# inner}}}}", "en",
+		map[string]any{"n": float64(5), "m": float64(3)})
+	if got != "5 and 3 inner" {
+		t.Errorf("outer and inner #: got %q, want \"5 and 3 inner\"", got)
+	}
+	// # inside a nested select keeps referring to the enclosing plural value.
+	got = msg("{n, plural, other {{g, select, m {# he} f {# she}}}}", "en",
+		map[string]any{"n": float64(5), "g": "m"})
+	if got != "5 he" {
+		t.Errorf("# in nested select: got %q, want \"5 he\"", got)
+	}
+}
+
 func TestSelectNumericAndNested(t *testing.T) {
 	// Numeric select keys compare via Stringify (2.0 -> "2").
 	if got := msg("{n, select, 2 {two} other {many}}", "en", map[string]any{"n": float64(2)}); got != "two" {

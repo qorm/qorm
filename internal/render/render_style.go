@@ -138,9 +138,25 @@ func (r *renderer) containerCSS(n *model.Node) string {
 	if v := layoutStr(n, "justify"); v != "" {
 		fmt.Fprintf(&b, "justify-content:%s;", flexAlign(v))
 	}
-	b.WriteString(r.boxCSS(n))
-	return b.String()
+	// boxCSS already entity-encodes its own (author/bound) values; escape this
+	// prefix on its own (constants and whitelisted values today, but this keeps
+	// the whole string attribute-safe) and append boxCSS raw so its entities
+	// are never double-encoded.
+	return styleAttr(b.String()) + r.boxCSS(n)
 }
+
+// styleAttr entity-encodes an assembled style-attribute value so an author- or
+// bound style value (background, gradient, shadow, cursor, transition,
+// fontFamily, ...) cannot break out of the quoted style="..." attribute. Go's
+// %q quotes a double quote as \" — but the HTML parser treats the backslash as
+// a literal character and the quote still TERMINATES the attribute, so a raw
+// value could inject arbitrary attributes (the round-6 id= breakout class; CSS
+// url(javascript:) is inert, so the attribute breakout is the live vector).
+// html.EscapeString only touches & < > " ', which never occur in legitimate
+// CSS property values, and the browser HTML-unescapes the attribute value
+// before CSS parsing — so the encoding is transparent: safe values render
+// byte-identical and any legitimate special character round-trips.
+func styleAttr(css string) string { return html.EscapeString(css) }
 
 // boxCSS renders style + layout properties shared by all node kinds.
 // resolveStyle returns a copy of a style/layout map with any `{{ … }}` string
@@ -267,7 +283,10 @@ func (r *renderer) boxCSS(n *model.Node) string {
 	}
 	writeEdges(&b, "padding", pick(s, "padding"))
 	writeEdges(&b, "margin", pick(s, "margin"))
-	return b.String()
+	// Entity-encode the assembled value: the colour/string style keys ride
+	// straight from author/bound input (see styleAttr), so an unencoded double
+	// quote would break out of the style="..." attribute at the emission site.
+	return styleAttr(b.String())
 }
 
 func (r *renderer) textCSS(n *model.Node) string {
@@ -310,7 +329,9 @@ func (r *renderer) textCSS(n *model.Node) string {
 	if v := str(s, "textAlign"); v != "" {
 		fmt.Fprintf(&b, "text-align:%s;justify-content:%s;", v, flexAlign(v))
 	}
-	return b.String()
+	// Entity-encode like boxCSS (see styleAttr): the string keys interpolate
+	// author/bound values raw into the quoted style attribute.
+	return styleAttr(b.String())
 }
 
 func a11y(n *model.Node) string {
@@ -569,6 +590,10 @@ func chartBars(vals []float64, w, h float64, color string) string {
 	if len(vals) == 0 {
 		return ""
 	}
+	// colour is an author prop interpolated into a quoted SVG fill attribute:
+	// entity-encode the value (not the surrounding constant markup) so a
+	// double quote cannot break out of the attribute and inject attributes.
+	color = html.EscapeString(color)
 	max := vals[0]
 	for _, v := range vals {
 		if v > max {
@@ -592,6 +617,10 @@ func chartLine(vals []float64, w, h float64, color, kind string) string {
 	if len(vals) < 2 {
 		return ""
 	}
+	// colour is an author prop interpolated into quoted SVG stroke/fill
+	// attributes: entity-encode the value (not the surrounding constant
+	// markup) so a double quote cannot break out and inject attributes.
+	color = html.EscapeString(color)
 	min, max := vals[0], vals[0]
 	for _, v := range vals {
 		if v < min {

@@ -6,6 +6,20 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+### Security
+- Self-update downgrade gap: `qorm update` decided "update available" by
+  version equality only, so a compromised or misconfigured release endpoint
+  serving an OLDER validly-signed release would have been installed as a
+  "self-update" — a rollback to a stale, potentially vulnerable build. The
+  gate now parses both versions with a dependency-free semver compare
+  (numeric `X.Y.Z` core, optional leading `v`, a prerelease of the same
+  `X.Y.Z` sorts older than the release, build metadata ignored) and installs
+  only a STRICTLY NEWER release; equal, older, and unparseable remote tags
+  are refused without replacing the binary and exit 0. Covered by
+  table-driven compare unit tests and an end-to-end loopback test (an older
+  or malformed served signed release is not installed; a strictly newer
+  signed release still is).
+
 ## [v0.3.3] - 2026-07-23
 
 ### Security

@@ -21,7 +21,7 @@ Extracted from the runtime dispatch (`internal/runtime`):
 | `state.merge` | shallow-merge an object into a state path |
 | `state.sort` | sort an array by `field` |
 | `state.move` | move an array element `from` index `to` index |
-| `state.clear` | empty an array or clear a string/number |
+| `state.clear` | empty an array, or clear a string/number/boolean to its zero |
 | `state.reset` | restore the manifest's initial values — one key with `path`, all state without |
 | `http.get` | GET a URL, store the parsed JSON at `result` |
 | `http.post` | POST `body`, store the response at `result` |
@@ -47,7 +47,7 @@ Every step is one JSON object; which fields apply depends on its `type`:
 | `from` | string | `state.move`: source index |
 | `url` | string | `http.*`: request URL (may contain `{{ bindings }}`) |
 | `method` | string | `http.request`: HTTP method override |
-| `body` | string | `http.*`: request body |
+| `body` | string | `http.*`: request body — a string is sent verbatim (an inline JSON template is not double-encoded); a bound non-string value (map/list/number/bool) is JSON-encoded |
 | `headers` | object | `http.*`: request headers |
 | `result` | string | `http.*`: state path to store the parsed response |
 | `error` | string | `http.*`: state path to store an error message |

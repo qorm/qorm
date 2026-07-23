@@ -21,7 +21,7 @@
 | `state.merge` | 把一个对象浅合并进状态路径 |
 | `state.sort` | 按 `field` 对数组排序 |
 | `state.move` | 把数组元素从 `from` 移到 `to` |
-| `state.clear` | 清空数组,或清除字符串 / 数字 |
+| `state.clear` | 清空数组,或把字符串 / 数字 / 布尔值清除为其零值 |
 | `state.reset` | 恢复清单中的初始值——带 `path` 时仅重置该键,不带则重置全部状态 |
 | `http.get` | GET 一个 URL,把解析后的 JSON 存到 `result` |
 | `http.post` | POST `body`,把响应存到 `result` |
@@ -47,7 +47,7 @@
 | `from` | string | `state.move`:源索引 |
 | `url` | string | `http.*`:请求 URL(可含 `{{ bindings }}`) |
 | `method` | string | `http.request`:覆盖 HTTP 方法 |
-| `body` | string | `http.*`:请求体 |
+| `body` | string | `http.*`:请求体——字符串原样发送(内联 JSON 模板不会被二次编码);绑定的非字符串值(map/list/number/bool)会被 JSON 编码 |
 | `headers` | object | `http.*`:请求头 |
 | `result` | string | `http.*`:存放解析后响应的状态路径 |
 | `error` | string | `http.*`:存放错误信息的状态路径 |

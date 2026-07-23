@@ -61,7 +61,9 @@ type auditEntry struct {
 	Hash   string `json:"hash,omitempty"`
 }
 
-// buildAuditChain writes n correctly chained audit-log entries.
+// buildAuditChain writes n correctly chained audit-log entries. The hash
+// mirrors server.auditHash: it covers EVERY persisted field — including the
+// display time — so editing any part of a line breaks the chain.
 func buildAuditChain(t *testing.T, n int) []byte {
 	t.Helper()
 	var b strings.Builder
@@ -74,7 +76,7 @@ func buildAuditChain(t *testing.T, n int) []byte {
 			Source: "human",
 			Detail: fmt.Sprintf("entry %d", i),
 		}
-		h := sha256.Sum256([]byte(prev + "|" + strconv.Itoa(e.Seq) + "|" + e.TS + "|" + e.Source + "|" + e.Detail))
+		h := sha256.Sum256([]byte(prev + "|" + strconv.Itoa(e.Seq) + "|" + e.Time + "|" + e.TS + "|" + e.Source + "|" + e.Detail))
 		e.Hash = hex.EncodeToString(h[:])
 		prev = e.Hash
 		line, err := json.Marshal(e)
@@ -367,6 +369,45 @@ func TestCmdVerifyRevocationScopes(t *testing.T) {
 		if !strings.Contains(errOut, "VERIFY FAILED") {
 			t.Errorf("revoked verify: stderr = %q, want VERIFY FAILED", errOut)
 		}
+	}
+}
+
+// TestCmdVerifyRevokedRequiresTrust guards a fail-open trap: with --revoked but
+// no --trust key, revocation cannot be checked (it is keyed on the verifying
+// key), so the command must refuse rather than print a green
+// "OK ... (integrity + revocation)" for a bundle whose revocation was never
+// verified — even one signed by a revoked key.
+func TestCmdVerifyRevokedRequiresTrust(t *testing.T) {
+	dir := t.TempDir()
+	privPath, pubPath := genKeyPair(t, dir)
+	signed := filepath.Join(dir, "s.qorm.bundle")
+	buildCounterBundle(t, signed, privPath)
+	pub, err := keys.LoadPublic(pubPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A revocation list naming the ACTUAL signing key: if this were honoured the
+	// bundle would be rejected, so a green OK here proves revocation was skipped.
+	revoked := filepath.Join(dir, "revoked.json")
+	if err := os.WriteFile(revoked, []byte(`["`+keys.KeyID(pub)+`"]`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	errOut := captureStderr(t, func() {
+		if code := cmdVerify([]string{signed, "--revoked", revoked}); code != 2 {
+			t.Errorf("verify --revoked without --trust: exit = %d, want 2", code)
+		}
+	})
+	if !strings.Contains(errOut, "--revoked requires --trust") {
+		t.Errorf("verify --revoked without --trust: stderr = %q, want the requires---trust error", errOut)
+	}
+	// Supplying the trust key makes the same invocation fail closed on revocation.
+	errOut = captureStderr(t, func() {
+		if code := cmdVerify([]string{signed, "--trust", pubPath, "--revoked", revoked}); code != 1 {
+			t.Errorf("verify --trust --revoked (signer revoked): exit = %d, want 1", code)
+		}
+	})
+	if !strings.Contains(errOut, "VERIFY FAILED") {
+		t.Errorf("verify with trust + revoked signer: stderr = %q, want VERIFY FAILED", errOut)
 	}
 }
 

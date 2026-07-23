@@ -28,7 +28,9 @@ func (r *renderer) controlTile(n *model.Node) {
 			if r.interp(n.Value) == val {
 				checked = " checked"
 			}
-			fmt.Fprintf(&r.sb, `<input type="radio" name=%q value=%q style="accent-color:var(--accent);width:18px;height:18px;"%s%s%s>`, path, val, checked, dataStateAttr(path), r.changeAttr(n, path != ""))
+			// name/value are HTML attribute contexts: entity-encode (path is
+			// regex-restricted by boundPath, but escape it too, uniformly).
+			fmt.Fprintf(&r.sb, `<input type="radio" name=%q value=%q style="accent-color:var(--accent);width:18px;height:18px;"%s%s%s>`, attrID(path), html.EscapeString(val), checked, dataStateAttr(path), r.changeAttr(n, path != ""))
 		case "switch":
 			if truthyStrCT(r.interp(n.Value)) {
 				checked = " checked"
@@ -68,7 +70,10 @@ func (r *renderer) gestureDetector(n *model.Node) {
 		attrs += fmt.Sprintf(` ondblclick="qorm(%d)"`, r.register(dbl))
 	}
 	if lp := parseInvokeProp(n, "onLongPress"); lp != nil {
-		initJS = fmt.Sprintf(`<script>setTimeout(function(){qormLong(document.getElementById(%q),%d)})</script>`, r.nid(n), r.register(lp))
+		// The id rides inside a literal <script>: %q is right for the JS
+		// string, but jsStringID also neutralises the "</script>" close-tag
+		// breakout an adversarial id would otherwise pull on the HTML parser.
+		initJS = fmt.Sprintf(`<script>setTimeout(function(){qormLong(document.getElementById(%s),%d)})</script>`, jsStringID(r.nid(n)), r.register(lp))
 	}
 	cursor := ""
 	if attrs != "" || initJS != "" {
@@ -112,7 +117,7 @@ func (r *renderer) biometric(n *model.Node) {
 	}
 	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-biometric" style=%q>`, attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;align-items:stretch;")
 	fmt.Fprintf(&r.sb, `<div id="%s-out" class="qorm-bio-out" style="font-size:15px;color:var(--label);min-height:20px;">%s</div>`, attrID(n.ID), html.EscapeString(out))
-	fmt.Fprintf(&r.sb, `<input type="hidden"%s value=%q>`, dataStateAttr(path), val)
+	fmt.Fprintf(&r.sb, `<input type="hidden"%s value=%q>`, dataStateAttr(path), html.EscapeString(val))
 	fmt.Fprintf(&r.sb, `<button type="button" onclick="qormBio(this)" style="padding:12px 16px;border:none;border-radius:12px;background:var(--accent);color:var(--on-accent);font-size:16px;font-weight:600;cursor:pointer;">%s</button>`, html.EscapeString(propStrOr(n, "label", "Authenticate")))
 	r.sb.WriteString(`</div>`)
 }
@@ -128,7 +133,7 @@ func (r *renderer) location(n *model.Node) {
 	}
 	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-location" style=%q>`, attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;align-items:stretch;")
 	fmt.Fprintf(&r.sb, `<div id="%s-out" class="qorm-loc-out" style="font-size:15px;color:var(--label);min-height:20px;">%s</div>`, attrID(n.ID), html.EscapeString(out))
-	fmt.Fprintf(&r.sb, `<input type="hidden"%s value=%q>`, dataStateAttr(path), val)
+	fmt.Fprintf(&r.sb, `<input type="hidden"%s value=%q>`, dataStateAttr(path), html.EscapeString(val))
 	fmt.Fprintf(&r.sb, `<button type="button" onclick="qormGeo(this)" style="padding:12px 16px;border:none;border-radius:12px;background:var(--accent);color:var(--on-accent);font-size:16px;font-weight:600;cursor:pointer;">%s</button>`, iconLabel(propStr(n, "label"), "location", "Get Location"))
 	r.sb.WriteString(`</div>`)
 }
@@ -152,8 +157,11 @@ func (r *renderer) recorder(n *model.Node) {
 		disp = "block"
 	}
 	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-recorder" style=%q>`, attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;align-items:stretch;")
-	fmt.Fprintf(&r.sb, `<audio class="qorm-rec-audio" controls src=%q style="width:100%%;display:%s;"></audio>`, val, disp)
-	fmt.Fprintf(&r.sb, `<input type="hidden"%s value=%q>`, dataStateAttr(path), val)
+	// src is a non-navigating media context (no scheme executes script there)
+	// and val is the recording's data: URL by design — so no scheme filter,
+	// but entity-encode so a bound value cannot break out of the attribute.
+	fmt.Fprintf(&r.sb, `<audio class="qorm-rec-audio" controls src=%q style="width:100%%;display:%s;"></audio>`, html.EscapeString(val), disp)
+	fmt.Fprintf(&r.sb, `<input type="hidden"%s value=%q>`, dataStateAttr(path), html.EscapeString(val))
 	fmt.Fprintf(&r.sb, `<button type="button" onclick="qormRec(this)" style="padding:12px 16px;border:none;border-radius:12px;background:var(--danger);color:#fff;font-size:16px;font-weight:600;cursor:pointer;">%s</button>`, iconLabel(propStr(n, "label"), "mic", "Record"))
 	r.sb.WriteString(`</div>`)
 }
@@ -181,7 +189,7 @@ func (r *renderer) dismissible(n *model.Node) {
 	}
 	r.sb.WriteString(`</div></div>`)
 	if h >= 0 {
-		fmt.Fprintf(&r.sb, `<script>setTimeout(function(){qormSwipe(document.getElementById(%q),%d)})</script>`, r.nid(n), h)
+		fmt.Fprintf(&r.sb, `<script>setTimeout(function(){qormSwipe(document.getElementById(%s),%d)})</script>`, jsStringID(r.nid(n)), h)
 	}
 }
 
@@ -251,7 +259,8 @@ func (r *renderer) swipeActions(n *model.Node) {
 					}
 					h = r.register(inv)
 				}
-				color := colorStr(m, "color")
+				// colour is author input interpolated into a quoted style attribute.
+				color := styleAttr(colorStr(m, "color"))
 				if color == "" {
 					color = "var(--danger)"
 				}
@@ -278,5 +287,5 @@ func (r *renderer) swipeActions(n *model.Node) {
 		r.node(c)
 	}
 	r.sb.WriteString(`</div></div>`)
-	fmt.Fprintf(&r.sb, `<script>setTimeout(function(){qormSwipeActions(document.getElementById(%q))})</script>`, id)
+	fmt.Fprintf(&r.sb, `<script>setTimeout(function(){qormSwipeActions(document.getElementById(%s))})</script>`, jsStringID(id))
 }

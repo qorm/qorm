@@ -815,7 +815,7 @@ function qormPostDrop(h,data){
 // Live-sync: observe out-of-band changes (e.g. an AI agent editing the same
 // session over /mcp) and swap in the new UI. Prefer Server-Sent Events for
 // instant multi-client push; fall back to polling.
-var __rev=__QORM_REV__;
+var __rev=__QORM_REV__;   // revision of the render that produced this page
 var __tok='__QORM_TOKEN__';
 function qormHighlightNode(nodeId){
   document.querySelectorAll('.qorm-inspect-highlight').forEach(function(el){
@@ -859,7 +859,11 @@ function qormPresence(detail){
   clearTimeout(el._t); el._t=setTimeout(function(){ el.classList.remove('show'); }, 2600);
 }
 if(window.EventSource){
-  var es=new EventSource('/events');
+  // Open the stream carrying the revision this page was rendered at (?rev=), so
+  // the server can resync us if a mutation landed between the page render and
+  // this connection opening. On the auto-reconnect the browser replays the same
+  // URL plus the last frame's id; the server takes the newer of the two.
+  var es=new EventSource('/events?rev='+__rev);
   es.onmessage=function(e){ try{ qormApply(JSON.parse(e.data)); }catch(_){} };
 }else{
   setInterval(function(){

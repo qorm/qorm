@@ -26,8 +26,10 @@ func (r *renderer) wrapAnimation(n *model.Node, effect string) {
 	}
 	dur := propNum(n, "duration", 450)
 	delay := propNum(n, "delay", 0)
-	curve := propStrOr(n, "curve", "cubic-bezier(.34,1.2,.64,1)")
-	repeat := propStrOr(n, "repeat", "1")
+	// curve/repeat are author props interpolated into a quoted style attribute:
+	// entity-encode them (styleAttr) so a double quote cannot break out.
+	curve := styleAttr(propStrOr(n, "curve", "cubic-bezier(.34,1.2,.64,1)"))
+	repeat := styleAttr(propStrOr(n, "repeat", "1"))
 	fmt.Fprintf(&r.sb, `<div style="animation:%s %gms %s %gms %s both;">`, kf, dur, curve, delay, repeat)
 	r.renderInner(n)
 	r.sb.WriteString(`</div>`)
@@ -38,7 +40,8 @@ func (r *renderer) wrapAnimation(n *model.Node, effect string) {
 // style value changes — so an agent flipping state animates in the live session.
 func (r *renderer) animatedContainer(n *model.Node) {
 	dur := propNum(n, "duration", 300)
-	curve := propStrOr(n, "curve", "cubic-bezier(.4,0,.2,1)")
+	// curve is an author prop interpolated into the quoted style attribute.
+	curve := styleAttr(propStrOr(n, "curve", "cubic-bezier(.4,0,.2,1)"))
 	trans := fmt.Sprintf("transition:all %gms %s;", dur, curve)
 	// containerCSS (not boxCSS) so an AnimatedContainer honours layout align/justify
 	// like any other container — e.g. centring an icon inside an animated circle.
@@ -97,8 +100,10 @@ func (r *renderer) motion(n *model.Node) {
 	}
 	dur := propNum(n, "duration", 450)
 	delay := propNum(n, "delay", 0)
-	curve := propStrOr(n, "curve", "cubic-bezier(.34,1.2,.64,1)")
-	repeat := propStrOr(n, "repeat", "1")
+	// curve/repeat are author props interpolated into a quoted style attribute:
+	// entity-encode them (styleAttr) so a double quote cannot break out.
+	curve := styleAttr(propStrOr(n, "curve", "cubic-bezier(.34,1.2,.64,1)"))
+	repeat := styleAttr(propStrOr(n, "repeat", "1"))
 	anim := fmt.Sprintf("animation:%s %gms %s %gms %s both;", kf, dur, curve, delay, repeat)
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), r.boxCSS(n)+anim, a11y(n))
 	for _, c := range n.Children {

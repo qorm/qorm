@@ -10,6 +10,7 @@ package render
 import (
 	"fmt"
 	"html"
+	"strconv"
 	"strings"
 
 	"github.com/qorm/qorm/internal/model"
@@ -29,8 +30,62 @@ func (r *renderer) nid(n *model.Node) string { return n.ID + r.idSuffix }
 // decodes entities back to the raw id in element.id, so this is transparent
 // to clients — MCP/measure/a11y key on the model id, not the HTML attribute.
 // Use at every id-attribute emission site; never inside a <script>, where the
-// browser does not decode entities (getElementById(%q) wiring stays raw).
+// browser does not decode entities (getElementById wiring uses jsStringID).
 func attrID(id string) string { return html.EscapeString(id) }
+
+// jsStringID returns id as a double-quoted JS string literal safe to embed
+// verbatim in a literal <script> body. Go's %q quoting is correct for the JS
+// parser (quotes, backslash and control characters are all escaped), but the
+// HTML parser — not the JS parser — decides where a <script> ends: a literal
+// "</script>" (in fact "</" followed by any ASCII letter) terminates the
+// element regardless of the JS string context, and "<!--" enters the legacy
+// script-escape states. In an agent-native app node ids are author-set, so an
+// id like foo</script><script>alert(1)</script> would break out of the inline
+// wiring script. Replacing every "<" with the six-character JS escape
+// backslash-u-0-0-3-c removes all close-tag sequences while preserving the
+// string's value exactly — JS decodes that escape back to "<" at run time,
+// matching the entity-decoded element.id that attrID produces, so the
+// getElementById lookup still finds the node. Use in place of %q at every
+// getElementById site inside a <script>; never for the id attribute itself
+// (the browser does not decode JS escapes in attributes — that is attrID's
+// job).
+func jsStringID(id string) string {
+	return strings.ReplaceAll(strconv.Quote(id), "<", "\\u003c")
+}
+
+// safeURL validates a URL before it is emitted into a NAVIGATING context (a
+// link's href). Allowed: schemeless URLs (path-, fragment- and
+// protocol-relative) and absolute URLs whose scheme is on the allowlist —
+// http/https/mailto/tel plus the app's own asset scheme. Every other scheme
+// (javascript:, data:, vbscript:, file:, …) is replaced with an inert "#"
+// fragment, so an author- or state-supplied href can neither execute script
+// nor navigate to a phishing payload. The check is case- and
+// whitespace-insensitive, mirroring the WHATWG URL parser: it strips leading/
+// trailing C0 controls and spaces and removes ASCII tab/newline/CR wherever
+// they appear before extracting the scheme — so "  JavaScript:alert(1)" or
+// "java\tscript:alert(1)" cannot slip past a naive prefix check while still
+// executing in the browser. Not for <img>/<video>/<audio> src: those are
+// non-navigating resource contexts where no scheme executes script and where
+// data: URLs are a legitimate transport (recorder/camera media).
+func safeURL(u string) string {
+	var b strings.Builder
+	for _, c := range u {
+		if c >= 0x20 && c != 0x7f { // drop C0 controls (incl. \t \n \r) and DEL
+			b.WriteRune(c)
+		}
+	}
+	s := strings.TrimSpace(b.String())
+	// A scheme exists only when ':' precedes every '/', '?' and '#'; anything
+	// else is relative (or empty) and passes through untouched.
+	if colon := strings.IndexByte(s, ':'); colon > 0 && !strings.ContainsAny(s[:colon], "/?#") {
+		switch strings.ToLower(s[:colon]) {
+		case "http", "https", "mailto", "tel", "qormapp":
+		default:
+			return "#"
+		}
+	}
+	return u
+}
 
 // Render renders the entry scene of a runtime.
 func Render(rt *runtime.Runtime) Result { return RenderScene(rt, "") }
@@ -61,7 +116,9 @@ func RenderScene(rt *runtime.Runtime, sceneID string) Result {
 	}
 	if strings.HasPrefix(html, "<") {
 		if i := strings.IndexAny(html, " >"); i > 0 {
-			html = html[:i] + ` data-scene="` + key + `"` + html[i:]
+			// key comes from the sceneID parameter (arbitrary caller/author
+			// input), so entity-encode it like every other attribute value.
+			html = html[:i] + ` data-scene="` + attrID(key) + `"` + html[i:]
 		}
 	}
 	return Result{HTML: html, Handlers: r.handlers, Unknown: r.unknowns}

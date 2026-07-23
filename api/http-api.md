@@ -27,7 +27,7 @@
 
 ## The `/events` stream
 
-The client opens `GET /events` and holds it open. The server writes one SSE message per change:
+The client opens `GET /events?rev=<n>` — `<n>` the revision of the page render that produced its HTML — and holds it open. The server writes one SSE message per change:
 
 ```
 : connected
@@ -36,4 +36,4 @@ data: <html for the changed region>
 
 ```
 
-Each `data:` frame carries the re-rendered HTML the client swaps in. Log and presence updates arrive on the same stream. When a proxy buffers SSE, the client falls back to `GET /poll?rev=<n>`.
+Each `data:` frame carries the re-rendered HTML the client swaps in, and ships an `id: <rev>` line so a reconnecting browser replays it as `Last-Event-Id`. If a client connects (or reconnects) behind the live revision — a mutation landed between its page render and the stream opening — the server first pushes a current snapshot (`rev`+`html`+`theme`+`route`) to resync it, then streams; a client already at the tip gets no redundant snapshot. Log and presence updates arrive on the same stream. When a proxy buffers SSE, the client falls back to `GET /poll?rev=<n>`.

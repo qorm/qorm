@@ -220,3 +220,46 @@ func TestLoadFileNonSceneDoc(t *testing.T) {
 		t.Fatalf("non-scene doc: scenes=%v entry=%q", app.Scenes, app.Entry)
 	}
 }
+
+// danglingSymlink creates dir/name -> a nonexistent target and returns the
+// link path, skipping the test where symlinks are unavailable. The link
+// passes the IsDir + .json filters but fails os.ReadFile, exercising the
+// loader's unreadable-file error branches deterministically.
+func danglingSymlink(t *testing.T, dir, name string) string {
+	t.Helper()
+	link := filepath.Join(dir, name)
+	if err := os.Symlink(filepath.Join(dir, "does-not-exist"), link); err != nil {
+		t.Skipf("symlinks unavailable on this platform: %v", err)
+	}
+	return link
+}
+
+// TestLoadLocalesSkipsUnreadableCatalog covers LoadLocales' ReadFile-error
+// branch: a locales entry that passes the IsDir/extension filters but cannot
+// be read is skipped, and the remaining valid catalogs still load.
+func TestLoadLocalesSkipsUnreadableCatalog(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "locales", "en.json"), `{"hi":"Hello"}`)
+	danglingSymlink(t, filepath.Join(dir, "locales"), "broken.json")
+
+	out := LoadLocales(dir)
+	if out == nil || out["en"]["hi"] != "Hello" {
+		t.Fatalf("valid catalog must survive an unreadable sibling, got %v", out)
+	}
+	if _, ok := out["broken"]; ok {
+		t.Errorf("unreadable catalog must be skipped, got %v", out)
+	}
+}
+
+// TestCollectDocsUnreadableFileAborts covers collect's ReadFile-error branch:
+// unlike malformed JSON (silently ignored), a .json entry that cannot be
+// read at all is a filesystem error and aborts the walk.
+func TestCollectDocsUnreadableFileAborts(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "ok.json"), `{"type":"scene","id":"main"}`)
+	danglingSymlink(t, dir, "dangling.json")
+
+	if _, err := CollectDocs(dir); err == nil {
+		t.Fatal("an unreadable .json entry must abort collection with an error")
+	}
+}

@@ -261,7 +261,7 @@ type LogEntry struct {
 	TS     string `json:"ts,omitempty"` // full RFC3339Nano timestamp (audit)
 	Source string `json:"source"`       // "human" | "agent" | "devtool" | "app" | "system"
 	Detail string `json:"detail"`
-	Hash   string `json:"hash,omitempty"` // sha256(prevHash|seq|ts|source|detail)
+	Hash   string `json:"hash,omitempty"` // sha256(prevHash|seq|time|ts|source|detail)
 }
 
 // logEvent records a collaboration event (keeps the last 200 for display; the
@@ -537,6 +537,14 @@ func (s *Server) serveWindow(w http.ResponseWriter, r *http.Request) {
 func (s *Server) serveMeasure(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		body, _ := io.ReadAll(io.LimitReader(r.Body, 4<<20))
+		// The stored bytes are served back verbatim as application/json (and
+		// feed the agent's qorm_measure / qorm_check_layout), so refuse an
+		// empty or non-JSON report: GET /measure must never return garbage.
+		// Client-error policy consistent with /event, /presence, /viewport.
+		if len(body) == 0 || !json.Valid(body) {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
 		s.measureMu.Lock()
 		s.measure = body
 		s.measureMu.Unlock()
@@ -608,12 +616,53 @@ func (s *Server) serveEvents(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, ": connected\n\n")
 	flusher.Flush()
 
+	// Catch-up: resync a viewer whose revision is behind the live app instead of
+	// leaving it stale until the next mutation — SSE exists "to keep every viewer
+	// in sync" (docs/collaboration.md). The client tells us the last revision it
+	// applied through two channels:
+	//   - ?rev=<n>: the revision of the page render that produced its HTML. The
+	//     FIRST connection ships this, closing the window between GET / (the page
+	//     render) and the EventSource opening — a mutation landing in that gap
+	//     broadcast before this viewer subscribed, so without the handshake it
+	//     would be silently lost (the first connection sends no Last-Event-Id).
+	//   - Last-Event-Id: on reconnect the EventSource replays the id of the last
+	//     frame it received (each frame ships its rev as the id: line below) while
+	//     re-requesting the same URL, so its ?rev= is stale by then.
+	// Take the larger of the two as the last revision actually applied. A client
+	// already at the tip gets no snapshot (cur > last is false), and any duplicate
+	// a racing broadcast buffered on ch is dropped by the client's rev guard
+	// (qormApply skips rev <= __rev).
+	last, haveLast := int64(0), false
+	if v, err := strconv.ParseInt(r.Header.Get("Last-Event-Id"), 10, 64); err == nil {
+		last, haveLast = v, true
+	}
+	if v, err := strconv.ParseInt(r.URL.Query().Get("rev"), 10, 64); err == nil && (!haveLast || v > last) {
+		last, haveLast = v, true
+	}
+	if haveLast {
+		s.mu.Lock()
+		if cur := s.rev.Load(); cur > last {
+			res := render.RenderScene(s.rt, s.rt.CurrentScene())
+			s.handlers = res.Handlers
+			snap, _ := json.Marshal(map[string]any{"rev": cur, "html": res.HTML, "theme": s.rt.CurrentTheme(), "route": s.rt.RoutePath()})
+			fmt.Fprintf(w, "id: %d\ndata: %s\n\n", cur, snap)
+			flusher.Flush()
+		}
+		s.mu.Unlock()
+	}
+
 	for {
 		select {
 		case <-r.Context().Done():
 			return
 		case msg := <-ch:
-			fmt.Fprintf(w, "data: %s\n\n", msg)
+			// Ship the payload's rev as the event id, so a reconnecting browser
+			// replays it as Last-Event-Id and the catch-up above can resync it.
+			var f struct {
+				Rev int64 `json:"rev"`
+			}
+			_ = json.Unmarshal([]byte(msg), &f)
+			fmt.Fprintf(w, "id: %d\ndata: %s\n\n", f.Rev, msg)
 			flusher.Flush()
 		}
 	}
@@ -622,7 +671,11 @@ func (s *Server) serveEvents(w http.ResponseWriter, r *http.Request) {
 // Handler returns the HTTP mux.
 // blockCrossOrigin rejects requests carrying a cross-origin (non-loopback)
 // Origin header — the CSRF / DNS-rebind vector against a localhost server that
-// exposes native power (/window eval, /update, /mcp). Requests with no Origin
+// exposes native power (/window eval, /update, /mcp). It also guards the data
+// surfaces: /events is readable cross-origin (EventSource, unlike fetch, does
+// NOT enforce CORS — without the guard any web page the user visits could
+// snoop the app's live UI), and /measure is an unauthenticated write whose
+// stored layout the agent's qorm_check_layout trusts. Requests with no Origin
 // (local agents, curl, custom-scheme webviews) and loopback-origin requests
 // (the app's own page) pass untouched, so MCP + dev-client workflows still work.
 func blockCrossOrigin(next http.HandlerFunc) http.HandlerFunc {
@@ -647,7 +700,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/", s.serveIndex)
 	mux.HandleFunc("/event", blockCrossOrigin(s.serveEvent))
 	mux.HandleFunc("/navigate", blockCrossOrigin(s.serveNavigate))
-	mux.HandleFunc("/events", s.serveEvents)
+	mux.HandleFunc("/events", blockCrossOrigin(s.serveEvents))
 	mux.HandleFunc("/poll", s.servePoll)
 	mux.HandleFunc("/log", s.serveLog)
 	mux.HandleFunc("/presence", blockCrossOrigin(s.servePresence))
@@ -655,7 +708,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/console", s.serveConsole)
 	mux.HandleFunc("/logwindow", s.serveLogWindow)
 	mux.HandleFunc("/window", blockCrossOrigin(s.serveWindow))
-	mux.HandleFunc("/measure", s.serveMeasure)
+	mux.HandleFunc("/measure", blockCrossOrigin(s.serveMeasure))
 	mux.HandleFunc("/mcp", blockCrossOrigin(s.serveMCP))
 	mux.HandleFunc("/update", blockCrossOrigin(s.serveUpdate))
 	mux.HandleFunc("/rollback", blockCrossOrigin(s.serveRollback))
@@ -808,6 +861,11 @@ func (s *Server) serveIndex(w http.ResponseWriter, r *http.Request) {
 	// navigation state as before.
 	if r.URL.Query().Get("scene") != "" {
 		s.rt.NavigateToPath(r.URL.RawQuery)
+		// A page load renders the deep-linked scene DIRECTLY — there is no page
+		// transition to play — so drop the pending nav direction here. Left set,
+		// it would leak into the next unrelated broadcast (say an agent edit)
+		// and a later scene swap would replay it as a stale "push".
+		s.rt.TakeNavDir()
 	}
 	scene := s.rt.CurrentScene()
 	res := render.RenderScene(s.rt, scene)

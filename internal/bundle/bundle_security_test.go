@@ -774,3 +774,51 @@ func TestUnencodableContentSurfacesErrors(t *testing.T) {
 		t.Error("SetRequiredCapabilities must fail when the content cannot be hashed")
 	}
 }
+
+// TestLoadRevocationRejectsNonStringEntries covers the remaining fail-closed
+// branches in LoadRevocation's decode-into-any logic: a bare top-level array
+// or a {"revoked":[...]} object whose ENTRIES are not key-id strings (number,
+// null, boolean, nested value) must be rejected with a *VerifyError naming
+// the offending index, and top-level scalar JSON (123, true, a bare string)
+// must hit the default rejection. In every case the returned list must be
+// nil, never a partial or empty list that would silently un-revoke keys.
+func TestLoadRevocationRejectsNonStringEntries(t *testing.T) {
+	cases := []struct {
+		in   string
+		want string // substring of the expected VerifyError.Reason
+	}{
+		// bare top-level array with a non-string element
+		{`[123]`, "revocation list entry 0 is not a key id string"},
+		{`[null]`, "revocation list entry 0 is not a key id string"},
+		{`["ok", true]`, "revocation list entry 1 is not a key id string"},
+		{`[["nested"]]`, "revocation list entry 0 is not a key id string"},
+		// object form with a non-string element in "revoked"
+		{`{"revoked":[123]}`, `"revoked" entry 0 is not a key id string`},
+		{`{"revoked":[null]}`, `"revoked" entry 0 is not a key id string`},
+		{`{"revoked":["a", {}]}`, `"revoked" entry 1 is not a key id string`},
+		// "revoked" present but not an array at all
+		{`{"revoked":"a"}`, `"revoked" must be an array of key id strings`},
+		// top-level scalar JSON: parseable, but neither array nor object
+		{`123`, "revocation list must be a JSON array of key ids"},
+		{`true`, "revocation list must be a JSON array of key ids"},
+		{`"a bare string"`, "revocation list must be a JSON array of key ids"},
+	}
+	for _, c := range cases {
+		rl, err := LoadRevocation([]byte(c.in))
+		if err == nil {
+			t.Errorf("LoadRevocation(%s) must fail closed, got %v", c.in, rl)
+			continue
+		}
+		ve, ok := err.(*VerifyError)
+		if !ok {
+			t.Errorf("%s: want *VerifyError so callers can surface it, got %T (%v)", c.in, err, err)
+			continue
+		}
+		if !strings.Contains(ve.Reason, c.want) {
+			t.Errorf("%s: Reason %q must contain %q", c.in, ve.Reason, c.want)
+		}
+		if rl != nil {
+			t.Errorf("%s: rejected input must yield a nil list, got %v", c.in, rl)
+		}
+	}
+}

@@ -11,13 +11,14 @@ import (
 	"strconv"
 )
 
-// auditHash chains an entry onto the previous entry's hash. Any edit, drop or
-// reorder of a persisted entry changes every hash after it, so a verifier
-// only needs the file itself to prove integrity (the chain is self-anchoring
-// from the genesis entry; pair it with an out-of-band copy of the final hash
-// to also detect truncation).
+// auditHash chains an entry onto the previous entry's hash, covering EVERY
+// persisted field — including the display time, so even a cosmetic-looking
+// edit of a line is detected. Any edit, drop or reorder of a persisted entry
+// changes every hash after it, so a verifier only needs the file itself to
+// prove integrity (the chain is self-anchoring from the genesis entry; pair
+// it with an out-of-band copy of the final hash to also detect truncation).
 func auditHash(prev string, e LogEntry) string {
-	h := sha256.Sum256([]byte(prev + "|" + strconv.Itoa(e.Seq) + "|" + e.TS + "|" + e.Source + "|" + e.Detail))
+	h := sha256.Sum256([]byte(prev + "|" + strconv.Itoa(e.Seq) + "|" + e.Time + "|" + e.TS + "|" + e.Source + "|" + e.Detail))
 	return hex.EncodeToString(h[:])
 }
 
