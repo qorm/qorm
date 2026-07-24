@@ -6,6 +6,38 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+## [v0.3.6] - 2026-07-24
+
+### Added
+- Live WASM playground: `qormCompile(docsJSON)` + `qormSetViewport`
+  exports re-render from edited source through the in-browser runtime on
+  a 200ms debounce, with a diagnostics strip and counter / todo / form /
+  nav templates. The doc-array → {html, diagnostics, unknown} core is
+  pure, host-testable `internal/playcore`; the page ships via deploy
+  under the gitignored `web_server/site/playground/`.
+- Docs screenshots + per-page SEO: the stdlib-only mdsite now emits
+  `<img loading=lazy decoding=async>`, copies non-md assets, and parses
+  front-matter (title / description / og-image); every docs / api page
+  gains a meta description + OG + Twitter + canonical + hreflang +
+  JSON-LD; the render-blocking font `@import` becomes a preconnect +
+  stylesheet link; new captures (web PWA, two-pane /console,
+  first-scene) plus the existing iOS / DevTool shots are embedded across
+  the tutorials / platforms / agent / verification pages.
+- `sitemap.xml` + `robots.txt` generated from the staged tree at deploy;
+  a 1200x630 social card backs the site-default og:image / twitter:image.
+
+### Changed
+- Quality guardrails (no product change): `scripts/release.sh` archives
+  the CHANGELOG at tag time and refuses an empty / missing /
+  already-archived section; an `internal/integration` coverage gate
+  enforces per-package floors via `go test ./...` (and gates releases);
+  persistent go fuzz targets cover the expr / loader / bundle parse
+  surfaces.
+
+### Fixed
+- `loader.FromDocs` no longer silently drops a no-`type` / unknown-`type`
+  doc; it emits an `error:` diagnostic.
+
 ## [v0.3.5] - 2026-07-23
 
 ### Security
@@ -438,6 +470,7 @@ Initial release: QORM, an agent-native declarative-UI runtime in pure Go.
 - Render performance: cached parsed expressions and reflection-free CSS
   numeric writes in the hot path.
 
+[v0.3.6]: https://github.com/qorm/qorm/compare/v0.3.5...v0.3.6
 [v0.3.5]: https://github.com/qorm/qorm/compare/v0.3.4...v0.3.5
 [v0.3.4]: https://github.com/qorm/qorm/compare/v0.3.3...v0.3.4
 [v0.3.3]: https://github.com/qorm/qorm/compare/v0.3.2...v0.3.3
