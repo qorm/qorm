@@ -62,7 +62,10 @@ Notable user-facing changes get an entry under `## [Unreleased]` in
 `## [vX.Y.Z] - <date>` heading (a fresh empty `## [Unreleased]` stays on top)
 and adds the compare footer link at tag time. Do not rename the
 `## [Unreleased]` heading by hand — release preflight fails on a missing or
-empty section.
+empty section. Commit and push your release content (including the
+`## [Unreleased]` entries) BEFORE running the release script: it enforces
+`main == origin/main`, retries its pushes, and only declares success after
+asserting that remote main and the tag both point at the release commit.
 
 ## Reporting / feedback
 

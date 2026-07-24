@@ -1,9 +1,17 @@
 #!/usr/bin/env bash
 # Cut a QORM release: preflight → archive CHANGELOG.md → bump the go-install
-# version → tag → push. At tag time the CHANGELOG `## [Unreleased]` section is
-# archived into `## [vX.Y.Z] - <date>` (plus the compare footer link) in its
-# own `docs: changelog vX.Y.Z` commit ahead of the version bump; preflight
-# fails on an empty or missing section, and on an already-archived version.
+# version → tag → push (retried) → assert the remote refs align with the bump
+# commit. At tag time the CHANGELOG `## [Unreleased]` section is archived into
+# `## [vX.Y.Z] - <date>` (plus the compare footer link) in its own
+# `docs: changelog vX.Y.Z` commit ahead of the version bump; preflight fails
+# on an empty or missing section, and on an already-archived version.
+#
+# Pushes are retried (5 attempts, increasing backoff) and — before the script
+# says "done" — it reads origin back and asserts that both `refs/heads/main`
+# and the tag dereference equal the bump commit. A flaky push that lands one
+# ref but not the other (the v0.3.6 incident: main pushed, tag diverged) fails
+# loudly with the mismatching refs and exact recovery commands instead of
+# silently leaving a broken release behind.
 #
 #   ./scripts/release.sh 0.2.1              # cut v0.2.1
 #   ./scripts/release.sh 0.2.1 --dry-run    # show what it would do, change nothing
@@ -121,11 +129,61 @@ changelog_archive() {
   return 0
 }
 
+# --- push / alignment helpers ------------------------------------------------
+# A flaky network mid-push can update one remote ref and not the other,
+# leaving the tag diverged from main — exactly the v0.3.6 incident, where the
+# push half-failed yet was reported as done. push_with_retry retries the push
+# with an increasing backoff; remote_tag_sha reads the tag's dereferenced
+# commit back from the remote; refs_aligned is a pure string comparison (no
+# git, no network) so --selftest-changelog can exercise the check itself. No
+# `timeout` binary anywhere — it does not exist on macOS.
+
+# push_with_retry [git-push-args...] — run `git push <args>` up to 5 times,
+# sleeping 5/10/20/40/60s after each failure; return non-zero only after all
+# five attempts have failed.
+push_with_retry() {
+  local n=0 wait
+  for wait in 5 10 20 40 60; do
+    n=$((n + 1))
+    if git push "$@"; then
+      return 0
+    fi
+    echo "push failed (attempt $n/5); waiting ${wait}s before the next attempt: git push $*" >&2
+    sleep "$wait"
+  done
+  echo "push failed after 5 attempts: git push $*" >&2
+  return 1
+}
+
+# refs_aligned EXPECT MAIN_REF TAG_REF — return 0 iff MAIN_REF and TAG_REF are
+# both non-empty and both equal EXPECT. Pure comparison, safe under set -e in
+# an `if` condition; the selftest drives it directly.
+refs_aligned() {
+  local expect="$1" main_ref="$2" tag_ref="$3"
+  [ -n "$main_ref" ] && [ -n "$tag_ref" ] \
+    && [ "$main_ref" = "$expect" ] && [ "$tag_ref" = "$expect" ]
+}
+
+# remote_tag_sha TAG — print the remote tag's dereferenced commit SHA (empty
+# on failure): `git ls-remote origin "refs/tags/TAG^{}"`, falling back to
+# reading origin/TAG after a fetch when the peeled line is unavailable.
+remote_tag_sha() {
+  local tag="$1" sha
+  sha="$(git ls-remote origin "refs/tags/$tag^{}" | cut -f1 || true)"
+  if [ -z "$sha" ]; then
+    git fetch -q origin || true
+    sha="$(git rev-parse --verify -q "origin/$tag^{commit}" || true)"
+    [ -n "$sha" ] || sha="$(git rev-parse --verify -q "$tag^{commit}" || true)"
+  fi
+  printf '%s\n' "$sha"
+}
+
 # changelog_selftest — hidden `--selftest-changelog`: builds minimal changelogs
 # in a mktemp dir and drives changelog_preflight / changelog_archive over the
-# empty, populated, and already-archived cases. No git and no writes outside
-# the temp dir, so it is safe to run anywhere. Prints PASS/FAIL per assertion,
-# returns non-zero on any miss, always removes the temp dir.
+# empty, populated, and already-archived cases, plus pure refs_aligned checks
+# of the post-push comparison logic. No git and no writes outside the temp
+# dir, so it is safe to run anywhere. Prints PASS/FAIL per assertion, returns
+# non-zero on any miss, always removes the temp dir.
 changelog_selftest() {
   local tmp fails=0 f fw err u nxt nxt_heading first_h body n old_top above
   tmp="$(mktemp -d)" || { echo "selftest: mktemp failed" >&2; return 1; }
@@ -254,6 +312,33 @@ EOF
     esac
   fi
 
+  # case 4: refs_aligned — the pure post-push comparison (no git, no network)
+  if refs_aligned abc123abc123 abc123abc123 abc123abc123; then
+    st_pass "refs_aligned: matching main + tag refs pass"
+  else
+    st_fail "refs_aligned: matching main + tag refs should pass"
+  fi
+  if refs_aligned abc123abc123 abc123abc123 deadbeefdead; then
+    st_fail "refs_aligned: a mismatched tag ref must fail"
+  else
+    st_pass "refs_aligned: rejects a mismatched tag ref"
+  fi
+  if refs_aligned abc123abc123 wrongshamain abc123abc123; then
+    st_fail "refs_aligned: a mismatched main ref must fail"
+  else
+    st_pass "refs_aligned: rejects a mismatched main ref"
+  fi
+  if refs_aligned abc123abc123 abc123abc123 ""; then
+    st_fail "refs_aligned: an empty tag ref must fail"
+  else
+    st_pass "refs_aligned: rejects an empty tag ref"
+  fi
+  if refs_aligned abc123abc123 "" abc123abc123; then
+    st_fail "refs_aligned: an empty main ref must fail"
+  else
+    st_pass "refs_aligned: rejects an empty main ref"
+  fi
+
   rm -rf "$tmp"
   if [ "$fails" -eq 0 ]; then
     echo "selftest: all changelog assertions passed"
@@ -324,8 +409,51 @@ git add cmd/qorm/main.go
 git commit -q -m "chore: bump version to $TAG"
 git tag -a "$TAG" -F "$NOTES"
 say "pushing main + $TAG (this triggers the release + docker workflows)"
-git push -q origin main
-git push -q origin "$TAG"
+# main: a plain fast-forward push with retry — preflight enforced
+# main == origin/main, so no --force (branch protection blocks force-pushes,
+# and a fast-forward is what we want).
+push_with_retry -q origin main
+# tag: --force makes the push idempotent across retries — if an earlier
+# attempt half-created the tag remotely, the retry corrects it instead of
+# leaving the tag diverged from main (the v0.3.6 incident).
+push_with_retry -q --force origin "$TAG"
+
+# --- post-push alignment assertion -------------------------------------------
+# Both pushes reported success, but read origin back and PROVE the remote is
+# aligned before declaring the release done: remote main must equal the bump
+# commit AND the tag must dereference to it. Remote reads can lag, so retry
+# the comparison on a backoff budget; if it still mismatches, fail loudly with
+# the offending refs and exact recovery steps — never print "done".
+BUMP="$(git rev-parse HEAD)"
+say "verifying remote alignment: origin main and $TAG must both dereference to $BUMP"
+ALIGNED=0
+MAIN_SHA=""
+TAG_SHA=""
+for ALIGN_WAIT in 5 10 20 40 60; do
+  MAIN_SHA="$(git ls-remote origin refs/heads/main | cut -f1 || true)"
+  TAG_SHA="$(remote_tag_sha "$TAG")"
+  if refs_aligned "$BUMP" "$MAIN_SHA" "$TAG_SHA"; then
+    ALIGNED=1
+    break
+  fi
+  echo "remote not aligned yet (main=${MAIN_SHA:-<empty>}, $TAG=${TAG_SHA:-<empty>}, want $BUMP); re-checking in ${ALIGN_WAIT}s" >&2
+  sleep "$ALIGN_WAIT"
+done
+if [ "$ALIGNED" != 1 ]; then
+  {
+    echo "RELEASE PUSH FAILED THE ALIGNMENT CHECK — this release is NOT done."
+    echo "  expected commit:      $BUMP"
+    [ "$MAIN_SHA" = "$BUMP" ] || echo "  remote main is WRONG: ${MAIN_SHA:-<empty>} (expected $BUMP)"
+    [ "$TAG_SHA" = "$BUMP" ] || echo "  remote $TAG is WRONG: ${TAG_SHA:-<empty>} (expected $BUMP)"
+    echo "Recover by re-running the push step, then verify both refs equal $BUMP:"
+    echo "  git push origin main                  # fast-forward main to $BUMP"
+    echo "  git push --force origin $TAG         # force-move the tag onto $BUMP"
+    echo "  git ls-remote origin refs/heads/main 'refs/tags/$TAG^{}'"
+  } >&2
+  rm -f "$NOTES"
+  exit 1
+fi
+say "remote aligned: origin main and $TAG both dereference to $BUMP"
 rm -f "$NOTES"
 
 say "done. Next:"

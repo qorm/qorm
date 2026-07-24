@@ -31,7 +31,7 @@ This local orchestrator:
 ## Repo-side only (no site deploy)
 
 ```sh
-./scripts/release.sh 0.2.1            # preflight, bump cmd/qorm/main.go, tag, push
+./scripts/release.sh 0.2.1            # preflight, bump, tag, push (retried), assert remote alignment
 ./scripts/release.sh 0.2.1 --dry-run  # preview: prints the generated notes, changes nothing
 ```
 
@@ -45,6 +45,16 @@ been archived for this version. Pushing the tag triggers:
   from the tag via `-X main.version`), signs `SHA256SUMS` if the release key is
   set, and publishes the GitHub Release.
 - **`.github/workflows/docker.yml`** — builds and pushes the ghcr image.
+
+Pushes are retried (up to 5 attempts with increasing backoff), and before
+declaring success the script reads origin back and asserts that both
+`refs/heads/main` and the tag dereference (`refs/tags/vX.Y.Z^{}`) equal the
+release commit. A flaky push that lands one ref but not the other fails
+loudly — naming the mismatching refs and the expected SHA with exact recovery
+commands — instead of silently leaving the tag diverged from main. Because
+preflight enforces `main == origin/main`, commit and push ALL release content
+(including the `## [Unreleased]` changelog entries) BEFORE running the
+script: unpushed local work is rejected, not shipped.
 
 ## Changelog
 
