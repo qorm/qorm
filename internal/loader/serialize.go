@@ -166,6 +166,12 @@ func ManifestToJSON(app *model.App) map[string]any {
 		if app.Window.Resizable {
 			win["resizable"] = true
 		}
+		if app.Window.HideLog {
+			win["hideLog"] = true
+		}
+		if app.Window.HideTray {
+			win["hideTray"] = true
+		}
 		desktop["window"] = win
 	}
 	if len(desktop) > 0 {

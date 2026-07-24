@@ -350,6 +350,8 @@ func applyManifest(app *model.App, doc map[string]any, diags *[]string) {
 					Resizable:   asBool(w["resizable"]),
 					Chromeless:  asBool(w["chromeless"]),
 					Transparent: asBool(w["transparent"]),
+					HideLog:     asBool(w["hideLog"]),
+					HideTray:    asBool(w["hideTray"]),
 				}
 			}
 		}
