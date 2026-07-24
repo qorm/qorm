@@ -1,3 +1,8 @@
+---
+title: First Action
+description: Actions are declarative step lists that mutate state and call backends, triggered by name from an onPress in the UI.
+---
+
 # First Action
 
 An action is QORM's declarative behavior. An action is a sequence of `steps`, placed in `actions/<id>.json`, and triggered by name from an `onPress` in the UI.
@@ -26,6 +31,9 @@ A button's `onPress` is the action name (a string); to pass arguments, use an ob
 { "type": "button", "id": "toggleTask", "text": "Done",
   "onPress": { "name": "toggle", "args": { "id": "{{ item.id }}" } } }
 ```
+
+![The QORM counter app on iOS](../assets/screenshots/counter.png)
+*The `+` button fires the `increment` action above; both the number and the status label read state the action writes.*
 
 ## Common step types
 

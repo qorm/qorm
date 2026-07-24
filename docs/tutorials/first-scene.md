@@ -1,3 +1,8 @@
+---
+title: First Scene
+description: A QORM scene is the UI entry point: a root node tree of text, layout, and interpolation that the renderer turns into a screen.
+---
+
 # First Scene
 
 A scene is QORM's UI entry point. A scene has an `id` and a root node `root`; the node tree describes the UI. Text content goes in the `text` field, and `{{ state.x }}` interpolates global state.
@@ -36,3 +41,6 @@ Container nodes (`column` / `row`) arrange their children using `style` (padding
 - Use `text` (not `value`) for text; template interpolation like `"Welcome, {{ state.user }}"` also goes in `text`.
 - Buttons use `onPress` to trigger actions (see [First Action](first-action.md)).
 - For all available node types, see the [Widget catalog](/api/widgets.md).
+
+![A rendered QORM scene with a title, text, and a button](img/first-scene.png)
+*A scene renders to a screen — text nodes plus a button laid out by a column.*

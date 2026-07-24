@@ -1,3 +1,8 @@
+---
+title: QORM documentation
+description: Pure-Go, agent-native declarative UI runtime: write UI as JSON, run it live, verify, sign, and package for web, iOS, Android, and desktop.
+---
+
 <!-- data-lang-nav --><p align="right"><b>English</b> · <a href="zh/README.md">中文</a></p>
 
 # QORM documentation
@@ -13,6 +18,12 @@ platform, **Mutate** it through actions and the write API.
 New here? Read the [top-level README](https://github.com/qorm/qorm/blob/main/README.md) for the big picture and the
 CLI, then dive in below. The [`examples/`](https://github.com/qorm/qorm/tree/main/examples) apps are the canonical,
 runnable reference — when a doc and a running example disagree, trust the example.
+
+![QORM live human-AI collaboration](assets/qorm-demo.gif)
+*A shared session in motion: the AI edits the app and the change appears live in the browser while the activity is logged.*
+
+![The QORM counter example](assets/screenshots/counter.png) ![The QORM analytics dashboard example](assets/screenshots/dashboard.png) ![A QORM fitness app example](assets/screenshots/showcase.png)
+*The counter, the analytics dashboard, and a fitness app — one JSON runtime across examples.*
 
 ## Learn
 

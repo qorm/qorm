@@ -1,3 +1,8 @@
+---
+title: Interpreting & verifying a QORM app
+description: Interpret and verify a QORM app precisely: the running app measures its own render so qorm measure and qorm check report real geometry.
+---
+
 # Interpreting & verifying a QORM app
 
 QORM's goal is to let an AI **completely and precisely interpret and verify**
@@ -113,6 +118,11 @@ While a human runs the app, an agent on the same session can call:
 
 Both read the live client's self-measurement, so the agent sees exactly what the
 human sees. The tool descriptions carry the full assertion list.
+
+![QORM DevTool activity view of the shared session](assets/screenshots/logwindow.png)
+*In a shared session the agent reads the same live render you see; the DevTool interleaves both sides' activity.*
+
+Note: the `qorm measure` and `qorm check` reports are structured CLI/JSON (shown as code blocks above) — there is no terminal screenshot for them. The image here is the DevTool view of the live shared session, not a captured report.
 
 ## On-device live debugging
 

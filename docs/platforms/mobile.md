@@ -1,3 +1,8 @@
+---
+title: QORM Mobile Platform
+description: Package QORM for iOS and Android as a WebView app with a Go-WASM runtime, native bridge, signed bundles, and over-the-air updates.
+---
+
 # QORM Mobile Platform
 
 Mobile requires dedicated adaptation; it cannot simply reuse the Desktop implementation.
@@ -29,6 +34,11 @@ The app runs offline on device via Go→WASM in a WebView. Examples:
 [`hardware`](https://github.com/qorm/qorm/tree/main/examples/hardware) (the capability catalog exercised),
 [`i18n`](https://github.com/qorm/qorm/tree/main/examples/i18n) (locales, plurals, currency, RTL). See the
 [support matrix](support-matrix.md) for per-capability platform support.
+
+![A QORM app on iOS with native inputs and toggles](../assets/screenshots/gallery.png)
+*On iOS, native controls (switch, slider, text field) render from the same JSON; the Go-WASM runtime drives them through the Swift bridge.*
+
+Note: the screenshot above is iOS. This build environment has no Android emulator, so there is no Android preview to show; the `qorm package -p android` command and the WebView runtime path are otherwise identical.
 
 ## Architecture
 

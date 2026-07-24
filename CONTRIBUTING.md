@@ -56,6 +56,14 @@ needs WebKitGTK; Windows needs WebView2) and uses cgo.
 2. Make the change with a test; keep builds + tests green.
 3. Open a PR describing what and why. Small, focused PRs merge fastest.
 
+Notable user-facing changes get an entry under `## [Unreleased]` in
+`CHANGELOG.md` as part of the PR. Releases archive that section automatically:
+`scripts/release.sh <ver>` moves the accumulated entries under a new
+`## [vX.Y.Z] - <date>` heading (a fresh empty `## [Unreleased]` stays on top)
+and adds the compare footer link at tag time. Do not rename the
+`## [Unreleased]` heading by hand — release preflight fails on a missing or
+empty section.
+
 ## Reporting / feedback
 
 Found a bug or rough edge while trying it? Please

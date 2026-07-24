@@ -1,3 +1,8 @@
+---
+title: First Component
+description: Components are reusable UI templates declared in qorm.json, instantiated by node type and fed props plus optional slot children.
+---
+
 # First Component
 
 Components let you reuse UI structure. A component is a template declared **in `components` within `qorm.json`**; inside the template, `{{ prop.x }}` reads the properties passed in by the instance. Instantiate it with a node whose `type` equals the component name.
@@ -29,6 +34,9 @@ The node's `type` is the component name; properties are written directly on the 
 ```json
 { "type": "user_card", "id": "u1", "name": "Ada", "email": "ada@example.com" }
 ```
+
+![Reusable JSON components rendered on iOS](../assets/screenshots/uikit.png)
+*Components declared once in JSON — metric tiles and key/value panels — reused across a screen (`examples/uikit`).*
 
 ## Slot (filling in child content)
 

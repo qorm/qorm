@@ -1,3 +1,8 @@
+---
+title: First Platform Pack
+description: Platform Packs describe how QORM runs per platform. Design intent, not yet implemented; see the web, mobile, and desktop guides for today.
+---
+
 # First Platform Pack
 
 > **Design intent — not implemented.** Platform Packs are the planned packaging
@@ -6,6 +11,9 @@
 > [Desktop](../platforms/desktop.md) and [Web](../platforms/web.md).
 
 A Platform Pack describes how QORM runs on a given platform.
+
+![A QORM app packaged for iOS](../assets/screenshots/showcase.png)
+*A QORM app running on iOS. Today this ships via `qorm package -p ios`; the Platform Pack is the planned way to describe such a target once.*
 
 ## Directory
 

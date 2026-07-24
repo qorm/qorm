@@ -1,9 +1,17 @@
+---
+title: Human-AI collaboration on a live app
+description: A human and an AI agent on the same running QORM app at once, each seeing the other over the browser, MCP, and SSE.
+---
+
 # Human-AI collaboration on a live app
 
 QORM's premise: a person and an AI agent work on the **same running app at the
 same time**, and each sees the other. `qorm run` serves one live runtime over
 three channels — a browser for the human, MCP for the agent, and Server-Sent
 Events (SSE) to keep every viewer in sync.
+
+![A human and an AI agent on one live QORM app](agent/img/console.png)
+*One running app, two panes: the live UI on the left and the shared session log on the right.*
 
 ## Start a shared session
 
@@ -32,6 +40,9 @@ qorm run examples/counter          # browser UI + agent endpoint at /mcp
   desktop app opens, or `/logwindow`) shows a *shared with the AI* line — the human's
   own focus and typed text, password fields marked *value hidden* — so it is
   transparent exactly what the agent can perceive.
+
+![QORM DevTool shared session](assets/screenshots/logwindow.png)
+*The shared session, made transparent: what the human sees in the DevTool is exactly what the agent can perceive.*
 
 ## Safe edits — review-bound
 

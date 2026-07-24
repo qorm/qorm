@@ -1,9 +1,20 @@
+---
+title: QORM MCP tools
+description: The Model Context Protocol tools an AI agent uses to read, operate, design, and verify a live QORM app, generated from the source.
+---
+
 # QORM MCP tools
 
 > Generated from `internal/mcp/tools.go` (`TestMCPDocInSync`) — do not edit by hand.
 > Regenerate with `QORM_UPDATE_DOCS=1 go test ./internal/mcp/`.
 
 QORM exposes a [Model Context Protocol](https://modelcontextprotocol.io) server so an AI agent can **read, operate, design, and verify** a live QORM app. Start it with `qorm mcp <app-dir|bundle>` (stdio JSON-RPC), or reach the same tools over HTTP at `/mcp` on a running `qorm run` — the agent and the browser then share one live runtime.
+
+![The live QORM app beside the shared collaboration log](img/console.png)
+*The app a human runs, beside the shared session log the agent reads over MCP — one live runtime.*
+
+![QORM DevTool activity log of a shared session](../assets/screenshots/logwindow.png)
+*The DevTool lists your taps and the agent's MCP calls on the same app, oldest first, colour-coded by actor.*
 
 **Safety model.** `qorm_simulate_action`, `qorm_preview_patch` and `qorm_diff` run against a copy and never touch the live app. `qorm_apply_patch` commits a change, but it must carry the `previewToken` returned by a matching `qorm_preview_patch` of the same ops — so every committed edit is bound to a prior review. `qorm_undo` reverts the last apply.
 

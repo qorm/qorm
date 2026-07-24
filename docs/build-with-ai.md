@@ -1,3 +1,8 @@
+---
+title: Build QORM apps with your AI assistant
+description: Point your AI assistant at QORM to scaffold, edit, run, and verify apps, then collaborate on the live app with review-bound edits.
+---
+
 # Build QORM apps with your AI assistant
 
 QORM is agent-native: point your AI coding assistant (Claude Code, Claude Desktop,
@@ -13,6 +18,9 @@ The 60-second version: [`scripts/demo.sh`](https://github.com/qorm/qorm/blob/mai
 ./scripts/demo.sh                 # examples/counter
 ./scripts/demo.sh examples/dashboard
 ```
+
+![Your AI assistant editing a live QORM app while you watch](agent/img/console.png)
+*Run a shared session and the AI's edits appear live in your browser, while its MCP calls show up in the log on the right.*
 
 ## 1. Install QORM
 
@@ -58,6 +66,9 @@ qorm run ./habits          # opens in your browser; agent endpoint at /mcp
   **"AI edited"** toast so you watch it happen.
 - The AI's design changes are review-bound (preview → apply), and it self-verifies
   its edits with `qorm measure` / `qorm check`.
+
+![QORM DevTool showing human and agent activity](assets/screenshots/logwindow.png)
+*The DevTool makes the human-AI loop visible: who did what, in order, and what is shared with the AI.*
 
 See [Human-AI collaboration](collaboration.md) for the full loop.
 

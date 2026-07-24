@@ -10,9 +10,16 @@ import (
 // it. Kept in sync by TestMCPDocInSync.
 func ToolsMarkdown() string {
 	var b strings.Builder
+	// Front matter populates the per-page SEO meta; the title mirrors the H1 so
+	// the <title>/og:title match the on-page heading. Paths below are relative to
+	// docs/agent/ so they resolve both on GitHub and in the built docs site (and
+	// the link test). The DevTool shot is shared via docs/assets/screenshots/.
+	b.WriteString("---\ntitle: QORM MCP tools\ndescription: The Model Context Protocol tools an AI agent uses to read, operate, design, and verify a live QORM app, generated from the source.\n---\n\n")
 	b.WriteString("# QORM MCP tools\n\n")
 	b.WriteString("> Generated from `internal/mcp/tools.go` (`TestMCPDocInSync`) — do not edit by hand.\n> Regenerate with `QORM_UPDATE_DOCS=1 go test ./internal/mcp/`.\n\n")
 	b.WriteString("QORM exposes a [Model Context Protocol](https://modelcontextprotocol.io) server so an AI agent can **read, operate, design, and verify** a live QORM app. Start it with `qorm mcp <app-dir|bundle>` (stdio JSON-RPC), or reach the same tools over HTTP at `/mcp` on a running `qorm run` — the agent and the browser then share one live runtime.\n\n")
+	b.WriteString("![The live QORM app beside the shared collaboration log](img/console.png)\n*The app a human runs, beside the shared session log the agent reads over MCP — one live runtime.*\n\n")
+	b.WriteString("![QORM DevTool activity log of a shared session](../assets/screenshots/logwindow.png)\n*The DevTool lists your taps and the agent's MCP calls on the same app, oldest first, colour-coded by actor.*\n\n")
 	b.WriteString("**Safety model.** `qorm_simulate_action`, `qorm_preview_patch` and `qorm_diff` run against a copy and never touch the live app. `qorm_apply_patch` commits a change, but it must carry the `previewToken` returned by a matching `qorm_preview_patch` of the same ops — so every committed edit is bound to a prior review. `qorm_undo` reverts the last apply.\n\n")
 	b.WriteString("| Tool | Parameters | What it does |\n|---|---|---|\n")
 	for _, t := range toolList() {
@@ -50,9 +57,14 @@ var toolDescriptionsZH = map[string]string{
 // ToolsMarkdownZH renders the live MCP tool set as docs/zh/agent/mcp-tools.md in Chinese.
 func ToolsMarkdownZH() string {
 	var b strings.Builder
+	// 与英文版一致：front matter 填充逐页 SEO meta，标题与 H1 保持一致；图片路径相对
+	// docs/zh/agent/，使 GitHub 与构建后的站点（以及链接测试）均能解析。
+	b.WriteString("---\ntitle: QORM MCP 工具\ndescription: AI 智能体用于读取、操作、设计并验证运行中 QORM 应用的 Model Context Protocol 工具，由源码自动生成。\n---\n\n")
 	b.WriteString("# QORM MCP 工具\n\n")
 	b.WriteString("> 由 `internal/mcp/tools.go` (`TestMCPDocInSync`) 自动生成 —— 请勿手动修改。\n> 请使用 `QORM_UPDATE_DOCS=1 go test ./internal/mcp/` 重新生成。\n\n")
 	b.WriteString("QORM 暴露了一个 [Model Context Protocol](https://modelcontextprotocol.io) 服务端，使 AI 智能体可以**读取、操作、设计并验证**一个运行中的 QORM 应用。可以使用 `qorm mcp <app-dir|bundle>` 启动它（基于标准输入输出的 JSON-RPC），或在运行的 `qorm run` 中通过 HTTP 的 `/mcp` 访问相同的工具 —— 此时智能体和浏览器将共享同一个运行中的运行时会话。\n\n")
+	b.WriteString("![运行中的 QORM 应用与共享协作日志并列](../../agent/img/console.png)\n*人类运行的应用，与智能体通过 MCP 读取的共享会话日志并列——同一个运行中的运行时。*\n\n")
+	b.WriteString("![共享会话的 QORM DevTool 活动日志](../../assets/screenshots/logwindow.png)\n*DevTool 将你的点击与智能体在同一应用上的 MCP 调用按时间交错列出，并以颜色区分操作者。*\n\n")
 	b.WriteString("**安全模型**：`qorm_simulate_action`、`qorm_preview_patch` 和 `qorm_diff` 均对应用副本运行，绝不触碰运行中的应用。`qorm_apply_patch` 提交修改，但它必须携带由相同操作的 `qorm_preview_patch` 返回的 `previewToken` —— 从而保证每次提交的编辑都有前置审查。`qorm_undo` 撤销最后一次提交的操作。\n\n")
 	b.WriteString("| 工具 | 参数 | 描述 |\n|---|---|---|\n")
 	for _, t := range toolList() {

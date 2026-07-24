@@ -36,14 +36,26 @@ This local orchestrator:
 ```
 
 Preflight refuses to proceed unless: on `main`, in sync with `origin/main`,
-clean working tree, `gofmt`/`go vet`/`go test` all clean, and the tag is new.
-Pushing the tag triggers:
+clean working tree, `gofmt`/`go vet`/`go test` all clean, the tag is new, and
+`CHANGELOG.md` has a non-empty `## [Unreleased]` section that has not already
+been archived for this version. Pushing the tag triggers:
 
 - **`.github/workflows/release.yml`** — `vet` + `test`, then
   `scripts/build-all.sh` cross-compiles every platform (stamping the version
   from the tag via `-X main.version`), signs `SHA256SUMS` if the release key is
   set, and publishes the GitHub Release.
 - **`.github/workflows/docker.yml`** — builds and pushes the ghcr image.
+
+## Changelog
+
+Changelog entries accumulate under `## [Unreleased]` in `CHANGELOG.md` as
+changes land. `scripts/release.sh <ver>` archives them at tag time: a fresh
+empty `## [Unreleased]` stays on top, the accumulated entries move under a new
+`## [vX.Y.Z] - <date>` heading, and the compare footer link is inserted above
+the newest existing link — committed as `docs: changelog vX.Y.Z` just before
+the version-bump commit (`--dry-run` validates the section without touching
+it). Never rename the `## [Unreleased]` heading by hand: preflight fails the
+release when the section is missing, empty, or already archived.
 
 ## Site deploy only
 

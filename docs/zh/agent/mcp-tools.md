@@ -1,9 +1,20 @@
+---
+title: QORM MCP 工具
+description: AI 智能体用于读取、操作、设计并验证运行中 QORM 应用的 Model Context Protocol 工具，由源码自动生成。
+---
+
 # QORM MCP 工具
 
 > 由 `internal/mcp/tools.go` (`TestMCPDocInSync`) 自动生成 —— 请勿手动修改。
 > 请使用 `QORM_UPDATE_DOCS=1 go test ./internal/mcp/` 重新生成。
 
 QORM 暴露了一个 [Model Context Protocol](https://modelcontextprotocol.io) 服务端，使 AI 智能体可以**读取、操作、设计并验证**一个运行中的 QORM 应用。可以使用 `qorm mcp <app-dir|bundle>` 启动它（基于标准输入输出的 JSON-RPC），或在运行的 `qorm run` 中通过 HTTP 的 `/mcp` 访问相同的工具 —— 此时智能体和浏览器将共享同一个运行中的运行时会话。
+
+![运行中的 QORM 应用与共享协作日志并列](../../agent/img/console.png)
+*人类运行的应用，与智能体通过 MCP 读取的共享会话日志并列——同一个运行中的运行时。*
+
+![共享会话的 QORM DevTool 活动日志](../../assets/screenshots/logwindow.png)
+*DevTool 将你的点击与智能体在同一应用上的 MCP 调用按时间交错列出，并以颜色区分操作者。*
 
 **安全模型**：`qorm_simulate_action`、`qorm_preview_patch` 和 `qorm_diff` 均对应用副本运行，绝不触碰运行中的应用。`qorm_apply_patch` 提交修改，但它必须携带由相同操作的 `qorm_preview_patch` 返回的 `previewToken` —— 从而保证每次提交的编辑都有前置审查。`qorm_undo` 撤销最后一次提交的操作。
 

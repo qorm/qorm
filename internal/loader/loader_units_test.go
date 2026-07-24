@@ -327,6 +327,54 @@ func TestFromDocsSkipsIDlessActionAndRootlessScene(t *testing.T) {
 	}
 }
 
+// TestFromDocsDiagnosesUnknownOrMissingType guards that a doc whose "type" is
+// absent or unhandled is diagnosed instead of being silently dropped: a
+// typeless-only app used to render "no scene to render" with zero diagnostics
+// and zero unknown widgets, so authors (and the live playground) got no
+// feedback that a document was ignored.
+func TestFromDocsDiagnosesUnknownOrMissingType(t *testing.T) {
+	// Missing type: diagnosed (id included for authorability), no scene built.
+	app := FromDocs([]map[string]any{{"id": "x"}})
+	if len(app.Scenes) != 0 {
+		t.Errorf("typeless doc must build no scenes, got %v", app.Scenes)
+	}
+	want := `error: document #0 has unknown or missing "type" (got "", id "x") — ignored`
+	if len(app.Diagnostics) != 1 || app.Diagnostics[0] != want {
+		t.Fatalf("want exactly [%s], got %v", want, app.Diagnostics)
+	}
+
+	// A valid typed doc produces no such diagnostic (no false positive).
+	app = FromDocs([]map[string]any{
+		{"type": "scene", "id": "main", "root": map[string]any{"type": "text", "id": "t"}},
+	})
+	for _, d := range app.Diagnostics {
+		if strings.Contains(d, "unknown or missing") {
+			t.Errorf("valid scene doc must not be diagnosed, got %v", app.Diagnostics)
+		}
+	}
+	if len(app.Scenes) != 1 || app.Scenes["main"] == nil {
+		t.Errorf("valid scene doc must build, got %v", app.Scenes)
+	}
+
+	// An unknown type is diagnosed too, with the offending value quoted.
+	app = FromDocs([]map[string]any{{"type": "bogus", "id": "x"}})
+	want = `error: document #0 has unknown or missing "type" (got "bogus", id "x") — ignored`
+	if len(app.Diagnostics) != 1 || app.Diagnostics[0] != want {
+		t.Fatalf("want exactly [%s], got %v", want, app.Diagnostics)
+	}
+
+	// Without an id the shorter message form is used, and the index is the
+	// doc's position in the slice (the manifest above it counts).
+	app = FromDocs([]map[string]any{
+		{"type": "app", "id": "a", "entry": "main"},
+		{"type": "bogus"},
+	})
+	want = `error: document #1 has unknown or missing "type" (got "bogus") — ignored`
+	if len(app.Diagnostics) != 1 || app.Diagnostics[0] != want {
+		t.Fatalf("want exactly [%s], got %v", want, app.Diagnostics)
+	}
+}
+
 func TestFromDocsEmpty(t *testing.T) {
 	app := FromDocs(nil)
 	if app == nil || app.Scenes == nil || app.Actions == nil || app.Entry != "main" {

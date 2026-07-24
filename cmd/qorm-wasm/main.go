@@ -19,6 +19,7 @@ import (
 
 	"github.com/qorm/qorm/internal/bundle"
 	"github.com/qorm/qorm/internal/ota"
+	"github.com/qorm/qorm/internal/playcore"
 	"github.com/qorm/qorm/internal/render"
 	"github.com/qorm/qorm/internal/runtime"
 	"github.com/qorm/qorm/pkg/qormext"
@@ -39,6 +40,8 @@ func main() {
 	js.Global().Set("qormWasmOp", js.FuncOf(qormWasmOp))
 	js.Global().Set("qormCheckUpdate", js.FuncOf(qormCheckUpdate))
 	js.Global().Set("qormOTARollback", js.FuncOf(qormOTARollback))
+	js.Global().Set("qormCompile", js.FuncOf(qormCompile))
+	js.Global().Set("qormSetViewport", js.FuncOf(qormSetViewport))
 	select {} // keep the Go runtime alive for the JS callbacks
 }
 
@@ -150,12 +153,67 @@ func qormSetState(_ js.Value, args []js.Value) any {
 	return renderNow()
 }
 
-// TODO(P1.1 responsive `when`): read js.Global() innerWidth/innerHeight here
-// (rt.Viewport = runtime.Viewport{W, H}) before rendering, so responsive
-// `when` nodes resolve against the real client viewport in the standalone
-// WASM build too. Deferred — this file is concurrently reworked by the B3
-// (OTA verification) task; until then viewport is 0x0 offline and `when`
-// renders its `else` branch (the documented unknown-viewport semantics).
+// qormCompile(docsJSON) compiles a live, UNSIGNED doc array (the playground's
+// edit loop) into a render without going through a bundle — no signature or
+// content hash required. docsJSON is a JSON array of doc objects. It installs
+// the resulting runtime + handler table into the same globals qormInit uses, so
+// qormEvent/qormSetState keep working against the freshly compiled app. Unlike
+// renderNow, the returned object also carries the loader diagnostics and the
+// render's unknown-widget list — the self-verify surface the playground shows
+// the author. Malformed JSON yields a diagnostic instead of throwing into JS.
+func qormCompile(_ js.Value, args []js.Value) any {
+	if len(args) < 1 || args[0].Type() != js.TypeString {
+		return compileResult(playcore.Result{Diagnostics: []string{"error: invalid JSON: missing docsJSON string argument"}})
+	}
+	var docs []map[string]any
+	if err := json.Unmarshal([]byte(args[0].String()), &docs); err != nil {
+		return compileResult(playcore.Result{Diagnostics: []string{"error: invalid JSON: " + err.Error()}})
+	}
+	res := playcore.CompileDocs(docs)
+	// Keep the global runtime/handlers consistent with qormInit so qormEvent
+	// dispatches against the just-compiled app. The compiled app has no bundle
+	// encoding, so clear currentBundleJSON to avoid a stale OTA no-op skip.
+	rt = res.RT
+	handlers = res.Handlers
+	currentBundleJSON = ""
+	return compileResult(res)
+}
+
+// qormSetViewport(w, h) sets the client viewport driving the runtime and
+// re-renders, so responsive `when` nodes resolve against the real size in the
+// standalone WASM build (the documented 0x0-viewport default otherwise renders
+// the `else` branch). w/h are CSS pixels from the playground's layout box.
+func qormSetViewport(_ js.Value, args []js.Value) any {
+	if rt == nil || len(args) < 2 {
+		return errResult(nil)
+	}
+	rt.Viewport = runtime.Viewport{W: args[0].Int(), H: args[1].Int()}
+	return renderNow()
+}
+
+// compileResult packs a playcore.Result into the JS object the bridge expects:
+// { html, theme, dir, diagnostics, unknown }. diagnostics/unknown are converted
+// to JS arrays ([]string cannot cross the js.FuncOf boundary directly).
+func compileResult(res playcore.Result) any {
+	return map[string]any{
+		"html":        res.HTML,
+		"theme":       res.Theme,
+		"dir":         res.Dir,
+		"diagnostics": jsStringArray(res.Diagnostics),
+		"unknown":     jsStringArray(res.Unknown),
+	}
+}
+
+// jsStringArray converts a []string to a []any so it crosses the js.FuncOf
+// boundary as a JS array (an empty/nil slice becomes [], never null).
+func jsStringArray(s []string) []any {
+	out := make([]any, len(s))
+	for i, v := range s {
+		out[i] = v
+	}
+	return out
+}
+
 func renderNow() any {
 	res := render.Render(rt)
 	handlers = res.Handlers

@@ -1,3 +1,8 @@
+---
+title: Getting Started with QORM
+description: Build a minimal QORM counter app from scratch: the manifest, a scene, an action, and the qorm run loop that renders it live in the browser.
+---
+
 # Getting Started with QORM
 
 This tutorial builds a minimal QORM app from scratch: a counter. Three files — manifest, scene, and action — and `qorm run` gets it going.
@@ -76,6 +81,9 @@ qorm run my-app          # opens live in the browser; click +1 and the count inc
 ```
 
 The server hosts the app, handles button events, re-runs actions, and swaps the re-rendered UI back into the page — that is the run loop.
+
+![The QORM counter app rendered live](../assets/screenshots/counter.png)
+*The three files above render to this: `qorm run` serves the counter live, and the `+` button drives the action.*
 
 ## Rendering a static snapshot
 

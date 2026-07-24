@@ -24,3 +24,19 @@ func FuzzEval(f *testing.F) {
 		_, _ = Eval(src, ctx) // must not panic
 	})
 }
+
+// FuzzCheck ensures the static type checker never panics on arbitrary binding
+// expressions (they come from app JSON, so robustness matters). It may report
+// mismatches, but must not crash.
+func FuzzCheck(f *testing.F) {
+	seeds := []string{
+		"state.x + 1", "a + 1", "len(a)", "((((", "",
+	}
+	for _, s := range seeds {
+		f.Add(s)
+	}
+	vars := map[string]string{"state.x": "number", "a": "string"}
+	f.Fuzz(func(t *testing.T, src string) {
+		_ = Check(src, vars) // must not panic
+	})
+}

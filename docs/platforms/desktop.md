@@ -1,3 +1,8 @@
+---
+title: QORM Desktop Platform
+description: Build QORM as a native desktop app with the pure-Go core in a WebView, full host capabilities, and cross-compilation across OSes.
+---
+
 # QORM Desktop Platform
 
 Desktop is one of QORM's first-priority runtime platforms, well suited to development previews, production desktop apps, utility apps, and high-performance UI experiments.
@@ -21,6 +26,9 @@ menu bar / tray / right-click menus, with icons + submenus),
 [`floating`](https://github.com/qorm/qorm/tree/main/examples/floating) (chromeless + transparent, custom-shape
 window), [`desktop-hardware`](https://github.com/qorm/qorm/tree/main/examples/desktop-hardware). See the
 [support matrix](support-matrix.md) for what's tested per OS.
+
+![The QORM dashboard used as a stand-in for the desktop build](img/web-dashboard.png)
+*The dashboard example as rendered in a browser, shown as a stand-in. The same UI is hosted in a real native window by the `-tags desktop` binary; no native-window screenshot is captured in this build environment.*
 
 ## Architecture
 

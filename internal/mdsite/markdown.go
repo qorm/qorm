@@ -1,8 +1,8 @@
 // Package mdsite renders the docs/ markdown tree into a static HTML site using
 // only the standard library, so `qorm docs` cross-compiles like everything else
 // (no node, no cgo). The markdown converter supports the subset the docs use:
-// ATX headings, fenced code, inline code/bold/italic/links, unordered/ordered
-// lists, blockquotes, horizontal rules and GFM tables.
+// ATX headings, fenced code, inline code/bold/italic/links/images,
+// unordered/ordered lists, blockquotes, horizontal rules and GFM tables.
 package mdsite
 
 import (
@@ -15,6 +15,7 @@ import (
 
 var (
 	codeRe     = regexp.MustCompile("`[^`]+`")
+	imageRe    = regexp.MustCompile(`!\[([^\]]*)\]\(([^)]+)\)`)
 	linkRe     = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
 	boldRe     = regexp.MustCompile(`\*\*([^*]+)\*\*`)
 	italicRe   = regexp.MustCompile(`\*([^*]+)\*`)
@@ -193,6 +194,15 @@ func inlineMD(s string) string {
 	s = codeRe.ReplaceAllStringFunc(s, func(m string) string {
 		codes = append(codes, m[1:len(m)-1])
 		return fmt.Sprintf("\x00c%d\x00", len(codes)-1)
+	})
+	// Images before links: ![alt](src) contains a [..](..) that linkRe would
+	// otherwise match, leaving a stray '!'. src and alt are already HTML-escaped
+	// above; image paths are never .md, so unlike link hrefs they are emitted
+	// as-is (no .html rewrite). Intrinsic sizes are unknown from markdown, so no
+	// width/height — the page CSS keeps images fluid (max-width:100%;height:auto).
+	s = imageRe.ReplaceAllStringFunc(s, func(m string) string {
+		g := imageRe.FindStringSubmatch(m)
+		return `<img src="` + g[2] + `" alt="` + g[1] + `" loading="lazy" decoding="async">`
 	})
 	s = linkRe.ReplaceAllStringFunc(s, func(m string) string {
 		g := linkRe.FindStringSubmatch(m)

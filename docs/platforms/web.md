@@ -1,3 +1,8 @@
+---
+title: QORM Web Platform
+description: Run QORM on the web as an installable offline PWA via the WASM runtime, with browser-bounded capabilities and a Web Host Adapter.
+---
+
 # QORM Web Platform
 
 The web platform connects to QORM through the WASM Runtime or the TypeScript Adapter.
@@ -10,6 +15,9 @@ qorm package examples/dashboard -p web -o dashboard-web   # an installable, offl
 
 Serve the output folder and "Add to Home Screen". Any example packages to web.
 See the [support matrix](support-matrix.md).
+
+![The QORM dashboard packaged as a web app in a browser](img/web-dashboard.png)
+*`qorm package -p web` produces an installable PWA — here the dashboard example opened in a browser.*
 
 ## Architecture
 

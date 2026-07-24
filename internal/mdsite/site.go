@@ -1,20 +1,25 @@
 package mdsite
 
 import (
+	"encoding/json"
 	"fmt"
 	"html"
+	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
 )
 
 type page struct {
-	htmlRel string // path relative to out dir, e.g. "spec/ir-spec.html"
-	navRel  string // language-neutral path, e.g. "tutorials/first-scene.html"
-	title   string
-	group   string // grouping label within the language ("" for root)
-	lang    string // "en" or "zh"
+	htmlRel     string // path relative to out dir, e.g. "spec/ir-spec.html"
+	navRel      string // language-neutral path, e.g. "tutorials/first-scene.html"
+	title       string
+	description string // meta description: front matter, else first paragraph
+	ogImage     string // og:image URL: front matter, else site default ("" = none)
+	group       string // grouping label within the language ("" for root)
+	lang        string // "en" or "zh"
 }
 
 // BuildSite renders every markdown file under docsDir into a linked static HTML
@@ -25,18 +30,24 @@ func BuildSite(docsDir, outDir, siteName string) (int, error) {
 		siteName = "docs"
 	}
 	var pages []page
-	srcOf := map[string]string{} // htmlRel -> source md path
+	var assets []string           // non-markdown files, copied through verbatim
+	bodyOf := map[string]string{} // htmlRel -> markdown with front matter stripped
 
 	err := filepath.WalkDir(docsDir, func(path string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".md") {
+		if err != nil || d.IsDir() {
 			return err
 		}
 		rel, _ := filepath.Rel(docsDir, path)
+		if !strings.HasSuffix(path, ".md") {
+			assets = append(assets, rel) // images etc. — copied unchanged below
+			return nil
+		}
 		htmlRel := strings.TrimSuffix(rel, ".md") + ".html"
 		data, rerr := os.ReadFile(path)
 		if rerr != nil {
 			return rerr
 		}
+		fm, md := parseFrontMatter(string(data))
 		// A page under zh/ is Chinese; group it by its path within that language
 		// so the zh sidebar mirrors the en one instead of one flat "zh" bucket.
 		sep := string(filepath.Separator)
@@ -49,8 +60,16 @@ func BuildSite(docsDir, outDir, siteName string) (int, error) {
 			group = parts[0]
 		}
 		navHTML := filepath.ToSlash(strings.TrimSuffix(navRel, ".md") + ".html")
-		pages = append(pages, page{htmlRel: htmlRel, navRel: navHTML, title: firstHeading(string(data), rel), group: group, lang: lang})
-		srcOf[htmlRel] = path
+		title := fm["title"] // front matter wins over the first ATX heading
+		if title == "" {
+			title = firstHeading(md, rel)
+		}
+		description := fm["description"]
+		if description == "" {
+			description = firstParagraph(md)
+		}
+		pages = append(pages, page{htmlRel: htmlRel, navRel: navHTML, title: title, description: description, ogImage: fm["og-image"], group: group, lang: lang})
+		bodyOf[htmlRel] = md
 		return nil
 	})
 	if err != nil {
@@ -77,15 +96,35 @@ func BuildSite(docsDir, outDir, siteName string) (int, error) {
 		return pages[i].htmlRel < pages[j].htmlRel
 	})
 
+	// Pages without their own og-image fall back to the shared social card in
+	// the web root's assets/ (deploy-site.sh stages it as a sibling of each
+	// site dir). Absent on disk, og:image/twitter:image are simply omitted.
+	defaultOG := ""
+	if _, err := os.Stat(filepath.Join(filepath.Dir(outDir), "assets", "og-image.png")); err == nil {
+		defaultOG = "/assets/og-image.png"
+	}
 	for _, p := range pages {
-		data, _ := os.ReadFile(srcOf[p.htmlRel])
-		body := RenderMarkdown(string(data))
+		if p.ogImage == "" {
+			p.ogImage = defaultOG
+		}
+		body := RenderMarkdown(bodyOf[p.htmlRel])
 		nav := sidebarHTML(pages, p.lang, p.htmlRel)
 		out := filepath.Join(outDir, p.htmlRel)
 		if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
 			return 0, err
 		}
-		if err := os.WriteFile(out, []byte(pageHTML(p.title, p.lang, siteName, langSwitchHTML(p, pages), nav, body)), 0o644); err != nil {
+		head := headMeta(p, siteName, pages)
+		if err := os.WriteFile(out, []byte(pageHTML(p.title, p.lang, siteName, head, langSwitchHTML(p, pages), nav, body)), 0o644); err != nil {
+			return 0, err
+		}
+	}
+
+	// Non-markdown files (images, etc.) are copied through verbatim, preserving
+	// relative paths, so a page's relative <img src> resolves in the built tree
+	// (and deploy-site.sh's rsync then publishes them). Markdown sources are
+	// never copied.
+	for _, rel := range assets {
+		if err := copyFile(filepath.Join(docsDir, rel), filepath.Join(outDir, rel)); err != nil {
 			return 0, err
 		}
 	}
@@ -108,7 +147,8 @@ func BuildSite(docsDir, outDir, siteName string) (int, error) {
 	if !hasPage(pages, "index.html") && !hasPage(pages, "README.html") {
 		nav := sidebarHTML(pages, "en", "index.html")
 		landing := "<h1>QORM Documentation</h1>\n<p>Select a page from the sidebar.</p>\n"
-		if err := os.WriteFile(filepath.Join(outDir, "index.html"), []byte(pageHTML("QORM", "en", siteName, "", nav, landing)), 0o644); err != nil {
+		lp := page{htmlRel: "index.html", title: "QORM", lang: "en"}
+		if err := os.WriteFile(filepath.Join(outDir, "index.html"), []byte(pageHTML("QORM", "en", siteName, headMeta(lp, siteName, pages), "", nav, landing)), 0o644); err != nil {
 			return 0, err
 		}
 	}
@@ -148,6 +188,221 @@ func langSwitchHTML(p page, pages []page) string {
 		return `<a class="iconlink lang" href="` + filepath.ToSlash(link) + `" data-lang="` + targetLang + `" aria-label="` + targetName + `" title="` + targetName + `">` + globe + `<span>` + targetLabel + `</span></a>`
 	}
 	return `<span class="iconlink lang off" aria-label="` + targetName + `">` + globe + `<span>` + targetLabel + `</span></span>`
+}
+
+// canonicalURL is the single permanent URL for a page: the site root plus the
+// page path, with README.html normalised to index.html. The byte-copied
+// directory index carries the README page's head, so both files declare the
+// same canonical and never look like duplicate content.
+func canonicalURL(p page, siteName string) string {
+	rel := filepath.ToSlash(p.htmlRel)
+	if filepath.Base(rel) == "README.html" {
+		rel = path.Join(path.Dir(rel), "index.html")
+	}
+	return "https://qorm.com/" + siteName + "/" + rel
+}
+
+// headMeta builds the per-page SEO block for <head>: meta description,
+// Open Graph + Twitter cards, canonical link, hreflang alternates and a small
+// JSON-LD TechArticle. og:image/twitter:image are emitted only when the page
+// (or the site default) has one.
+func headMeta(p page, siteName string, pages []page) string {
+	esc := html.EscapeString
+	lang := p.lang
+	if lang == "" {
+		lang = "en"
+	}
+	canonical := canonicalURL(p, siteName)
+	var b strings.Builder
+	if p.description != "" {
+		fmt.Fprintf(&b, "<meta name=\"description\" content=\"%s\">\n", esc(p.description))
+	}
+	fmt.Fprintf(&b, "<meta property=\"og:title\" content=\"%s\">\n", esc(p.title))
+	if p.description != "" {
+		fmt.Fprintf(&b, "<meta property=\"og:description\" content=\"%s\">\n", esc(p.description))
+	}
+	b.WriteString("<meta property=\"og:type\" content=\"article\">\n")
+	fmt.Fprintf(&b, "<meta property=\"og:url\" content=\"%s\">\n", esc(canonical))
+	if p.ogImage != "" {
+		fmt.Fprintf(&b, "<meta property=\"og:image\" content=\"%s\">\n", esc(p.ogImage))
+	}
+	b.WriteString("<meta property=\"og:site_name\" content=\"QORM\">\n")
+	locale := "en_US"
+	if lang == "zh" {
+		locale = "zh_CN"
+	}
+	fmt.Fprintf(&b, "<meta property=\"og:locale\" content=\"%s\">\n", locale)
+	b.WriteString("<meta name=\"twitter:card\" content=\"summary_large_image\">\n")
+	fmt.Fprintf(&b, "<meta name=\"twitter:title\" content=\"%s\">\n", esc(p.title))
+	if p.description != "" {
+		fmt.Fprintf(&b, "<meta name=\"twitter:description\" content=\"%s\">\n", esc(p.description))
+	}
+	if p.ogImage != "" {
+		fmt.Fprintf(&b, "<meta name=\"twitter:image\" content=\"%s\">\n", esc(p.ogImage))
+	}
+	fmt.Fprintf(&b, "<link rel=\"canonical\" href=\"%s\">\n", esc(canonical))
+	// hreflang alternates reuse the en/zh counterpart lookup from the language
+	// switcher: each version that exists, plus x-default (the English one).
+	sep := string(filepath.Separator)
+	enRel, zhRel := p.htmlRel, "zh"+sep+p.htmlRel
+	if lang == "zh" {
+		enRel = strings.TrimPrefix(p.htmlRel, "zh"+sep)
+		zhRel = p.htmlRel
+	}
+	xdefault := ""
+	if hasPage(pages, enRel) {
+		u := canonicalURL(page{htmlRel: enRel}, siteName)
+		fmt.Fprintf(&b, "<link rel=\"alternate\" hreflang=\"en\" href=\"%s\">\n", esc(u))
+		xdefault = u
+	}
+	if hasPage(pages, zhRel) {
+		u := canonicalURL(page{htmlRel: zhRel}, siteName)
+		fmt.Fprintf(&b, "<link rel=\"alternate\" hreflang=\"zh\" href=\"%s\">\n", esc(u))
+		if xdefault == "" {
+			xdefault = u
+		}
+	}
+	if xdefault == "" {
+		xdefault = canonical // standalone page: it is its own default
+	}
+	fmt.Fprintf(&b, "<link rel=\"alternate\" hreflang=\"x-default\" href=\"%s\">\n", esc(xdefault))
+	// JSON-LD: a self-contained TechArticle (json.Marshal escapes </script>
+	// sequences and sorts map keys, keeping the output safe and deterministic).
+	ld := map[string]any{
+		"@context":   "https://schema.org",
+		"@type":      "TechArticle",
+		"headline":   p.title,
+		"name":       p.title,
+		"inLanguage": lang,
+		"url":        canonical,
+	}
+	if p.description != "" {
+		ld["description"] = p.description
+	}
+	if p.ogImage != "" {
+		ld["image"] = p.ogImage
+	}
+	if js, err := json.Marshal(ld); err == nil {
+		fmt.Fprintf(&b, "<script type=\"application/ld+json\">%s</script>\n", js)
+	}
+	return b.String()
+}
+
+// parseFrontMatter splits an optional leading front-matter block — a first line
+// that is exactly "---", simple "key: value" lines, then a closing "---" — from
+// the markdown body, so it never renders as an <hr> plus a paragraph. Keys are
+// matched case-insensitively (title, description, og-image). A missing or
+// unterminated block yields a nil map and the original source unchanged.
+func parseFrontMatter(src string) (map[string]string, string) {
+	src = strings.TrimPrefix(src, "\ufeff") // tolerate a BOM
+	lines := strings.Split(src, "\n")
+	if strings.TrimRight(lines[0], "\r") != "---" {
+		return nil, src
+	}
+	for i := 1; i < len(lines); i++ {
+		if strings.TrimRight(lines[i], "\r") != "---" {
+			continue
+		}
+		fm := map[string]string{}
+		for _, line := range lines[1:i] {
+			k, v, ok := strings.Cut(strings.TrimRight(line, "\r"), ":")
+			if !ok {
+				continue
+			}
+			v = strings.TrimSpace(v)
+			if len(v) >= 2 && (v[0] == '"' || v[0] == '\'') && v[len(v)-1] == v[0] {
+				v = v[1 : len(v)-1]
+			}
+			fm[strings.ToLower(strings.TrimSpace(k))] = v
+		}
+		return fm, strings.Join(lines[i+1:], "\n")
+	}
+	return nil, src // unterminated: treat the whole file as ordinary markdown
+}
+
+// firstParagraph returns the first plain-prose paragraph of the markdown with
+// inline markup stripped, trimmed to about 160 characters — the meta
+// description fallback for pages without a front-matter description.
+func firstParagraph(src string) string {
+	lines := strings.Split(strings.ReplaceAll(src, "\r\n", "\n"), "\n")
+	var para []string
+	inFence := false
+	for _, line := range lines {
+		ts := strings.TrimSpace(line)
+		if strings.HasPrefix(ts, "```") {
+			inFence = !inFence
+			if len(para) > 0 {
+				break
+			}
+			continue
+		}
+		if inFence {
+			continue
+		}
+		if ts == "" {
+			if len(para) > 0 {
+				break
+			}
+			continue
+		}
+		if headingLevel(line) > 0 || isHR(line) || isUnordered(line) ||
+			orderedRe.MatchString(line) || strings.HasPrefix(ts, ">") ||
+			strings.HasPrefix(ts, "|") || strings.HasPrefix(ts, "![") ||
+			strings.HasPrefix(ts, "<!--") || strings.Contains(ts, "data-lang-nav") {
+			if len(para) > 0 {
+				break
+			}
+			continue
+		}
+		para = append(para, ts)
+	}
+	return clip(stripInline(strings.Join(para, " ")), 160)
+}
+
+// stripInline removes inline markdown markup, keeping the readable text.
+func stripInline(s string) string {
+	s = imageRe.ReplaceAllString(s, "") // drop images outright
+	s = linkRe.ReplaceAllString(s, "$1")
+	s = codeRe.ReplaceAllStringFunc(s, func(m string) string { return m[1 : len(m)-1] })
+	s = boldRe.ReplaceAllString(s, "$1")
+	s = italicRe.ReplaceAllString(s, "$1")
+	return s
+}
+
+// clip collapses whitespace and trims s to at most n runes, ending on a word
+// boundary when one is close, with an ellipsis marking the cut.
+func clip(s string, n int) string {
+	s = strings.Join(strings.Fields(s), " ")
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	t := string(r[:n])
+	if i := strings.LastIndex(t, " "); i > n*3/4 {
+		t = t[:i] // don't strand a word fragment when a boundary is near
+	}
+	return strings.TrimRight(t, " ,;:.") + "…"
+}
+
+// copyFile copies src to dst (creating parent dirs), preserving content.
+func copyFile(src, dst string) error {
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		return err
+	}
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		out.Close()
+		return err
+	}
+	return out.Close()
 }
 
 // firstHeading returns the first ATX heading text, or the file name.
@@ -288,7 +543,7 @@ func sidebarHTML(all []page, lang, current string) string {
 // The docs command sets it from the built binary's version.
 var Version string
 
-func pageHTML(title, lang, siteName, langSwitch, nav, body string) string {
+func pageHTML(title, lang, siteName, head, langSwitch, nav, body string) string {
 	if lang == "" {
 		lang = "en"
 	}
@@ -311,9 +566,11 @@ func pageHTML(title, lang, siteName, langSwitch, nav, body string) string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>%s · QORM</title>
-<link rel="icon" href="/assets/logo.svg">
+%s<link rel="icon" href="/assets/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
   :root{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
   @media (prefers-color-scheme:dark){ :root{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; } }
   :root[data-theme="light"]{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
@@ -368,7 +625,7 @@ func pageHTML(title, lang, siteName, langSwitch, nav, body string) string {
   main th,main td{border:.5px solid var(--line);padding:8px 13px;text-align:left}
   main th{background:var(--surface);font-weight:600}
   main blockquote{border-left:3px solid var(--accent);margin:1.1em 0;padding:.5em 1.1em;color:var(--muted);background:var(--surface);border-radius:0 10px 10px 0}
-  main img{max-width:100%%}
+  main img{max-width:100%%;height:auto}
   @media (max-width:800px){ aside{display:none} main{padding:26px 22px} }
 </style>
 </head>
@@ -407,7 +664,7 @@ func pageHTML(title, lang, siteName, langSwitch, nav, body string) string {
 </script>
 </body>
 </html>
-`, lang, html.EscapeString(title), verBadge, html.EscapeString(siteName), homeLabel, navLinks, patronLabel, patronLabel, langSwitch, nav, body)
+`, lang, html.EscapeString(title), head, verBadge, html.EscapeString(siteName), homeLabel, navLinks, patronLabel, patronLabel, langSwitch, nav, body)
 }
 
 // docs & api top navigation tabs builder

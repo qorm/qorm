@@ -100,8 +100,10 @@ func FromDocs(docs []map[string]any) *model.App {
 	}
 	sceneVars := stateVars(app.GlobalState.Schema, false)
 	actionVars := stateVars(app.GlobalState.Schema, true)
-	for _, doc := range docs {
+	for i, doc := range docs {
 		switch asString(doc["type"]) {
+		case "app":
+			// Applied by the manifest pass above; nothing to do here.
 		case "scene":
 			if root, ok := doc["root"].(map[string]any); ok {
 				sceneID := asString(doc["id"])
@@ -111,6 +113,17 @@ func FromDocs(docs []map[string]any) *model.App {
 			act := buildAction(doc, &diags, actionVars)
 			if act.ID != "" {
 				app.Actions[act.ID] = act
+			}
+		default:
+			// A doc with no recognised type used to be silently dropped, so
+			// an app whose only doc is typeless rendered "no scene" with zero
+			// feedback. Surface it (id included when present) so authors — and
+			// the playground's diagnostics strip — see the ignored document.
+			typ, id := asString(doc["type"]), asString(doc["id"])
+			if id != "" {
+				diags = append(diags, fmt.Sprintf("error: document #%d has unknown or missing \"type\" (got %q, id %q) — ignored", i, typ, id))
+			} else {
+				diags = append(diags, fmt.Sprintf("error: document #%d has unknown or missing \"type\" (got %q) — ignored", i, typ))
 			}
 		}
 	}
