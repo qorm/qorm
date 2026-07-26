@@ -23,6 +23,14 @@ var KnownStyleKeys = map[string]bool{
 	"lineHeight": true, "letterSpacing": true, "fontStyle": true,
 	"textDecoration": true, "textTransform": true, "lineClamp": true,
 	"textAlign": true,
+	// Pseudo-state (pseudoStateCSS). Each key emits a CSS custom property into
+	// the node's inline style; the HTML shell (internal/server/server.go) carries
+	// the matching fixed :hover / :active / :focus-within rules that consume it,
+	// so a state visual costs zero JS and survives any DOM morph.
+	"hoverBackground": true, "hoverColor": true, "hoverOpacity": true,
+	"pressedScale": true, "pressedOpacity": true,
+	"focusBorderColor": true,
+	"disabled":         true, "disabledOpacity": true,
 	// Widget-specific.
 	"size": true, // spacer
 }

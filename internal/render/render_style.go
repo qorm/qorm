@@ -132,11 +132,23 @@ func (r *renderer) containerCSS(n *model.Node) string {
 	if propBool(n, "wrap") {
 		b.WriteString("flex-wrap:wrap;")
 	}
+	// Semantic alias containers (`center`, `start`, `between`, …) carry their
+	// name's alignment as the DEFAULT, so the type is self-describing instead of
+	// being a plain column that silently needs a `layout.align`. An explicit
+	// layout.align / layout.justify still wins (it replaces the default rather
+	// than being appended after it, so only one declaration is emitted).
+	align, justify := aliasAlign(n.Type)
 	if v := layoutStr(n, "align"); v != "" {
-		fmt.Fprintf(&b, "align-items:%s;", flexAlign(v))
+		align = flexAlign(v)
 	}
 	if v := layoutStr(n, "justify"); v != "" {
-		fmt.Fprintf(&b, "justify-content:%s;", flexAlign(v))
+		justify = flexAlign(v)
+	}
+	if align != "" {
+		fmt.Fprintf(&b, "align-items:%s;", align)
+	}
+	if justify != "" {
+		fmt.Fprintf(&b, "justify-content:%s;", justify)
 	}
 	// boxCSS already entity-encodes its own (author/bound) values; escape this
 	// prefix on its own (constants and whitelisted values today, but this keeps
@@ -292,10 +304,79 @@ func (r *renderer) boxCSS(n *model.Node) string {
 	}
 	writeEdges(&b, "padding", pick(s, "padding"))
 	writeEdges(&b, "margin", pick(s, "margin"))
+	pseudoStateCSS(&b, s)
 	// Entity-encode the assembled value: the colour/string style keys ride
 	// straight from author/bound input (see styleAttr), so an unencoded double
 	// quote would break out of the style="..." attribute at the emission site.
 	return styleAttr(b.String())
+}
+
+// Pseudo-state custom properties. Names are deliberately short (they repeat on
+// every styled node) and mutually non-prefixing, because the shell selects on a
+// substring of the style attribute: `--qorm-dis` must not also match the
+// disabled-opacity variable, hence `--qorm-dop`.
+const (
+	varHoverBG      = "--qorm-hov-bg"
+	varHoverFG      = "--qorm-hov-fg"
+	varHoverOpacity = "--qorm-hov-op"
+	varPressScale   = "--qorm-prs-sc"
+	varPressOpacity = "--qorm-prs-op"
+	varFocusBorder  = "--qorm-foc-bc"
+	varDisabled     = "--qorm-dis"
+	varDisabledOp   = "--qorm-dop"
+)
+
+// pseudoStateCSS emits the hover / pressed / focus / disabled style keys as CSS
+// custom properties on the node itself. The visual is applied by the fixed
+// rules in the HTML shell (internal/server/server.go), which match on the
+// variable being present — `[style*="--qorm-hov-bg"]:hover { … }` — and mark
+// their declarations !important, since an inline style otherwise outranks any
+// stylesheet rule. That split keeps the state visuals declarative and
+// JS-free (so a DOM morph can never drop them) while the author value stays
+// inside the style attribute, where styleAttr already entity-encodes it — a
+// pseudo-state value is exactly as contained as `background` is.
+//
+// Numeric keys go through numOK, so they are float64 by construction and can
+// carry nothing but a number.
+func pseudoStateCSS(b *strings.Builder, s map[string]any) {
+	if s == nil {
+		return
+	}
+	if v := colorStr(s, "hoverBackground"); v != "" {
+		fmt.Fprintf(b, "%s:%s;", varHoverBG, v)
+	}
+	if v := colorStr(s, "hoverColor"); v != "" {
+		fmt.Fprintf(b, "%s:%s;", varHoverFG, v)
+	}
+	if v, ok := numOK(s, "hoverOpacity"); ok {
+		css(b, varHoverOpacity, v, ";")
+	}
+	if v, ok := numOK(s, "pressedScale"); ok {
+		css(b, varPressScale, v, ";")
+	}
+	if v, ok := numOK(s, "pressedOpacity"); ok {
+		css(b, varPressOpacity, v, ";")
+	}
+	if v := colorStr(s, "focusBorderColor"); v != "" {
+		fmt.Fprintf(b, "%s:%s;", varFocusBorder, v)
+	}
+	if v, ok := numOK(s, "disabledOpacity"); ok {
+		css(b, varDisabledOp, v, ";")
+	}
+	if styleDisabled(s) {
+		fmt.Fprintf(b, "%s:1;", varDisabled)
+	}
+}
+
+// styleDisabled reads the `disabled` style key. It is a marker, not a value:
+// the shell rule keyed on it dims the node, blocks pointer events and shows the
+// not-allowed cursor, and a11y pairs it with aria-disabled.
+func styleDisabled(s map[string]any) bool {
+	if s == nil {
+		return false
+	}
+	v, ok := s["disabled"]
+	return ok && asBool(v)
 }
 
 func (r *renderer) textCSS(n *model.Node) string {
@@ -356,6 +437,17 @@ func a11y(n *model.Node) string {
 	}
 	if v, ok := n.Prop("tooltip"); ok {
 		fmt.Fprintf(&b, ` data-tooltip=%q`, html.EscapeString(fmt.Sprint(v)))
+	}
+	// The `disabled` style key is a state, not just a look: pair its visual (see
+	// pseudoStateCSS) with the ARIA state so assistive tech announces it. There
+	// is no native `disabled` attribute to set here — a11y is shared by every
+	// element kind (div/a/button/…), and the attribute is only valid on form
+	// controls, so the generic aria form plus the shell's pointer-events:none is
+	// the honest equivalent. Read raw (unresolved) so this stays a pure
+	// node->attributes function; a `{{ … }}` binding still drives the visual
+	// through boxCSS, which resolves.
+	if styleDisabled(n.Style) {
+		b.WriteString(` aria-disabled="true"`)
 	}
 	return b.String()
 }
@@ -495,6 +587,31 @@ func flexAlign(v string) string {
 		return "stretch"
 	}
 	return "flex-start"
+}
+
+// aliasAlign gives the semantic alias container types their namesake alignment
+// as a default (containerCSS applies it unless the author writes an explicit
+// layout.align / layout.justify). These types render as a flex COLUMN, so:
+//
+//   - center / start / end pack content on BOTH axes, matching what the name
+//     promises — `{"type":"center"}` centers, full stop.
+//   - between / around / evenly are distribution words: they only set
+//     justify-content and leave the cross axis at its stretch default.
+//   - stretch pins the cross axis (already the CSS default, emitted for
+//     explicitness so the type reads the same as it renders).
+//
+// Every returned value is a flexAlign constant, so nothing author-controlled
+// reaches the style attribute here.
+func aliasAlign(nodeType string) (align, justify string) {
+	switch nodeType {
+	case "center", "start", "end":
+		return flexAlign(nodeType), flexAlign(nodeType)
+	case "between", "around", "evenly":
+		return "", flexAlign(nodeType)
+	case "stretch":
+		return flexAlign(nodeType), ""
+	}
+	return "", ""
 }
 
 // alignSelfCSS maps the alignSelf style key onto CSS align-self, reusing the

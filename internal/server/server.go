@@ -1224,6 +1224,26 @@ func Page(rt *runtime.Runtime, body string, rev int64, eventToken ...string) str
   /* Interactive: iOS press feedback (tap-to-scale) on buttons & tappables. */
   .qorm-tap { transition:transform .12s ease, opacity .12s ease; -webkit-tap-highlight-color:transparent; }
   .qorm-tap:active { transform:scale(.96); opacity:.7; }
+  /* ---- Pseudo-state styles (hover / pressed / focus / disabled). Authors
+     declare them as style keys; the renderer emits each one as a CSS custom
+     property on the node's own inline style (pseudoStateCSS in
+     internal/render/render_style.go) and these FIXED rules consume it, matching
+     on the variable's presence in the style attribute. No JS and no per-node
+     stylesheet, so the behaviour survives every DOM morph, and the author value
+     never leaves the styleAttr-escaped style attribute. The declarations are
+     !important because an inline style otherwise outranks any stylesheet rule.
+     Variable names are chosen not to prefix one another (--qorm-dis vs
+     --qorm-dop), since these are substring matches. ---- */
+  [style*="--qorm-hov-"], [style*="--qorm-prs-"] { transition:background .15s ease, color .15s ease, opacity .15s ease, transform .12s ease; }
+  @media (hover:hover) {
+    [style*="--qorm-hov-bg"]:hover { background:var(--qorm-hov-bg) !important; }
+    [style*="--qorm-hov-fg"]:hover { color:var(--qorm-hov-fg) !important; }
+    [style*="--qorm-hov-op"]:hover { opacity:var(--qorm-hov-op) !important; }
+  }
+  [style*="--qorm-prs-sc"]:active { transform:scale(var(--qorm-prs-sc)) !important; }
+  [style*="--qorm-prs-op"]:active { opacity:var(--qorm-prs-op) !important; }
+  [style*="--qorm-foc-bc"]:focus-within { border-color:var(--qorm-foc-bc) !important; outline:2px solid var(--qorm-foc-bc); outline-offset:2px; }
+  [style*="--qorm-dis"] { opacity:var(--qorm-dop,.4) !important; pointer-events:none !important; cursor:not-allowed !important; }
   /* Draggable/DragTarget feedback: lift the item being dragged, highlight the drop zone. */
   .qorm-draggable { transition:opacity .15s ease; } .qorm-dragging { opacity:.5; }
   .qorm-dragover { outline:2px dashed var(--accent,#0a84ff); outline-offset:-2px; background:color-mix(in srgb,var(--accent,#0a84ff) 8%%,transparent); }

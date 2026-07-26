@@ -440,3 +440,205 @@ func TestNumOrDefault(t *testing.T) {
 		t.Errorf("numOrDefault(nil map) should fall back to default")
 	}
 }
+
+// ---- Pseudo-state style keys -------------------------------------------------
+
+// TestPseudoStateVariables pins the emission contract for every pseudo-state
+// key: the renderer's whole job is to publish a CSS custom property on the node
+// (the shell's fixed :hover/:active/:focus-within/disabled rules consume it —
+// see TestShellPseudoStateRules in internal/server), so the variable name and
+// value are the API. A rename on either side breaks a state visual silently,
+// which is exactly what these assertions prevent.
+func TestPseudoStateVariables(t *testing.T) {
+	cases := []struct {
+		name  string
+		style map[string]any
+		want  []string
+	}{
+		{"hover-background", map[string]any{"hoverBackground": "var(--fill)"}, []string{"--qorm-hov-bg:var(--fill);"}},
+		{"hover-color", map[string]any{"hoverColor": "#ff0000"}, []string{"--qorm-hov-fg:#ff0000;"}},
+		{"hover-opacity", map[string]any{"hoverOpacity": float64(0.8)}, []string{"--qorm-hov-op:0.8;"}},
+		{"pressed-scale", map[string]any{"pressedScale": float64(0.94)}, []string{"--qorm-prs-sc:0.94;"}},
+		{"pressed-opacity", map[string]any{"pressedOpacity": float64(0.6)}, []string{"--qorm-prs-op:0.6;"}},
+		{"focus-border-color", map[string]any{"focusBorderColor": "var(--accent)"}, []string{"--qorm-foc-bc:var(--accent);"}},
+		{"disabled", map[string]any{"disabled": true}, []string{"--qorm-dis:1;", ` aria-disabled="true"`}},
+		{"disabled-opacity", map[string]any{"disabled": true, "disabledOpacity": float64(0.25)}, []string{"--qorm-dop:0.25;", "--qorm-dis:1;"}},
+		{"all-four-states", map[string]any{
+			"hoverBackground": "#111", "pressedScale": float64(0.9),
+			"focusBorderColor": "#222", "disabled": true,
+		}, []string{"--qorm-hov-bg:#111;", "--qorm-prs-sc:0.9;", "--qorm-foc-bc:#222;", "--qorm-dis:1;"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			html := styleHTML(t, tc.style, nil)
+			for _, w := range tc.want {
+				if !strings.Contains(html, w) {
+					t.Errorf("style %v: html lacks %q:\n%s", tc.style, w, html)
+				}
+			}
+		})
+	}
+}
+
+// TestPseudoStateVariableNamesDoNotPrefix guards the shell's matching strategy:
+// it selects on a SUBSTRING of the style attribute, so one variable name being
+// a prefix of another would make an unrelated key trigger the wrong rule (the
+// concrete trap: --qorm-dis vs a hypothetical --qorm-dis-op). Nothing but this
+// test enforces the invariant, and it is invisible at the call site.
+func TestPseudoStateVariableNamesDoNotPrefix(t *testing.T) {
+	names := []string{
+		varHoverBG, varHoverFG, varHoverOpacity,
+		varPressScale, varPressOpacity, varFocusBorder,
+		varDisabled, varDisabledOp,
+	}
+	for i, a := range names {
+		for j, b := range names {
+			if i != j && strings.HasPrefix(b, a) {
+				t.Errorf("pseudo-state var %q is a prefix of %q: the shell's [style*=…] match would collide", a, b)
+			}
+		}
+	}
+}
+
+// TestPseudoStateOmittedWhenUnset: a node without pseudo-state keys must render
+// byte-identically to before the feature — no stray variables, no ARIA state.
+func TestPseudoStateOmittedWhenUnset(t *testing.T) {
+	html := styleHTML(t, map[string]any{"background": "red"}, nil)
+	for _, v := range []string{"--qorm-hov-", "--qorm-prs-", "--qorm-foc-", "--qorm-dis", "--qorm-dop", "aria-disabled"} {
+		if strings.Contains(html, v) {
+			t.Errorf("a node with no pseudo-state keys must not emit %q:\n%s", v, html)
+		}
+	}
+	// disabled:false is an explicit opt-out, not a marker.
+	if h := styleHTML(t, map[string]any{"disabled": false}, nil); strings.Contains(h, "--qorm-dis") || strings.Contains(h, "aria-disabled") {
+		t.Errorf("disabled:false must not mark the node:\n%s", h)
+	}
+}
+
+// TestPseudoStateInjectionClosure: the pseudo-state values ride from author (or
+// bound) input straight into the inline style attribute, the same position as
+// `background`. A raw double quote there would TERMINATE the quoted attribute
+// and let the value inject arbitrary attributes (the round-6 breakout class),
+// so styleAttr must entity-encode the assembled declaration.
+func TestPseudoStateInjectionClosure(t *testing.T) {
+	evil := `red" onmouseover="alert(1)`
+	for _, key := range []string{"hoverBackground", "hoverColor", "focusBorderColor"} {
+		t.Run(key, func(t *testing.T) {
+			html := styleHTML(t, map[string]any{key: evil + "<script>"}, nil)
+			if strings.Contains(html, `onmouseover="`) {
+				t.Errorf("%s value broke out of the style attribute:\n%s", key, html)
+			}
+			if strings.Contains(html, "<script>") {
+				t.Errorf("%s value emitted a raw tag:\n%s", key, html)
+			}
+			if !strings.Contains(html, "&#34; onmouseover=&#34;") || !strings.Contains(html, "&lt;script&gt;") {
+				t.Errorf("%s value should be entity-encoded in place:\n%s", key, html)
+			}
+		})
+	}
+}
+
+// TestPseudoStateKeysAreKnown: an unlisted key is a load-time warning and the
+// renderer never sees it, so every key consumed above must be whitelisted.
+func TestPseudoStateKeysAreKnown(t *testing.T) {
+	for _, k := range []string{
+		"hoverBackground", "hoverColor", "hoverOpacity",
+		"pressedScale", "pressedOpacity", "focusBorderColor",
+		"disabled", "disabledOpacity",
+	} {
+		if !KnownStyleKeys[k] {
+			t.Errorf("KnownStyleKeys must include %q (loader whitelist)", k)
+		}
+	}
+}
+
+// ---- Semantic alias containers ----------------------------------------------
+
+// TestAliasContainerDefaultAlignment: `center`/`start`/`end`/`between`/… used
+// to fall through to a plain column, so `{"type":"center"}` centered nothing
+// unless the author ALSO wrote layout.align — a name that lied. Each alias now
+// carries its namesake alignment as the default.
+func TestAliasContainerDefaultAlignment(t *testing.T) {
+	cases := []struct {
+		typ  string
+		want []string
+		not  []string
+	}{
+		{"center", []string{"align-items:center;", "justify-content:center;"}, nil},
+		{"start", []string{"align-items:flex-start;", "justify-content:flex-start;"}, nil},
+		{"end", []string{"align-items:flex-end;", "justify-content:flex-end;"}, nil},
+		{"between", []string{"justify-content:space-between;"}, []string{"align-items:"}},
+		{"around", []string{"justify-content:space-around;"}, []string{"align-items:"}},
+		{"evenly", []string{"justify-content:space-evenly;"}, []string{"align-items:"}},
+		{"stretch", []string{"align-items:stretch;"}, []string{"justify-content:"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.typ, func(t *testing.T) {
+			res := renderWidget(t, &model.Node{Type: tc.typ, ID: "al", Children: []*model.Node{
+				{Type: "text", ID: "t", Text: "x"},
+			}})
+			seg := nodeStyleOf(t, res.HTML, "al")
+			for _, w := range tc.want {
+				if !strings.Contains(seg, w) {
+					t.Errorf("type %q: style %q lacks %q", tc.typ, seg, w)
+				}
+			}
+			for _, w := range tc.not {
+				if strings.Contains(seg, w) {
+					t.Errorf("type %q: distribution/stretch alias should not set %q, got %q", tc.typ, w, seg)
+				}
+			}
+		})
+	}
+	// A non-alias container keeps the old behaviour: no implicit alignment.
+	res := renderWidget(t, &model.Node{Type: "column", ID: "al"})
+	if seg := nodeStyleOf(t, res.HTML, "al"); strings.Contains(seg, "align-items:") || strings.Contains(seg, "justify-content:") {
+		t.Errorf("a plain column must not gain implicit alignment, got %q", seg)
+	}
+}
+
+// TestAliasContainerExplicitLayoutWins: the alias alignment is a DEFAULT. An
+// explicit layout.align / layout.justify replaces it — and replaces it rather
+// than being appended after it, so exactly one declaration is emitted (a
+// duplicated property would be a silent cascade puzzle for the author).
+func TestAliasContainerExplicitLayoutWins(t *testing.T) {
+	res := renderWidget(t, &model.Node{
+		Type: "center", ID: "al",
+		Layout: map[string]any{"align": "start", "justify": "between"},
+	})
+	seg := nodeStyleOf(t, res.HTML, "al")
+	for _, w := range []string{"align-items:flex-start;", "justify-content:space-between;"} {
+		if !strings.Contains(seg, w) {
+			t.Errorf("explicit layout should win: style %q lacks %q", seg, w)
+		}
+	}
+	if strings.Count(seg, "align-items:") != 1 || strings.Count(seg, "justify-content:") != 1 {
+		t.Errorf("alias default must be replaced, not appended: %q", seg)
+	}
+	// Overriding one axis leaves the alias default on the other.
+	res = renderWidget(t, &model.Node{Type: "center", ID: "al", Layout: map[string]any{"justify": "end"}})
+	seg = nodeStyleOf(t, res.HTML, "al")
+	if !strings.Contains(seg, "align-items:center;") || !strings.Contains(seg, "justify-content:flex-end;") {
+		t.Errorf("partial override should keep the other axis default: %q", seg)
+	}
+}
+
+// nodeStyleOf extracts the style attribute of the element carrying the given id.
+func nodeStyleOf(t *testing.T, html, id string) string {
+	t.Helper()
+	i := strings.Index(html, `id="`+id+`"`)
+	if i < 0 {
+		t.Fatalf("no element with id %q in:\n%s", id, html)
+	}
+	rest := html[i:]
+	j := strings.Index(rest, `style="`)
+	if j < 0 {
+		t.Fatalf("element %q has no style attribute in:\n%s", id, html)
+	}
+	rest = rest[j+len(`style="`):]
+	k := strings.Index(rest, `"`)
+	if k < 0 {
+		t.Fatalf("unterminated style attribute for %q", id)
+	}
+	return rest[:k]
+}
