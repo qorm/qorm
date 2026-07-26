@@ -267,7 +267,8 @@ func (r *renderer) gridView(n *model.Node) {
 		r.container(n)
 		return
 	}
-	items, _ := runtime.EvalBinding(n.Data, r.ctx()).([]any)
+	all, _ := runtime.EvalBinding(n.Data, r.ctx()).([]any)
+	offset, items := r.pageWindow(n, all) // same built-in pagination as list
 	cols := int(propNum(n, "crossAxisCount", 0))
 	var tmpl string
 	if cols > 0 {
@@ -282,8 +283,9 @@ func (r *renderer) gridView(n *model.Node) {
 	prevSuf := r.idSuffix
 	alias, idxKey, firstKey, lastKey := ListAliasNames(propStr(n, "as")) // same item scope as list
 	for i, it := range items {
-		r.scope = itemScope(prev, alias, idxKey, firstKey, lastKey, it, i, len(items))
-		r.idSuffix = fmt.Sprintf("%s-%d", prevSuf, i)
+		// index/first/last (and the id suffix) stay global across pages, as in list.
+		r.scope = itemScope(prev, alias, idxKey, firstKey, lastKey, it, offset+i, len(all))
+		r.idSuffix = fmt.Sprintf("%s-%d", prevSuf, offset+i)
 		r.node(n.Template)
 	}
 	r.scope = prev
@@ -616,18 +618,36 @@ func (r *renderer) refreshIndicator(n *model.Node) {
 		h = r.register(n.OnPress)
 	}
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(r.nid(n)), r.boxCSS(n)+"overflow-y:auto;overscroll-behavior:contain;")
-	r.sb.WriteString(`<div class="qorm-refresh-spin" style="height:0;opacity:0;display:flex;align-items:center;justify-content:center;overflow:hidden;transition:height .2s;"><span class="qorm-activity"><svg width="20" height="20" viewBox="0 0 20 20">`)
-	for i := 0; i < 8; i++ {
-		fmt.Fprintf(&r.sb, `<rect x="9" y="2" width="2" height="5" rx="1" fill="var(--label2)" opacity="%g" transform="rotate(%d 10 10)"/>`, 0.25+0.75*float64(i)/7, i*45)
-	}
-	r.sb.WriteString(`</svg></span></div>`)
+	r.refreshSpinner()
 	for _, c := range n.Children {
 		r.node(c)
 	}
 	r.sb.WriteString(`</div>`)
 	if h >= 0 {
-		fmt.Fprintf(&r.sb, `<script>setTimeout(function(){qormRefresh(document.getElementById(%s),%d)})</script>`, jsStringID(r.nid(n)), h)
+		r.refreshScript(r.nid(n), h)
 	}
+}
+
+// refreshSpinner writes the pull-to-refresh affordance: a collapsed row at the
+// top of a scroll container that qormRefresh grows and fades in as the finger
+// drags past the threshold. It must be the container's FIRST child (that is
+// what qormRefresh finds and animates).
+//
+// Shared by refreshindicator and list's built-in onRefresh, together with
+// refreshScript below, so both surface the exact same gesture, markup and
+// client helper — the list does not reimplement pull-to-refresh, it exposes it.
+func (r *renderer) refreshSpinner() {
+	r.sb.WriteString(`<div class="qorm-refresh-spin" style="height:0;opacity:0;display:flex;align-items:center;justify-content:center;overflow:hidden;transition:height .2s;"><span class="qorm-activity"><svg width="20" height="20" viewBox="0 0 20 20">`)
+	for i := 0; i < 8; i++ {
+		fmt.Fprintf(&r.sb, `<rect x="9" y="2" width="2" height="5" rx="1" fill="var(--label2)" opacity="%g" transform="rotate(%d 10 10)"/>`, 0.25+0.75*float64(i)/7, i*45)
+	}
+	r.sb.WriteString(`</svg></span></div>`)
+}
+
+// refreshScript binds the qormRefresh drag gesture on the element with the
+// given id to handler h.
+func (r *renderer) refreshScript(id string, h int) {
+	fmt.Fprintf(&r.sb, `<script>setTimeout(function(){qormRefresh(document.getElementById(%s),%d)})</script>`, jsStringID(id), h)
 }
 
 // numProp evaluates a numeric prop that may be a literal or a {{ }} binding;

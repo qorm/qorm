@@ -10,12 +10,37 @@ import (
 	"github.com/qorm/qorm/internal/runtime"
 )
 
+// list renders `renderItem` once per element of the bound `data`. On top of the
+// item scope (item/index/first/last, see itemScope) it has four opt-in
+// behaviours, each inert unless its prop is present — a list that declares none
+// renders byte-identically to before they existed:
+//
+//   - pagination — `pageSize` (+ `page`, 1-based, typically {{state.page}})
+//     renders only one window of the data (see pageWindow). index/first/last
+//     stay GLOBAL — they describe the item's position in the full data set, so
+//     row numbering keeps counting across pages and `last` means "last row of
+//     the data", not "last row on screen". Node ids get the global index as
+//     their suffix too, so an element keeps its id whatever page shows it.
+//   - separators — `separator` draws a hairline between items (never after the
+//     last one, and never across a section boundary), see separatorHTML.
+//   - sticky section headers — `groupBy` splits consecutive items into sections
+//     and emits a sticky header per section, see sectionHeaderHTML.
+//   - pull-to-refresh — `onRefresh` makes the list its own scroll container and
+//     wires the same qormRefresh gesture (and spinner) as refreshindicator.
+//
+// Two gesture/structure conflicts are resolved here rather than shipped broken:
+// a grouped list does not wire drag-to-reorder (the section headers are extra
+// children, so qormReorder's child indices would not match the data), and a
+// reorderable list does not wire pull-to-refresh (both are pointer-drags on the
+// same element). Separators never cost an index: they render INSIDE the item's
+// wrapper, so the list keeps exactly one element child per item.
 func (r *renderer) list(n *model.Node) {
 	if n.Template == nil {
 		r.container(n)
 		return
 	}
-	items, _ := runtime.EvalBinding(n.Data, r.ctx()).([]any)
+	all, _ := runtime.EvalBinding(n.Data, r.ctx()).([]any)
+	offset, items := r.pageWindow(n, all)
 	// Virtualization: `content-visibility:auto` makes the browser skip layout
 	// and paint for off-screen items — cheap windowing for long lists with no
 	// JS, working with server-rendered HTML. contain-intrinsic-size reserves the
@@ -23,25 +48,55 @@ func (r *renderer) list(n *model.Node) {
 	virt := propBool(n, "virtualize")
 	itemH := propNum(n, "itemHeight", 44)
 	wrap := fmt.Sprintf("content-visibility:auto;contain-intrinsic-size:0 %gpx;", itemH)
+	sep := r.separatorHTML(n)
 
-	reorderH := -1
-	if propBool(n, "reorderable") {
+	prev := r.scope
+	prevSuf := r.idSuffix
+	alias, idxKey, firstKey, lastKey := ListAliasNames(propStr(n, "as"))
+	scopeAt := func(i int) map[string]any {
+		return itemScope(prev, alias, idxKey, firstKey, lastKey, items[i], offset+i, len(all))
+	}
+	keys := r.sectionKeys(n, items, scopeAt)
+
+	reorderH, refreshH := -1, -1
+	if propBool(n, "reorderable") && keys == nil {
 		if inv := parseInvokeProp(n, "onReorder"); inv != nil {
 			reorderH = r.register(inv)
 		}
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), r.containerCSS(n)+"flex-direction:column;")
-	prev := r.scope
-	prevSuf := r.idSuffix
-	alias, idxKey, firstKey, lastKey := ListAliasNames(propStr(n, "as"))
-	for i, it := range items {
-		r.scope = itemScope(prev, alias, idxKey, firstKey, lastKey, it, i, len(items))
-		r.idSuffix = fmt.Sprintf("%s-%d", prevSuf, i)
-		if virt {
+	if reorderH < 0 && n.ID != "" { // the gesture is bound by element id
+		if inv := parseInvokeProp(n, "onRefresh"); inv != nil {
+			refreshH = r.register(inv)
+		}
+	}
+	css := r.containerCSS(n) + "flex-direction:column;"
+	if refreshH >= 0 {
+		css += "overflow-y:auto;overscroll-behavior:contain;"
+	}
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), css)
+	if refreshH >= 0 {
+		r.refreshSpinner()
+	}
+	for i := range items {
+		r.scope = scopeAt(i)
+		r.idSuffix = fmt.Sprintf("%s-%d", prevSuf, offset+i)
+		if keys != nil && (i == 0 || keys[i] != keys[i-1]) {
+			r.sectionHeaderHTML(n, keys[i])
+		}
+		// No separator after the last rendered item, nor before a section
+		// header (the header is the divider there).
+		showSep := sep != "" && i < len(items)-1 && (keys == nil || keys[i+1] == keys[i])
+		switch {
+		case virt:
 			fmt.Fprintf(&r.sb, `<div style=%q>`, wrap)
+		case showSep:
+			r.sb.WriteString(`<div>`)
 		}
 		r.node(n.Template)
-		if virt {
+		if showSep {
+			r.sb.WriteString(sep)
+		}
+		if virt || showSep {
 			r.sb.WriteString(`</div>`)
 		}
 	}
@@ -51,6 +106,132 @@ func (r *renderer) list(n *model.Node) {
 	if reorderH >= 0 && n.ID != "" {
 		fmt.Fprintf(&r.sb, `<script>setTimeout(function(){qormReorder(document.getElementById(%s),%d)})</script>`, jsStringID(n.ID), reorderH)
 	}
+	if refreshH >= 0 {
+		r.refreshScript(n.ID, refreshH)
+	}
+}
+
+// pageWindow resolves a list/gridview's built-in pagination: it returns the
+// slice of `items` the current page shows plus that slice's offset in the full
+// data. `pageSize` is the window length and `page` the 1-based page number —
+// both may be literals or bindings ({{state.page}}), which is what makes a
+// pagination widget wired to the same state page the list without the app
+// hand-slicing its data.
+//
+// Absent (or non-positive) pageSize means NO pagination: the full data renders,
+// exactly as before this existed, so an app that already slices its own data in
+// an action keeps working untouched. Out-of-range pages are clamped rather than
+// rendering nothing — page 0 or -3 shows the first page and a page past the end
+// shows the last one, so a stale/overshot page counter always shows data the
+// user can page back from instead of an empty screen.
+func (r *renderer) pageWindow(n *model.Node, items []any) (offset int, window []any) {
+	size := r.numProp(n, "pageSize")
+	if size == nil || *size < 1 || len(items) == 0 {
+		return 0, items
+	}
+	per := int(*size)
+	pages := (len(items) + per - 1) / per
+	page := 1
+	if p := r.numProp(n, "page"); p != nil {
+		page = int(*p)
+	}
+	if page < 1 {
+		page = 1
+	}
+	if page > pages {
+		page = pages
+	}
+	start := (page - 1) * per
+	end := start + per
+	if end > len(items) {
+		end = len(items)
+	}
+	return start, items[start:end]
+}
+
+// separatorHTML returns the markup the list draws between two items, or "" when
+// the node declares no `separator`. `separator: true` is the default hairline;
+// an object form tunes it — {"height":1,"inset":16,"color":"var(--accent)"} —
+// where inset is the left indent iOS-style lists use to align the rule with the
+// text rather than the screen edge.
+func (r *renderer) separatorHTML(n *model.Node) string {
+	raw, ok := n.Prop("separator")
+	if !ok {
+		return ""
+	}
+	cfg, isCfg := raw.(map[string]any)
+	if !isCfg && !asBool(raw) {
+		return ""
+	}
+	color := "var(--sep)"
+	if c, ok := cfg["color"].(string); ok && c != "" {
+		color = c
+	}
+	return fmt.Sprintf(`<div style="height:%gpx;background:%s;margin-left:%gpx;flex:none;"></div>`,
+		numOrDefault(cfg, "height", 0.5), html.EscapeString(color), numOrDefault(cfg, "inset", 0))
+}
+
+// sectionKeys resolves each rendered item's section key from `groupBy`, or nil
+// when the list declares none (the ungrouped path stays untouched). The key is
+// either a {{binding}} evaluated in that item's own scope ("{{ item.dept }}")
+// or — the common case — a bare field name of the item ("dept").
+//
+// Sections are RUNS of consecutive equal keys, not a regrouping: the renderer
+// never reorders data, it only inserts a header where the key changes. A list
+// whose data is sorted by the key gets one header per value; unsorted data gets
+// a header each time the value flips, which is visible feedback that the data
+// wants sorting rather than a silent shuffle behind the app's back.
+func (r *renderer) sectionKeys(n *model.Node, items []any, scopeAt func(int) map[string]any) []string {
+	group := propStr(n, "groupBy")
+	if group == "" || len(items) == 0 {
+		return nil
+	}
+	prev := r.scope
+	keys := make([]string, len(items))
+	for i, it := range items {
+		r.scope = scopeAt(i)
+		if strings.Contains(group, "{{") {
+			keys[i] = r.interp(group)
+			continue
+		}
+		if obj, ok := it.(map[string]any); ok {
+			if v, ok := obj[group]; ok {
+				keys[i] = fmt.Sprint(v)
+			}
+			continue
+		}
+		keys[i] = fmt.Sprint(it)
+	}
+	r.scope = prev
+	return keys
+}
+
+// sectionHeaderHTML writes one section header. It is `position:sticky` by
+// default, so the header of the section you are reading stays pinned at the top
+// of the scroll port (iOS/Android sectioned-list behaviour) — set
+// `sticky: false` for headers that scroll away with their section, and
+// `stickyTop` to the height of anything already pinned above the list (an
+// appbar) so the header parks under it instead of behind it.
+//
+// Sticky needs a scrolling ancestor: the header pins inside the nearest
+// scrollable box (a `scroll` container, the list itself when `onRefresh` gives
+// it overflow, or the page) and unpins when its section scrolls past. The
+// background is opaque (var(--bg)) so scrolled-under content cannot show
+// through the pinned header.
+//
+// The label is `sectionHeader` when set — an expression evaluated in the scope
+// of the section's first item, e.g. "{{ item.deptLabel }}" — else the key.
+func (r *renderer) sectionHeaderHTML(n *model.Node, key string) {
+	label := key
+	if h := propStr(n, "sectionHeader"); h != "" {
+		label = r.interp(h)
+	}
+	pos := "sticky"
+	if v, ok := n.Prop("sticky"); ok && !asBool(v) {
+		pos = "static"
+	}
+	fmt.Fprintf(&r.sb, `<div class="qorm-list-section" style="position:%s;top:%gpx;z-index:1;flex:none;background:var(--bg);color:var(--label2);font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.02em;padding:6px 14px;">%s</div>`,
+		pos, propNum(n, "stickyTop", 0), html.EscapeString(label))
 }
 
 // reservedScopeAliases are evaluation-context roots an `as` alias must never
