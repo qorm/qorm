@@ -361,7 +361,7 @@ git diff --quiet && git diff --cached --quiet || { echo "working tree is dirty â
 git fetch -q origin
 [ "$(git rev-parse @)" = "$(git rev-parse @{u})" ] || { echo "main is not in sync with origin/main" >&2; exit 1; }
 git rev-parse "$TAG" >/dev/null 2>&1 && { echo "tag $TAG already exists" >&2; exit 1; }
-[ -z "$(gofmt -l cmd internal 2>/dev/null)" ] || { echo "gofmt not clean" >&2; exit 1; }
+[ -z "$(gofmt -l cmd internal pkg 2>/dev/null)" ] || { echo "gofmt not clean" >&2; exit 1; }
 go vet ./...
 go test ./...
 changelog_preflight "$VER" CHANGELOG.md

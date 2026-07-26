@@ -12,23 +12,9 @@ A release ships four artifacts from one version tag:
    `go install ...@<tag>`.
 
 The binary and image builds are automated by GitHub Actions on the tag push.
-The site deploy runs locally (its server key is not in the repo). One command
-does the whole thing.
+The site deploy runs locally (its server key is not in the repo).
 
-## One command (recommended)
-
-```sh
-./web_server/release.sh 0.2.1
-```
-
-This local orchestrator:
-1. runs `scripts/release.sh` (preflight → bump → tag → push),
-2. waits for the **Release** and **Docker image** workflows to go green,
-3. writes curated notes onto the GitHub Release,
-4. deploys the site with `web_server/deploy-site.sh`,
-5. verifies the release assets, the image tag, and the live site.
-
-## Repo-side only (no site deploy)
+## Releasing from the repo (start here)
 
 ```sh
 ./scripts/release.sh 0.2.1            # preflight, bump, tag, push (retried), assert remote alignment
@@ -67,7 +53,23 @@ the version-bump commit (`--dry-run` validates the section without touching
 it). Never rename the `## [Unreleased]` heading by hand: preflight fails the
 release when the section is missing, empty, or already archived.
 
-## Site deploy only
+## Full orchestration (maintainers only)
+
+```sh
+./web_server/release.sh 0.2.1
+```
+
+The whole `web_server/` directory is gitignored (it holds the site deploy
+key), so this orchestrator exists only on maintainer machines — external
+contributors should use `scripts/release.sh` above. On top of the repo-side
+release it:
+1. runs `scripts/release.sh` (preflight → bump → tag → push),
+2. waits for the **Release** and **Docker image** workflows to go green,
+3. writes curated notes onto the GitHub Release,
+4. deploys the site with `web_server/deploy-site.sh`,
+5. verifies the release assets, the image tag, and the live site.
+
+## Site deploy only (maintainers only)
 
 ```sh
 ./web_server/deploy-site.sh

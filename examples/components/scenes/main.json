@@ -138,9 +138,7 @@
         "onPress": {
           "type": "invoke",
           "name": "noop",
-          "args": {
-            "page": "{{page}}"
-          }
+          "args": {}
         }
       },
       {
