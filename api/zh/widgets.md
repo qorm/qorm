@@ -132,6 +132,7 @@
 | `textformfield` | — | `textFormField` |
 | `timeline` | — | `timeline` |
 | `timepicker` | cupertinotimepicker | `timepicker` |
+| `timer` | — | `timer` |
 | `torch` | flashlight | `hwList` |
 | `transform` | rotatedbox | `transform` |
 | `tree` | — | `tree` |

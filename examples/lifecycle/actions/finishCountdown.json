@@ -1,0 +1,7 @@
+{
+  "type": "action",
+  "id": "finishCountdown",
+  "steps": [
+    { "type": "state.set", "path": "message", "value": "Countdown finished." }
+  ]
+}

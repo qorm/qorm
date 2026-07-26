@@ -199,38 +199,68 @@ func ManifestToJSON(app *model.App) map[string]any {
 
 // ActionToJSON serialises an action document.
 func ActionToJSON(a *model.Action) map[string]any {
-	steps := make([]any, 0, len(a.Steps))
-	for _, st := range a.Steps {
-		s := map[string]any{"type": st.Type}
-		putIf(s, "path", st.Path)
-		putIf(s, "value", st.Value)
-		putIf(s, "matchKey", st.MatchKey)
-		putIf(s, "match", st.Match)
-		putIf(s, "field", st.Field)
-		putIf(s, "url", st.URL)
-		putIf(s, "method", st.Method)
-		putIf(s, "body", st.Body)
-		putIf(s, "result", st.Result)
-		putIf(s, "error", st.Error)
-		// navigate (and state.move) targeting fields: without these a
-		// re-serialised navigate step loses its target scene.
-		putIf(s, "to", st.To)
-		if st.Back {
-			s["back"] = true
-		}
-		putIf(s, "from", st.From)
-		if len(st.Params) > 0 {
-			s["params"] = copyStrMap(st.Params)
-		}
-		if st.Object != nil {
-			s["item"] = copyStrMap(st.Object)
-		}
-		if st.Headers != nil {
-			s["headers"] = copyStrMap(st.Headers)
-		}
-		steps = append(steps, s)
+	return map[string]any{"type": "action", "id": a.ID, "steps": stepsToJSON(a.Steps)}
+}
+
+// stepsToJSON serialises a step list (recursively — `if` then/else and http
+// onSuccess/onError nest step lists) — the inverse of buildSteps.
+func stepsToJSON(steps []model.Step) []any {
+	out := make([]any, 0, len(steps))
+	for _, st := range steps {
+		out = append(out, stepToJSON(st))
 	}
-	return map[string]any{"type": "action", "id": a.ID, "steps": steps}
+	return out
+}
+
+func stepToJSON(st model.Step) map[string]any {
+	s := map[string]any{"type": st.Type}
+	putIf(s, "path", st.Path)
+	putIf(s, "value", st.Value)
+	putIf(s, "matchKey", st.MatchKey)
+	putIf(s, "match", st.Match)
+	putIf(s, "field", st.Field)
+	putIf(s, "url", st.URL)
+	putIf(s, "method", st.Method)
+	putIf(s, "body", st.Body)
+	putIf(s, "result", st.Result)
+	putIf(s, "error", st.Error)
+	// navigate (and state.move) targeting fields: without these a
+	// re-serialised navigate step loses its target scene.
+	putIf(s, "to", st.To)
+	if st.Back {
+		s["back"] = true
+	}
+	putIf(s, "from", st.From)
+	if len(st.Params) > 0 {
+		s["params"] = copyStrMap(st.Params)
+	}
+	if st.Object != nil {
+		s["item"] = copyStrMap(st.Object)
+	}
+	if st.Headers != nil {
+		s["headers"] = copyStrMap(st.Headers)
+	}
+	// `if` step branches + condition.
+	putIf(s, "condition", st.Condition)
+	if len(st.Then) > 0 {
+		s["then"] = stepsToJSON(st.Then)
+	}
+	if len(st.Else) > 0 {
+		s["else"] = stepsToJSON(st.Else)
+	}
+	// invoke step target + args.
+	putIf(s, "name", st.Name)
+	if len(st.Args) > 0 {
+		s["args"] = copyStrMap(st.Args)
+	}
+	// http result branches.
+	if len(st.OnSuccess) > 0 {
+		s["onSuccess"] = stepsToJSON(st.OnSuccess)
+	}
+	if len(st.OnError) > 0 {
+		s["onError"] = stepsToJSON(st.OnError)
+	}
+	return s
 }
 
 // AppToDocs serialises a whole app (manifest + scenes + actions) back to the
@@ -238,7 +268,13 @@ func ActionToJSON(a *model.Action) map[string]any {
 func AppToDocs(app *model.App) []map[string]any {
 	docs := []map[string]any{ManifestToJSON(app)}
 	for id, root := range app.Scenes {
-		docs = append(docs, SceneToJSON(id, root))
+		doc := SceneToJSON(id, root)
+		// Scene lifecycle: the onEnter hook lives on the scene document, not
+		// the node tree — emit it here so it survives the round trip.
+		if inv := app.SceneEnter[id]; inv != nil {
+			doc["onEnter"] = invokeToJSON(inv)
+		}
+		docs = append(docs, doc)
 	}
 	for _, act := range app.Actions {
 		docs = append(docs, ActionToJSON(act))

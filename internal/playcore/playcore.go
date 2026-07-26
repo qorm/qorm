@@ -41,6 +41,9 @@ type Result struct {
 func CompileDocs(docs []map[string]any) Result {
 	app := loader.FromDocs(docs)
 	rt := runtime.New(app)
+	// Scene lifecycle: the entry scene's onEnter (if any) runs before the
+	// first render, mirroring the server's initial page load.
+	rt.RunPendingEnter()
 	res := render.Render(rt)
 	dir := "ltr"
 	if rt.IsRTL() {

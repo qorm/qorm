@@ -1,0 +1,9 @@
+{
+  "type": "action",
+  "id": "startCountdown",
+  "steps": [
+    { "type": "state.set", "path": "remaining", "value": "{{ 5 }}" },
+    { "type": "state.set", "path": "running", "value": "{{ true }}" },
+    { "type": "state.set", "path": "message", "value": "" }
+  ]
+}

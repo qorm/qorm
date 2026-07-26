@@ -169,6 +169,7 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `textformfield` | `autocomplete` · `autofocus` · `error` · `helper` · `inputMode` · `inputType` · `label` · `maxLength` · `pattern` · `prefix` · `readonly` · `required` · `suffix` |
 | `timeline` | `items` |
 | `timepicker` | `minuteStep` |
+| `timer` | — |
 | `torch` | `label` |
 | `transform` | `rotate` · `scale` · `scaleX` · `scaleY` · `skew` · `translateX` · `translateY` |
 | `tree` | `data` |

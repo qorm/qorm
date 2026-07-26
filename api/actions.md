@@ -10,6 +10,8 @@ Extracted from the runtime dispatch (`internal/runtime`):
 
 | `type` | What it does |
 |---|---|
+| `if` | run `then` steps when `condition` is truthy, `else` steps otherwise (nestable) |
+| `invoke` | call another action by `name`, merging evaluated `args` into its scope |
 | `navigate` | go to another scene (or `back`) |
 | `state.set` | set a state path to a value |
 | `state.append` | append a value to an array |
@@ -51,6 +53,13 @@ Every step is one JSON object; which fields apply depends on its `type`:
 | `headers` | object | `http.*`: request headers |
 | `result` | string | `http.*`: state path to store the parsed response |
 | `error` | string | `http.*`: state path to store an error message |
+| `onSuccess` | array | `http.*`: steps run after a 2xx response; the decoded response is bound as `{{ response }}` (the `result` path is written first) |
+| `onError` | array | `http.*`: steps run after a failure; the message is bound as `{{ error }}` (the `error` path is written first) |
+| `condition` | string | `if`: a `{{ … }}` expression selecting `then` (truthy) or `else` |
+| `then` | array | `if`: steps run when `condition` is truthy (branches nest, depth-capped at 32) |
+| `else` | array | `if`: steps run when `condition` is falsy |
+| `name` | string | `invoke`: the target action id (call depth capped at 16) |
+| `args` | object | `invoke`: arg → value expressions, evaluated in the caller's context and merged into the callee's scope (same semantics as an event invoke's args) |
 
 ```json
 // actions/addTodo.json — append a new object, then clear the input

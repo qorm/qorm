@@ -1,0 +1,132 @@
+{
+  "type": "scene",
+  "id": "main",
+  "onEnter": "loadData",
+  "root": {
+    "type": "column",
+    "id": "root",
+    "style": { "padding": 20, "gap": 16 },
+    "children": [
+      {
+        "type": "text",
+        "id": "title",
+        "text": "Lifecycle",
+        "style": { "fontSize": 24, "fontWeight": 700 }
+      },
+      {
+        "type": "card",
+        "id": "load_card",
+        "style": { "padding": 16, "gap": 8 },
+        "children": [
+          {
+            "type": "text",
+            "id": "status_line",
+            "text": "onEnter: {{ state.status }}",
+            "style": { "fontWeight": 600 }
+          },
+          {
+            "type": "list",
+            "id": "items_list",
+            "data": "{{ state.items }}",
+            "renderItem": {
+              "type": "text",
+              "id": "item_row",
+              "text": "{{ item.title }}",
+              "style": { "color": "var(--label2)" }
+            }
+          }
+        ]
+      },
+      {
+        "type": "card",
+        "id": "poll_card",
+        "style": { "padding": 16, "gap": 8 },
+        "children": [
+          {
+            "type": "text",
+            "id": "poll_line",
+            "text": "Polls so far: {{ state.polls }}"
+          },
+          {
+            "type": "timer",
+            "id": "poll",
+            "every": 3000,
+            "onTick": "refresh"
+          },
+          {
+            "type": "timer",
+            "id": "hint_once",
+            "after": 2000,
+            "onTick": "showHint"
+          },
+          {
+            "type": "text",
+            "id": "hint_line",
+            "text": "{{ state.hint }}",
+            "if": "{{ state.hint != '' }}",
+            "style": { "color": "var(--label2)", "fontSize": 13 }
+          }
+        ]
+      },
+      {
+        "type": "card",
+        "id": "countdown_card",
+        "style": { "padding": 16, "gap": 8 },
+        "children": [
+          {
+            "type": "text",
+            "id": "cd_line",
+            "text": "Countdown: {{ state.remaining }}",
+            "style": { "fontWeight": 600 }
+          },
+          {
+            "type": "timer",
+            "id": "countdown",
+            "every": 1000,
+            "if": "{{ state.running }}",
+            "onTick": "tick"
+          },
+          {
+            "type": "button",
+            "id": "cd_start",
+            "label": "Start 5s countdown",
+            "onPress": "startCountdown"
+          }
+        ]
+      },
+      {
+        "type": "card",
+        "id": "form_card",
+        "style": { "padding": 16, "gap": 8 },
+        "children": [
+          {
+            "type": "input",
+            "id": "name_input",
+            "placeholder": "Your name",
+            "value": "{{ state.name }}"
+          },
+          {
+            "type": "button",
+            "id": "submit_btn",
+            "label": "Submit",
+            "onPress": "submitForm"
+          },
+          {
+            "type": "text",
+            "id": "form_ok",
+            "text": "{{ state.message }}",
+            "if": "{{ state.message != '' }}",
+            "style": { "color": "var(--success)" }
+          },
+          {
+            "type": "text",
+            "id": "form_err",
+            "text": "{{ state.formError }}",
+            "if": "{{ state.formError != '' }}",
+            "style": { "color": "var(--danger)" }
+          }
+        ]
+      }
+    ]
+  }
+}

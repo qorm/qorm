@@ -1,0 +1,15 @@
+{
+  "type": "action",
+  "id": "loadData",
+  "steps": [
+    {
+      "type": "if",
+      "condition": "{{ state.status != 'loaded' }}",
+      "then": [
+        { "type": "state.set", "path": "status", "value": "loaded" },
+        { "type": "state.appendObject", "path": "items", "item": { "title": "Alpha (loaded on enter)" } },
+        { "type": "state.appendObject", "path": "items", "item": { "title": "Beta (loaded on enter)" } }
+      ]
+    }
+  ]
+}

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/qorm/qorm/internal/expr"
@@ -108,6 +109,17 @@ func FromDocs(docs []map[string]any) *model.App {
 			if root, ok := doc["root"].(map[string]any); ok {
 				sceneID := asString(doc["id"])
 				app.Scenes[sceneID] = buildNode(root, &diags, sceneID, sceneVars, nil)
+				// Scene lifecycle: an optional onEnter invoke, dispatched once
+				// each time navigation enters this scene (incl. first load and
+				// deep links). Parsed like onPress (string shorthand or
+				// {name,args}); the name is cross-checked against the loaded
+				// actions below, once every doc has been assembled.
+				if inv := parseInvoke(doc["onEnter"], &diags, sceneID, "", "onEnter"); inv != nil {
+					if app.SceneEnter == nil {
+						app.SceneEnter = map[string]*model.Invoke{}
+					}
+					app.SceneEnter[sceneID] = inv
+				}
 			}
 		case "action":
 			act := buildAction(doc, &diags, actionVars)
@@ -143,8 +155,162 @@ func FromDocs(docs []map[string]any) *model.App {
 			diags = append(diags, fmt.Sprintf("error: entry scene %q does not exist (scenes: %s)", app.Entry, strings.Join(ids, ", ")))
 		}
 	}
+	// Cross-document reference checks: these need the full action set, so they
+	// run after every doc has been assembled (a scene file may sort before the
+	// actions it references).
+	checkActionRefs(app, &diags)
+	checkTimers(app, &diags)
 	app.Diagnostics = diags
 	return app
+}
+
+// actionRefKnown reports whether an action name is statically resolvable: a
+// loaded action, a runtime builtin (__dismiss/__sort), or a dynamic binding
+// ({{...}}) that can only resolve at run time.
+func actionRefKnown(app *model.App, name string) bool {
+	if name == "" || strings.Contains(name, "{{") {
+		return true // empty/dynamic names are diagnosed (or resolved) elsewhere
+	}
+	if _, ok := app.Actions[name]; ok {
+		return true
+	}
+	return name == "__dismiss" || name == "__sort" // runtime builtins (see internal/runtime)
+}
+
+// checkActionRefs diagnoses statically-unknown action names referenced by the
+// new dispatch surfaces: scene onEnter hooks and `invoke` steps. (Node event
+// handlers may name component callback props, so they are not checked here.)
+func checkActionRefs(app *model.App, diags *[]string) {
+	sceneIDs := make([]string, 0, len(app.SceneEnter))
+	for id := range app.SceneEnter {
+		sceneIDs = append(sceneIDs, id)
+	}
+	sort.Strings(sceneIDs)
+	for _, id := range sceneIDs {
+		if inv := app.SceneEnter[id]; !actionRefKnown(app, inv.Name) {
+			*diags = append(*diags, fmt.Sprintf("error: [Scene: %s] onEnter 引用了不存在的动作 %q。", id, inv.Name))
+		}
+	}
+	actIDs := make([]string, 0, len(app.Actions))
+	for id := range app.Actions {
+		actIDs = append(actIDs, id)
+	}
+	sort.Strings(actIDs)
+	for _, id := range actIDs {
+		var walk func(steps []model.Step)
+		walk = func(steps []model.Step) {
+			for _, st := range steps {
+				if st.Type == "invoke" && !actionRefKnown(app, st.Name) {
+					*diags = append(*diags, fmt.Sprintf("error: [Action: %s] 'invoke' 步骤引用了不存在的动作 %q。", id, st.Name))
+				}
+				walk(st.Then)
+				walk(st.Else)
+				walk(st.OnSuccess)
+				walk(st.OnError)
+			}
+		}
+		walk(app.Actions[id].Steps)
+	}
+}
+
+// walkSceneNodes visits every node reachable from n, including renderItem
+// templates and `when` branches.
+func walkSceneNodes(n *model.Node, fn func(*model.Node)) {
+	if n == nil {
+		return
+	}
+	fn(n)
+	for _, c := range n.Children {
+		walkSceneNodes(c, fn)
+	}
+	walkSceneNodes(n.Template, fn)
+	walkSceneNodes(n.Then, fn)
+	walkSceneNodes(n.Else, fn)
+}
+
+// checkTimers statically validates timer nodes across all scenes and
+// components: a timer needs an id (the client's idempotency key), a schedule
+// (`every` for repetition or `after` for a one-shot, in ms — `every` below
+// render.TimerMinEveryMS is clamped at render time), and an onTick invoke
+// naming a loaded action.
+func checkTimers(app *model.App, diags *[]string) {
+	scopes := make([]string, 0, len(app.Scenes)+len(app.Components))
+	roots := map[string]*model.Node{}
+	for id, root := range app.Scenes {
+		roots[id] = root
+		scopes = append(scopes, id)
+	}
+	for name, root := range app.Components {
+		roots["component:"+name] = root
+		scopes = append(scopes, "component:"+name)
+	}
+	sort.Strings(scopes)
+	for _, scope := range scopes {
+		walkSceneNodes(roots[scope], func(n *model.Node) {
+			if n.Type != "timer" {
+				return
+			}
+			if n.ID == "" {
+				*diags = append(*diags, fmt.Sprintf("warning: [Scene: %s] timer 节点缺少 id:id 是重渲/morph 后去重的幂等键,缺失时该 timer 不会被调度。", scope))
+			}
+			every, everyLit := timerMS(n.Props["every"])
+			after, afterLit := timerMS(n.Props["after"])
+			switch {
+			case everyLit && afterLit && every > 0 && after > 0:
+				*diags = append(*diags, fmt.Sprintf("warning: [Scene: %s] timer (id: %q) 同时声明了 every 和 after,every(周期触发)优先,after 将被忽略。", scope, n.ID))
+			case (!everyLit || every <= 0) && (!afterLit || after <= 0):
+				if !isDynamicProp(n.Props["every"]) && !isDynamicProp(n.Props["after"]) {
+					*diags = append(*diags, fmt.Sprintf("warning: [Scene: %s] timer (id: %q) 需要 every(毫秒周期)或 after(毫秒一次性延时)之一,否则不会触发。", scope, n.ID))
+				}
+			}
+			if everyLit && every > 0 && every < render.TimerMinEveryMS {
+				*diags = append(*diags, fmt.Sprintf("warning: [Scene: %s] timer (id: %q) 的 every=%dms 低于下限 %dms(防自我拒绝服务),渲染时将被钳制为 %dms。", scope, n.ID, every, render.TimerMinEveryMS, render.TimerMinEveryMS))
+			}
+			tick, hasTick := n.Props["onTick"]
+			if !hasTick {
+				*diags = append(*diags, fmt.Sprintf("warning: [Scene: %s] timer (id: %q) 缺少 onTick,触发时将无事可做。", scope, n.ID))
+				return
+			}
+			name := ""
+			switch t := tick.(type) {
+			case string:
+				name = t
+			case map[string]any:
+				name = asString(t["name"])
+			}
+			if !actionRefKnown(app, name) {
+				*diags = append(*diags, fmt.Sprintf("error: [Scene: %s] timer (id: %q) 的 onTick 引用了不存在的动作 %q。", scope, n.ID, name))
+			}
+		})
+	}
+}
+
+// timerMS reads a literal millisecond prop value; lit is false for absent or
+// non-numeric (e.g. a {{...}} binding) values.
+func timerMS(v any) (ms int, lit bool) {
+	switch t := v.(type) {
+	case float64:
+		return int(t), true
+	case int:
+		return t, true
+	case string:
+		if t == "" || strings.Contains(t, "{{") {
+			return 0, false
+		}
+		f, err := strconv.ParseFloat(t, 64)
+		if err != nil {
+			return 0, false
+		}
+		return int(f), true
+	}
+	return 0, false
+}
+
+// isDynamicProp reports whether a prop value is a {{...}} binding (statically
+// unknowable, so numeric checks must not fire on it).
+func isDynamicProp(v any) bool {
+	s, ok := v.(string)
+	return ok && strings.Contains(s, "{{")
 }
 
 // stateVars maps the manifest's globalState schema onto the identifier names
@@ -532,61 +698,116 @@ func parseInvoke(v any, diags *[]string, sceneID, nodeID, eventName string) *mod
 	return inv
 }
 
+// maxStepNesting is the loader-side cap on nested step lists (`if` then/else,
+// http onSuccess/onError); the runtime enforces the same limit at dispatch
+// time. Deeper nests are dropped with an error diagnostic.
+const maxStepNesting = 32
+
 func buildAction(doc map[string]any, diags *[]string, vars map[string]string) *model.Action {
 	actID := asString(doc["id"])
 	act := &model.Action{ID: actID}
-	if steps, ok := doc["steps"].([]any); ok {
-		for _, s := range steps {
-			sm, ok := s.(map[string]any)
-			if !ok {
-				continue
-			}
-			if diags != nil {
-				checkStepExprTypes(sm, diags, actID, vars)
-			}
-			toVal := asString(sm["to"])
-			if diags != nil && strings.HasPrefix(toVal, "scene://") {
-				*diags = append(*diags, fmt.Sprintf("[Action: %s] 导航目标使用了已弃用的 'scene://' 协议前缀: %q。请直接指定目标场景 ID (如 'main')。", actID, toVal))
-				toVal = strings.TrimPrefix(toVal, "scene://")
-			}
-			step := model.Step{
-				Type:     asString(sm["type"]),
-				Path:     asString(sm["path"]),
-				Value:    asString(sm["value"]),
-				MatchKey: asString(sm["matchKey"]),
-				Match:    asString(sm["match"]),
-				Field:    asString(sm["field"]),
-				URL:      asString(sm["url"]),
-				Method:   asString(sm["method"]),
-				Body:     asString(sm["body"]),
-				Result:   asString(sm["result"]),
-				Error:    asString(sm["error"]),
-				To:       toVal,
-				Back:     sm["back"] == true,
-				From:     asString(sm["from"]),
-			}
-			if item, ok := sm["item"].(map[string]any); ok {
-				step.Object = map[string]string{}
-				for k, v := range item {
-					step.Object[k] = asString(v)
-				}
-			}
-			if hdr, ok := sm["headers"].(map[string]any); ok {
-				step.Headers = map[string]string{}
-				for k, v := range hdr {
-					step.Headers[k] = asString(v)
-				}
-			}
-			if params, ok := sm["params"].(map[string]any); ok {
-				step.Params = map[string]string{}
-				for k, v := range params {
-					step.Params[k] = asString(v)
-				}
-			}
-			act.Steps = append(act.Steps, step)
+	act.Steps = buildSteps(doc["steps"], diags, actID, vars, 0)
+	return act
+}
+
+// buildSteps parses a raw JSON step array (recursively: `if` then/else and
+// http onSuccess/onError nest step arrays), guarding nesting depth.
+func buildSteps(raw any, diags *[]string, actID string, vars map[string]string, depth int) []model.Step {
+	steps, ok := raw.([]any)
+	if !ok {
+		return nil
+	}
+	if depth > maxStepNesting {
+		if diags != nil {
+			*diags = append(*diags, fmt.Sprintf("error: [Action: %s] 步骤嵌套超过 %d 层,更深的分支已被丢弃。", actID, maxStepNesting))
+		}
+		return nil
+	}
+	var out []model.Step
+	for _, s := range steps {
+		sm, ok := s.(map[string]any)
+		if !ok {
+			continue
+		}
+		out = append(out, buildStep(sm, diags, actID, vars, depth))
+	}
+	return out
+}
+
+// buildStep parses one step object (see buildSteps for the nesting contract).
+func buildStep(sm map[string]any, diags *[]string, actID string, vars map[string]string, depth int) model.Step {
+	if diags != nil {
+		checkStepExprTypes(sm, diags, actID, vars)
+	}
+	toVal := asString(sm["to"])
+	if diags != nil && strings.HasPrefix(toVal, "scene://") {
+		*diags = append(*diags, fmt.Sprintf("[Action: %s] 导航目标使用了已弃用的 'scene://' 协议前缀: %q。请直接指定目标场景 ID (如 'main')。", actID, toVal))
+		toVal = strings.TrimPrefix(toVal, "scene://")
+	}
+	step := model.Step{
+		Type:      asString(sm["type"]),
+		Path:      asString(sm["path"]),
+		Value:     asString(sm["value"]),
+		MatchKey:  asString(sm["matchKey"]),
+		Match:     asString(sm["match"]),
+		Field:     asString(sm["field"]),
+		URL:       asString(sm["url"]),
+		Method:    asString(sm["method"]),
+		Body:      asString(sm["body"]),
+		Result:    asString(sm["result"]),
+		Error:     asString(sm["error"]),
+		To:        toVal,
+		Back:      sm["back"] == true,
+		From:      asString(sm["from"]),
+		Condition: asString(sm["condition"]),
+		Name:      asString(sm["name"]),
+	}
+	if item, ok := sm["item"].(map[string]any); ok {
+		step.Object = map[string]string{}
+		for k, v := range item {
+			step.Object[k] = asString(v)
 		}
 	}
-	return act
+	if hdr, ok := sm["headers"].(map[string]any); ok {
+		step.Headers = map[string]string{}
+		for k, v := range hdr {
+			step.Headers[k] = asString(v)
+		}
+	}
+	if params, ok := sm["params"].(map[string]any); ok {
+		step.Params = map[string]string{}
+		for k, v := range params {
+			step.Params[k] = asString(v)
+		}
+	}
+	if args, ok := sm["args"].(map[string]any); ok {
+		step.Args = map[string]string{}
+		for k, v := range args {
+			step.Args[k] = asString(v)
+		}
+	}
+	// Nested branch step lists. checkStepExprTypes above only descends into
+	// sub-MAPS, so expressions inside these ARRAYS are checked here, by the
+	// recursive buildSteps walk.
+	step.Then = buildSteps(sm["then"], diags, actID, vars, depth+1)
+	step.Else = buildSteps(sm["else"], diags, actID, vars, depth+1)
+	step.OnSuccess = buildSteps(sm["onSuccess"], diags, actID, vars, depth+1)
+	step.OnError = buildSteps(sm["onError"], diags, actID, vars, depth+1)
+	if diags != nil {
+		switch step.Type {
+		case "if":
+			if step.Condition == "" {
+				*diags = append(*diags, fmt.Sprintf("error: [Action: %s] 'if' 步骤缺少 condition,将永远执行 else 分支。", actID))
+			} else if !strings.Contains(step.Condition, "{{") {
+				*diags = append(*diags, fmt.Sprintf("warning: [Action: %s] 'if' 步骤的 condition %q 不含 {{...}} 绑定:非空字符串恒为真,将永远执行 then 分支。请写成表达式绑定,如 \"{{ %s }}\"。", actID, step.Condition, step.Condition))
+			}
+		case "invoke":
+			if step.Name == "" {
+				*diags = append(*diags, fmt.Sprintf("error: [Action: %s] 'invoke' 步骤缺少 name(目标动作 id),将被忽略。", actID))
+			}
+		}
+	}
+	return step
 }
 
 // checkStepExprTypes statically type-checks every `{{expr}}` in an action

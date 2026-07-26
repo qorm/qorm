@@ -188,9 +188,39 @@ func roundTripApp() *model.App {
 						Type: "http.request", URL: "https://api.example.com/x", Method: "PUT", Body: " ",
 						Headers: map[string]string{"X-Token": "{{ state.name }}"},
 						Result:  "resp", Error: "errMsg",
+						// http result branches with nested steps.
+						OnSuccess: []model.Step{
+							{Type: "state.set", Path: "name", Value: "{{ response.title }}"},
+						},
+						OnError: []model.Step{
+							{Type: "state.set", Path: "name", Value: "{{ error }}"},
+						},
 					},
 				},
 			},
+			// `if` step with nested branches (a nested if inside else) and an
+			// `invoke` step carrying args — the execution-model round-3-style
+			// fields that must survive serialisation.
+			"branchy": {
+				ID: "branchy",
+				Steps: []model.Step{
+					{
+						Type:      "if",
+						Condition: "{{ state.count > 0 }}",
+						Then:      []model.Step{{Type: "state.increment", Path: "count"}},
+						Else: []model.Step{{
+							Type:      "if",
+							Condition: "{{ state.count < 0 }}",
+							Then:      []model.Step{{Type: "state.clear", Path: "count"}},
+						}},
+					},
+					{Type: "invoke", Name: "increment", Args: map[string]string{"count": "{{ state.count }}"}},
+				},
+			},
+		},
+		// Scene lifecycle: an onEnter hook on the entry scene.
+		SceneEnter: map[string]*model.Invoke{
+			"main": {Name: "increment", Args: map[string]string{"count": "{{ state.count }}"}},
 		},
 	}
 }
@@ -288,6 +318,14 @@ func checkAppFields(t *testing.T, want, got *model.App) {
 	checkNodeMap(t, "Components", want.Components, got.Components)
 	checkNodeMap(t, "Scenes", want.Scenes, got.Scenes)
 	checkActionMap(t, "Actions", want.Actions, got.Actions)
+	for id, inv := range want.SceneEnter {
+		checkInvoke(t, "SceneEnter["+strconv.Quote(id)+"]", inv, got.SceneEnter[id])
+	}
+	for id := range got.SceneEnter {
+		if _, ok := want.SceneEnter[id]; !ok {
+			t.Errorf("SceneEnter[%q]: hook appeared out of nowhere in the round trip", id)
+		}
+	}
 }
 
 func checkNodeMap(t *testing.T, path string, want, got map[string]*model.Node) {
@@ -457,6 +495,32 @@ func checkStep(t *testing.T, path string, want, got model.Step) {
 	}
 	if got.Error != want.Error {
 		t.Errorf("%s.Error: want %q got %q", path, want.Error, got.Error)
+	}
+	// Execution-model fields: `if` condition + branches, invoke name/args,
+	// http result branches — all recursive step lists.
+	if got.Condition != want.Condition {
+		t.Errorf("%s.Condition: want %q got %q", path, want.Condition, got.Condition)
+	}
+	if got.Name != want.Name {
+		t.Errorf("%s.Name: want %q got %q", path, want.Name, got.Name)
+	}
+	if !equivStrMap(want.Args, got.Args) {
+		t.Errorf("%s.Args: want %v got %v", path, want.Args, got.Args)
+	}
+	checkStepList(t, path+".Then", want.Then, got.Then)
+	checkStepList(t, path+".Else", want.Else, got.Else)
+	checkStepList(t, path+".OnSuccess", want.OnSuccess, got.OnSuccess)
+	checkStepList(t, path+".OnError", want.OnError, got.OnError)
+}
+
+func checkStepList(t *testing.T, path string, want, got []model.Step) {
+	t.Helper()
+	if len(want) != len(got) {
+		t.Errorf("%s: want %d steps got %d", path, len(want), len(got))
+		return
+	}
+	for i := range want {
+		checkStep(t, path+"["+strconv.Itoa(i)+"]", want[i], got[i])
 	}
 }
 
@@ -707,6 +771,77 @@ func TestSerializeRoundTripRegressionFields(t *testing.T) {
 			check: func(t *testing.T, got *model.App) {
 				if !got.Window.HideLog || !got.Window.HideTray {
 					t.Errorf("window hideLog/hideTray lost: %+v", got.Window)
+				}
+			},
+		},
+		{
+			name: "if step condition and branches",
+			mut: func(a *model.App) {
+				a.Actions["cond"] = &model.Action{ID: "cond", Steps: []model.Step{{
+					Type:      "if",
+					Condition: "{{ state.x }}",
+					Then:      []model.Step{{Type: "state.set", Path: "x", Value: "1"}},
+					Else:      []model.Step{{Type: "state.clear", Path: "x"}},
+				}}}
+			},
+			check: func(t *testing.T, got *model.App) {
+				act := got.Actions["cond"]
+				if act == nil || len(act.Steps) != 1 {
+					t.Fatalf("if action lost: %+v", act)
+				}
+				st := act.Steps[0]
+				if st.Condition != "{{ state.x }}" || len(st.Then) != 1 || len(st.Else) != 1 {
+					t.Errorf("if condition/branches lost: %+v", st)
+				}
+			},
+		},
+		{
+			name: "invoke step name and args",
+			mut: func(a *model.App) {
+				a.Actions["callee"] = &model.Action{ID: "callee"}
+				a.Actions["caller"] = &model.Action{ID: "caller", Steps: []model.Step{{
+					Type: "invoke", Name: "callee", Args: map[string]string{"v": "{{ state.x }}"},
+				}}}
+			},
+			check: func(t *testing.T, got *model.App) {
+				act := got.Actions["caller"]
+				if act == nil || len(act.Steps) != 1 {
+					t.Fatalf("invoke action lost: %+v", act)
+				}
+				if st := act.Steps[0]; st.Name != "callee" || st.Args["v"] != "{{ state.x }}" {
+					t.Errorf("invoke name/args lost: %+v", st)
+				}
+			},
+		},
+		{
+			name: "http onSuccess and onError",
+			mut: func(a *model.App) {
+				a.Actions["sync"] = &model.Action{ID: "sync", Steps: []model.Step{{
+					Type: "http.get", URL: "https://x.example/y", Result: "r",
+					OnSuccess: []model.Step{{Type: "state.set", Path: "p", Value: "ok"}},
+					OnError:   []model.Step{{Type: "state.set", Path: "p", Value: "{{ error }}"}},
+				}}}
+			},
+			check: func(t *testing.T, got *model.App) {
+				act := got.Actions["sync"]
+				if act == nil || len(act.Steps) != 1 {
+					t.Fatalf("http action lost: %+v", act)
+				}
+				if st := act.Steps[0]; len(st.OnSuccess) != 1 || len(st.OnError) != 1 {
+					t.Errorf("http branches lost: %+v", st)
+				}
+			},
+		},
+		{
+			name: "scene onEnter",
+			mut: func(a *model.App) {
+				a.Actions["load"] = &model.Action{ID: "load"}
+				a.SceneEnter = map[string]*model.Invoke{"main": {Name: "load", Args: map[string]string{"v": "1"}}}
+			},
+			check: func(t *testing.T, got *model.App) {
+				inv := got.SceneEnter["main"]
+				if inv == nil || inv.Name != "load" || inv.Args["v"] != "1" {
+					t.Errorf("scene onEnter lost: %+v", got.SceneEnter)
 				}
 			},
 		},

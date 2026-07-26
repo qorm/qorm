@@ -162,3 +162,25 @@ func TestCompileDocsUnknownWidget(t *testing.T) {
 		t.Errorf("unknown widget children should still render:\n%s", res.HTML)
 	}
 }
+
+// TestCompileDocsRunsOnEnter guards the playground/WASM path of the scene
+// lifecycle: the entry scene's onEnter runs before the first render, so the
+// compiled preview shows post-onEnter state — mirroring the server's initial
+// page load.
+func TestCompileDocsRunsOnEnter(t *testing.T) {
+	docs := []map[string]any{
+		{"type": "app", "id": "lc", "entry": "main",
+			"globalState": map[string]any{"schema": map[string]any{"phase": "string"}, "initial": map[string]any{"phase": "boot"}}},
+		{"type": "scene", "id": "main", "onEnter": "load",
+			"root": map[string]any{"type": "text", "id": "t", "text": "phase: {{ state.phase }}"}},
+		{"type": "action", "id": "load",
+			"steps": []any{map[string]any{"type": "state.set", "path": "phase", "value": "ready"}}},
+	}
+	res := CompileDocs(docs)
+	if len(res.Diagnostics) != 0 {
+		t.Fatalf("fixture must compile clean: %v", res.Diagnostics)
+	}
+	if !strings.Contains(res.HTML, "phase: ready") {
+		t.Errorf("onEnter must run before the first render:\n%s", res.HTML)
+	}
+}

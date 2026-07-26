@@ -1,0 +1,7 @@
+{
+  "type": "action",
+  "id": "refresh",
+  "steps": [
+    { "type": "state.increment", "path": "polls" }
+  ]
+}

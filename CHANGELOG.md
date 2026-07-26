@@ -6,6 +6,43 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+- Execution model: `if` action step — `{"type":"if","condition":"{{ … }}",
+  "then":[…],"else":[…]}` branches on the expression language's truthiness
+  and nests (depth-capped at 32, enforced at both load and dispatch time).
+  The loader diagnoses a missing `condition` and warns when the condition
+  carries no `{{ … }}` binding (a constant would always take `then`).
+- Execution model: `invoke` action step — `{"type":"invoke","name":"other",
+  "args":{…}}` calls another action, evaluating `args` in the caller's
+  context and merging them into the callee's scope (the same semantics as an
+  event invoke's args). Call depth is capped at 16, so recursive or
+  mutually-recursive actions terminate; the loader diagnoses a statically
+  unknown target action.
+- `http.*` steps: optional `onSuccess` / `onError` step lists run
+  synchronously after the request returns. `onSuccess` sees the decoded
+  response as `{{ response }}` (the `result` state path is written first);
+  `onError` sees the failure message as `{{ error }}` (the classic `error`
+  state-path write is preserved and happens first).
+- Declarative timers: an invisible `timer` node —
+  `{"type":"timer","id":"poll","every":5000,"onTick":{"name":"refresh"}}`
+  (or `after` for a one-shot) — schedules client-side ticks that dispatch
+  through the exact same `/event` (server) / `qormEvent` (WASM/playground)
+  chain as a button press. The scheduler reconciles markers after every
+  morph, so re-renders are idempotent (same id never double-scheduled), an
+  `if` condition controls the timer's existence (a countdown stops itself),
+  and `every` is floored at 250 ms (loader warning + render clamp) to
+  prevent self-inflicted event floods.
+- Scene lifecycle: a scene-level `"onEnter": {"name":"loadData","args":{…}}`
+  (or string shorthand) dispatches once each time navigation enters the
+  scene — including the entry scene's first load, deep links straight into a
+  scene, and navigate-back re-entry. A page refresh of the live session, an
+  SSE reconnect, and a dev hot-reload never replay it; onEnter chains that
+  navigate are capped at 8 hops and a self-navigate cannot loop.
+- `examples/lifecycle` — a small app wiring all of the above together:
+  onEnter data load, a poll timer, an `after` one-shot hint, an
+  `if`-guarded countdown timer, and a form submit with if/else branches
+  plus an `invoke` reset.
+
 ## [v0.3.7] - 2026-07-26
 
 ### Security

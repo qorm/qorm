@@ -1,0 +1,13 @@
+{
+  "type": "action",
+  "id": "showHint",
+  "steps": [
+    {
+      "type": "if",
+      "condition": "{{ state.hint == '' }}",
+      "then": [
+        { "type": "state.set", "path": "hint", "value": "This hint arrived once, 2s after load (an `after` timer)." }
+      ]
+    }
+  ]
+}

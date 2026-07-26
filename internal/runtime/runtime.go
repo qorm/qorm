@@ -48,7 +48,30 @@ type Runtime struct {
 	// NavDir records the direction of the most recent navigation ("push" / "pop")
 	// so the client can play the matching page transition; cleared after it ships.
 	NavDir string
+	// pendingEnter marks that navigation just entered the current scene (or the
+	// runtime was just created showing the entry scene) and its onEnter — if the
+	// scene declares one — has not been dispatched yet. Drained explicitly by
+	// RunPendingEnter at each host's chosen point (the server before rendering,
+	// the WASM build after init/dispatch), so an SSE reconnect or catch-up
+	// re-render can never replay it.
+	pendingEnter bool
+	// callDepth counts nested Dispatch calls (the `invoke` step, onEnter
+	// chains), capped at maxInvokeDepth so action recursion cannot hang.
+	callDepth int
 }
+
+// maxInvokeDepth caps nested Dispatch calls (invoke steps calling actions that
+// invoke further actions); beyond it a dispatch is silently dropped.
+const maxInvokeDepth = 16
+
+// maxIfDepth caps `if` step nesting at dispatch time (the loader also warns
+// beyond the same limit); deeper branches are silently skipped.
+const maxIfDepth = 32
+
+// maxEnterChain caps consecutive onEnter dispatches drained in one
+// RunPendingEnter call, so two scenes whose onEnter actions navigate to each
+// other cannot ping-pong forever.
+const maxEnterChain = 8
 
 // navFrame is one entry on the navigation back stack: the scene to return to
 // and the route params it was shown with.
@@ -77,6 +100,7 @@ func (r *Runtime) Navigate(to string, params map[string]any) {
 	}
 	r.RouteParams = params
 	r.NavDir = "push"
+	r.pendingEnter = true
 }
 
 // NavigateBack returns to the previous scene, restoring its route params.
@@ -92,6 +116,7 @@ func (r *Runtime) NavigateBack() {
 	}
 	r.NavStack = r.NavStack[:len(r.NavStack)-1]
 	r.NavDir = "pop"
+	r.pendingEnter = true
 }
 
 // TakeNavDir returns and clears the pending navigation direction.
@@ -154,6 +179,7 @@ func (r *Runtime) NavigateTo(scene string, params map[string]any) {
 	r.Scene = scene
 	r.RouteParams = params
 	r.NavDir = "push"
+	r.pendingEnter = true
 }
 
 // NavigateToPath drives navigation from a URL query string (the part after "?"
@@ -178,8 +204,47 @@ func New(app *model.App) *Runtime {
 	if state == nil {
 		state = map[string]any{}
 	}
-	return &Runtime{App: app, State: state, RouteParams: map[string]any{}}
+	return &Runtime{App: app, State: state, RouteParams: map[string]any{}, pendingEnter: true}
 }
+
+// RunPendingEnter dispatches the current scene's onEnter action if navigation
+// just entered it (or the runtime was just created) and it has not been
+// dispatched yet. Hosts call it at their render choke point — the server before
+// rendering under its mutex, the WASM build after init/event dispatch — so the
+// hook fires exactly once per scene entry: an SSE reconnect, a page refresh of
+// an already-entered scene, or a catch-up re-render never replays it. An
+// onEnter that itself navigates marks the next scene pending, which drains in
+// the same call, capped at maxEnterChain so mutually-navigating onEnter hooks
+// cannot loop forever (navigating to the scene itself is already a runtime
+// no-op and never re-marks).
+func (r *Runtime) RunPendingEnter() {
+	last := "\x00" // sentinel: never equals a scene key
+	for i := 0; i < maxEnterChain && r.pendingEnter; i++ {
+		r.pendingEnter = false
+		scene := r.Scene
+		if scene == "" {
+			scene = r.App.Entry
+		}
+		if scene == last {
+			// The hook navigated back into the SAME scene (e.g. the entry
+			// scene's "" and id spellings) — entering it again immediately
+			// would re-fire forever; one fire per consecutive entry.
+			break
+		}
+		last = scene
+		inv := r.App.SceneEnter[scene]
+		if inv == nil {
+			continue // nothing to run for this scene; a pending re-mark would drain next
+		}
+		r.Dispatch(inv.Name, r.EvalArgs(inv.Args))
+	}
+	r.pendingEnter = false
+}
+
+// ClearPendingEnter drops an undispatched scene-entry mark. Used by hot-reload:
+// the swapped-in runtime continues the SAME session (scene and state carried
+// over), so the entry hook a fresh runtime would fire must not replay.
+func (r *Runtime) ClearPendingEnter() { r.pendingEnter = false }
 
 // Stringify renders a value as display text (re-exported from expr).
 func Stringify(v any) string { return expr.Stringify(v) }
@@ -197,13 +262,14 @@ func (r *Runtime) Clone() *Runtime {
 		}
 	}
 	return &Runtime{
-		App:         r.App,
-		State:       deepCopyMap(r.State),
-		Viewport:    r.Viewport,
-		Scene:       r.Scene,
-		NavStack:    stack,
-		RouteParams: deepCopyMap(r.RouteParams),
-		NavDir:      r.NavDir,
+		App:          r.App,
+		State:        deepCopyMap(r.State),
+		Viewport:     r.Viewport,
+		Scene:        r.Scene,
+		NavStack:     stack,
+		RouteParams:  deepCopyMap(r.RouteParams),
+		NavDir:       r.NavDir,
+		pendingEnter: r.pendingEnter,
 	}
 }
 
@@ -370,7 +436,15 @@ const BuiltinSort = "__sort"
 
 // Dispatch runs a named action with the given evaluated args. Missing actions
 // are ignored (with no state change) so partially-authored apps still run.
+// Nested dispatches (the `invoke` step, onEnter chains) are capped at
+// maxInvokeDepth, so recursive or mutually-recursive actions terminate instead
+// of hanging the runtime.
 func (r *Runtime) Dispatch(name string, args map[string]any) {
+	if r.callDepth >= maxInvokeDepth {
+		return
+	}
+	r.callDepth++
+	defer func() { r.callDepth-- }()
 	if name == BuiltinDismiss {
 		if p, ok := args["path"].(string); ok && p != "" {
 			setPath(r.State, p, false)
@@ -418,9 +492,29 @@ func (r *Runtime) Dispatch(name string, args map[string]any) {
 	for k, v := range args { // args still win over state
 		ctx[k] = v
 	}
-	for _, step := range act.Steps {
-		r.applyStep(step, ctx)
+	r.applySteps(act.Steps, ctx, 0)
+}
+
+// applySteps runs a step list in order. depth counts `if`/branch nesting
+// levels (not action calls — that is callDepth), capped at maxIfDepth.
+func (r *Runtime) applySteps(steps []model.Step, ctx map[string]any, depth int) {
+	if depth > maxIfDepth {
+		return
 	}
+	for _, step := range steps {
+		r.applyStep(step, ctx, depth)
+	}
+}
+
+// branchCtx returns ctx plus one extra binding (e.g. "response" or "error")
+// for a nested branch, without mutating the caller's context.
+func branchCtx(ctx map[string]any, key string, val any) map[string]any {
+	out := make(map[string]any, len(ctx)+1)
+	for k, v := range ctx {
+		out[k] = v
+	}
+	out[key] = val
+	return out
 }
 
 // evalParams evaluates a navigate step's route-parameter expressions against
@@ -437,8 +531,27 @@ func evalParams(params map[string]string, ctx map[string]any) map[string]any {
 	return out
 }
 
-func (r *Runtime) applyStep(step model.Step, ctx map[string]any) {
+func (r *Runtime) applyStep(step model.Step, ctx map[string]any, depth int) {
 	switch step.Type {
+	case "if":
+		// Conditional branch: the condition is a {{...}} expression evaluated
+		// with the expression language's own truthiness (expr.Truthy), so it
+		// branches exactly like a `{{ cond ? a : b }}`. Branches nest up to
+		// maxIfDepth (applySteps enforces it).
+		if expr.Truthy(EvalBinding(step.Condition, ctx)) {
+			r.applySteps(step.Then, ctx, depth+1)
+		} else {
+			r.applySteps(step.Else, ctx, depth+1)
+		}
+	case "invoke":
+		// Action-calls-action: evaluate the args in the CALLER's context and
+		// dispatch the target action with them — the same semantics as an
+		// event invoke's args. Dispatch's callDepth guard breaks recursion.
+		args := make(map[string]any, len(step.Args))
+		for k, e := range step.Args {
+			args[k] = EvalBinding(e, ctx)
+		}
+		r.Dispatch(step.Name, args)
 	case "navigate":
 		if step.Back {
 			r.NavigateBack()
@@ -543,7 +656,7 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any) {
 			}
 		}
 	case "http.get", "http.post", "http.put", "http.delete", "http.request":
-		r.applyHTTP(step, ctx)
+		r.applyHTTP(step, ctx, depth)
 	}
 }
 
@@ -558,7 +671,13 @@ var httpClient = &http.Client{Timeout: 20 * time.Second}
 // status) the response (JSON decoded, or raw string if not JSON) is written to
 // Result (or Path) and any stale Error is cleared; on any other status the body
 // is discarded and the status text is written to Error. Blocks until it returns.
-func (r *Runtime) applyHTTP(step model.Step, ctx map[string]any) {
+//
+// Result branches: after the classic Result/Error writes, the optional
+// OnSuccess steps run with the decoded response bound as `{{ response }}`
+// (whatever Result stored — or would have stored when Result is unset), and
+// the optional OnError steps run with the failure message bound as
+// `{{ error }}`. Both run synchronously in the caller's context.
+func (r *Runtime) applyHTTP(step model.Step, ctx map[string]any, depth int) {
 	method := strings.ToUpper(step.Method)
 	if method == "" {
 		switch step.Type {
@@ -579,7 +698,10 @@ func (r *Runtime) applyHTTP(step model.Step, ctx map[string]any) {
 	}
 	fail := func(msg string) {
 		if step.Error != "" {
-			setPath(r.State, step.Error, msg)
+			setPath(r.State, step.Error, msg) // classic error-path write, kept first
+		}
+		if len(step.OnError) > 0 {
+			r.applySteps(step.OnError, branchCtx(ctx, "error", msg), depth+1)
 		}
 	}
 	var body io.Reader
@@ -621,16 +743,18 @@ func (r *Runtime) applyHTTP(step model.Step, ctx map[string]any) {
 		fail(resp.Status) // non-success: record the status, never the body
 		return
 	}
+	var response any
+	if json.Unmarshal(data, &response) != nil {
+		response = string(data) // non-JSON body → raw text
+	}
 	if resultPath != "" {
-		var parsed any
-		if json.Unmarshal(data, &parsed) == nil {
-			setPath(r.State, resultPath, parsed)
-		} else {
-			setPath(r.State, resultPath, string(data)) // non-JSON body → raw text
-		}
+		setPath(r.State, resultPath, response)
 	}
 	if step.Error != "" {
 		setPath(r.State, step.Error, "") // clear stale error on success
+	}
+	if len(step.OnSuccess) > 0 {
+		r.applySteps(step.OnSuccess, branchCtx(ctx, "response", response), depth+1)
 	}
 }
 

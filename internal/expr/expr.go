@@ -597,6 +597,12 @@ func toNum(v any) float64 {
 	return 0
 }
 
+// Truthy reports whether a value is truthy under the expression language's
+// rules — the same predicate `!`, `&&`, `||` and ternaries use: nil, false, 0,
+// "" and empty arrays/objects are falsy; everything else is truthy. Exported
+// so the runtime's `if` step branches exactly like a `{{ cond ? a : b }}`.
+func Truthy(v any) bool { return truthy(v) }
+
 func truthy(v any) bool {
 	switch t := v.(type) {
 	case nil:

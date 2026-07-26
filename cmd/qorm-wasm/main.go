@@ -215,6 +215,10 @@ func jsStringArray(s []string) []any {
 }
 
 func renderNow() any {
+	// Drain a pending scene-entry hook first — the WASM twin of the server's
+	// bump(): a fresh init fires the entry scene's onEnter, and a dispatch
+	// that navigated fires the target scene's, exactly once each.
+	rt.RunPendingEnter()
 	res := render.Render(rt)
 	handlers = res.Handlers
 	dir := "ltr"

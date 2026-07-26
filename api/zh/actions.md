@@ -10,6 +10,8 @@
 
 | `type` | 作用 |
 |---|---|
+| `if` | `condition` 为真执行 `then` 步骤,否则执行 `else` 步骤(可嵌套) |
+| `invoke` | 按 `name` 调用另一个动作,求值后的 `args` 并入其作用域 |
 | `navigate` | 跳转到另一个场景(或 `back`) |
 | `state.set` | 把状态路径设为某值 |
 | `state.append` | 向数组追加一个值 |
@@ -51,6 +53,13 @@
 | `headers` | object | `http.*`:请求头 |
 | `result` | string | `http.*`:存放解析后响应的状态路径 |
 | `error` | string | `http.*`:存放错误信息的状态路径 |
+| `onSuccess` | array | `http.*`:2xx 响应后执行的步骤;解码后的响应绑定为 `{{ response }}`(`result` 路径先写入) |
+| `onError` | array | `http.*`:失败后执行的步骤;错误信息绑定为 `{{ error }}`(`error` 路径先写入) |
+| `condition` | string | `if`:一个 `{{ … }}` 表达式,真值执行 `then`,否则执行 `else` |
+| `then` | array | `if`:`condition` 为真时执行的步骤(分支可嵌套,深度上限 32) |
+| `else` | array | `if`:`condition` 为假时执行的步骤 |
+| `name` | string | `invoke`:目标动作 id(调用深度上限 16) |
+| `args` | object | `invoke`:参数→值表达式,在调用方上下文求值后并入被调动作的作用域(与事件 invoke 的 args 同语义) |
 
 ```json
 // actions/addTodo.json — 追加一个新对象,然后清空输入

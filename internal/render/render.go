@@ -265,6 +265,8 @@ func (r *renderer) renderInner(n *model.Node) {
 		r.slot(n)
 	case "when":
 		r.when(n)
+	case "timer":
+		r.timer(n)
 	case "text":
 		r.text(n)
 	case "button":

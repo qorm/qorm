@@ -1,0 +1,35 @@
+{
+  "type": "app",
+  "id": "qorm_lifecycle",
+  "name": "Lifecycle",
+  "entry": "main",
+  "globalState": {
+    "schema": {
+      "status": "string",
+      "items": "array",
+      "polls": "number",
+      "remaining": "number",
+      "running": "bool",
+      "name": "string",
+      "message": "string",
+      "formError": "string",
+      "hint": "string"
+    },
+    "initial": {
+      "status": "starting",
+      "items": [],
+      "polls": 0,
+      "remaining": 0,
+      "running": false,
+      "name": "",
+      "message": "",
+      "formError": "",
+      "hint": ""
+    }
+  },
+  "platforms": {
+    "desktop": {
+      "window": { "width": 420, "height": 640, "title": "Lifecycle" }
+    }
+  }
+}

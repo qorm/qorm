@@ -132,6 +132,7 @@ Each widget lists its **canonical name** first; the rest are equivalent aliases.
 | `textformfield` | — | `textFormField` |
 | `timeline` | — | `timeline` |
 | `timepicker` | cupertinotimepicker | `timepicker` |
+| `timer` | — | `timer` |
 | `torch` | flashlight | `hwList` |
 | `transform` | rotatedbox | `transform` |
 | `tree` | — | `tree` |

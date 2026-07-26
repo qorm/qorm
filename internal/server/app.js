@@ -76,7 +76,58 @@ function qormMorphInto(root, html){
   var active=document.activeElement, activeId=active&&active.id;
   morphKids(root, tmp);
   if(activeId){ var el=document.getElementById(activeId); if(el&&el.focus) try{ el.focus(); }catch(e){} }
+  qormTimersSync();
   setTimeout(qormMeasure, 30);
+}
+// ---- declarative timers ------------------------------------------------------
+// A `timer` node renders as an invisible [data-qorm-timer] marker; this
+// scheduler reconciles the live DOM against a registry after the initial paint
+// and after every morph, so re-renders are idempotent: the same id is never
+// scheduled twice, a marker that disappears (its `if` turned falsy, the scene
+// changed) stops its schedule, and a changed interval reschedules. A tick
+// dispatches qorm(h) — the exact same event chain as a button press — and
+// re-reads data-h from the live DOM at fire time, so a handler table
+// renumbered by a re-render is never dispatched stale. Repeating (`every`)
+// ticks are skipped while the tab is hidden; an `after` one-shot fires once
+// per appearance of its marker (it re-arms only after the marker leaves and
+// comes back).
+window.__qormTimers = window.__qormTimers || {};
+function qormTimerEl(id){
+  var found=null;
+  document.querySelectorAll('[data-qorm-timer]').forEach(function(el){
+    if(el.getAttribute('data-qorm-timer')===id) found=el;
+  });
+  return found; // last match: during a page transition the incoming scene's marker wins
+}
+function qormTimerStop(id){
+  var t=window.__qormTimers[id]; if(!t) return;
+  if(t.once){ clearTimeout(t.h); } else { clearInterval(t.h); }
+  delete window.__qormTimers[id];
+}
+function qormTimerFire(id){
+  var el=qormTimerEl(id);
+  if(!el){ qormTimerStop(id); return; }
+  var t=window.__qormTimers[id];
+  if(t&&t.once){ if(t.fired) return; t.fired=true; }
+  else if(document.hidden){ return; }
+  var h=parseInt(el.getAttribute('data-h'),10);
+  if(!isNaN(h)&&h>=0) qorm(h);
+}
+function qormTimersSync(){
+  var seen={};
+  document.querySelectorAll('[data-qorm-timer]').forEach(function(el){
+    var id=el.getAttribute('data-qorm-timer'); if(!id) return;
+    var every=parseInt(el.getAttribute('data-every'),10)||0;
+    var after=parseInt(el.getAttribute('data-after'),10)||0;
+    if(every>0&&every<250) every=250; // defense in depth with the renderer's clamp
+    seen[id]=1;
+    var t=window.__qormTimers[id];
+    if(t&&t.every===every&&t.after===after) return; // unchanged — never double-schedule
+    if(t) qormTimerStop(id);
+    if(every>0){ window.__qormTimers[id]={every:every,after:0,once:false,h:setInterval(function(){ qormTimerFire(id); },every)}; }
+    else if(after>0){ window.__qormTimers[id]={every:0,after:after,once:true,fired:false,h:setTimeout(function(){ qormTimerFire(id); },after)}; }
+  });
+  Object.keys(window.__qormTimers).forEach(function(id){ if(!seen[id]) qormTimerStop(id); });
 }
 // qormPageTransition plays a coordinated push/pop: the incoming scene slides in
 // from the edge while the outgoing one parallax-slides the other way (less far)
@@ -892,7 +943,7 @@ if(window.EventSource){
   document.addEventListener('pointerdown',function(e){ ping(e.target); });
   document.addEventListener('input',function(e){ ping(e.target); });   // live typing
 })();
-if(document.readyState!=='loading'){ setTimeout(qormMeasure,60); setTimeout(qormHwInit,300); } else { window.addEventListener('load',function(){ setTimeout(qormMeasure,60); setTimeout(qormHwInit,300); }); }
+if(document.readyState!=='loading'){ qormTimersSync(); setTimeout(qormMeasure,60); setTimeout(qormHwInit,300); } else { window.addEventListener('load',function(){ qormTimersSync(); setTimeout(qormMeasure,60); setTimeout(qormHwInit,300); }); }
 // qormSwipeActions: swipe a row left to reveal trailing action buttons; tap an
 // action to fire it and close, tap the content or swipe back to close.
 function qormSwipeActions(el){

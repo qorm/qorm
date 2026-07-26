@@ -1,0 +1,19 @@
+{
+  "type": "action",
+  "id": "submitForm",
+  "steps": [
+    {
+      "type": "if",
+      "condition": "{{ state.name != '' }}",
+      "then": [
+        { "type": "state.set", "path": "message", "value": "{{ 'Hello, ' + state.name + '!' }}" },
+        { "type": "state.set", "path": "formError", "value": "" },
+        { "type": "invoke", "name": "resetForm" }
+      ],
+      "else": [
+        { "type": "state.set", "path": "formError", "value": "Please enter a name first." },
+        { "type": "state.set", "path": "message", "value": "" }
+      ]
+    }
+  ]
+}

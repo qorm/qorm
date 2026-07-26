@@ -1,0 +1,7 @@
+{
+  "type": "action",
+  "id": "resetForm",
+  "steps": [
+    { "type": "state.clear", "path": "name" }
+  ]
+}

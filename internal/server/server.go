@@ -219,7 +219,12 @@ func (s *Server) SetMCPReadOnly(v bool) {
 
 // bump increments the revision, re-renders, refreshes the handler table and
 // pushes the new UI to all SSE subscribers. Caller must hold s.mu.
+// It first drains a pending scene-entry hook: every mutation path (human
+// /event, /navigate, agent MCP, viewport, OTA activate) funnels through bump,
+// so a navigation that landed on a scene with onEnter dispatches it exactly
+// once, before the frame that ships is rendered.
 func (s *Server) bump() (int64, string, string) {
+	s.rt.RunPendingEnter()
 	rev := s.rev.Add(1)
 	res := render.RenderScene(s.rt, s.rt.CurrentScene())
 	s.handlers = res.Handlers
@@ -746,6 +751,9 @@ func (s *Server) Reload(next *runtime.Runtime) {
 				next.RouteParams = map[string]any{}
 			}
 		}
+		// The reload CONTINUES this session on the same scene — a fresh
+		// runtime's entry mark must not replay the scene's onEnter hook.
+		next.ClearPendingEnter()
 	}
 	s.rt = next
 	s.handlers = nil
@@ -874,6 +882,12 @@ func (s *Server) serveIndex(w http.ResponseWriter, r *http.Request) {
 		// and a later scene swap would replay it as a stale "push".
 		s.rt.TakeNavDir()
 	}
+	// Scene lifecycle: drain a pending onEnter before this page renders — the
+	// initial load of the entry scene and a deep link straight into a scene
+	// both dispatch here. A plain refresh of an already-entered scene has no
+	// pending mark (the server session persists), so it never replays; neither
+	// does an SSE reconnect (its catch-up render doesn't touch the mark).
+	s.rt.RunPendingEnter()
 	scene := s.rt.CurrentScene()
 	res := render.RenderScene(s.rt, scene)
 	s.handlers = res.Handlers

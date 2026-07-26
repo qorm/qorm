@@ -137,10 +137,19 @@ var stepFields = [][4]string{
 	{"headers", "object", "`http.*`: request headers", "`http.*`:请求头"},
 	{"result", "string", "`http.*`: state path to store the parsed response", "`http.*`:存放解析后响应的状态路径"},
 	{"error", "string", "`http.*`: state path to store an error message", "`http.*`:存放错误信息的状态路径"},
+	{"onSuccess", "array", "`http.*`: steps run after a 2xx response; the decoded response is bound as `{{ response }}` (the `result` path is written first)", "`http.*`:2xx 响应后执行的步骤;解码后的响应绑定为 `{{ response }}`(`result` 路径先写入)"},
+	{"onError", "array", "`http.*`: steps run after a failure; the message is bound as `{{ error }}` (the `error` path is written first)", "`http.*`:失败后执行的步骤;错误信息绑定为 `{{ error }}`(`error` 路径先写入)"},
+	{"condition", "string", "`if`: a `{{ … }}` expression selecting `then` (truthy) or `else`", "`if`:一个 `{{ … }}` 表达式,真值执行 `then`,否则执行 `else`"},
+	{"then", "array", "`if`: steps run when `condition` is truthy (branches nest, depth-capped at 32)", "`if`:`condition` 为真时执行的步骤(分支可嵌套,深度上限 32)"},
+	{"else", "array", "`if`: steps run when `condition` is falsy", "`if`:`condition` 为假时执行的步骤"},
+	{"name", "string", "`invoke`: the target action id (call depth capped at 16)", "`invoke`:目标动作 id(调用深度上限 16)"},
+	{"args", "object", "`invoke`: arg → value expressions, evaluated in the caller's context and merged into the callee's scope (same semantics as an event invoke's args)", "`invoke`:参数→值表达式,在调用方上下文求值后并入被调动作的作用域(与事件 invoke 的 args 同语义)"},
 }
 
 func stepDesc(typ string) (en, zh string) {
 	m := map[string][2]string{
+		"if":                 {"run `then` steps when `condition` is truthy, `else` steps otherwise (nestable)", "`condition` 为真执行 `then` 步骤,否则执行 `else` 步骤(可嵌套)"},
+		"invoke":             {"call another action by `name`, merging evaluated `args` into its scope", "按 `name` 调用另一个动作,求值后的 `args` 并入其作用域"},
 		"navigate":           {"go to another scene (or `back`)", "跳转到另一个场景(或 `back`)"},
 		"state.set":          {"set a state path to a value", "把状态路径设为某值"},
 		"state.append":       {"append a value to an array", "向数组追加一个值"},

@@ -51,6 +51,11 @@ type App struct {
 	// enforcement). Non-enforced tokens are advisory. Empty/absent map = no
 	// constraint (fully backward compatible).
 	DesignTokens map[string]DesignToken
+	// SceneEnter maps a scene id to its optional onEnter invoke (scene JSON
+	// "onEnter"): the action dispatched once each time navigation enters that
+	// scene — including the initial load of the entry scene and a deep link
+	// straight into it. Empty/absent map = no scene lifecycle hooks.
+	SceneEnter map[string]*Invoke
 	// PluginABI is the qormext middle-layer contract version the app's native
 	// Go code was authored against (qorm.json "pluginABI", e.g. "1"). The loader
 	// warns when its major differs from the runtime's qormext.ABIVersion.
@@ -237,4 +242,24 @@ type Step struct {
 	Headers map[string]string // request headers (values may contain {{bindings}})
 	Result  string            // state path to store the parsed response (defaults to Path)
 	Error   string            // state path to store an error message, if any
+	// OnSuccess / OnError are the http.* steps' optional result branches, run
+	// synchronously after the request returns. OnSuccess steps see the decoded
+	// response as `{{ response }}` (in addition to the Result state path, which
+	// is written first); OnError steps see the failure message as `{{ error }}`
+	// (the Error state path is still written first, preserving the classic
+	// error-path behavior).
+	OnSuccess []Step
+	OnError   []Step
+	// `if` step: Condition is a {{...}} expression; the Then steps run when it
+	// is truthy and the Else steps otherwise. Branches may nest (guarded by a
+	// depth limit at both load and dispatch time).
+	Condition string
+	Then      []Step
+	Else      []Step
+	// invoke step: Name is the target action id and Args its argument
+	// expressions — evaluated in the caller's context and merged into the
+	// callee's scope exactly like an event invoke's args. Call depth is
+	// guarded at dispatch time, so mutual recursion cannot hang the runtime.
+	Name string
+	Args map[string]string
 }
