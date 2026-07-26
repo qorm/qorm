@@ -50,6 +50,33 @@
             ]
           },
           {
+            "type": "row",
+            "id": "busy",
+            "if": "{{ state.loading }}",
+            "style": {
+              "gap": 8
+            },
+            "layout": {
+              "align": "center"
+            },
+            "children": [
+              {
+                "type": "spinner",
+                "id": "busy_spin",
+                "size": 16
+              },
+              {
+                "type": "text",
+                "id": "busy_lbl",
+                "text": "Calling the backend…",
+                "style": {
+                  "fontSize": 13,
+                  "color": "var(--label2)"
+                }
+              }
+            ]
+          },
+          {
             "type": "text",
             "id": "err",
             "text": "{{state.err}}",

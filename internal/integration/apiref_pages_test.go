@@ -149,6 +149,7 @@ var stepFields = [][4]string{
 
 func stepDesc(typ string) (en, zh string) {
 	m := map[string][2]string{
+		"render":             {"publish an intermediate frame right here, so state written by the steps before it (a loading flag) reaches the screen before a slow step runs. No-op on a host with no frame sink; capped at 64 frames per dispatch", "在此处提交一帧中间渲染,让它之前的步骤写入的状态(如 loading 标志)在慢步骤执行前就显示到屏幕上。宿主未安装帧汇时为空操作;每次派发上限 64 帧"},
 		"if":                 {"run `then` steps when `condition` is truthy, `else` steps otherwise (nestable)", "`condition` 为真执行 `then` 步骤,否则执行 `else` 步骤(可嵌套)"},
 		"invoke":             {"call another action by `name`, merging evaluated `args` into its scope", "按 `name` 调用另一个动作,求值后的 `args` 并入其作用域"},
 		"navigate":           {"go to another scene (or `back`)", "跳转到另一个场景(或 `back`)"},

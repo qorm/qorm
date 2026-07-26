@@ -58,7 +58,29 @@ type Runtime struct {
 	// callDepth counts nested Dispatch calls (the `invoke` step, onEnter
 	// chains), capped at maxInvokeDepth so action recursion cannot hang.
 	callDepth int
+
+	// Commit is the HOST's frame sink: the `render` step calls it to publish an
+	// intermediate frame in the middle of an action, so a loading state written
+	// by an earlier step actually reaches the screen before a slow step (an
+	// http.* call) runs. nil means "no host installed" — `render` is then a
+	// no-op and the dispatch behaves exactly as it did before the step existed.
+	//
+	// It is deliberately NOT set by New (nor carried by Clone): a bare runtime,
+	// and every simulation clone, stay hook-free and fully synchronous. Each
+	// host installs it explicitly (the server does so in initAgent), so backing
+	// the feature out is one deleted line per host. The host's implementation
+	// runs on the calling goroutine under whatever lock the dispatch already
+	// holds; it must not re-take that lock and must not block.
+	Commit func()
+	// frames counts intermediate frames committed during the current top-level
+	// dispatch, capped at maxFrames.
+	frames int
 }
+
+// maxFrames caps the intermediate frames one top-level dispatch may publish, so
+// a looping action cannot flood the live-sync channel. Frames beyond the cap are
+// dropped silently (the final frame at the dispatch boundary always ships).
+const maxFrames = 64
 
 // maxInvokeDepth caps nested Dispatch calls (invoke steps calling actions that
 // invoke further actions); beyond it a dispatch is silently dropped.
@@ -443,6 +465,12 @@ func (r *Runtime) Dispatch(name string, args map[string]any) {
 	if r.callDepth >= maxInvokeDepth {
 		return
 	}
+	// The intermediate-frame budget is per top-level dispatch: nested invokes
+	// share the outer dispatch's allowance, so a recursive action cannot reset
+	// it and publish without bound.
+	if r.callDepth == 0 {
+		r.frames = 0
+	}
 	r.callDepth++
 	defer func() { r.callDepth-- }()
 	if name == BuiltinDismiss {
@@ -533,6 +561,15 @@ func evalParams(params map[string]string, ctx map[string]any) map[string]any {
 
 func (r *Runtime) applyStep(step model.Step, ctx map[string]any, depth int) {
 	switch step.Type {
+	case "render":
+		// Publish the state written so far as a frame, mid-action. This is what
+		// makes a loading state visible: `state.set saving=true` -> `render` ->
+		// a slow `http.*` -> `state.set saving=false`. Without a host frame sink
+		// it is a no-op, so the same JSON runs unchanged on every host.
+		if r.Commit != nil && r.frames < maxFrames {
+			r.frames++
+			r.Commit()
+		}
 	case "if":
 		// Conditional branch: the condition is a {{...}} expression evaluated
 		// with the expression language's own truthiness (expr.Truthy), so it
@@ -676,7 +713,10 @@ var httpClient = &http.Client{Timeout: 20 * time.Second}
 // OnSuccess steps run with the decoded response bound as `{{ response }}`
 // (whatever Result stored — or would have stored when Result is unset), and
 // the optional OnError steps run with the failure message bound as
-// `{{ error }}`. Both run synchronously in the caller's context.
+// `{{ error }}`. Both run inline in the caller's context, on the dispatching
+// goroutine — so this call does not return until the branch has finished. A
+// `render` step inside either branch publishes a frame at that point (via the
+// host's Commit sink) without changing that ordering.
 func (r *Runtime) applyHTTP(step model.Step, ctx map[string]any, depth int) {
 	method := strings.ToUpper(step.Method)
 	if method == "" {

@@ -10,6 +10,7 @@ Extracted from the runtime dispatch (`internal/runtime`):
 
 | `type` | What it does |
 |---|---|
+| `render` | publish an intermediate frame right here, so state written by the steps before it (a loading flag) reaches the screen before a slow step runs. No-op on a host with no frame sink; capped at 64 frames per dispatch |
 | `if` | run `then` steps when `condition` is truthy, `else` steps otherwise (nestable) |
 | `invoke` | call another action by `name`, merging evaluated `args` into its scope |
 | `navigate` | go to another scene (or `back`) |

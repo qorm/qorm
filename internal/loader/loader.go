@@ -713,11 +713,36 @@ func parseInvoke(v any, diags *[]string, sceneID, nodeID, eventName string) *mod
 // time. Deeper nests are dropped with an error diagnostic.
 const maxStepNesting = 32
 
+// maxRenderSteps is the advisory ceiling on `render` steps in one action. Each
+// one publishes a live-sync frame, and a subscriber whose buffer is full simply
+// drops frames — so past a handful the extra frames cost bandwidth without ever
+// being seen. The runtime's own hard cap (maxFrames) is far higher; this is the
+// authoring hint, not the safety net.
+const maxRenderSteps = 8
+
 func buildAction(doc map[string]any, diags *[]string, vars map[string]string) *model.Action {
 	actID := asString(doc["id"])
 	act := &model.Action{ID: actID}
 	act.Steps = buildSteps(doc["steps"], diags, actID, vars, 0)
+	if diags != nil {
+		if n := countRenderSteps(act.Steps); n > maxRenderSteps {
+			*diags = append(*diags, fmt.Sprintf("warning: [Action: %s] 有 %d 个 'render' 步骤(建议不超过 %d 个):每个 render 都会推送一帧实时同步,过多的中间帧会被订阅者丢弃。", actID, n, maxRenderSteps))
+		}
+	}
 	return act
+}
+
+// countRenderSteps counts `render` steps in a step tree, branches included.
+func countRenderSteps(steps []model.Step) int {
+	n := 0
+	for _, st := range steps {
+		if st.Type == "render" {
+			n++
+		}
+		n += countRenderSteps(st.Then) + countRenderSteps(st.Else)
+		n += countRenderSteps(st.OnSuccess) + countRenderSteps(st.OnError)
+	}
+	return n
 }
 
 // buildSteps parses a raw JSON step array (recursively: `if` then/else and

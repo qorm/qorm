@@ -1,6 +1,7 @@
 { "type": "action", "id": "saveTask", "steps": [
   { "type": "state.toggle", "path": "tasks", "matchKey": "id", "match": "{{ id }}", "field": "done" },
   { "type": "state.set", "path": "saving", "value": "{{ true }}" },
+  { "type": "render" },
   { "type": "http.put", "url": "https://jsonplaceholder.typicode.com/todos/1",
     "body": "{\"id\":\"{{ id }}\"}", "headers": { "Content-Type": "application/json" }, "error": "error" },
   { "type": "state.set", "path": "saving", "value": "{{ false }}" },

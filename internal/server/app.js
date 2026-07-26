@@ -208,8 +208,12 @@ function qorm(h){
     else if(el.type==='range'||el.type==='number'){ inputs[k]=parseFloat(el.value); }
     else { inputs[k]=el.value; }
   });
+  // rev names the frame this button was rendered on: handler indices are
+  // positional, so a frame that landed between the paint and the click (an
+  // agent edit, or an intermediate frame from a `render` step) would otherwise
+  // make h point at a different action server-side.
   fetch('/event',{method:'POST',headers:{'Content-Type':'application/json','X-Qorm-Token':__tok},
-    body:JSON.stringify({h:h,inputs:inputs})})
+    body:JSON.stringify({h:h,rev:__rev,inputs:inputs})})
     .then(function(r){ var rv=parseInt(r.headers.get('X-Qorm-Rev'))||0; var nav=r.headers.get('X-Qorm-Nav')||''; qormTheme(r.headers.get('X-Qorm-Theme')); return r.text().then(function(html){ return {rv:rv,html:html,nav:nav}; }); })
     .then(function(o){ if(o.rv && o.rv<=__rev) return; if(o.rv) __rev=o.rv; window.__qormNav=o.nav; qormMorphInto(document.getElementById('qorm-root'), o.html); });
 }
@@ -766,7 +770,7 @@ function qormSwipe(el,h){
 }
 // Long-press: fire handler h after 500ms of a sustained press (GestureDetector).
 function qormPostReorder(h, from, to){
-  fetch('/event',{method:'POST',headers:{'Content-Type':'application/json','X-Qorm-Token':__tok},body:JSON.stringify({h:h,inputs:{_reorderFrom:from,_reorderTo:to}})})
+  fetch('/event',{method:'POST',headers:{'Content-Type':'application/json','X-Qorm-Token':__tok},body:JSON.stringify({h:h,rev:__rev,inputs:{_reorderFrom:from,_reorderTo:to}})})
     .then(function(r){ var rv=parseInt(r.headers.get('X-Qorm-Rev'))||0; qormTheme(r.headers.get('X-Qorm-Theme')); return r.text().then(function(html){ return {rv:rv,html:html}; }); })
     .then(function(o){ if(o.rv && o.rv<=__rev) return; if(o.rv) __rev=o.rv; qormMorphInto(document.getElementById('qorm-root'), o.html); });
 }
@@ -859,7 +863,7 @@ function qormDragInit(){
   });
 }
 function qormPostDrop(h,data){
-  fetch('/event',{method:'POST',headers:{'Content-Type':'application/json','X-Qorm-Token':__tok},body:JSON.stringify({h:h,inputs:{_dragData:data}})})
+  fetch('/event',{method:'POST',headers:{'Content-Type':'application/json','X-Qorm-Token':__tok},body:JSON.stringify({h:h,rev:__rev,inputs:{_dragData:data}})})
     .then(function(r){ var rv=parseInt(r.headers.get('X-Qorm-Rev'))||0; qormTheme(r.headers.get('X-Qorm-Theme')); return r.text().then(function(html){ return {rv:rv,html:html}; }); })
     .then(function(o){ if(o.rv && o.rv<=__rev) return; if(o.rv) __rev=o.rv; qormMorphInto(document.getElementById('qorm-root'), o.html); });
 }

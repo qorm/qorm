@@ -8,6 +8,7 @@
     "schema": {
       "resp": "object",
       "err": "string",
+      "loading": "bool",
       "photo": "string"
     },
     "initial": {
@@ -15,6 +16,7 @@
         "fact": "Tap the button to call a real backend (catfact.ninja) and show the response."
       },
       "err": "",
+      "loading": false,
       "photo": ""
     }
   }

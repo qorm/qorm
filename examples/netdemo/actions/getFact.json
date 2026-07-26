@@ -1,3 +1,6 @@
 {"type":"action","id":"getFact","steps":[
-  {"type":"http.get","url":"https://catfact.ninja/fact","result":"resp","error":"err"}
+  {"type":"state.set","path":"loading","value":"{{ true }}"},
+  {"type":"render"},
+  {"type":"http.get","url":"https://catfact.ninja/fact","result":"resp","error":"err"},
+  {"type":"state.set","path":"loading","value":"{{ false }}"}
 ]}

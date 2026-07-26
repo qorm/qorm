@@ -41,8 +41,13 @@ type Server struct {
 	mu       sync.Mutex
 	rt       *runtime.Runtime
 	handlers []render.Handler
-	rev      atomic.Int64 // bumped on every mutation; drives browser live-sync
-	agent    *mcp.Server  // MCP handler sharing rt + mu
+	// handlerHist retains the handler tables of the last handlerHistory
+	// revisions so POST /event can resolve its handler index against the frame
+	// the browser was actually showing. Cleared whenever the runtime is swapped
+	// (hot reload / OTA): a table from a previous app must never resolve.
+	handlerHist []handlerFrame
+	rev         atomic.Int64 // bumped on every mutation; drives browser live-sync
+	agent       *mcp.Server  // MCP handler sharing rt + mu
 
 	// mcpReadOnly forces the shared MCP session into read-only mode: mutating
 	// tools (dispatch/set_state/apply_patch/undo) are rejected. Set from
@@ -166,11 +171,20 @@ func genEventToken() string {
 	return hex.EncodeToString(b)
 }
 
-// initAgent (re)binds the shared MCP handler to the current runtime. Called on
-// construction and whenever the runtime is swapped (OTA). afterMutate runs
+// initAgent (re)binds this host to the current runtime: the shared MCP handler
+// and the intermediate-frame sink. Called on construction and whenever the
+// runtime is swapped (hot reload, OTA activate/rollback). afterMutate runs
 // while the agent holds s.mu, so bump() must not re-take s.mu.
 func (s *Server) initAgent() {
 	s.agent = mcp.NewShared(s.rt, &s.mu, func() { s.bump() })
+	// Install this host's frame sink on the live runtime, so a `render` step
+	// inside an action publishes an intermediate frame (render + SSE broadcast)
+	// mid-dispatch. This is the ONE install point: every path that swaps s.rt
+	// (New, NewBundle, Reload, activate, Rollback) funnels through initAgent, so
+	// a fresh runtime can never be left without the sink — and runtime.New still
+	// installs nothing itself, keeping bare runtimes and Clone()s synchronous.
+	// frame() takes no lock; the dispatch that calls it already holds s.mu.
+	s.rt.Commit = func() { s.frame() }
 	s.agent.SetReadOnly(s.mcpReadOnly)
 	s.agent.SetMeasureProvider(func() []byte {
 		s.measureMu.Lock()
@@ -225,12 +239,76 @@ func (s *Server) SetMCPReadOnly(v bool) {
 // once, before the frame that ships is rendered.
 func (s *Server) bump() (int64, string, string) {
 	s.rt.RunPendingEnter()
+	return s.frame()
+}
+
+// frame renders + publishes exactly one revision WITHOUT draining the pending
+// scene-entry hook. It is the sink the runtime's `render` step calls mid-action
+// (installed as rt.Commit in initAgent), and the second half of bump.
+//
+// Deliberately no RunPendingEnter here: an action that navigates and then
+// renders publishes the target scene's first frame immediately, but the
+// target's onEnter still fires exactly once at the dispatch boundary, when
+// bump runs. Draining it here would re-enter Dispatch from inside Dispatch —
+// stacking callDepth and possibly tripping maxEnterChain — for no gain.
+// Caller must hold s.mu.
+func (s *Server) frame() (int64, string, string) {
 	rev := s.rev.Add(1)
 	res := render.RenderScene(s.rt, s.rt.CurrentScene())
-	s.handlers = res.Handlers
+	s.setHandlers(rev, res.Handlers)
 	nav := s.rt.TakeNavDir()
 	s.broadcast(rev, res.HTML, nav, s.rt.RoutePath())
 	return rev, res.HTML, nav
+}
+
+// handlerFrame is one revision's handler table, kept so a /event that names the
+// revision the browser was showing resolves its handler index against THAT
+// frame rather than whatever has been rendered since.
+type handlerFrame struct {
+	rev int64
+	h   []render.Handler
+}
+
+// handlerHistory is how many recent frames' handler tables are retained. A
+// browser is at most a few frames behind (it applies every frame it receives),
+// and an intermediate `render` step can advance the revision several times
+// within one dispatch — eight covers both with room to spare, and is a fixed,
+// tiny memory cost.
+const handlerHistory = 8
+
+// setHandlers records the handler table produced for a revision: it becomes the
+// current table and enters the small history ring. Re-rendering the same
+// revision (serveIndex, /poll, an SSE catch-up) overwrites that revision's
+// entry rather than adding a duplicate. Caller must hold s.mu.
+func (s *Server) setHandlers(rev int64, h []render.Handler) {
+	s.handlers = h
+	for i := range s.handlerHist {
+		if s.handlerHist[i].rev == rev {
+			s.handlerHist[i].h = h
+			return
+		}
+	}
+	s.handlerHist = append(s.handlerHist, handlerFrame{rev: rev, h: h})
+	if len(s.handlerHist) > handlerHistory {
+		s.handlerHist = s.handlerHist[len(s.handlerHist)-handlerHistory:]
+	}
+}
+
+// lookupHandlers returns the handler table the given revision was rendered
+// with, falling back to the newest table when no revision was reported (nil —
+// a non-browser driver) or when that frame has already been evicted from the
+// ring. The fallback is exactly the pre-M1 behavior, so nothing regresses when
+// the revision is missing — it only gets more precise when it is present.
+// Caller must hold s.mu.
+func (s *Server) lookupHandlers(rev *int64) []render.Handler {
+	if rev != nil {
+		for i := range s.handlerHist {
+			if s.handlerHist[i].rev == *rev {
+				return s.handlerHist[i].h
+			}
+		}
+	}
+	return s.handlers
 }
 
 // broadcast pushes a revision+HTML payload to every subscriber, dropping it for
@@ -648,7 +726,7 @@ func (s *Server) serveEvents(w http.ResponseWriter, r *http.Request) {
 		s.mu.Lock()
 		if cur := s.rev.Load(); cur > last {
 			res := render.RenderScene(s.rt, s.rt.CurrentScene())
-			s.handlers = res.Handlers
+			s.setHandlers(cur, res.Handlers)
 			snap, _ := json.Marshal(map[string]any{"rev": cur, "html": res.HTML, "theme": s.rt.CurrentTheme(), "route": s.rt.RoutePath()})
 			fmt.Fprintf(w, "id: %d\ndata: %s\n\n", cur, snap)
 			flusher.Flush()
@@ -757,6 +835,7 @@ func (s *Server) Reload(next *runtime.Runtime) {
 	}
 	s.rt = next
 	s.handlers = nil
+	s.handlerHist = nil // tables from the previous app must never resolve
 	s.initAgent()
 	s.logEvent("system", "hot-reload: app source changed")
 	s.bump()
@@ -769,6 +848,7 @@ func (s *Server) activate(b *bundle.Bundle) {
 	s.current = b
 	s.rt = runtime.New(b.ToApp())
 	s.handlers = nil
+	s.handlerHist = nil
 	s.initAgent()
 	s.bump()
 }
@@ -814,6 +894,7 @@ func (s *Server) Rollback() (string, error) {
 	s.current = restored
 	s.rt = runtime.New(restored.ToApp())
 	s.handlers = nil
+	s.handlerHist = nil
 	s.initAgent()
 	s.bump()
 	return fmt.Sprintf("rolled back %s -> %s", from, versionOr(restored)), nil
@@ -890,8 +971,12 @@ func (s *Server) serveIndex(w http.ResponseWriter, r *http.Request) {
 	s.rt.RunPendingEnter()
 	scene := s.rt.CurrentScene()
 	res := render.RenderScene(s.rt, scene)
-	s.handlers = res.Handlers
+	// Read the revision AFTER RunPendingEnter: an onEnter action carrying a
+	// `render` step will have advanced it. The page is stamped with the same
+	// revision its handler table is filed under, which is what lets a later
+	// /event from this page resolve against exactly this frame.
 	rev := s.rev.Load()
+	s.setHandlers(rev, res.Handlers)
 	rt := s.rt
 	// Build the page while still holding the lock: Page/userWebJS read rt.State
 	// (locale/theme/rtl), which a concurrent POST /event mutates — reading it
@@ -954,7 +1039,7 @@ func (s *Server) servePoll(w http.ResponseWriter, r *http.Request) {
 	var html string
 	if cur != clientRev {
 		res := render.RenderScene(s.rt, s.rt.CurrentScene())
-		s.handlers = res.Handlers
+		s.setHandlers(cur, res.Handlers)
 		html = res.HTML
 	}
 	route := s.rt.RoutePath()
@@ -968,7 +1053,19 @@ func (s *Server) servePoll(w http.ResponseWriter, r *http.Request) {
 }
 
 type eventReq struct {
-	H      int            `json:"h"`
+	H int `json:"h"`
+	// Rev is the revision of the frame the browser was showing when the human
+	// acted. Handler indices are positional and are renumbered by every render,
+	// so a frame that arrived between the paint and the click — an agent edit,
+	// or an intermediate frame published by a `render` step, which widens that
+	// window from milliseconds to the length of a whole action — would otherwise
+	// make index h name a DIFFERENT action than the one that was pressed. With
+	// the revision, the server resolves h against the exact frame it was minted
+	// on. A POINTER because the very first page is rendered at revision 0: a
+	// plain int64 could not tell "the browser was showing frame 0" from "this
+	// driver does not report frames at all" (curl, ci-smoke, the offline WASM
+	// driver), and those two must behave differently.
+	Rev    *int64         `json:"rev"`
 	Inputs map[string]any `json:"inputs"`
 }
 
@@ -990,14 +1087,17 @@ func (s *Server) serveEvent(w http.ResponseWriter, r *http.Request) {
 	// GETting / (a reconnect, or an out-of-order request) would otherwise find
 	// an empty table and silently drop the action.
 	if s.handlers == nil {
-		s.handlers = render.RenderScene(s.rt, s.rt.CurrentScene()).Handlers
+		s.setHandlers(s.rev.Load(), render.RenderScene(s.rt, s.rt.CurrentScene()).Handlers)
 	}
 	// Fold current input values back into state before dispatching.
 	for path, val := range req.Inputs {
 		s.rt.State[path] = val
 	}
-	if req.H >= 0 && req.H < len(s.handlers) {
-		h := s.handlers[req.H]
+	// Resolve the handler index against the frame the click came from (see
+	// eventReq.Rev); an unknown/absent revision falls back to the newest table.
+	table := s.lookupHandlers(req.Rev)
+	if req.H >= 0 && req.H < len(table) {
+		h := table[req.H]
 		if h.Name != "" {
 			s.logEvent("human", "dispatch "+h.Name)
 		}

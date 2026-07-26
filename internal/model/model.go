@@ -242,12 +242,16 @@ type Step struct {
 	Headers map[string]string // request headers (values may contain {{bindings}})
 	Result  string            // state path to store the parsed response (defaults to Path)
 	Error   string            // state path to store an error message, if any
-	// OnSuccess / OnError are the http.* steps' optional result branches, run
-	// synchronously after the request returns. OnSuccess steps see the decoded
-	// response as `{{ response }}` (in addition to the Result state path, which
-	// is written first); OnError steps see the failure message as `{{ error }}`
-	// (the Error state path is still written first, preserving the classic
-	// error-path behavior).
+	// OnSuccess / OnError are the http.* steps' optional result branches. They
+	// run inline once the request returns — on the dispatching goroutine, before
+	// the http step's sibling steps — so a dispatch is still run-to-completion
+	// and the state it produces is readable the moment Dispatch returns.
+	// OnSuccess steps see the decoded response as `{{ response }}` (in addition
+	// to the Result state path, which is written first); OnError steps see the
+	// failure message as `{{ error }}` (the Error state path is still written
+	// first, preserving the classic error-path behavior). Either branch may
+	// contain a `render` step, which publishes an intermediate frame at that
+	// point without suspending the dispatch.
 	OnSuccess []Step
 	OnError   []Step
 	// `if` step: Condition is a {{...}} expression; the Then steps run when it

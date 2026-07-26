@@ -252,3 +252,63 @@ func TestTimerInComponentChecked(t *testing.T) {
 		t.Errorf("timers inside components must be checked: %v", app.Diagnostics)
 	}
 }
+
+// ---- render step -------------------------------------------------------------
+
+// TestLoadRenderStep: `render` carries no fields of its own, so it must survive
+// the load (and a serialise round-trip) as a bare typed step, warning-free.
+func TestLoadRenderStep(t *testing.T) {
+	app := FromDocs(execDocs(map[string]any{
+		"type": "action", "id": "save",
+		"steps": []any{
+			map[string]any{"type": "state.set", "path": "count", "value": "1"},
+			map[string]any{"type": "render"},
+			map[string]any{"type": "state.set", "path": "count", "value": "2"},
+		},
+	}))
+	if len(app.Diagnostics) != 0 {
+		t.Fatalf("a render step must load clean: %v", app.Diagnostics)
+	}
+	steps := app.Actions["save"].Steps
+	if len(steps) != 3 || steps[1].Type != "render" {
+		t.Fatalf("render step lost on load: %+v", steps)
+	}
+}
+
+// TestRenderStepFloodWarning: every `render` publishes a live-sync frame, and a
+// subscriber whose buffer fills simply drops them — so an action packed with
+// renders is an authoring mistake worth flagging. The count walks branches too,
+// since that is where a loop-shaped action hides them.
+func TestRenderStepFloodWarning(t *testing.T) {
+	branch := make([]any, 0, maxRenderSteps)
+	for i := 0; i < maxRenderSteps; i++ {
+		branch = append(branch, map[string]any{"type": "render"})
+	}
+	app := FromDocs(execDocs(map[string]any{
+		"type": "action", "id": "flood",
+		"steps": []any{
+			map[string]any{"type": "render"},
+			map[string]any{
+				"type": "if", "condition": "{{ state.count > 0 }}",
+				"then": branch,
+			},
+		},
+	}))
+	found := false
+	for _, d := range app.Diagnostics {
+		if strings.Contains(d, "'render'") && strings.HasPrefix(d, "warning:") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("more than %d render steps must warn: %v", maxRenderSteps, app.Diagnostics)
+	}
+
+	// Exactly at the ceiling is fine — the warning is for going past it.
+	ok := FromDocs(execDocs(map[string]any{
+		"type": "action", "id": "fine", "steps": branch,
+	}))
+	if len(ok.Diagnostics) != 0 {
+		t.Errorf("%d render steps must load clean: %v", maxRenderSteps, ok.Diagnostics)
+	}
+}

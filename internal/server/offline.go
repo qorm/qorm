@@ -33,7 +33,7 @@ func OfflineHTML(rt *runtime.Runtime, bundleJSON string, update *UpdateConfig) (
 
 	// 1. online dispatch (POST /event) -> in-process WASM dispatch
 	onlineDriver := `  fetch('/event',{method:'POST',headers:{'Content-Type':'application/json','X-Qorm-Token':__tok},
-    body:JSON.stringify({h:h,inputs:inputs})})
+    body:JSON.stringify({h:h,rev:__rev,inputs:inputs})})
     .then(function(r){ var rv=parseInt(r.headers.get('X-Qorm-Rev'))||0; var nav=r.headers.get('X-Qorm-Nav')||''; qormTheme(r.headers.get('X-Qorm-Theme')); return r.text().then(function(html){ return {rv:rv,html:html,nav:nav}; }); })
     .then(function(o){ if(o.rv && o.rv<=__rev) return; if(o.rv) __rev=o.rv; window.__qormNav=o.nav; qormMorphInto(document.getElementById('qorm-root'), o.html); });`
 	offlineDriver := `  var res=qormEvent(h, JSON.stringify(inputs));

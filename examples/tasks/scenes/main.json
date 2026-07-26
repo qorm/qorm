@@ -9,7 +9,14 @@
         "type": "row", "id": "head", "style": { "gap": 12 }, "layout": { "align": "center" },
         "children": [
           { "type": "text", "id": "title", "text": "Task Board", "style": { "fontSize": 22, "fontWeight": 800, "color": "var(--label)", "flexGrow": 1 } },
-          { "type": "text", "id": "saving", "if": "{{ state.saving }}", "text": "Saving…", "style": { "fontSize": 13, "color": "var(--label2)" } },
+          {
+            "type": "row", "id": "saving", "if": "{{ state.saving }}",
+            "style": { "gap": 6 }, "layout": { "align": "center" },
+            "children": [
+              { "type": "spinner", "id": "saving_spin", "size": 14 },
+              { "type": "text", "id": "saving_label", "text": "Saving…", "style": { "fontSize": 13, "color": "var(--label2)" } }
+            ]
+          },
           { "type": "stat", "id": "count", "label": "Total", "value": "{{ len(state.tasks) }}" }
         ]
       },
