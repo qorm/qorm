@@ -6,6 +6,39 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+### Security
+- OTA SSRF guard on the live server's `POST /update` source fetch: private
+  (RFC 1918 / RFC 4193), link-local (including the `169.254.169.254` /
+  `fe80::` cloud metadata addresses), multicast and unspecified
+  destinations are refused, with the check enforced at dial time after DNS
+  resolution — so redirect hops and DNS rebinding cannot route around it —
+  and redirects capped at 5 http(s)-only hops. Loopback destinations and
+  local file paths stay allowed (local-dev bundle servers keep working).
+  Implemented as `ota.BlockPrivate()`, wired only into the `/update` fetch.
+- MCP tools no longer silently degrade on malformed arguments: 8 tools
+  (`qorm_window`, `qorm_query`, `qorm_get_node`, `qorm_source_location`,
+  `qorm_simulate_action`, `qorm_dispatch`, `qorm_check_layout`,
+  `qorm_assert`) now return a tool error when arguments are present but
+  unparseable, instead of decaying to zero-value behaviour — a malformed
+  `qorm_assert` previously reported overall pass on an empty check list,
+  and a malformed `qorm_query` matched every node. Absent or `null`
+  arguments still mean all-defaults.
+
+### Fixed
+- Runtime `{{...}}` binding splitting now uses the same quote/escape-aware
+  close-delimiter scan as the loader (extracted as `expr.CloseIndex`), so a
+  binding whose string literal contains `}}` — e.g. `{{ '}}' }}` — evaluates
+  correctly at runtime instead of being mis-split by the old regex.
+- Loader: a `when` node whose `condition` is a non-empty string without a
+  `{{...}}` binding now emits a load-time warning — such a condition is a
+  constant (any non-empty string is truthy), so the `then` branch would
+  render unconditionally and the `else` branch would be dead; it is almost
+  always a forgotten `{{ }}` around the expression.
+
+### Changed
+- CI additionally runs the full test suite under the race detector
+  (`go test -race ./...`).
+
 ## [v0.3.6] - 2026-07-24
 
 ### Added

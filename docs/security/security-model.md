@@ -3,7 +3,8 @@
 > **Target model vs. current implementation.** This document describes QORM's **target** security model. What the current Go runtime **already enforces**:
 > ed25519 "verify the artifact before running it" Bundle signing + content integrity (integrity takes precedence over signing); OTA updates require a trusted public key
 > (`--trust`, otherwise rejected); key revocation bound to the actual verification key; the local server blocks cross-origin (CSRF/DNS-rebind) access to dangerous endpoints (`/window` eval,
-> `/update`, `/mcp`); mobile native capabilities are gated by system permission prompts, and generated projects derive `Info.plist` / `AndroidManifest` declarations from the widgets actually used.
+> `/update`, `/mcp`); the `/update` source fetch refuses private / link-local / metadata destinations with redirects re-vetted per hop (loopback stays allowed for local development — see
+> `bundle-signing.md`); mobile native capabilities are gated by system permission prompts, and generated projects derive `Info.plist` / `AndroidManifest` declarations from the widgets actually used.
 > **Not yet implemented** (the targets described here; do not treat them as guarantees already in effect): a standalone runtime "capability approval layer" — that is, per-capability
 > allowlist adjudication, an approval lifecycle (revocation/expiration), and "desktop native ops gated beyond the transport layer". Desktop native
 > ops are currently not independently approved; the "security invariants" below are design intent, not currently enforced requirements.

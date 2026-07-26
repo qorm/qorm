@@ -212,6 +212,14 @@ callers:
   Requires the server to have been started with `--trust`; without a trust key
   the endpoint refuses (403), because authenticity cannot be verified. On any
   failure it answers 409 and the live app keeps the previous bundle.
+  The source fetch is SSRF-guarded: private (RFC 1918 / RFC 4193),
+  link-local (which covers the `169.254.169.254` / `fe80::` cloud metadata
+  addresses), multicast and unspecified destinations are refused. The check
+  runs at dial time, after DNS resolution, so a redirect hop or a
+  DNS-rebinding hostname cannot route around it; redirects are capped at 5
+  hops and must stay on http(s). Loopback destinations and local file paths
+  remain allowed — a bundle server on this machine is the normal development
+  workflow, and loopback adds no reachability a local caller lacks.
 - `POST /rollback` — re-activates the previous bundle held in memory (one
   level: the bundle the last successful `/update` replaced).
 
