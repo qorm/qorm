@@ -10,7 +10,9 @@ import (
 )
 
 func (r *renderer) image(n *model.Node) {
-	src := propStr(n, "src")
+	// src/alt are interpolated so a data-driven row ({{item.src}}) resolves to
+	// the element's own URL; a polymorphic feed renders one image node per item.
+	src := r.interp(propStr(n, "src"))
 	// fit is an author prop interpolated into a quoted style attribute.
 	style := r.boxCSS(n) + "object-fit:" + styleAttr(propStrOr(n, "fit", "cover")) + ";"
 	// placeholder paints the element's background while (or if) the real src
@@ -46,7 +48,7 @@ func (r *renderer) image(n *model.Node) {
 		fallbackAttr = ` onerror="` + html.EscapeString("this.onerror=null;this.src="+jsStringID(fb)) + `"`
 	}
 	fmt.Fprintf(&r.sb, `<img id=%q src=%q style=%q alt=%q%s%s%s>`,
-		attrID(n.ID), html.EscapeString(src), style, html.EscapeString(propStr(n, "alt")),
+		attrID(n.ID), html.EscapeString(src), style, html.EscapeString(r.interp(propStr(n, "alt"))),
 		lazyAttr, fallbackAttr, a11y(n))
 }
 
@@ -74,7 +76,7 @@ func looksLikeImageURL(s string) bool {
 func (r *renderer) avatar(n *model.Node) {
 	size := propNum(n, "size", 40)
 	base := fmt.Sprintf("width:%gpx;height:%gpx;border-radius:50%%;overflow:hidden;flex-shrink:0;", size, size)
-	if src := propStr(n, "src"); src != "" {
+	if src := r.interp(propStr(n, "src")); src != "" {
 		fmt.Fprintf(&r.sb, `<img id=%q src=%q style=%q alt="">`, attrID(n.ID), html.EscapeString(src), r.boxCSS(n)+base+"object-fit:cover;")
 		return
 	}
@@ -141,5 +143,5 @@ func (r *renderer) chartData(n *model.Node) []float64 {
 
 func (r *renderer) video(n *model.Node) {
 	fmt.Fprintf(&r.sb, `<video id=%q src=%q controls style=%q></video>`,
-		attrID(n.ID), html.EscapeString(propStr(n, "src")), r.boxCSS(n))
+		attrID(n.ID), html.EscapeString(r.interp(propStr(n, "src"))), r.boxCSS(n))
 }
