@@ -103,11 +103,52 @@ func qormInit(_ js.Value, args []js.Value) any {
 		}
 		return errResult(err)
 	}
-	rt = runtime.New(b.ToApp())
+	adopt(runtime.New(b.ToApp()))
 	if data, mErr := bundle.Marshal(b); mErr == nil {
 		currentBundleJSON = string(data)
 	}
 	return renderNow()
+}
+
+// adopt installs r as the runtime this build is executing, together with the
+// two host sinks it needs to stay live: the frame sink (a `render` step inside
+// an action publishes its loading frame immediately) and the background work
+// sink (an http.* step's round trip leaves this goroutine). Every path that
+// swaps the runtime — qormInit, qormCompile, an applied OTA update, a rollback
+// — funnels through here, so a fresh runtime can never be left sink-less and
+// silently stop pushing frames after an update.
+//
+// The sinks are installed on the HOST side only: runtime.New still returns a
+// hook-free runtime, so a plain render, an export or an MCP simulation never
+// opens a socket on a background goroutine.
+func adopt(r *runtime.Runtime) {
+	rt = r
+	playcore.InstallSinks(
+		r,
+		func() *runtime.Runtime { return rt }, // generation pin: OTA/rollback/recompile
+		func(f func()) { go f() },             // the mandatory goroutine hop — see promise()
+		pushFrame,
+	)
+}
+
+// pushFrame renders the live runtime and hands the frame to the page's
+// qormApplyFrame(res) sink — the WASM twin of the server's SSE broadcast, and
+// the reason installing rt.Async is safe: without a push channel an async step
+// would settle correctly and the screen would never learn about it.
+//
+// A page that predates the sink (or a harness that loaded the wasm with no DOM)
+// simply has no qormApplyFrame, and the frame is dropped rather than throwing
+// into JS: the app then behaves exactly as it did before intermediate frames
+// existed.
+func pushFrame() {
+	if rt == nil {
+		return
+	}
+	fn := js.Global().Get("qormApplyFrame")
+	if fn.Type() != js.TypeFunction {
+		return
+	}
+	fn.Invoke(renderNow())
 }
 
 // qormEvent(h, inputsJSON) folds any bound input values into state, dispatches
@@ -173,7 +214,7 @@ func qormCompile(_ js.Value, args []js.Value) any {
 	// Keep the global runtime/handlers consistent with qormInit so qormEvent
 	// dispatches against the just-compiled app. The compiled app has no bundle
 	// encoding, so clear currentBundleJSON to avoid a stale OTA no-op skip.
-	rt = res.RT
+	adopt(res.RT)
 	handlers = res.Handlers
 	currentBundleJSON = ""
 	return compileResult(res)
@@ -332,7 +373,7 @@ func qormCheckUpdate(js.Value, []js.Value) any {
 			reject("qorm ota: could not persist bundle: " + err.Error())
 			return
 		}
-		rt = runtime.New(next.ToApp())
+		adopt(runtime.New(next.ToApp()))
 		currentBundleJSON = string(data)
 		res := renderNow().(map[string]any)
 		res["updated"] = true
@@ -365,7 +406,7 @@ func qormOTARollback(js.Value, []js.Value) any {
 		return map[string]any{"err": "qorm ota: " + err.Error()}
 	}
 	lsRemove(otaKeyPrev)
-	rt = runtime.New(b.ToApp())
+	adopt(runtime.New(b.ToApp()))
 	if data, mErr := bundle.Marshal(b); mErr == nil {
 		currentBundleJSON = string(data)
 	}

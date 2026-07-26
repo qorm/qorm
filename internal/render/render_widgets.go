@@ -251,14 +251,54 @@ func (r *renderer) drawer(n *model.Node) {
 	r.sb.WriteString(`</div></div>`)
 }
 
-// carousel renders a horizontally scroll-snapping row of children.
+// carousel renders a horizontally scroll-snapping row of children. Paging it is
+// pure CSS; the two things that are not, and that both props below are, need
+// the client:
+//
+//   - `autoplay` — milliseconds between automatic advances (0/absent = off, the
+//     default). Floored at 250ms client-side, the same floor the declarative
+//     `timer` widget uses. The client pauses while the pointer is over the
+//     track and while the tab is hidden, and wraps at the end.
+//   - `indicators` — emit the dot row under the track. The dots are a SIBLING of
+//     the scroller (inside it they would scroll away with the content) and carry
+//     no state: the client derives the active one from the live scroll position
+//     after every scroll and every re-render, so it is right however the slide
+//     changed — autoplay, a swipe, a dot tap, or a state-driven re-render.
+//
+// A carousel that declares neither renders byte-identically to before they
+// existed: both markers are absent and the client code no-ops.
 func (r *renderer) carousel(n *model.Node) {
 	style := r.boxCSS(n) + "display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:12px;-webkit-overflow-scrolling:touch;"
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), style)
+	auto := ""
+	if ms := int(propNum(n, "autoplay", 0)); ms > 0 {
+		auto = fmt.Sprintf(` data-qorm-carousel="%d"`, ms)
+	}
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), style, auto)
 	for _, c := range n.Children {
 		r.sb.WriteString(`<div style="scroll-snap-align:start;flex:0 0 auto;">`)
 		r.node(c)
 		r.sb.WriteString(`</div>`)
+	}
+	r.sb.WriteString(`</div>`)
+	if propBool(n, "indicators") {
+		r.carouselDots(len(n.Children))
+	}
+}
+
+// carouselDots emits the indicator row: one button per slide, the first marked
+// current because that is the slide a fresh render shows. They are buttons, not
+// decoration, so a dot is tappable and reachable by keyboard; the client keys on
+// data-qorm-dot for the tap and re-derives aria-current + the fill from the live
+// scroll position.
+func (r *renderer) carouselDots(n int) {
+	r.sb.WriteString(`<div class="qorm-carousel-dots" data-qorm-dots="" style="display:flex;justify-content:center;gap:6px;padding:8px 0;">`)
+	for i := 0; i < n; i++ {
+		fill, cur := "var(--sep)", "false"
+		if i == 0 {
+			fill, cur = "var(--accent)", "true"
+		}
+		fmt.Fprintf(&r.sb, `<button data-qorm-dot="%d" aria-current="%s" aria-label="Slide %d" style="width:7px;height:7px;padding:0;border:none;border-radius:999px;background:%s;cursor:pointer;"></button>`,
+			i, cur, i+1, fill)
 	}
 	r.sb.WriteString(`</div>`)
 }
@@ -860,7 +900,14 @@ func (r *renderer) form(n *model.Node) {
 	if n.OnPress != nil {
 		submit = fmt.Sprintf(` onsubmit="qorm(%d);return false"`, r.register(n.OnPress))
 	}
-	fmt.Fprintf(&r.sb, `<form id=%q style=%q%s%s>`, attrID(r.nid(n)), r.containerCSS(n), a11y(n), submit)
+	// novalidate turns off native constraint validation for the whole form —
+	// the gate a submit button emits reads form.noValidate, so this switches
+	// both off together (submit-then-validate-server-side flows).
+	nov := ""
+	if asBool(r.interp(propStr(n, "novalidate"))) {
+		nov = ` novalidate`
+	}
+	fmt.Fprintf(&r.sb, `<form id=%q style=%q%s%s%s>`, attrID(r.nid(n)), r.containerCSS(n), a11y(n), nov, submit)
 	for _, c := range n.Children {
 		r.node(c)
 	}

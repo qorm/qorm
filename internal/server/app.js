@@ -79,7 +79,28 @@ function qormMorphInto(root, html){
   qormTimersSync();
   qormSheetSync();       // re-apply the live sheet stop the morph just reset
   qormLargeTitleSync();  // no-op where the CSS scroll timeline does the work
+  qormTabReveal();       // keep the active tab of a scrollable tab bar in view
+  qormCarouselSync();    // re-arm autoplay, re-derive the indicator dots
   setTimeout(qormMeasure, 30);
+}
+// qormApplyFrame is the HOST FRAME SINK for the client-side runtimes: the WASM
+// build (cmd/qorm-wasm) calls window.qormApplyFrame(res) whenever it has a
+// frame to publish that no JS call is waiting on — an intermediate frame from a
+// `render` step, or the completion of an http.* step whose round trip ran on a
+// background goroutine. The server build never uses it (there the same frames
+// arrive over SSE); it lives in the shared script so the offline package, which
+// reuses this file verbatim, has it without a second copy in the boot string.
+//
+// res is renderNow()'s object: { html, theme, dir, locale }. Anything else —
+// an error result, a frame that arrived after the root went away — is ignored
+// rather than thrown, because this is called FROM Go and a throw would cross
+// back into the wasm scheduler.
+function qormApplyFrame(res){
+  if(!res || typeof res.html!=='string') return;
+  if(res.theme) qormTheme(res.theme);
+  if(typeof qormDir==='function') qormDir(res.dir);   // defined by the offline boot
+  var root=document.getElementById('qorm-root');
+  if(root) qormMorphInto(root, res.html);
 }
 // ---- declarative timers ------------------------------------------------------
 // A `timer` node renders as an invisible [data-qorm-timer] marker; this
@@ -689,11 +710,214 @@ function qormTab(btn){
   btn.classList.add('qorm-tab-active');
   var idx=btn.getAttribute('data-tab');
   panels.forEach(function(p){ p.style.display = (p.getAttribute('data-panel')===idx)?'block':'none'; });
+  qormTabRevealBar(bar);
+}
+// ---- tabs: reveal + swipe ----------------------------------------------------
+// Two things CSS cannot do for a `tabs` widget, both derived from the live DOM
+// at the moment they run, so neither keeps state a re-render could invalidate.
+//
+// qormTabReveal scrolls a `scrollable` tab bar so the ACTIVE tab is on screen.
+// scroll-snap only parks where the user already scrolled to; a tab selected by
+// state, by a swipe, or by an agent can therefore sit off-screen with nothing
+// to tell the user which one is live. Bars that do not overflow are untouched.
+function qormTabRevealBar(bar){
+  if(!bar || !bar.classList || !bar.classList.contains('qorm-tabbar')) return;
+  if(bar.scrollWidth<=bar.clientWidth+1) return;          // not scrollable: nothing to reveal
+  var el=bar.querySelector('.qorm-tab-active'); if(!el) return;
+  // Rect deltas, not offsetLeft: the bar is statically positioned, so a tab's
+  // offsetParent is some ancestor and offsetLeft would be measured against it.
+  var br=bar.getBoundingClientRect(), er=el.getBoundingClientRect();
+  var want=bar.scrollLeft+(er.left-br.left)-(br.width-er.width)/2;
+  want=Math.max(0, Math.min(bar.scrollWidth-bar.clientWidth, Math.round(want)));
+  if(Math.abs(bar.scrollLeft-want)>1) bar.scrollLeft=want;  // write only on a real difference
+}
+function qormTabReveal(){
+  document.querySelectorAll('.qorm-tabbar').forEach(function(bar){ qormTabRevealBar(bar); });
+}
+// qormTabItems / qormTabActive / qormTabActivate read one tabs widget's live
+// tab strip. Activating a tab SYNTHESIZES the tap the user would have made
+// rather than reimplementing what a tap does, which is what makes the swipe
+// work identically in both modes with no handler bookkeeping of its own:
+//   - uncontrolled  -> the <button>'s own onclick (qormTab, or qorm(h) when the
+//                      node declares onChange)
+//   - controlled    -> the hidden radio inside the <label>, so checking it fires
+//                      the same change event (qorm(-1) / qorm(h)) a tap fires,
+//                      and the bound state path is written by the normal sync.
+// Every index and handler is therefore re-read from the DOM at event time; the
+// gesture closes over nothing a re-render can renumber.
+function qormTabItems(root){
+  var bar=root.querySelector('.qorm-tabbar');
+  return bar ? Array.prototype.slice.call(bar.querySelectorAll('.qorm-tab')) : [];
+}
+function qormTabActive(root){
+  var items=qormTabItems(root);
+  for(var i=0;i<items.length;i++){ if(items[i].classList.contains('qorm-tab-active')) return i; }
+  return 0;
+}
+function qormTabActivate(root, i){
+  var items=qormTabItems(root);
+  if(i<0 || i>=items.length) return false;               // at an end: no wrap-around
+  var radio=items[i].querySelector('input[type=radio]');
+  (radio||items[i]).click();
+  return true;
+}
+// qormTabScrollsX reports whether the swipe started inside something that can
+// itself scroll horizontally (a carousel, a wide table, a nested tab bar). That
+// content owns the gesture — stealing it would make those widgets unusable
+// inside a tab panel.
+function qormTabScrollsX(el, root){
+  for(var p=el; p && p!==root && p.nodeType===1; p=p.parentElement){
+    if(p.scrollWidth>p.clientWidth+1){
+      var ox=getComputedStyle(p).overflowX;
+      if(ox==='auto'||ox==='scroll') return true;
+    }
+  }
+  return false;
+}
+// qormTabSwipeInit installs the panel swipe: drag a `tabs` panel sideways to
+// move to the neighbouring tab, the gesture every phone user expects and the
+// reason `swipe: true` exists on the node.
+//
+// IDEMPOTENCE: ONE delegated document listener behind __qormTabSwipeReady, so a
+// morph (which does not re-run inline scripts, and would otherwise stack a
+// second listener per re-render) changes nothing. It owns NO client state —
+// the active index is read from .qorm-tab-active at event time — so there is
+// nothing for a reconcile pass to repair; only qormTabReveal runs from
+// qormMorphInto, and it too recomputes from the live DOM.
+function qormTabSwipeInit(){
+  if(window.__qormTabSwipeReady) return; window.__qormTabSwipeReady=true;
+  document.addEventListener('pointerdown', function(e){
+    if(e.button && e.button!==0) return;                 // primary button only
+    var t=e.target;
+    if(!t || !t.closest) return;
+    var panel=t.closest('.qorm-tabpanel'); if(!panel) return;
+    var root=panel.closest('[data-qorm-tabs]'); if(!root) return;   // opt-in marker
+    if(t.closest('input,textarea,select')) return;       // typing/dragging a control
+    if(qormTabScrollsX(t, panel)) return;                // inner scroller owns it
+    var x0=e.clientX, y0=e.clientY, done=false;
+    function onMove(ev){
+      if(done) return;
+      var dx=ev.clientX-x0, dy=ev.clientY-y0;
+      if(Math.abs(dx)<48) return;                        // travel threshold
+      if(Math.abs(dx)<Math.abs(dy)*1.5) return;          // vertical scroll, not a swipe
+      done=true; cleanup();
+      qormTabActivate(root, qormTabActive(root)+(dx<0?1:-1));
+    }
+    function cleanup(){ document.removeEventListener('pointermove',onMove); document.removeEventListener('pointerup',onUp); document.removeEventListener('pointercancel',onUp); }
+    function onUp(){ cleanup(); }
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onUp);
+  });
 }
 // Accordion: toggle the panel following the clicked header.
+//
+// `single: true` renders data-qorm-acc="single" on the accordion root and makes
+// the panels EXCLUSIVE — opening one closes the rest, the classic accordion.
+// The mode is read off the live DOM at click time (never captured), and the
+// default, where every panel toggles independently, is untouched.
 function qormAcc(btn){
-  var p=btn.nextElementSibling;
-  if(p){ p.style.display = (p.style.display==='none')?'block':'none'; }
+  var p=btn.nextElementSibling; if(!p) return;
+  var open=(p.style.display==='none');
+  var root=btn.closest && btn.closest('[data-qorm-acc="single"]');
+  if(open && root){
+    root.querySelectorAll('.qorm-acc-panel').forEach(function(q){ if(q!==p) q.style.display='none'; });
+  }
+  p.style.display = open ? 'block' : 'none';
+}
+// ---- carousel: autoplay + indicator dots -------------------------------------
+// A `carousel` is a CSS scroll-snap track, so paging it is free — what needs JS
+// is advancing it on a clock and reflecting the live scroll position on the
+// indicator dots.
+//
+// IDEMPOTENCE, the same shape as the timer registry: __qormCarousels is the
+// only client-owned state, qormCarouselSync reconciles it against the live DOM
+// after every morph (same track + same interval is never rescheduled, a changed
+// interval reschedules, a track that left the DOM is stopped and forgotten),
+// and it is called from qormMorphInto. The registry is keyed by the ELEMENT
+// rather than an id because morphEl mutates a surviving node in place, so the
+// identity is stable exactly as long as the widget is; the interval itself is
+// re-read from data-qorm-carousel on every pass, never closed over. The dots
+// hold no state at all — the active one is derived from scrollLeft each time.
+window.__qormCarousels = window.__qormCarousels || [];
+function qormCarouselIndex(el){
+  var r=el.getBoundingClientRect(), best=0, bd=Infinity;
+  for(var i=0;i<el.children.length;i++){
+    var d=Math.abs(el.children[i].getBoundingClientRect().left-r.left);
+    if(d<bd){ bd=d; best=i; }
+  }
+  return best;
+}
+function qormCarouselGo(el, i){
+  var n=el.children.length; if(!n) return;
+  if(i>=n) i=0; else if(i<0) i=n-1;                      // autoplay wraps
+  var r=el.getBoundingClientRect(), cr=el.children[i].getBoundingClientRect();
+  var want=el.scrollLeft+(cr.left-r.left);
+  try{ el.scrollTo({left:want, behavior:'smooth'}); }catch(_){ el.scrollLeft=want; }
+}
+// qormCarouselDots marks the dot matching the track's live scroll position. The
+// row is the track's next sibling ([data-qorm-dots]) — the renderer emits it
+// only when `indicators` is on, so this is a no-op for a plain carousel.
+function qormCarouselDots(el){
+  var row=el.nextElementSibling;
+  if(!row || !row.getAttribute || row.getAttribute('data-qorm-dots')===null) return;
+  var at=qormCarouselIndex(el);
+  for(var i=0;i<row.children.length;i++){
+    var d=row.children[i], on=(i===at);
+    d.setAttribute('aria-current', on?'true':'false');
+    d.style.background = on ? 'var(--accent)' : 'var(--sep)';
+  }
+}
+function qormCarouselTick(el){
+  if(!document.contains(el)) return;                     // gone; sync will prune it
+  if(document.hidden) return;                            // no work in a hidden tab
+  if(el.matches && el.matches(':hover')) return;         // pause while pointed at
+  qormCarouselGo(el, qormCarouselIndex(el)+1);
+}
+function qormCarouselEntry(el){
+  var l=window.__qormCarousels;
+  for(var i=0;i<l.length;i++){ if(l[i].el===el) return l[i]; }
+  return null;
+}
+function qormCarouselSync(){
+  var l=window.__qormCarousels, i;
+  for(i=l.length-1;i>=0;i--){                            // forget tracks that left the DOM
+    if(!document.contains(l[i].el)){ clearInterval(l[i].h); l.splice(i,1); }
+  }
+  document.querySelectorAll('[data-qorm-carousel]').forEach(function(el){
+    var ms=parseInt(el.getAttribute('data-qorm-carousel'),10)||0;
+    if(ms>0&&ms<250) ms=250;                             // same floor as declarative timers
+    var e=qormCarouselEntry(el);
+    if(!e || e.ms!==ms){                                 // unchanged: never double-schedule
+      if(e){ clearInterval(e.h); l.splice(l.indexOf(e),1); }
+      if(ms>0) l.push({el:el, ms:ms, h:setInterval(function(){ qormCarouselTick(el); }, ms)});
+    }
+  });
+  document.querySelectorAll('[data-qorm-dots]').forEach(function(row){
+    var el=row.previousElementSibling; if(el) qormCarouselDots(el);
+  });
+}
+function qormCarouselInit(){
+  if(window.__qormCarouselReady) return; window.__qormCarouselReady=true;
+  // Scroll does not bubble but does propagate through the capture phase, so one
+  // document listener follows every track without wiring any of them.
+  document.addEventListener('scroll', function(e){
+    var el=e.target;
+    if(el && el.nodeType===1 && el.nextElementSibling &&
+       el.nextElementSibling.getAttribute && el.nextElementSibling.getAttribute('data-qorm-dots')!==null){
+      qormCarouselDots(el);
+    }
+  }, true);
+  // Tapping a dot jumps to that slide; the index comes from the dot's position
+  // in the live row, so it survives any re-render.
+  document.addEventListener('click', function(e){
+    var t=e.target; if(!t || !t.closest) return;
+    var row=t.closest('[data-qorm-dots]'); if(!row) return;
+    var dot=t.closest('[data-qorm-dot]'); if(!dot) return;
+    var el=row.previousElementSibling; if(!el) return;
+    qormCarouselGo(el, Array.prototype.indexOf.call(row.children, dot));
+  });
+  qormCarouselSync();
 }
 // Menu: toggle the dropdown panel; close others.
 function qormMenu(btn){
@@ -1073,7 +1297,7 @@ function qormSheetInit(){
   });
   qormSheetSync();
 }
-function qormOverlayInit(){ qormLargeTitleInit(); qormSheetInit(); }
+function qormOverlayInit(){ qormLargeTitleInit(); qormSheetInit(); qormTabSwipeInit(); qormCarouselInit(); qormTabReveal(); }
 if(document.readyState!=='loading'){ qormTimersSync(); qormOverlayInit(); setTimeout(qormMeasure,60); setTimeout(qormHwInit,300); } else { window.addEventListener('load',function(){ qormTimersSync(); qormOverlayInit(); setTimeout(qormMeasure,60); setTimeout(qormHwInit,300); }); }
 // qormSwipeActions: swipe a row left to reveal trailing action buttons; tap an
 // action to fire it and close, tap the content or swipe back to close.

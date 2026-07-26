@@ -98,6 +98,21 @@ type Runtime struct {
 	// bare runtimes, offline renders and MCP simulations never open a socket on
 	// a background goroutine.
 	Async func(work func() any, resume func(any))
+	// AsyncAll makes EVERY http.* step take the Async sink, not only the ones
+	// that opted in with {"async": true}. It exists for one host shape: a
+	// single-threaded one whose dispatch runs on the same thread that services
+	// the UI event loop. On js/wasm that is literal — net/http blocks the
+	// calling goroutine on the JS fetch, and when that goroutine is the one
+	// re-entering Go from a js.FuncOf callback the scheduler deadlocks waiting
+	// on itself (cmd/qorm-wasm/main.go promise()) — so a synchronous http step
+	// there does not merely stall, it freezes the app permanently. Such a host
+	// sets this flag when it installs Async (see playcore.InstallSinks) and the
+	// step's own Async field becomes advisory.
+	//
+	// It is inert without an Async sink, so it can never make a bare runtime,
+	// an offline render or an MCP simulation behave differently; and like the
+	// two sinks it is not set by New and not carried by Clone.
+	AsyncAll bool
 	// inflight counts async requests started but not yet resumed. Guarded by
 	// the host's dispatch lock, like the state it lives beside.
 	inflight int
@@ -128,6 +143,20 @@ const maxIfDepth = 32
 // other cannot ping-pong forever.
 const maxEnterChain = 8
 
+// maxGuardRedirects caps the guard redirect chain resolved for ONE navigation
+// (scene A's guard sends you to B, whose guard sends you to C, ...). Reaching
+// the cap — or revisiting a scene already seen in the same chain — refuses the
+// navigation outright rather than looping. It shares maxEnterChain's budget
+// shape on purpose: a redirect landing on a scene whose onEnter navigates again
+// is bounded by BOTH caps.
+const maxGuardRedirects = maxEnterChain
+
+// maxForEachIterations caps one `forEach` step's iterations. A collection
+// longer than this is truncated (the extra elements are simply not visited), so
+// a state array that grew unexpectedly — or was filled by an http response —
+// cannot turn one dispatch into an unbounded amount of work.
+const maxForEachIterations = 10000
+
 // navFrame is one entry on the navigation back stack: the scene to return to
 // and the route params it was shown with.
 type navFrame struct {
@@ -140,13 +169,28 @@ func (r *Runtime) CurrentScene() string { return r.Scene }
 
 // Navigate pushes the current scene (and its route params) onto the back stack
 // and shows `to` with the given params. params may be nil (→ an empty route).
-// Unknown scenes and no-op navigations are ignored.
+// Unknown scenes and no-op navigations are ignored, and the target's route
+// guard runs first: a guard that fails diverts this push to its redirect target
+// (so the back stack records the scene you actually came from, never the one
+// you were refused) or cancels it entirely.
 func (r *Runtime) Navigate(to string, params map[string]any) {
 	if to == "" || to == r.Scene {
 		return
 	}
 	if _, ok := r.App.Scenes[to]; !ok {
 		return
+	}
+	resolved, gparams, ok := r.guardResolve(to, params)
+	if !ok {
+		return // the guard refused this navigation: stay put
+	}
+	if resolved != to {
+		// The guard diverted us. Landing back on the scene already showing is
+		// a no-op — pushing it would leave a duplicate frame on the back stack.
+		if r.sameScene(resolved, r.Scene) {
+			return
+		}
+		to, params = resolved, gparams
 	}
 	r.NavStack = append(r.NavStack, navFrame{Scene: r.Scene, Params: r.RouteParams})
 	r.Scene = to
@@ -221,6 +265,24 @@ func (r *Runtime) NavigateTo(scene string, params map[string]any) {
 			return
 		}
 	}
+	// Route guards run BEFORE the Back detection below, so the stack unwind is
+	// decided for the scene actually being entered — and so a deep link or a
+	// browser Back into a protected scene is guarded exactly like an in-app
+	// navigate. The guard speaks concrete scene ids; the entry scene's ""
+	// spelling is restored afterwards so the frame bookkeeping is unchanged.
+	target, gparams, ok := r.guardResolve(r.sceneID(scene), params)
+	if !ok {
+		return
+	}
+	if !r.sameScene(target, scene) {
+		scene, params = target, gparams
+		if isEntry(scene) {
+			scene = ""
+		}
+		if scene == r.Scene || (isEntry(scene) && isEntry(r.Scene)) {
+			return // the guard diverted us to the scene already on screen
+		}
+	}
 	if n := len(r.NavStack); n > 0 {
 		if top := r.NavStack[n-1].Scene; top == scene || (isEntry(top) && isEntry(scene)) {
 			r.NavigateBack() // URL points at the previous frame: this is a Back
@@ -259,7 +321,145 @@ func New(app *model.App) *Runtime {
 	if state == nil {
 		state = map[string]any{}
 	}
-	return &Runtime{App: app, State: state, RouteParams: map[string]any{}, pendingEnter: true}
+	rt := &Runtime{App: app, State: state, RouteParams: map[string]any{}, pendingEnter: true}
+	rt.refreshComputed() // derived values exist from the very first frame
+	return rt
+}
+
+// sceneID normalises a scene spelling to a concrete id: the entry scene is
+// addressed both as "" and by its id, and everything that reasons about a
+// scene's declarations (guards, onEnter) must see the same key for both.
+func (r *Runtime) sceneID(scene string) string {
+	if scene == "" {
+		return r.App.Entry
+	}
+	return scene
+}
+
+// sameScene reports whether two scene spellings denote the same scene.
+func (r *Runtime) sameScene(a, b string) bool { return r.sceneID(a) == r.sceneID(b) }
+
+// guardResolve applies the route guards protecting `scene` and returns the
+// scene that may actually be entered, the route params to enter it with, and
+// whether the navigation is allowed at all.
+//
+// A scene with no guard, or whose guard condition is truthy, is returned
+// unchanged — the overwhelmingly common case, and the only one an app without
+// guards ever takes. A failing guard hands over to its Redirect target, whose
+// own guard is then resolved in turn (so a chain of protections composes), with
+// the redirect's Params evaluated in the CURRENT scene context. A failing guard
+// with no redirect, a chain that revisits a scene, and a chain longer than
+// maxGuardRedirects all refuse the navigation (ok=false), which every caller
+// turns into "stay where you are" — the safe outcome for a guard whose author
+// wrote a loop.
+func (r *Runtime) guardResolve(scene string, params map[string]any) (string, map[string]any, bool) {
+	if len(r.App.SceneGuards) == 0 {
+		return scene, params, true
+	}
+	seen := map[string]bool{}
+	for i := 0; i < maxGuardRedirects; i++ {
+		g := r.App.SceneGuards[r.sceneID(scene)]
+		if g == nil || g.Condition == "" {
+			return scene, params, true
+		}
+		ctx := r.guardCtx()
+		if expr.Truthy(EvalBinding(g.Condition, ctx)) {
+			return scene, params, true
+		}
+		if g.Redirect == "" || seen[r.sceneID(g.Redirect)] {
+			return "", nil, false
+		}
+		seen[r.sceneID(scene)] = true
+		params = evalParams(g.Params, ctx)
+		scene = g.Redirect
+	}
+	return "", nil, false
+}
+
+// ComputedVars returns the app's derived values as an evaluation-scope map —
+// the same map published at state.<ComputedNamespace>, so it is read-only to
+// callers. A host that wants the shorter bare spelling ({{ computed.total }})
+// in SCENE bindings adds it to its binding context under
+// model.ComputedNamespace; inside actions the bare spelling already works,
+// because an action context exposes every top-level state key. Never nil.
+func (r *Runtime) ComputedVars() map[string]any {
+	if m, ok := r.State[model.ComputedNamespace].(map[string]any); ok {
+		return m
+	}
+	return map[string]any{}
+}
+
+// refreshComputed re-evaluates every declared computed value and republishes
+// the whole namespace. It is the ONLY writer of state.<ComputedNamespace>.
+//
+// Evaluation happens once per frame rather than once per binding: the values
+// are materialised into a plain map that every later binding just reads, so a
+// total bound by a dozen nodes costs one evaluation. Names are evaluated in
+// model.ComputedOrder, so a value may read another one ({{ computed.subtotal +
+// computed.tax }}) and see it already filled in; names caught in a dependency
+// cycle are published as NOTHING (reading one yields nil), which is what makes
+// a circular declaration a diagnosable mistake instead of a stack overflow.
+//
+// An app that declares no computed values never touches state at all, so
+// "computed" stays an ordinary state key for every app written before this
+// existed.
+func (r *Runtime) refreshComputed() {
+	if r.App == nil || len(r.App.Computed) == 0 {
+		return
+	}
+	// Assigned in one shot: a half-filled namespace is never observable, not
+	// even by a host reading state from another goroutine mid-refresh.
+	r.State[model.ComputedNamespace] = r.deriveComputed()
+}
+
+// deriveComputed evaluates every declared value and returns the namespace,
+// WITHOUT publishing it. It reads the runtime but writes nothing, which is what
+// lets a route guard decide against an up-to-date derived view (see guardCtx)
+// while the published view still turns over only at frame boundaries.
+func (r *Runtime) deriveComputed() map[string]any {
+	out := make(map[string]any, len(r.App.Computed))
+	// A shallow copy of state with the namespace pointed at the map being
+	// filled: each value therefore sees the ones evaluated before it (the
+	// dependency order guarantees those are the ones it declared a need for),
+	// and the live state is not touched while that happens.
+	st := make(map[string]any, len(r.State)+1)
+	for k, v := range r.State {
+		st[k] = v
+	}
+	st[model.ComputedNamespace] = out
+	ctx := map[string]any{"state": st, "t": r.Catalog(), "viewport": r.ViewportVars()}
+	for k, v := range st {
+		ctx[k] = v // bare spellings, including `computed` itself
+	}
+	order, _ := r.App.ComputedOrder()
+	for _, name := range order {
+		out[name] = EvalBinding(r.App.Computed[name], ctx)
+	}
+	return out
+}
+
+// guardCtx is the evaluation context for a route-guard condition: the scene
+// context, but with the derived values RE-EVALUATED first.
+//
+// The published derived view deliberately turns over only at frame boundaries,
+// so every binding in one frame agrees. A guard is not a binding, though — it
+// is a decision taken mid-dispatch, and the state it judges is live. An action
+// that signs a user in and then navigates would otherwise be judged against the
+// derived view from before it ran, i.e. `{{ state.user != null }}` would let
+// the navigation through while the equivalent `{{ computed.signedIn }}` bounced
+// it. Refreshing here is what makes those two spellings mean the same thing.
+func (r *Runtime) guardCtx() map[string]any {
+	ctx := r.sceneCtx()
+	if r.App == nil || len(r.App.Computed) == 0 {
+		return ctx
+	}
+	st := make(map[string]any, len(r.State)+1)
+	for k, v := range r.State {
+		st[k] = v
+	}
+	st[model.ComputedNamespace] = r.deriveComputed()
+	ctx["state"] = st
+	return ctx
 }
 
 // RunPendingEnter dispatches the current scene's onEnter action if navigation
@@ -273,12 +473,33 @@ func New(app *model.App) *Runtime {
 // cannot loop forever (navigating to the scene itself is already a runtime
 // no-op and never re-marks).
 func (r *Runtime) RunPendingEnter() {
+	// One refresh per frame: every host funnels its mutation paths (human
+	// events, agent writes over MCP, viewport reports, OTA activation) through
+	// the call site of this method before rendering, so a derived value is
+	// current even when the state under it was written without dispatching an
+	// action.
+	r.refreshComputed()
 	last := "\x00" // sentinel: never equals a scene key
 	for i := 0; i < maxEnterChain && r.pendingEnter; i++ {
 		r.pendingEnter = false
 		scene := r.Scene
 		if scene == "" {
 			scene = r.App.Entry
+		}
+		// Route guard, checked before the scene's onEnter and before it
+		// renders — this is the path that protects the ENTRY scene and any
+		// scene a host put on screen directly (a deep link, a restored
+		// session). A guard that fires REPLACES the current frame rather than
+		// pushing one: you were never legitimately on the guarded scene, so it
+		// must not become somewhere Back can return to.
+		if to, params, ok := r.guardResolve(scene, r.RouteParams); ok && !r.sameScene(to, scene) {
+			r.Scene = to
+			if params == nil {
+				params = map[string]any{}
+			}
+			r.RouteParams = params
+			r.pendingEnter = true
+			continue
 		}
 		if scene == last {
 			// The hook navigated back into the SAME scene (e.g. the entry
@@ -505,7 +726,16 @@ func (r *Runtime) Dispatch(name string, args map[string]any) {
 		r.frames = 0
 	}
 	r.callDepth++
-	defer func() { r.callDepth-- }()
+	// Derived values are republished at the dispatch BOUNDARY, not per step:
+	// one action that writes five state keys recomputes them once, and the
+	// state the caller reads the moment Dispatch returns is already consistent
+	// with its own derived view. Nested invokes share the outer boundary.
+	defer func() {
+		r.callDepth--
+		if r.callDepth == 0 {
+			r.refreshComputed()
+		}
+	}()
 	if name == BuiltinDismiss {
 		if p, ok := args["path"].(string); ok && p != "" {
 			setPath(r.State, p, false)
@@ -593,6 +823,15 @@ func evalParams(params map[string]string, ctx map[string]any) map[string]any {
 }
 
 func (r *Runtime) applyStep(step model.Step, ctx map[string]any, depth int) {
+	// The computed namespace is DERIVED: it is republished wholesale at every
+	// frame boundary, so a step that writes into it would be both overwritten
+	// and misleading. Such a step is dropped here and reported by the loader as
+	// an error. The check costs nothing for an app that declares no computed
+	// values — where "computed" is just an ordinary state key and keeps working.
+	if len(r.App.Computed) > 0 &&
+		(model.IsComputedPath(step.Path) || model.IsComputedPath(step.Result) || model.IsComputedPath(step.Error)) {
+		return
+	}
 	switch step.Type {
 	case "render":
 		// Publish the state written so far as a frame, mid-action. This is what
@@ -601,6 +840,10 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any, depth int) {
 		// it is a no-op, so the same JSON runs unchanged on every host.
 		if r.Commit != nil && r.frames < maxFrames {
 			r.frames++
+			// An intermediate frame is a real frame: refresh the derived values
+			// so the loading state it shows carries a consistent computed view
+			// (the dispatch boundary is still to come).
+			r.refreshComputed()
 			r.Commit()
 		}
 	case "if":
@@ -613,6 +856,10 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any, depth int) {
 		} else {
 			r.applySteps(step.Else, ctx, depth+1)
 		}
+	case "forEach":
+		// Bulk step: run the body once per element of `in`, with the element
+		// bound under the item alias. See applyForEach.
+		r.applyForEach(step, ctx, depth)
 	case "invoke":
 		// Action-calls-action: evaluate the args in the CALLER's context and
 		// dispatch the target action with them — the same semantics as an
@@ -730,6 +977,88 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any, depth int) {
 	}
 }
 
+// reservedScopeAliases are evaluation-context roots a `forEach` alias must
+// never shadow: binding the element over one of them would break every
+// {{state.x}} (etc.) inside the loop body. MUST mirror the renderer's set of
+// the same name (internal/render/render_data.go) — the runtime cannot import
+// the renderer (the renderer imports the runtime), and a `forEach` alias and a
+// renderItem alias that resolved differently would be two rules to learn where
+// the JSON shows one. TestForEachAliasNamesMatchRenderer pins the parity.
+var reservedScopeAliases = map[string]bool{
+	"state": true, "t": true, "viewport": true, "route": true, "prop": true,
+}
+
+// listAliasNames resolves a `forEach` step's `as` value to the four scope names
+// its body binds: the element alias plus the derived index/first/last keys. The
+// default alias keeps the short built-in names (`index`, `first`, `last`); a
+// custom alias namespaces them (`as: "row"` → `rowIndex`, `rowFirst`,
+// `rowLast`) so a nested loop keeps the outer loop's bindings visible. An `as`
+// that is reserved or not a plain identifier falls back to the default names
+// (the loader warns about it at load time). Mirrors render.ListAliasNames.
+func listAliasNames(as string) (alias, idxKey, firstKey, lastKey string) {
+	if as == "" || as == "item" || reservedScopeAliases[as] || !isIdent(as) {
+		return "item", "index", "first", "last"
+	}
+	return as, as + "Index", as + "First", as + "Last"
+}
+
+// isIdent reports whether s is a plain identifier ([A-Za-z_][A-Za-z0-9_]*) —
+// the only names the expression language can reference.
+func isIdent(s string) bool {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c == '_' || 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || (i > 0 && '0' <= c && c <= '9') {
+			continue
+		}
+		return false
+	}
+	return s != ""
+}
+
+// applyForEach runs a `forEach` step: the body once per element of the `in`
+// collection, with the element bound under the alias plus index/first/last —
+// the same four names a list's renderItem template binds, resolved by the same
+// rules, so "how do I read the current element" has one answer across the whole
+// format.
+//
+// Guards, all of them deliberate:
+//   - a non-array `in` (nil, a number, an object, an unevaluatable expression)
+//     iterates zero times rather than guessing an iteration for it;
+//   - the body nests under the SAME depth budget as `if` (applySteps enforces
+//     maxIfDepth on depth+1), so loops-inside-branches-inside-loops terminate;
+//   - `invoke` inside the body still goes through Dispatch's call-depth guard;
+//   - the element count is capped at maxForEachIterations.
+//
+// The bound element is the LIVE value from state, so a body step that mutates
+// the array it iterates (state.updateWhere over the same path) sees its own
+// writes — the ordinary Go slice-aliasing semantics every other step already
+// has. `last` is computed against the collection's REAL length, so it is simply
+// never true in a run that hit the iteration cap.
+func (r *Runtime) applyForEach(step model.Step, ctx map[string]any, depth int) {
+	items, _ := EvalBinding(step.In, ctx).([]any)
+	if len(items) == 0 {
+		return
+	}
+	alias, idxKey, firstKey, lastKey := listAliasNames(step.As)
+	n := len(items)
+	if n > maxForEachIterations {
+		n = maxForEachIterations
+	}
+	for i := 0; i < n; i++ {
+		loop := make(map[string]any, len(ctx)+4)
+		for k, v := range ctx {
+			loop[k] = v
+		}
+		// Written after the copy, so the innermost loop wins a name collision
+		// with an enclosing one — same precedence as nested renderItem scopes.
+		loop[alias] = items[i]
+		loop[idxKey] = float64(i)
+		loop[firstKey] = i == 0
+		loop[lastKey] = i == len(items)-1
+		r.applySteps(step.Steps, loop, depth+1)
+	}
+}
+
 // httpClient is the shared client for backend calls (overridable in tests).
 var httpClient = &http.Client{Timeout: 20 * time.Second}
 
@@ -756,7 +1085,8 @@ var httpClient = &http.Client{Timeout: 20 * time.Second}
 //     branch runs inline in the caller's context, so this call does not return
 //     until the branch has finished and the state is readable the moment
 //     Dispatch returns.
-//   - Async ({"async": true} AND a host sink): the request is built here — so
+//   - Async ({"async": true} — or a host that set AsyncAll — AND a host sink):
+//     the request is built here — so
 //     a malformed URL still fails synchronously, before anything is handed off
 //     — and only the round trip plus the continuation move to the host's
 //     background sink. applyHTTP returns immediately and the step's siblings
@@ -815,7 +1145,7 @@ func (r *Runtime) applyHTTP(step model.Step, ctx map[string]any, depth int) {
 	if body != nil && req.Header.Get("Content-Type") == "" {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	if step.Async && r.Async != nil {
+	if (step.Async || r.AsyncAll) && r.Async != nil {
 		frozen := freezeCtx(r.State, ctx)
 		r.inflight++
 		r.Async(
@@ -831,6 +1161,10 @@ func (r *Runtime) applyHTTP(step model.Step, ctx map[string]any, depth int) {
 				// whatever the dispatch that started the request had left.
 				r.frames = 0
 				r.settleHTTP(step, resultPath, freshCtx(r, frozen), 0, out)
+				// The continuation is its own dispatch boundary: it lands
+				// outside the Dispatch that started the request, so the derived
+				// values must be republished here too.
+				r.refreshComputed()
 			})
 		return
 	}

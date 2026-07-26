@@ -325,6 +325,14 @@ func itemScope(outer map[string]any, alias, idxKey, firstKey, lastKey string, it
 //   - `indicator` / `indicatorColor` — style the active-tab indicator
 //     (`underline` default, `pill`, or `none`), see tabIndicator.
 //   - `lazy` — render ONLY the active panel instead of all of them (see below).
+//   - `swipe` — drag a panel sideways to move to the neighbouring tab. Opt-in
+//     because a swipe is a CLAIM on the gesture: it is the right default for a
+//     phone tab set and the wrong one for a panel whose content the user drags
+//     for its own reasons. It emits nothing but the data-qorm-tabs marker the
+//     client gesture keys on; the swipe then activates the neighbouring tab by
+//     synthesizing that tab's own tap, so it behaves identically in the
+//     controlled and uncontrolled forms (and with onChange) without the
+//     renderer registering a single extra handler.
 //
 // Lazy is deliberately gated on the tabs being controlled. Client-side
 // switching works by toggling the display of panels that are ALREADY in the
@@ -342,7 +350,11 @@ func (r *renderer) tabs(n *model.Node) {
 	path := boundPath(propStr(n, "active"))
 	lazy := propBool(n, "lazy") && (path != "" || n.OnChange != nil)
 
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;")
+	swipe := ""
+	if propBool(n, "swipe") {
+		swipe = fmt.Sprintf(` data-qorm-tabs="%d"`, count)
+	}
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;", swipe)
 	r.tabIndicator(n)
 	bar := "display:flex;gap:2px;border-bottom:1px solid var(--sep);"
 	item := ""
@@ -1010,9 +1022,19 @@ func colGroup(widths []string, extraLeading bool) string {
 // one starts open is `active` — a literal or a binding, clamped into range and
 // defaulting to the first panel, so an accordion that declares nothing renders
 // as it always did. Toggling stays client-side (qormAcc).
+//
+// `single: true` makes the panels EXCLUSIVE — opening one closes the others,
+// the behaviour most people mean by "accordion". It is opt-in, and emits only
+// the data-qorm-acc marker qormAcc reads at click time, because the default has
+// always been independent toggles and apps rely on it (a settings list where
+// two sections are open at once is a legitimate, and today's, layout).
 func (r *renderer) accordion(n *model.Node) {
 	active := r.activeIndex(n, len(n.Children))
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;border:1px solid var(--sep);border-radius:10px;overflow:hidden;")
+	single := ""
+	if propBool(n, "single") {
+		single = ` data-qorm-acc="single"`
+	}
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;border:1px solid var(--sep);border-radius:10px;overflow:hidden;", single)
 	for i, c := range n.Children {
 		open := i == active
 		disp := "none"

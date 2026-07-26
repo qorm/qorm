@@ -27,7 +27,17 @@ type UpdateConfig struct {
 // The app runs entirely client-side — no server — so it can be wrapped in a
 // PWA / APK / IPA. bundleJSON is the app compiled with bundle.Build+Marshal.
 // update, when non-nil, turns on the OTA client (see UpdateConfig); nil keeps
-// the boot byte-identical to a package built before OTA existed.
+// the boot free of every OTA string, byte for byte as it was before OTA
+// existed — TestOfflineHTMLFetchesBundle pins that.
+//
+// A packaged app is also the host for the runtime's two frame sinks, and it
+// needs no boot code for them: qormApplyFrame lives in the shared app.js this
+// page already carries, so BOTH boot variants have it. The WASM runtime calls
+// it whenever it has a frame nothing is waiting on — the loading frame of a
+// `render` step, or an http.* completion that came back on a background
+// goroutine — and the offline driver below keeps handling the frame qormEvent
+// returns synchronously. Without that pair a packaged app either froze on an
+// http step (the js/wasm deadlock) or settled invisibly.
 func OfflineHTML(rt *runtime.Runtime, bundleJSON string, update *UpdateConfig) (string, error) {
 	page := Page(rt, render.Render(rt).HTML, 0)
 
