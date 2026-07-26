@@ -242,6 +242,12 @@ func (r *renderer) node(n *model.Node) {
 	if !r.visible(n) {
 		return
 	}
+	// A bound `type` is resolved BEFORE anything dispatches on it (the
+	// animation-widget check included), so a dynamically typed node behaves
+	// exactly like the static node it resolves to.
+	if strings.Contains(n.Type, "{{") {
+		n = r.resolveType(n)
+	}
 	if !animationWidgets[n.Type] {
 		if raw := propStr(n, "animation"); raw != "" {
 			if effect := r.interp(raw); effect != "" {
@@ -251,6 +257,36 @@ func (r *renderer) node(n *model.Node) {
 		}
 	}
 	r.renderInner(n)
+}
+
+// resolveType resolves a node whose `type` is itself a binding —
+// {"type":"{{item.kind}}"} — against the CURRENT scope, so one renderItem
+// template can render a different widget per item (chat bubble / image / system
+// notice) instead of a stack of `when`-gated alternatives that grows with every
+// new kind. The loader keeps the binding verbatim (it cannot know the widget
+// statically), and this is where it becomes a widget name.
+//
+// It returns a shallow COPY carrying the resolved type and never mutates the
+// scene node: the same template node is re-rendered for every list item, each
+// item may resolve to a different widget, and the tree is shared across renders.
+//
+// The resolved name re-enters the ordinary dispatch in renderInner, so it is
+// bound by exactly the same rules as a static type — app components first, then
+// the built-in widget switch, then the unknown() fallback — and gains no way to
+// bypass the escaping every renderer applies to ids, props and text.
+// An expression that fails to evaluate yields "" (EvalBinding's contract) and a
+// mixed form may still carry braces; in both cases the raw binding stays as the
+// type, matches no case, and the node degrades through unknown() — tagged
+// data-qorm-unknown and reported in Result.Unknown — rather than panicking or
+// silently vanishing.
+func (r *renderer) resolveType(n *model.Node) *model.Node {
+	t := strings.TrimSpace(r.interp(n.Type))
+	if t == "" || strings.Contains(t, "{{") {
+		return n
+	}
+	cp := *n
+	cp.Type = t
+	return &cp
 }
 
 // renderInner dispatches a node to its renderer (component instantiation or the

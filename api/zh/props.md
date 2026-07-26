@@ -10,7 +10,7 @@
 
 | 键 | 类型 | 含义 |
 |---|---|---|
-| `type` | string | 组件名——见[组件目录](widgets.md) |
+| `type` | string | 组件名——见[组件目录](widgets.md);可为 `{{ 绑定 }}`(如 `{{ item.kind }}`),渲染期按当前作用域求值决定节点类型,因此一个模板可按数据渲染成不同组件 |
 | `id` | string | 稳定的节点 id(用于状态绑定、补丁、`data-state`) |
 | `text` | string | 文本内容(text/heading/paragraph 节点) |
 | `label` | string | 按钮 / 控件标签 |
@@ -34,6 +34,7 @@
 
 - **Box (`style`)** — `width` `height` `minWidth` `maxWidth` `minHeight` `maxHeight` `padding` `margin` `gap` `background` `gradient` `borderRadius` `borderWidth` `borderColor` `shadow` `opacity` `aspectRatio` `flexGrow` `flexShrink` `alignSelf` `zIndex` `position` `top` `right` `bottom` `left` `cursor` `transition`
 - **Text (`style`)** — `color` `fontSize` `fontWeight` `fontFamily` `lineHeight` `letterSpacing` `fontStyle` `textDecoration` `textTransform` `textAlign` `lineClamp`
+- **Pseudo-state (`style`)** — `hoverBackground` `hoverColor` `hoverOpacity` `pressedScale` `pressedOpacity` `focusBorderColor` `disabled` `disabledOpacity`
 - **Layout (`layout`)** — `width` `height` `align` `justify` (`wrap` on containers, `columns` on `grid`, `orientation` on `scroll`)
 - **Accessibility (top-level)** — `role` `ariaLabel` `title` `tooltip`
 
@@ -95,7 +96,7 @@
 | `filepicker` | `label` |
 | `form` | — |
 | `gesturedetector` | `onDoubleTap` · `onLongPress` |
-| `gridview` | `as` · `crossAxisCount` · `minItemWidth` · `spacing` |
+| `gridview` | `as` · `crossAxisCount` · `minItemWidth` · `page` · `pageSize` · `spacing` |
 | `haptics` | `label` |
 | `icon` | `glyph` · `icon` · `size` |
 | `ignorepointer` | — |
@@ -107,7 +108,7 @@
 | `largetitle` | `background` · `subtitle` |
 | `limitedbox` | `maxHeight` · `maxWidth` |
 | `link` | `href` |
-| `list` | `as` · `itemHeight` · `onReorder` · `reorderable` · `virtualize` |
+| `list` | `as` · `groupBy` · `itemHeight` · `onRefresh` · `onReorder` · `page` · `pageSize` · `reorderable` · `sectionHeader` · `separator` · `sticky` · `stickyTop` · `virtualize` |
 | `listsection` | `footer` · `header` |
 | `listtile` | `chevron` · `leading` · `subtitle` · `trailing` |
 | `location` | `label` |

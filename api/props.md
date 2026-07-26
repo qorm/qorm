@@ -10,7 +10,7 @@ Every node object may carry these top-level keys:
 
 | Key | Type | Meaning |
 |---|---|---|
-| `type` | string | widget name — see the [widget catalog](widgets.md) |
+| `type` | string | widget name — see the [widget catalog](widgets.md); may be a `{{ binding }}` (e.g. `{{ item.kind }}`), resolved against the current scope at render time so one template can render a different widget per item |
 | `id` | string | stable node id (for state binding, patching, `data-state`) |
 | `text` | string | text content (text/heading/paragraph nodes) |
 | `label` | string | button / control label |
@@ -34,6 +34,7 @@ Read by the shared renderer, so they work on any node that draws a box:
 
 - **Box (`style`)** — `width` `height` `minWidth` `maxWidth` `minHeight` `maxHeight` `padding` `margin` `gap` `background` `gradient` `borderRadius` `borderWidth` `borderColor` `shadow` `opacity` `aspectRatio` `flexGrow` `flexShrink` `alignSelf` `zIndex` `position` `top` `right` `bottom` `left` `cursor` `transition`
 - **Text (`style`)** — `color` `fontSize` `fontWeight` `fontFamily` `lineHeight` `letterSpacing` `fontStyle` `textDecoration` `textTransform` `textAlign` `lineClamp`
+- **Pseudo-state (`style`)** — `hoverBackground` `hoverColor` `hoverOpacity` `pressedScale` `pressedOpacity` `focusBorderColor` `disabled` `disabledOpacity`
 - **Layout (`layout`)** — `width` `height` `align` `justify` (`wrap` on containers, `columns` on `grid`, `orientation` on `scroll`)
 - **Accessibility (top-level)** — `role` `ariaLabel` `title` `tooltip`
 
@@ -95,7 +96,7 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `filepicker` | `label` |
 | `form` | — |
 | `gesturedetector` | `onDoubleTap` · `onLongPress` |
-| `gridview` | `as` · `crossAxisCount` · `minItemWidth` · `spacing` |
+| `gridview` | `as` · `crossAxisCount` · `minItemWidth` · `page` · `pageSize` · `spacing` |
 | `haptics` | `label` |
 | `icon` | `glyph` · `icon` · `size` |
 | `ignorepointer` | — |
@@ -107,7 +108,7 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `largetitle` | `background` · `subtitle` |
 | `limitedbox` | `maxHeight` · `maxWidth` |
 | `link` | `href` |
-| `list` | `as` · `itemHeight` · `onReorder` · `reorderable` · `virtualize` |
+| `list` | `as` · `groupBy` · `itemHeight` · `onRefresh` · `onReorder` · `page` · `pageSize` · `reorderable` · `sectionHeader` · `separator` · `sticky` · `stickyTop` · `virtualize` |
 | `listsection` | `footer` · `header` |
 | `listtile` | `chevron` · `leading` · `subtitle` · `trailing` |
 | `location` | `label` |

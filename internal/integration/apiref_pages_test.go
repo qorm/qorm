@@ -50,7 +50,7 @@ func fenceGoDoc(s string) string {
 // nodeSchema is the fixed set of top-level keys the loader reads off every node
 // (internal/loader/loader.go buildNode); everything else falls into `props`.
 var nodeSchema = [][4]string{
-	{"type", "string", "widget name — see the [widget catalog](widgets.md)", "组件名——见[组件目录](widgets.md)"},
+	{"type", "string", "widget name — see the [widget catalog](widgets.md); may be a `{{ binding }}` (e.g. `{{ item.kind }}`), resolved against the current scope at render time so one template can render a different widget per item", "组件名——见[组件目录](widgets.md);可为 `{{ 绑定 }}`(如 `{{ item.kind }}`),渲染期按当前作用域求值决定节点类型,因此一个模板可按数据渲染成不同组件"},
 	{"id", "string", "stable node id (for state binding, patching, `data-state`)", "稳定的节点 id(用于状态绑定、补丁、`data-state`)"},
 	{"text", "string", "text content (text/heading/paragraph nodes)", "文本内容(text/heading/paragraph 节点)"},
 	{"label", "string", "button / control label", "按钮 / 控件标签"},
@@ -75,6 +75,7 @@ var nodeSchema = [][4]string{
 var commonStyle = []struct{ group, keys string }{
 	{"Box (`style`)", "`width` `height` `minWidth` `maxWidth` `minHeight` `maxHeight` `padding` `margin` `gap` `background` `gradient` `borderRadius` `borderWidth` `borderColor` `shadow` `opacity` `aspectRatio` `flexGrow` `flexShrink` `alignSelf` `zIndex` `position` `top` `right` `bottom` `left` `cursor` `transition`"},
 	{"Text (`style`)", "`color` `fontSize` `fontWeight` `fontFamily` `lineHeight` `letterSpacing` `fontStyle` `textDecoration` `textTransform` `textAlign` `lineClamp`"},
+	{"Pseudo-state (`style`)", "`hoverBackground` `hoverColor` `hoverOpacity` `pressedScale` `pressedOpacity` `focusBorderColor` `disabled` `disabledOpacity`"},
 	{"Layout (`layout`)", "`width` `height` `align` `justify` (`wrap` on containers, `columns` on `grid`, `orientation` on `scroll`)"},
 	{"Accessibility (top-level)", "`role` `ariaLabel` `title` `tooltip`"},
 }

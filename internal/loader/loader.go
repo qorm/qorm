@@ -567,6 +567,14 @@ var valueWidgets = map[string]bool{
 func buildNode(m map[string]any, diags *[]string, sceneID string, vars map[string]string, scope map[string]bool) *model.Node {
 	nodeID := asString(m["id"])
 	nodeType := asString(m["type"])
+	// A `type` carrying a {{binding}} — {"type":"{{item.kind}}"} — is a
+	// polymorphic node: the renderer evaluates it against the live scope and
+	// dispatches on the RESULT (see resolveType in internal/render), so the
+	// widget kind is unknowable here. The binding is stored verbatim (round-trip
+	// safe: NodeToJSON writes n.Type back out unchanged), and every static check
+	// that keys off the widget kind must stand down for it rather than judge the
+	// literal "{{item.kind}}" — checks that do not depend on the kind still run.
+	boundType := strings.Contains(nodeType, "{{")
 
 	if diags != nil {
 		// 校验 on 属性
@@ -576,7 +584,9 @@ func buildNode(m map[string]any, diags *[]string, sceneID string, vars map[strin
 
 		// 校验 value 属性：仅对渲染器不消费 value 的节点类型告警
 		// （消费 value 的控件见 valueWidgets——那里 value 是双向绑定的正规 API）。
-		if val, hasVal := m["value"]; hasVal {
+		// type 为绑定时跳过：节点类型渲染期才定，可能正好落在 valueWidgets 内，
+		// 此时按字面量 "{{...}}" 判定只会误报。
+		if val, hasVal := m["value"]; hasVal && !boundType {
 			valStr := asString(val)
 			if valStr != "" && !valueWidgets[nodeType] {
 				*diags = append(*diags, fmt.Sprintf("[Scene: %s] 节点 (id: %q, type: %q) 错误地配置了 'value': %q。普通文本节点请使用 'text' 属性，状态绑定请使用 '{{state.xxx}}'。", sceneID, nodeID, nodeType, valStr))
