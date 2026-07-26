@@ -87,6 +87,126 @@ func TestFetchHTTPUnreachable(t *testing.T) {
 	}
 }
 
+func TestFetchBlockPrivateRejectsPrivateTargets(t *testing.T) {
+	// Direct fetches to private, link-local (incl. the cloud metadata
+	// address), multicast and unspecified destinations must be refused before
+	// any connection is made. IPv4 and IPv6 forms alike.
+	sources := []string{
+		"http://10.0.0.1/bundle.json",
+		"http://172.16.0.1/bundle.json",
+		"http://192.168.1.1/bundle.json",
+		"http://169.254.169.254/latest/meta-data/", // cloud metadata service
+		"http://0.0.0.0:8080/bundle.json",
+		"http://[fe80::1]/bundle.json",
+		"http://[fd00::1]/bundle.json", // IPv6 ULA (private)
+		"http://[::]/bundle.json",
+		"http://[::ffff:10.0.0.1]/bundle.json", // IPv4-mapped IPv6
+	}
+	for _, src := range sources {
+		t.Run(src, func(t *testing.T) {
+			got, err := Fetch(src, BlockPrivate())
+			if err == nil || !strings.Contains(err.Error(), "refusing") {
+				t.Fatalf("BlockPrivate must refuse %s, got=%d bytes err=%v", src, len(got), err)
+			}
+		})
+	}
+}
+
+func TestFetchBlockPrivateAllowsLoopback(t *testing.T) {
+	// Loopback stays allowed under BlockPrivate: local bundle servers are the
+	// normal dev workflow and loopback is reachable by any local process
+	// anyway (see the BlockPrivate threat model).
+	payload := []byte(`{"ok":true}`)
+	srv := serve(t, func(w http.ResponseWriter, r *http.Request) { w.Write(payload) })
+	got, err := Fetch(srv.URL, BlockPrivate())
+	if err != nil {
+		t.Fatalf("BlockPrivate must keep loopback fetches working: %v", err)
+	}
+	if string(got) != string(payload) {
+		t.Errorf("Fetch = %q, want %q", got, payload)
+	}
+	// Without BlockPrivate nothing changes either (historical behavior).
+	if _, err := Fetch(srv.URL); err != nil {
+		t.Fatalf("default Fetch must be unaffected: %v", err)
+	}
+}
+
+func TestFetchBlockPrivateRejectsRedirectToPrivate(t *testing.T) {
+	// A public-looking source that redirects into a private range must be
+	// refused at the redirect hop — the redirect is the classic SSRF laundry.
+	targets := []string{
+		"http://169.254.169.254/latest/meta-data/",
+		"http://10.0.0.1/bundle.json",
+		"ftp://internal.example/bundle.json", // non-http scheme hop
+	}
+	for _, target := range targets {
+		t.Run(target, func(t *testing.T) {
+			srv := serve(t, func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, target, http.StatusFound)
+			})
+			got, err := Fetch(srv.URL, BlockPrivate())
+			if err == nil || !strings.Contains(err.Error(), "refusing") {
+				t.Fatalf("redirect to %s must be refused, got=%d bytes err=%v", target, len(got), err)
+			}
+		})
+	}
+	// A redirect that stays on loopback still works (dev servers redirect).
+	dst := serve(t, func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("ok")) })
+	src := serve(t, func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, dst.URL, http.StatusFound)
+	})
+	if got, err := Fetch(src.URL, BlockPrivate()); err != nil || string(got) != "ok" {
+		t.Fatalf("loopback redirect should pass, got=%q err=%v", got, err)
+	}
+}
+
+func TestFetchBlockPrivateRedirectCap(t *testing.T) {
+	// The redirect chain is capped: an endless (or just long) chain errors
+	// instead of following the default client's 10 hops.
+	var srv *httptest.Server
+	srv = serve(t, func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, srv.URL+r.URL.Path+"r", http.StatusFound)
+	})
+	got, err := Fetch(srv.URL, BlockPrivate())
+	if err == nil || !strings.Contains(err.Error(), "redirects") {
+		t.Fatalf("redirect chain must hit the hop cap, got=%d bytes err=%v", len(got), err)
+	}
+	// A chain under the cap still resolves.
+	hops := 0
+	var short *httptest.Server
+	short = serve(t, func(w http.ResponseWriter, r *http.Request) {
+		if hops < 3 {
+			hops++
+			http.Redirect(w, r, short.URL, http.StatusFound)
+			return
+		}
+		w.Write([]byte("ok"))
+	})
+	if got, err := Fetch(short.URL, BlockPrivate()); err != nil || string(got) != "ok" {
+		t.Fatalf("a 3-hop chain should pass, got=%q err=%v", got, err)
+	}
+}
+
+func TestFetchVerifiedBlockPrivatePassesOptionThrough(t *testing.T) {
+	// FetchVerified forwards fetch options: a private source is refused
+	// before any bundle bytes are read or verified.
+	pub, _, _ := keys.Generate()
+	got, err := FetchVerified("http://192.168.0.10/bundle.json", pub, nil, BlockPrivate())
+	if err == nil || !strings.Contains(err.Error(), "refusing") {
+		t.Fatalf("FetchVerified must forward BlockPrivate, got=%v err=%v", got, err)
+	}
+	if got != nil {
+		t.Error("rejected fetch must return no bundle")
+	}
+	// And a loopback source still verifies end to end.
+	data, trusted, _, _ := signedBundle(t)
+	srv := serve(t, func(w http.ResponseWriter, r *http.Request) { w.Write(data) })
+	b, err := FetchVerified(srv.URL, trusted, nil, BlockPrivate())
+	if err != nil || b == nil {
+		t.Fatalf("loopback FetchVerified under BlockPrivate: b=%v err=%v", b, err)
+	}
+}
+
 func TestFetchFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "bundle.json")
 	want := []byte(`{"local":true}`)

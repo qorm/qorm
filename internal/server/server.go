@@ -768,8 +768,15 @@ func (s *Server) activate(b *bundle.Bundle) {
 // Update fetches, verifies and activates a bundle from source. On any failure
 // the current app is left untouched (rollback by inaction). Returns a status
 // line describing the transition.
+//
+// The fetch runs with ota.BlockPrivate: source reaches us from POST /update
+// (any same-origin caller), so an unrestricted fetch would let that caller use
+// this process as a proxy into networks only IT can reach — private LAN
+// ranges and the 169.254.169.254 cloud metadata service — with redirects
+// re-vetted per hop. Loopback sources (local dev bundle servers) and local
+// file paths stay allowed; see ota.BlockPrivate for the full threat model.
 func (s *Server) Update(source string) (string, error) {
-	next, err := ota.FetchVerified(source, s.trust, s.revoked)
+	next, err := ota.FetchVerified(source, s.trust, s.revoked, ota.BlockPrivate())
 	if err != nil {
 		return "", err
 	}

@@ -100,6 +100,50 @@ func TestWindowControlNilSubproviders(t *testing.T) {
 	}
 }
 
+// TestMalformedToolArgsAreErrorsNotZeroValues pins the strict-decode contract:
+// arguments that are present but unparseable (wrong JSON shape or wrong field
+// types) are a tool error, never a silent decay into zero values. Before this,
+// a malformed qorm_window call moved the window to (0,0) 0x0, a malformed
+// qorm_dispatch reported `unknown action ""`, and a malformed qorm_assert
+// passed trivially on an empty check list.
+func TestMalformedToolArgsAreErrorsNotZeroValues(t *testing.T) {
+	s := newCounterHandler(t)
+	moved := 0
+	s.SetWindowControl(func(string, int, int, int, int) { moved++ }, nil, nil, nil)
+
+	rawCall := func(name, arguments string) map[string]any {
+		t.Helper()
+		return rpc(t, s, fmt.Sprintf(
+			`{"jsonrpc":"2.0","id":9,"method":"tools/call","params":{"name":%q,"arguments":%s}}`,
+			name, arguments))
+	}
+
+	for name, arguments := range map[string]string{
+		"qorm_window":          `{"op":"move","x":"NaN"}`, // wrong field type
+		"qorm_dispatch":        `"increment"`,             // not an object
+		"qorm_simulate_action": `[1,2]`,
+		"qorm_assert":          `{"checks":"stateEquals"}`,
+		"qorm_check_layout":    `{"viewportW":"wide"}`,
+		"qorm_query":           `{"type":42}`,
+		"qorm_get_node":        `{"id":{}}`,
+		"qorm_source_location": `{"id":[]}`,
+	} {
+		requireToolErr(t, rawCall(name, arguments), "invalid arguments")
+	}
+	if moved != 0 {
+		t.Errorf("malformed qorm_window args must not move the window, got %d moves", moved)
+	}
+
+	// Absent and null arguments stay accepted as all-defaults: the empty
+	// window call still means "move main to (0,0)" by contract.
+	if text := resultText(t, rawCall("qorm_window", "null")); !strings.Contains(text, "moved window main") {
+		t.Errorf("null arguments should keep the documented default, got %q", text)
+	}
+	if moved != 1 {
+		t.Errorf("null-args window call should move once, got %d", moved)
+	}
+}
+
 // ---- inspect family ----
 
 func TestRenderHTML(t *testing.T) {

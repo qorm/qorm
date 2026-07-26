@@ -211,6 +211,22 @@ func toolText(isError bool, text string) map[string]any {
 	}
 }
 
+// decodeArgs decodes tool arguments, treating absent/null arguments as
+// all-defaults but present-and-malformed arguments as a hard error. Without
+// this, a bad payload silently decayed into zero values — most dangerously on
+// mutating tools (a malformed qorm_window call became "move to 0,0", a
+// malformed qorm_assert became a trivially passing empty check list). The
+// error is returned to the MCP client as a tool error instead.
+func decodeArgs(name string, args json.RawMessage, v any) error {
+	if len(args) == 0 || string(args) == "null" {
+		return nil
+	}
+	if err := json.Unmarshal(args, v); err != nil {
+		return fmt.Errorf("%s: invalid arguments: %v", name, err)
+	}
+	return nil
+}
+
 func (s *Server) callTool(name string, args json.RawMessage) (string, error) {
 	switch name {
 	case "qorm_window":
@@ -221,7 +237,11 @@ func (s *Server) callTool(name string, args json.RawMessage) (string, error) {
 			ID, Op, URL, JS string
 			X, Y, W, H      int
 		}
-		_ = json.Unmarshal(args, &a)
+		// Mutating tool: malformed args must never decay into a zero-value
+		// action (an unparseable call used to become "move main to 0,0").
+		if err := decodeArgs(name, args, &a); err != nil {
+			return "", err
+		}
 		if a.ID == "" {
 			a.ID = "main"
 		}
@@ -273,15 +293,24 @@ func (s *Server) callTool(name string, args json.RawMessage) (string, error) {
 		}
 		return string(data), nil
 	case "qorm_query":
+		// Read-only, but a malformed selector used to decay into the empty
+		// selector — which matches every node — so the caller got a confident,
+		// wrong answer. Surface the parse error instead.
 		var sel selector
-		_ = json.Unmarshal(args, &sel)
+		if err := decodeArgs(name, args, &sel); err != nil {
+			return "", err
+		}
 		matches := queryNodes(s.rt.App.EntryRoot(), sel)
 		return jsonPretty(map[string]any{"count": len(matches), "matches": matches}), nil
 	case "qorm_get_node":
 		var a struct {
 			ID string `json:"id"`
 		}
-		_ = json.Unmarshal(args, &a)
+		// Read-only; strict decode so a malformed call reports the real
+		// problem instead of a misleading `node "" not found`.
+		if err := decodeArgs(name, args, &a); err != nil {
+			return "", err
+		}
 		node := findNode(s.rt.App.EntryRoot(), a.ID)
 		if node == nil {
 			return "", fmt.Errorf("node %q not found", a.ID)
@@ -291,7 +320,9 @@ func (s *Server) callTool(name string, args json.RawMessage) (string, error) {
 		var a struct {
 			ID string `json:"id"`
 		}
-		_ = json.Unmarshal(args, &a)
+		if err := decodeArgs(name, args, &a); err != nil {
+			return "", err
+		}
 		if a.ID == "" {
 			return "", fmt.Errorf("id is required")
 		}
@@ -308,14 +339,21 @@ func (s *Server) callTool(name string, args json.RawMessage) (string, error) {
 			Action string         `json:"action"`
 			Args   map[string]any `json:"args"`
 		}
-		_ = json.Unmarshal(args, &a)
+		// Side-effect-free, but a malformed call used to decay into
+		// `unknown action ""` — surface the actual parse error.
+		if err := decodeArgs(name, args, &a); err != nil {
+			return "", err
+		}
 		return jsonPretty(s.simulate(a.Action, a.Args)), nil
 	case "qorm_dispatch":
 		var a struct {
 			Action string         `json:"action"`
 			Args   map[string]any `json:"args"`
 		}
-		_ = json.Unmarshal(args, &a)
+		// Mutating tool: never dispatch on silently-zeroed args.
+		if err := decodeArgs(name, args, &a); err != nil {
+			return "", err
+		}
 		if _, ok := s.rt.App.Actions[a.Action]; !ok {
 			return "", fmt.Errorf("unknown action %q", a.Action)
 		}
@@ -347,7 +385,11 @@ func (s *Server) callTool(name string, args json.RawMessage) (string, error) {
 			ViewportW int             `json:"viewportW"`
 			ViewportH int             `json:"viewportH"`
 		}
-		json.Unmarshal(args, &a)
+		// Writes s.rt.Viewport, so malformed args must not slip through as
+		// zero values (and a garbled checks payload must not "pass").
+		if err := decodeArgs(name, args, &a); err != nil {
+			return "", err
+		}
 		if a.ViewportW > 0 || a.ViewportH > 0 {
 			// Simulate a viewport so responsive `when` branches resolve for the
 			// check. The live browser client re-reports its real size on its next
@@ -367,7 +409,11 @@ func (s *Server) callTool(name string, args json.RawMessage) (string, error) {
 		var a struct {
 			Checks []map[string]any `json:"checks"`
 		}
-		_ = json.Unmarshal(args, &a)
+		// A TEST tool must fail loud: malformed args used to decay into an
+		// empty check list, which reported overall pass:true.
+		if err := decodeArgs(name, args, &a); err != nil {
+			return "", err
+		}
 		return jsonPretty(s.assert(a.Checks)), nil
 	case "qorm_preview_patch":
 		var a struct {

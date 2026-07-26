@@ -364,6 +364,80 @@ func TestWindowControlEndpoint(t *testing.T) {
 	}
 }
 
+// TestWindowEmitInjectionClosure pins the injection closure of /window
+// op=emit: the Event string reaches the JS eval payload only through
+// strconv.Quote (so quotes, backslashes, newlines and script-ish text cannot
+// escape the string literal and become code), and Data is passed through
+// verbatim as JSON (json.RawMessage — a JS expression position where JSON is
+// inert data), arbitrarily deep. The expected payloads are computed with
+// strconv.Quote itself so any drift in the quoting strategy fails here.
+func TestWindowEmitInjectionClosure(t *testing.T) {
+	s := counterServer(t)
+	ts := httptest.NewServer(s.Handler())
+	defer ts.Close()
+	rec := &winRecorder{}
+	s.SetWindowControl(rec.mover, rec.op, rec.open, rec.eval)
+
+	cases := []struct {
+		name  string
+		event string
+		data  string // raw JSON; "" means absent -> null
+	}{
+		{"quote-breakout attempt", `pi"ng`, `1`},
+		{"single-quote and backslash", `it's a \"trap\`, `true`},
+		{"newline and CR", "line1\nline2\rline3", `"x"`},
+		{"script-close and js scheme", `</script><script>alert(1)//`, `2`},
+		{"paren-comma breakout", `e"),alert(1),("`, `3`},
+		{"deep json data", "deep", `{"a":{"b":["x\"y",{"c":null,"d":[1,2,{"e":"f\\ng"}]}]},"n":[1,2,3]}`},
+		{"data absent becomes null", "bare", ``},
+	}
+
+	var want []string
+	for _, tc := range cases {
+		body := map[string]any{"op": "emit", "id": "w", "event": tc.event}
+		if tc.data != "" {
+			body["data"] = json.RawMessage(tc.data)
+		}
+		payload, err := json.Marshal(body)
+		if err != nil {
+			t.Fatalf("%s: marshal request: %v", tc.name, err)
+		}
+		if code, resp := doJSON(t, http.MethodPost, ts.URL+"/window", "", "", string(payload)); code != http.StatusOK {
+			t.Fatalf("%s: emit returned %d %q", tc.name, code, resp)
+		}
+		data := tc.data
+		if data == "" {
+			data = "null"
+		}
+		want = append(want,
+			"w:window.qormOnWindowEvent&&qormOnWindowEvent("+strconv.Quote(tc.event)+","+data+")")
+	}
+
+	rec.mu.Lock()
+	evals := rec.evals
+	rec.mu.Unlock()
+	if len(evals) != len(want) {
+		t.Fatalf("got %d evals, want %d: %q", len(evals), len(want), evals)
+	}
+	for i, w := range want {
+		if evals[i] != w {
+			t.Errorf("eval[%d] (%s) = %q, want %q", i, cases[i].name, evals[i], w)
+		}
+	}
+	// Structural closure: every emitted payload must keep the event inside
+	// one double-quoted JS string literal — no raw newline or unescaped quote
+	// may survive into the code position.
+	for i, e := range evals {
+		js := strings.TrimPrefix(e, "w:")
+		if strings.ContainsAny(js, "\n\r") {
+			t.Errorf("eval[%d] contains a raw newline: %q", i, js)
+		}
+		if !strings.HasPrefix(js, "window.qormOnWindowEvent&&qormOnWindowEvent(\"") || !strings.HasSuffix(js, ")") {
+			t.Errorf("eval[%d] lost its call shape: %q", i, js)
+		}
+	}
+}
+
 // TestUpdateRollbackOverHTTP: the OTA endpoints fail closed at every gate —
 // no bundle, no trust key, bad source — and apply / roll back when trusted.
 func TestUpdateRollbackOverHTTP(t *testing.T) {
