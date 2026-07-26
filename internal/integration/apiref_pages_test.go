@@ -73,7 +73,7 @@ var nodeSchema = [][4]string{
 // containerCSS/a11y in internal/render/render_style.go — available on the nodes
 // that render a styled box, regardless of type.
 var commonStyle = []struct{ group, keys string }{
-	{"Box (`style`)", "`width` `height` `minWidth` `maxWidth` `minHeight` `maxHeight` `padding` `margin` `gap` `background` `gradient` `borderRadius` `borderWidth` `borderColor` `shadow` `opacity` `aspectRatio` `flexGrow` `position` `top` `right` `bottom` `left` `cursor` `transition`"},
+	{"Box (`style`)", "`width` `height` `minWidth` `maxWidth` `minHeight` `maxHeight` `padding` `margin` `gap` `background` `gradient` `borderRadius` `borderWidth` `borderColor` `shadow` `opacity` `aspectRatio` `flexGrow` `flexShrink` `alignSelf` `zIndex` `position` `top` `right` `bottom` `left` `cursor` `transition`"},
 	{"Text (`style`)", "`color` `fontSize` `fontWeight` `fontFamily` `lineHeight` `letterSpacing` `fontStyle` `textDecoration` `textTransform` `textAlign` `lineClamp`"},
 	{"Layout (`layout`)", "`width` `height` `align` `justify` (`wrap` on containers, `columns` on `grid`, `orientation` on `scroll`)"},
 	{"Accessibility (top-level)", "`role` `ariaLabel` `title` `tooltip`"},

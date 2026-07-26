@@ -10,7 +10,8 @@ var KnownStyleKeys = map[string]bool{
 	// Box model (boxCSS).
 	"width": true, "height": true,
 	"minWidth": true, "maxWidth": true, "minHeight": true, "maxHeight": true,
-	"flexGrow": true, "aspectRatio": true,
+	"flexGrow": true, "flexShrink": true, "alignSelf": true, "aspectRatio": true,
+	"zIndex":     true,
 	"background": true, "gradient": true,
 	"borderRadius": true, "borderWidth": true, "borderColor": true,
 	"gap": true, "opacity": true, "shadow": true,

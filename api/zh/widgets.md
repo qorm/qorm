@@ -113,7 +113,7 @@
 | `share` | — | `hwList` |
 | `skeleton` | — | `skeleton` |
 | `slider` | — | `slider` |
-| `slot` | — | `` |
+| `slot` | — | `slot` |
 | `snackbar` | — | `snackbar` |
 | `spacer` | — | `spacer` |
 | `spinner` | — | `spinner` |

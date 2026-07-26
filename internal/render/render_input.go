@@ -30,6 +30,66 @@ func (r *renderer) button(n *model.Node) {
 		attrID(n.ID), style, a11y(n), r.pressAttr(n), html.EscapeString(r.interp(labelOf(n))))
 }
 
+// inputAttrs renders the shared native-HTML attribute set of the text-entry
+// widgets (input / textarea / textformfield's inner input). All zero-JS: the
+// browser enforces maxlength/readonly/required/pattern and picks the soft
+// keyboard from inputmode. Every attribute is emitted only when its prop is
+// set, so widgets without these props render byte-identically to before.
+// `pattern` is an <input>-only attribute in HTML, so textarea skips it
+// (inputmode/autocomplete/maxlength/readonly/required/autofocus all apply to
+// textarea too). pattern+required open the native constraint-validation
+// channel — a JS validation engine is deliberately out of scope here.
+func (r *renderer) inputAttrs(n *model.Node, textarea bool) string {
+	var b strings.Builder
+	if v := int(propNum(n, "maxLength", 0)); v > 0 {
+		fmt.Fprintf(&b, ` maxlength="%d"`, v)
+	}
+	if propBool(n, "autofocus") {
+		b.WriteString(` autofocus`)
+	}
+	if propBool(n, "readonly") {
+		b.WriteString(` readonly`)
+	}
+	if propBool(n, "required") {
+		b.WriteString(` required`)
+	}
+	// Explicit "..." quoting + html.EscapeString rather than %q: Go's %q would
+	// also backslash-escape the value (`\d+` becomes `\\d+`), which corrupts a
+	// regex pattern; entity-encoding alone is what the quoted attribute needs.
+	if v := propStr(n, "autocomplete"); v != "" {
+		fmt.Fprintf(&b, ` autocomplete="%s"`, html.EscapeString(v))
+	}
+	if v := propStr(n, "inputMode"); v != "" {
+		fmt.Fprintf(&b, ` inputmode="%s"`, html.EscapeString(normalizeInputMode(v)))
+	}
+	if !textarea {
+		if v := propStr(n, "pattern"); v != "" {
+			fmt.Fprintf(&b, ` pattern="%s"`, html.EscapeString(v))
+		}
+	}
+	return b.String()
+}
+
+// normalizeInputMode maps author-friendly aliases onto the HTML inputmode
+// vocabulary (none/text/decimal/numeric/tel/search/email/url): "number" is the
+// natural spelling for a numeric keypad but the spec token is "numeric", and
+// "phone" reads better than "tel". Everything else passes through untouched —
+// browsers ignore unknown inputmode values. Note inputmode is deliberately NOT
+// derived from inputType: type=email/tel/url/number already select the right
+// keyboard on their own (adding inputmode there would be redundant AND change
+// the output of existing apps); inputMode exists for the complementary case —
+// keep type="text" (no spinner/validation semantics) while still requesting a
+// numeric/tel/etc. keyboard, e.g. a PIN or OTP field.
+func normalizeInputMode(v string) string {
+	switch v {
+	case "number":
+		return "numeric"
+	case "phone":
+		return "tel"
+	}
+	return v
+}
+
 func (r *renderer) input(n *model.Node) {
 	style := r.boxCSS(n) + r.textCSS(n) + "outline:none;"
 	path := boundPath(n.Value)
@@ -39,18 +99,19 @@ func (r *renderer) input(n *model.Node) {
 	} else if strings.Contains(strings.ToLower(n.ID), "password") {
 		inputType = "password"
 	}
-	fmt.Fprintf(&r.sb, `<input id=%q type=%q value=%q placeholder=%q style=%q%s%s%s>`,
+	fmt.Fprintf(&r.sb, `<input id=%q type=%q value=%q placeholder=%q style=%q%s%s%s%s>`,
 		attrID(n.ID), html.EscapeString(inputType), html.EscapeString(r.interp(n.Value)),
-		html.EscapeString(n.Placeholder), style, dataStateAttr(path), a11y(n), r.changeAttr(n, path != ""))
+		html.EscapeString(n.Placeholder), style, dataStateAttr(path), a11y(n),
+		r.inputAttrs(n, false), r.changeAttr(n, path != ""))
 }
 
 func (r *renderer) textarea(n *model.Node) {
 	style := r.boxCSS(n) + r.textCSS(n) + "outline:none;resize:vertical;"
 	path := boundPath(n.Value)
 	rows := int(propNum(n, "rows", 4))
-	fmt.Fprintf(&r.sb, `<textarea id=%q rows="%d" placeholder=%q style=%q%s%s%s>%s</textarea>`,
+	fmt.Fprintf(&r.sb, `<textarea id=%q rows="%d" placeholder=%q style=%q%s%s%s%s>%s</textarea>`,
 		attrID(n.ID), rows, html.EscapeString(n.Placeholder), style, dataStateAttr(path), a11y(n),
-		r.changeAttr(n, path != ""), html.EscapeString(r.interp(n.Value)))
+		r.inputAttrs(n, true), r.changeAttr(n, path != ""), html.EscapeString(r.interp(n.Value)))
 }
 
 func (r *renderer) selectBox(n *model.Node) {
@@ -395,8 +456,11 @@ func (r *renderer) textFormField(n *model.Node) {
 		fmt.Fprintf(&r.sb, `<span style="color:var(--label2);display:inline-flex;align-items:center;">%s</span>`, iconOrText(pre, 16))
 	}
 	itype := propStrOr(n, "inputType", "text")
-	fmt.Fprintf(&r.sb, `<input type=%q value=%q placeholder=%q style="flex:1;border:none;outline:none;font-size:14px;background:transparent;"%s%s%s>`,
-		html.EscapeString(itype), html.EscapeString(r.interp(n.Value)), html.EscapeString(n.Placeholder), dataStateAttr(path), a11y(n), r.changeAttr(n, path != ""))
+	// inputAttrs rides on the inner input: its maxlength truncates natively at
+	// the same limit the footer counter below displays.
+	fmt.Fprintf(&r.sb, `<input type=%q value=%q placeholder=%q style="flex:1;border:none;outline:none;font-size:14px;background:transparent;"%s%s%s%s>`,
+		html.EscapeString(itype), html.EscapeString(r.interp(n.Value)), html.EscapeString(n.Placeholder), dataStateAttr(path), a11y(n),
+		r.inputAttrs(n, false), r.changeAttr(n, path != ""))
 	if suf := r.interp(propStr(n, "suffix")); suf != "" {
 		fmt.Fprintf(&r.sb, `<span style="color:var(--label2);">%s</span>`, html.EscapeString(suf))
 	}

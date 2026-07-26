@@ -32,7 +32,7 @@
 
 由共享渲染器读取,任何绘制盒子的节点都可用:
 
-- **Box (`style`)** — `width` `height` `minWidth` `maxWidth` `minHeight` `maxHeight` `padding` `margin` `gap` `background` `gradient` `borderRadius` `borderWidth` `borderColor` `shadow` `opacity` `aspectRatio` `flexGrow` `position` `top` `right` `bottom` `left` `cursor` `transition`
+- **Box (`style`)** — `width` `height` `minWidth` `maxWidth` `minHeight` `maxHeight` `padding` `margin` `gap` `background` `gradient` `borderRadius` `borderWidth` `borderColor` `shadow` `opacity` `aspectRatio` `flexGrow` `flexShrink` `alignSelf` `zIndex` `position` `top` `right` `bottom` `left` `cursor` `transition`
 - **Text (`style`)** — `color` `fontSize` `fontWeight` `fontFamily` `lineHeight` `letterSpacing` `fontStyle` `textDecoration` `textTransform` `textAlign` `lineClamp`
 - **Layout (`layout`)** — `width` `height` `align` `justify` (`wrap` on containers, `columns` on `grid`, `orientation` on `scroll`)
 - **Accessibility (top-level)** — `role` `ariaLabel` `title` `tooltip`
@@ -95,19 +95,19 @@
 | `filepicker` | `label` |
 | `form` | — |
 | `gesturedetector` | `onDoubleTap` · `onLongPress` |
-| `gridview` | `crossAxisCount` · `minItemWidth` · `spacing` |
+| `gridview` | `as` · `crossAxisCount` · `minItemWidth` · `spacing` |
 | `haptics` | `label` |
 | `icon` | `glyph` · `icon` · `size` |
 | `ignorepointer` | — |
-| `image` | `alt` · `fit` · `src` |
+| `image` | `alt` · `fallback` · `fit` · `lazy` · `placeholder` · `src` |
 | `indexedstack` | `index` |
-| `input` | `inputType` |
+| `input` | `autocomplete` · `autofocus` · `inputMode` · `inputType` · `maxLength` · `pattern` · `readonly` · `required` |
 | `insets` | `label` |
 | `keepawake` | `label` |
 | `largetitle` | `background` · `subtitle` |
 | `limitedbox` | `maxHeight` · `maxWidth` |
 | `link` | `href` |
-| `list` | `itemHeight` · `onReorder` · `reorderable` · `virtualize` |
+| `list` | `as` · `itemHeight` · `onReorder` · `reorderable` · `virtualize` |
 | `listsection` | `footer` · `header` |
 | `listtile` | `chevron` · `leading` · `subtitle` · `trailing` |
 | `location` | `label` |
@@ -150,7 +150,7 @@
 | `share` | `label` |
 | `skeleton` | — |
 | `slider` | `max` · `min` · `step` |
-| `slot` | — |
+| `slot` | `name` · `slot` |
 | `snackbar` | `action` · `open` |
 | `spacer` | — |
 | `spinner` | `color` · `size` |
@@ -165,8 +165,8 @@
 | `tabs` | `tabs` |
 | `tag` | — |
 | `text` | — |
-| `textarea` | `rows` |
-| `textformfield` | `error` · `helper` · `inputType` · `label` · `maxLength` · `prefix` · `suffix` |
+| `textarea` | `autocomplete` · `autofocus` · `inputMode` · `maxLength` · `pattern` · `readonly` · `required` · `rows` |
+| `textformfield` | `autocomplete` · `autofocus` · `error` · `helper` · `inputMode` · `inputType` · `label` · `maxLength` · `pattern` · `prefix` · `readonly` · `required` · `suffix` |
 | `timeline` | `items` |
 | `timepicker` | `minuteStep` |
 | `torch` | `label` |

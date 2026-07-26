@@ -13,8 +13,62 @@ func (r *renderer) image(n *model.Node) {
 	src := propStr(n, "src")
 	// fit is an author prop interpolated into a quoted style attribute.
 	style := r.boxCSS(n) + "object-fit:" + styleAttr(propStrOr(n, "fit", "cover")) + ";"
-	fmt.Fprintf(&r.sb, `<img id=%q src=%q style=%q alt=%q%s>`,
-		attrID(n.ID), html.EscapeString(src), style, html.EscapeString(propStr(n, "alt")), a11y(n))
+	// placeholder paints the element's background while (or if) the real src
+	// loads: a low-res/blur image URL renders as a covering background image,
+	// anything else is treated as a CSS color (e.g. "#e5e7eb", "var(--fill)").
+	// It follows boxCSS so an explicit placeholder wins over style.background.
+	// styleAttr entity-encodes the value either way, so it cannot break out of
+	// the quoted style attribute; a hostile URL can at worst malform its own
+	// url() token (CSS drops the declaration — no script context exists here).
+	if ph := propStr(n, "placeholder"); ph != "" {
+		if looksLikeImageURL(ph) {
+			style += "background:url(" + styleAttr(ph) + ") center/cover no-repeat;"
+		} else {
+			style += "background:" + styleAttr(ph) + ";"
+		}
+	}
+	// Native lazy loading is on by default (below-the-fold images defer until
+	// scroll); lazy:false opts a hero image back into eager loading.
+	lazyAttr := ` loading="lazy"`
+	if v, ok := n.Prop("lazy"); ok && !asBool(v) {
+		lazyAttr = ""
+	}
+	// fallback swaps in an alternate src (or data: URI) when the image fails to
+	// load. The handler rides an inline onerror attribute, built with the same
+	// two-layer construction as the gesture wiring scripts: jsStringID makes the
+	// fallback a safe JS string literal (quotes/backslashes escaped, "<"
+	// neutralised), then html.EscapeString entity-encodes the WHOLE handler so
+	// nothing can terminate the quoted attribute — the browser decodes entities
+	// before the JS parser runs, so the code executes exactly as written.
+	// Clearing this.onerror first makes a failing fallback stop, not loop.
+	fallbackAttr := ""
+	if fb := propStr(n, "fallback"); fb != "" {
+		fallbackAttr = ` onerror="` + html.EscapeString("this.onerror=null;this.src="+jsStringID(fb)) + `"`
+	}
+	fmt.Fprintf(&r.sb, `<img id=%q src=%q style=%q alt=%q%s%s%s>`,
+		attrID(n.ID), html.EscapeString(src), style, html.EscapeString(propStr(n, "alt")),
+		lazyAttr, fallbackAttr, a11y(n))
+}
+
+// looksLikeImageURL decides which form an image `placeholder` takes: an image
+// URL (path/absolute/data URI, or a bare file name with an image extension)
+// paints as a background image, anything else as a background color. The color
+// grammar can contain "." and "(" (rgba(0,0,0,.5), var(--x)) but never "/",
+// and legitimate URLs without a "/" still end in an image extension — so the
+// two rules together disambiguate without a full URL parse.
+func looksLikeImageURL(s string) bool {
+	if strings.Contains(s, "/") || strings.HasPrefix(s, "data:") {
+		return true
+	}
+	dot := strings.LastIndexByte(s, '.')
+	if dot < 0 {
+		return false
+	}
+	switch strings.ToLower(s[dot+1:]) {
+	case "png", "jpg", "jpeg", "gif", "webp", "avif", "svg", "ico", "bmp":
+		return true
+	}
+	return false
 }
 
 func (r *renderer) avatar(n *model.Node) {

@@ -239,8 +239,17 @@ func (r *renderer) boxCSS(n *model.Node) string {
 	if v, ok := numOK(s, "flexGrow"); ok {
 		css(&b, "flex-grow", v, ";flex-basis:0;")
 	}
+	if v, ok := numOK(s, "flexShrink"); ok {
+		css(&b, "flex-shrink", v, ";")
+	}
+	if v := colorStr(s, "alignSelf"); v != "" {
+		fmt.Fprintf(&b, "align-self:%s;", alignSelfCSS(v))
+	}
 	if v, ok := numOK(s, "aspectRatio"); ok {
 		css(&b, "aspect-ratio", v, ";")
+	}
+	if v, ok := numOK(s, "zIndex"); ok {
+		css(&b, "z-index", v, ";")
 	}
 	if bg := colorStr(s, "background"); bg != "" {
 		fmt.Fprintf(&b, "background:%s;", bg)
@@ -419,11 +428,35 @@ func writeSize(b *strings.Builder, dim string, vals ...any) {
 				fmt.Fprintf(b, "%s:100%%;", dim)
 				return
 			}
+			if u, ok := sizeUnit(t); ok {
+				fmt.Fprintf(b, "%s:%s;", dim, u)
+				return
+			}
 		case float64:
 			fmt.Fprintf(b, "%s:%gpx;", dim, t)
 			return
 		}
 	}
+}
+
+// sizeUnit parses a string size with an explicit CSS unit — "50%", "30vw",
+// "40vh", "120px" — and returns it re-rendered from the parsed number plus the
+// constant unit, so an arbitrary author string never reaches the style
+// attribute verbatim (the same normalize-don't-trust shape as the numeric px
+// path). Anything that is not <number><unit> reports ok=false and stays
+// ignored, preserving the existing behavior for unknown strings ("wrap", ...);
+// "fill" and plain numbers keep their fast paths in writeSize.
+func sizeUnit(s string) (string, bool) {
+	for _, u := range [...]string{"%", "vw", "vh", "px"} {
+		if strings.HasSuffix(s, u) {
+			f, err := strconv.ParseFloat(strings.TrimSuffix(s, u), 64)
+			if err != nil {
+				return "", false
+			}
+			return num(f) + u, true
+		}
+	}
+	return "", false
 }
 
 func writeNum(b *strings.Builder, prop string, m map[string]any, key string) {
@@ -462,6 +495,19 @@ func flexAlign(v string) string {
 		return "stretch"
 	}
 	return "flex-start"
+}
+
+// alignSelfCSS maps the alignSelf style key onto CSS align-self, reusing the
+// layout keyword vocabulary (start/center/end/stretch/baseline, plus the
+// left/top/right/bottom synonyms flexAlign already accepts) and adding "auto"
+// (the CSS default: defer to the parent's align-items). Only whitelisted
+// constants come back, so the value is safe in the style attribute by
+// construction — and boxCSS styleAttr-escapes its whole output anyway.
+func alignSelfCSS(v string) string {
+	if v == "auto" {
+		return "auto"
+	}
+	return flexAlign(v)
 }
 
 func clampPct(f float64) float64 {
