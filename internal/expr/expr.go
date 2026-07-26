@@ -3,13 +3,17 @@
 // `isLoggingIn ? "..." : "..."`, `email + "@" + domain`.
 //
 // Supported: number/string/bool/null literals, identifiers with dotted member
-// access, unary ! and -, binary * / % + - < <= > >= == !=, && ||, and the
-// ternary ?:. Values are float64, string, bool, nil, []any, map[string]any.
+// access, postfix indexing base[expr] (list by number, object by string key;
+// out-of-range or missing keys yield nil) with dotted member access resuming
+// after a bracket (users[0].name), unary ! and -, binary * / % + - < <= > >=
+// == !=, && ||, and the ternary ?:. Values are float64, string, bool, nil,
+// []any, map[string]any.
 package expr
 
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"sync"
@@ -23,6 +27,17 @@ import (
 const (
 	maxExprLen   = 64 << 10 // 64 KB source cap
 	maxExprDepth = 256      // parser recursion cap (also bounds the AST/eval depth)
+
+	// Guard rails for string sub-expressions (the map/filter/count predicate
+	// arguments, evaluated by evalSub). A predicate is itself an expression, so
+	// it re-enters the evaluator; cyclic data (a list appended to itself by an
+	// action) plus a self-referential predicate string could otherwise recurse
+	// or branch without bound. Nesting counts into the same depth guard as the
+	// parser (maxSubExprDepth = maxExprDepth), and total predicate evaluations
+	// per top-level Eval are capped so exponential branching degrades to nil
+	// instead of hanging a render.
+	maxSubExprDepth = maxExprDepth
+	maxSubExprEvals = 100_000
 )
 
 // parsed caches a parse result (a binding string is evaluated once per render,
@@ -79,7 +94,7 @@ func Eval(src string, ctx map[string]any) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	return evalNode(node, ctx), nil
+	return evalNode(node, ctx, &evalEnv{}), nil
 }
 
 // CloseIndex returns the offset of the first "}}" in s that lies outside a
@@ -218,6 +233,12 @@ type call struct {
 	args []node
 }
 
+// index is postfix access: base[key] for an explicit bracket, and also the
+// desugared form of `.name` member access that resumes after a bracket chain
+// (users[0].name parses to index{index{users, 0}, "name"}). A plain dotted
+// identifier (state.count) is still a single ident token, unchanged.
+type index struct{ base, key node }
+
 type parser struct {
 	toks  []token
 	pos   int
@@ -312,7 +333,47 @@ func (p *parser) parseUnary() (node, error) {
 		}
 		return unary{op, x}, nil
 	}
-	return p.parsePrimary()
+	prim, err := p.parsePrimary()
+	if err != nil {
+		return nil, err
+	}
+	return p.parsePostfix(prim)
+}
+
+// parsePostfix applies postfix accessors to a parsed primary: `[expr]` indexes
+// the base by an arbitrary expression, and a `.` token (which the lexer only
+// emits when a dot is not absorbed into an identifier, e.g. right after `]` or
+// `)`) resumes dotted member access. The loop is iterative, mirroring the
+// binary-operator chains: chain length is bounded by the 64 KB source cap,
+// while a *nested* index (a[a[a[...]]]) recurses through parseExpr and is
+// bounded by the depth guard.
+func (p *parser) parsePostfix(base node) (node, error) {
+	for {
+		switch {
+		case p.matchOp("["):
+			key, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			if !p.matchOp("]") {
+				return nil, fmt.Errorf("expected ']' after index expression")
+			}
+			base = index{base, key}
+		case p.matchOp("."):
+			t := p.peek()
+			if t.kind != tIdent {
+				return nil, fmt.Errorf("expected identifier after '.'")
+			}
+			p.next()
+			// The identifier token may itself be dotted (the lexer greedily
+			// consumes dots): a[0].b.c arrives as one "b.c" token.
+			for _, part := range strings.Split(t.text, ".") {
+				base = index{base, strLit{part}}
+			}
+		default:
+			return base, nil
+		}
+	}
 }
 
 func (p *parser) parsePrimary() (node, error) {
@@ -384,7 +445,18 @@ func (p *parser) parsePrimary() (node, error) {
 
 // ---- evaluator ----
 
-func evalNode(n node, ctx map[string]any) any {
+// evalEnv carries per-evaluation state shared across one Eval call's whole
+// tree, including every string sub-expression it spawns (map/filter/count
+// predicates). subDepth counts predicate nesting (stack guard); subEvals
+// counts total predicate evaluations (work guard, so exponential branching
+// over cyclic data degrades instead of hanging). See maxSubExprDepth /
+// maxSubExprEvals.
+type evalEnv struct {
+	subDepth int
+	subEvals int
+}
+
+func evalNode(n node, ctx map[string]any, env *evalEnv) any {
 	switch t := n.(type) {
 	case numLit:
 		return t.v
@@ -399,35 +471,37 @@ func evalNode(n node, ctx map[string]any) any {
 	case call:
 		args := make([]any, len(t.args))
 		for i, a := range t.args {
-			args[i] = evalNode(a, ctx)
+			args[i] = evalNode(a, ctx, env)
 		}
-		return callBuiltin(t.name, args)
+		return callBuiltin(t.name, args, env)
+	case index:
+		return indexValue(evalNode(t.base, ctx, env), evalNode(t.key, ctx, env))
 	case unary:
-		x := evalNode(t.x, ctx)
+		x := evalNode(t.x, ctx, env)
 		if t.op == "!" {
 			return !truthy(x)
 		}
 		return -toNum(x)
 	case ternary:
-		if truthy(evalNode(t.cond, ctx)) {
-			return evalNode(t.then, ctx)
+		if truthy(evalNode(t.cond, ctx, env)) {
+			return evalNode(t.then, ctx, env)
 		}
-		return evalNode(t.els, ctx)
+		return evalNode(t.els, ctx, env)
 	case binary:
-		return evalBinary(t, ctx)
+		return evalBinary(t, ctx, env)
 	}
 	return nil
 }
 
-func evalBinary(b binary, ctx map[string]any) any {
+func evalBinary(b binary, ctx map[string]any, env *evalEnv) any {
 	switch b.op {
 	case "&&":
-		return truthy(evalNode(b.l, ctx)) && truthy(evalNode(b.r, ctx))
+		return truthy(evalNode(b.l, ctx, env)) && truthy(evalNode(b.r, ctx, env))
 	case "||":
-		return truthy(evalNode(b.l, ctx)) || truthy(evalNode(b.r, ctx))
+		return truthy(evalNode(b.l, ctx, env)) || truthy(evalNode(b.r, ctx, env))
 	}
-	l := evalNode(b.l, ctx)
-	r := evalNode(b.r, ctx)
+	l := evalNode(b.l, ctx, env)
+	r := evalNode(b.r, ctx, env)
 	switch b.op {
 	case "+":
 		if isStr(l) || isStr(r) {
@@ -458,6 +532,31 @@ func evalBinary(b binary, ctx map[string]any) any {
 		return compare(l, r) > 0
 	case ">=":
 		return compare(l, r) >= 0
+	}
+	return nil
+}
+
+// indexValue resolves base[key]: an object is keyed by the stringified key, a
+// list by the truncated numeric key. A nil base or key, a non-indexable base,
+// a negative / NaN / out-of-range list index, and a missing object key all
+// yield nil — bindings never panic. (The at() builtin layers negative-from-end
+// semantics on top of this; plain indexing stays strict about negatives so a
+// coerced-to-0-then-negative key cannot silently alias the last element.)
+func indexValue(base, key any) any {
+	if key == nil {
+		return nil
+	}
+	switch c := base.(type) {
+	case map[string]any:
+		return c[Stringify(key)]
+	case []any:
+		f := math.Trunc(toNum(key))
+		// The float-domain comparison rejects NaN (both sides false) and
+		// out-of-range values before the int conversion can misbehave.
+		if !(f >= 0 && f < float64(len(c))) {
+			return nil
+		}
+		return c[int(f)]
 	}
 	return nil
 }

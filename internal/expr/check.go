@@ -22,6 +22,10 @@ const (
 	typeBool    = "bool"
 	typeArray   = "array"
 	typeObject  = "object"
+	// typeExpr is a parameter-spec-only type (never inferred): the argument
+	// must be a string carrying a sub-expression (map/filter/count). A string
+	// literal in that position is additionally parsed and checked in place.
+	typeExpr = "expr"
 )
 
 // Mismatch is one static type error found in an expression.
@@ -44,6 +48,12 @@ type Mismatch struct {
 //   - `+` never reports: a string operand means concatenation by design.
 //   - Comparisons, logic, ternaries, and builtin calls infer unknown and are
 //     never reported (their subexpressions are still checked).
+//   - Indexing base[key] infers unknown; when the base is declared array, a
+//     key whose declared type toNum would silently zero (string/array/object)
+//     is reported.
+//   - The collection/format builtins listed in callSigs get arity and
+//     argument-type checks; a literal map/filter/count sub-expression is
+//     parsed and checked in place. Anything not provably wrong passes.
 func Check(src string, vars map[string]string) []Mismatch {
 	n, err := parse(src)
 	if err != nil {
@@ -96,10 +106,25 @@ func (c *checker) infer(n node) string {
 		}
 		return typeUnknown
 	case call:
-		for _, a := range t.args {
-			c.infer(a) // still check inside arguments
+		argTypes := make([]string, len(t.args))
+		for i, a := range t.args {
+			argTypes[i] = c.infer(a) // still check inside arguments
 		}
+		c.checkCall(t, argTypes)
 		return typeUnknown // builtin results are never assumed
+	case index:
+		bt := c.infer(t.base)
+		kt := c.infer(t.key)
+		if bt == typeArray {
+			switch kt {
+			case typeString, typeArray, typeObject:
+				c.mismatches = append(c.mismatches, Mismatch{
+					Expr:   c.src,
+					Detail: fmt.Sprintf("%s is %s, used as list index", exprText(t.key), kt),
+				})
+			}
+		}
+		return typeUnknown // element types are not modeled
 	case unary:
 		xt := c.infer(t.x)
 		if t.op == "!" {
@@ -133,6 +158,133 @@ func (c *checker) infer(n node) string {
 		return typeUnknown // comparisons and logic
 	}
 	return typeUnknown
+}
+
+// callSig is the static contract of one checked builtin: an arity range
+// (max -1 = variadic) and a wanted type per leading parameter position.
+type callSig struct {
+	min, max int
+	params   []string
+}
+
+// callSigs lists the builtins the checker validates. Only the collection /
+// format builtins are here: their misuse degrades to nil/empty at runtime, so
+// an authoring mistake (sum of a string, filter with a number) would otherwise
+// vanish silently. The older builtins keep their historical no-check behavior.
+var callSigs = map[string]callSig{
+	"at":     {2, 2, []string{typeArray, typeNumber}},
+	"first":  {1, 1, []string{typeArray}},
+	"last":   {1, 1, []string{typeArray}},
+	"sum":    {1, 1, []string{typeArray}},
+	"avg":    {1, 1, []string{typeArray}},
+	"count":  {1, 2, []string{typeArray, typeExpr}},
+	"join":   {2, 2, []string{typeArray, typeString}},
+	"split":  {2, 2, []string{typeString, typeString}},
+	"keys":   {1, 1, []string{typeObject}},
+	"values": {1, 1, []string{typeObject}},
+	"map":    {2, 2, []string{typeArray, typeExpr}},
+	"filter": {2, 2, []string{typeArray, typeExpr}},
+	"format": {1, -1, []string{typeString}},
+}
+
+// checkCall validates a call against callSigs: arity first (wrong arity makes
+// positional type checks meaningless, so it reports and stops), then each
+// declared parameter, then — for a literal sub-expression argument — a parse
+// and a recursive Check of the literal itself.
+func (c *checker) checkCall(t call, argTypes []string) {
+	sig, ok := callSigs[t.name]
+	if !ok {
+		return
+	}
+	if n := len(t.args); n < sig.min || (sig.max >= 0 && n > sig.max) {
+		c.mismatches = append(c.mismatches, Mismatch{Expr: c.src, Detail: arityDetail(t.name, sig, n)})
+		return
+	}
+	for i, want := range sig.params {
+		if i >= len(t.args) {
+			break
+		}
+		if !argCompatible(want, argTypes[i]) {
+			wantDesc := want
+			if want == typeExpr {
+				wantDesc = "a string sub-expression"
+			}
+			c.mismatches = append(c.mismatches, Mismatch{
+				Expr: c.src,
+				Detail: fmt.Sprintf("%s is %s, %s() argument %d wants %s",
+					exprText(t.args[i]), argTypes[i], t.name, i+1, wantDesc),
+			})
+			continue
+		}
+		if want == typeExpr {
+			if lit, ok := t.args[i].(strLit); ok {
+				c.checkSubExpr(t.name, i+1, lit.v)
+			}
+		}
+	}
+}
+
+// checkSubExpr statically validates a literal map/filter/count sub-expression:
+// it must parse, and its own contents are re-checked (with no declared vars —
+// `it` is the only runtime binding and its shape is unknown, so only provable
+// mistakes such as literal misuse or bad nested calls can surface). Nesting
+// terminates because each literal is strictly shorter than its quoting outer
+// source.
+func (c *checker) checkSubExpr(fn string, pos int, src string) {
+	if _, err := parse(src); err != nil {
+		c.mismatches = append(c.mismatches, Mismatch{
+			Expr:   c.src,
+			Detail: fmt.Sprintf("%s() argument %d sub-expression %q does not parse: %v", fn, pos, src, err),
+		})
+		return
+	}
+	for _, m := range Check(src, nil) {
+		c.mismatches = append(c.mismatches, Mismatch{
+			Expr:   c.src,
+			Detail: fmt.Sprintf("in %s() sub-expression %q: %s", fn, src, m.Detail),
+		})
+	}
+}
+
+// arityDetail words an arity mismatch for the three signature shapes.
+func arityDetail(name string, sig callSig, n int) string {
+	switch {
+	case sig.max < 0:
+		return fmt.Sprintf("%s() takes at least %d argument%s, got %d", name, sig.min, plural(sig.min), n)
+	case sig.min == sig.max:
+		return fmt.Sprintf("%s() takes %d argument%s, got %d", name, sig.min, plural(sig.min), n)
+	default:
+		return fmt.Sprintf("%s() takes %d to %d arguments, got %d", name, sig.min, sig.max, n)
+	}
+}
+
+func plural(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
+}
+
+// argCompatible reports whether an inferred argument type can satisfy a
+// wanted parameter type. Unknown is always compatible (the no-false-positive
+// contract); bools and numbers stringify losslessly, so a string parameter
+// only rejects arrays and objects.
+func argCompatible(want, got string) bool {
+	if got == typeUnknown {
+		return true
+	}
+	switch want {
+	case typeNumber:
+		return got == typeNumber || got == typeBool
+	case typeArray:
+		return got == typeArray
+	case typeObject:
+		return got == typeObject
+	case typeString:
+		return got != typeArray && got != typeObject
+	default: // typeExpr
+		return got == typeString
+	}
 }
 
 // requireNumeric records a mismatch when an operand of a numeric operator has
@@ -175,6 +327,8 @@ func exprText(n node) string {
 			args[i] = exprText(a)
 		}
 		return t.name + "(" + strings.Join(args, ", ") + ")"
+	case index:
+		return exprText(t.base) + "[" + exprText(t.key) + "]"
 	}
 	return "?"
 }

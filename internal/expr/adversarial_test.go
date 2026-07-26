@@ -488,11 +488,11 @@ func TestStringifyAllBranches(t *testing.T) {
 // branches directly so they are covered and pinned to nil.
 func TestEvalNodeAndBinaryFallthrough(t *testing.T) {
 	// An unknown node type yields nil (evalNode default).
-	if got := evalNode(struct{}{}, nil); got != nil {
+	if got := evalNode(struct{}{}, nil, &evalEnv{}); got != nil {
 		t.Errorf("evalNode(unknown) = %v, want nil", got)
 	}
 	// An unknown operator yields nil (evalBinary default).
-	if got := evalBinary(binary{op: "??", l: numLit{1}, r: numLit{2}}, nil); got != nil {
+	if got := evalBinary(binary{op: "??", l: numLit{1}, r: numLit{2}}, nil, &evalEnv{}); got != nil {
 		t.Errorf("evalBinary(unknown op) = %v, want nil", got)
 	}
 }
