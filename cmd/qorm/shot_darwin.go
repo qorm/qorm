@@ -43,6 +43,75 @@ static void qormFreezeAnimations(WKWebView *wv) {
                                  beforeDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
 }
 
+// QormShotNavDelegate surfaces load failures on stderr: a WKWebView that
+// cannot load its URL stays blank white and, without this, the capture
+// pipeline happily writes a white PNG with exit status 0.
+@interface QormShotNavDelegate : NSObject <WKNavigationDelegate>
+@end
+@implementation QormShotNavDelegate
+- (void)webView:(WKWebView *)wv didFailProvisionalNavigation:(WKNavigation *)nav withError:(NSError *)e {
+    fprintf(stderr, "qorm shot: page load failed (provisional): %s\n", e.description.UTF8String);
+}
+- (void)webView:(WKWebView *)wv didFailNavigation:(WKNavigation *)nav withError:(NSError *)e {
+    fprintf(stderr, "qorm shot: page load failed: %s\n", e.description.UTF8String);
+}
+- (void)webViewWebContentProcessDidTerminate:(WKWebView *)wv {
+    fprintf(stderr, "qorm shot: WebContent process terminated\n");
+}
+@end
+static QormShotNavDelegate *qormShotNavDelegate(void) {
+    static QormShotNavDelegate *d = nil; // delegate refs are weak; keep one alive
+    if (!d) d = [[QormShotNavDelegate alloc] init];
+    return d;
+}
+
+// qormIgnoreOcclusion makes the WKWebView paint even though the window server
+// reports the capture window as occluded. For an unbundled CLI the window
+// never reaches "occlusionState visible" (appActive=NO, busy desktop, any
+// Space state), so WKWebView runs the page with visibilityState=hidden:
+// requestAnimationFrame is suspended and the first paint is deferred
+// indefinitely — a static page then captures as the window's white backing
+// store even though its DOM loaded fine (readyState=complete). Disabling
+// WebKit's window-occlusion detection (same private WKWebView SPI Safari's
+// own tooling uses) makes the view treat itself as visible and paint
+// immediately. Guarded by respondsToSelector: if the SPI ever disappears the
+// behavior just degrades to the old lazy-paint timing instead of breaking.
+static void qormIgnoreOcclusion(WKWebView *wv) {
+    SEL sel = NSSelectorFromString(@"_setWindowOcclusionDetectionEnabled:");
+    if (![wv respondsToSelector:sel]) return;
+    NSMethodSignature *sig = [wv methodSignatureForSelector:sel];
+    if (!sig) return;
+    NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+    [inv setSelector:sel];
+    [inv setTarget:wv];
+    BOOL no = NO;
+    [inv setArgument:&no atIndex:2];
+    [inv invoke];
+}
+
+// qormPresentCaptureWindow orders the throwaway capture window onto the screen
+// so WebKit paints it and screencapture can grab it. Being merely "shown" is
+// NOT enough: an NSWindow that is occluded by other windows (busy desktops)
+// or sits on an inactive Space gets its WebContent painting suspended, and the
+// capture then shows the window's plain white backing store — the root cause
+// of the intermittent all-white shots (first run fine, later runs white,
+// page-independent). Floating at screen-saver level across every Space keeps
+// the window physically unoccluded; qormIgnoreOcclusion below additionally
+// stops WebKit from second-guessing visibility, because for an unbundled CLI
+// (appActive=NO) the window server never reports NSWindowOcclusionStateVisible
+// no matter how front the window is.
+static void qormPresentCaptureWindow(NSWindow *win) {
+    [NSApp setActivationPolicy:NSApplicationActivationPolicyAccessory];
+    [win center];
+    [win setLevel:NSScreenSaverWindowLevel];
+    win.collectionBehavior = NSWindowCollectionBehaviorCanJoinAllSpaces |
+                             NSWindowCollectionBehaviorFullScreenAuxiliary |
+                             NSWindowCollectionBehaviorStationary;
+    [win makeKeyAndOrderFront:nil];
+    [win orderFrontRegardless];
+    [NSApp activateIgnoringOtherApps:YES];
+}
+
 // qormShot renders html in an offscreen WKWebView and writes a PNG to out.
 // Returns 1 on success. Synchronous: it spins the run loop until the snapshot
 // completes (WebKit is async), so QORM can rasterize its own UI to an image.
@@ -52,14 +121,15 @@ static int qormShot(const char* html, int w, int h, const char* out) {
         NSRect frame = NSMakeRect(0, 0, w, h);
         WKWebViewConfiguration *cfg = [[WKWebViewConfiguration alloc] init];
         WKWebView *wv = [[WKWebView alloc] initWithFrame:frame configuration:cfg];
+        wv.navigationDelegate = qormShotNavDelegate();
+        qormIgnoreOcclusion(wv);
         NSWindow *win = [[NSWindow alloc] initWithContentRect:frame
                           styleMask:NSWindowStyleMaskBorderless
                             backing:NSBackingStoreBuffered defer:NO];
         [win setContentView:wv];
-        // On-screen + key so ScreenCaptureKit can see the window to capture it.
-        [win center];
-        [win makeKeyAndOrderFront:nil];
-        [NSApp activateIgnoringOtherApps:YES];
+        // On-screen, unoccludable and key so WebKit paints and the window can
+        // be captured (see qormPresentCaptureWindow).
+        qormPresentCaptureWindow(win);
         [wv loadHTMLString:[NSString stringWithUTF8String:html] baseURL:nil];
 
         // let it load, lay out, and paint
@@ -82,15 +152,16 @@ static int qormShotURL(const char* url, int w, int h, const char* out) {
         NSRect frame = NSMakeRect(0, 0, w, h);
         WKWebViewConfiguration *cfg = [[WKWebViewConfiguration alloc] init];
         WKWebView *wv = [[WKWebView alloc] initWithFrame:frame configuration:cfg];
+        wv.navigationDelegate = qormShotNavDelegate();
+        qormIgnoreOcclusion(wv);
         NSWindow *win = [[NSWindow alloc] initWithContentRect:frame
                           styleMask:NSWindowStyleMaskBorderless
                             backing:NSBackingStoreBuffered defer:NO];
         [win setContentView:wv];
-        // On-screen + key: a hidden window throttles JS (so /logwindow never polls)
-        // AND ScreenCaptureKit needs it visible to capture.
-        [win center];
-        [win makeKeyAndOrderFront:nil];
-        [NSApp activateIgnoringOtherApps:YES];
+        // On-screen, unoccludable + key: a hidden OR occluded window suspends
+        // WebKit painting and throttles JS (so /logwindow never polls) — see
+        // qormPresentCaptureWindow.
+        qormPresentCaptureWindow(win);
         NSURL *u = [NSURL URLWithString:[NSString stringWithUTF8String:url]];
         [wv loadRequest:[NSURLRequest requestWithURL:u]];
 
