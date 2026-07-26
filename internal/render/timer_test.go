@@ -120,7 +120,7 @@ func TestTimerConditionalExistence(t *testing.T) {
 
 func TestTimerWithoutIDNotScheduled(t *testing.T) {
 	app := timerApp(&model.Node{
-		Type: "timer",
+		Type:  "timer",
 		Props: map[string]any{"every": float64(1000), "onTick": "tick"},
 	})
 	if html := render.Render(qrt.New(app)).HTML; strings.Contains(html, "data-qorm-timer") {
