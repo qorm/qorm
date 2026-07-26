@@ -87,6 +87,60 @@ func safeURL(u string) string {
 	return u
 }
 
+// Render budget. compDepth (renderInner) caps how DEEPLY component
+// instantiation may nest; it does not cap how MUCH is instantiated. A
+// self-referencing component whose template holds two instances of itself fans
+// out 2^depth nodes while never exceeding the depth cap — the whole tree is
+// "shallow" and astronomically large. That render never returns in practice,
+// and every caller that renders (POST /event, the SSE catch-up, /poll, an MCP
+// patch) does so while holding the server mutex, so one such component wedges
+// the entire server, not just one request.
+//
+// So the render is also charged per node and per output byte. Both limits sit
+// far above anything real: the largest example in the repo renders ~100 KB from
+// well under a thousand nodes, leaving ~50x/~80x headroom, and the budget is
+// per-render (a fresh renderer per RenderScene), so it can never accumulate
+// across frames.
+const (
+	// maxRenderNodes bounds total node() invocations — the fan-out limit, and
+	// the one that also catches a bomb whose nodes emit no output at all.
+	maxRenderNodes = 50000
+	// maxRenderBytes bounds the assembled HTML, so a modest node count that
+	// each emit a large payload cannot blow up memory either.
+	maxRenderBytes = 8 << 20
+)
+
+// budgetMarker is emitted once, in place of the first node that did not fit.
+// It is inert markup (no handlers, no script) and carries the diagnostic
+// attribute the harness/audit can assert on.
+const budgetMarker = `<div data-qorm-truncated="budget"></div>`
+
+// BudgetExceeded is the Result.Unknown entry reported when a render was cut
+// short by the budget above. It rides the existing self-verify channel, so
+// `qorm check`, the MCP audit and the examples sweep all surface it without a
+// new plumbing path.
+const BudgetExceeded = "render-budget-exceeded"
+
+// spendNode charges one node against the render budget and reports whether the
+// caller may proceed. Once the budget is gone the render DEGRADES: the marker
+// is appended once, BudgetExceeded is recorded in Result.Unknown, and every
+// subsequent node is skipped — enclosing widgets still write their own closing
+// tags, so the emitted HTML stays well-formed and merely truncated. It never
+// panics and never errors, matching how an unknown widget type degrades.
+func (r *renderer) spendNode() bool {
+	if r.overBudget {
+		return false
+	}
+	r.nodesRendered++
+	if r.nodesRendered > maxRenderNodes || r.sb.Len() > maxRenderBytes {
+		r.overBudget = true
+		r.sb.WriteString(budgetMarker)
+		r.unknowns = append(r.unknowns, BudgetExceeded)
+		return false
+	}
+	return true
+}
+
 // Render renders the entry scene of a runtime.
 func Render(rt *runtime.Runtime) Result { return RenderScene(rt, "") }
 
@@ -99,6 +153,14 @@ func RenderScene(rt *runtime.Runtime, sceneID string) Result {
 		if sc := rt.App.Scenes[sceneID]; sc != nil {
 			root = sc
 		}
+	}
+	// A blocked runtime has no scene its guards admit — not even the entry one.
+	// The unknown-id fallback above would otherwise render exactly the scene the
+	// guard refused, so every host (server, WASM, playground) leaks it through
+	// this one line. Rendering nothing is the only honest answer; the empty-root
+	// branch below already emits the placeholder.
+	if rt.Blocked() {
+		root = nil
 	}
 	if root != nil {
 		r.rootID = root.ID
@@ -258,6 +320,9 @@ func (r *renderer) interp(s string) string {
 // is wrapped in that entrance effect, so animation is a cross-cutting property
 // rather than something only the `motion` widget offers.
 func (r *renderer) node(n *model.Node) {
+	if !r.spendNode() {
+		return
+	}
 	if !r.visible(n) {
 		return
 	}
@@ -379,6 +444,10 @@ func (r *renderer) renderInner(n *model.Node) {
 		r.datepicker(n)
 	case "timepicker", "cupertinotimepicker":
 		r.timepicker(n)
+	case "monthview", "calendarview", "datepickercalendar":
+		r.monthView(n)
+	case "tooltip":
+		r.tooltip(n)
 	case "camera":
 		r.camera(n)
 	case "location", "geolocation":

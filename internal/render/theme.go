@@ -100,6 +100,17 @@ func sanitizeTokenName(s string) string {
 }
 
 func sanitizeTokenValue(s string) string {
+	// A token value lands in the shell's <style> as `--qorm-token-x:<value>`,
+	// so a fetch function here originates an outbound request the moment any
+	// scene says var(--qorm-token-x), and an unterminated comment swallows the
+	// rest of the token block. Stripping the structural characters below stops
+	// a token from ending its own declaration, but neither of those — hence the
+	// same predicate every other CSS input in the renderer goes through. The
+	// whole value is dropped rather than patched: a half-stripped url() is not
+	// a value any author meant to write.
+	if cssFetchOrComment(s) {
+		return ""
+	}
 	return strings.Map(func(r rune) rune {
 		switch r {
 		case ';', '{', '}', '<', '>', '\n', '\r':

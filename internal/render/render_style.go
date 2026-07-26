@@ -487,8 +487,15 @@ func (r *renderer) textCSS(n *model.Node) string {
 	} else if propBool(n, "ellipsis") {
 		b.WriteString("white-space:nowrap;overflow:hidden;text-overflow:ellipsis;")
 	}
-	if v := str(s, "textAlign"); v != "" {
-		fmt.Fprintf(&b, "text-align:%s;justify-content:%s;", v, flexAlign(v))
+	// textAlign feeds two declarations: justify-content goes through flexAlign
+	// (a closed keyword set) but text-align takes the value itself, so it needs
+	// the same CSS-value validation every other string key gets. flexAlign
+	// still sees the RAW value so an unrecognised alignment keeps falling back
+	// to flex-start exactly as before.
+	if raw := str(s, "textAlign"); raw != "" {
+		if v := cssStyleValue(raw); v != "" {
+			fmt.Fprintf(&b, "text-align:%s;justify-content:%s;", v, flexAlign(raw))
+		}
 	}
 	// Entity-encode like boxCSS (see styleAttr): the string keys interpolate
 	// author/bound values raw into the quoted style attribute.
@@ -725,14 +732,202 @@ func str(m map[string]any, key string) string {
 
 func layoutStr(n *model.Node, key string) string { return str(n.Layout, key) }
 
+// colorStr reads a STRING-valued style key (background, gradient, shadow,
+// cursor, transition, color, fontFamily, backdropTint, hoverBackground, …) and
+// returns it only if it is a well-formed CSS value — see cssStyleValue. Every
+// caller writes the result straight into a `prop:<value>;` declaration inside
+// the style attribute, so this reader is the single choke point where an
+// author- or binding-supplied value becomes CSS, and therefore where it is
+// validated. A rejected value yields "" and the declaration is simply not
+// emitted (the CSS-injection equivalent of an unknown widget degrading to
+// unknown(): drop the malformed thing, keep rendering).
 func colorStr(m map[string]any, key string) string {
 	if m == nil {
 		return ""
 	}
 	if s, ok := m[key].(string); ok {
-		return s
+		return cssStyleValue(s)
 	}
 	return ""
+}
+
+// cssStyleValue passes an author- or binding-supplied CSS *value* through, or
+// returns "" when it is not one. It is the style-attribute counterpart of
+// cssValue (render_data.go, which guards <style> blocks) and deliberately uses
+// the same allowlist so the two agree on what a CSS value is: letters, digits,
+// and ` #(),.%-_/` — enough for every legitimate form (`#0af`, `var(--accent)`,
+// `rgb(0 0 0 / 50%)`, `color-mix(in srgb,var(--success) 15%,transparent)`,
+// `linear-gradient(135deg,#007aff,#5e5ce6)`, `0 1px 3px rgba(0,0,0,.08)`,
+// `all .2s ease`, `-apple-system, sans-serif`) — and nothing else.
+//
+// Why entity-encoding (styleAttr) is NOT sufficient on its own, and this is a
+// real fix rather than belt-and-braces:
+//
+//	styleAttr stops the value from ending the ATTRIBUTE (a raw `"` becomes
+//	&#34;), which is the round-8 breakout. It does not stop the value from
+//	ending its own DECLARATION, because `;` is not one of the five characters
+//	html.EscapeString touches. A bound value of
+//	    #fff;position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:99999
+//	therefore rides through intact and turns any styled node into a full-screen
+//	overlay — clickjacking, plus an outbound beacon via background-image. The
+//	value arrives from exactly the places an attacker reaches: an http response
+//	written into state, MCP qorm_set_state, or a text input bound to a style.
+//	Rejecting `;` (and `{` `}` `<` `>` `"` `'` `!` `:` `\`) is what closes it.
+//
+// Two tightenings beyond cssValue's charset, applied because a style attribute
+// is a live rendering context rather than a colour slot:
+//
+//   - url()/image-set()/src(): the charset permits `/` and `(` (needed for
+//     `rgb(… / …)` and `var()`), which together spell `url(//attacker/x.png)` —
+//     a value the browser really fetches, leaking a visit beacon with the
+//     page's Referer. No legitimate style-key value in this repo is a url().
+//   - `/*`: an unterminated CSS comment swallows the remainder of the assembled
+//     style attribute, silently deleting the declarations that follow it.
+func cssStyleValue(s string) string {
+	if s == "" || len(s) > 512 {
+		return ""
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9':
+		case strings.IndexByte(" #(),.%-_/", c) >= 0:
+		default:
+			return ""
+		}
+	}
+	if cssFetchOrComment(s) {
+		return ""
+	}
+	return s
+}
+
+// cssFetchOrComment reports whether a CSS fragment carries a token that makes
+// the browser FETCH an external resource, or one that opens a comment. It is
+// the one place the three CSS entry points — cssStyleValue (style="…" values),
+// cssValue (<style> block values, render_data.go) and cssRawDecls (the
+// menuStyle declaration list) — agree on what is out of bounds, so tightening
+// one tightens all of them.
+//
+//   - url() / image-set() / src(): the value allowlists permit `/` and `(`
+//     (needed for `rgb(… / …)` and `var()`), which together spell
+//     `url(//attacker/x.png)`. The browser really issues that request, leaking
+//     a visit beacon plus the page's Referer to a third party — no script
+//     needed. Nothing in this repo legitimately wants a url() in a colour,
+//     curve, background or panel style (the ONE deliberate url() is the image
+//     `placeholder`, which builds the token itself and validates the payload
+//     with cssURLToken).
+//   - expression(): legacy IE script-in-CSS. Inert in every browser QORM
+//     targets, rejected anyway because it costs one comparison.
+//   - `/*`: an unterminated comment swallows every declaration after it,
+//     silently deleting the styles the widget itself relies on (a way to strip
+//     a `position:relative` or an `overflow:hidden` off a container).
+//
+// The check is case-insensitive; the surrounding allowlists reject `\`, so a
+// CSS escape (`\75 rl(`) cannot spell any of these past the charset gate.
+func cssFetchOrComment(s string) bool {
+	low := strings.ToLower(s)
+	for _, bad := range [...]string{"url(", "image-set(", "src(", "expression(", "/*"} {
+		if strings.Contains(low, bad) {
+			return true
+		}
+	}
+	return false
+}
+
+// cssValueOr validates a string PROP that a widget writes straight into a CSS
+// declaration of its own markup (`color` on spinner/progress/badge/chart,
+// `background` on appbar/largetitle, `curve`/`repeat` on the animation
+// wrappers, `fit` on image) — the prop-side counterpart of colorStr, which does
+// the same job for the `style` map. An empty OR rejected value yields def, so a
+// hostile value degrades to the widget's built-in look rather than to a broken
+// declaration: these props all sit INSIDE a longer hand-built declaration
+// string ("animation:%s %gms %s …"), where dropping the value would corrupt the
+// declarations around it instead of just the one.
+//
+// It takes the READ value rather than (node, key) on purpose: the prop read
+// stays written as propStr(n, "…") at the call site, where the API-ref prop
+// extractor (internal/integration) can see the key and attribute it to the
+// widget — the same reason iconLabel's caller keeps its own read.
+//
+// Rejection matters here for the same reason it does in the style map:
+// html.EscapeString/styleAttr stop the value from ending the ATTRIBUTE, but
+// `;` is not one of the five characters they touch, so
+// `#fff;position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:99999`
+// otherwise rides through and turns the widget into a full-screen overlay.
+func cssValueOr(v, def string) string {
+	if s := cssStyleValue(v); s != "" {
+		return s
+	}
+	return def
+}
+
+// cssURLToken passes the payload of an unquoted CSS `url(…)` through, or
+// returns "" when it is not one. Used for the image `placeholder`, the single
+// place in the renderer that builds a url() ON PURPOSE (a low-res/blur image
+// painted as the element's background while the real src loads).
+//
+// The character that matters is `)`: the CSS tokenizer consumes an unquoted
+// url-token up to the closing paren, so a `;` or a `:` inside it is INERT —
+// which is why a `data:image/png;base64,…` placeholder keeps working — but a
+// value carrying its own `)` closes the token early and everything after it is
+// parsed as fresh declarations:
+//
+//	a.png);position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:99999;background:url(b.png
+//
+// is a valid image URL by looksLikeImageURL and a full-screen overlay in the
+// browser. Quotes, whitespace, `(` and `\` are rejected as well: each turns the
+// url-token into a bad-url-token or a function+string pair, i.e. a value that
+// no longer means what the caller wrote.
+func cssURLToken(s string) string {
+	if s == "" || len(s) > 2048 {
+		return ""
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9':
+		case strings.IndexByte("-._~:/?#@[]!$&*+,;=%", c) >= 0:
+		default:
+			return ""
+		}
+	}
+	if cssFetchOrComment(s) { // `/*` inside the path; url( cannot occur (no "(")
+		return ""
+	}
+	return s
+}
+
+// cssRawDecls filters an author-written DECLARATION LIST — today only
+// `menuStyle` on contextmenu, whose documented contract is "raw CSS appended to
+// the panel's style" (api/props.md, examples/menus/README.md).
+//
+// Why this one is not value-filtered like every other CSS entry point: the
+// contract IS a declaration list, so `;` and `:` are its grammar rather than an
+// escape from it, and a per-declaration filter could not reject
+// `position:fixed;width:100vw` without breaking the feature — that string is
+// exactly what an app legitimately writes to reposition the panel.
+//
+// That is acceptable only because the value can never carry untrusted data.
+// It is read with propStr, which does NOT evaluate bindings: a `{{state.x}}`
+// stays the literal seven characters and lands in the CSS as nonsense, so the
+// paths an attacker actually reaches — an http response written into state, MCP
+// qorm_set_state, a text input bound to a style — cannot steer it. What is left
+// is the app's own JSON (or an agent's qorm_apply_patch, which is
+// author-equivalent by design: the same actor can add a `position:fixed`
+// container and needs no CSS trick to do it). An author styling their own panel
+// is not a privilege boundary.
+//
+// The one rule that still applies is the one that reaches OFF the page: a
+// url()/image-set() beacon and a `/*` that eats the panel's own layout
+// declarations are rejected wholesale (see cssFetchOrComment), so no CSS in
+// this renderer can originate an outbound request. styleAttr on top keeps the
+// value inside the quoted attribute.
+func cssRawDecls(s string) string {
+	if cssFetchOrComment(s) {
+		return ""
+	}
+	return s
 }
 
 func numOK(m map[string]any, key string) (float64, bool) {

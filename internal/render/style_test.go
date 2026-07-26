@@ -518,10 +518,18 @@ func TestPseudoStateOmittedWhenUnset(t *testing.T) {
 // TestPseudoStateInjectionClosure: the pseudo-state values ride from author (or
 // bound) input straight into the inline style attribute, the same position as
 // `background`. A raw double quote there would TERMINATE the quoted attribute
-// and let the value inject arbitrary attributes (the round-6 breakout class),
-// so styleAttr must entity-encode the assembled declaration.
+// and let the value inject arbitrary attributes (the round-6 breakout class).
+// Since the CSS-declaration-injection fix these values are validated by
+// cssStyleValue at the colorStr choke point, so a payload carrying attribute or
+// tag punctuation is DROPPED outright rather than merely entity-encoded — the
+// variable is never emitted at all. styleAttr still encodes what survives.
 func TestPseudoStateInjectionClosure(t *testing.T) {
 	evil := `red" onmouseover="alert(1)`
+	vars := map[string]string{
+		"hoverBackground":  varHoverBG,
+		"hoverColor":       varHoverFG,
+		"focusBorderColor": varFocusBorder,
+	}
 	for _, key := range []string{"hoverBackground", "hoverColor", "focusBorderColor"} {
 		t.Run(key, func(t *testing.T) {
 			html := styleHTML(t, map[string]any{key: evil + "<script>"}, nil)
@@ -531,11 +539,25 @@ func TestPseudoStateInjectionClosure(t *testing.T) {
 			if strings.Contains(html, "<script>") {
 				t.Errorf("%s value emitted a raw tag:\n%s", key, html)
 			}
-			if !strings.Contains(html, "&#34; onmouseover=&#34;") || !strings.Contains(html, "&lt;script&gt;") {
-				t.Errorf("%s value should be entity-encoded in place:\n%s", key, html)
+			if strings.Contains(html, vars[key]) {
+				t.Errorf("%s: a value that is not a CSS value must be dropped, not emitted:\n%s", key, html)
 			}
 		})
 	}
+
+	// The declaration-injection payload proper: no attribute breakout at all
+	// (so entity encoding would have "passed"), just a second declaration that
+	// turns the node into a full-screen click-jacking overlay with an outbound
+	// beacon. It must not reach the style attribute in any form.
+	t.Run("declaration-injection", func(t *testing.T) {
+		const payload = `#fff;position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:99999;background-image:url(//attacker/beacon.png)`
+		html := styleHTML(t, map[string]any{"hoverBackground": payload}, nil)
+		for _, frag := range []string{"position:fixed", "z-index:99999", "background-image", "attacker"} {
+			if strings.Contains(html, frag) {
+				t.Errorf("declaration injection leaked %q into the style attribute:\n%s", frag, html)
+			}
+		}
+	})
 }
 
 // TestPseudoStateKeysAreKnown: an unlisted key is a load-time warning and the
@@ -641,4 +663,84 @@ func nodeStyleOf(t *testing.T, html, id string) string {
 		t.Fatalf("unterminated style attribute for %q", id)
 	}
 	return rest[:k]
+}
+
+// TestCSSURLToken covers the one place the renderer builds a url() ON PURPOSE
+// (the image `placeholder`). The character that matters inside an unquoted
+// url-token is ")": the CSS tokenizer consumes everything up to it, so a ";" or
+// a ":" is inert there — which is why a data: URI keeps working — but a value
+// carrying its own ")" closes the token early and the rest is parsed as fresh
+// declarations, the full-screen-overlay payload again.
+func TestCSSURLToken(t *testing.T) {
+	for _, ok := range []string{
+		"blur.png", "/static/thumbs/a_1.jpg?v=2", "//cdn.example.com/x.webp",
+		"data:image/png;base64,iVBORw0KGgo=", "img/a%20b.png", "a.png#frag",
+	} {
+		if got := cssURLToken(ok); got != ok {
+			t.Errorf("legitimate url payload %q must pass through, got %q", ok, got)
+		}
+	}
+	for _, bad := range []string{
+		"", // nothing to paint
+		"a.png);position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:99999;background:url(b.png",
+		`a.png" onload="alert(1)`, "a.png'", "a b.png", "a(b).png", `a\.png`,
+		"a.png<script>", "a/*.png",
+	} {
+		if got := cssURLToken(bad); got != "" {
+			t.Errorf("cssURLToken(%q) = %q, want rejected", bad, got)
+		}
+	}
+}
+
+// TestCSSRawDecls pins the ONE deliberate raw-CSS passthrough: `menuStyle` is a
+// declaration list by contract, so ";" and ":" are its grammar and it cannot be
+// value-filtered without breaking the feature. It is safe because propStr never
+// evaluates a binding, so no state / http / MCP-set-state value can reach it —
+// but the rule that reaches OFF the page still applies.
+func TestCSSRawDecls(t *testing.T) {
+	for _, ok := range []string{
+		"background:hotpink;", "min-width:320px;padding:12px;",
+		"background:var(--surface);border:1px solid var(--sep);",
+		// a declaration list is allowed to reposition the panel: that is the
+		// documented purpose, and the author already controls the whole scene
+		"position:absolute;top:0;left:0;",
+	} {
+		if got := cssRawDecls(ok); got != ok {
+			t.Errorf("legitimate menuStyle %q must pass through, got %q", ok, got)
+		}
+	}
+	for _, bad := range []string{
+		"background:url(//attacker/beacon.png);",
+		"background:IMAGE-SET(//attacker/x.png 1x);",
+		"padding:6px;/*",
+	} {
+		if got := cssRawDecls(bad); got != "" {
+			t.Errorf("cssRawDecls(%q) = %q, want rejected", bad, got)
+		}
+	}
+}
+
+// TestCSSFetchOrComment is the shared rule under cssValue, cssStyleValue and
+// cssRawDecls: whatever the syntax around it, no CSS this renderer emits may
+// make the browser fetch a third-party resource or open a comment. Case is
+// irrelevant, and the surrounding allowlists reject "\", so a CSS escape cannot
+// spell any of these past the charset gate.
+func TestCSSFetchOrComment(t *testing.T) {
+	for _, bad := range []string{
+		"url(x)", "URL(x)", "Url(x)", "image-set(x)", "-webkit-image-set(x)",
+		"src(x)", "expression(alert(1))", "a/*b",
+	} {
+		if !cssFetchOrComment(bad) {
+			t.Errorf("cssFetchOrComment(%q) = false, want true", bad)
+		}
+	}
+	for _, ok := range []string{
+		"var(--accent)", "rgb(0 0 0 / 50%)", "color-mix(in srgb,red 20%,blue)",
+		"linear-gradient(135deg,#007aff,#5e5ce6)", "cubic-bezier(.34,1.2,.64,1)",
+		"all .2s ease", "curl-ish", "resource(x)",
+	} {
+		if cssFetchOrComment(ok) {
+			t.Errorf("cssFetchOrComment(%q) = true, want false", ok)
+		}
+	}
 }

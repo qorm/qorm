@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"net"
 	"net/http"
@@ -301,6 +302,11 @@ func (s *Server) spawn(work func() any, resume func(any)) {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if s.rt != owner {
+			// The reply belongs to a runtime we no longer serve. Abandoning it
+			// settles the retired runtime's counters and cancels its keyed
+			// transports, so a caller polling Inflight() on it cannot wait for
+			// ever (Reload copies state forward, so "retired" is not "unread").
+			owner.AbandonInflight()
 			s.logEvent("system", "dropped an async response from a replaced runtime")
 			return
 		}
@@ -880,6 +886,9 @@ func (s *Server) Reload(next *runtime.Runtime) {
 		// The reload CONTINUES this session on the same scene — a fresh
 		// runtime's entry mark must not replay the scene's onEnter hook.
 		next.ClearPendingEnter()
+		// State carries forward but open requests do not: the old runtime is
+		// never resumed, so settle its counters and cancel its transports.
+		old.AbandonInflight()
 	}
 	s.rt = next
 	s.handlers = nil
@@ -894,6 +903,9 @@ func (s *Server) Reload(next *runtime.Runtime) {
 func (s *Server) activate(b *bundle.Bundle) {
 	s.prev = s.current
 	s.current = b
+	if s.rt != nil {
+		s.rt.AbandonInflight() // the outgoing runtime will never be resumed
+	}
 	s.rt = runtime.New(b.ToApp())
 	s.handlers = nil
 	s.handlerHist = nil
@@ -940,6 +952,9 @@ func (s *Server) Rollback() (string, error) {
 	s.prev = nil
 	from := versionOr(s.current)
 	s.current = restored
+	if s.rt != nil {
+		s.rt.AbandonInflight() // the outgoing runtime will never be resumed
+	}
 	s.rt = runtime.New(restored.ToApp())
 	s.handlers = nil
 	s.handlerHist = nil
@@ -1235,15 +1250,12 @@ func Page(rt *runtime.Runtime, body string, rev int64, eventToken ...string) str
 	if title == "" {
 		title = rt.App.Name
 	}
-	lang := rt.CurrentLocale()
-	if lang == "" {
-		lang = "en"
-	}
+	lang := langTag(rt.CurrentLocale())
 	dir := "ltr"
 	if rt.IsRTL() {
 		dir = "rtl"
 	}
-	theme := rt.CurrentTheme()
+	theme := themeClass(rt.CurrentTheme())
 	return fmt.Sprintf(`<!doctype html>
 <html lang="%s" dir="%s">
 <head>
@@ -1472,16 +1484,116 @@ func Page(rt *runtime.Runtime, body string, rev int64, eventToken ...string) str
   @keyframes qa-pulse { 0%%,100%% { transform:none; } 50%% { transform:scale(1.08); } }
   @keyframes qa-spin { to { transform:rotate(360deg); } }
   @keyframes qa-size { from { transform:scaleY(0); transform-origin:top; } to { transform:scaleY(1); transform-origin:top; } }
+  /* ---- Legacy "tooltip" PROP (a11y() in internal/render/render_style.go emits
+     data-tooltip). Kept byte-for-byte as it was — every app using the attribute
+     must render and look exactly the same — with ONE purely additive selector:
+     :focus-visible, so the hint a mouse can see is also reachable from the
+     keyboard. Authors wanting placement, wrapping long text or a {{ binding }}
+     use the "tooltip" WIDGET below. ---- */
   [data-tooltip] { position:relative; }
-  [data-tooltip]:hover::after { content:attr(data-tooltip); position:absolute; bottom:100%%; left:50%%; transform:translateX(-50%%);
+  [data-tooltip]:hover::after, [data-tooltip]:focus-visible::after { content:attr(data-tooltip); position:absolute; bottom:100%%; left:50%%; transform:translateX(-50%%);
     background:#111827; color:#fff; padding:4px 8px; border-radius:6px; font-size:12px; white-space:nowrap; margin-bottom:6px; z-index:100; pointer-events:none; }
+  /* ---- Tooltip WIDGET ({"type":"tooltip"} — r.tooltip in
+     internal/render/render_feedback.go). The bubble is a REAL element holding an
+     escaped text node, not content:attr(): a long hint therefore WRAPS inside
+     max-width instead of running off-screen, and assistive tech reaches it
+     through role="tooltip" + aria-describedby. Hover sits inside
+     @media (hover:hover) so a tap on a touch device cannot leave a bubble stuck
+     open; :focus-visible covers the wrapper when it is itself the tab stop and
+     :focus-within covers the case where it wraps a control. Placement is one of
+     four fixed direction classes, so no author value ever reaches a rule.
+     Caveat: an absolutely-positioned bubble is still clipped by an ancestor with
+     overflow:hidden — escaping to the top layer needs the Popover API, which
+     cannot be opened on hover without script. ---- */
+  .qorm-tip { position:relative; }
+  .qorm-tip-bubble { position:absolute; z-index:120; opacity:0; visibility:hidden; transition:opacity .12s ease;
+    box-sizing:border-box; width:max-content; max-width:240px; padding:6px 9px; border-radius:6px;
+    background:#111827; color:#fff; font-size:12px; font-weight:400; line-height:1.45; text-align:left;
+    white-space:normal; overflow-wrap:anywhere; pointer-events:none; box-shadow:0 6px 20px rgba(0,0,0,.28); }
+  @media (hover:hover) { .qorm-tip:hover > .qorm-tip-bubble { opacity:1; visibility:visible; } }
+  .qorm-tip:focus-visible > .qorm-tip-bubble, .qorm-tip:focus-within > .qorm-tip-bubble { opacity:1; visibility:visible; }
+  .qorm-tip-top > .qorm-tip-bubble { bottom:100%%; left:50%%; transform:translateX(-50%%); margin-bottom:7px; }
+  .qorm-tip-bottom > .qorm-tip-bubble { top:100%%; left:50%%; transform:translateX(-50%%); margin-top:7px; }
+  .qorm-tip-left > .qorm-tip-bubble { right:100%%; top:50%%; transform:translateY(-50%%); margin-right:7px; }
+  .qorm-tip-right > .qorm-tip-bubble { left:100%%; top:50%%; transform:translateY(-50%%); margin-left:7px; }
 </style>
 </head>
 <body>
 <div id="qorm-stage" class="qorm-theme-%s"><div id="qorm-root">%s</div></div>
 <script>%s</script>
 </body>
-</html>`, lang, dir, htmlEscape(title), themeCSS(rt), width, height, theme, body, qormAppJS(rev, tok))
+</html>`, html.EscapeString(lang), dir, htmlEscape(title), themeCSS(rt), width, height, html.EscapeString(theme), body, qormAppJS(rev, tok))
+}
+
+// themeClass turns the active theme name (state.theme — writable by an action,
+// by an http response, by MCP qorm_set_state, or by a theme picker bound to a
+// text input) into the CSS class token the shell stamps on the stage:
+// class="qorm-theme-<theme>".
+//
+// This is a NORMALIZING WHITELIST, not an escape, and deliberately so. Entity
+// encoding alone would stop the attribute breakout but not the injection: a
+// space is a perfectly legal HTML attribute character, so `dark qorm-fluid`
+// would still silently add a second class, and the value's whole job is to be a
+// CSS identifier — a character set of exactly [A-Za-z0-9_-]. Normalizing to
+// that set makes the value structurally incapable of carrying markup, a quote,
+// or a second class, independent of the surrounding quoting; the call site
+// still html.EscapeString's it so the attribute stays sound even if this
+// function is ever loosened.
+//
+// A value outside the set is REJECTED WHOLESALE (fall back to the documented
+// default "auto") rather than stripped: a stripped value would render under a
+// theme the author never named, whereas "auto" is exactly what an unknown theme
+// already resolved to in render.ThemeVarsFor. Every legitimate theme name —
+// the built-in apple/material/dark/auto and any custom name an app styles via
+// designTokens — passes through byte-identically.
+func themeClass(theme string) string {
+	if theme == "" || len(theme) > 32 {
+		return "auto"
+	}
+	for i := 0; i < len(theme); i++ {
+		c := theme[i]
+		switch {
+		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9', c == '-', c == '_':
+		default:
+			return "auto"
+		}
+	}
+	return theme
+}
+
+// langTag turns the active locale (state.locale — same write surfaces as
+// state.theme) into the value of <html lang="…">.
+//
+// Same reasoning as themeClass: a BCP47 language tag is a restricted grammar
+// (alphanumeric subtags joined by single separators), so normalizing to that
+// grammar is strictly stronger than escaping — it rules out not just the quote
+// breakout but any content that is not a language tag at all. `_` is accepted
+// alongside `-` because runtime.IsRTL already treats both as subtag separators.
+// A value that is not tag-shaped falls back to "en", which is what an empty
+// locale already produced.
+func langTag(locale string) string {
+	if locale == "" || len(locale) > 35 {
+		return "en"
+	}
+	prevSep := true // a tag may not start with a separator
+	for i := 0; i < len(locale); i++ {
+		c := locale[i]
+		switch {
+		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9':
+			prevSep = false
+		case c == '-', c == '_':
+			if prevSep {
+				return "en" // leading or doubled separator: not a language tag
+			}
+			prevSep = true
+		default:
+			return "en"
+		}
+	}
+	if prevSep {
+		return "en" // trailing separator
+	}
+	return locale
 }
 
 // themeCSS is the shell's theme block: the shared built-in palettes plus the
@@ -1494,8 +1606,17 @@ func themeCSS(rt *runtime.Runtime) string {
 	return render.ThemeCSS
 }
 
+// htmlEscape entity-encodes an app-supplied string (the manifest name / window
+// title) for the HTML shells. It escapes QUOTES as well as & < >, because the
+// same helper feeds attribute contexts, not only text: the console frames the
+// app as <iframe title="{{title}}"> (console.go) and the offline shell writes
+// <meta ... content="…"> (offline.go). Without the quote entities a manifest
+// name carrying a double quote closes the attribute and injects markup — and a
+// manifest is exactly the artifact an OTA bundle replaces. In text contexts
+// (<title>…</title>) the extra entities are decoded back by the parser, so the
+// rendered text is unchanged.
 func htmlEscape(s string) string {
-	repl := map[rune]string{'&': "&amp;", '<': "&lt;", '>': "&gt;"}
+	repl := map[rune]string{'&': "&amp;", '<': "&lt;", '>': "&gt;", '"': "&#34;", '\'': "&#39;"}
 	out := make([]rune, 0, len(s))
 	for _, c := range s {
 		if r, ok := repl[c]; ok {
