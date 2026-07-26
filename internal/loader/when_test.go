@@ -79,6 +79,44 @@ func TestWhenSerializeRoundTrip(t *testing.T) {
 	}
 }
 
+// TestWhenBareConditionDiagnosed ensures a when condition WITHOUT a {{...}}
+// binding is flagged at load time: the renderer treats any non-empty string as
+// truthy, so such a condition silently renders the then branch forever.
+func TestWhenBareConditionDiagnosed(t *testing.T) {
+	doc := map[string]any{
+		"type": "scene", "id": "main",
+		"root": map[string]any{
+			"type": "when", "id": "sw",
+			"condition": "viewport.width >= 768", // forgot the {{ }}
+			"then":      map[string]any{"type": "text", "id": "a", "text": "x"},
+			"else":      map[string]any{"type": "text", "id": "b", "text": "y"},
+		},
+	}
+	app := FromDocs([]map[string]any{doc})
+	found := false
+	for _, d := range app.Diagnostics {
+		if strings.HasPrefix(d, "warning:") && strings.Contains(d, `"sw"`) &&
+			strings.Contains(d, "when condition") && strings.Contains(d, "viewport.width >= 768") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected a bare-condition warning for the when node, got %v", app.Diagnostics)
+	}
+
+	// An empty condition is a different (documented) shape — it always renders
+	// the else branch — and a bound condition is correct: neither warns.
+	for _, cond := range []string{"", "{{ viewport.width >= 768 }}"} {
+		doc["root"].(map[string]any)["condition"] = cond
+		app := FromDocs([]map[string]any{doc})
+		for _, d := range app.Diagnostics {
+			if strings.Contains(d, "when condition") {
+				t.Errorf("condition %q should not warn, got %s", cond, d)
+			}
+		}
+	}
+}
+
 // TestWhenTypeCheckCondition ensures viewport vars are typed for the static
 // checker: misusing viewport.orientation (a string) as a number is diagnosed.
 func TestWhenTypeCheckCondition(t *testing.T) {

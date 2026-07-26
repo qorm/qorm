@@ -64,6 +64,49 @@ func TestEvalBindingTypedVsInterpolated(t *testing.T) {
 	}
 }
 
+// TestEvalBindingQuoteAwareDelimiters is a regression test: the runtime must
+// find a binding's closing "}}" with the same quote-aware scan the loader's
+// static checks use (expr.CloseIndex). The old naive non-greedy regex split
+// {{ '}}' }} at the "}}" INSIDE the string literal, so a binding that
+// validated at load time evaluated wrongly at render time.
+func TestEvalBindingQuoteAwareDelimiters(t *testing.T) {
+	ctx := map[string]any{"name": "Ada"}
+
+	// A "}}" inside a single-quoted literal is not the closing delimiter:
+	// the whole string is one binding and evaluates to its typed value.
+	if got := EvalBinding("{{ '}}' }}", ctx); got != "}}" {
+		t.Errorf("single-quoted }} literal: got %q (%T)", got, got)
+	}
+	// Same for a double-quoted literal.
+	if got := EvalBinding(`{{ "}}" }}`, ctx); got != "}}" {
+		t.Errorf("double-quoted }} literal: got %q (%T)", got, got)
+	}
+	// The literal composes with real expression work inside one binding.
+	if got := EvalBinding("{{ name + '}}' }}", ctx); got != "Ada}}" {
+		t.Errorf("concat with }} literal: got %q (%T)", got, got)
+	}
+	// Interpolation scans the same way: text around the binding survives.
+	if got := EvalBinding("a{{ '}}' }}b", ctx); got != "a}}b" {
+		t.Errorf("interpolated }} literal: got %q", got)
+	}
+	// An escaped quote inside the literal does not end the quote run.
+	if got := EvalBinding(`{{ '\'}}' }}`, ctx); got != "'}}" {
+		t.Errorf("escaped quote before }}: got %q (%T)", got, got)
+	}
+	// A "{{" whose only "}}" sits inside an unterminated string literal has no
+	// closing delimiter: the text is returned unchanged, whole and mixed.
+	if got := EvalBinding("{{ 'x }}", ctx); got != "{{ 'x }}" {
+		t.Errorf("unterminated literal (whole): got %q", got)
+	}
+	if got := EvalBinding("pre {{ 'x }}", ctx); got != "pre {{ 'x }}" {
+		t.Errorf("unterminated literal (mixed): got %q", got)
+	}
+	// After one sound binding, a later delimiter-less "{{" keeps its raw text.
+	if got := EvalBinding("{{ name }} and {{ oops", ctx); got != "Ada and {{ oops" {
+		t.Errorf("trailing unclosed binding: got %q", got)
+	}
+}
+
 func TestEvalArgsInSceneContext(t *testing.T) {
 	app := &model.App{
 		Entry:       "home",

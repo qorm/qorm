@@ -60,6 +60,34 @@ func TestCompileDocsCounter(t *testing.T) {
 	}
 }
 
+// TestCompileDocsRTLLocale guards the direction bit that crosses into JS: an
+// app whose active locale is right-to-left compiles with Dir "rtl", and a
+// locale-less app stays "ltr".
+func TestCompileDocsRTLLocale(t *testing.T) {
+	docs := []map[string]any{
+		{"type": "app", "id": "rtl", "entry": "main", "defaultLocale": "ar"},
+		{
+			"type": "scene", "id": "main",
+			"root": map[string]any{
+				"type": "column", "id": "root",
+				"children": []any{map[string]any{"type": "text", "id": "t", "text": "hi"}},
+			},
+		},
+	}
+	res := CompileDocs(docs)
+	if res.Dir != "rtl" {
+		t.Errorf("Arabic default locale should compile with dir=rtl, got %q", res.Dir)
+	}
+	if res.HTML == "" {
+		t.Error("RTL app should still render HTML")
+	}
+
+	// The default (no locale anywhere) stays LTR.
+	if res := CompileDocs(counterDocs()); res.Dir != "ltr" {
+		t.Errorf("locale-less app should compile with dir=ltr, got %q", res.Dir)
+	}
+}
+
 // TestCompileDocsUnknownStyleKey guards that a typo'd style key surfaces as a
 // (non-fatal) diagnostic instead of being silently dropped.
 func TestCompileDocsUnknownStyleKey(t *testing.T) {

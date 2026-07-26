@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -227,8 +226,6 @@ func (r *Runtime) ViewportVars() map[string]any {
 	}
 }
 
-var bindingRe = regexp.MustCompile(`\{\{(.*?)\}\}`)
-
 // sceneCtx is the evaluation context for scene bindings: `state.*`, the
 // active-locale message catalog `t.*`, the responsive `viewport.*` vars and the
 // current scene's navigation parameters `route.*`.
@@ -304,26 +301,47 @@ func (r *Runtime) Catalog() map[string]any {
 // EvalBinding evaluates a possibly-bound string. If the whole string is a
 // single {{expr}}, the typed value is returned; if it mixes text and bindings,
 // an interpolated string is returned; a plain string is returned as-is.
+//
+// Delimiters are found with the same quote-aware scan the loader's static
+// checks use (expr.CloseIndex), so a "}}" inside a binding's string literal —
+// e.g. {{ '}}' }} — does not truncate the expression at render time. A "{{"
+// with no closing "}}" outside string literals is not a binding; the text is
+// returned unchanged from that point.
 func EvalBinding(s string, ctx map[string]any) any {
-	trimmed := strings.TrimSpace(s)
-	if m := bindingRe.FindStringSubmatch(trimmed); m != nil && m[0] == trimmed {
-		v, err := expr.Eval(m[1], ctx)
-		if err != nil {
-			return ""
-		}
-		return v
-	}
 	if !strings.Contains(s, "{{") {
-		return s
+		return s // fast path: plain text never scans or evaluates
 	}
-	return bindingRe.ReplaceAllStringFunc(s, func(tok string) string {
-		inner := bindingRe.FindStringSubmatch(tok)[1]
-		v, err := expr.Eval(inner, ctx)
-		if err != nil {
-			return ""
+	// Whole-string single binding -> typed value.
+	trimmed := strings.TrimSpace(s)
+	if strings.HasPrefix(trimmed, "{{") {
+		if end := expr.CloseIndex(trimmed[2:]); end != -1 && 2+end+2 == len(trimmed) {
+			v, err := expr.Eval(trimmed[2:2+end], ctx)
+			if err != nil {
+				return ""
+			}
+			return v
 		}
-		return expr.Stringify(v)
-	})
+	}
+	// Mixed text and bindings -> interpolated string. A binding that fails to
+	// evaluate expands to "" while the surrounding text survives.
+	var sb strings.Builder
+	for {
+		start := strings.Index(s, "{{")
+		if start == -1 {
+			sb.WriteString(s)
+			return sb.String()
+		}
+		end := expr.CloseIndex(s[start+2:])
+		if end == -1 {
+			sb.WriteString(s)
+			return sb.String()
+		}
+		sb.WriteString(s[:start])
+		if v, err := expr.Eval(s[start+2:start+2+end], ctx); err == nil {
+			sb.WriteString(expr.Stringify(v))
+		}
+		s = s[start+2+end+2:]
+	}
 }
 
 // EvalArgs evaluates an invoke's argument expressions in scene context.

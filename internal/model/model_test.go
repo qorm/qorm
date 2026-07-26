@@ -57,6 +57,9 @@ func TestNodeProp(t *testing.T) {
 		{"present nil value", node, "empty", nil, true},
 		{"missing key", node, "nope", nil, false},
 		{"nil props map", &Node{}, "src", nil, false},
+		// Prop is documented nil-safe: a nil *Node receiver reports a miss
+		// instead of panicking (renderers probe optional subtrees this way).
+		{"nil node", nil, "src", nil, false},
 		// Style is documented as a fallback but the code does not consult it;
 		// pin the actual behavior.
 		{"style is not a fallback", &Node{Style: map[string]any{"color": "red"}}, "color", nil, false},

@@ -424,6 +424,13 @@ func buildNode(m map[string]any, diags *[]string, sceneID string, vars map[strin
 	// "when" node: responsive conditional — condition picks then/else subtree.
 	if nodeType == "when" {
 		n.Condition = asString(m["condition"])
+		// A non-empty condition without a {{...}} binding is a constant: the
+		// renderer treats any non-empty string as truthy, so the then branch
+		// renders unconditionally and the else branch is dead. Warn at load
+		// time — this is almost always a forgotten {{ }} around the expression.
+		if diags != nil && n.Condition != "" && !strings.Contains(n.Condition, "{{") {
+			*diags = append(*diags, fmt.Sprintf("warning: [Scene: %s] 节点 (id: %q) 的 when condition %q 不含 {{...}} 绑定：非空字符串恒为真，将永远渲染 then 分支。请写成表达式绑定，如 \"{{ %s }}\"。", sceneID, nodeID, n.Condition, n.Condition))
+		}
 		if tm, ok := m["then"].(map[string]any); ok {
 			n.Then = buildNode(tm, diags, sceneID, vars)
 		}
@@ -590,43 +597,13 @@ func forEachExpr(s string, fn func(src string)) {
 		if start == -1 {
 			return
 		}
-		end := exprCloseIndex(s[start+2:])
+		end := expr.CloseIndex(s[start+2:])
 		if end == -1 {
 			return
 		}
 		fn(strings.TrimSpace(s[start+2 : start+2+end]))
 		s = s[start+end+4:]
 	}
-}
-
-// exprCloseIndex returns the offset of the first "}}" in s that lies outside
-// a string literal, or -1 if there is none. Quote tracking mirrors the
-// expression lexer (single or double quotes with backslash escapes) so a
-// "}}" inside a binding's string literal — e.g. {{ '}}' }} — is not mistaken
-// for the closing delimiter.
-func exprCloseIndex(s string) int {
-	var quote byte
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if quote != 0 {
-			switch {
-			case c == '\\':
-				i++ // skip the escaped character
-			case c == quote:
-				quote = 0
-			}
-			continue
-		}
-		switch c {
-		case '\'', '"':
-			quote = c
-		case '}':
-			if i+1 < len(s) && s[i+1] == '}' {
-				return i
-			}
-		}
-	}
-	return -1
 }
 
 // ---- coercion helpers ----

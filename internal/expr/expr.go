@@ -82,6 +82,39 @@ func Eval(src string, ctx map[string]any) (any, error) {
 	return evalNode(node, ctx), nil
 }
 
+// CloseIndex returns the offset of the first "}}" in s that lies outside a
+// string literal, or -1 if there is none. Quote tracking mirrors the
+// expression lexer (single or double quotes with backslash escapes) so a
+// "}}" inside a binding's string literal — e.g. {{ '}}' }} — is not mistaken
+// for the closing delimiter. It is the one shared way to find a binding's
+// closing delimiter: the loader's static checks and the runtime's binding
+// evaluation both scan with it, so a binding that validates at load time
+// cannot be split differently at render time.
+func CloseIndex(s string) int {
+	var quote byte
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if quote != 0 {
+			switch {
+			case c == '\\':
+				i++ // skip the escaped character
+			case c == quote:
+				quote = 0
+			}
+			continue
+		}
+		switch c {
+		case '\'', '"':
+			quote = c
+		case '}':
+			if i+1 < len(s) && s[i+1] == '}' {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
 // ---- lexer ----
 
 type tkind int
