@@ -147,6 +147,9 @@ var stepFields = [][4]string{
 	{"else", "array", "`if`: steps run when `condition` is falsy", "`if`:`condition` 为假时执行的步骤"},
 	{"name", "string", "`invoke`: the target action id (call depth capped at 16)", "`invoke`:目标动作 id(调用深度上限 16)"},
 	{"args", "object", "`invoke`: arg → value expressions, evaluated in the caller's context and merged into the callee's scope (same semantics as an event invoke's args)", "`invoke`:参数→值表达式,在调用方上下文求值后并入被调动作的作用域(与事件 invoke 的 args 同语义)"},
+	{"in", "string", "`forEach`: a `{{ … }}` expression yielding the array to iterate; anything that is not an array iterates zero times", "`forEach`:求值为待遍历数组的 `{{ … }}` 表达式;非数组则一次都不遍历"},
+	{"as", "string", "`forEach`: name the current element (default `item`), plus the derived `<as>Index` / `<as>First` / `<as>Last` keys — the same alias rule a list's `renderItem` uses", "`forEach`:当前元素的别名(默认 `item`),并派生 `<as>Index` / `<as>First` / `<as>Last` 三个键——与列表 `renderItem` 的别名规则一致"},
+	{"steps", "array", "`forEach`: the loop body, run once per element (iterations capped at 10000; the body nests under the same depth cap as `if`)", "`forEach`:循环体,每个元素执行一次(迭代上限 10000;循环体与 `if` 共用同一嵌套深度上限)"},
 }
 
 func stepDesc(typ string) (en, zh string) {
@@ -154,6 +157,7 @@ func stepDesc(typ string) (en, zh string) {
 		"render":             {"publish an intermediate frame right here, so state written by the steps before it (a loading flag) reaches the screen before a slow step runs. No-op on a host with no frame sink; capped at 64 frames per dispatch", "在此处提交一帧中间渲染,让它之前的步骤写入的状态(如 loading 标志)在慢步骤执行前就显示到屏幕上。宿主未安装帧汇时为空操作;每次派发上限 64 帧"},
 		"if":                 {"run `then` steps when `condition` is truthy, `else` steps otherwise (nestable)", "`condition` 为真执行 `then` 步骤,否则执行 `else` 步骤(可嵌套)"},
 		"invoke":             {"call another action by `name`, merging evaluated `args` into its scope", "按 `name` 调用另一个动作,求值后的 `args` 并入其作用域"},
+		"forEach":            {"run `steps` once per element of `in`, with the element bound under `as` (default `item`) plus `index` / `first` / `last`", "对 `in` 的每个元素执行一次 `steps`,元素以 `as`(默认 `item`)绑定,并附带 `index` / `first` / `last`"},
 		"navigate":           {"go to another scene (or `back`)", "跳转到另一个场景(或 `back`)"},
 		"state.set":          {"set a state path to a value", "把状态路径设为某值"},
 		"state.append":       {"append a value to an array", "向数组追加一个值"},
@@ -208,6 +212,9 @@ func TestAPIRefActions(t *testing.T) {
 
 	en.WriteString("\n```json\n// actions/addTodo.json — append a new object, then clear the input\n{ \"type\": \"action\", \"id\": \"addTodo\", \"steps\": [\n  { \"type\": \"state.appendObject\", \"path\": \"todos\",\n    \"item\": { \"id\": \"{{ now }}\", \"title\": \"{{ state.draft }}\", \"done\": \"false\" } },\n  { \"type\": \"state.set\", \"path\": \"draft\", \"value\": \"\" }\n] }\n```\n")
 	zh.WriteString("\n```json\n// actions/addTodo.json — 追加一个新对象,然后清空输入\n{ \"type\": \"action\", \"id\": \"addTodo\", \"steps\": [\n  { \"type\": \"state.appendObject\", \"path\": \"todos\",\n    \"item\": { \"id\": \"{{ now }}\", \"title\": \"{{ state.draft }}\", \"done\": \"false\" } },\n  { \"type\": \"state.set\", \"path\": \"draft\", \"value\": \"\" }\n] }\n```\n")
+
+	en.WriteString("\n## Derived values (`computed`)\n\nDeclare a value ONCE in the manifest instead of repeating the expression in every binding. Derived values are evaluated once per frame (not once per binding), may read each other, and are **read-only** — a step that writes into the namespace is a load-time error and is dropped at dispatch.\n\n```json\n// qorm.json — beside \"globalState\" (or nested inside it)\n\"computed\": {\n  \"subtotal\": \"{{ sum(map(state.items, \\\"it.price * it.qty\\\")) }}\",\n  \"isEmpty\":  \"{{ len(state.items) == 0 }}\",\n  \"withTax\":  \"{{ computed.subtotal * 1.2 }}\"\n}\n```\n\nRead them as `{{ state.computed.subtotal }}` in a scene binding, and as `{{ computed.subtotal }}` inside an action (which also sees every top-level state key bare). A dependency cycle is reported at load time and those values evaluate to nothing rather than recursing.\n")
+	zh.WriteString("\n## 派生值(`computed`)\n\n在清单里**声明一次**,而不是把同一个表达式抄进每一处绑定。派生值每帧求值一次(而非每个绑定一次),可以互相引用,并且**只读**——写入该命名空间的步骤是加载期错误,派发时也会被丢弃。\n\n```json\n// qorm.json —— 与 \"globalState\" 平级(也可嵌在其内部)\n\"computed\": {\n  \"subtotal\": \"{{ sum(map(state.items, \\\"it.price * it.qty\\\")) }}\",\n  \"isEmpty\":  \"{{ len(state.items) == 0 }}\",\n  \"withTax\":  \"{{ computed.subtotal * 1.2 }}\"\n}\n```\n\n在场景绑定中读作 `{{ state.computed.subtotal }}`,在动作中读作 `{{ computed.subtotal }}`(动作作用域同样能裸读顶层状态键)。循环依赖会在加载期报错,相关派生值求值为空而不会无限递归。\n")
 
 	syncDoc(t, "../../api/actions.md", en.String())
 	syncDoc(t, "../../api/zh/actions.md", zh.String())

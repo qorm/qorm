@@ -1,0 +1,14 @@
+{
+  "type": "action",
+  "id": "signIn",
+  "steps": [
+    {
+      "type": "if",
+      "condition": "{{ state.draftName != '' }}",
+      "then": [
+        { "type": "state.set", "path": "user", "value": "{{ state.draftName }}" },
+        { "type": "navigate", "to": "checkout" }
+      ]
+    }
+  ]
+}

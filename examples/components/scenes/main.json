@@ -96,6 +96,7 @@
       {
         "type": "accordion",
         "id": "acc",
+        "single": true,
         "children": [
           {
             "type": "column",
@@ -198,6 +199,8 @@
       {
         "type": "carousel",
         "id": "cr",
+        "autoplay": 3500,
+        "indicators": true,
         "children": [
           {
             "type": "card",
@@ -382,8 +385,9 @@
         "id": "tb",
         "tabs": ["Overview", "Specs", "Reviews"],
         "scrollable": true,
+        "swipe": true,
         "children": [
-          { "type": "text", "id": "tb1", "text": "Overview panel — tabs switch client-side, no server round-trip." },
+          { "type": "text", "id": "tb1", "text": "Overview panel — tabs switch client-side, no server round-trip. Swipe a panel sideways to change tab." },
           { "type": "text", "id": "tb2", "text": "Specs panel." },
           { "type": "text", "id": "tb3", "text": "Reviews panel." }
         ]

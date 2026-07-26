@@ -1,0 +1,20 @@
+{
+  "type": "action",
+  "id": "markAllGift",
+  "steps": [
+    {
+      "type": "forEach",
+      "in": "{{ state.items }}",
+      "as": "line",
+      "steps": [
+        {
+          "type": "state.updateWhere",
+          "path": "items",
+          "matchKey": "id",
+          "match": "{{ line.id }}",
+          "item": { "gift": "{{ true }}" }
+        }
+      ]
+    }
+  ]
+}

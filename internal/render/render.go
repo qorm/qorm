@@ -238,11 +238,11 @@ func (r *renderer) ctx() map[string]any {
 	}
 	if len(r.scope) == 0 {
 		if r.baseCtx == nil { // most nodes have no list scope — share one read-only ctx
-			r.baseCtx = map[string]any{"state": r.rt.State, "t": r.catalog, "viewport": r.viewport, "route": r.rt.RouteParams}
+			r.baseCtx = map[string]any{"state": r.rt.State, "t": r.catalog, "viewport": r.viewport, "route": r.rt.RouteParams, "computed": r.rt.ComputedVars()}
 		}
 		return r.baseCtx
 	}
-	m := map[string]any{"state": r.rt.State, "t": r.catalog, "viewport": r.viewport, "route": r.rt.RouteParams}
+	m := map[string]any{"state": r.rt.State, "t": r.catalog, "viewport": r.viewport, "route": r.rt.RouteParams, "computed": r.rt.ComputedVars()}
 	for k, v := range r.scope {
 		m[k] = v
 	}

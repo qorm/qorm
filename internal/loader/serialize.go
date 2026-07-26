@@ -104,6 +104,12 @@ func ManifestToJSON(app *model.App) map[string]any {
 	if len(gs) > 0 {
 		m["globalState"] = gs
 	}
+	// Derived values are accepted in two spellings (top level and nested under
+	// globalState) but written back in the canonical one, so a round trip
+	// normalises rather than duplicating them.
+	if len(app.Computed) > 0 {
+		m["computed"] = copyStrMap(app.Computed)
+	}
 	if len(app.DesignTokens) > 0 {
 		toks := map[string]any{}
 		for name, dt := range app.DesignTokens {
@@ -298,6 +304,12 @@ func stepToJSON(st model.Step) map[string]any {
 	if len(st.Args) > 0 {
 		s["args"] = copyStrMap(st.Args)
 	}
+	// forEach collection + item alias + loop body.
+	putIf(s, "in", st.In)
+	putIf(s, "as", st.As)
+	if len(st.Steps) > 0 {
+		s["steps"] = stepsToJSON(st.Steps)
+	}
 	// http result branches.
 	if len(st.OnSuccess) > 0 {
 		s["onSuccess"] = stepsToJSON(st.OnSuccess)
@@ -323,12 +335,27 @@ func AppToDocs(app *model.App) []map[string]any {
 		if inv := app.SceneEnter[id]; inv != nil {
 			doc["onEnter"] = invokeToJSON(inv)
 		}
+		// Route guards live on the scene document too, beside onEnter.
+		if g := app.SceneGuards[id]; g != nil {
+			doc["guard"] = guardToJSON(g)
+		}
 		docs = append(docs, doc)
 	}
 	for _, act := range app.Actions {
 		docs = append(docs, ActionToJSON(act))
 	}
 	return docs
+}
+
+// guardToJSON serialises a scene's route guard — the inverse of parseGuard.
+func guardToJSON(g *model.SceneGuard) map[string]any {
+	m := map[string]any{}
+	putIf(m, "condition", g.Condition)
+	putIf(m, "redirect", g.Redirect)
+	if len(g.Params) > 0 {
+		m["params"] = copyStrMap(g.Params)
+	}
+	return m
 }
 
 func invokeToJSON(inv *model.Invoke) map[string]any {

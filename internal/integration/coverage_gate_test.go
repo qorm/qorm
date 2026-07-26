@@ -95,7 +95,7 @@ var coverageFloors = map[string]float64{
 	"github.com/qorm/qorm/internal/miniapp":    93, // observed 96.6%
 	"github.com/qorm/qorm/internal/support":    90, // observed 94.0%
 	"github.com/qorm/qorm/internal/ota":        90, // observed 93.1%
-	"github.com/qorm/qorm/internal/model":      89, // observed 92.3%
+	"github.com/qorm/qorm/internal/model":      97, // observed 100.0%
 	"github.com/qorm/qorm/internal/mdsite":     89, // observed 92.3%
 	"github.com/qorm/qorm/pkg/qormext":         95, // observed 100.0%
 	"github.com/qorm/qorm/internal/updates":    84, // observed 87.8%

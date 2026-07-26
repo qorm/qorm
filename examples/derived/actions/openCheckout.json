@@ -1,0 +1,5 @@
+{
+  "type": "action",
+  "id": "openCheckout",
+  "steps": [{ "type": "navigate", "to": "checkout" }]
+}

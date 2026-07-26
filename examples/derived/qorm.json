@@ -1,0 +1,34 @@
+{
+  "type": "app",
+  "id": "qorm_derived",
+  "name": "Derived",
+  "entry": "main",
+  "globalState": {
+    "schema": {
+      "items": "array",
+      "user": "string",
+      "draftName": "string"
+    },
+    "initial": {
+      "items": [
+        { "id": 1, "name": "Notebook", "price": 12, "qty": 2, "gift": false },
+        { "id": 2, "name": "Fountain pen", "price": 28, "qty": 1, "gift": false }
+      ],
+      "user": "",
+      "draftName": ""
+    }
+  },
+  "computed": {
+    "itemCount": "{{ sum(map(state.items, \"it.qty\")) }}",
+    "subtotal": "{{ sum(map(state.items, \"it.price * it.qty\")) }}",
+    "shipping": "{{ computed.subtotal >= 50 ? 0 : 5 }}",
+    "total": "{{ computed.subtotal + computed.shipping }}",
+    "isEmpty": "{{ len(state.items) == 0 }}",
+    "signedIn": "{{ state.user != '' }}"
+  },
+  "platforms": {
+    "desktop": {
+      "window": { "width": 420, "height": 680, "title": "Derived" }
+    }
+  }
+}

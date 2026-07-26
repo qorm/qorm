@@ -17,6 +17,30 @@ All notable changes to QORM are documented here. The format is based on
   are unchanged. Defaults to `false`, so a step whose sibling steps read its
   response keeps its blocking behaviour, and the loader warns when `async` is
   written on a step that is not an `http.*` call.
+- The client-side hosts — the standalone WASM runtime, the offline package that
+  embeds it, and the live playground — install the same two sinks the server
+  has: `window.qormApplyFrame(frame)` is the push channel, and
+  `playcore.InstallSinks` wires it to `Runtime.Commit` / `Runtime.Async`. A
+  `render` step's loading frame now reaches the screen in a packaged app, and an
+  `http.*` completion arrives as a later frame instead of being invisible.
+- **Fixed a hard freeze in packaged apps**: an `http.*` step in the WASM build
+  ran its round trip on the goroutine servicing the JS callback, which is
+  exactly the self-wait the single-threaded js/wasm scheduler cannot break —
+  the whole app died with "all goroutines are asleep - deadlock!". Those hosts
+  now set `Runtime.AsyncAll`, so every request takes the background sink
+  whether or not its JSON opted in. On such a host an `http.*` step's siblings
+  run while the request is open; put the steps that depend on the reply in
+  `onSuccess` / `onError`.
+- `tabs` — `swipe: true` drags a panel sideways to the neighbouring tab. It
+  activates that tab's own control, so it behaves identically for uncontrolled,
+  controlled (state-bound `active`) and `onChange` tabs. A `scrollable` tab bar
+  also scrolls its active tab into view automatically, however the tab changed.
+- `accordion` — `single: true` makes the panels exclusive (opening one closes
+  the rest). Opt-in; the default stays independent toggles.
+- `carousel` — `autoplay: <ms>` advances the track on a clock (floored at
+  250ms, paused while pointed at or while the tab is hidden, wrapping at the
+  end) and `indicators: true` renders a tappable dot row whose active dot is
+  derived from the live scroll position.
 - `Runtime.Async` — the host-installed background work sink `"async": true`
   needs, and `Runtime.Inflight()`, the exact count of requests still open. Like
   `Runtime.Commit`, neither `runtime.New` nor `Clone` ever installs it, so a
@@ -24,6 +48,34 @@ All notable changes to QORM are documented here. The format is based on
   and side-effect free; the server installs it wherever it installs the frame
   sink. `qorm_dispatch` detaches it for the duration of an agent's call, so an
   agent always receives the settled state rather than a loading frame.
+- `computed` — derived values declared once in the manifest (beside or inside
+  `globalState`) instead of repeating the same expression in every binding.
+  They are evaluated once per frame boundary rather than once per read, may
+  read one another in any declaration order, and are published read-only at
+  `state.computed.<name>` (`{{ state.computed.total }}` in a scene binding,
+  `{{ computed.total }}` inside an action). A dependency cycle is an error
+  diagnostic and those values evaluate to nothing instead of recursing; a step
+  that writes into the namespace is an error diagnostic and is dropped at
+  dispatch. An app that declares none is untouched — `computed` stays an
+  ordinary state key.
+- Scene route `guard` — `{"guard": {"condition": …, "redirect": …, "params": …}}`
+  on a scene document declares the precondition for entering it. It runs on
+  every entry path (an action's `navigate` step, browser Back/Forward, a deep
+  link, and the initial entry scene), before the scene's `onEnter`, so a
+  protected route cannot be reached by spelling a URL and a private-data hook
+  never fires for a refused visitor. A redirect replaces the current frame
+  rather than pushing one, guards chain through the redirect target, and a
+  chain that revisits a scene refuses the navigation (capped at 8 hops) —
+  reported at load time as a possible redirect cycle.
+- `forEach` step — `{"type":"forEach","in":"{{ state.items }}","as":"row",
+  "steps":[…]}` runs its body once per element, binding the element under `as`
+  (default `item`) plus `index` / `first` / `last`, exactly like a list's
+  `renderItem` scope. Non-array collections iterate zero times, iterations are
+  capped at 10000, and the body shares the `if` depth cap and the `invoke` call
+  cap, so no nesting can hang a dispatch.
+- `examples/derived` — a cart demonstrating all three: `computed` subtotal /
+  shipping / total, a `guard` bouncing an unauthenticated checkout to sign-in,
+  and a `forEach` bulk edit.
 
 ### Changed
 - The determinism guard grows a third tier: instantaneous determinism (two

@@ -12,6 +12,7 @@ Extracted from the runtime dispatch (`internal/runtime`):
 |---|---|
 | `render` | publish an intermediate frame right here, so state written by the steps before it (a loading flag) reaches the screen before a slow step runs. No-op on a host with no frame sink; capped at 64 frames per dispatch |
 | `if` | run `then` steps when `condition` is truthy, `else` steps otherwise (nestable) |
+| `forEach` | run `steps` once per element of `in`, with the element bound under `as` (default `item`) plus `index` / `first` / `last` |
 | `invoke` | call another action by `name`, merging evaluated `args` into its scope |
 | `navigate` | go to another scene (or `back`) |
 | `state.set` | set a state path to a value |
@@ -62,6 +63,9 @@ Every step is one JSON object; which fields apply depends on its `type`:
 | `else` | array | `if`: steps run when `condition` is falsy |
 | `name` | string | `invoke`: the target action id (call depth capped at 16) |
 | `args` | object | `invoke`: arg → value expressions, evaluated in the caller's context and merged into the callee's scope (same semantics as an event invoke's args) |
+| `in` | string | `forEach`: a `{{ … }}` expression yielding the array to iterate; anything that is not an array iterates zero times |
+| `as` | string | `forEach`: name the current element (default `item`), plus the derived `<as>Index` / `<as>First` / `<as>Last` keys — the same alias rule a list's `renderItem` uses |
+| `steps` | array | `forEach`: the loop body, run once per element (iterations capped at 10000; the body nests under the same depth cap as `if`) |
 
 ```json
 // actions/addTodo.json — append a new object, then clear the input
@@ -71,3 +75,18 @@ Every step is one JSON object; which fields apply depends on its `type`:
   { "type": "state.set", "path": "draft", "value": "" }
 ] }
 ```
+
+## Derived values (`computed`)
+
+Declare a value ONCE in the manifest instead of repeating the expression in every binding. Derived values are evaluated once per frame (not once per binding), may read each other, and are **read-only** — a step that writes into the namespace is a load-time error and is dropped at dispatch.
+
+```json
+// qorm.json — beside "globalState" (or nested inside it)
+"computed": {
+  "subtotal": "{{ sum(map(state.items, \"it.price * it.qty\")) }}",
+  "isEmpty":  "{{ len(state.items) == 0 }}",
+  "withTax":  "{{ computed.subtotal * 1.2 }}"
+}
+```
+
+Read them as `{{ state.computed.subtotal }}` in a scene binding, and as `{{ computed.subtotal }}` inside an action (which also sees every top-level state key bare). A dependency cycle is reported at load time and those values evaluate to nothing rather than recursing.

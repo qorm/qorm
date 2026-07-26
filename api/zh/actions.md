@@ -12,6 +12,7 @@
 |---|---|
 | `render` | 在此处提交一帧中间渲染,让它之前的步骤写入的状态(如 loading 标志)在慢步骤执行前就显示到屏幕上。宿主未安装帧汇时为空操作;每次派发上限 64 帧 |
 | `if` | `condition` 为真执行 `then` 步骤,否则执行 `else` 步骤(可嵌套) |
+| `forEach` | 对 `in` 的每个元素执行一次 `steps`,元素以 `as`(默认 `item`)绑定,并附带 `index` / `first` / `last` |
 | `invoke` | 按 `name` 调用另一个动作,求值后的 `args` 并入其作用域 |
 | `navigate` | 跳转到另一个场景(或 `back`) |
 | `state.set` | 把状态路径设为某值 |
@@ -62,6 +63,9 @@
 | `else` | array | `if`:`condition` 为假时执行的步骤 |
 | `name` | string | `invoke`:目标动作 id(调用深度上限 16) |
 | `args` | object | `invoke`:参数→值表达式,在调用方上下文求值后并入被调动作的作用域(与事件 invoke 的 args 同语义) |
+| `in` | string | `forEach`:求值为待遍历数组的 `{{ … }}` 表达式;非数组则一次都不遍历 |
+| `as` | string | `forEach`:当前元素的别名(默认 `item`),并派生 `<as>Index` / `<as>First` / `<as>Last` 三个键——与列表 `renderItem` 的别名规则一致 |
+| `steps` | array | `forEach`:循环体,每个元素执行一次(迭代上限 10000;循环体与 `if` 共用同一嵌套深度上限) |
 
 ```json
 // actions/addTodo.json — 追加一个新对象,然后清空输入
@@ -71,3 +75,18 @@
   { "type": "state.set", "path": "draft", "value": "" }
 ] }
 ```
+
+## 派生值(`computed`)
+
+在清单里**声明一次**,而不是把同一个表达式抄进每一处绑定。派生值每帧求值一次(而非每个绑定一次),可以互相引用,并且**只读**——写入该命名空间的步骤是加载期错误,派发时也会被丢弃。
+
+```json
+// qorm.json —— 与 "globalState" 平级(也可嵌在其内部)
+"computed": {
+  "subtotal": "{{ sum(map(state.items, \"it.price * it.qty\")) }}",
+  "isEmpty":  "{{ len(state.items) == 0 }}",
+  "withTax":  "{{ computed.subtotal * 1.2 }}"
+}
+```
+
+在场景绑定中读作 `{{ state.computed.subtotal }}`,在动作中读作 `{{ computed.subtotal }}`(动作作用域同样能裸读顶层状态键)。循环依赖会在加载期报错,相关派生值求值为空而不会无限递归。

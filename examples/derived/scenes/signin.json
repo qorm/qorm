@@ -1,0 +1,36 @@
+{
+  "type": "scene",
+  "id": "signin",
+  "root": {
+    "type": "column",
+    "id": "signin_root",
+    "style": { "padding": 20, "gap": 16, "background": "var(--bg)" },
+    "layout": { "width": "fill", "height": "fill" },
+    "children": [
+      {
+        "type": "text",
+        "id": "signin_title",
+        "text": "Sign in",
+        "style": { "fontSize": 24, "fontWeight": 700, "color": "var(--label)" }
+      },
+      {
+        "type": "text",
+        "id": "signin_why",
+        "text": "The route guard sent you here on the way to {{ route.next }}.",
+        "style": { "color": "var(--label2)" }
+      },
+      {
+        "type": "input",
+        "id": "signin_input",
+        "placeholder": "Your name",
+        "value": "{{ state.draftName }}"
+      },
+      {
+        "type": "button",
+        "id": "signin_btn",
+        "label": "Sign in and continue",
+        "onPress": "signIn"
+      }
+    ]
+  }
+}

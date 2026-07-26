@@ -45,7 +45,7 @@
 
 | 组件 | 属性 |
 |---|---|
-| `accordion` | `active` · `title` |
+| `accordion` | `active` · `single` · `title` |
 | `actionsheet` | `dismissable` · `open` · `title` |
 | `activityindicator` | `size` |
 | `alert` | `title` · `variant` |
@@ -66,10 +66,10 @@
 | `bottomnav` | `items` |
 | `breadcrumb` | `items` · `separator` |
 | `brightness` | — |
-| `button` | `variant` |
+| `button` | `novalidate` · `submit` · `variant` |
 | `calendar` | `label` |
 | `camera` | `label` |
-| `carousel` | — |
+| `carousel` | `autoplay` · `indicators` |
 | `chart` | `chartType` · `color` · `data` |
 | `checkbox` | `checked` |
 | `chip` | `avatar` · `selected` · `showCheck` |
@@ -95,7 +95,7 @@
 | `fab` | `extended` |
 | `field` | `error` · `help` · `label` · `required` |
 | `filepicker` | `label` |
-| `form` | — |
+| `form` | `novalidate` |
 | `gesturedetector` | `onDoubleTap` · `onLongPress` |
 | `gridview` | `as` · `crossAxisCount` · `minItemWidth` · `page` · `pageSize` · `spacing` |
 | `haptics` | `label` |
@@ -165,7 +165,7 @@
 | `switchlisttile` | `subtitle` · `value` |
 | `systemmodes` | `label` |
 | `table` | `as` · `column` · `columns` · `data` · `detail` · `maxHeight` · `minWidth` · `scrollX` · `sortData` · `sortDir` · `sortField` · `stickyHeader` · `stickyTop` |
-| `tabs` | `active` · `indicator` · `indicatorColor` · `lazy` · `scrollable` · `tabs` |
+| `tabs` | `active` · `indicator` · `indicatorColor` · `lazy` · `scrollable` · `swipe` · `tabs` |
 | `tag` | — |
 | `text` | — |
 | `textarea` | `autocomplete` · `autofocus` · `inputMode` · `maxLength` · `pattern` · `readonly` · `required` · `rows` |

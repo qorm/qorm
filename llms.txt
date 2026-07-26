@@ -46,6 +46,7 @@ references below (the runnable sources are the contract).
 - [uikit](examples/uikit) — JSON-defined custom components · [i18n](examples/i18n) — ICU messages, plurals, RTL
 - [menus](examples/menus) — desktop system-bar / tray / right-click menus · [floating](examples/floating) — chromeless, custom-shape window
 - [places](examples/places) — scroll surfaces: a `largetitle` that collapses into a sticky compact bar, a frosted `backdropBlur` panel, and a `sheet` dragged between snap points
+- [derived](examples/derived) — `computed` cart totals declared once, a `guard` that bounces an unauthenticated checkout to sign-in, and a `forEach` bulk edit
 
 ## Drive it as an AI agent
 

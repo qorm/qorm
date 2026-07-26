@@ -120,6 +120,16 @@ func FromDocs(docs []map[string]any) *model.App {
 					}
 					app.SceneEnter[sceneID] = inv
 				}
+				// Route guard: the precondition for entering this scene. Like
+				// onEnter it lives on the scene document (not the node tree);
+				// its redirect target is cross-checked against the loaded
+				// scenes below, once every doc has been assembled.
+				if g := parseGuard(doc["guard"], &diags, sceneID, sceneVars); g != nil {
+					if app.SceneGuards == nil {
+						app.SceneGuards = map[string]*model.SceneGuard{}
+					}
+					app.SceneGuards[sceneID] = g
+				}
 			}
 		case "action":
 			act := buildAction(doc, &diags, actionVars)
@@ -178,6 +188,8 @@ func FromDocs(docs []map[string]any) *model.App {
 	checkActionRefs(app, &diags)
 	checkTimers(app, &diags)
 	checkComponents(app, &diags)
+	checkGuards(app, &diags)
+	checkComputed(app, sceneVars, &diags)
 	app.Diagnostics = diags
 	return app
 }
@@ -209,26 +221,230 @@ func checkActionRefs(app *model.App, diags *[]string) {
 			*diags = append(*diags, fmt.Sprintf("error: [Scene: %s] onEnter 引用了不存在的动作 %q。", id, inv.Name))
 		}
 	}
-	actIDs := make([]string, 0, len(app.Actions))
-	for id := range app.Actions {
-		actIDs = append(actIDs, id)
+	for _, id := range sortedActionIDs(app) {
+		walkSteps(app.Actions[id].Steps, func(st model.Step) {
+			if st.Type == "invoke" && !actionRefKnown(app, st.Name) {
+				*diags = append(*diags, fmt.Sprintf("error: [Action: %s] 'invoke' 步骤引用了不存在的动作 %q。", id, st.Name))
+			}
+		})
 	}
-	sort.Strings(actIDs)
-	for _, id := range actIDs {
-		var walk func(steps []model.Step)
-		walk = func(steps []model.Step) {
-			for _, st := range steps {
-				if st.Type == "invoke" && !actionRefKnown(app, st.Name) {
-					*diags = append(*diags, fmt.Sprintf("error: [Action: %s] 'invoke' 步骤引用了不存在的动作 %q。", id, st.Name))
-				}
-				walk(st.Then)
-				walk(st.Else)
-				walk(st.OnSuccess)
-				walk(st.OnError)
+}
+
+// sortedActionIDs returns the app's action ids in a stable order, so every
+// whole-app check emits its diagnostics deterministically.
+func sortedActionIDs(app *model.App) []string {
+	out := make([]string, 0, len(app.Actions))
+	for id := range app.Actions {
+		out = append(out, id)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// walkSteps visits every step in a step tree, descending into EVERY nested step
+// list: `if` then/else, `forEach` steps, and the http result branches. One walk
+// shared by every whole-tree check, so a new nesting site is taught to all of
+// them at once instead of being forgotten by one.
+func walkSteps(steps []model.Step, fn func(model.Step)) {
+	for _, st := range steps {
+		fn(st)
+		walkSteps(st.Then, fn)
+		walkSteps(st.Else, fn)
+		walkSteps(st.Steps, fn)
+		walkSteps(st.OnSuccess, fn)
+		walkSteps(st.OnError, fn)
+	}
+}
+
+// checkGuards validates the scene route guards across the app: the redirect
+// target must be a real, different scene, and a guard that cannot redirect
+// anywhere is called out because it cannot protect the entry scene. A redirect
+// CYCLE (login guards to home, home guards to login) is reported too: the
+// runtime caps the chain and refuses such a navigation, which reads as "the
+// button does nothing" unless the loader says why.
+func checkGuards(app *model.App, diags *[]string) {
+	ids := make([]string, 0, len(app.SceneGuards))
+	for id := range app.SceneGuards {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		g := app.SceneGuards[id]
+		switch {
+		case g.Redirect == "":
+			*diags = append(*diags, fmt.Sprintf("warning: [Scene: %s] guard 没有 redirect:条件不满足时只会拒绝导航(停在原场景),且无法保护入口场景(那里没有可退回的场景)。", id))
+		case g.Redirect == id:
+			*diags = append(*diags, fmt.Sprintf("error: [Scene: %s] guard 的 redirect 指向自身,条件不满足时无处可去,该导航将被拒绝。", id))
+		default:
+			if _, ok := app.Scenes[g.Redirect]; !ok && !strings.Contains(g.Redirect, "{{") {
+				*diags = append(*diags, fmt.Sprintf("error: [Scene: %s] guard 的 redirect 指向不存在的场景 %q。", id, g.Redirect))
 			}
 		}
-		walk(app.Actions[id].Steps)
 	}
+	for _, id := range ids {
+		if cycle := guardRedirectCycle(app, id); len(cycle) > 0 {
+			*diags = append(*diags, fmt.Sprintf("warning: [Scene: %s] guard 的 redirect 可能构成环:%s。若这些条件同时为假,运行时会拒绝该次导航(停在原场景)。", id, strings.Join(cycle, " -> ")))
+		}
+	}
+}
+
+// guardRedirectCycle follows the redirect chain out of scene id and returns it
+// (as a scene path) when it comes back to a scene already on the path. It walks
+// the STATIC graph, so it reports a cycle that is possible, not one that is
+// certain — the conditions decide at run time. Self-redirects are reported by
+// checkGuards as an error instead, so they are not repeated here.
+func guardRedirectCycle(app *model.App, id string) []string {
+	path := []string{id}
+	seen := map[string]bool{id: true}
+	for cur := id; ; {
+		g := app.SceneGuards[cur]
+		if g == nil || g.Redirect == "" || g.Redirect == cur {
+			return nil
+		}
+		cur = g.Redirect
+		path = append(path, cur)
+		if seen[cur] {
+			if cur != id {
+				return nil // the cycle does not include id; reported from its own entry
+			}
+			return path
+		}
+		seen[cur] = true
+	}
+}
+
+// checkComputed validates the app's derived-value declarations: each name must
+// be a plain identifier (the namespace is read through dotted paths), each
+// expression must actually be a binding and type-check, the reserved namespace
+// must not collide with a real state key, no declaration may take part in a
+// dependency cycle, and no action step may write into the namespace.
+func checkComputed(app *model.App, vars map[string]string, diags *[]string) {
+	if len(app.Computed) == 0 {
+		return
+	}
+	ns := model.ComputedNamespace
+	if _, ok := app.GlobalState.Schema[ns]; ok {
+		*diags = append(*diags, fmt.Sprintf("error: globalState.schema 声明了 %q,但该名字是派生值(computed)的保留命名空间,每帧都会被覆盖。请给状态键换个名字。", ns))
+	}
+	if _, ok := app.GlobalState.Initial[ns]; ok {
+		*diags = append(*diags, fmt.Sprintf("error: globalState.initial 提供了 %q 的初始值,但该名字是派生值(computed)的保留命名空间,每帧都会被覆盖。请给状态键换个名字。", ns))
+	}
+	names := make([]string, 0, len(app.Computed))
+	for n := range app.Computed {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		e := app.Computed[name]
+		if !isPlainIdent(name) {
+			*diags = append(*diags, fmt.Sprintf("error: computed 派生值的名字 %q 不是普通标识符,无法通过 {{ %s.%s }} 读取。", name, ns, name))
+		}
+		switch {
+		case strings.TrimSpace(e) == "":
+			*diags = append(*diags, fmt.Sprintf("error: computed 派生值 %q 的表达式为空,读取它只会得到空值。", name))
+		case !strings.Contains(e, "{{"):
+			*diags = append(*diags, fmt.Sprintf("warning: computed 派生值 %q 的表达式 %q 不含 {{...}} 绑定:它将恒等于这段字面文本。请写成表达式绑定,如 \"{{ %s }}\"。", name, e, e))
+		}
+		forEachExpr(e, func(src string) {
+			for _, mm := range expr.Check(src, vars) {
+				*diags = append(*diags, fmt.Sprintf("error: computed 派生值 %q type mismatch: %s in {{ %s }}", name, mm.Detail, mm.Expr))
+			}
+		})
+	}
+	if _, cyclic := app.ComputedOrder(); len(cyclic) > 0 {
+		*diags = append(*diags, fmt.Sprintf("error: computed 派生值存在循环依赖(或依赖了处于循环中的值):%s。这些值不会被求值,读取它们只会得到空值。", strings.Join(cyclic, ", ")))
+	}
+	for _, id := range sortedActionIDs(app) {
+		walkSteps(app.Actions[id].Steps, func(st model.Step) {
+			for _, p := range []string{st.Path, st.Result, st.Error} {
+				if model.IsComputedPath(p) {
+					*diags = append(*diags, fmt.Sprintf("error: [Action: %s] %q 步骤写入了派生值路径 %q:computed 是只读的(每帧由声明式重新求值),该步骤会被忽略。", id, st.Type, p))
+				}
+			}
+		})
+	}
+}
+
+// isPlainIdent reports whether s is a bare identifier
+// ([A-Za-z_][A-Za-z0-9_]*) — the only shape the expression language can
+// reference through a dotted path.
+func isPlainIdent(s string) bool {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c == '_' || 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || (i > 0 && '0' <= c && c <= '9') {
+			continue
+		}
+		return false
+	}
+	return s != ""
+}
+
+// parseGuard reads a scene document's "guard" object:
+//
+//	"guard": {"condition": "{{ state.user != null }}", "redirect": "login",
+//	          "params": {"next": "'dashboard'"}}
+//
+// Returns nil for an absent or unusable declaration (diagnosed), so a scene
+// without a usable guard stays exactly as public as it was before.
+func parseGuard(raw any, diags *[]string, sceneID string, vars map[string]string) *model.SceneGuard {
+	if raw == nil {
+		return nil
+	}
+	m, ok := raw.(map[string]any)
+	if !ok {
+		if diags != nil {
+			*diags = append(*diags, fmt.Sprintf("error: [Scene: %s] guard 应为对象(如 {\"condition\": \"{{ state.user != null }}\", \"redirect\": \"login\"}),已忽略。", sceneID))
+		}
+		return nil
+	}
+	g := &model.SceneGuard{Condition: asString(m["condition"]), Redirect: asString(m["redirect"])}
+	if params, ok := m["params"].(map[string]any); ok {
+		g.Params = map[string]string{}
+		for k, v := range params {
+			g.Params[k] = asString(v)
+		}
+	}
+	// A guard with no condition guards nothing; keeping it would only add a
+	// per-navigation lookup that always passes.
+	if g.Condition == "" {
+		if diags != nil {
+			*diags = append(*diags, fmt.Sprintf("error: [Scene: %s] guard 缺少 condition(进入该场景所需满足的表达式),已忽略该守卫。", sceneID))
+		}
+		return nil
+	}
+	if diags != nil {
+		if !strings.Contains(g.Condition, "{{") {
+			*diags = append(*diags, fmt.Sprintf("warning: [Scene: %s] guard 的 condition %q 不含 {{...}} 绑定:非空字符串恒为真,该守卫永远不会拦截。请写成表达式绑定,如 \"{{ %s }}\"。", sceneID, g.Condition, g.Condition))
+		}
+		checkGuardExprTypes(g, diags, sceneID, vars)
+	}
+	return g
+}
+
+// checkGuardExprTypes type-checks the guard's condition and redirect params
+// against the scene binding scope, exactly like a node's expressions.
+func checkGuardExprTypes(g *model.SceneGuard, diags *[]string, sceneID string, vars map[string]string) {
+	check := func(what, src string) {
+		forEachExpr(src, func(e string) {
+			for _, mm := range expr.Check(e, vars) {
+				*diags = append(*diags, fmt.Sprintf("error: [Scene: %s] guard %s type mismatch: %s in {{ %s }}", sceneID, what, mm.Detail, mm.Expr))
+			}
+		})
+	}
+	check("condition", g.Condition)
+	for _, k := range sortedStrMapKeys(g.Params) {
+		check("params."+k, g.Params[k])
+	}
+}
+
+// sortedStrMapKeys returns a string map's keys in a stable order.
+func sortedStrMapKeys(m map[string]string) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // ---- components: definitions, declared schemas, instance checks ----
@@ -857,7 +1073,13 @@ func applyManifest(app *model.App, doc map[string]any, diags *[]string) {
 		if init, ok := gs["initial"].(map[string]any); ok {
 			app.GlobalState.Initial = init
 		}
+		// Derived values may be declared beside the state they derive from…
+		applyComputed(app, gs["computed"], "globalState.computed", diags)
 	}
+	// …or at the manifest's top level, which is the canonical spelling
+	// ManifestToJSON writes back. Both fill the same map; a name declared twice
+	// is diagnosed and the first declaration wins.
+	applyComputed(app, doc["computed"], "computed", diags)
 	if ws, ok := doc["widgets"].([]any); ok {
 		for _, it := range ws {
 			if m, ok := it.(map[string]any); ok {
@@ -936,6 +1158,34 @@ func applyManifest(app *model.App, doc map[string]any, diags *[]string) {
 				}
 			}
 		}
+	}
+}
+
+// applyComputed merges one "computed" declaration object (name -> expression)
+// into the app. where names the spelling it came from, for the duplicate
+// diagnostic; a non-object declaration is reported and ignored.
+func applyComputed(app *model.App, raw any, where string, diags *[]string) {
+	if raw == nil {
+		return
+	}
+	m, ok := raw.(map[string]any)
+	if !ok {
+		if diags != nil {
+			*diags = append(*diags, fmt.Sprintf("error: %q 应为对象(派生值名 -> 表达式,如 {\"total\": \"{{ sum(state.prices) }}\"}),已忽略。", where))
+		}
+		return
+	}
+	for _, name := range sortedKeys(m) {
+		if app.Computed == nil {
+			app.Computed = map[string]string{}
+		}
+		if _, dup := app.Computed[name]; dup {
+			if diags != nil {
+				*diags = append(*diags, fmt.Sprintf("error: computed 派生值 %q 在 globalState.computed 与顶层 computed 中被重复声明,仅保留最先出现的声明。", name))
+			}
+			continue
+		}
+		app.Computed[name] = asString(m[name])
 	}
 }
 
@@ -1147,16 +1397,15 @@ func buildAction(doc map[string]any, diags *[]string, vars map[string]string) *m
 	return act
 }
 
-// countRenderSteps counts `render` steps in a step tree, branches included.
+// countRenderSteps counts `render` steps in a step tree, every nested step list
+// included (branches, loop bodies, http result branches).
 func countRenderSteps(steps []model.Step) int {
 	n := 0
-	for _, st := range steps {
+	walkSteps(steps, func(st model.Step) {
 		if st.Type == "render" {
 			n++
 		}
-		n += countRenderSteps(st.Then) + countRenderSteps(st.Else)
-		n += countRenderSteps(st.OnSuccess) + countRenderSteps(st.OnError)
-	}
+	})
 	return n
 }
 
@@ -1212,6 +1461,8 @@ func buildStep(sm map[string]any, diags *[]string, actID string, vars map[string
 		From:      asString(sm["from"]),
 		Condition: asString(sm["condition"]),
 		Name:      asString(sm["name"]),
+		In:        asString(sm["in"]),
+		As:        asString(sm["as"]),
 	}
 	if item, ok := sm["item"].(map[string]any); ok {
 		step.Object = map[string]string{}
@@ -1242,6 +1493,7 @@ func buildStep(sm map[string]any, diags *[]string, actID string, vars map[string
 	// recursive buildSteps walk.
 	step.Then = buildSteps(sm["then"], diags, actID, vars, depth+1)
 	step.Else = buildSteps(sm["else"], diags, actID, vars, depth+1)
+	step.Steps = buildSteps(sm["steps"], diags, actID, vars, depth+1)
 	step.OnSuccess = buildSteps(sm["onSuccess"], diags, actID, vars, depth+1)
 	step.OnError = buildSteps(sm["onError"], diags, actID, vars, depth+1)
 	if diags != nil {
@@ -1255,6 +1507,18 @@ func buildStep(sm map[string]any, diags *[]string, actID string, vars map[string
 		case "invoke":
 			if step.Name == "" {
 				*diags = append(*diags, fmt.Sprintf("error: [Action: %s] 'invoke' 步骤缺少 name(目标动作 id),将被忽略。", actID))
+			}
+		case "forEach":
+			if step.In == "" {
+				*diags = append(*diags, fmt.Sprintf("error: [Action: %s] 'forEach' 步骤缺少 in(要遍历的集合表达式,如 \"{{ state.items }}\"),循环体不会执行。", actID))
+			} else if !strings.Contains(step.In, "{{") {
+				*diags = append(*diags, fmt.Sprintf("warning: [Action: %s] 'forEach' 步骤的 in %q 不含 {{...}} 绑定:字面字符串不是数组,循环体不会执行。请写成表达式绑定,如 \"{{ %s }}\"。", actID, step.In, step.In))
+			}
+			if len(step.Steps) == 0 {
+				*diags = append(*diags, fmt.Sprintf("warning: [Action: %s] 'forEach' 步骤没有 steps(循环体),遍历不会产生任何效果。", actID))
+			}
+			if alias, _, _, _ := render.ListAliasNames(step.As); step.As != "" && step.As != "item" && alias == "item" {
+				*diags = append(*diags, fmt.Sprintf("warning: [Action: %s] 'forEach' 步骤的别名 as: %q 不可用(保留名或非法标识符),运行时将回退为默认的 \"item\"。", actID, step.As))
 			}
 		}
 		// "async" only means something on a backend call: it is the request

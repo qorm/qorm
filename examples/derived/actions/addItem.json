@@ -1,0 +1,17 @@
+{
+  "type": "action",
+  "id": "addItem",
+  "steps": [
+    {
+      "type": "state.appendObject",
+      "path": "items",
+      "item": {
+        "id": "{{ len(state.items) + 3 }}",
+        "name": "{{ 'Notebook' }}",
+        "price": "{{ 12 }}",
+        "qty": "{{ 1 }}",
+        "gift": "{{ false }}"
+      }
+    }
+  ]
+}

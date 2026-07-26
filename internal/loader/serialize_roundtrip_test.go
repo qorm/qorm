@@ -238,10 +238,34 @@ func roundTripApp() *model.App {
 					{Type: "invoke", Name: "increment", Args: map[string]string{"count": "{{ state.count }}"}},
 				},
 			},
+			// A `forEach` step: collection + item alias + a nested body.
+			"bulk": {
+				ID: "bulk",
+				Steps: []model.Step{{
+					Type: "forEach", In: "{{ state.items }}", As: "row",
+					Steps: []model.Step{
+						{Type: "state.updateWhere", Path: "items", MatchKey: "id",
+							Match: "{{ row.id }}", Object: map[string]string{"done": "{{ true }}"}},
+					},
+				}},
+			},
 		},
 		// Scene lifecycle: an onEnter hook on the entry scene.
 		SceneEnter: map[string]*model.Invoke{
 			"main": {Name: "increment", Args: map[string]string{"count": "{{ state.count }}"}},
+		},
+		// Routing: a guard protecting the settings scene, with redirect params.
+		SceneGuards: map[string]*model.SceneGuard{
+			"settings": {
+				Condition: "{{ state.name != '' }}",
+				Redirect:  "main",
+				Params:    map[string]string{"next": "{{ 'settings' }}"},
+			},
+		},
+		// Derived values, including one that reads another.
+		Computed: map[string]string{
+			"itemCount": "{{ len(state.items) }}",
+			"isEmpty":   "{{ computed.itemCount == 0 }}",
 		},
 	}
 }
@@ -349,6 +373,37 @@ func checkAppFields(t *testing.T, want, got *model.App) {
 	for id := range got.SceneEnter {
 		if _, ok := want.SceneEnter[id]; !ok {
 			t.Errorf("SceneEnter[%q]: hook appeared out of nowhere in the round trip", id)
+		}
+	}
+	if !equivStrMap(want.Computed, got.Computed) {
+		t.Errorf("Computed: want %v got %v (derived declarations must survive the round trip)", want.Computed, got.Computed)
+	}
+	checkGuardMap(t, want.SceneGuards, got.SceneGuards)
+}
+
+// checkGuardMap asserts the scene route guards survive the round trip, field by
+// field and in both directions (nothing lost, nothing invented).
+func checkGuardMap(t *testing.T, want, got map[string]*model.SceneGuard) {
+	t.Helper()
+	for id, wg := range want {
+		gg, ok := got[id]
+		if !ok {
+			t.Errorf("SceneGuards[%q]: guard lost in the round trip", id)
+			continue
+		}
+		if gg.Condition != wg.Condition {
+			t.Errorf("SceneGuards[%q].Condition: want %q got %q", id, wg.Condition, gg.Condition)
+		}
+		if gg.Redirect != wg.Redirect {
+			t.Errorf("SceneGuards[%q].Redirect: want %q got %q", id, wg.Redirect, gg.Redirect)
+		}
+		if !equivStrMap(wg.Params, gg.Params) {
+			t.Errorf("SceneGuards[%q].Params: want %v got %v", id, wg.Params, gg.Params)
+		}
+	}
+	for id := range got {
+		if _, ok := want[id]; !ok {
+			t.Errorf("SceneGuards[%q]: guard appeared out of nowhere in the round trip", id)
 		}
 	}
 }
@@ -888,6 +943,62 @@ func TestSerializeRoundTripRegressionFields(t *testing.T) {
 				inv := got.SceneEnter["main"]
 				if inv == nil || inv.Name != "load" || inv.Args["v"] != "1" {
 					t.Errorf("scene onEnter lost: %+v", got.SceneEnter)
+				}
+			},
+		},
+		{
+			name: "computed derived values",
+			mut: func(a *model.App) {
+				a.Computed = map[string]string{
+					"total":   "{{ len(state.items) }}",
+					"isEmpty": "{{ computed.total == 0 }}",
+				}
+			},
+			check: func(t *testing.T, got *model.App) {
+				if got.Computed["total"] != "{{ len(state.items) }}" || got.Computed["isEmpty"] != "{{ computed.total == 0 }}" {
+					t.Errorf("computed declarations lost: %+v", got.Computed)
+				}
+			},
+		},
+		{
+			name: "scene route guard",
+			mut: func(a *model.App) {
+				a.Scenes["login"] = &model.Node{Type: "view", ID: "login_root"}
+				a.SceneGuards = map[string]*model.SceneGuard{"main": {
+					Condition: "{{ state.user != null }}",
+					Redirect:  "login",
+					Params:    map[string]string{"next": "{{ 'main' }}"},
+				}}
+			},
+			check: func(t *testing.T, got *model.App) {
+				g := got.SceneGuards["main"]
+				if g == nil || g.Condition != "{{ state.user != null }}" || g.Redirect != "login" {
+					t.Fatalf("scene guard lost: %+v", got.SceneGuards)
+				}
+				if g.Params["next"] != "{{ 'main' }}" {
+					t.Errorf("guard redirect params lost: %+v", g.Params)
+				}
+			},
+		},
+		{
+			name: "forEach step",
+			mut: func(a *model.App) {
+				a.Actions["bulk"] = &model.Action{ID: "bulk", Steps: []model.Step{{
+					Type: "forEach", In: "{{ state.items }}", As: "row",
+					Steps: []model.Step{{Type: "state.increment", Path: "count"}},
+				}}}
+			},
+			check: func(t *testing.T, got *model.App) {
+				act := got.Actions["bulk"]
+				if act == nil || len(act.Steps) != 1 {
+					t.Fatalf("forEach action lost: %+v", act)
+				}
+				st := act.Steps[0]
+				if st.In != "{{ state.items }}" || st.As != "row" {
+					t.Errorf("forEach collection/alias lost: %+v", st)
+				}
+				if len(st.Steps) != 1 || st.Steps[0].Type != "state.increment" {
+					t.Errorf("forEach body lost: %+v", st.Steps)
 				}
 			},
 		},

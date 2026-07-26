@@ -4,7 +4,10 @@
 // run unchanged on this runtime.
 package model
 
-import "strings"
+import (
+	"sort"
+	"strings"
+)
 
 // ComponentRefName normalises a component instance's `ref` to a component name.
 // The canonical form is "component://panel" and the shorthand — the form used
@@ -86,6 +89,23 @@ type App struct {
 	// scene — including the initial load of the entry scene and a deep link
 	// straight into it. Empty/absent map = no scene lifecycle hooks.
 	SceneEnter map[string]*Invoke
+	// SceneGuards maps a scene id to its optional route guard (scene JSON
+	// "guard"): the condition every entry into that scene must satisfy, plus
+	// where to send the user when it does not. It runs BEFORE the scene's
+	// onEnter and on every entry path — an action's `navigate` step, browser
+	// Back/Forward, a deep link straight into the scene, and the initial entry
+	// scene — so a protected route cannot be reached by spelling a URL.
+	// Empty/absent map = no guards (every scene is public).
+	SceneGuards map[string]*SceneGuard
+	// Computed are the app's DERIVED values (qorm.json "computed", or
+	// "globalState.computed"): a name -> a {{binding}} expression over the rest
+	// of the state. They are evaluated ONCE per frame and published read-only
+	// under the reserved ComputedNamespace sub-map of state, so a total that
+	// twelve nodes bind is computed once instead of twelve times, and lives in
+	// one place instead of being copy-pasted into every binding.
+	// Empty/absent map = no derived values (and then "computed" is an ordinary
+	// state key, exactly as it was before this existed).
+	Computed map[string]string
 	// PluginABI is the qormext middle-layer contract version the app's native
 	// Go code was authored against (qorm.json "pluginABI", e.g. "1"). The loader
 	// warns when its major differs from the runtime's qormext.ABIVersion.
@@ -188,6 +208,152 @@ type Shortcut struct {
 	Title    string `json:"title"`
 	Subtitle string `json:"subtitle,omitempty"`
 	Icon     string `json:"icon,omitempty"`
+}
+
+// SceneGuard is one scene's route guard: the precondition for entering it.
+// Condition is a {{...}} expression evaluated in scene context (state.*, t.*,
+// viewport.*, route.*, computed.*); when it is truthy the navigation proceeds
+// untouched. When it is falsy the navigation is diverted to Redirect (with
+// Params as that scene's route params) — or refused outright when Redirect is
+// empty, which leaves the runtime on the scene it was already showing.
+//
+// The redirect target is itself guarded, so guards chain; the runtime caps the
+// chain so a pair of guards that redirect to each other cannot spin.
+type SceneGuard struct {
+	// Condition is the {{...}} expression that must be truthy to enter.
+	Condition string
+	// Redirect is the scene id to divert to when Condition is falsy ("" =
+	// refuse the navigation instead of diverting it).
+	Redirect string
+	// Params are the redirect target's route parameters: name -> expression,
+	// evaluated when the guard fires and read there as {{ route.<name> }}.
+	Params map[string]string
+}
+
+// ComputedNamespace is the reserved state sub-map the app's computed values are
+// published under. A declaration named "total" is read as
+// {{ state.computed.total }} in a scene binding and — since an action context
+// also exposes every top-level state key bare — as {{ computed.total }} inside
+// an action. Nothing may write into it: the loader reports a step that targets
+// the namespace and the runtime drops the write.
+const ComputedNamespace = "computed"
+
+// IsComputedPath reports whether a dotted state path targets the read-only
+// computed namespace (the namespace itself or anything beneath it).
+func IsComputedPath(path string) bool {
+	p := strings.TrimSpace(path)
+	return p == ComputedNamespace || strings.HasPrefix(p, ComputedNamespace+".")
+}
+
+// ComputedOrder returns the app's computed names in dependency order — every
+// name after the computed values it reads — together with the names that can
+// never be evaluated because they take part in (or depend on) a dependency
+// cycle. Both slices are sorted-deterministic: the evaluation order of two
+// independent values is their name order, so a frame never depends on Go's map
+// iteration. A nil/computed-less app yields two nil slices.
+//
+// Callers evaluate `order` front to back and publish nothing for `cyclic` —
+// which is what stops `a = b + 1, b = a + 1` from recursing forever. The loader
+// reports the same cyclic set as a load-time error.
+func (a *App) ComputedOrder() (order, cyclic []string) {
+	if a == nil || len(a.Computed) == 0 {
+		return nil, nil
+	}
+	names := make([]string, 0, len(a.Computed))
+	for n := range a.Computed {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	deps := make(map[string]map[string]bool, len(names))
+	for _, n := range names {
+		d := map[string]bool{}
+		for _, ref := range computedRefs(a.Computed[n]) {
+			if _, ok := a.Computed[ref]; ok {
+				d[ref] = true // a reference to a NON-computed name is just state
+			}
+		}
+		deps[n] = d
+	}
+	// Kahn's algorithm over the sorted name list: whatever is still unresolved
+	// when no name can be released is exactly the cyclic set (the cycles
+	// themselves plus everything downstream of one, which is equally
+	// unevaluatable).
+	done := make(map[string]bool, len(names))
+	for {
+		progress := false
+		for _, n := range names {
+			if done[n] {
+				continue
+			}
+			ready := true
+			for d := range deps[n] {
+				if !done[d] {
+					ready = false
+					break
+				}
+			}
+			if !ready {
+				continue
+			}
+			done[n] = true
+			order = append(order, n)
+			progress = true
+		}
+		if !progress {
+			break
+		}
+	}
+	for _, n := range names {
+		if !done[n] {
+			cyclic = append(cyclic, n)
+		}
+	}
+	return order, cyclic
+}
+
+// computedRefs returns the computed names an expression references, in either
+// spelling: the scene form `state.computed.total` and the action form
+// `computed.total`. It scans dotted identifier runs instead of parsing, so a
+// name that merely appears inside a string literal counts as a reference too —
+// which can only ADD an edge to the dependency graph (a stricter evaluation
+// order, or a cycle report on a genuinely self-referential text), never drop
+// one, so the recursion guard stays sound.
+func computedRefs(src string) []string {
+	var out []string
+	for i := 0; i < len(src); {
+		if !isRefChar(src[i]) {
+			i++
+			continue
+		}
+		j := i
+		for j < len(src) && isRefChar(src[j]) {
+			j++
+		}
+		run := src[i:j]
+		i = j
+		parts := strings.Split(run, ".")
+		for k := 0; k+1 < len(parts); k++ {
+			if parts[k] != ComputedNamespace {
+				continue
+			}
+			// Only the two real spellings count: a bare `computed.x` and the
+			// state-rooted `state.computed.x`. Something else's field named
+			// `computed` (e.g. `item.computed.x`) is unrelated data.
+			if k > 0 && parts[k-1] != "state" {
+				break
+			}
+			if name := parts[k+1]; name != "" {
+				out = append(out, name)
+			}
+			break
+		}
+	}
+	return out
+}
+
+// isRefChar reports whether c can appear inside a dotted identifier run.
+func isRefChar(c byte) bool {
+	return c == '_' || c == '.' || '0' <= c && c <= '9' || 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z'
 }
 
 // EntryRoot returns the root node of the entry scene (or nil).
@@ -343,4 +509,14 @@ type Step struct {
 	// guarded at dispatch time, so mutual recursion cannot hang the runtime.
 	Name string
 	Args map[string]string
+	// `forEach` step: In is a {{...}} expression yielding the array to iterate
+	// and Steps is the loop body, run once per element with the element bound
+	// under the As alias (default "item") plus the derived index/first/last
+	// keys — the same scope shape a list's renderItem template gets, so the
+	// alias style is one thing to learn rather than two. A non-array `in`
+	// iterates zero times; the iteration count is capped at dispatch time and
+	// the body nests under the same depth guard as `if`.
+	In    string
+	As    string
+	Steps []Step
 }

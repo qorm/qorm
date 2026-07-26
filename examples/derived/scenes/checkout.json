@@ -1,0 +1,41 @@
+{
+  "type": "scene",
+  "id": "checkout",
+  "guard": {
+    "condition": "{{ state.computed.signedIn }}",
+    "redirect": "signin",
+    "params": { "next": "{{ 'checkout' }}" }
+  },
+  "root": {
+    "type": "column",
+    "id": "checkout_root",
+    "style": { "padding": 20, "gap": 16, "background": "var(--bg)" },
+    "layout": { "width": "fill", "height": "fill" },
+    "children": [
+      {
+        "type": "text",
+        "id": "checkout_title",
+        "text": "Checkout",
+        "style": { "fontSize": 24, "fontWeight": 700, "color": "var(--label)" }
+      },
+      {
+        "type": "text",
+        "id": "checkout_who",
+        "text": "Signed in as {{ state.user }}",
+        "style": { "color": "var(--label2)" }
+      },
+      {
+        "type": "text",
+        "id": "checkout_total",
+        "text": "Charging {{ state.computed.total }} for {{ state.computed.itemCount }} items",
+        "style": { "fontWeight": 600 }
+      },
+      {
+        "type": "button",
+        "id": "checkout_back",
+        "label": "Back to the cart",
+        "onPress": "goBack"
+      }
+    ]
+  }
+}

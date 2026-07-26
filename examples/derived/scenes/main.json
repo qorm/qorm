@@ -1,0 +1,119 @@
+{
+  "type": "scene",
+  "id": "main",
+  "root": {
+    "type": "column",
+    "id": "root",
+    "style": { "padding": 20, "gap": 16, "background": "var(--bg)" },
+    "layout": { "width": "fill", "height": "fill" },
+    "children": [
+      {
+        "type": "text",
+        "id": "title",
+        "text": "Cart",
+        "style": { "fontSize": 24, "fontWeight": 700, "color": "var(--label)" }
+      },
+      {
+        "type": "text",
+        "id": "count_line",
+        "text": "{{ state.computed.itemCount }} items",
+        "style": { "color": "var(--label2)" }
+      },
+      {
+        "type": "card",
+        "id": "lines_card",
+        "style": { "padding": 16, "gap": 8 },
+        "children": [
+          {
+            "type": "list",
+            "id": "lines",
+            "data": "{{ state.items }}",
+            "as": "line",
+            "renderItem": {
+              "type": "row",
+              "id": "line_row",
+              "style": { "gap": 8 },
+              "children": [
+                {
+                  "type": "text",
+                  "id": "line_name",
+                  "text": "{{ line.name }} x{{ line.qty }}",
+                  "style": { "flexGrow": 1, "color": "var(--label)" }
+                },
+                {
+                  "type": "text",
+                  "id": "line_gift",
+                  "text": "gift",
+                  "if": "{{ line.gift }}",
+                  "style": { "color": "var(--accent)", "fontSize": 13 }
+                },
+                {
+                  "type": "text",
+                  "id": "line_amount",
+                  "text": "{{ line.price * line.qty }}",
+                  "style": { "color": "var(--label2)" }
+                }
+              ]
+            }
+          },
+          {
+            "type": "text",
+            "id": "empty_line",
+            "text": "Nothing in the cart yet.",
+            "if": "{{ state.computed.isEmpty }}",
+            "style": { "color": "var(--label2)" }
+          }
+        ]
+      },
+      {
+        "type": "card",
+        "id": "totals_card",
+        "style": { "padding": 16, "gap": 6 },
+        "children": [
+          {
+            "type": "text",
+            "id": "subtotal_line",
+            "text": "Subtotal: {{ state.computed.subtotal }}"
+          },
+          {
+            "type": "text",
+            "id": "shipping_line",
+            "text": "Shipping: {{ state.computed.shipping }}",
+            "style": { "color": "var(--label2)" }
+          },
+          {
+            "type": "text",
+            "id": "total_line",
+            "text": "Total: {{ state.computed.total }}",
+            "style": { "fontWeight": 700 }
+          }
+        ]
+      },
+      {
+        "type": "column",
+        "id": "actions_col",
+        "style": { "gap": 8 },
+        "children": [
+          {
+            "type": "button",
+            "id": "add_btn",
+            "label": "Add a notebook",
+            "onPress": "addItem"
+          },
+          {
+            "type": "button",
+            "id": "gift_btn",
+            "label": "Mark every line as a gift",
+            "onPress": "markAllGift"
+          },
+          {
+            "type": "button",
+            "id": "checkout_btn",
+            "label": "Checkout",
+            "onPress": "openCheckout"
+          }
+        ]
+      }
+    ]
+  }
+}
