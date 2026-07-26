@@ -27,6 +27,21 @@ the entered values:
   "onPress": { "type": "invoke", "name": "performLogin", "args": { "email": "{{state.email}}", "password": "{{state.password}}" } } }
 ```
 
+Fields also carry the browser's native input attributes — they cost nothing and
+give the user immediate feedback and the right on-screen keyboard:
+
+```json
+{ "type": "input", "id": "email", "binding": "email", "placeholder": "Email Address",
+  "inputMode": "email", "required": true, "autocomplete": "email", "autofocus": true }
+{ "type": "input", "id": "password", "binding": "password", "placeholder": "Password",
+  "required": true, "maxLength": 64, "pattern": ".{8,}", "autocomplete": "current-password" }
+```
+
+These are native constraints, not a validation engine: they do **not** block
+the action, because the button's `onPress` dispatches from its own click
+handler. Gate submission by binding the button's `disabled` to a validity
+expression, and keep the message in state.
+
 An error line binds to state so a failed attempt shows a message:
 
 ```json
@@ -41,3 +56,6 @@ audit) or the agent-side `qorm_assert` / `qorm_dispatch` MCP tools — see
 
 - Inputs bind with `binding` (two-way); the button's `onPress` names an action
   and passes state values as args.
+- Native input attributes available on `input` / `textarea` / `textformfield`:
+  `required`, `maxLength`, `pattern` (input only), `inputMode`, `autofocus`,
+  `readonly`, `autocomplete`.

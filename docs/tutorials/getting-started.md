@@ -95,6 +95,7 @@ qorm render my-app -o my-app.html
 
 ## Next steps
 
+- [Expressions](../expressions.md) — the `{{ … }}` language every binding is written in.
 - [Widget catalog](/api/widgets.md) — every node type the renderer accepts (code-generated, authoritative).
 - [Capabilities](../platforms/capabilities.md) — native capabilities like camera, location, and Bluetooth.
 - [User middle layer](../platforms/native-middlelayer.md) — add your own native ops with a single Go file.

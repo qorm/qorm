@@ -28,6 +28,19 @@ qorm run examples/login
   "onPress": { "type": "invoke", "name": "performLogin", "args": { "email": "{{state.email}}", "password": "{{state.password}}" } } }
 ```
 
+输入框同样可以带上浏览器的原生输入属性——它们零成本,却能给用户即时反馈和正确的软键盘:
+
+```json
+{ "type": "input", "id": "email", "binding": "email", "placeholder": "Email Address",
+  "inputMode": "email", "required": true, "autocomplete": "email", "autofocus": true }
+{ "type": "input", "id": "password", "binding": "password", "placeholder": "Password",
+  "required": true, "maxLength": 64, "pattern": ".{8,}", "autocomplete": "current-password" }
+```
+
+这些是原生约束,不是校验引擎:它们**不会**阻断动作,因为按钮的 `onPress` 是从它
+自己的点击处理器派发的。请把按钮的 `disabled` 绑定到一个有效性表达式来做提交门禁,
+并把提示信息保存在状态里。
+
 一行错误信息绑定到状态,以便在尝试失败时显示提示:
 
 ```json
@@ -41,3 +54,6 @@ qorm run examples/login
 
 - 输入框用 `binding` 绑定(双向);按钮的 `onPress` 指定一个动作
   并将状态值作为参数传入。
+- `input` / `textarea` / `textformfield` 可用的原生输入属性:`required`、
+  `maxLength`、`pattern`(仅 input)、`inputMode`、`autofocus`、`readonly`、
+  `autocomplete`。

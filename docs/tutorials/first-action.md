@@ -45,7 +45,45 @@ A button's `onPress` is the action name (a string); to pass arguments, use an ob
 { "type": "state.toggle",    "path": "items", "matchKey": "id", "match": "{{ id }}", "field": "done" }
 ```
 
-Inside `{{ … }}` is a full expression (it can read `state.*` / action arguments and do arithmetic); list-oriented steps use `matchKey` + `match` to locate a specific item.
+Inside `{{ … }}` is a full expression (it can read `state.*` / action arguments and do arithmetic); list-oriented steps use `matchKey` + `match` to locate a specific item. See [Expressions](../expressions.md) for the whole language.
+
+## Branching with `if`
+
+An `if` step runs one of two nested step lists depending on a condition:
+
+```json
+{
+  "type": "if",
+  "condition": "{{ len(trim(state.name)) > 0 }}",
+  "then": [
+    { "type": "state.set", "path": "message", "value": "Hello {{ state.name }}" },
+    { "type": "state.set", "path": "formError", "value": "" }
+  ],
+  "else": [
+    { "type": "state.set", "path": "formError", "value": "Name is required" }
+  ]
+}
+```
+
+Both branches are optional and `if` steps nest (up to 32 deep). The condition
+uses the same truthiness rules as a node's `if` prop: `null`, `false`, `0`, `""`
+and empty collections are falsy. Remember the `{{ … }}` — a bare string like
+`"state.count > 0"` is a non-empty constant, so it is always truthy; the loader
+warns about exactly that mistake.
+
+## Calling another action
+
+An `invoke` step calls another action by name, so shared behaviour lives in one
+file instead of being copy-pasted:
+
+```json
+{ "type": "invoke", "name": "resetForm", "args": { "keepEmail": "{{ true }}" } }
+```
+
+`args` are evaluated in the **caller's** context and merged into the callee's
+scope, exactly like the args on a button's `onPress`. Call depth is capped at
+16, so a recursive or mutually-recursive chain terminates instead of hanging;
+the loader reports a target action that does not exist.
 
 ## Calling a backend
 
@@ -55,21 +93,129 @@ Inside `{{ … }}` is a full expression (it can read `state.*` / action argument
 { "type": "http.get", "url": "https://catfact.ninja/fact", "result": "fact", "error": "err" }
 ```
 
+### Success and failure branches
+
+Any `http.*` step can carry `onSuccess` / `onError` step lists that run after
+the request returns. Inside `onSuccess` the decoded body is bound to
+`{{ response }}`; inside `onError` the failure message is bound to `{{ error }}`:
+
+```json
+{
+  "type": "http.get",
+  "url": "https://api.example.com/items",
+  "result": "items",
+  "error": "loadError",
+  "onSuccess": [
+    { "type": "state.set", "path": "total",  "value": "{{ count(response) }}" },
+    { "type": "state.set", "path": "status", "value": "loaded" }
+  ],
+  "onError": [
+    { "type": "state.set", "path": "status", "value": "Could not load: {{ error }}" }
+  ]
+}
+```
+
+The classic writes still happen first and are unchanged: on success `result` is
+written and any stale `error` path is cleared, on failure the `error` path is
+written and `result` is left alone. The branches run after that, so
+`{{ state.items }}` is already populated inside `onSuccess`.
+
+Failures include transport errors and any non-2xx status (whose message is the
+status line, e.g. `500 Internal Server Error`). Requests time out after 20
+seconds; there is no per-step timeout field.
+
+## Timers
+
+A `timer` is an invisible node you place in the scene tree — it renders nothing
+and schedules an action instead. Use `every` for a repeating tick or `after`
+for a one-shot, both in milliseconds:
+
+```json
+{ "type": "timer", "id": "poll",      "every": 5000, "onTick": "refresh" }
+{ "type": "timer", "id": "hint_once", "after": 2000, "onTick": "showHint" }
+```
+
+`onTick` takes an action name or the `{ "name": …, "args": … }` form, and
+dispatches through exactly the same path as a button press. Because a timer is
+a node, its **lifetime is its presence in the tree** — put an `if` on it and it
+stops itself:
+
+```json
+{ "type": "timer", "id": "countdown", "every": 1000,
+  "if": "{{ state.running }}", "onTick": "tick" }
+```
+
+The scheduler reconciles timers after every re-render, so the same `id` is
+never double-scheduled, a timer that disappears is cancelled, and a changed
+interval reschedules. `every` is floored at 250 ms, and repeating ticks pause
+while the browser tab is hidden. A timer needs an `id` — that is the key the
+scheduler reconciles on.
+
+## Scene lifecycle: `onEnter`
+
+A scene can name an action to run whenever it is entered — the usual "load this
+screen's data" hook. It sits next to `root` in the scene file:
+
+```json
+{
+  "type": "scene",
+  "id": "main",
+  "onEnter": "loadData",
+  "root": { "type": "column", "id": "root", "children": [] }
+}
+```
+
+The object form `{ "name": "load", "args": { … } }` works too, with args
+evaluated in the scene's context. `onEnter` fires on the entry scene's first
+load, on a deep link straight into the scene, on a `navigate` step, and on
+navigating **back** into it. It is deliberately not replayed by a page refresh,
+an SSE reconnect, or a dev hot reload — so a load action does not run twice for
+one visit. Make it idempotent anyway by guarding it with an `if`.
+
+There is no `onExit` counterpart today.
+
+`examples/lifecycle` wires all of this together — an `onEnter` load, a polling
+timer, a one-shot `after` hint, an `if`-guarded countdown that stops itself,
+and a form submit with `if`/`else` branches plus an `invoke` reset:
+
+```sh
+qorm run examples/lifecycle
+```
+
 ## Standard action patterns
 
 These are the reusable shapes built entirely from the step types above. Each is a real, load-clean recipe — copy the JSON and rename the paths. Working examples live in `examples/form` (form validation) and `examples/tasks` (optimistic update + error handling).
 
 ### Loading state
 
-Set a flag before a call and clear it after, so the UI can bind `{{ state.loading }}` to a spinner or disabled button:
+A dispatch paints one frame by default, **after** every step has finished — by
+which time `loading` is already back to `false`, so the flag would never be
+seen. The `render` step is what makes it visible: it publishes the state written
+so far as a frame, right where it appears, before the slow step blocks.
 
 ```json
 [
   { "type": "state.set", "path": "loading", "value": "{{ true }}" },
+  { "type": "render" },
   { "type": "http.get", "url": "https://api.example.com/items", "result": "items", "error": "error" },
   { "type": "state.set", "path": "loading", "value": "{{ false }}" }
 ]
 ```
+
+That frame is an ordinary render, so anything conditioned on the flag appears:
+
+```json
+{ "type": "row", "if": "{{ state.loading }}", "children": [
+  { "type": "spinner", "id": "spin", "size": 16 },
+  { "type": "text", "id": "lbl", "text": "Loading…" }
+] }
+```
+
+`render` only ever adds frames — leave it out and the action lands in a single
+frame exactly as before, and where the app is running determines whether the
+extra frames are drawn at all. It is a no-op on a host that does not paint
+mid-action, so the same JSON is safe everywhere. `examples/netdemo` and
+`examples/tasks` both ship this shape.
 
 ### Error handling
 
@@ -82,6 +228,10 @@ Set a flag before a call and clear it after, so the UI can bind `{{ state.loadin
 ```json
 { "type": "text", "if": "{{ len(state.error) > 0 }}", "text": "Could not save: {{ state.error }}" }
 ```
+
+When the two outcomes need different follow-up work rather than a different
+message, use the `onSuccess` / `onError` branches shown above instead of
+inspecting the error path afterwards.
 
 ### Optimistic update (with rollback)
 
@@ -112,9 +262,19 @@ Write each field's error with one conditional `state.set` (a ternary picks the m
 { "type": "text", "if": "{{ len(state.fieldErrors.email) > 0 }}", "text": "{{ state.fieldErrors.email }}" }
 ```
 
+An `if` step reads better than a ternary once a field has more than two
+outcomes, and it can write several paths per branch.
+
+Input widgets also carry the browser's native constraint attributes —
+`required`, `pattern`, `maxLength`, plus `inputMode` for the on-screen
+keyboard. Those give the user immediate native feedback, but they do **not**
+block an action: a button's `onPress` dispatches from its own click handler.
+Gate submission yourself by binding the submit button's `disabled` to your
+validity expression.
+
 ### Pagination
 
-Keep a `page` counter in state and advance it; the offset is computed in the request URL binding:
+For **server-side** paging, keep a `page` counter in state and advance it; the offset is computed in the request URL binding:
 
 ```json
 [
@@ -122,6 +282,11 @@ Keep a `page` counter in state and advance it; the offset is computed in the req
   { "type": "http.get", "url": "https://api.example.com/items?offset={{ state.page * 20 }}&limit=20", "result": "items", "error": "error" }
 ]
 ```
+
+For **client-side** paging over an array you already hold, no action is needed:
+give the `list` (or `gridview`) a `pageSize` and bind `page` to the counter —
+see [First Scene](first-scene.md). `datatable` has no built-in paging, so it
+still needs a `slice()` expression over the state array.
 
 ### Debounced search — *pattern via existing mechanism*
 

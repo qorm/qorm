@@ -42,8 +42,29 @@ qorm run examples/todo
   ] } }
 ```
 
+行模板还能看到自己的位置——`{{ index }}`(从 0 开始),以及 `first` 与 `last`
+两个标志——因此序号、斑马纹、"最后一行不画分隔线"都不需要额外的状态:
+
+```json
+{ "type": "list", "id": "items", "data": "{{ state.items }}", "separator": true,
+  "renderItem": { "type": "row", "children": [
+    { "type": "text", "text": "{{ index + 1 }}." },
+    { "type": "text", "text": "{{ item.text }}" }
+  ] } }
+```
+
+一行统计信息就是同一个数组上的一个表达式:
+
+```json
+{ "type": "text", "text": "{{ count(state.items, \"it.done\") }} of {{ len(state.items) }} done" }
+```
+
 ## 格式说明
 
 - 重复渲染使用 `list`,配合 `data: "{{ state.items }}"` 和一个 `renderItem`
   模板(而非 `item`);`{{ item.* }}` 仅在该模板内部可见。
 - 使用 `state.appendObject` 追加;通过 `binding` 实现双向输入。
+- `index` / `first` / `last` 是独立的作用域名字,所以你自己数据里的 `index`
+  字段永远不会被遮蔽。
+- 更长的列表可以用 `separator`、`pageSize` + `page`、`groupBy` 与
+  `onRefresh`——见[第一个场景](../tutorials/first-scene.md)。

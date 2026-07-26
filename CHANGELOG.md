@@ -42,6 +42,134 @@ All notable changes to QORM are documented here. The format is based on
   onEnter data load, a poll timer, an `after` one-shot hint, an
   `if`-guarded countdown timer, and a form submit with if/else branches
   plus an `invoke` reset.
+- Intermediate rendering: a `render` action step — `{"type":"render"}` —
+  publishes the state written so far as a frame, mid-action, so a loading
+  flag set before a slow step (`set saving=true` → `render` → `http.put` →
+  `set saving=false`) actually reaches the screen. It is a no-op on a host
+  that installs no frame sink, so the same JSON runs unchanged everywhere;
+  `runtime.New` and `Clone` never install one, which keeps bare runtimes and
+  MCP simulations synchronous and side-effect free. Frames are capped at 64
+  per top-level dispatch (nested `invoke`s share the caller's budget), and
+  the loader warns past 8 `render` steps in one action. An intermediate frame
+  deliberately does not drain a pending `onEnter`, so a scene entered
+  mid-action still fires its hook exactly once, at the dispatch boundary.
+  `examples/tasks` now uses it: its "Saving…" indicator was unreachable
+  before and now shows a spinner for the duration of the save.
+- `POST /event` accepts the revision the click was rendered on
+  (`{"h":…,"rev":…}`) and resolves the handler index against that frame's
+  table, keeping the last 8 frames. Handler indices are positional, so a
+  frame landing between the paint and the click — an agent edit, or an
+  intermediate frame — previously renumbered them and could dispatch a
+  different action than the one pressed; intermediate frames widen that
+  window from milliseconds to the length of a whole action. A request that
+  reports no revision (curl, the offline WASM driver) keeps the previous
+  newest-table behaviour.
+- Components: props are now evaluated in the instance's scope with type
+  fidelity, so `{{state.x}}` / `{{item.x}}` / route params resolve instead of
+  leaking as literal text, and a single whole-string binding keeps its Go
+  type — a boolean stays a boolean (`if="{{prop.open}}"` works), a number
+  stays a number (`{{prop.count * 2}}` works), a list stays a list
+  (`data="{{prop.rows}}"` works). This is what makes a component usable as a
+  list-row template.
+- Components: callback props — an invoke's `name` interpolates at handler
+  registration time, so `"onPress":{"name":"{{prop.onConfirm}}"}` dispatches
+  the action the instance passed in instead of silently no-op'ing on a
+  literal lookup.
+- Components: named slots — a template's `slot` node takes a `name`, and an
+  instance child is routed to it with a `slot` field; children with no `slot`
+  fill the unnamed slot. A slot's own `children` are its fallback, rendered
+  only when nothing fills it. A single unnamed slot keeps its previous
+  behaviour, so existing components are unaffected.
+- Components: the nested `"props":{…}` instance syntax now works (one level,
+  merged in the renderer so the serialize round-trip stays identity); nested
+  keys win over top-level keys of the same name.
+- Expressions: postfix index access — `arr[i]`, `obj[key]`, `grid[1][0]`,
+  `users[0].name`, and a dynamic key or index from any expression. Semantics
+  are lenient: out of range, a missing key, or indexing a non-collection is
+  `null` rather than an error. A negative literal index is `null` — only
+  `at()` counts from the end.
+- Expressions: 13 collection and formatting builtins — `at`, `first`, `last`,
+  `sum`, `avg`, `count`, `join`, `split`, `keys`, `values`, `map`, `filter`,
+  `format`. `map` / `filter` / two-argument `count` take a sub-expression
+  written as a string with the element bound to `it`
+  (`sum(map(state.cart, "it.price * it.qty"))`), evaluated in an isolated
+  context with a 256-deep stack guard and a 100k-evaluation work guard so
+  self-referential data cannot hang a render. `keys` / `values` sort by key
+  for render determinism. The loader statically checks arity and per-argument
+  types for these calls and recursively checks literal sub-expressions.
+- Lists: the item scope of `list` and `gridview` now carries `index`, `first`
+  and `last` alongside `item`, as separate scope names — a data field called
+  `index` is never shadowed (`{{item.index}}` is your data, `{{index}}` is the
+  loop position).
+- Lists: `"as":"row"` binds the item under an alias with namespaced
+  `rowIndex` / `rowFirst` / `rowLast`, so a nested list keeps the outer item
+  reachable (`{{section.title}}` next to `{{row.name}}`). A reserved or
+  malformed alias degrades to `item` with a loader warning, and the loader's
+  static checks learn each template's scope names token-exactly.
+- Lists: built-in pagination — `pageSize` (+ 1-based `page`, typically bound
+  to state) renders one window of the data. `page` clamps into range, so an
+  overshooting page shows the last one instead of a blank screen.
+  `gridview` takes the same pair. `index` / `first` / `last` stay global to
+  the full data, so numbering counts across pages and node ids stay stable.
+- Lists: `separator` draws a hairline between items — `true`, or
+  `{"height":…,"inset":…,"color":…}` — never after the last item and never
+  before a section header.
+- Lists: `groupBy` splits consecutive runs of an equal key into sections with
+  a `sectionHeader` label evaluated in the first item's scope; `sticky`
+  (default true) and `stickyTop` park the header under an existing appbar.
+  The renderer never reorders the data.
+- Lists: `onRefresh` exposes pull-to-refresh inline, reusing the
+  `refreshindicator` gesture verbatim (one shared implementation, byte-
+  identical output). Grouping does not wire reorder and reorder does not wire
+  refresh — both combinations would misindex or fight over the same drag.
+- Bound node types: `"type":"{{item.kind}}"` resolves against the current
+  scope at render time, so one list template renders a different widget per
+  row instead of stacking `when`/`if` gates. Resolution happens after the
+  visibility check (a hidden node pays no evaluation) and before the
+  animation wrap, and returns a shallow copy so the shared template node is
+  never mutated. An unresolvable or unknown result keeps the raw binding as
+  the type and degrades through the existing unknown-node path, with the
+  diagnostic naming the offending expression.
+- Inputs: `input` / `textarea` / `textformfield` accept `maxLength`,
+  `autofocus`, `readonly`, `required`, `autocomplete` and `inputMode`
+  (normalizing `number`→`numeric`, `phone`→`tel`); `pattern` on `input`.
+  These are the browser's native constraint channels — there is deliberately
+  no JS validation engine, and they do not block an action dispatch.
+- Images: `placeholder` (a CSS color, or a low-resolution URL painted as a
+  blur-up background), `fallback` swapped in by a self-stopping `onerror`,
+  and native lazy loading **on by default** (`"lazy":false` opts out).
+- Style keys: `zIndex`, `alignSelf`, `flexShrink`; `width` / `height` now
+  accept `"50%"`, `"30vw"`, `"40vh"` and `"120px"` (parsed and re-rendered,
+  never passed through verbatim).
+- Pseudo-state style keys: `hoverBackground`, `hoverColor`, `hoverOpacity`,
+  `pressedScale`, `pressedOpacity`, `focusBorderColor`, `disabled` and
+  `disabledOpacity`. The renderer publishes a CSS custom property inside the
+  node's own escaped style attribute and the shell stylesheet carries fixed
+  rules that consume it — no JavaScript, morph-safe, and values still go
+  through the normal style-attribute escaping. Hover rules sit inside
+  `@media (hover:hover)` so a tap cannot strand a hover state, and `disabled`
+  also emits `aria-disabled`.
+- `docs/expressions.md` (+ Chinese mirror) — a reference page for the
+  `{{ … }}` language: scopes, operators and truthiness, index access, and
+  every builtin function.
+
+### Fixed
+- `image`, `avatar` and `video` now interpolate `src` (and `image`'s `alt`),
+  so a data-driven row bound to `{{item.src}}` loads the image instead of
+  emitting the literal binding as its URL — exactly the image-message case a
+  polymorphic feed needs.
+- The semantic alias containers `center` / `start` / `end` / `between` /
+  `around` / `evenly` / `stretch` now mean what they say: `center`/`start`/
+  `end` pack both axes, `between`/`around`/`evenly` set `justify-content`,
+  and `stretch` aligns. Previously they fell through to a plain column and
+  silently did nothing, which read as a renderer bug. An explicit
+  `layout.align` / `layout.justify` still wins. No app in the repo used these
+  types, so nothing renders differently.
+
+### Changed
+- `examples/dragdrop` is rewritten data-driven: one `gridview` with
+  `as:"column"` and a single parameterized move action replace three
+  hand-copied columns and three duplicate actions.
 
 ## [v0.3.7] - 2026-07-26
 

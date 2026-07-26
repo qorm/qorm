@@ -40,8 +40,30 @@ A data-bound list renders each item; `{{item.*}}` is the per-row scope:
   ] } }
 ```
 
+The row template also sees its position — `{{ index }}` (0-based), plus the
+`first` and `last` flags — so numbering, zebra striping and "hide the divider
+on the last row" need no extra state:
+
+```json
+{ "type": "list", "id": "items", "data": "{{ state.items }}", "separator": true,
+  "renderItem": { "type": "row", "children": [
+    { "type": "text", "text": "{{ index + 1 }}." },
+    { "type": "text", "text": "{{ item.text }}" }
+  ] } }
+```
+
+A summary line is one expression over the same array:
+
+```json
+{ "type": "text", "text": "{{ count(state.items, \"it.done\") }} of {{ len(state.items) }} done" }
+```
+
 ## Format notes
 
 - The repeat is `list` with `data: "{{ state.items }}"` and a `renderItem`
   template (not `item`); `{{ item.* }}` is visible only inside that template.
 - Append with `state.appendObject`; two-way input via `binding`.
+- `index` / `first` / `last` are separate scope names, so an `index` field in
+  your own data is never shadowed.
+- Longer lists take `separator`, `pageSize` + `page`, `groupBy` and
+  `onRefresh` — see [First scene](../tutorials/first-scene.md).

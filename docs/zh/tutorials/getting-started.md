@@ -89,7 +89,8 @@ qorm render my-app -o my-app.html
 
 ## 下一步
 
-- [组件目录](/api/widgets.md) —— 渲染器接受的每一种节点类型(代码生成,权威来源)。
+- [表达式](../expressions.md) —— 每一个绑定所使用的 `{{ … }}` 语言。
+- [组件目录](/api/zh/widgets.md) —— 渲染器接受的每一种节点类型(代码生成,权威来源)。
 - [能力](../../platforms/capabilities.md) —— 相机、定位、蓝牙等原生能力。
 - [用户中间层](../platforms/native-middlelayer.md) —— 用一个 Go 文件添加你自己的原生操作。
 - 更多可运行示例,参见仓库中的 [`examples/`](https://github.com/qorm/qorm/tree/main/examples)(counter / todo / dashboard / hardware / …)。
