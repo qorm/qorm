@@ -8,13 +8,15 @@
       "email": "string",
       "password": "string",
       "isLoggingIn": "boolean",
-      "errorMessage": "string"
+      "errorMessage": "string",
+      "statusMessage": "string"
     },
     "initial": {
       "email": "",
       "password": "",
       "isLoggingIn": false,
-      "errorMessage": ""
+      "errorMessage": "",
+      "statusMessage": ""
     }
   },
   "platforms": {

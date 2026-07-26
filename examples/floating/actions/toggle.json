@@ -1,1 +1,1 @@
-{ "id": "toggle", "steps": [ { "type": "state.toggle", "path": "running" } ] }
+{ "type": "action", "id": "toggle", "steps": [ { "type": "state.set", "path": "running", "value": "{{ !state.running }}" } ] }

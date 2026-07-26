@@ -117,6 +117,17 @@
           "margin": { "top": 16 },
           "textAlign": "center"
         }
+      },
+      {
+        "type": "text",
+        "id": "status_msg",
+        "text": "{{state.statusMessage}}",
+        "style": {
+          "color": "var(--accent)",
+          "fontSize": 13,
+          "margin": { "top": 8 },
+          "textAlign": "center"
+        }
       }
     ]
   }

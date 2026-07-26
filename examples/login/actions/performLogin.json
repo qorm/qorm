@@ -1,0 +1,6 @@
+{ "type": "action", "id": "performLogin", "steps": [
+  { "type": "state.set", "path": "isLoggingIn", "value": "{{ true }}" },
+  { "type": "state.set", "path": "errorMessage", "value": "" },
+  { "type": "state.set", "path": "statusMessage", "value": "Signed in as {{ email }}" },
+  { "type": "state.set", "path": "isLoggingIn", "value": "{{ false }}" }
+]}

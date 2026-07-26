@@ -361,6 +361,37 @@ func applyManifest(app *model.App, doc map[string]any, diags *[]string) {
 // BuildNode builds a node tree from a raw JSON object (exported for patch ops).
 func BuildNode(m map[string]any) *model.Node { return buildNode(m, nil, "", nil) }
 
+// valueWidgets are the node types whose renderer legitimately consumes the
+// `value` attribute (two-way state binding or a display value) — see the
+// corresponding renderer funcs in internal/render. Only types OUTSIDE this set
+// get the "misconfigured 'value'" diagnostic: for anything else (text, view,
+// button, ...) `value` is silently ignored by the renderer and is almost
+// always a mistaken stand-in for `text` / `{{state.x}}`. Keep this in sync
+// with the render dispatch's value-reading cases (aliases included).
+var valueWidgets = map[string]bool{
+	// text inputs and pickers (render_input.go / render_widgets.go)
+	"input": true, "textarea": true, "select": true, "dropdown": true,
+	"textformfield": true, "autocomplete": true, "searchbar": true,
+	"dropdownbutton": true,
+	"picker": true, "cupertinopicker": true,
+	"datepicker": true, "cupertinodatepicker": true,
+	"timepicker": true, "cupertinotimepicker": true,
+	// toggles and choices
+	"checkbox": true, "switch": true, "radio": true, "slider": true,
+	"segmented": true, "slidingsegmentedcontrol": true, "cupertinoslidingsegmentedcontrol": true,
+	"switchlisttile": true, "checkboxlisttile": true, "radiolisttile": true,
+	// navigation selection state
+	"bottomnav": true, "bottomnavigationbar": true, "navigationbar": true,
+	"navigationrail": true, "navigationdrawer": true,
+	// display widgets whose value IS the datum
+	"progress": true, "circularprogress": true, "circularprogressindicator": true,
+	"rating": true, "stat": true, "metric": true,
+	// hardware capture widgets bind their result via value (render_gesture.go)
+	"camera": true, "location": true, "geolocation": true,
+	"recorder": true, "audiorecorder": true,
+	"biometric": true, "faceid": true, "fingerprint": true,
+}
+
 // buildNode builds one node. vars is the identifier -> declared-type map for
 // static expression type checking (nil disables it, e.g. for patch ops).
 func buildNode(m map[string]any, diags *[]string, sceneID string, vars map[string]string) *model.Node {
@@ -373,10 +404,11 @@ func buildNode(m map[string]any, diags *[]string, sceneID string, vars map[strin
 			*diags = append(*diags, fmt.Sprintf("[Scene: %s] 节点 (id: %q, type: %q) 使用了已弃用的 'on' 属性（如 on: {press: ...}）。请直接使用 'onPress' 或 'onChange'。", sceneID, nodeID, nodeType))
 		}
 
-		// 校验 value 属性
+		// 校验 value 属性：仅对渲染器不消费 value 的节点类型告警
+		// （消费 value 的控件见 valueWidgets——那里 value 是双向绑定的正规 API）。
 		if val, hasVal := m["value"]; hasVal {
 			valStr := asString(val)
-			if valStr != "" && nodeType != "input" && nodeType != "textarea" && nodeType != "select" && nodeType != "slider" {
+			if valStr != "" && !valueWidgets[nodeType] {
 				*diags = append(*diags, fmt.Sprintf("[Scene: %s] 节点 (id: %q, type: %q) 错误地配置了 'value': %q。普通文本节点请使用 'text' 属性，状态绑定请使用 '{{state.xxx}}'。", sceneID, nodeID, nodeType, valStr))
 			}
 		}
