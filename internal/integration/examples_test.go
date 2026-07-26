@@ -49,14 +49,12 @@ func TestExamplesRenderCleanly(t *testing.T) {
 // (loader.LoadDir, the `qorm run` path) is allowed to carry error-level
 // diagnostics, with the reason. Warning-level diagnostics are NEVER exempt —
 // the whole examples/ tree loads warning-free and this test locks that in.
-var exampleDirErrorExemptions = map[string]string{
-	// CollectDocs walks locales/*.json message catalogs into the doc set;
-	// catalogs are typeless by design, so the loader reports each as an
-	// "unknown or missing type" error doc. The catalogs themselves still load
-	// via LoadLocales, so the app works; fixing this means teaching collect()
-	// to skip locales/, which is a loader behavior change beyond this gate.
-	"i18n": "locales/*.json catalogs are typeless docs on the CollectDocs walk",
-}
+// The map is EMPTY, and that is the point: `qorm build` now refuses to package
+// an app carrying error-level diagnostics, so an exemption here would be an
+// example that cannot be shipped. (It last held "i18n", whose locales/*.json
+// catalogs the CollectDocs walk reported as typeless documents; collect() skips
+// locales/ now, since LoadLocales reads those into their own bundle section.)
+var exampleDirErrorExemptions = map[string]string{}
 
 // isErrorDiag reports whether a loader diagnostic is error-level. The loader
 // prefixes hard errors with "error:"; everything else (including the

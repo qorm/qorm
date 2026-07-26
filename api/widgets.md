@@ -78,6 +78,7 @@ Each widget lists its **canonical name** first; the rest are equivalent aliases.
 | `materialstepper` | — | `materialStepper` |
 | `menu` | — | `menu` |
 | `modal` | dialog | `modal` |
+| `monthview` | calendarview, datepickercalendar | `monthView` |
 | `navigationdrawer` | — | `navigationDrawer` |
 | `navigationrail` | — | `navigationRail` |
 | `network` | — | `hwList` |
@@ -134,6 +135,7 @@ Each widget lists its **canonical name** first; the rest are equivalent aliases.
 | `timeline` | — | `timeline` |
 | `timepicker` | cupertinotimepicker | `timepicker` |
 | `timer` | — | `timer` |
+| `tooltip` | — | `tooltip` |
 | `torch` | flashlight | `hwList` |
 | `transform` | rotatedbox | `transform` |
 | `tree` | — | `tree` |

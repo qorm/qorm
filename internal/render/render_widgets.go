@@ -42,6 +42,11 @@ type renderer struct {
 	unknowns     []string
 	compChildren []*model.Node // children of the current component instance (for slot)
 	compDepth    int
+	// render budget (see spendNode in render.go): compDepth alone bounds the
+	// DEPTH of component recursion, not the TOTAL work, so a self-referencing
+	// component with two children fans out 2^depth times within the depth cap.
+	nodesRendered int
+	overBudget    bool
 	// per-render caches: state + the resolved i18n catalog are constant during a
 	// single render, so compute them once instead of per bound node.
 	catalog  map[string]any
@@ -162,8 +167,10 @@ func (r *renderer) wrap(n *model.Node) {
 
 // appbar is Flutter's AppBar: leading + title + actions row.
 func (r *renderer) appbar(n *model.Node) {
-	// background is an author prop interpolated into a quoted style attribute.
-	bg := styleAttr(propStrOr(n, "background", "var(--surface)"))
+	// background is an author prop landing mid-declaration ("background:%s;"):
+	// the CSS-value allowlist (cssValueOr) is what stops a `;` from starting a
+	// new declaration — styleAttr only guards the attribute.
+	bg := styleAttr(cssValueOr(propStr(n, "background"), "var(--surface)"))
 	// The iOS bar is frosted by default; `backdropBlur` retunes the radius (0
 	// turns the frost off) without the app having to restyle the whole bar.
 	frost := frostCSS(r.backdropBlurPx(n, 20))
@@ -495,6 +502,360 @@ func parseDate3(s string) (y, m, d int) {
 
 func fmtDate(y, m, d int) string { return fmt.Sprintf("%04d-%02d-%02d", y, m, d) }
 
+// ---- month view (calendar grid) ----------------------------------------------
+
+// monthNamesLong / monthWeekdays are the built-in English labels of the
+// `monthview` widget; an app localises them with the `heading` and `weekdays`
+// props (or by binding them through the i18n catalog).
+var monthNamesLong = [12]string{"January", "February", "March", "April", "May", "June",
+	"July", "August", "September", "October", "November", "December"}
+
+var monthWeekdays = [7]string{"Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"}
+
+// monthDays returns the length of a proleptic-Gregorian month — the leap rule
+// spelled out rather than delegated to time.Time, so the whole widget is pure
+// arithmetic with no clock anywhere near it (the render-determinism guard).
+func monthDays(y, m int) int {
+	switch m {
+	case 1, 3, 5, 7, 8, 10, 12:
+		return 31
+	case 4, 6, 9, 11:
+		return 30
+	case 2:
+		if (y%4 == 0 && y%100 != 0) || y%400 == 0 {
+			return 29
+		}
+		return 28
+	}
+	return 30
+}
+
+// monthWeekday returns the weekday of a date as 0=Sunday..6=Saturday
+// (Sakamoto's method, valid for the proleptic Gregorian calendar from year 1).
+func monthWeekday(y, m, d int) int {
+	t := [12]int{0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4}
+	if m < 3 {
+		y--
+	}
+	w := (y + y/4 - y/100 + y/400 + t[m-1] + d) % 7
+	if w < 0 {
+		w += 7
+	}
+	return w
+}
+
+// monthAdd shifts (year, month) by delta months, carrying across the year
+// boundary — December +1 is January of the next year, January -1 December of
+// the previous one.
+func monthAdd(y, m, delta int) (int, int) {
+	t := y*12 + (m - 1) + delta
+	if t < 0 {
+		t = 0
+	}
+	return t / 12, t%12 + 1
+}
+
+// normDay normalises a "YYYY-MM-DD" date and reports whether it is a REAL
+// calendar day: 2025-02-29 and 2026-13-01 are rejected rather than silently
+// clamped, so an unparseable min/max/selected prop degrades to "not set"
+// instead of to a wrong boundary. Normalised days are zero-padded, so the
+// widget compares them with plain string ordering.
+func normDay(s string) (string, bool) {
+	p := strings.Split(strings.TrimSpace(s), "-")
+	if len(p) != 3 {
+		return "", false
+	}
+	y, e1 := strconv.Atoi(p[0])
+	m, e2 := strconv.Atoi(p[1])
+	d, e3 := strconv.Atoi(p[2])
+	if e1 != nil || e2 != nil || e3 != nil {
+		return "", false
+	}
+	if y < 1 || m < 1 || m > 12 || d < 1 || d > monthDays(y, m) {
+		return "", false
+	}
+	return fmtDate(y, m, d), true
+}
+
+// normMonth parses a month from "YYYY-MM" or from a full "YYYY-MM-DD" day.
+func normMonth(s string) (int, int, bool) {
+	p := strings.Split(strings.TrimSpace(s), "-")
+	if len(p) != 2 && len(p) != 3 {
+		return 0, 0, false
+	}
+	y, e1 := strconv.Atoi(p[0])
+	m, e2 := strconv.Atoi(p[1])
+	if e1 != nil || e2 != nil || y < 1 || m < 1 || m > 12 {
+		return 0, 0, false
+	}
+	return y, m, true
+}
+
+// weekStartIndex maps the `weekStart` prop to a 0=Sunday..6=Saturday column
+// offset. Names and numbers are both accepted; anything else means Sunday.
+func weekStartIndex(s string) int {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "mon", "monday", "1":
+		return 1
+	case "tue", "tuesday", "2":
+		return 2
+	case "wed", "wednesday", "3":
+		return 3
+	case "thu", "thursday", "4":
+		return 4
+	case "fri", "friday", "5":
+		return 5
+	case "sat", "saturday", "6":
+		return 6
+	}
+	return 0
+}
+
+// monthEvents resolves the `events` prop into date -> marker colour. An entry is
+// either a bare "YYYY-MM-DD" string or an object {date, color}; an unparseable
+// date is dropped. The colour passes cssValue (render_data.go), the repo's
+// strict CSS allowlist, before it is ever written into a declaration — so even
+// though the dot's colour lands in a quoted style ATTRIBUTE (where
+// html.EscapeString would already be enough), a value carrying ';' '{' '}' '<'
+// is discarded rather than escaped, and the widget can never be the source of a
+// CSS-rule injection if the markup around it ever moves into a <style> block.
+func (r *renderer) monthEvents(n *model.Node) map[string]string {
+	out := map[string]string{}
+	for _, e := range r.boundArray(n, "events") {
+		date, color := "", ""
+		switch t := e.(type) {
+		case string:
+			date = t
+		case map[string]any:
+			date = r.interp(str(t, "date"))
+			color = cssValue(str(t, "color"))
+		}
+		if d, ok := normDay(date); ok {
+			out[d] = color
+		}
+	}
+	return out
+}
+
+// monthNavHandler registers the handler behind one of the month-view arrows and
+// returns its index, or -1 for "no handler" (the arrow then renders natively
+// disabled rather than dead).
+//
+// Two ways to wire paging, in order:
+//
+//   - `onMonthChange` — an invoke prop ({name,args}) or a bare action name; the
+//     target month arrives as a `month` arg ("YYYY-MM"), the same
+//     register-once-per-target trick bottomnav uses for `value`.
+//   - failing that, the day handler `onChange`, with the nearest day of the
+//     target month as `value`. Because `month` defaults to the month of
+//     `selected`, moving the selection moves the grid — so a calendar wired with
+//     the ONE action it needs anyway (record the picked date) gets working
+//     prev/next for free, with no new event channel.
+func (r *renderer) monthNavHandler(n *model.Node, y, m int, sel string) int {
+	inv := parseInvokeProp(n, "onMonthChange")
+	if inv == nil {
+		if raw, ok := n.Prop("onMonthChange"); ok {
+			if name, ok := raw.(string); ok && strings.TrimSpace(name) != "" {
+				inv = &model.Invoke{Name: strings.TrimSpace(name)}
+			}
+		}
+	}
+	if inv != nil {
+		return r.register(&model.Invoke{Name: inv.Name,
+			Args: mergeArgs(inv.Args, "month", fmt.Sprintf("%04d-%02d", y, m))})
+	}
+	if n.OnChange == nil {
+		return -1
+	}
+	d := 1
+	if _, _, sd, ok := splitDay(sel); ok {
+		d = sd
+	}
+	if d > monthDays(y, m) {
+		d = monthDays(y, m)
+	}
+	return r.register(&model.Invoke{Name: n.OnChange.Name,
+		Args: mergeArgs(n.OnChange.Args, "value", fmtDate(y, m, d))})
+}
+
+// splitDay splits an already-normalised "YYYY-MM-DD" into its parts.
+func splitDay(s string) (y, m, d int, ok bool) {
+	p := strings.Split(s, "-")
+	if len(p) != 3 {
+		return 0, 0, 0, false
+	}
+	y, _ = strconv.Atoi(p[0])
+	m, _ = strconv.Atoi(p[1])
+	d, _ = strconv.Atoi(p[2])
+	return y, m, d, true
+}
+
+// monthNavButton renders one header arrow. The glyph is the built-in
+// chevron-right icon, mirrored with scaleX(-1) for the previous-month arrow, so
+// the widget needs no icon the icon set does not already carry.
+func (r *renderer) monthNavButton(h int, label string, flip bool) {
+	style := "display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;flex:none;border:none;border-radius:8px;background:var(--fill);color:var(--label);cursor:pointer;padding:0;"
+	if flip {
+		style += "transform:scaleX(-1);"
+	}
+	attr := " disabled"
+	if h >= 0 {
+		attr = fmt.Sprintf(` onclick="qorm(%d)"`, h)
+	} else {
+		style += "opacity:.35;cursor:default;"
+	}
+	fmt.Fprintf(&r.sb, `<button type="button" aria-label=%q style=%q%s>%s</button>`,
+		html.EscapeString(label), style, attr, iconSVG("chevron-right", 17))
+}
+
+// monthView renders ONE month as a 7-column grid — the picker a booking or
+// scheduling app needs and that neither `datepicker` (a Cupertino scroll wheel)
+// nor `calendar` (the iOS/Android add-an-event hardware bridge, see
+// internal/capability) provides.
+//
+// Everything is a binding, and nothing is a new event channel:
+//
+//	selected  the chosen day, "YYYY-MM-DD" (bindable)
+//	month     the month on screen, "YYYY-MM" or "YYYY-MM-DD" (bindable);
+//	          defaults to the month of `selected`
+//	events    [ "YYYY-MM-DD" | {date,color} ] — a dot under the day (bindable)
+//	min, max  the selectable range; days outside render natively disabled and
+//	          an arrow whose whole target month is out of range disables too
+//	today     the day to ring (a prop, not the clock: render must stay
+//	          byte-deterministic for the same state)
+//	weekStart "sunday" (default) … "saturday", or 0..6
+//	weekdays  seven column labels; `heading` overrides the "July 2026" header
+//	onChange  fires with the clicked day as `value` — the same contract
+//	          datepicker/picker use, so existing actions work unchanged
+//
+// Days from the neighbouring months fill the leading/trailing cells and stay
+// selectable (dimmed), which is what a user expects when a booking straddles a
+// month boundary; showAdjacent:false blanks them instead.
+//
+// With no `month` and no parseable `selected` the grid opens on 2026-07, the
+// same fixed epoch datepicker's parseDate3 falls back to — a widget may not read
+// the clock, or the same state would render differently on two machines and the
+// determinism guard (and OTA bundle hashes) would break.
+func (r *renderer) monthView(n *model.Node) {
+	sel, hasSel := normDay(r.interp(propStr(n, "selected")))
+	y, m, ok := normMonth(r.interp(propStr(n, "month")))
+	if !ok {
+		if y, m, ok = normMonth(sel); !ok {
+			y, m = 2026, 7
+		}
+	}
+	minD, hasMin := normDay(r.interp(propStr(n, "min")))
+	maxD, hasMax := normDay(r.interp(propStr(n, "max")))
+	today, hasToday := normDay(r.interp(propStr(n, "today")))
+	events := r.monthEvents(n)
+	start := weekStartIndex(r.interp(propStr(n, "weekStart")))
+	showAdj := propStr(n, "showAdjacent") != "false"
+
+	// `heading`, not `title`: a11y() already claims `title` for the native HTML
+	// title attribute on every widget, so reusing it here would silently give the
+	// calendar a browser tooltip as well as a header.
+	head := r.interp(propStr(n, "heading"))
+	if head == "" {
+		head = fmt.Sprintf("%s %d", monthNamesLong[m-1], y)
+	}
+	labels := stringList(n.Props["weekdays"])
+	if len(labels) != 7 {
+		labels = monthWeekdays[:]
+	}
+
+	py, pm := monthAdd(y, m, -1)
+	ny, nm := monthAdd(y, m, 1)
+	prevH, nextH := -1, -1
+	if !hasMin || fmtDate(py, pm, monthDays(py, pm)) >= minD {
+		prevH = r.monthNavHandler(n, py, pm, sel)
+	}
+	if !hasMax || fmtDate(ny, nm, 1) <= maxD {
+		nextH = r.monthNavHandler(n, ny, nm, sel)
+	}
+
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-monthview" style=%q%s>`,
+		attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;", a11y(n))
+
+	// header: prev / month title / next
+	r.sb.WriteString(`<div style="display:flex;align-items:center;gap:8px;">`)
+	r.monthNavButton(prevH, "Previous month", true)
+	fmt.Fprintf(&r.sb, `<div style="flex:1;text-align:center;font-size:15px;font-weight:600;color:var(--label);">%s</div>`,
+		html.EscapeString(head))
+	r.monthNavButton(nextH, "Next month", false)
+	r.sb.WriteString(`</div>`)
+
+	// weekday header row + day grid share the same 7-column track.
+	r.sb.WriteString(`<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">`)
+	for i := 0; i < 7; i++ {
+		fmt.Fprintf(&r.sb, `<div style="text-align:center;font-size:11px;font-weight:600;color:var(--label2);padding-bottom:2px;">%s</div>`,
+			html.EscapeString(labels[(start+i)%7]))
+	}
+	days := monthDays(y, m)
+	lead := (monthWeekday(y, m, 1) - start + 7) % 7
+	total := ((lead + days + 6) / 7) * 7
+	for i := 0; i < total; i++ {
+		off := i - lead
+		cy, cm, cd, adj := y, m, off+1, false
+		switch {
+		case off < 0:
+			cy, cm = py, pm
+			cd, adj = monthDays(py, pm)+off+1, true
+		case off >= days:
+			cy, cm = ny, nm
+			cd, adj = off-days+1, true
+		}
+		if adj && !showAdj {
+			r.sb.WriteString(`<div style="height:38px;"></div>`)
+			continue
+		}
+		date := fmtDate(cy, cm, cd)
+		blocked := (hasMin && date < minD) || (hasMax && date > maxD)
+		isSel := hasSel && date == sel
+
+		cell := "display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:38px;padding:0;border:none;border-radius:9px;background:none;font-family:inherit;font-size:14px;font-variant-numeric:tabular-nums;color:var(--label);"
+		if adj {
+			cell += "color:var(--label2);opacity:.55;"
+		}
+		switch {
+		case isSel:
+			cell += "background:var(--accent);color:var(--on-accent);font-weight:600;opacity:1;"
+		case hasToday && date == today:
+			cell += "box-shadow:inset 0 0 0 1.5px var(--accent);font-weight:600;"
+		}
+		attr, aria := "", ""
+		switch {
+		case blocked:
+			// A native `disabled` button is inert to mouse, keyboard and
+			// assistive tech alike — no handler is registered for it at all.
+			attr = " disabled"
+			cell += "opacity:.28;cursor:default;"
+		case n.OnChange != nil:
+			attr = fmt.Sprintf(` onclick="qorm(%d)"`, r.register(&model.Invoke{
+				Name: n.OnChange.Name, Args: mergeArgs(n.OnChange.Args, "value", date)}))
+			cell += "cursor:pointer;"
+		}
+		if isSel {
+			aria = ` aria-current="date"`
+		}
+		fmt.Fprintf(&r.sb, `<button type="button" data-date=%q aria-label=%q%s%s style=%q>%d`,
+			html.EscapeString(date), html.EscapeString(date), aria, attr, cell, cd)
+		if color, marked := events[date]; marked {
+			dot := "var(--accent)"
+			if color != "" {
+				dot = color
+			}
+			if isSel {
+				dot = "var(--on-accent)"
+			}
+			fmt.Fprintf(&r.sb, `<span style="width:5px;height:5px;border-radius:50%%;background:%s;"></span>`, styleAttr(dot))
+		} else {
+			r.sb.WriteString(`<span style="width:5px;height:5px;"></span>`)
+		}
+		r.sb.WriteString(`</button>`)
+	}
+	r.sb.WriteString(`</div></div>`)
+}
+
 // timepicker is a Cupertino-style 2-wheel time picker (hour / minute) — the
 // time analogue of datepicker. Each wheel item, when clicked, dispatches
 // onChange with the full recomposed "HH:MM" value (keeping the other wheel's
@@ -620,9 +981,14 @@ func (r *renderer) contextMenu(n *model.Node) {
 			for _, c := range n.Children {
 				r.node(c)
 			}
-			// menuStyle is author-written CSS appended into a quoted style
-			// attribute: entity-encode it so a double quote cannot break out.
-			panelStyle := "display:none;position:fixed;z-index:80;min-width:200px;background:var(--surface);border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.28);padding:6px;border:.5px solid var(--sep);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);" + styleAttr(propStr(n, "menuStyle"))
+			// menuStyle is a raw DECLARATION LIST by contract, not a single
+			// value, so it is the one CSS input that is not value-filtered —
+			// cssRawDecls documents why that is safe here (propStr never
+			// evaluates bindings, so no state / http / MCP-set-state value can
+			// reach it) and still rejects the part that reaches off the page
+			// (url() beacons, comment truncation). styleAttr keeps it inside the
+			// quoted attribute.
+			panelStyle := "display:none;position:fixed;z-index:80;min-width:200px;background:var(--surface);border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.28);padding:6px;border:.5px solid var(--sep);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);" + styleAttr(cssRawDecls(propStr(n, "menuStyle")))
 			r.sb.WriteString(`<div class="qorm-ctxmenu-panel" style="` + panelStyle + `">`)
 			r.ctxItems(items)
 			r.sb.WriteString(`</div></div>`)
@@ -738,7 +1104,15 @@ func (r *renderer) richText(n *model.Node) {
 			continue
 		}
 		var st strings.Builder
-		if c := str(m, "color"); c != "" {
+		// The span colour is per-item author data written into a declaration of
+		// the assembled style attribute, so it needs the CSS-value allowlist:
+		// styleAttr (applied to the whole builder below) entity-encodes, which
+		// stops an attribute breakout but not a `;` opening the next
+		// declaration — `#000;position:fixed;…;width:100vw;height:100vh` would
+		// otherwise turn one text span into a full-screen overlay. A rejected
+		// colour drops just its own declaration; the span keeps its size,
+		// weight and text.
+		if c := cssStyleValue(str(m, "color")); c != "" {
 			fmt.Fprintf(&st, "color:%s;", c)
 		}
 		if fs, ok := numOK(m, "fontSize"); ok {
@@ -776,8 +1150,10 @@ func (r *renderer) richText(n *model.Node) {
 // `collapsible:false` restores the plain static bar (no sticky, no second
 // title) for a header that is not sitting at the top of a scroll view.
 func (r *renderer) largeTitle(n *model.Node) {
-	// background is an author prop interpolated into a quoted style attribute.
-	bg := styleAttr(propStrOr(n, "background", "var(--bg)"))
+	// background is an author prop landing mid-declaration, in TWO places (the
+	// wrapper and the compact bar): CSS-value allowlist first (see appbar), then
+	// the attribute encoding.
+	bg := styleAttr(cssValueOr(propStr(n, "background"), "var(--bg)"))
 	frost := frostCSS(r.backdropBlurPx(n, 20))
 	collapsible := propStr(n, "collapsible") != "false"
 	title := html.EscapeString(r.interp(labelOf(n)))

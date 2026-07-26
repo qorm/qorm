@@ -1,0 +1,1 @@
+{"type":"action","id":"setMonth","steps":[{"type":"state.set","path":"calMonth","value":"{{month}}"}]}

@@ -10,6 +10,7 @@ Extracted from the runtime dispatch (`internal/runtime`):
 
 | `type` | What it does |
 |---|---|
+| `delay` | wait `ms` milliseconds, then run the steps that FOLLOW it in the same list — `render` / `delay` / `render` paces a staged reveal declaratively. It never blocks: the wait goes to the host's background sink, and on a host with no sink (an offline render, an MCP simulation) it degrades to no wait at all, so the action still reaches the same final state |
 | `render` | publish an intermediate frame right here, so state written by the steps before it (a loading flag) reaches the screen before a slow step runs. No-op on a host with no frame sink; capped at 64 frames per dispatch |
 | `if` | run `then` steps when `condition` is truthy, `else` steps otherwise (nestable) |
 | `forEach` | run `steps` once per element of `in`, with the element bound under `as` (default `item`) plus `index` / `first` / `last` |
@@ -56,6 +57,10 @@ Every step is one JSON object; which fields apply depends on its `type`:
 | `result` | string | `http.*`: state path to store the parsed response |
 | `error` | string | `http.*`: state path to store an error message |
 | `async` | bool | `http.*`: run the request in the background — the dispatch returns immediately (so the frame at its boundary already shows the loading state and the session stays responsive) and the result branch runs when the reply arrives. Defaults to `false`, which blocks the dispatch; it also falls back to `false` on a host with no background sink, so the same JSON stays portable |
+| `key` | string | `http.*`: name a request slot — starting a new request on a key cancels whichever request was still open on it AND discards that one's outcome entirely (no `result`/`error` write, no branch). This is what makes search-as-you-type land the reply to the LAST keystroke instead of whichever round trip finished last. Only an `async` request can be superseded; unkeyed requests never cancel each other |
+| `timeout` | number | `http.*`: this request's ceiling in milliseconds, overriding the shared client's 20s. Expiry is an ordinary failure — the `error` path is written and `onError` runs, with the message `request timed out after <n>ms`. Applies to synchronous requests too. Omit (or 0) to keep the 20s ceiling |
+| `pending` | string | `http.*`: a state path held `true` for exactly as long as the request is open — set on launch, cleared when it settles, INCLUDING on failure, timeout and refusal. Replaces the hand-written pair of `state.set` steps (the one that reliably forgets the error path); bind a spinner to `{{ state.<path> }}` as usual. Reference-counted, so overlapping requests on one path hold it until the last settles and a superseded request cannot switch off its successor's spinner |
+| `ms` | number | `delay`: how long to wait, in milliseconds. The steps FOLLOWING the delay in the same list run when it expires |
 | `onSuccess` | array | `http.*`: steps run after a 2xx response; the decoded response is bound as `{{ response }}` (the `result` path is written first). With `async` they run in the completion callback, after the dispatch has ended: `{{ state.x }}` reads live, the action's args stay frozen at dispatch time |
 | `onError` | array | `http.*`: steps run after a failure; the message is bound as `{{ error }}` (the `error` path is written first). With `async` they run in the completion callback, on the same terms as `onSuccess` |
 | `condition` | string | `if`: a `{{ … }}` expression selecting `then` (truthy) or `else` |

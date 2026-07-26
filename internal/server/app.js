@@ -81,6 +81,9 @@ function qormMorphInto(root, html){
   qormLargeTitleSync();  // no-op where the CSS scroll timeline does the work
   qormTabReveal();       // keep the active tab of a scrollable tab bar in view
   qormCarouselSync();    // re-arm autoplay, re-derive the indicator dots
+  qormDebounceSync();    // drop pending input timers whose field left the DOM
+  qormValiditySync();    // re-apply custom validity messages the morph reset
+  qormVListSync();       // does the newly rendered window still cover the view?
   setTimeout(qormMeasure, 30);
 }
 // qormApplyFrame is the HOST FRAME SINK for the client-side runtimes: the WASM
@@ -1297,7 +1300,201 @@ function qormSheetInit(){
   });
   qormSheetSync();
 }
-function qormOverlayInit(){ qormLargeTitleInit(); qormSheetInit(); qormTabSwipeInit(); qormCarouselInit(); qormTabReveal(); }
+// ---- windowed lists (list virtualize:"window") --------------------------------
+// TRUE virtualization: the server renders only the rows around the scroll
+// position and holds the rest of the scroll height open with two spacer divs
+// (.qorm-vpad), so a 100k-row list is a few dozen DOM nodes. All this side does
+// is MEASURE and REPORT — the window itself is decided in Go (windowSlice in
+// internal/render/render_data.go), which is what keeps the rendered frame, the
+// agent-visible state and the HTML export in agreement.
+//
+// The report travels on the ORDINARY event channel: each windowed list carries
+// a hidden [data-state] input, so writing "<scrollTop>,<clientHeight>" into it
+// and calling qorm(-1) is the same POST /event state-sync a typed character
+// makes. No second transport, no new endpoint, and every unrelated dispatch
+// carries the live position along for free.
+//
+// IDEMPOTENCE: ONE delegated (capturing) scroll listener installed once behind
+// __qormVListReady — scroll does not bubble but does propagate through capture,
+// so this follows every nested scroll container without wiring any of them. The
+// listener is rAF-throttled (at most one measurement per frame, however many
+// scroll events fire). The only client-owned state is __qormVLists: the last
+// metrics reported per list, which exists purely to keep a round trip that is
+// still in flight from being sent again, and which qormVListReport CLEARS the
+// moment the server's window covers the view again. qormVListSync re-runs from
+// qormMorphInto (a fling can outrun a frame, so the newly rendered window has
+// to be re-checked) and forgets lists that left the DOM.
+window.__qormVLists = window.__qormVLists || {};
+// qormVListMetrics measures a list against its scroll port: how far the list's
+// top has travelled ABOVE the port's top edge, and how tall that port is. Three
+// cases, because a list may be its own scroller (onRefresh gives it overflow),
+// may sit inside one (a `scroll` container), or may just ride the page.
+function qormVListMetrics(el){
+  var oy='';
+  try{ oy=getComputedStyle(el).overflowY; }catch(e){}
+  if(oy==='auto'||oy==='scroll') return {top:el.scrollTop||0, port:el.clientHeight||0};
+  var sp=qormScrollParent(el), r=el.getBoundingClientRect(), top, port;
+  if(sp){ top=sp.getBoundingClientRect().top-r.top; port=sp.clientHeight||0; }
+  else { top=-r.top; port=window.innerHeight||0; }
+  return {top:top>0?top:0, port:port||0};
+}
+// qormVListReport measures ONE list and reports only when the window the server
+// rendered no longer covers the rows the human can see — that is what the
+// overscan is for, and it is why scrolling within the rendered window costs
+// nothing at all. Every parameter is re-read off the live DOM here, never
+// captured, so a re-render that changes the row height, the overscan or the
+// window can never be dispatched against stale numbers.
+function qormVListReport(el){
+  var key=el.getAttribute('data-qorm-vlist'); if(!key) return false;
+  var ih=parseFloat(el.getAttribute('data-item-h')); if(!(ih>0)) return false;
+  var at=parseInt(el.getAttribute('data-qorm-vstart'),10)||0;
+  var count=parseInt(el.getAttribute('data-qorm-vcount'),10)||0;
+  var total=parseInt(el.getAttribute('data-qorm-vtotal'),10)||0;
+  var m=qormVListMetrics(el);
+  var first=Math.floor(m.top/ih); if(!(first>=0)) first=0;
+  var last=first+Math.ceil((m.port||0)/ih);
+  if(last>total-1) last=total-1;
+  if(first>=at && last<at+count){          // still covered: nothing to ask for
+    delete window.__qormVLists[key];       // …and the in-flight guard is spent
+    return false;
+  }
+  var val=Math.round(m.top)+','+Math.round(m.port), now=Date.now(), last1=window.__qormVLists[key];
+  // Two floors on the round trips a fling can generate: never re-ask for a
+  // position already asked for (which also stops a server whose window cannot
+  // cover the view from being asked forever), and never more than one request
+  // per 100ms per list however many frames the fling paints.
+  if(last1 && (last1.val===val || now-last1.t<100)) return false;
+  var inp=el.querySelector('input[data-qorm-vscroll]'); if(!inp) return false;
+  window.__qormVLists[key]={val:val, t:now};
+  inp.value=val;
+  qorm(-1);                                 // the ordinary state-sync round trip
+  return true;
+}
+function qormVListSync(){
+  var live={};
+  document.querySelectorAll('[data-qorm-vlist]').forEach(function(el){
+    var key=el.getAttribute('data-qorm-vlist'); if(!key) return;
+    live[key]=1;
+    qormVListReport(el);
+  });
+  Object.keys(window.__qormVLists).forEach(function(k){ if(!live[k]) delete window.__qormVLists[k]; });
+}
+function qormVListInit(){
+  if(window.__qormVListReady) return; window.__qormVListReady=true;
+  document.addEventListener('scroll', qormVListScroll, true);
+  window.addEventListener('resize', qormVListScroll);   // a taller port needs more rows
+  qormVListSync();
+}
+function qormVListScroll(){
+  if(window.__qormVListRAF) return;          // one measurement per animation frame
+  var raf=window.requestAnimationFrame||function(f){ return setTimeout(f,16); };
+  window.__qormVListRAF=raf(function(){ window.__qormVListRAF=0; qormVListSync(); });
+}
+// ---- input debounce (onChange + debounce: 300) --------------------------------
+// A search box that dispatches on every keystroke floods the backend; `debounce`
+// makes the control dispatch once, N ms after the human stops typing.
+//
+// IDEMPOTENCE: ONE delegated document `input` listener behind
+// __qormDebounceReady (an inline oninput would re-arm per rendered control and a
+// morph would strand the old timers). __qormDebounces is the only client state —
+// the pending timer per element, keyed by the ELEMENT, because morphEl mutates a
+// surviving node in place, so its identity lives exactly as long as the control
+// does. qormDebounceSync runs from qormMorphInto and cancels the timers of
+// controls that left the DOM, so a field removed mid-typing never dispatches.
+// The interval AND the handler index are read from data attributes when the
+// timer fires, so a re-render that renumbers the handler table cannot dispatch a
+// stale action.
+window.__qormDebounces = window.__qormDebounces || [];
+function qormDebounced(el){ return el && el.getAttribute && el.getAttribute('data-qorm-debounce')!==null; }
+function qormDebounceClear(el){
+  var l=window.__qormDebounces;
+  for(var i=l.length-1;i>=0;i--){ if(l[i].el===el){ clearTimeout(l[i].h); l.splice(i,1); } }
+}
+function qormDebouncePending(el){
+  var l=window.__qormDebounces;
+  for(var i=0;i<l.length;i++){ if(l[i].el===el) return true; }
+  return false;
+}
+function qormDebounceFire(el){
+  qormDebounceClear(el);
+  if(!document.contains(el)) return;         // the field is gone; do not dispatch
+  var h=parseInt(el.getAttribute('data-qorm-debounce-h'),10);
+  if(isNaN(h)) h=-1;
+  qorm(h);
+}
+function qormDebounceArm(el){
+  var ms=parseInt(el.getAttribute('data-qorm-debounce'),10);
+  qormDebounceClear(el);                     // restart on every keystroke — that is the debounce
+  if(!(ms>0)){ qormDebounceFire(el); return; }
+  window.__qormDebounces.push({el:el, h:setTimeout(function(){ qormDebounceFire(el); }, ms)});
+}
+function qormDebounceSync(){
+  var l=window.__qormDebounces;
+  for(var i=l.length-1;i>=0;i--){ if(!document.contains(l[i].el)){ clearTimeout(l[i].h); l.splice(i,1); } }
+}
+function qormDebounceInit(){
+  if(window.__qormDebounceReady) return; window.__qormDebounceReady=true;
+  document.addEventListener('input', function(e){ if(qormDebounced(e.target)) qormDebounceArm(e.target); });
+  // Leaving the field flushes a pending timer: a human who types and immediately
+  // tabs away (or presses the submit button) must not lose those keystrokes.
+  document.addEventListener('focusout', function(e){
+    if(qormDebounced(e.target) && qormDebouncePending(e.target)) qormDebounceFire(e.target);
+  });
+}
+// ---- native validation: custom messages, first-invalid focus, Enter submit -----
+// Three things the browser's own constraint validation does not do by itself,
+// all delegated-listener-only (no per-control wiring, nothing a morph can
+// duplicate) and all behind __qormValidityReady.
+//
+// 1. `requiredMessage` — the renderer emits data-qorm-error, and qormValidity
+//    projects it with setCustomValidity ONLY while validity.valueMissing is
+//    true. Doing it unconditionally would pin the field invalid forever (a
+//    non-empty custom message IS a validity failure), so the message is
+//    recomputed on every input and re-applied after every morph (which resets
+//    attributes to the server's markup and, with them, the custom validity).
+// 2. first-invalid focus — `invalid` does NOT bubble, so it is caught in the
+//    capture phase; the first offender of a submit burst is scrolled to the
+//    middle of its scroller and focused, which is the difference between a long
+//    form that refuses to submit for no visible reason and one that shows you
+//    which field it means.
+// 3. Enter-to-submit — clicks the form's data-qorm-enter button (see enterAttr
+//    in internal/render/render_input.go), re-read from the live DOM at keypress
+//    time so the handler index in its onclick is the current frame's.
+function qormValidity(el){
+  if(!el || !el.setCustomValidity) return;
+  var msg=el.getAttribute('data-qorm-error')||'';
+  el.setCustomValidity('');                  // recompute the NATIVE verdict first
+  if(msg && el.validity && el.validity.valueMissing) el.setCustomValidity(msg);
+}
+function qormValiditySync(){
+  document.querySelectorAll('[data-qorm-error]').forEach(function(el){ qormValidity(el); });
+}
+function qormValidityInit(){
+  if(window.__qormValidityReady) return; window.__qormValidityReady=true;
+  document.addEventListener('input', function(e){
+    var el=e.target;
+    if(el && el.getAttribute && el.getAttribute('data-qorm-error')!==null) qormValidity(el);
+  });
+  document.addEventListener('invalid', function(e){
+    var el=e.target; if(!el) return;
+    if(window.__qormInvalidSeen) return;      // one burst, one field: the FIRST one
+    window.__qormInvalidSeen=1;
+    setTimeout(function(){ window.__qormInvalidSeen=0; }, 0);
+    try{ el.scrollIntoView({behavior:'smooth', block:'center'}); }catch(_){}
+    if(el.focus){ try{ el.focus({preventScroll:true}); }catch(_){ el.focus(); } }
+  }, true);
+  document.addEventListener('keydown', function(e){
+    if(e.key!=='Enter' || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+    var t=e.target; if(!t || !t.closest) return;
+    if(t.tagName==='TEXTAREA') return;        // Enter is a newline there
+    var form=t.form || t.closest('form'); if(!form) return;
+    var btn=form.querySelector('[data-qorm-enter]'); if(!btn || btn.disabled) return;
+    e.preventDefault();
+    btn.click();                              // the button's OWN wiring: gate included
+  });
+  qormValiditySync();
+}
+function qormOverlayInit(){ qormLargeTitleInit(); qormSheetInit(); qormTabSwipeInit(); qormCarouselInit(); qormDebounceInit(); qormValidityInit(); qormVListInit(); qormTabReveal(); }
 if(document.readyState!=='loading'){ qormTimersSync(); qormOverlayInit(); setTimeout(qormMeasure,60); setTimeout(qormHwInit,300); } else { window.addEventListener('load',function(){ qormTimersSync(); qormOverlayInit(); setTimeout(qormMeasure,60); setTimeout(qormHwInit,300); }); }
 // qormSwipeActions: swipe a row left to reveal trailing action buttons; tap an
 // action to fire it and close, tap the content or swipe back to close.

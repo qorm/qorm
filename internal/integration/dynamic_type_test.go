@@ -17,12 +17,18 @@ import (
 // bubbles, system notices, status pills and separators come out of a single
 // template instead of one `when`/`if` branch per kind.
 //
-// It locks in three things at once: the loader must stay silent (it cannot know
-// the widget statically, so it must not guess), each kind must reach its real
-// renderer — including an app COMPONENT name, which the render dispatch resolves
-// before the built-in widget switch — and a kind that names nothing must degrade
-// through the data-qorm-unknown path so the self-verify surface still catches
-// the typo.
+// It locks in three things at once: the loader must not GUESS (it cannot know
+// the widget statically, so no widget-kind check may judge the literal binding),
+// each kind must reach its real renderer — including an app COMPONENT name,
+// which the render dispatch resolves before the built-in widget switch — and a
+// kind that names nothing must degrade through the data-qorm-unknown path so the
+// self-verify surface still catches the typo.
+//
+// Not guessing is not the same as saying nothing. This feed's `kind` comes from
+// state that in a real app arrives from a server, and the app HAS a component,
+// so the data chooses which component each row instantiates and no schema/name
+// check can run on it. That is worth exactly one warning (and only that one) —
+// see loader.checkDynamicComponentNames.
 func TestDynamicTypePolymorphicFeedEndToEnd(t *testing.T) {
 	dir := t.TempDir()
 	write := func(rel, content string) {
@@ -64,7 +70,13 @@ func TestDynamicTypePolymorphicFeedEndToEnd(t *testing.T) {
 		t.Fatalf("load: %v", err)
 	}
 	for _, d := range app.Diagnostics {
-		t.Errorf("a polymorphic feed must load with zero diagnostics, got: %s", d)
+		if strings.Contains(d, "组件名由绑定") {
+			continue // the run-time-component-choice warning, asserted below
+		}
+		t.Errorf("a polymorphic feed must not be judged by any static check, got: %s", d)
+	}
+	if len(app.Diagnostics) != 1 || !strings.Contains(app.Diagnostics[0], "组件名由绑定") {
+		t.Errorf("want exactly the run-time-component-choice warning, got: %v", app.Diagnostics)
 	}
 	// The binding survives loading verbatim — it is resolved per item, later.
 	if tpl := app.Scenes["main"].Children[0].Template; tpl == nil || tpl.Type != "{{ item.kind }}" {

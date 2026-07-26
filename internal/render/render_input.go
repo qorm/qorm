@@ -27,8 +27,30 @@ func (r *renderer) button(n *model.Node) {
 	}
 	style := base + r.boxCSS(n) + r.textCSS(n)
 	typeAttr, onclick := r.submitAttrs(n)
-	fmt.Fprintf(&r.sb, `<button id=%q class="qorm-tap"%s style=%q%s%s>%s</button>`,
-		attrID(n.ID), typeAttr, style, a11y(n), onclick, html.EscapeString(r.interp(labelOf(n))))
+	fmt.Fprintf(&r.sb, `<button id=%q class="qorm-tap"%s style=%q%s%s%s>%s</button>`,
+		attrID(n.ID), typeAttr, style, a11y(n), r.enterAttr(n), onclick, html.EscapeString(r.interp(labelOf(n))))
+}
+
+// enterAttr marks a button as the ENTER TARGET of the form it sits in.
+//
+// The gap it closes: a QORM form fires its own action from the form's onPress
+// (`onsubmit`), so a form that instead puts the action on a BUTTON has nothing
+// wired to Enter — the browser's implicit submission reaches a form whose
+// onsubmit is `return false`, and the human's Return key does nothing. The
+// button cannot be found by guessing (a form usually holds several, and picking
+// "the first one" would fire Cancel as often as Save), so the app names it:
+// `submitOnEnter: true` emits data-qorm-enter, and app.js's one delegated
+// keydown listener clicks THAT button — re-read from the live DOM at keypress
+// time, so the handler index in its onclick is always the current frame's.
+//
+// Enter inside a textarea stays a newline, and the click runs the button's own
+// wiring, which means a `submit: true` button keeps its native validity gate.
+// Opt-in: a button without the prop emits exactly the bytes it did before.
+func (r *renderer) enterAttr(n *model.Node) string {
+	if propBool(n, "submitOnEnter") {
+		return ` data-qorm-enter`
+	}
+	return ""
 }
 
 // submitAttrs resolves a button's participation in the enclosing form's NATIVE
@@ -129,6 +151,16 @@ func (r *renderer) inputAttrs(n *model.Node, textarea bool) string {
 	}
 	if propBool(n, "required") {
 		b.WriteString(` required`)
+		// `requiredMessage` is the wording the browser's own "please fill this
+		// field" bubble shows. It cannot ride on `title` (that one is APPENDED to
+		// the pattern-mismatch bubble and says nothing for a missing value), so it
+		// travels as data-qorm-error and app.js reconciles it onto the control with
+		// setCustomValidity — only while validity.valueMissing is true, so the
+		// field goes valid again the moment it is filled and the message can never
+		// block a submission on its own.
+		if m := r.interp(propStr(n, "requiredMessage")); m != "" {
+			fmt.Fprintf(&b, ` data-qorm-error="%s"`, html.EscapeString(m))
+		}
 	}
 	// Explicit "..." quoting + html.EscapeString rather than %q: Go's %q would
 	// also backslash-escape the value (`\d+` becomes `\\d+`), which corrupts a
@@ -180,6 +212,41 @@ func (r *renderer) errorEcho(n *model.Node, errText, a11yAttrs string) string {
 	return out
 }
 
+// changeWiring is changeAttr plus the opt-in `debounce`, and every control in
+// this file dispatches through it.
+//
+// Without `debounce` it IS changeAttr — the native `onchange`, which for a text
+// field means "when the human leaves it or presses Enter". That is the safe
+// default and stays byte-identical.
+//
+// `debounce: 300` switches the control to per-keystroke dispatch that fires
+// 300ms after the LAST keystroke: the wiring a search box wants, and the reason
+// this is a prop rather than something the client could infer. It is spelled as
+// data attributes instead of an inline handler because the dispatch is one
+// delegated `input` listener in app.js (qormDebounceInit) — an inline
+// oninput would re-arm a timer per rendered control, and a morph would leave
+// the old ones running. The handler index travels on the element and is re-read
+// when the timer fires, so a re-render that renumbers the handler table cannot
+// dispatch the wrong action; -1 is the plain state-sync (a bound control with no
+// onChange), the same convention qorm(-1) uses everywhere else. Leaving the
+// field flushes a pending timer, so the last keystrokes are never swallowed.
+func (r *renderer) changeWiring(n *model.Node, bound bool) string {
+	ms := 0
+	if v := r.numProp(n, "debounce"); v != nil && *v > 0 {
+		ms = int(*v)
+	}
+	if ms == 0 {
+		return r.changeAttr(n, bound)
+	}
+	h := -1
+	if n.OnChange != nil {
+		h = r.register(n.OnChange)
+	} else if !bound {
+		return "" // nothing to dispatch and nothing to sync: no wiring at all
+	}
+	return fmt.Sprintf(` data-qorm-debounce="%d" data-qorm-debounce-h="%d"`, ms, h)
+}
+
 // normalizeInputMode maps author-friendly aliases onto the HTML inputmode
 // vocabulary (none/text/decimal/numeric/tel/search/email/url): "number" is the
 // natural spelling for a numeric keypad but the spec token is "numeric", and
@@ -212,7 +279,7 @@ func (r *renderer) input(n *model.Node) {
 	fmt.Fprintf(&r.sb, `<input id=%q type=%q value=%q placeholder=%q style=%q%s%s%s%s>`,
 		attrID(n.ID), html.EscapeString(inputType), html.EscapeString(r.interp(n.Value)),
 		html.EscapeString(n.Placeholder), style, dataStateAttr(path), a11y(n),
-		r.inputAttrs(n, false), r.changeAttr(n, path != ""))
+		r.inputAttrs(n, false), r.changeWiring(n, path != ""))
 }
 
 func (r *renderer) textarea(n *model.Node) {
@@ -221,14 +288,14 @@ func (r *renderer) textarea(n *model.Node) {
 	rows := int(propNum(n, "rows", 4))
 	fmt.Fprintf(&r.sb, `<textarea id=%q rows="%d" placeholder=%q style=%q%s%s%s%s>%s</textarea>`,
 		attrID(n.ID), rows, html.EscapeString(n.Placeholder), style, dataStateAttr(path), a11y(n),
-		r.inputAttrs(n, true), r.changeAttr(n, path != ""), html.EscapeString(r.interp(n.Value)))
+		r.inputAttrs(n, true), r.changeWiring(n, path != ""), html.EscapeString(r.interp(n.Value)))
 }
 
 func (r *renderer) selectBox(n *model.Node) {
 	style := r.boxCSS(n) + r.textCSS(n)
 	path := boundPath(n.Value)
 	cur := r.interp(n.Value)
-	fmt.Fprintf(&r.sb, `<select id=%q style=%q%s%s%s>`, attrID(n.ID), style, dataStateAttr(path), a11y(n), r.changeAttr(n, path != ""))
+	fmt.Fprintf(&r.sb, `<select id=%q style=%q%s%s%s>`, attrID(n.ID), style, dataStateAttr(path), a11y(n), r.changeWiring(n, path != ""))
 	for _, opt := range optionList(n.Props["options"]) {
 		sel := ""
 		if opt.value == cur {
@@ -255,12 +322,12 @@ func (r *renderer) checkbox(n *model.Node) {
 			fmt.Fprintf(&r.sb, `<span style="flex:1;">%s</span>`, label)
 		}
 		fmt.Fprintf(&r.sb, `<span class="qorm-switch"><input type="checkbox"%s%s%s><span></span></span></label>`,
-			checked, dataStateAttr(path), r.changeAttr(n, path != ""))
+			checked, dataStateAttr(path), r.changeWiring(n, path != ""))
 		return
 	}
 	fmt.Fprintf(&r.sb, `<label id=%q style=%q%s><input type="checkbox"%s style="width:18px;height:18px;accent-color:var(--accent);"%s%s>%s</label>`,
 		attrID(n.ID), r.boxCSS(n)+"display:inline-flex;align-items:center;gap:8px;cursor:pointer;", a11y(n),
-		checked, dataStateAttr(path), r.changeAttr(n, path != ""), label)
+		checked, dataStateAttr(path), r.changeWiring(n, path != ""), label)
 }
 
 func (r *renderer) checkedState(n *model.Node) bool {
@@ -287,7 +354,7 @@ func (r *renderer) radio(n *model.Node) {
 			checked = " checked"
 		}
 		fmt.Fprintf(&r.sb, `<label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;"><input type="radio" name=%q value=%q%s%s%s>%s</label>`,
-			name, html.EscapeString(opt.value), checked, dataStateAttr(path), r.changeAttr(n, path != ""),
+			name, html.EscapeString(opt.value), checked, dataStateAttr(path), r.changeWiring(n, path != ""),
 			html.EscapeString(opt.label))
 	}
 	r.sb.WriteString(`</div>`)
@@ -305,7 +372,7 @@ func (r *renderer) slider(n *model.Node) {
 	}
 	fill := fmt.Sprintf("--pct:%g%%;", pct)
 	fmt.Fprintf(&r.sb, `<input id=%q class="qorm-slider" type="range" min=%q max=%q step=%q value=%q style=%q%s%s%s>`,
-		attrID(n.ID), num(min), num(max), num(step), num(val), r.boxCSS(n)+fill, dataStateAttr(path), a11y(n), r.changeAttr(n, path != ""))
+		attrID(n.ID), num(min), num(max), num(step), num(val), r.boxCSS(n)+fill, dataStateAttr(path), a11y(n), r.changeWiring(n, path != ""))
 }
 
 // field wraps a control with a label, required marker, and a conditional error
@@ -340,7 +407,7 @@ func (r *renderer) segmented(n *model.Node) {
 	}
 	path := boundPath(n.Value)
 	cur := r.interp(n.Value)
-	changeAttr := r.changeAttr(n, path != "")
+	changeAttr := r.changeWiring(n, path != "")
 	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-seg" style=%q role="radiogroup">`, attrID(n.ID),
 		r.boxCSS(n)+"display:inline-flex;background:var(--fill);border-radius:8px;padding:3px;gap:2px;")
 	for _, opt := range optionList(n.Props["options"]) {
@@ -427,9 +494,9 @@ func (r *renderer) rangeSlider(n *model.Node) {
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), r.boxCSS(n)+"position:relative;height:32px;", a11y(n))
 	track := "position:absolute;left:0;right:0;top:14px;width:100%;margin:0;-webkit-appearance:none;background:transparent;pointer-events:none;"
 	fmt.Fprintf(&r.sb, `<input type="range" min=%q max=%q step=%q value=%q style=%q class="qorm-range-lo"%s%s>`,
-		num(min), num(max), num(step), num(lo), track, dataStateAttr(loPath), r.changeAttr(n, loPath != ""))
+		num(min), num(max), num(step), num(lo), track, dataStateAttr(loPath), r.changeWiring(n, loPath != ""))
 	fmt.Fprintf(&r.sb, `<input type="range" min=%q max=%q step=%q value=%q style=%q class="qorm-range-hi"%s%s>`,
-		num(min), num(max), num(step), num(hi), track, dataStateAttr(hiPath), r.changeAttr(n, hiPath != ""))
+		num(min), num(max), num(step), num(hi), track, dataStateAttr(hiPath), r.changeWiring(n, hiPath != ""))
 	// filled segment between lo and hi
 	span := max - min
 	if span == 0 {
@@ -493,7 +560,7 @@ func (r *renderer) autocomplete(n *model.Node) {
 	}
 	fmt.Fprintf(&r.sb, `<input id=%q list=%q value=%q placeholder=%q style=%q%s%s%s>`,
 		attrID(n.ID), attrID(listID), html.EscapeString(r.interp(n.Value)), html.EscapeString(n.Placeholder),
-		style, dataStateAttr(path), a11y(n), r.changeAttr(n, path != ""))
+		style, dataStateAttr(path), a11y(n), r.changeWiring(n, path != ""))
 	fmt.Fprintf(&r.sb, `<datalist id=%q>`, attrID(listID))
 	for _, o := range optionList(r.boundArray(n, "options")) {
 		lbl := o.label
@@ -519,7 +586,7 @@ func (r *renderer) searchbar(n *model.Node) {
 	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-search" style=%q>`, attrID(n.ID), r.boxCSS(n)+"position:relative;display:inline-block;")
 	fmt.Fprintf(&r.sb, `<input type="text" value=%q placeholder=%q autocomplete="off" style="width:100%%;min-width:220px;box-sizing:border-box;height:40px;padding:0 12px;border:1px solid var(--sep);border-radius:8px;font-size:14px;outline:none;"%s%s%s onfocus="qormSearch(this)" oninput="qormSearch(this)" onblur="qormSearchBlur(this)" onkeydown="qormSearchKey(this,event)">`,
 		html.EscapeString(r.interp(n.Value)), html.EscapeString(propStrOr(n, "hint", n.Placeholder)),
-		dataStateAttr(path), a11y(n), r.changeAttr(n, path != ""))
+		dataStateAttr(path), a11y(n), r.changeWiring(n, path != ""))
 	r.sb.WriteString(`<div class="qorm-search-panel" style="display:none;position:absolute;top:100%;left:0;right:0;margin-top:4px;background:var(--surface);border:1px solid var(--sep);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);max-height:260px;overflow-y:auto;z-index:40;padding:4px;">`)
 	for _, it := range r.boundArray(n, "items") {
 		m, ok := it.(map[string]any)
@@ -571,7 +638,7 @@ func (r *renderer) textFormField(n *model.Node) {
 	// the same limit the footer counter below displays.
 	fmt.Fprintf(&r.sb, `<input type=%q value=%q placeholder=%q style="flex:1;border:none;outline:none;font-size:14px;background:transparent;"%s%s%s%s%s>`,
 		html.EscapeString(itype), html.EscapeString(r.interp(n.Value)), html.EscapeString(n.Placeholder), dataStateAttr(path), al,
-		r.inputAttrs(n, false), r.errorEcho(n, errText, al), r.changeAttr(n, path != ""))
+		r.inputAttrs(n, false), r.errorEcho(n, errText, al), r.changeWiring(n, path != ""))
 	if suf := r.interp(propStr(n, "suffix")); suf != "" {
 		fmt.Fprintf(&r.sb, `<span style="color:var(--label2);">%s</span>`, html.EscapeString(suf))
 	}

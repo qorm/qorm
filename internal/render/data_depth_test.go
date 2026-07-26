@@ -511,19 +511,61 @@ func TestTimelineItemFields(t *testing.T) {
 		map[string]any{"i": []any{map[string]any{"title": "T", "icon": "no-such-icon", "color": `red";x:"`}}})
 	mustContain(t, bad.HTML, "width:12px;height:12px;border-radius:50%;background:var(--accent);")
 	mustNotContain(t, bad.HTML, `x:"`)
+
+	// The item colour lands in a style ATTRIBUTE, so it is gated on
+	// cssStyleValue and the FILTERED value is what gets written — the gate and
+	// the output must be the same string, or widening the filter silently opens
+	// a hole. A declaration-injection overlay and a url() beacon are dropped.
+	for _, payload := range []string{
+		"#fff;position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:99999",
+		"url(//attacker/beacon.png)",
+		"red/*",
+	} {
+		res := renderWidgetState(t, &model.Node{Type: "timeline", ID: "tl", Props: map[string]any{"items": "{{state.i}}"}},
+			map[string]any{"i": []any{map[string]any{"title": "T", "color": payload}}})
+		mustContain(t, res.HTML, "background:var(--accent);")
+		mustNotContain(t, res.HTML, "100vw", "z-index:99999", "//attacker", "/*")
+	}
 }
 
 // cssValue is the filter that keeps an author-written colour from closing the
-// declaration (or the <style> element) it is written into.
+// declaration (or the <style> element) it is written into. It also rejects the
+// values whose charset is legal but whose MEANING is not: a url() the browser
+// fetches (the charset must allow "/" and "(" for rgb(… / …) and var(), which
+// together spell one) and a comment that truncates the rule.
 func TestCSSValueFilter(t *testing.T) {
 	for _, ok := range []string{"var(--accent)", "#0af", "rgb(0 0 0 / 50%)", "color-mix(in srgb,red 20%,blue)", "hotpink", ""} {
 		if cssValue(ok) != ok {
 			t.Errorf("cssValue(%q) should pass through", ok)
 		}
 	}
-	for _, bad := range []string{"red;color:blue", "red}x{y:z", `red"`, "</style>", "a{b"} {
+	for _, bad := range []string{
+		"red;color:blue", "red}x{y:z", `red"`, "</style>", "a{b",
+		"url(//attacker/beacon.png)", "URL(//attacker/beacon.png)",
+		"image-set(//attacker/x.png 1x)", "-webkit-image-set(//attacker/x.png 1x)",
+		"src(//attacker/x.png)", "expression(alert(1))", "red/*",
+	} {
 		if got := cssValue(bad); got != "" {
 			t.Errorf("cssValue(%q) = %q, want rejected", bad, got)
 		}
 	}
+}
+
+// TestTabIndicatorColorFetch is the <style>-block half of the same rule: the
+// tabs `indicatorColor` is written into a scoped stylesheet, and the red team
+// showed the `pill` branch puts it in `background:` — a property that accepts
+// an image, so url(//attacker/…) makes the browser issue a real request and
+// hand a third party the visit plus the page's Referer. No script needed, and
+// entity encoding is inert inside a <style> element.
+func TestTabIndicatorColorFetch(t *testing.T) {
+	for _, kind := range []string{"pill", "underline", "none"} {
+		res := renderWidget(t, tabsNode(map[string]any{"indicator": kind, "indicatorColor": "url(//attacker/beacon.png)"}))
+		mustContain(t, res.HTML, "<style>#tb .qorm-tab-active{") // the block is still emitted
+		mustNotContain(t, res.HTML, "//attacker", "url(")
+		mustContain(t, res.HTML, "var(--accent)") // with the default colour
+	}
+	// A legitimate indicator colour is unaffected, pill branch included.
+	ok := renderWidget(t, tabsNode(map[string]any{"indicator": "pill",
+		"indicatorColor": "color-mix(in srgb,var(--accent) 30%,transparent)"}))
+	mustContain(t, ok.HTML, "background:color-mix(in srgb,var(--accent) 30%,transparent);")
 }

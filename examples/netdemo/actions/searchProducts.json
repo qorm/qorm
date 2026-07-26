@@ -1,0 +1,5 @@
+{"type":"action","id":"searchProducts","steps":[
+  {"type":"http.get","url":"https://dummyjson.com/products/search?limit=5&q={{ state.q }}",
+   "async":true,"key":"search","pending":"searching","timeout":4000,
+   "result":"hits","error":"searchErr"}
+]}

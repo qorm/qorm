@@ -41,8 +41,10 @@ func (r *renderer) badge(n *model.Node) {
 			if propStr(n, "smallSize") == "true" {
 				dot = "width:8px;height:8px;border-radius:4px;"
 			}
-			// colour is an author prop interpolated into a quoted style attribute.
-			bg := styleAttr(propStrOr(n, "color", "#ef4444"))
+			// colour is an author prop landing mid-declaration ("background:%s;"):
+			// the CSS-value allowlist (cssValueOr) is what stops a `;` from
+			// starting a new declaration — styleAttr only guards the attribute.
+			bg := styleAttr(cssValueOr(propStr(n, "color"), "#ef4444"))
 			fmt.Fprintf(&r.sb, `<span style="position:absolute;top:-6px;right:-6px;display:inline-flex;align-items:center;justify-content:center;background:%s;color:#fff;font-weight:700;box-shadow:0 0 0 2px var(--surface);%s">%s</span>`,
 				bg, dot, html.EscapeString(label))
 		}
@@ -60,8 +62,9 @@ func (r *renderer) progress(n *model.Node) {
 		v *= 100
 	}
 	pct := clampPct(v)
-	// colour is an author prop interpolated into a quoted style attribute.
-	fill := styleAttr(propStrOr(n, "color", "var(--accent)"))
+	// colour is an author prop landing mid-declaration: CSS-value allowlist
+	// (cssValueOr) first, then the attribute encoding (see badge).
+	fill := styleAttr(cssValueOr(propStr(n, "color"), "var(--accent)"))
 	track := r.boxCSS(n) + "background:var(--fill);overflow:hidden;border-radius:999px;min-height:8px;width:100%;"
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q role="progressbar"><div style="width:%g%%;height:100%%;background:%s;transition:width .2s;"></div></div>`,
 		attrID(n.ID), track, pct, fill)
@@ -69,8 +72,9 @@ func (r *renderer) progress(n *model.Node) {
 
 func (r *renderer) spinner(n *model.Node) {
 	size := propNum(n, "size", 24)
-	// colour is an author prop interpolated into a quoted style attribute.
-	color := styleAttr(propStrOr(n, "color", "var(--accent)"))
+	// colour is an author prop landing mid-declaration: CSS-value allowlist
+	// (cssValueOr) first, then the attribute encoding (see badge).
+	color := styleAttr(cssValueOr(propStr(n, "color"), "var(--accent)"))
 	style := fmt.Sprintf("width:%gpx;height:%gpx;border:3px solid var(--sep);border-top-color:%s;border-radius:50%%;", size, size, color)
 	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-spin" style=%q role="status" aria-label="loading"></div>`, attrID(n.ID), r.boxCSS(n)+style)
 }
@@ -222,6 +226,110 @@ func (r *renderer) sheet(n *model.Node) {
 	r.sb.WriteString(`</div></div></div>`)
 }
 
+// tipFocusWidgets are the widget types that are ALREADY a keyboard tab stop, so
+// a tooltip wrapping one must not add a second one: focusing the control itself
+// opens the bubble through the shell's :focus-within rule. Everything else
+// (text, icon, image, badge, a plain container, …) is inert to the keyboard and
+// the wrapper becomes the tab stop instead.
+var tipFocusWidgets = map[string]bool{
+	"button": true, "link": true, "fab": true, "floatingactionbutton": true,
+	"input": true, "textarea": true, "select": true, "dropdown": true, "dropdownbutton": true,
+	"textformfield": true, "searchbar": true, "autocomplete": true,
+	"checkbox": true, "switch": true, "radio": true, "slider": true, "rangeslider": true,
+	"chip": true, "inputchip": true, "choicechip": true, "filterchip": true,
+	"backbutton": true, "closebutton": true, "segmented": true,
+}
+
+// tipHasFocusableChild reports whether a direct child of the tooltip already
+// takes focus on its own.
+func tipHasFocusableChild(n *model.Node) bool {
+	for _, c := range n.Children {
+		if tipFocusWidgets[c.Type] {
+			return true
+		}
+	}
+	return false
+}
+
+// tooltip is the real tooltip COMPONENT: it wraps its children and renders the
+// hint as an ordinary escaped text node inside a `role="tooltip"` bubble, which
+// the shell's fixed .qorm-tip rules reveal on hover, on :focus-visible and on
+// :focus-within (internal/server/server.go).
+//
+// Why a widget rather than an upgrade of the legacy `tooltip` PROP: that prop is
+// emitted by a11y(), a deliberately PURE node->attributes function shared by
+// some forty renderers spread across the render package. It has no renderer and
+// no scope, so it cannot resolve a `{{ binding }}`, and it only reaches the
+// widgets that actually call it (`video`, for one, does not). A wrapper widget
+// gets all three for free — it evaluates its text in the live scope, it wraps
+// ANY subtree (built-in widget, component instance, list, video), and it leaves
+// a11y() and every app using the attribute byte-identical.
+//
+// Over the attribute it adds: `{{ binding }}` interpolation, a `position` of
+// top/bottom/left/right, a real text node (so a long hint WRAPS inside
+// `maxWidth` instead of running off-screen as the attribute's `white-space:
+// nowrap` forces), keyboard reachability, and an aria-describedby association so
+// assistive tech announces the hint as the wrapped control's description.
+//
+// Nothing here reaches a <style> block: the direction is a fixed class name from
+// a closed switch, the only author-controlled numeric is a %g pixel width, and
+// the hint itself is html.EscapeString'd into a TEXT node — so there is no CSS
+// rule for an author value to close.
+func (r *renderer) tooltip(n *model.Node) {
+	tip := r.interp(propStr(n, "tooltip"))
+	if tip == "" {
+		tip = r.interp(labelOf(n))
+	}
+	// Defaults last: position:relative is what the bubble is positioned against,
+	// so a style prop must not be able to take it away.
+	style := r.boxCSS(n) + "position:relative;display:inline-flex;align-items:center;"
+	if tip == "" {
+		// No hint (or a binding that resolved to nothing): stay a plain wrapper
+		// rather than emitting an empty bubble that would flash on hover.
+		fmt.Fprintf(&r.sb, `<span id=%q style=%q>`, attrID(r.nid(n)), style)
+		for _, c := range n.Children {
+			r.node(c)
+		}
+		r.sb.WriteString(`</span>`)
+		return
+	}
+	pos := r.interp(propStr(n, "position"))
+	if pos == "" {
+		pos = r.interp(propStr(n, "placement"))
+	}
+	cls := "qorm-tip-top"
+	switch strings.ToLower(strings.TrimSpace(pos)) {
+	case "bottom", "below", "down":
+		cls = "qorm-tip-bottom"
+	case "left", "start":
+		cls = "qorm-tip-left"
+	case "right", "end":
+		cls = "qorm-tip-right"
+	}
+	// The wrapper is a tab stop unless the thing it wraps already is one (or the
+	// app opts out with focusable:false) — that is what makes the tooltip
+	// keyboard-reachable without doubling the tab order around a button.
+	tab := ""
+	if v, ok := n.Prop("focusable"); ok {
+		if asBool(v) {
+			tab = ` tabindex="0"`
+		}
+	} else if !tipHasFocusableChild(n) {
+		tab = ` tabindex="0"`
+	}
+	bubble := ""
+	if w := propNum(n, "maxWidth", 0); w > 0 {
+		bubble = fmt.Sprintf(` style="max-width:%gpx;"`, w)
+	}
+	fmt.Fprintf(&r.sb, `<span id=%q class="qorm-tip %s" style=%q aria-describedby="%s-tip"%s>`,
+		attrID(r.nid(n)), cls, style, attrID(r.nid(n)), tab)
+	for _, c := range n.Children {
+		r.node(c)
+	}
+	fmt.Fprintf(&r.sb, `<span class="qorm-tip-bubble" role="tooltip" id="%s-tip"%s>%s</span></span>`,
+		attrID(r.nid(n)), bubble, html.EscapeString(tip))
+}
+
 // alert renders a colored info/success/warning/error banner.
 func (r *renderer) alert(n *model.Node) {
 	bg, fg, icon := alertColors(propStrOr(n, "variant", "info"))
@@ -310,10 +418,14 @@ func (r *renderer) circularProgress(n *model.Node) {
 	stroke := propNum(n, "stroke", 4)
 	rad := (size - stroke) / 2
 	circ := 2 * 3.14159265 * rad
-	// colour is an author prop interpolated into a quoted SVG stroke
-	// attribute: entity-encode the value (not the surrounding constant
-	// markup) so a double quote cannot break out and inject attributes.
-	color := html.EscapeString(propStrOr(n, "color", "var(--accent)"))
+	// colour is an author prop interpolated into a quoted SVG stroke attribute:
+	// entity-encode the value (not the surrounding constant markup) so a double
+	// quote cannot break out and inject attributes. A presentation attribute
+	// holds ONE value — a `;` cannot open a second declaration the way it can
+	// inside style="…" — but it is still a CSS paint value, so it goes through
+	// the same allowlist (cssValueOr) as every other colour: that is what keeps
+	// `url(//attacker/x.svg#p)` out of a fill/stroke.
+	color := html.EscapeString(cssValueOr(propStr(n, "color"), "var(--accent)"))
 	cx := size / 2
 	fmt.Fprintf(&r.sb, `<svg id=%q width="%g" height="%g" viewBox="0 0 %g %g" style=%q%s>`,
 		attrID(n.ID), size, size, size, size, r.boxCSS(n), a11y(n))

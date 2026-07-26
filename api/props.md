@@ -54,7 +54,7 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `animatedopacity` | `duration` · `opacity` |
 | `appbar` | `background` · `leading` |
 | `aspectratio` | `ratio` |
-| `autocomplete` | `options` |
+| `autocomplete` | `debounce` · `options` |
 | `avatar` | `initials` · `name` · `size` · `src` |
 | `backbutton` | — |
 | `badge` | `color` · `showZero` · `smallSize` |
@@ -66,12 +66,12 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `bottomnav` | `items` |
 | `breadcrumb` | `items` · `separator` |
 | `brightness` | — |
-| `button` | `novalidate` · `submit` · `variant` |
+| `button` | `novalidate` · `submit` · `submitOnEnter` · `variant` |
 | `calendar` | `label` |
 | `camera` | `label` |
 | `carousel` | `autoplay` · `indicators` |
 | `chart` | `chartType` · `color` · `data` |
-| `checkbox` | `checked` |
+| `checkbox` | `checked` · `debounce` |
 | `chip` | `avatar` · `selected` · `showCheck` |
 | `circularprogress` | `color` · `size` · `stroke` · `value` |
 | `clipboard` | `label` |
@@ -103,13 +103,13 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `ignorepointer` | — |
 | `image` | `alt` · `fallback` · `fit` · `lazy` · `placeholder` · `src` |
 | `indexedstack` | `index` |
-| `input` | `autocomplete` · `autofocus` · `inputMode` · `inputType` · `maxLength` · `pattern` · `readonly` · `required` |
+| `input` | `autocomplete` · `autofocus` · `debounce` · `inputMode` · `inputType` · `maxLength` · `pattern` · `readonly` · `required` · `requiredMessage` |
 | `insets` | `label` |
 | `keepawake` | `label` |
 | `largetitle` | `background` · `collapsible` · `subtitle` |
 | `limitedbox` | `maxHeight` · `maxWidth` |
 | `link` | `href` |
-| `list` | `as` · `groupBy` · `itemHeight` · `onRefresh` · `onReorder` · `page` · `pageSize` · `reorderable` · `sectionHeader` · `separator` · `sticky` · `stickyTop` · `virtualize` |
+| `list` | `as` · `groupBy` · `itemHeight` · `onRefresh` · `onReorder` · `overscan` · `page` · `pageSize` · `reorderable` · `sectionHeader` · `separator` · `sticky` · `stickyTop` · `virtualize` |
 | `listsection` | `footer` · `header` |
 | `listtile` | `chevron` · `leading` · `subtitle` · `trailing` |
 | `location` | `label` |
@@ -117,6 +117,7 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `materialstepper` | `active` · `steps` |
 | `menu` | `items` |
 | `modal` | `dismissable` · `open` · `title` |
+| `monthview` | `events` · `heading` · `max` · `min` · `month` · `onMonthChange` · `selected` · `showAdjacent` · `today` · `weekStart` · `weekdays` |
 | `navigationdrawer` | `items` |
 | `navigationrail` | `items` |
 | `network` | `label` |
@@ -133,8 +134,8 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `progress` | `color` |
 | `proximity` | `label` |
 | `qrscan` | `label` |
-| `radio` | `options` |
-| `rangeslider` | `high` · `low` · `max` · `min` · `step` |
+| `radio` | `debounce` · `options` |
+| `rangeslider` | `debounce` · `high` · `low` · `max` · `min` · `step` |
 | `rating` | `max` · `size` · `value` |
 | `recorder` | `label` |
 | `refreshindicator` | `onRefresh` |
@@ -143,16 +144,16 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `screenrecord` | `label` |
 | `screens` | — |
 | `screenshot` | `label` |
-| `searchbar` | `hint` · `items` · `onSelect` |
+| `searchbar` | `debounce` · `hint` · `items` · `onSelect` |
 | `securestorage` | `label` |
-| `segmented` | `multiple` · `options` |
-| `select` | `options` |
+| `segmented` | `debounce` · `multiple` · `options` |
+| `select` | `debounce` · `options` |
 | `selectabletext` | — |
 | `sensors` | `label` |
 | `share` | `label` |
 | `sheet` | `backdrop` · `dismissable` · `handle` · `initialSnap` · `onClose` · `onSnap` · `open` · `snapPoints` · `title` |
 | `skeleton` | — |
-| `slider` | `max` · `min` · `step` |
+| `slider` | `debounce` · `max` · `min` · `step` |
 | `slot` | `name` · `slot` |
 | `snackbar` | `action` · `open` |
 | `spacer` | — |
@@ -168,11 +169,12 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `tabs` | `active` · `indicator` · `indicatorColor` · `lazy` · `scrollable` · `swipe` · `tabs` |
 | `tag` | — |
 | `text` | — |
-| `textarea` | `autocomplete` · `autofocus` · `inputMode` · `maxLength` · `pattern` · `readonly` · `required` · `rows` |
-| `textformfield` | `autocomplete` · `autofocus` · `error` · `helper` · `inputMode` · `inputType` · `label` · `maxLength` · `pattern` · `prefix` · `readonly` · `required` · `suffix` |
+| `textarea` | `autocomplete` · `autofocus` · `debounce` · `inputMode` · `maxLength` · `pattern` · `readonly` · `required` · `requiredMessage` · `rows` |
+| `textformfield` | `autocomplete` · `autofocus` · `debounce` · `error` · `helper` · `inputMode` · `inputType` · `label` · `maxLength` · `pattern` · `prefix` · `readonly` · `required` · `requiredMessage` · `suffix` |
 | `timeline` | `items` |
 | `timepicker` | `minuteStep` |
 | `timer` | — |
+| `tooltip` | `focusable` · `maxWidth` · `placement` · `position` · `tooltip` |
 | `torch` | `label` |
 | `transform` | `rotate` · `scale` · `scaleX` · `scaleY` · `skew` · `translateX` · `translateY` |
 | `tree` | `collapsed` · `data` |

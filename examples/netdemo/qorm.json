@@ -10,7 +10,11 @@
       "err": "string",
       "loading": "bool",
       "taps": "number",
-      "photo": "string"
+      "photo": "string",
+      "q": "string",
+      "hits": "object",
+      "searchErr": "string",
+      "searching": "bool"
     },
     "initial": {
       "resp": {
@@ -19,7 +23,11 @@
       "err": "",
       "loading": false,
       "taps": 0,
-      "photo": ""
+      "photo": "",
+      "q": "",
+      "hits": {},
+      "searchErr": "",
+      "searching": false
     }
   }
 }

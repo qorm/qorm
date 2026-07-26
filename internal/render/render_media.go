@@ -13,20 +13,30 @@ func (r *renderer) image(n *model.Node) {
 	// src/alt are interpolated so a data-driven row ({{item.src}}) resolves to
 	// the element's own URL; a polymorphic feed renders one image node per item.
 	src := r.interp(propStr(n, "src"))
-	// fit is an author prop interpolated into a quoted style attribute.
-	style := r.boxCSS(n) + "object-fit:" + styleAttr(propStrOr(n, "fit", "cover")) + ";"
+	// fit is an author prop landing mid-declaration ("object-fit:%s;"): the
+	// CSS-value allowlist (cssValueOr) stops a `;` from ending that declaration
+	// and starting its own; styleAttr guards the attribute on top.
+	style := r.boxCSS(n) + "object-fit:" + styleAttr(cssValueOr(propStr(n, "fit"), "cover")) + ";"
 	// placeholder paints the element's background while (or if) the real src
 	// loads: a low-res/blur image URL renders as a covering background image,
 	// anything else is treated as a CSS color (e.g. "#e5e7eb", "var(--fill)").
 	// It follows boxCSS so an explicit placeholder wins over style.background.
-	// styleAttr entity-encodes the value either way, so it cannot break out of
-	// the quoted style attribute; a hostile URL can at worst malform its own
-	// url() token (CSS drops the declaration — no script context exists here).
+	//
+	// Each branch is validated for the syntax it is written into, because
+	// styleAttr is not enough for either: entity encoding leaves `;` and `)`
+	// alone, so the colour branch would accept
+	// `#eee;position:fixed;…;width:100vw;height:100vh` (a full-screen overlay)
+	// and the URL branch would accept `a.png);position:fixed;…;background:url(b`
+	// — a value looksLikeImageURL happily calls a URL. cssStyleValue and
+	// cssURLToken reject those; an unusable placeholder is simply not painted,
+	// which is what the element looked like before the prop existed.
 	if ph := propStr(n, "placeholder"); ph != "" {
 		if looksLikeImageURL(ph) {
-			style += "background:url(" + styleAttr(ph) + ") center/cover no-repeat;"
-		} else {
-			style += "background:" + styleAttr(ph) + ";"
+			if u := cssURLToken(ph); u != "" {
+				style += "background:url(" + styleAttr(u) + ") center/cover no-repeat;"
+			}
+		} else if c := cssStyleValue(ph); c != "" {
+			style += "background:" + styleAttr(c) + ";"
 		}
 	}
 	// Native lazy loading is on by default (below-the-fold images defer until
@@ -107,7 +117,12 @@ func (r *renderer) chart(n *model.Node) {
 	vals := r.chartData(n)
 	w := numOrDefault(n.Style, "width", 240)
 	h := numOrDefault(n.Style, "height", 80)
-	color := propStrOr(n, "color", "var(--accent)")
+	// The series colour becomes an SVG fill/stroke (chartBars/chartLine, which
+	// entity-encode it into the quoted attribute). A presentation attribute
+	// cannot be broken out of with a `;`, but it is a CSS paint value all the
+	// same, so it goes through the same allowlist as every other colour —
+	// keeping `url(//attacker/x.svg#p)` out of a fill.
+	color := cssValueOr(propStr(n, "color"), "var(--accent)")
 	var inner string
 	switch propStrOr(n, "chartType", "bar") {
 	case "line", "sparkline", "area":

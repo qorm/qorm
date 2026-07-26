@@ -43,7 +43,8 @@
       "countries": "array",
       "query": "string",
       "countryItems": "array",
-      "showDateDlg": "boolean"
+      "showDateDlg": "boolean",
+      "calMonth": "string"
     },
     "initial": {
       "showModal": true,
@@ -135,7 +136,8 @@
         { "label": "Chile", "detail": "South America" },
         { "label": "China", "detail": "Asia" }
       ],
-      "showDateDlg": false
+      "showDateDlg": false,
+      "calMonth": "2026-07"
     }
   }
 }

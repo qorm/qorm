@@ -130,6 +130,96 @@
           },
           {
             "type": "divider",
+            "id": "dv_search"
+          },
+          {
+            "type": "text",
+            "id": "searchlbl",
+            "text": "Search-as-you-type (deduplicated)",
+            "style": {
+              "fontSize": 13,
+              "fontWeight": 700,
+              "color": "var(--label2)"
+            }
+          },
+          {
+            "type": "input",
+            "id": "q",
+            "placeholder": "Type a product name…",
+            "value": "{{state.q}}",
+            "onChange": {
+              "type": "invoke",
+              "name": "searchProducts",
+              "args": {}
+            },
+            "style": {
+              "background": "var(--surface)",
+              "height": 44,
+              "padding": {
+                "left": 14
+              },
+              "borderRadius": 10,
+              "borderWidth": 1,
+              "borderColor": "var(--sep)"
+            }
+          },
+          {
+            "type": "row",
+            "id": "searching",
+            "if": "{{ state.searching }}",
+            "style": {
+              "gap": 8
+            },
+            "layout": {
+              "align": "center"
+            },
+            "children": [
+              {
+                "type": "spinner",
+                "id": "searching_spin",
+                "size": 14
+              },
+              {
+                "type": "text",
+                "id": "searching_lbl",
+                "text": "Searching…",
+                "style": {
+                  "fontSize": 13,
+                  "color": "var(--label2)"
+                }
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "id": "searchhits",
+            "text": "Matches: {{state.hits.total}}",
+            "style": {
+              "fontSize": 15,
+              "color": "var(--label)"
+            }
+          },
+          {
+            "type": "text",
+            "id": "searcherr",
+            "text": "{{state.searchErr}}",
+            "style": {
+              "fontSize": 13,
+              "color": "var(--danger)"
+            }
+          },
+          {
+            "type": "text",
+            "id": "searchhint",
+            "text": "Every keystroke fires a request with \"key\": \"search\", so a new one cancels whichever is still open — only the LAST keystroke's reply is ever written. \"pending\": \"searching\" drives the spinner (no hand-written flag, and it clears on failure too), and \"timeout\": 4000 caps the round trip at 4s instead of the default 20s.",
+            "style": {
+              "fontSize": 12,
+              "lineHeight": 1.4,
+              "color": "var(--label2)"
+            }
+          },
+          {
+            "type": "divider",
             "id": "dv"
           },
           {

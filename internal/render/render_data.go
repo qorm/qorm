@@ -11,7 +11,7 @@ import (
 )
 
 // list renders `renderItem` once per element of the bound `data`. On top of the
-// item scope (item/index/first/last, see itemScope) it has four opt-in
+// item scope (item/index/first/last, see itemScope) it has five opt-in
 // behaviours, each inert unless its prop is present — a list that declares none
 // renders byte-identically to before they existed:
 //
@@ -27,6 +27,10 @@ import (
 //     and emits a sticky header per section, see sectionHeaderHTML.
 //   - pull-to-refresh — `onRefresh` makes the list its own scroll container and
 //     wires the same qormRefresh gesture (and spinner) as refreshindicator.
+//   - virtualization — `virtualize: true` is the CSS form (every row is wrapped
+//     in a content-visibility box, the whole data set still in the DOM);
+//     `virtualize: "window"` is TRUE windowing, which renders only the rows
+//     around the live scroll position, see windowSlice.
 //
 // Two gesture/structure conflicts are resolved here rather than shipped broken:
 // a grouped list does not wire drag-to-reorder (the section headers are extra
@@ -45,8 +49,22 @@ func (r *renderer) list(n *model.Node) {
 	// and paint for off-screen items — cheap windowing for long lists with no
 	// JS, working with server-rendered HTML. contain-intrinsic-size reserves the
 	// scrollbar space so scrolling stays stable.
-	virt := propBool(n, "virtualize")
+	//
+	// `virtualize: "window"` implies that CSS form AND slices the data down to
+	// the rows around the live scroll position (windowSlice). Implying it means
+	// both modes emit identical per-row markup, and a list windowing cannot
+	// honour degrades to the cheap behaviour rather than to nothing.
+	virt := propBool(n, "virtualize") || propStr(n, "virtualize") == "window"
 	itemH := propNum(n, "itemHeight", 44)
+	win := r.windowSlice(n, len(items), itemH)
+	var padTop, padBottom float64
+	if win != nil {
+		virt = true
+		padTop = float64(win.start) * itemH
+		padBottom = float64(len(items)-win.end) * itemH
+		offset += win.start
+		items = items[win.start:win.end]
+	}
 	wrap := fmt.Sprintf("content-visibility:auto;contain-intrinsic-size:0 %gpx;", itemH)
 	sep := r.separatorHTML(n)
 
@@ -73,9 +91,24 @@ func (r *renderer) list(n *model.Node) {
 	if refreshH >= 0 {
 		css += "overflow-y:auto;overscroll-behavior:contain;"
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), css)
+	if win != nil {
+		// Scroll anchoring must be OFF on a windowed list, and this line is the
+		// difference between "the window slides under a still image" and a visible
+		// jump on every re-render. The morph recycles row elements IN PLACE (the
+		// element that showed row 92 shows row 95 after the window moves), so the
+		// browser's anchor element keeps its identity while its content changes
+		// meaning; Chrome then "corrects" a shift that did not happen and scrolls
+		// by exactly the window delta. The spacers already keep every row at its
+		// true offset, so there is nothing for anchoring to fix here.
+		css += "overflow-anchor:none;"
+	}
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), css, win.attrs())
 	if refreshH >= 0 {
 		r.refreshSpinner()
+	}
+	if win != nil {
+		win.scrollInput(&r.sb)
+		vpad(&r.sb, padTop)
 	}
 	for i := range items {
 		r.scope = scopeAt(i)
@@ -102,6 +135,9 @@ func (r *renderer) list(n *model.Node) {
 	}
 	r.scope = prev
 	r.idSuffix = prevSuf
+	if win != nil {
+		vpad(&r.sb, padBottom)
+	}
 	r.sb.WriteString(`</div>`)
 	if reorderH >= 0 && n.ID != "" {
 		fmt.Fprintf(&r.sb, `<script>setTimeout(function(){qormReorder(document.getElementById(%s),%d)})</script>`, jsStringID(n.ID), reorderH)
@@ -147,6 +183,177 @@ func (r *renderer) pageWindow(n *model.Node, items []any) (offset int, window []
 		end = len(items)
 	}
 	return start, items[start:end]
+}
+
+// listWindow is one windowed list's resolved render window: the half-open row
+// range [start,end) of the CURRENT PAGE that is rendered, plus everything the
+// client needs to decide whether that window still covers what the human sees.
+// A nil *listWindow means "not windowed" and every method on it is a no-op, so
+// the list body carries one branch instead of a flag per emission site.
+type listWindow struct {
+	key        string  // state key holding the client's "<scrollTop>,<clientHeight>" report
+	start, end int     // rendered range within the page window
+	total      int     // rows in the page window (the windowed range's universe)
+	itemH      float64 // assumed row height, px
+	overscan   int     // extra rows rendered above and below the visible band
+	top, port  float64 // the client's last report ("0,0" = it has never made one)
+}
+
+// defaultVirtualPort is the scroll-port height assumed for the FIRST frame of a
+// windowed list, before any client has reported one and with no viewport known
+// either. Deliberately generous: over-rendering costs a few rows, while
+// under-rendering shows the human blank space until the first scroll report
+// lands.
+const defaultVirtualPort = 800
+
+// windowSlice resolves `virtualize: "window"` — true windowing, where only the
+// rows around the live scroll position are rendered and the rest of the scroll
+// height is held open by two spacer divs (vpad).
+//
+// THE CONTRACT, and it is a real constraint: rows are assumed to be exactly
+// `itemHeight` px tall (default 44), so set it to the row's FULL outer height —
+// padding, border, margin and separator included. The spacers are row-count ×
+// itemHeight, so an itemHeight larger than the real row makes the list run out
+// of rows before the scrollbar runs out of track (the last rows become
+// unreachable) and one that is smaller drifts the other way. Give the row
+// template an explicit height and the two agree by construction. Variable row
+// heights are out of scope for this mode; use `virtualize: true` (the CSS form,
+// which keeps every row in the DOM) for those.
+//
+// The scroll position arrives over the ORDINARY event channel: the list renders
+// a hidden [data-state] input (scrollInput) holding "<scrollTop>,<clientHeight>"
+// as reported by the client, so a scroll report is the same POST /event
+// state-sync a typed character makes, folded into runtime state under `key`.
+// Every other dispatch carries the same input along, which is what keeps the
+// window correct across re-renders nobody scrolled for.
+//
+// Returns nil — meaning the list renders in full, exactly as the CSS form does
+// — for every combination the fixed-height maths cannot honour:
+//
+//   - no `id`: the scroll state needs a stable key, and the id is it.
+//   - `groupBy`: section headers are extra boxes of their own height between
+//     rows, so row-count × itemHeight no longer describes the scroll height.
+//   - `reorderable`: the drag gesture indexes the list's element children, and
+//     the spacers are two children the data has no rows for.
+//   - a non-positive itemHeight, or an empty page.
+//
+// It composes with everything else the list does: `pageSize` windows INSIDE the
+// current page (the page is the window's universe, so a page boundary is never
+// crossed), and index/first/last/`as` stay GLOBAL, describing the row's place in
+// the data exactly as they do under pagination. `separator` composes too, with
+// one cosmetic edge: the window's last row draws no separator, which is a row in
+// the overscan — off screen — for any overscan above zero.
+func (r *renderer) windowSlice(n *model.Node, count int, itemH float64) *listWindow {
+	if propStr(n, "virtualize") != "window" || n.ID == "" || itemH <= 0 || count == 0 {
+		return nil
+	}
+	if propStr(n, "groupBy") != "" || propBool(n, "reorderable") {
+		return nil
+	}
+	w := &listWindow{key: virtualScrollKey(n.ID + r.idSuffix), total: count, itemH: itemH}
+	w.top, w.port = parseScrollReport(r.rt.State[w.key])
+	// The ASSUMED port is a local: w.port stays the number the client actually
+	// reported (0 while it never has), so the hidden input never claims a
+	// measurement nobody made and a later fold-back cannot freeze the fallback
+	// into state as if it were real.
+	port := w.port
+	if port <= 0 {
+		port = asFloat(r.rt.ViewportVars()["height"])
+	}
+	if port <= 0 {
+		port = defaultVirtualPort
+	}
+	if w.overscan = int(propNum(n, "overscan", 4)); w.overscan < 0 {
+		w.overscan = 0
+	}
+	size := int(port/itemH) + 1 + 2*w.overscan // +1: the partially visible row
+	if size > count {
+		size = count
+	}
+	w.start = int(w.top/itemH) - w.overscan
+	if w.start > count-size { // scrolled past the end (stale report, shrunken data)
+		w.start = count - size
+	}
+	if w.start < 0 {
+		w.start = 0
+	}
+	w.end = w.start + size
+	return w
+}
+
+// virtualScrollKey is the runtime-state key a windowed list reports its scroll
+// position under. The prefix marks it as framework-owned rather than app state
+// (it is visible to an agent reading state, which is the point — the window the
+// server rendered is explainable), and the flat, dotless shape means it can
+// never collide with an app's own dotted state path.
+func virtualScrollKey(id string) string { return "__vlist_" + id }
+
+// parseScrollReport reads the client's "<scrollTop>,<clientHeight>" report.
+// Anything unparseable (never reported, hand-edited state, a bare number from
+// an agent setting the position) degrades to the leading number and a zero
+// port, which windowSlice then fills in from the viewport.
+func parseScrollReport(v any) (top, port float64) {
+	s := ""
+	switch t := v.(type) {
+	case nil:
+		return 0, 0
+	case string:
+		s = t
+	default:
+		return asFloat(v), 0
+	}
+	head, tail, _ := strings.Cut(s, ",")
+	top, port = asFloat(strings.TrimSpace(head)), asFloat(strings.TrimSpace(tail))
+	if top < 0 {
+		top = 0
+	}
+	if port < 0 {
+		port = 0
+	}
+	return top, port
+}
+
+// attrs is the windowed list's mount point: the marker the client's delegated
+// scroll listener finds it by, plus every parameter that listener re-reads at
+// event time (row height, overscan, and the window this frame rendered) so it
+// can tell "the human is still inside the rendered window" from "the server
+// needs a new one" without keeping any state of its own.
+func (w *listWindow) attrs() string {
+	if w == nil {
+		return ""
+	}
+	return fmt.Sprintf(` data-qorm-vlist="%s" data-item-h="%s" data-overscan="%d" data-qorm-vstart="%d" data-qorm-vcount="%d" data-qorm-vtotal="%d"`,
+		html.EscapeString(w.key), num(w.itemH), w.overscan, w.start, w.end-w.start, w.total)
+}
+
+// scrollInput writes the hidden control the client pushes its scroll metrics
+// through. It is an ordinary [data-state] input, so it needs no new transport:
+// qorm(-1) folds it into runtime state like any other bound field, and every
+// unrelated dispatch carries the live position along for free. The value is
+// re-emitted from the PARSED numbers rather than echoed from state, so a
+// hand-edited or hostile value cannot round-trip through the DOM and the morph
+// sees a stable, canonical string.
+func (w *listWindow) scrollInput(sb *strings.Builder) {
+	if w == nil {
+		return
+	}
+	fmt.Fprintf(sb, `<input type="hidden" data-qorm-vscroll data-state="%s" value="%s,%s">`,
+		html.EscapeString(w.key), num(w.top), num(w.port))
+}
+
+// vpad writes one of a windowed list's spacers — the boxes that stand in for
+// the rows outside the window so the scrollbar keeps the length of the WHOLE
+// list and a re-render never moves the content under the human's finger.
+//
+// An explicit height, not contain-intrinsic-size: the intrinsic size is only a
+// hint for a box the browser is allowed to skip (content-visibility), and a
+// spacer must reserve its space unconditionally and exactly, or the scroll
+// offset the window was computed from stops matching the pixels on screen.
+func vpad(sb *strings.Builder, h float64) {
+	if h <= 0 {
+		return
+	}
+	fmt.Fprintf(sb, `<div class="qorm-vpad" style="flex:none;height:%gpx;"></div>`, h)
 }
 
 // separatorHTML returns the markup the list draws between two items, or "" when
@@ -493,6 +700,17 @@ func (r *renderer) tabIndicator(n *model.Node) {
 // escaping alone would not stop a value from injecting extra rules, so the
 // filter is a strict allowlist: colours, keywords, numbers, functions
 // (var(--accent), color-mix(...), #0af, rgb(0 0 0 / 50%)) — nothing else.
+//
+// The charset alone is not the whole rule. It has to permit `/` and `(` for
+// `rgb(0 0 0 / 50%)` and `var(--x)`, and those two characters also spell
+// `url(//attacker/beacon.png)` — which the browser FETCHES. That is not
+// theoretical here: tabIndicator's `pill` branch writes the value into
+// `background:`, a property that accepts an image, so the request goes out and
+// carries the page's Referer. cssFetchOrComment (render_style.go) is therefore
+// applied on top of the charset, exactly as it is for cssStyleValue, so the
+// <style>-block filter and the style-attribute filter agree on what a CSS value
+// may contain. Legitimate vocabulary is untouched: no colour, keyword or
+// gradient in this repo — examples, tests or docs — is a url().
 func cssValue(s string) string {
 	for i := 0; i < len(s); i++ {
 		c := s[i]
@@ -502,6 +720,9 @@ func cssValue(s string) string {
 		default:
 			return ""
 		}
+	}
+	if cssFetchOrComment(s) {
+		return ""
 	}
 	return s
 }
@@ -1202,8 +1423,18 @@ func (r *renderer) timeline(n *model.Node) {
 			title = fmt.Sprint(it)
 		}
 		color := "var(--accent)"
-		if c, ok := obj["color"].(string); ok && cssValue(c) != "" {
-			color = html.EscapeString(c)
+		if c, ok := obj["color"].(string); ok {
+			// Write the FILTERED value, not the raw one: gating on cssStyleValue
+			// and then emitting html.EscapeString(c) would mean the string that
+			// was checked and the string that ships are two different objects —
+			// equivalent today only because the allowlist happens to exclude
+			// every character EscapeString touches, and a silent hole the moment
+			// anyone widens it. (cssStyleValue rather than cssValue: this lands
+			// in a style ATTRIBUTE.) Escaping stays on top so the value is still
+			// attribute-safe if the filter is ever relaxed.
+			if v := cssStyleValue(c); v != "" {
+				color = html.EscapeString(v)
+			}
 		}
 		marker := `<span style="width:12px;height:12px;border-radius:50%;background:` + color + `;flex-shrink:0;margin-top:3px;"></span>`
 		if name, ok := obj["icon"].(string); ok {

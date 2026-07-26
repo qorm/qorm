@@ -51,6 +51,18 @@ func (d *deferHost) run() {
 	}
 }
 
+// runFirst drains exactly the oldest queued unit of work, leaving the rest
+// parked — the only way to stand still BETWEEN two continuations and assert
+// what the first one did (or, for a superseded request, did not do).
+func (d *deferHost) runFirst() {
+	if len(d.q) == 0 {
+		return
+	}
+	p := d.q[0]
+	d.q = d.q[1:]
+	p.resume(p.work())
+}
+
 func (d *deferHost) runLast() {
 	q := d.q
 	d.q = nil

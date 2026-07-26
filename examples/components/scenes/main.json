@@ -246,6 +246,114 @@
         }
       },
       {
+        "type": "wrap",
+        "id": "tiprow",
+        "style": {
+          "gap": 10
+        },
+        "children": [
+          {
+            "type": "tooltip",
+            "id": "tipTop",
+            "tooltip": "Shows above",
+            "position": "top",
+            "children": [
+              {
+                "type": "button",
+                "id": "tipTop_b",
+                "label": "Top",
+                "onPress": "noop"
+              }
+            ]
+          },
+          {
+            "type": "tooltip",
+            "id": "tipRight",
+            "tooltip": "Shows to the right",
+            "position": "right",
+            "children": [
+              {
+                "type": "button",
+                "id": "tipRight_b",
+                "label": "Right",
+                "onPress": "noop"
+              }
+            ]
+          },
+          {
+            "type": "tooltip",
+            "id": "tipBottom",
+            "tooltip": "Shows below",
+            "position": "bottom",
+            "children": [
+              {
+                "type": "button",
+                "id": "tipBottom_b",
+                "label": "Bottom",
+                "onPress": "noop"
+              }
+            ]
+          },
+          {
+            "type": "tooltip",
+            "id": "tipLeft",
+            "tooltip": "Shows to the left",
+            "position": "left",
+            "children": [
+              {
+                "type": "button",
+                "id": "tipLeft_b",
+                "label": "Left",
+                "onPress": "noop"
+              }
+            ]
+          },
+          {
+            "type": "tooltip",
+            "id": "tipBound",
+            "tooltip": "Picked {{ state.date }}",
+            "position": "top",
+            "maxWidth": 220,
+            "children": [
+              {
+                "type": "button",
+                "id": "tipBound_b",
+                "label": "Bound",
+                "onPress": "noop"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "monthview",
+        "id": "cal",
+        "selected": "{{ state.date }}",
+        "month": "{{ state.calMonth }}",
+        "weekStart": "monday",
+        "min": "2024-01-01",
+        "max": "2030-12-31",
+        "today": "2026-07-26",
+        "events": [
+          "2026-07-04",
+          "2026-07-18",
+          {
+            "date": "2026-07-26",
+            "color": "var(--danger)"
+          }
+        ],
+        "onChange": {
+          "type": "invoke",
+          "name": "setDate",
+          "args": {}
+        },
+        "onMonthChange": {
+          "type": "invoke",
+          "name": "setMonth",
+          "args": {}
+        }
+      },
+      {
         "type": "grid",
         "id": "stats2",
         "columns": 3,
@@ -383,13 +491,29 @@
       {
         "type": "tabs",
         "id": "tb",
-        "tabs": ["Overview", "Specs", "Reviews"],
+        "tabs": [
+          "Overview",
+          "Specs",
+          "Reviews"
+        ],
         "scrollable": true,
         "swipe": true,
         "children": [
-          { "type": "text", "id": "tb1", "text": "Overview panel — tabs switch client-side, no server round-trip. Swipe a panel sideways to change tab." },
-          { "type": "text", "id": "tb2", "text": "Specs panel." },
-          { "type": "text", "id": "tb3", "text": "Reviews panel." }
+          {
+            "type": "text",
+            "id": "tb1",
+            "text": "Overview panel — tabs switch client-side, no server round-trip. Swipe a panel sideways to change tab."
+          },
+          {
+            "type": "text",
+            "id": "tb2",
+            "text": "Specs panel."
+          },
+          {
+            "type": "text",
+            "id": "tb3",
+            "text": "Reviews panel."
+          }
         ]
       },
       {

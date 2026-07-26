@@ -78,6 +78,7 @@
 | `materialstepper` | — | `materialStepper` |
 | `menu` | — | `menu` |
 | `modal` | dialog | `modal` |
+| `monthview` | calendarview, datepickercalendar | `monthView` |
 | `navigationdrawer` | — | `navigationDrawer` |
 | `navigationrail` | — | `navigationRail` |
 | `network` | — | `hwList` |
@@ -134,6 +135,7 @@
 | `timeline` | — | `timeline` |
 | `timepicker` | cupertinotimepicker | `timepicker` |
 | `timer` | — | `timer` |
+| `tooltip` | — | `tooltip` |
 | `torch` | flashlight | `hwList` |
 | `transform` | rotatedbox | `transform` |
 | `tree` | — | `tree` |
