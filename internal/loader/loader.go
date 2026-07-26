@@ -373,7 +373,7 @@ var valueWidgets = map[string]bool{
 	"input": true, "textarea": true, "select": true, "dropdown": true,
 	"textformfield": true, "autocomplete": true, "searchbar": true,
 	"dropdownbutton": true,
-	"picker": true, "cupertinopicker": true,
+	"picker":         true, "cupertinopicker": true,
 	"datepicker": true, "cupertinodatepicker": true,
 	"timepicker": true, "cupertinotimepicker": true,
 	// toggles and choices
