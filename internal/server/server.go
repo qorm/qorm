@@ -185,6 +185,10 @@ func (s *Server) initAgent() {
 	// installs nothing itself, keeping bare runtimes and Clone()s synchronous.
 	// frame() takes no lock; the dispatch that calls it already holds s.mu.
 	s.rt.Commit = func() { s.frame() }
+	// Install this host's background work sink on the same schedule, so an
+	// http.* step marked {"async": true} runs its round trip off the dispatch
+	// goroutine instead of holding s.mu for the length of the request.
+	s.rt.Async = s.spawn
 	s.agent.SetReadOnly(s.mcpReadOnly)
 	s.agent.SetMeasureProvider(func() []byte {
 		s.measureMu.Lock()
@@ -259,6 +263,50 @@ func (s *Server) frame() (int64, string, string) {
 	nav := s.rt.TakeNavDir()
 	s.broadcast(rev, res.HTML, nav, s.rt.RoutePath())
 	return rev, res.HTML, nav
+}
+
+// spawn is this host's background work sink (installed as rt.Async): it runs an
+// async http step's round trip on its own goroutine and delivers the outcome
+// back under s.mu, then publishes the resulting frame over live-sync. The
+// dispatch that called it has already returned, so the completion frame is a
+// second, later revision — which is exactly what makes the loading state
+// visible without freezing every other request behind a 20-second timeout.
+//
+// Three properties this function exists to guarantee:
+//
+//   - It takes NO lock itself, only starting a goroutine. An MCP tool call
+//     reaches Dispatch while already holding s.mu, so a sink that locked here
+//     would deadlock the agent path.
+//   - The completion runs the continuation and the render inside one critical
+//     section, so it interleaves with human events, timer ticks and agent tools
+//     exactly like any other mutation — never halfway through one.
+//   - It pins the runtime generation it was started on. A hot reload, an OTA
+//     activate or a rollback swaps s.rt while the request is open; the reply to
+//     a request issued by an app that is no longer running is dropped rather
+//     than written into its successor's state, which would resurrect values
+//     from a retired app (and could publish a frame against a scene that no
+//     longer exists). The abandoned runtime keeps its raised Inflight count,
+//     which is correct: nothing reads it any more.
+//
+// A NAVIGATION during the request is deliberately NOT treated the same way. The
+// state store is global and cross-scene, so a reply that arrives after the user
+// moved on is still the answer to a question this same session asked: it is
+// written, and the frame renders whatever scene is current by then. Dropping it
+// would discard data the app asked for and make "did my fetch land?" depend on
+// how fast the user tapped.
+func (s *Server) spawn(work func() any, resume func(any)) {
+	owner := s.rt // caller holds s.mu — this is the generation snapshot
+	go func() {
+		v := work()
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if s.rt != owner {
+			s.logEvent("system", "dropped an async response from a replaced runtime")
+			return
+		}
+		resume(v)
+		s.bump()
+	}()
 }
 
 // handlerFrame is one revision's handler table, kept so a /event that names the
@@ -1344,6 +1392,53 @@ func Page(rt *runtime.Runtime, body string, rev int64, eventToken ...string) str
   [style*="--qorm-prs-op"]:active { opacity:var(--qorm-prs-op) !important; }
   [style*="--qorm-foc-bc"]:focus-within { border-color:var(--qorm-foc-bc) !important; outline:2px solid var(--qorm-foc-bc); outline-offset:2px; }
   [style*="--qorm-dis"] { opacity:var(--qorm-dop,.4) !important; pointer-events:none !important; cursor:not-allowed !important; }
+  /* ---- Frosted glass (the backdropBlur / backdropTint style keys, emitted
+     as custom properties by backdropCSS in internal/render/render_style.go).
+     backdrop-filter is not universally available, and a translucent panel over
+     an un-blurred background is unreadable — so the SOLID fill is the base rule
+     and the blur + tint only apply inside the @supports guard. Neither rule is
+     !important, so a node's own inline background declaration still wins. ---- */
+  [style*="--qorm-bdb"] { background:var(--surface); }
+  @supports ((-webkit-backdrop-filter:blur(1px)) or (backdrop-filter:blur(1px))) {
+    [style*="--qorm-bdb"] { background:var(--qorm-bdt,color-mix(in srgb,var(--surface) 62%%,transparent));
+      -webkit-backdrop-filter:blur(var(--qorm-bdb)) saturate(180%%);
+      backdrop-filter:blur(var(--qorm-bdb)) saturate(180%%); }
+  }
+  /* ---- Collapsing large title (CupertinoSliverNavigationBar / SliverAppBar).
+     The compact bar is position:sticky, so the big title simply scrolls up and
+     vanishes BEHIND it — the collapse itself needs no JS and no modern CSS at
+     all. The cross-fade between the two titles is a scroll-driven animation:
+     the big title names a view() timeline, its exit range is exactly the
+     scroll distance over which it leaves the top of the scrollport, and both
+     titles animate along it — so the transition tracks the finger frame for
+     frame, off the main thread, and survives every DOM morph (it is a
+     stylesheet rule, not state). timeline-scope hoists the name to the wrapper
+     so the mini title, which is inside the PRECEDING sibling, can see it.
+     Where the browser has no scroll-driven animations, qormLargeTitleSync in
+     app.js toggles .qorm-lt-stuck from a scroll listener instead. ---- */
+  .qorm-lt-mini { opacity:0; transition:opacity .2s ease; }
+  .qorm-lt-big { transform-origin:left center; transition:opacity .2s ease, transform .2s ease; }
+  .qorm-lt-bar { transition:border-color .2s ease; }
+  .qorm-lt-stuck .qorm-lt-mini { opacity:1; }
+  .qorm-lt-stuck .qorm-lt-big { opacity:0; transform:translateY(-6px) scale(.94); }
+  .qorm-lt-stuck .qorm-lt-bar { border-bottom-color:var(--sep); }
+  @keyframes qorm-lt-collapse { to { opacity:0; transform:translateY(-6px) scale(.94); } }
+  @keyframes qorm-lt-reveal { from { opacity:0; } to { opacity:1; } }
+  @keyframes qorm-lt-hairline { to { border-bottom-color:var(--sep); } }
+  @supports (animation-timeline:view()) and (timeline-scope:--qorm-lt) {
+    .qorm-lt { timeline-scope:--qorm-lt; }
+    .qorm-lt-big { view-timeline-name:--qorm-lt; view-timeline-axis:block; transition:none;
+      animation:qorm-lt-collapse linear both; animation-timeline:--qorm-lt; animation-range:exit 0%% exit 100%%; }
+    .qorm-lt-mini { transition:none;
+      animation:qorm-lt-reveal linear both; animation-timeline:--qorm-lt; animation-range:exit 0%% exit 100%%; }
+    .qorm-lt-bar { transition:none;
+      animation:qorm-lt-hairline linear both; animation-timeline:--qorm-lt; animation-range:exit 0%% exit 100%%; }
+  }
+  /* Draggable sheet (DraggableScrollableSheet): the grab row owns the gesture,
+     so the body below it keeps its own scrolling. touch-action:none stops the
+     browser claiming the drag for a scroll before pointermove ever fires. */
+  .qorm-dsheet-grab { touch-action:none; cursor:grab; }
+  .qorm-dsheet-grab:active { cursor:grabbing; }
   /* Draggable/DragTarget feedback: lift the item being dragged, highlight the drop zone. */
   .qorm-draggable { transition:opacity .15s ease; } .qorm-dragging { opacity:.5; }
   .qorm-dragover { outline:2px dashed var(--accent,#0a84ff); outline-offset:-2px; background:color-mix(in srgb,var(--accent,#0a84ff) 8%%,transparent); }

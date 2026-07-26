@@ -1,0 +1,26 @@
+{
+  "type": "app",
+  "id": "places",
+  "name": "Places",
+  "entry": "main",
+  "theme": "apple",
+  "platforms": { "desktop": { "window": { "width": 420, "height": 780 } } },
+  "globalState": {
+    "schema": { "detail": "bool", "snap": "number", "spots": "array" },
+    "initial": {
+      "detail": false,
+      "snap": 1,
+      "spots": [
+        { "id": 1, "name": "Blue Bottle Coffee", "note": "Ferry Building · 240m" },
+        { "id": 2, "name": "Dolores Park", "note": "Mission · 1.1km" },
+        { "id": 3, "name": "City Lights Books", "note": "North Beach · 1.8km" },
+        { "id": 4, "name": "Tartine Bakery", "note": "Guerrero St · 2.0km" },
+        { "id": 5, "name": "Golden Gate Overlook", "note": "Presidio · 4.6km" },
+        { "id": 6, "name": "Ferry Plaza Market", "note": "Embarcadero · 260m" },
+        { "id": 7, "name": "Sutro Baths", "note": "Lands End · 9.2km" },
+        { "id": 8, "name": "Japanese Tea Garden", "note": "Golden Gate Park · 6.4km" }
+      ]
+    }
+  },
+  "actions": { "openDetail": "openDetail", "setSnap": "setSnap" }
+}

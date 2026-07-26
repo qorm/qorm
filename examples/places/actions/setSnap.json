@@ -1,0 +1,1 @@
+{ "type": "action", "id": "setSnap", "steps": [ { "type": "state.set", "path": "snap", "value": "{{ snap }}" } ] }

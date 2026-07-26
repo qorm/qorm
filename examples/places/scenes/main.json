@@ -1,0 +1,39 @@
+{ "type":"scene","id":"main","root":{"type":"scaffold","id":"root","children":[
+
+  {"type":"largetitle","id":"hdr","label":"Places","subtitle":"8 saved nearby",
+   "children":[
+     {"type":"icon","id":"hdr-globe","icon":"globe","size":20},
+     {"type":"icon","id":"hdr-plus","icon":"plus","size":20}
+   ]},
+
+  {"type":"column","id":"body","style":{"padding":16,"gap":14},"children":[
+
+    {"type":"column","id":"glass",
+     "style":{"position":"sticky","top":0,"zIndex":5,"padding":14,"gap":4,"borderRadius":16,
+              "backdropBlur":18,
+              "backdropTint":"color-mix(in srgb,var(--surface) 62%,transparent)",
+              "shadow":"0 1px 3px rgba(0,0,0,.10)"},
+     "children":[
+       {"type":"text","id":"glass-t","text":"Frosted panel","style":{"fontSize":16,"fontWeight":700}},
+       {"type":"text","id":"glass-s","text":"backdropBlur + backdropTint. The list scrolls behind this panel and is blurred through it; where the browser has no backdrop-filter it falls back to a solid surface.","style":{"fontSize":13,"color":"var(--label2)"}}
+     ]},
+
+    {"type":"button","id":"open","label":"Open place card","onPress":"openDetail",
+     "style":{"background":"var(--accent)","color":"var(--on-accent)","borderRadius":12,"padding":14,"fontWeight":600}},
+
+    {"type":"list","id":"spots","data":"{{ state.spots }}","renderItem":{
+      "type":"listtile","id":"spot","label":"{{ item.name }}","subtitle":"{{ item.note }}",
+      "leading":"location","chevron":true,"onPress":"openDetail"}}
+  ]},
+
+  {"type":"sheet","id":"detail","open":"{{ state.detail }}","title":"Blue Bottle Coffee",
+   "snapPoints":[0.3,0.6,0.92],"initialSnap":1,
+   "onSnap":{"name":"setSnap","args":{}},
+   "children":[
+     {"type":"text","id":"d-note","text":"Ferry Building · open until 18:00","style":{"fontSize":14,"color":"var(--label2)"}},
+     {"type":"text","id":"d-snap","text":"Drag the handle: settled on stop {{ state.snap }} of 0/1/2.","style":{"fontSize":14,"color":"var(--label)"}},
+     {"type":"divider","id":"d-div"},
+     {"type":"text","id":"d-body","text":"A sheet is dragged, not opened at a fixed size: pull the grabber up for the full card, down to peek, or below the lowest stop to dismiss. Tapping the scrim closes it too.","style":{"fontSize":14,"color":"var(--label2)"}},
+     {"type":"text","id":"d-body2","text":"The body scrolls on its own, so the drag gesture on the handle never fights the content underneath it.","style":{"fontSize":14,"color":"var(--label2)"}}
+   ]}
+]}}

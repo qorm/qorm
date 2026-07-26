@@ -305,6 +305,7 @@ func (r *renderer) boxCSS(n *model.Node) string {
 	writeEdges(&b, "padding", pick(s, "padding"))
 	writeEdges(&b, "margin", pick(s, "margin"))
 	pseudoStateCSS(&b, s)
+	backdropCSS(&b, s)
 	// Entity-encode the assembled value: the colour/string style keys ride
 	// straight from author/bound input (see styleAttr), so an unencoded double
 	// quote would break out of the style="..." attribute at the emission site.
@@ -324,7 +325,77 @@ const (
 	varFocusBorder  = "--qorm-foc-bc"
 	varDisabled     = "--qorm-dis"
 	varDisabledOp   = "--qorm-dop"
+	varBackdropBlur = "--qorm-bdb"
+	varBackdropTint = "--qorm-bdt"
 )
+
+// maxBackdropBlur caps the frosted-glass radius. backdrop-filter re-rasterises
+// everything painted behind the element on every frame, so an unbounded author
+// value (or a bound one an agent drives) is a GPU trap on a phone; 120px is
+// already far past the point where more blur is visually distinguishable.
+const maxBackdropBlur = 120
+
+// backdropCSS emits the frosted-glass style keys — `backdropBlur` (radius in
+// px) and the optional `backdropTint` (the translucent fill the blur shows
+// through) — as CSS custom properties on the node itself. Like the
+// pseudo-state keys above, the VISUAL lives in fixed rules in the HTML shell
+// (internal/server/server.go) that match on the variable being present, which
+// buys three things an inline declaration cannot:
+//
+//   - the `-webkit-` prefixed and unprefixed properties are written once, in
+//     the stylesheet, instead of on every frosted node;
+//   - the blur sits inside an @supports guard, with a SOLID fallback outside
+//     it, so a browser without backdrop-filter renders an opaque panel rather
+//     than an unreadable see-through one (the degradation the key promises);
+//   - being pure CSS it survives every DOM morph, exactly like the hover /
+//     pressed visuals.
+//
+// The rules are deliberately NOT !important, so an author's own `background`
+// (an inline declaration) still wins over the tint.
+func backdropCSS(b *strings.Builder, s map[string]any) {
+	v, ok := numOK(s, "backdropBlur")
+	if !ok || v <= 0 {
+		return
+	}
+	if v > maxBackdropBlur {
+		v = maxBackdropBlur
+	}
+	css(b, varBackdropBlur, v, "px;")
+	if t := colorStr(s, "backdropTint"); t != "" {
+		fmt.Fprintf(b, "%s:%s;", varBackdropTint, t)
+	}
+}
+
+// frostCSS returns the frosted-glass declarations (both the `-webkit-` prefixed
+// and the standard property) for an explicit radius, or "" when there is no
+// blur to apply. Used by the widgets that frost their OWN panel inline —
+// appbar, largetitle — where the radius is a built-in part of the iOS look
+// rather than an author style key; `backdropBlur` on such a node overrides the
+// built-in default (0 turns the frost off entirely).
+func frostCSS(px float64) string {
+	if px <= 0 {
+		return ""
+	}
+	return fmt.Sprintf("-webkit-backdrop-filter:blur(%gpx);backdrop-filter:blur(%gpx);", px, px)
+}
+
+// backdropBlurPx reads the `backdropBlur` style key for a widget that frosts
+// its own panel, falling back to that widget's built-in radius. The style map
+// is resolved first, so the radius can be a `{{ … }}` binding like any other
+// numeric style.
+func (r *renderer) backdropBlurPx(n *model.Node, def float64) float64 {
+	v, ok := numOK(r.resolveStyle(n.Style), "backdropBlur")
+	if !ok {
+		return def
+	}
+	if v < 0 {
+		return 0
+	}
+	if v > maxBackdropBlur {
+		return maxBackdropBlur
+	}
+	return v
+}
 
 // pseudoStateCSS emits the hover / pressed / focus / disabled style keys as CSS
 // custom properties on the node itself. The visual is applied by the fixed

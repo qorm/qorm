@@ -164,7 +164,10 @@ func (r *renderer) wrap(n *model.Node) {
 func (r *renderer) appbar(n *model.Node) {
 	// background is an author prop interpolated into a quoted style attribute.
 	bg := styleAttr(propStrOr(n, "background", "var(--surface)"))
-	style := fmt.Sprintf("display:flex;align-items:center;gap:6px;height:calc(44px + var(--safe-top, env(safe-area-inset-top, 0px)));padding:var(--safe-top, env(safe-area-inset-top, 0px)) 8px 0 8px;box-sizing:border-box;background:%s;-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-bottom:.5px solid var(--sep);", bg)
+	// The iOS bar is frosted by default; `backdropBlur` retunes the radius (0
+	// turns the frost off) without the app having to restyle the whole bar.
+	frost := frostCSS(r.backdropBlurPx(n, 20))
+	style := fmt.Sprintf("display:flex;align-items:center;gap:6px;height:calc(44px + var(--safe-top, env(safe-area-inset-top, 0px)));padding:var(--safe-top, env(safe-area-inset-top, 0px)) 8px 0 8px;box-sizing:border-box;background:%s;%sborder-bottom:.5px solid var(--sep);", bg, frost)
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), r.boxCSS(n)+style, a11y(n))
 	if lead := r.interp(propStr(n, "leading")); lead != "" {
 		fmt.Fprintf(&r.sb, `<div style="min-width:44px;color:var(--accent);font-size:17px;display:inline-flex;align-items:center;">%s</div>`, iconOrText(lead, 20))
@@ -717,22 +720,60 @@ func (r *renderer) richText(n *model.Node) {
 	r.sb.WriteString(`</div>`)
 }
 
-// largeTitle is the iOS large-title navigation bar (CupertinoSliverNavigationBar):
-// a compact bar row over a big bold title, translucent with a hairline.
+// largeTitle is the iOS large-title navigation bar (CupertinoSliverNavigationBar
+// / Flutter's SliverAppBar): a compact bar row over a big bold title,
+// translucent with a hairline.
+//
+// It COLLAPSES on scroll. The compact bar is position:sticky, so the big title
+// scrolls up and disappears behind it with no JS and no modern-CSS support
+// required at all; the cross-fade that swaps the big title for the compact one
+// is a CSS scroll-driven animation over the big title's own view() timeline
+// (see the .qorm-lt rules in the HTML shell), with qormLargeTitleSync in app.js
+// as the fallback for browsers that lack scroll-driven animations. Because both
+// paths are keyed off classes the SERVER renders, the behaviour costs nothing at
+// dispatch time and cannot be lost by a DOM morph.
+//
+// `collapsible:false` restores the plain static bar (no sticky, no second
+// title) for a header that is not sitting at the top of a scroll view.
 func (r *renderer) largeTitle(n *model.Node) {
 	// background is an author prop interpolated into a quoted style attribute.
 	bg := styleAttr(propStrOr(n, "background", "var(--bg)"))
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID),
-		r.boxCSS(n)+fmt.Sprintf("background:%s;-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);border-bottom:.5px solid var(--sep);", bg))
-	// compact action row
-	r.sb.WriteString(`<div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;height:36px;padding:0 12px;color:var(--accent);">`)
+	frost := frostCSS(r.backdropBlurPx(n, 20))
+	collapsible := propStr(n, "collapsible") != "false"
+	title := html.EscapeString(r.interp(labelOf(n)))
+
+	// Marker + collapse classes ride on the SERVER's markup, so the whole effect
+	// (sticky bar, scroll-driven cross-fade, and the app.js fallback's lookup)
+	// re-establishes itself on every render with nothing to reconcile.
+	mark, barCls, barPos, bigCls := "", "", "", ""
+	if collapsible {
+		mark = ` class="qorm-lt" data-qorm-largetitle`
+		barCls = ` class="qorm-lt-bar"`
+		// The hairline starts transparent: iOS shows no rule between the compact
+		// bar and the big title while the header is expanded, and fades one in
+		// as the bar takes over. The wrapper's own border sits under the whole
+		// block and scrolls away with it.
+		barPos = "position:sticky;top:0;z-index:20;border-bottom:.5px solid transparent;"
+		bigCls = ` class="qorm-lt-big"`
+	}
+	fmt.Fprintf(&r.sb, `<div id=%q%s style=%q>`, attrID(r.nid(n)), mark,
+		r.boxCSS(n)+fmt.Sprintf("background:%s;%sborder-bottom:.5px solid var(--sep);", bg, frost))
+	// Compact bar: the sticky row that stays on screen once the big title has
+	// scrolled away. It repeats the background + frost because the big title
+	// passes BEHIND it and it must stay opaque enough to hide it.
+	fmt.Fprintf(&r.sb, `<div%s style=%q>`, barCls, fmt.Sprintf(
+		"%sdisplay:flex;align-items:center;gap:6px;height:36px;padding:0 12px;color:var(--accent);background:%s;%s", barPos, bg, frost))
+	if collapsible {
+		r.sb.WriteString(`<div style="min-width:44px;"></div>`)
+		fmt.Fprintf(&r.sb, `<div class="qorm-lt-mini" style="flex:1;min-width:0;text-align:center;font-size:17px;font-weight:600;color:var(--label);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">%s</div>`, title)
+	}
+	r.sb.WriteString(`<div style="min-width:44px;display:flex;justify-content:flex-end;align-items:center;gap:6px;">`)
 	for _, c := range n.Children {
 		r.node(c)
 	}
-	r.sb.WriteString(`</div>`)
+	r.sb.WriteString(`</div></div>`)
 	// large title
-	fmt.Fprintf(&r.sb, `<div style="padding:0 16px 10px;font-size:34px;font-weight:700;letter-spacing:-.02em;color:var(--label);">%s</div>`,
-		html.EscapeString(r.interp(labelOf(n))))
+	fmt.Fprintf(&r.sb, `<div%s style="padding:0 16px 10px;font-size:34px;font-weight:700;letter-spacing:-.02em;color:var(--label);">%s</div>`, bigCls, title)
 	if sub := r.interp(propStr(n, "subtitle")); sub != "" {
 		fmt.Fprintf(&r.sb, `<div style="padding:0 16px 10px;font-size:15px;color:var(--label2);margin-top:-6px;">%s</div>`, html.EscapeString(sub))
 	}

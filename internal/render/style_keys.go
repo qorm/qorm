@@ -31,6 +31,10 @@ var KnownStyleKeys = map[string]bool{
 	"pressedScale": true, "pressedOpacity": true,
 	"focusBorderColor": true,
 	"disabled":         true, "disabledOpacity": true,
+	// Backdrop (backdropCSS). Frosted glass: a blur radius plus the translucent
+	// fill it shows through. Emitted as custom properties and applied by the
+	// shell's @supports-guarded rules, which carry a solid fallback.
+	"backdropBlur": true, "backdropTint": true,
 	// Widget-specific.
 	"size": true, // spacer
 }

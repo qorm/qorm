@@ -77,6 +77,8 @@ function qormMorphInto(root, html){
   morphKids(root, tmp);
   if(activeId){ var el=document.getElementById(activeId); if(el&&el.focus) try{ el.focus(); }catch(e){} }
   qormTimersSync();
+  qormSheetSync();       // re-apply the live sheet stop the morph just reset
+  qormLargeTitleSync();  // no-op where the CSS scroll timeline does the work
   setTimeout(qormMeasure, 30);
 }
 // ---- declarative timers ------------------------------------------------------
@@ -947,7 +949,132 @@ if(window.EventSource){
   document.addEventListener('pointerdown',function(e){ ping(e.target); });
   document.addEventListener('input',function(e){ ping(e.target); });   // live typing
 })();
-if(document.readyState!=='loading'){ qormTimersSync(); setTimeout(qormMeasure,60); setTimeout(qormHwInit,300); } else { window.addEventListener('load',function(){ qormTimersSync(); setTimeout(qormMeasure,60); setTimeout(qormHwInit,300); }); }
+// ---- collapsing large title: fallback only -----------------------------------
+// A `largetitle` collapses with NO JS: its compact bar is position:sticky, so
+// the big title scrolls away behind it, and the cross-fade between the two
+// titles is a CSS scroll-driven animation over the big title's view() timeline
+// (the .qorm-lt rules in the shell stylesheet). This code runs ONLY where the
+// browser has no scroll-driven animations: it derives the same collapse
+// progress from a scroll listener and toggles .qorm-lt-stuck, which drives the
+// identical declarations via a plain transition. A DOM morph resets class
+// attributes to the server's markup, so qormSheetSync's sibling here is re-run
+// from qormMorphInto — recomputing from the live scroll position, never from
+// remembered state, which makes it idempotent however often it runs.
+function qormLargeTitleNative(){
+  return typeof CSS!=='undefined' && !!CSS.supports && CSS.supports('animation-timeline','view()');
+}
+function qormScrollParent(el){
+  for(var p=el.parentNode; p && p.nodeType===1; p=p.parentNode){
+    var oy=getComputedStyle(p).overflowY;
+    if((oy==='auto'||oy==='scroll') && p.scrollHeight>p.clientHeight+1) return p;
+  }
+  return null;
+}
+function qormLargeTitleSync(){
+  if(qormLargeTitleNative()) return;
+  document.querySelectorAll('[data-qorm-largetitle]').forEach(function(el){
+    var big=el.querySelector('.qorm-lt-big'), bar=el.querySelector('.qorm-lt-bar');
+    if(!big||!bar) return;
+    var sc=qormScrollParent(el);
+    var top=sc?sc.getBoundingClientRect().top:0;
+    // Measure the WRAPPER's rect and the two rows' LAYOUT heights: the big
+    // title carries the collapse transform, so reading its own rect would feed
+    // the result back into its own input and make the threshold oscillate.
+    var scrolled=top-el.getBoundingClientRect().top;
+    var h=big.offsetHeight||1;
+    el.classList.toggle('qorm-lt-stuck', (scrolled-bar.offsetHeight)/h > 0.55);
+  });
+}
+function qormLargeTitleInit(){
+  if(window.__qormLTReady) return; window.__qormLTReady=true;
+  // Scroll does not bubble, but it DOES propagate through the capture phase, so
+  // one document-level capturing listener covers every nested scroll container
+  // (the scaffold body, a scrollview, a list) without wiring any of them.
+  document.addEventListener('scroll', qormLargeTitleSync, true);
+  qormLargeTitleSync();
+}
+// ---- draggable sheet (DraggableScrollableSheet) -------------------------------
+// A `sheet` renders a bottom panel whose height is one of its snap points; its
+// grab row is dragged with pointer events and the panel settles on the nearest
+// stop, dispatching that stop's onSnap handler (the renderer registers one per
+// stop, so this stays an ordinary qorm(h) with no new event plumbing).
+//
+// IDEMPOTENCE: the gesture is ONE delegated document listener installed once
+// behind __qormSheetReady, and every parameter it needs (the ladder, the
+// per-stop handlers, the close handler) is read from data attributes on the
+// live panel at event time — so a re-render that renumbers handlers can never
+// leave a stale closure behind. The only client-owned state is the live stop
+// index, kept in a registry keyed by sheet id: a morph resets the panel's
+// inline height to the server-rendered stop, so qormSheetSync re-applies the
+// live one after every re-render and forgets sheets that left the DOM.
+window.__qormSheets = window.__qormSheets || {};
+function qormSheetSnaps(p){
+  return (p.getAttribute('data-snaps')||'').split(',')
+    .map(function(s){ return parseFloat(s); })
+    .filter(function(f){ return f>0; });
+}
+// qormSheetStop clamps a stop index against the panel's live ladder and records
+// it as that sheet's current stop.
+function qormSheetStop(p, snaps, i){
+  if(!(i>=0)) i=0;                       // also catches undefined/NaN
+  if(i>=snaps.length) i=snaps.length-1;
+  var id=p.getAttribute('data-qorm-sheet'); if(id) window.__qormSheets[id]=i;
+  return i;
+}
+// qormSheetSet settles the panel on a stop, animating the height change.
+function qormSheetSet(p, i, animate){
+  var snaps=qormSheetSnaps(p); if(!snaps.length) return -1;
+  i=qormSheetStop(p, snaps, i);
+  p.style.transition = animate ? 'height .28s cubic-bezier(.32,.72,0,1)' : 'none';
+  p.style.height = snaps[i]+'%';
+  return i;
+}
+function qormSheetSync(){
+  var live={};
+  document.querySelectorAll('[data-qorm-sheet]').forEach(function(p){
+    var id=p.getAttribute('data-qorm-sheet'); live[id]=1;
+    var snaps=qormSheetSnaps(p); if(!snaps.length) return;
+    var i=window.__qormSheets[id];
+    if(i===undefined) i=parseInt(p.getAttribute('data-snap'),10)||0;   // first paint: the server's stop
+    var want=snaps[qormSheetStop(p, snaps, i)]+'%';
+    // Write only on a real difference, so re-running this (which happens after
+    // every morph) never restarts a settle animation that is still playing.
+    if(p.style.height!==want) p.style.height=want;
+  });
+  Object.keys(window.__qormSheets).forEach(function(id){ if(!live[id]) delete window.__qormSheets[id]; });
+}
+function qormSheetInit(){
+  if(window.__qormSheetReady) return; window.__qormSheetReady=true;
+  document.addEventListener('pointerdown', function(e){
+    var grab=e.target && e.target.closest && e.target.closest('.qorm-dsheet-grab'); if(!grab) return;
+    var p=grab.closest('[data-qorm-sheet]'); if(!p) return;
+    if(e.button && e.button!==0) return;             // primary button only
+    var snaps=qormSheetSnaps(p); if(!snaps.length) return;
+    var y0=e.clientY, h0=p.offsetHeight, moved=false;
+    var box=(p.parentNode && p.parentNode.offsetHeight) || window.innerHeight || 1;
+    p.style.transition='none';
+    function pct(ev){ return Math.max(2, Math.min(100, (h0-(ev.clientY-y0))/box*100)); }
+    function onMove(ev){ moved=true; ev.preventDefault(); p.style.height=pct(ev)+'%'; }
+    function onUp(ev){
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      if(!moved){ p.style.transition=''; return; }
+      var cur=pct(ev), best=0, i;
+      for(i=1;i<snaps.length;i++){ if(Math.abs(snaps[i]-cur)<Math.abs(snaps[best]-cur)) best=i; }
+      // Flung below the lowest stop: close instead of snapping back up.
+      var closeH=parseInt(p.getAttribute('data-close-h'),10);
+      if(cur<snaps[0]*0.6 && !isNaN(closeH) && closeH>=0){ qorm(closeH); return; }
+      qormSheetSet(p, best, true);
+      var h=parseInt((p.getAttribute('data-snap-h')||'').split(',')[best],10);
+      if(!isNaN(h) && h>=0) qorm(h);
+    }
+    document.addEventListener('pointermove', onMove, {passive:false});
+    document.addEventListener('pointerup', onUp);
+  });
+  qormSheetSync();
+}
+function qormOverlayInit(){ qormLargeTitleInit(); qormSheetInit(); }
+if(document.readyState!=='loading'){ qormTimersSync(); qormOverlayInit(); setTimeout(qormMeasure,60); setTimeout(qormHwInit,300); } else { window.addEventListener('load',function(){ qormTimersSync(); qormOverlayInit(); setTimeout(qormMeasure,60); setTimeout(qormHwInit,300); }); }
 // qormSwipeActions: swipe a row left to reveal trailing action buttons; tap an
 // action to fire it and close, tap the content or swipe back to close.
 function qormSwipeActions(el){

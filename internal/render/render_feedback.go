@@ -3,6 +3,8 @@ package render
 import (
 	"fmt"
 	"html"
+	"sort"
+	"strings"
 
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/runtime"
@@ -109,6 +111,115 @@ func (r *renderer) modal(n *model.Node) {
 		r.node(c)
 	}
 	r.sb.WriteString(`</div></div>`)
+}
+
+// defaultSnapPoints is the snap ladder a `sheet` uses when the app declares
+// none: a peek, a half sheet and a near-full sheet — Flutter's
+// DraggableScrollableSheet defaults, rounded to the stops a finger can hit.
+var defaultSnapPoints = []float64{0.25, 0.5, 0.9}
+
+// sheetSnaps parses the `snapPoints` prop into an ascending ladder of heights,
+// each a fraction of the screen. Values above 1 are read as percentages (90 is
+// the same stop as 0.9), values outside (0,1] are dropped, and an empty or
+// unusable list falls back to defaultSnapPoints — so a malformed prop degrades
+// to a working sheet instead of an invisible one. The prop goes through
+// boundArray, so the ladder itself can be state-driven.
+func (r *renderer) sheetSnaps(n *model.Node) []float64 {
+	var out []float64
+	for _, v := range r.boundArray(n, "snapPoints") {
+		f := asFloat(v)
+		if f > 1 {
+			f /= 100
+		}
+		if f > 0 && f <= 1 {
+			out = append(out, f)
+		}
+	}
+	if len(out) == 0 {
+		return defaultSnapPoints
+	}
+	sort.Float64s(out)
+	return out
+}
+
+// sheet is Flutter's DraggableScrollableSheet / showModalBottomSheet: a bottom
+// panel the user DRAGS by its handle to resize between snap points, over an
+// optional scrim, with its own scrolling body. Unlike modal / actionsheet /
+// drawer — all fixed-size — its height is a live gesture, which is what makes
+// it the right shape for a map's place card, a player's now-playing drawer or a
+// detail peek that a thumb pulls up to full screen.
+//
+// The gesture lives in app.js (qormSheetInit): one delegated pointer listener,
+// installed once, that reads the ladder off `data-snaps` and settles on the
+// nearest stop. Everything the client needs is a data attribute on the panel,
+// so a re-render never has to re-wire it; the live stop is re-applied after
+// each morph by qormSheetSync.
+//
+// Actions: `onSnap` is registered ONCE PER STOP with a `snap` arg carrying that
+// stop's index (the same trick bottomnav uses for `value`), so the client
+// dispatches an ordinary qorm(h) and the app receives a plain action call with
+// no new event plumbing. `onClose` (or, failing that, the built-in dismiss of
+// a bound `open`) fires when the sheet is flung below its lowest stop.
+func (r *renderer) sheet(n *model.Node) {
+	if o := propStr(n, "open"); o != "" {
+		if v := r.interp(o); v == "" || v == "false" || v == "0" {
+			return
+		}
+	}
+	snaps := r.sheetSnaps(n)
+	idx := int(propNum(n, "initialSnap", 0))
+	if idx < 0 || idx >= len(snaps) {
+		idx = 0
+	}
+	// data-snaps / data-snap-h are numeric CSVs. They are escaped anyway (the
+	// bytes are unchanged by it) so the emission site needs no exemption from
+	// the attribute-injection lint.
+	pcts := make([]string, len(snaps))
+	for i, s := range snaps {
+		pcts[i] = fmt.Sprintf("%g", s*100)
+	}
+	var hs []string
+	if inv := parseInvokeProp(n, "onSnap"); inv != nil {
+		for i := range snaps {
+			hs = append(hs, fmt.Sprint(r.register(&model.Invoke{
+				Name: inv.Name, Args: mergeArgs(inv.Args, "snap", fmt.Sprint(i))})))
+		}
+	}
+	closeH := -1
+	if inv := parseInvokeProp(n, "onClose"); inv != nil {
+		closeH = r.register(inv)
+	} else if h, ok := r.dismissH(n); ok {
+		closeH = h
+	}
+
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-dsheet" style="position:fixed;inset:0;z-index:65;" role="dialog" aria-modal="true">`,
+		attrID(r.nid(n)))
+	if propStr(n, "backdrop") != "false" {
+		scrim := ""
+		if closeH >= 0 {
+			scrim = fmt.Sprintf(` onclick="qorm(%d)"`, closeH)
+		}
+		fmt.Fprintf(&r.sb, `<div class="qorm-dsheet-scrim" style="position:absolute;inset:0;background:rgba(0,0,0,.35);"%s></div>`, scrim)
+	}
+	panel := r.boxCSS(n) + fmt.Sprintf("position:absolute;left:0;right:0;bottom:0;height:%g%%;background:var(--surface);border-radius:14px 14px 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.18);display:flex;flex-direction:column;overflow:hidden;", snaps[idx]*100)
+	fmt.Fprintf(&r.sb, `<div class="qorm-dsheet-panel" data-qorm-sheet=%q data-snaps=%q data-snap="%d" data-snap-h=%q data-close-h="%d" style=%q>`,
+		attrID(r.nid(n)), html.EscapeString(strings.Join(pcts, ",")), idx,
+		html.EscapeString(strings.Join(hs, ",")), closeH, panel)
+	// Grab row: the drag surface. It stays outside the scrolling body so a drag
+	// on the handle resizes the sheet while a drag on the content scrolls it —
+	// the same split Flutter draws between the sheet and its scrollable child.
+	r.sb.WriteString(`<div class="qorm-dsheet-grab" style="flex:none;display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 16px 10px;">`)
+	if propStr(n, "handle") != "false" {
+		r.sb.WriteString(`<div style="width:36px;height:5px;border-radius:3px;background:var(--sep);"></div>`)
+	}
+	if t := r.interp(propStr(n, "title")); t != "" {
+		fmt.Fprintf(&r.sb, `<div style="font-size:17px;font-weight:600;color:var(--label);">%s</div>`, html.EscapeString(t))
+	}
+	r.sb.WriteString(`</div><div class="qorm-dsheet-body" style="flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;display:flex;flex-direction:column;gap:12px;padding:0 16px 16px;">`)
+	for _, c := range n.Children {
+		r.node(c)
+	}
+	r.sb.WriteString(`</div></div></div>`)
 }
 
 // alert renders a colored info/success/warning/error banner.

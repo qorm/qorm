@@ -141,7 +141,13 @@ func RenderScene(rt *runtime.Runtime, sceneID string) Result {
 //
 // A spec-style nested "props":{...} object on the instance is equivalent to
 // top-level keys and wins on conflict (planning/spec/json-format-spec.md).
-func (r *renderer) renderComponent(n *model.Node, comp *model.Node) {
+//
+// name is the component being instantiated (n.Type, or the resolved `ref` of a
+// {"type":"component","ref":…} instance). It is what the declared schema — when
+// the component has one — is looked up by: props the instance omits are filled
+// from their declared defaults, after everything the instance did supply, so a
+// default can never shadow a real value.
+func (r *renderer) renderComponent(n *model.Node, comp *model.Node, name string) {
 	prevScope, prevKids, prevSuf := r.scope, r.compChildren, r.idSuffix
 	ctx := r.ctx() // the instance's own scope — prop values evaluate here
 	evalProp := func(v any) any {
@@ -169,6 +175,19 @@ func (r *renderer) renderComponent(n *model.Node, comp *model.Node) {
 	if pm, ok := n.Props["props"].(map[string]any); ok {
 		for k, v := range pm {
 			prop[k] = evalProp(v)
+		}
+	}
+	// Declared defaults fill the gaps. A default is a literal from the
+	// component definition, so it is injected as-is (no instance-scope
+	// evaluation): the definition cannot see the instance's scope.
+	if sc := r.rt.App.ComponentSchemas[name]; sc != nil {
+		for k, spec := range sc.Props {
+			if spec.Default == nil {
+				continue
+			}
+			if _, given := prop[k]; !given {
+				prop[k] = spec.Default
+			}
 		}
 	}
 	ns := make(map[string]any, len(prevScope)+1)
@@ -293,8 +312,21 @@ func (r *renderer) resolveType(n *model.Node) *model.Node {
 // built-in widget switch), after node() has handled visibility and animation.
 func (r *renderer) renderInner(n *model.Node) {
 	if comp, ok := r.rt.App.Components[n.Type]; ok && comp != nil && r.compDepth < 32 {
-		r.renderComponent(n, comp)
+		r.renderComponent(n, comp, n.Type)
 		return
+	}
+	// The spec's explicit instance form: {"type":"component","ref":"panel"}
+	// (ref may carry the canonical "component://" prefix, and may itself be a
+	// binding, resolved against the current scope like any other prop). An
+	// unresolvable ref falls through to the generic `component` container
+	// below, which is what a bare {"type":"component"} has always rendered as.
+	if n.Type == "component" && r.compDepth < 32 {
+		if name := model.ComponentRefName(r.interp(propStr(n, "ref"))); name != "" {
+			if comp, ok := r.rt.App.Components[name]; ok && comp != nil {
+				r.renderComponent(n, comp, name)
+				return
+			}
+		}
 	}
 	switch n.Type {
 	case "slot":
@@ -561,6 +593,8 @@ func (r *renderer) renderInner(n *model.Node) {
 		r.alertDialog(n)
 	case "actionsheet", "cupertinoactionsheet":
 		r.actionSheet(n)
+	case "sheet", "bottomsheet", "draggablesheet", "draggablescrollablesheet", "modalbottomsheet":
+		r.sheet(n)
 	case "gridview":
 		r.gridView(n)
 	case "materialstepper":

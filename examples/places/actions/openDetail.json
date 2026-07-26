@@ -1,0 +1,1 @@
+{ "type": "action", "id": "openDetail", "steps": [ { "type": "state.set", "path": "detail", "value": "true" } ] }
