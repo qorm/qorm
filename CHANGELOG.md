@@ -34,6 +34,26 @@ All notable changes to QORM are documented here. The format is based on
   constant (any non-empty string is truthy), so the `then` branch would
   render unconditionally and the `else` branch would be dead; it is almost
   always a forgotten `{{ }}` around the expression.
+- Loader: the "value is misconfigured" diagnostic no longer fires for the
+  ~40 widget types that genuinely consume `value` as their bound-state or
+  data API (`segmented`, `progress`, `rating`, `stat`, `controlTile`, …) —
+  previously only 4 input widgets were exempt, producing 49 false-positive
+  warnings across the shipped examples. Misuse on plain nodes (`text`,
+  `view`, `button`, …) still warns, and a new integration guard pins every
+  example to zero load-time warnings.
+- `examples/floating`: the toggle action was missing `"type": "action"`
+  (dropped on the docs compile path) and used `state.toggle` on a scalar
+  bool — an array-only step, so the button did nothing. It now flips
+  `running` via `state.set` with `{{ !state.running }}`.
+- `examples/login`: the sign-in button invoked a `performLogin` action that
+  did not exist; the action now ships with local-state feedback.
+- `qorm shot` (macOS): captures no longer race window occlusion — an
+  unbundled CLI's capture window never reaches
+  `NSWindowOcclusionStateVisible`, so WKWebView deferred first paint
+  indefinitely and some pages were captured as all-white. The capture
+  window is now presented above all Spaces with WebKit occlusion detection
+  disabled (SPI guarded by `respondsToSelector`), and page load failures
+  are reported to stderr instead of silently writing a white PNG.
 
 ### Changed
 - CI additionally runs the full test suite under the race detector
