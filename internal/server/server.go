@@ -1404,6 +1404,16 @@ func Page(rt *runtime.Runtime, body string, rev int64, eventToken ...string) str
       -webkit-backdrop-filter:blur(var(--qorm-bdb)) saturate(180%%);
       backdrop-filter:blur(var(--qorm-bdb)) saturate(180%%); }
   }
+  /* ---- Native constraint validation: a field the browser rejects gets the same
+     red border the declarative error prop draws. :user-invalid waits for the
+     user to have interacted, so an untouched empty required field does not look
+     wrong before anyone typed; the @supports fallback approximates that with
+     :not(:placeholder-shown). textformfield draws its border on the wrapper. ---- */
+  #qorm-stage input:user-invalid, #qorm-stage textarea:user-invalid, #qorm-stage select:user-invalid { border-color:var(--danger) !important; }
+  @supports not selector(:user-invalid) {
+    #qorm-stage input:invalid:not(:placeholder-shown), #qorm-stage textarea:invalid:not(:placeholder-shown) { border-color:var(--danger) !important; }
+  }
+  #qorm-stage div:has(> input:user-invalid) { border-color:var(--danger) !important; }
   /* ---- Collapsing large title (CupertinoSliverNavigationBar / SliverAppBar).
      The compact bar is position:sticky, so the big title simply scrolls up and
      vanishes BEHIND it — the collapse itself needs no JS and no modern CSS at

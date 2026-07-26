@@ -26,8 +26,85 @@ func (r *renderer) button(n *model.Node) {
 		base += "background:var(--accent);color:#fff;padding:11px 18px;border-radius:12px;font-weight:600;"
 	}
 	style := base + r.boxCSS(n) + r.textCSS(n)
-	fmt.Fprintf(&r.sb, `<button id=%q class="qorm-tap" style=%q%s%s>%s</button>`,
-		attrID(n.ID), style, a11y(n), r.pressAttr(n), html.EscapeString(r.interp(labelOf(n))))
+	typeAttr, onclick := r.submitAttrs(n)
+	fmt.Fprintf(&r.sb, `<button id=%q class="qorm-tap"%s style=%q%s%s>%s</button>`,
+		attrID(n.ID), typeAttr, style, a11y(n), onclick, html.EscapeString(r.interp(labelOf(n))))
+}
+
+// submitAttrs resolves a button's participation in the enclosing form's NATIVE
+// constraint validation (`required` / `pattern` / `maxlength` / type=email…,
+// emitted by inputAttrs) and returns the button's `type` attribute plus its
+// press wiring.
+//
+// The problem it solves: a QORM button dispatches through `onclick="qorm(N)"`,
+// and a click handler runs BEFORE — and independently of — the browser's
+// constraint check, so an action fired that way ignores every native
+// constraint. (The form's own `onsubmit` is already protected: a <button> with
+// no type attribute defaults to type=submit, so clicking it, or pressing Enter
+// in a field, goes through form submission, which the browser refuses to start
+// while a constraint fails. The leak is specifically the button's OWN onPress.)
+//
+// The `submit` prop makes that participation explicit — it is a prop, not the
+// HTML-native spelling `type`, because `type` is the node's widget name:
+//
+//	submit absent  no type attribute and the plain onclick — byte-identical to
+//	               the pre-validation output, so existing apps are untouched.
+//	submit: true   type="submit". If the button also has an onPress, its onclick
+//	               is prefixed with a native validity gate: the action is not
+//	               dispatched while the form reports a failing constraint, and
+//	               reportValidity() raises the browser's own message bubble on
+//	               the first offending field (zero client JS of ours — the gate
+//	               is the standard HTMLFormElement API, inline).
+//	submit: false  type="button" — the escape hatch for a Cancel/secondary
+//	               button inside a form, which would otherwise implicitly submit
+//	               it (and, once gated, be blocked by an unrelated invalid field).
+//
+// Opt-outs, both native: `novalidate: true` on the button emits the standard
+// `formnovalidate` attribute (submit this form without validating it — for the
+// save-a-draft / validate-on-the-server flow) and drops the gate; and the gate
+// itself honours `form.noValidate`, so a form-level opt-out disables it too the
+// moment the form renderer emits a `novalidate` attribute.
+//
+// Both props accept a literal or a `{{ binding }}`, so an agent can drive them
+// from state like any other prop.
+//
+// Two notes on the gate. It is not feature-detected: reportValidity() shipped
+// alongside fetch() (Safari 10.1, and long before that everywhere else), and
+// the QORM client is already inert without fetch, so the gate can never be the
+// sole reason a button goes dead. And it does not cancel the submission it
+// guards — a gated button whose form passes validation runs its own action AND
+// lets the browser submit, so a form that ALSO carries an onPress dispatches
+// both. That is HTML's own semantics for a submit button, kept rather than
+// papered over: put the action on the button or on the form, not on both.
+func (r *renderer) submitAttrs(n *model.Node) (typeAttr, onclick string) {
+	raw, ok := n.Prop("submit")
+	if !ok {
+		return "", r.pressAttr(n)
+	}
+	if !r.boolProp(raw) {
+		return ` type="button"`, r.pressAttr(n)
+	}
+	if nv, ok := n.Prop("novalidate"); ok && r.boolProp(nv) {
+		return ` type="submit" formnovalidate`, r.pressAttr(n)
+	}
+	if n.OnPress == nil {
+		// Nothing to gate: the press IS the form submission, which the browser
+		// already validates before firing the form's onsubmit.
+		return ` type="submit"`, ""
+	}
+	// The gate is spelled with nested ifs rather than `&&` so the attribute value
+	// carries no ampersand (an HTML attribute value is character-reference
+	// decoded, and a bare `&` there is a parse hazard best not relied on).
+	return ` type="submit"`, fmt.Sprintf(
+		` onclick="if(this.form){if(!this.form.noValidate){if(!this.form.reportValidity())return;}}qorm(%d)"`,
+		r.register(n.OnPress))
+}
+
+// boolProp resolves a boolean-ish prop VALUE that may be a JSON literal (true,
+// "true", 1) or a `{{ binding }}` over state — the same resolution checkedState
+// applies to `checked`.
+func (r *renderer) boolProp(raw any) bool {
+	return asBool(runtime.EvalBinding(fmt.Sprint(raw), r.ctx()))
 }
 
 // inputAttrs renders the shared native-HTML attribute set of the text-entry
@@ -68,6 +145,39 @@ func (r *renderer) inputAttrs(n *model.Node, textarea bool) string {
 		}
 	}
 	return b.String()
+}
+
+// errorEcho projects a textformfield's author-supplied `error` (a reactive
+// expression over state) onto the two NATIVE channels the browser's own
+// constraint validation uses, so the declarative error and the native one do
+// not contradict each other:
+//
+//   - aria-invalid="true" — the same state assistive tech reads off a natively
+//     invalid control, so a field the app considers wrong is announced as wrong
+//     even when the browser is satisfied (a cross-field rule, a server verdict).
+//   - title — the message the browser APPENDS to its pattern-mismatch bubble.
+//     Without it the native bubble says only "please match the requested
+//     format"; with it the author's own wording shows up inside the native
+//     popup. Skipped when a11y already emitted the node's own `title` — a
+//     second title attribute on the same element is a parse error, and the
+//     browser keeps the FIRST one, so the echo has to yield rather than
+//     silently produce dead markup. The check is on the emitted attributes
+//     rather than the prop, so it cannot drift from what a11y decides.
+//
+// Both ride on the inner <input>, and only when the field opted into native
+// validation via `required`/`pattern`: a field using nothing but the reactive
+// `error` renders exactly the bytes it did before. The visual side stays as it
+// was (red border + footer message), which composes with, rather than replaces,
+// the browser's `:invalid` styling.
+func (r *renderer) errorEcho(n *model.Node, errText, a11yAttrs string) string {
+	if errText == "" || (!propBool(n, "required") && propStr(n, "pattern") == "") {
+		return ""
+	}
+	out := ` aria-invalid="true"`
+	if !strings.Contains(a11yAttrs, ` title=`) {
+		out += fmt.Sprintf(` title="%s"`, html.EscapeString(errText))
+	}
+	return out
 }
 
 // normalizeInputMode maps author-friendly aliases onto the HTML inputmode
@@ -456,11 +566,12 @@ func (r *renderer) textFormField(n *model.Node) {
 		fmt.Fprintf(&r.sb, `<span style="color:var(--label2);display:inline-flex;align-items:center;">%s</span>`, iconOrText(pre, 16))
 	}
 	itype := propStrOr(n, "inputType", "text")
+	al := a11y(n)
 	// inputAttrs rides on the inner input: its maxlength truncates natively at
 	// the same limit the footer counter below displays.
-	fmt.Fprintf(&r.sb, `<input type=%q value=%q placeholder=%q style="flex:1;border:none;outline:none;font-size:14px;background:transparent;"%s%s%s%s>`,
-		html.EscapeString(itype), html.EscapeString(r.interp(n.Value)), html.EscapeString(n.Placeholder), dataStateAttr(path), a11y(n),
-		r.inputAttrs(n, false), r.changeAttr(n, path != ""))
+	fmt.Fprintf(&r.sb, `<input type=%q value=%q placeholder=%q style="flex:1;border:none;outline:none;font-size:14px;background:transparent;"%s%s%s%s%s>`,
+		html.EscapeString(itype), html.EscapeString(r.interp(n.Value)), html.EscapeString(n.Placeholder), dataStateAttr(path), al,
+		r.inputAttrs(n, false), r.errorEcho(n, errText, al), r.changeAttr(n, path != ""))
 	if suf := r.interp(propStr(n, "suffix")); suf != "" {
 		fmt.Fprintf(&r.sb, `<span style="color:var(--label2);">%s</span>`, html.EscapeString(suf))
 	}
