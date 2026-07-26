@@ -6,6 +6,33 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+- `http.*` steps: optional `"async": true` runs the request in the background.
+  The dispatch returns as soon as the request is issued — so the frame at its
+  boundary already shows the loading state, and the rest of the session stays
+  usable for the whole round trip instead of queueing behind it — and the
+  `onSuccess` / `onError` branch runs when the reply lands, publishing a second
+  frame over live-sync. Inside the branch, `{{ state.x }}` reads live while the
+  action's args stay frozen at dispatch time; `{{ response }}` / `{{ error }}`
+  are unchanged. Defaults to `false`, so a step whose sibling steps read its
+  response keeps its blocking behaviour, and the loader warns when `async` is
+  written on a step that is not an `http.*` call.
+- `Runtime.Async` — the host-installed background work sink `"async": true`
+  needs, and `Runtime.Inflight()`, the exact count of requests still open. Like
+  `Runtime.Commit`, neither `runtime.New` nor `Clone` ever installs it, so a
+  bare runtime, an offline render and an MCP simulation stay fully synchronous
+  and side-effect free; the server installs it wherever it installs the frame
+  sink. `qorm_dispatch` detaches it for the duration of an agent's call, so an
+  agent always receives the settled state rather than a loading frame.
+
+### Changed
+- The determinism guard grows a third tier: instantaneous determinism (two
+  renders of the same state agree byte for byte) and confluence under
+  intermediate frames are now joined by quiescent determinism — once
+  `Inflight()` reaches zero, an async action must render byte-identically to
+  the same action written synchronously. Async may change the sequence of
+  frames a dispatch produces; it may never change where the dispatch lands.
+
 ## [v0.4.0] - 2026-07-26
 
 ### Added

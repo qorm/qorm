@@ -35,6 +35,7 @@
 - **Box (`style`)** — `width` `height` `minWidth` `maxWidth` `minHeight` `maxHeight` `padding` `margin` `gap` `background` `gradient` `borderRadius` `borderWidth` `borderColor` `shadow` `opacity` `aspectRatio` `flexGrow` `flexShrink` `alignSelf` `zIndex` `position` `top` `right` `bottom` `left` `cursor` `transition`
 - **Text (`style`)** — `color` `fontSize` `fontWeight` `fontFamily` `lineHeight` `letterSpacing` `fontStyle` `textDecoration` `textTransform` `textAlign` `lineClamp`
 - **Pseudo-state (`style`)** — `hoverBackground` `hoverColor` `hoverOpacity` `pressedScale` `pressedOpacity` `focusBorderColor` `disabled` `disabledOpacity`
+- **Backdrop (`style`)** — `backdropBlur` (frosted-glass radius in px, capped at 120; `0` turns the frost off on `appbar` / `largetitle`, which are frosted by default) `backdropTint` (the translucent fill the blur shows through; a browser without `backdrop-filter` falls back to a solid panel)
 - **Layout (`layout`)** — `width` `height` `align` `justify` (`wrap` on containers, `columns` on `grid`, `orientation` on `scroll`)
 - **Accessibility (top-level)** — `role` `ariaLabel` `title` `tooltip`
 
@@ -44,7 +45,7 @@
 
 | 组件 | 属性 |
 |---|---|
-| `accordion` | `title` |
+| `accordion` | `active` · `title` |
 | `actionsheet` | `dismissable` · `open` · `title` |
 | `activityindicator` | `size` |
 | `alert` | `title` · `variant` |
@@ -78,7 +79,7 @@
 | `compass` | `label` |
 | `contacts` | `label` |
 | `contextmenu` | `items` · `menuStyle` |
-| `datatable` | `columns` · `data` · `rowKey` · `selectable` · `selected` · `sortData` · `sortDir` · `sortField` |
+| `datatable` | `as` · `column` · `columns` · `data` · `detail` · `maxHeight` · `minWidth` · `rowKey` · `scrollX` · `selectable` · `selected` · `sortData` · `sortDir` · `sortField` · `stickyHeader` · `stickyTop` |
 | `datepicker` | `maxYear` · `minYear` |
 | `descriptions` | `items` |
 | `deviceinfo` | `label` |
@@ -105,7 +106,7 @@
 | `input` | `autocomplete` · `autofocus` · `inputMode` · `inputType` · `maxLength` · `pattern` · `readonly` · `required` |
 | `insets` | `label` |
 | `keepawake` | `label` |
-| `largetitle` | `background` · `subtitle` |
+| `largetitle` | `background` · `collapsible` · `subtitle` |
 | `limitedbox` | `maxHeight` · `maxWidth` |
 | `link` | `href` |
 | `list` | `as` · `groupBy` · `itemHeight` · `onRefresh` · `onReorder` · `page` · `pageSize` · `reorderable` · `sectionHeader` · `separator` · `sticky` · `stickyTop` · `virtualize` |
@@ -149,6 +150,7 @@
 | `selectabletext` | — |
 | `sensors` | `label` |
 | `share` | `label` |
+| `sheet` | `backdrop` · `dismissable` · `handle` · `initialSnap` · `onClose` · `onSnap` · `open` · `snapPoints` · `title` |
 | `skeleton` | — |
 | `slider` | `max` · `min` · `step` |
 | `slot` | `name` · `slot` |
@@ -162,8 +164,8 @@
 | `swipeactions` | `actions` |
 | `switchlisttile` | `subtitle` · `value` |
 | `systemmodes` | `label` |
-| `table` | `columns` · `data` · `sortData` · `sortDir` · `sortField` |
-| `tabs` | `tabs` |
+| `table` | `as` · `column` · `columns` · `data` · `detail` · `maxHeight` · `minWidth` · `scrollX` · `sortData` · `sortDir` · `sortField` · `stickyHeader` · `stickyTop` |
+| `tabs` | `active` · `indicator` · `indicatorColor` · `lazy` · `scrollable` · `tabs` |
 | `tag` | — |
 | `text` | — |
 | `textarea` | `autocomplete` · `autofocus` · `inputMode` · `maxLength` · `pattern` · `readonly` · `required` · `rows` |
@@ -173,7 +175,7 @@
 | `timer` | — |
 | `torch` | `label` |
 | `transform` | `rotate` · `scale` · `scaleX` · `scaleY` · `skew` · `translateX` · `translateY` |
-| `tree` | `data` |
+| `tree` | `collapsed` · `data` |
 | `tts` | `label` |
 | `verticaldivider` | `orientation` |
 | `vibrate` | `label` |

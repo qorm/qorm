@@ -9,6 +9,7 @@
       "resp": "object",
       "err": "string",
       "loading": "bool",
+      "taps": "number",
       "photo": "string"
     },
     "initial": {
@@ -17,6 +18,7 @@
       },
       "err": "",
       "loading": false,
+      "taps": 0,
       "photo": ""
     }
   }

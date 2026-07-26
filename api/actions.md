@@ -54,8 +54,9 @@ Every step is one JSON object; which fields apply depends on its `type`:
 | `headers` | object | `http.*`: request headers |
 | `result` | string | `http.*`: state path to store the parsed response |
 | `error` | string | `http.*`: state path to store an error message |
-| `onSuccess` | array | `http.*`: steps run after a 2xx response; the decoded response is bound as `{{ response }}` (the `result` path is written first) |
-| `onError` | array | `http.*`: steps run after a failure; the message is bound as `{{ error }}` (the `error` path is written first) |
+| `async` | bool | `http.*`: run the request in the background — the dispatch returns immediately (so the frame at its boundary already shows the loading state and the session stays responsive) and the result branch runs when the reply arrives. Defaults to `false`, which blocks the dispatch; it also falls back to `false` on a host with no background sink, so the same JSON stays portable |
+| `onSuccess` | array | `http.*`: steps run after a 2xx response; the decoded response is bound as `{{ response }}` (the `result` path is written first). With `async` they run in the completion callback, after the dispatch has ended: `{{ state.x }}` reads live, the action's args stay frozen at dispatch time |
+| `onError` | array | `http.*`: steps run after a failure; the message is bound as `{{ error }}` (the `error` path is written first). With `async` they run in the completion callback, on the same terms as `onSuccess` |
 | `condition` | string | `if`: a `{{ … }}` expression selecting `then` (truthy) or `else` |
 | `then` | array | `if`: steps run when `condition` is truthy (branches nest, depth-capped at 32) |
 | `else` | array | `if`: steps run when `condition` is falsy |

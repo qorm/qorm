@@ -1,0 +1,6 @@
+{"type":"action","id":"getFactAsync","steps":[
+  {"type":"state.set","path":"loading","value":"{{ true }}"},
+  {"type":"http.get","url":"https://catfact.ninja/fact","async":true,"result":"resp","error":"err",
+   "onSuccess":[{"type":"state.set","path":"loading","value":"{{ false }}"}],
+   "onError":[{"type":"state.set","path":"loading","value":"{{ false }}"}]}
+]}

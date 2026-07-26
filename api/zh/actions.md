@@ -54,8 +54,9 @@
 | `headers` | object | `http.*`:请求头 |
 | `result` | string | `http.*`:存放解析后响应的状态路径 |
 | `error` | string | `http.*`:存放错误信息的状态路径 |
-| `onSuccess` | array | `http.*`:2xx 响应后执行的步骤;解码后的响应绑定为 `{{ response }}`(`result` 路径先写入) |
-| `onError` | array | `http.*`:失败后执行的步骤;错误信息绑定为 `{{ error }}`(`error` 路径先写入) |
+| `async` | bool | `http.*`:在后台发起请求——派发立即返回(因此其边界处的那一帧已显示 loading 状态,会话全程可用),结果分支在响应到达时执行。默认 `false`,即阻塞派发;宿主未安装后台汇时同样退化为 `false`,保证同一份 JSON 可移植 |
+| `onSuccess` | array | `http.*`:2xx 响应后执行的步骤;解码后的响应绑定为 `{{ response }}`(`result` 路径先写入)。配合 `async` 时它们在完成回调里运行(派发已结束):`{{ state.x }}` 读取当前值,动作参数则冻结在派发时刻 |
+| `onError` | array | `http.*`:失败后执行的步骤;错误信息绑定为 `{{ error }}`(`error` 路径先写入)。配合 `async` 时同样在完成回调里运行,规则与 `onSuccess` 相同 |
 | `condition` | string | `if`:一个 `{{ … }}` 表达式,真值执行 `then`,否则执行 `else` |
 | `then` | array | `if`:`condition` 为真时执行的步骤(分支可嵌套,深度上限 32) |
 | `else` | array | `if`:`condition` 为假时执行的步骤 |

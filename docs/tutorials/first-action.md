@@ -217,6 +217,38 @@ extra frames are drawn at all. It is a no-op on a host that does not paint
 mid-action, so the same JSON is safe everywhere. `examples/netdemo` and
 `examples/tasks` both ship this shape.
 
+### Background request (`async`)
+
+`render` makes the spinner visible, but the request still runs to completion
+before the dispatch ends — so nothing else in the session moves until the
+backend answers. Add `"async": true` and the request is handed to a background
+worker instead: the dispatch returns immediately (its frame already shows the
+loading state) and the result branch runs when the reply arrives.
+
+```json
+[
+  { "type": "state.set", "path": "loading", "value": "{{ true }}" },
+  { "type": "http.get", "url": "https://api.example.com/items", "async": true,
+    "result": "items", "error": "error",
+    "onSuccess": [ { "type": "state.set", "path": "loading", "value": "{{ false }}" } ],
+    "onError":   [ { "type": "state.set", "path": "loading", "value": "{{ false }}" } ] }
+]
+```
+
+Two rules follow from the request outliving the dispatch:
+
+- **Read the result in `onSuccess` / `onError`, never in a sibling step.** The
+  steps after an async request run straight away, while it is still open, so a
+  sibling would read the value from *before* the call.
+- **Clear the loading flag in both branches.** A flag cleared only in
+  `onSuccess` is stuck on forever the first time the backend fails.
+
+Inside a branch, `{{ state.x }}` reads the state as it is *now* (the user may
+have kept typing), while the action's own arguments still hold the values the
+click carried. `async` defaults to `false`, and falls back to `false` on a host
+with no background worker, so a step that reads its response from a sibling
+keeps working unchanged. `examples/netdemo` ships both shapes side by side.
+
 ### Error handling
 
 `http.*` writes any failure message to the `error` path (and clears it on success). Bind `{{ state.error }}` in the UI and show it with an `if`:

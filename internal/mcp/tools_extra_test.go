@@ -3,6 +3,8 @@ package mcp
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
@@ -708,5 +710,60 @@ func TestInspectDegradesOnUnserializableState(t *testing.T) {
 	}
 	if !strings.HasPrefix(text, "map[") || !strings.Contains(text, "bad:") {
 		t.Errorf("expected the Go %%v map dump, got %.120s", text)
+	}
+}
+
+// TestDispatchReturnsTheSettledStateNotALoadingFrame pins the agent-side
+// contract for async http steps. An agent reads qorm_dispatch's answer and acts
+// on it, so answering with the loading frame the request was launched from
+// would have it reason about a state the app is about to leave. The tool
+// therefore detaches the host's background sink for the duration of the call,
+// which makes the async step take its synchronous path — the settled result by
+// definition, and without ever dropping the lock mid-call.
+func TestDispatchReturnsTheSettledStateNotALoadingFrame(t *testing.T) {
+	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"fact":"cats"}`))
+	}))
+	defer backend.Close()
+
+	app := loader.FromDocs([]map[string]any{
+		{"type": "app", "id": "as", "entry": "main", "globalState": map[string]any{
+			"schema":  map[string]any{"loading": "bool", "resp": "object"},
+			"initial": map[string]any{"loading": false, "resp": map[string]any{}}}},
+		{"type": "scene", "id": "main", "root": map[string]any{
+			"type": "text", "id": "t", "text": "{{ state.resp.fact }}"}},
+		{"type": "action", "id": "go", "steps": []any{
+			map[string]any{"type": "state.set", "path": "loading", "value": "{{ true }}"},
+			map[string]any{"type": "http.get", "url": backend.URL, "async": true, "result": "resp",
+				"onSuccess": []any{map[string]any{"type": "state.set", "path": "loading", "value": "{{ false }}"}}},
+		}},
+	})
+	if len(app.Diagnostics) != 0 {
+		t.Fatalf("fixture must load clean: %v", app.Diagnostics)
+	}
+
+	rt := qrt.New(app)
+	// A host that would defer the work forever: if the tool used it, the reply
+	// could only ever be the loading frame.
+	spawned := 0
+	rt.Async = func(func() any, func(any)) { spawned++ }
+	s := &Server{rt: rt, mu: &sync.Mutex{}}
+
+	text := resultText(t, toolCallRPC(t, s, "qorm_dispatch", map[string]any{"action": "go"}))
+	if spawned != 0 {
+		t.Errorf("an agent dispatch must not hand work to the background sink: %d", spawned)
+	}
+	if !strings.Contains(text, "cats") {
+		t.Errorf("the agent must receive the settled render, not the loading frame: %s", text)
+	}
+	if rt.State["loading"] != false {
+		t.Errorf("the result branch must have run before the tool returned: %v", rt.State["loading"])
+	}
+	if rt.Inflight() != 0 {
+		t.Errorf("nothing may be left in flight after the call: %d", rt.Inflight())
+	}
+	if rt.Async == nil {
+		t.Error("the sink must be restored after the call — detaching it is scoped to the dispatch")
 	}
 }

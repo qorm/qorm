@@ -7,7 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/qorm/qorm/internal/loader"
 	"github.com/qorm/qorm/internal/model"
@@ -211,6 +213,251 @@ func TestExampleRenderStepsConverge(t *testing.T) {
 		for _, name := range names {
 			t.Run(e.Name()+"/"+name, func(t *testing.T) { assertConverges(t, app, name) })
 		}
+	}
+}
+
+// ---- async: the same guard, now over a real background host -----------------
+//
+// The determinism guard is INSTANTANEOUS determinism, and TestRenderStepConfluence
+// above extends it to confluence under intermediate frames. Async extends it once
+// more, to QUIESCENT determinism: an action whose http step runs in the
+// background must, once nothing is in flight, render byte-identically to the
+// same action written synchronously. Async is allowed to change the SEQUENCE of
+// frames a dispatch produces; it is never allowed to change where it lands.
+//
+// "Quiescent" is no longer "Dispatch returned", so the guard needs a wait — but
+// not a sleep: Runtime.Inflight() is an exact count, so waiting on it reaching
+// zero is a decision, not a guess.
+
+// bgHost is a minimal, faithful stand-in for a real host's background sink: it
+// runs work on its own goroutine and delivers the outcome under the same lock
+// that serialises dispatches, exactly as the server's spawn does. Having the
+// guard drive its own host (rather than a whole server) keeps it in the
+// integration package, where the shipped examples already live.
+type bgHost struct {
+	mu sync.Mutex
+	rt *qrt.Runtime
+}
+
+func (h *bgHost) sink(work func() any, resume func(any)) {
+	go func() {
+		v := work()
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		resume(v)
+	}()
+}
+
+// dispatch runs an action under the host lock, the way every host does.
+func (h *bgHost) dispatch(action string, args map[string]any) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.rt.Dispatch(action, args)
+}
+
+// settle waits for every background request to deliver its outcome. Bounded
+// poll on an exact counter — no sleep, and a timeout that fails loudly rather
+// than letting a hung request masquerade as a passing render.
+func (h *bgHost) settle(t *testing.T, timeout time.Duration) {
+	t.Helper()
+	tick := time.NewTicker(5 * time.Millisecond)
+	defer tick.Stop()
+	deadline := time.After(timeout)
+	for {
+		h.mu.Lock()
+		n := h.rt.Inflight()
+		h.mu.Unlock()
+		if n == 0 {
+			return
+		}
+		select {
+		case <-tick.C:
+		case <-deadline:
+			t.Fatalf("timed out with %d request(s) still in flight", n)
+		}
+	}
+}
+
+// stripAsync returns a copy of a step tree with every async flag cleared: the
+// same action written the blocking way.
+func stripAsync(steps []model.Step) []model.Step {
+	out := make([]model.Step, 0, len(steps))
+	for _, st := range steps {
+		st.Async = false
+		st.Then = stripAsync(st.Then)
+		st.Else = stripAsync(st.Else)
+		st.OnSuccess = stripAsync(st.OnSuccess)
+		st.OnError = stripAsync(st.OnError)
+		out = append(out, st)
+	}
+	return out
+}
+
+// countAsync counts async steps in a step tree, branches included.
+func countAsync(steps []model.Step) int {
+	n := 0
+	for _, st := range steps {
+		if st.Async {
+			n++
+		}
+		n += countAsync(st.Then) + countAsync(st.Else)
+		n += countAsync(st.OnSuccess) + countAsync(st.OnError)
+	}
+	return n
+}
+
+// assertAsyncConverges dispatches the named action twice: once on a runtime with
+// a real background host, settled before rendering, and once with the async
+// flags stripped and no host at all. The settled renders must be byte-identical.
+func assertAsyncConverges(t *testing.T, app *model.App, action string) {
+	t.Helper()
+	if countAsync(app.Actions[action].Steps) == 0 {
+		t.Fatalf("action %q declares no async step — the guard would prove nothing", action)
+	}
+	h := &bgHost{rt: qrt.New(app)}
+	h.rt.Async = h.sink
+	h.dispatch(action, nil)
+	h.settle(t, 10*time.Second)
+
+	blocking := *app
+	blocking.Actions = make(map[string]*model.Action, len(app.Actions))
+	for id, act := range app.Actions {
+		blocking.Actions[id] = &model.Action{ID: act.ID, Steps: stripAsync(act.Steps)}
+	}
+	syncRT := qrt.New(&blocking)
+	syncRT.Dispatch(action, nil)
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if got, want := render.Render(h.rt).HTML, render.Render(syncRT).HTML; got != want {
+		t.Errorf("action %q: async changed the settled render\n async: %s\n  sync: %s", action, got, want)
+	}
+	if h.rt.CurrentScene() != syncRT.CurrentScene() {
+		t.Errorf("action %q: async changed the settled scene: %q vs %q",
+			action, h.rt.CurrentScene(), syncRT.CurrentScene())
+	}
+}
+
+// TestAsyncConvergesToSyncResult covers the shapes an async request can take —
+// success, failure, a result read only through the branch, several requests in
+// one action, and async combined with an intermediate frame — against local
+// backends, so the guard is hermetic and fast.
+func TestAsyncConvergesToSyncResult(t *testing.T) {
+	ok := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"title":"from backend"}`))
+	}))
+	defer ok.Close()
+	boom := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "nope", http.StatusInternalServerError)
+	}))
+	defer boom.Close()
+
+	manifest := `{"type":"app","id":"cf","entry":"main","globalState":{
+		"schema":{"saving":"bool","phase":"string","title":"string","err":"string","n":"number"},
+		"initial":{"saving":false,"phase":"","title":"","err":"","n":0}}}`
+	scene := `{"type":"scene","id":"main","root":{"type":"column","id":"root","children":[
+		{"type":"text","id":"busy","if":"{{ state.saving }}","text":"busy"},
+		{"type":"text","id":"p","text":"{{ state.phase }} / {{ state.title }} / {{ state.err }} / {{ state.n }}"}]}}`
+
+	cases := []struct {
+		name   string
+		action string
+	}{
+		{"success-branch", `{"type":"action","id":"go","steps":[
+			{"type":"state.set","path":"saving","value":"{{ true }}"},
+			{"type":"http.get","url":"` + ok.URL + `","async":true,"result":"resp","error":"err",
+			 "onSuccess":[{"type":"state.set","path":"title","value":"{{ response.title }}"},
+			              {"type":"state.set","path":"saving","value":"{{ false }}"},
+			              {"type":"state.set","path":"phase","value":"done"}]}]}`},
+		{"error-branch", `{"type":"action","id":"go","steps":[
+			{"type":"state.set","path":"saving","value":"{{ true }}"},
+			{"type":"http.get","url":"` + boom.URL + `","async":true,"result":"resp","error":"err",
+			 "onError":[{"type":"state.set","path":"saving","value":"{{ false }}"},
+			            {"type":"state.set","path":"phase","value":"failed"}]}]}`},
+		{"result-path-only", `{"type":"action","id":"go","steps":[
+			{"type":"http.get","url":"` + ok.URL + `","async":true,"result":"resp"}]}`},
+		{"with-intermediate-frame", `{"type":"action","id":"go","steps":[
+			{"type":"state.set","path":"saving","value":"{{ true }}"},
+			{"type":"render"},
+			{"type":"http.get","url":"` + ok.URL + `","async":true,"result":"resp",
+			 "onSuccess":[{"type":"render"},
+			              {"type":"state.set","path":"saving","value":"{{ false }}"}]}]}`},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			assertAsyncConverges(t, fixtureApp(t, manifest, scene, c.action), "go")
+		})
+	}
+
+	// Several requests in one action converge too, but only because each
+	// continuation writes a DIFFERENT key: concurrent replies land in whatever
+	// order the network delivers them, so two continuations writing the same key
+	// are last-writer-wins and have no settled value to converge on. Asserting
+	// that here is what keeps the property honest rather than accidental.
+	t.Run("several-requests", func(t *testing.T) {
+		action := `{"type":"action","id":"go","steps":[
+			{"type":"http.get","url":"` + ok.URL + `","async":true,
+			 "onSuccess":[{"type":"state.set","path":"title","value":"{{ response.title }}"}]},
+			{"type":"http.get","url":"` + ok.URL + `","async":true,
+			 "onSuccess":[{"type":"state.increment","path":"n"}]},
+			{"type":"http.get","url":"` + boom.URL + `","async":true,
+			 "onError":[{"type":"state.set","path":"phase","value":"failed"}]}]}`
+		assertAsyncConverges(t, fixtureApp(t, manifest, scene, action), "go")
+	})
+}
+
+// TestExampleAsyncActionsAreDeclaredWell keeps the shipped examples honest
+// without reaching the public internet: an async step whose result is read by a
+// SIBLING step rather than by its result branch would silently read the value
+// from before the request. The runtime cannot detect that (the sibling is a
+// perfectly valid expression), so it is pinned here, over whatever the examples
+// actually ship.
+func TestExampleAsyncActionsAreDeclaredWell(t *testing.T) {
+	root := filepath.Join("..", "..", "examples")
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		t.Fatalf("read examples: %v", err)
+	}
+	found := 0
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		dir := filepath.Join(root, e.Name())
+		if _, err := os.Stat(filepath.Join(dir, "qorm.json")); err != nil {
+			continue
+		}
+		app, err := loader.LoadDir(dir)
+		if err != nil {
+			continue // load failures are the loader gates' business
+		}
+		var names []string
+		for name, act := range app.Actions {
+			if countAsync(act.Steps) > 0 {
+				names = append(names, name)
+			}
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			found++
+			t.Run(e.Name()+"/"+name, func(t *testing.T) {
+				for _, st := range app.Actions[name].Steps {
+					if !st.Async {
+						continue
+					}
+					if len(st.OnSuccess) == 0 && len(st.OnError) == 0 && st.Result == "" && st.Path == "" {
+						t.Errorf("async step in %q writes nothing: neither a result path nor a result branch", name)
+					}
+					if st.Error != "" && len(st.OnError) == 0 && len(st.OnSuccess) > 0 {
+						t.Errorf("async step in %q handles success but not failure: a loading state cleared only in onSuccess is stuck forever on an error", name)
+					}
+				}
+			})
+		}
+	}
+	if found == 0 {
+		t.Error("no example demonstrates an async request — the feature ships undemonstrated")
 	}
 }
 

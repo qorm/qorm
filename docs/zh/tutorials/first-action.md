@@ -196,6 +196,34 @@ qorm run examples/lifecycle
 被绘制,取决于 app 运行在哪个宿主上。在不支持动作中途绘制的宿主上它是空操作,因此同一份
 JSON 在任何地方都是安全的。`examples/netdemo` 与 `examples/tasks` 都采用了这一写法。
 
+### 后台请求(`async`)
+
+`render` 让转圈可见,但请求本身仍要跑完才结束这次派发——在后端回应之前,会话里的其它
+一切都动不了。加上 `"async": true`,请求就会交给后台工作者:派发立即返回(它的那一帧
+已经显示了 loading 状态),结果分支等响应到达时再执行。
+
+```json
+[
+  { "type": "state.set", "path": "loading", "value": "{{ true }}" },
+  { "type": "http.get", "url": "https://api.example.com/items", "async": true,
+    "result": "items", "error": "error",
+    "onSuccess": [ { "type": "state.set", "path": "loading", "value": "{{ false }}" } ],
+    "onError":   [ { "type": "state.set", "path": "loading", "value": "{{ false }}" } ] }
+]
+```
+
+请求活得比派发更久,由此有两条规则:
+
+- **在 `onSuccess` / `onError` 里读结果,不要在兄弟步骤里读。** 异步请求之后的步骤会
+  立刻执行,那时请求还开着,兄弟步骤读到的是调用**之前**的值。
+- **两个分支都要复位 loading 标志。** 只在 `onSuccess` 里清除的标志,后端第一次失败
+  就会永远卡在转圈上。
+
+在分支里,`{{ state.x }}` 读到的是**此刻**的状态(用户可能还在输入),而动作自己的参数
+仍然保持点击时携带的值。`async` 默认为 `false`,在没有后台工作者的宿主上同样退化为
+`false`,所以那些从兄弟步骤读取响应的写法照旧可用。`examples/netdemo` 同时演示了这两种
+写法。
+
 ### 错误处理(Error handling)
 
 `http.*` 会把任何失败信息写入 `error` 路径(成功时清空)。在 UI 中绑定 `{{ state.error }}` 并用 `if` 显示:

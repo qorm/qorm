@@ -357,7 +357,7 @@ func (s *Server) callTool(name string, args json.RawMessage) (string, error) {
 		if _, ok := s.rt.App.Actions[a.Action]; !ok {
 			return "", fmt.Errorf("unknown action %q", a.Action)
 		}
-		s.rt.Dispatch(a.Action, a.Args)
+		s.dispatchSettled(a.Action, a.Args)
 		return jsonPretty(s.stateAndHTML()), nil
 	case "qorm_set_state":
 		var a struct {
@@ -460,6 +460,27 @@ func (s *Server) callTool(name string, args json.RawMessage) (string, error) {
 }
 
 // stateAndHTML is the standard result of an operate/design mutation.
+// dispatchSettled runs an action and guarantees the caller observes the state
+// it SETTLES on, never a loading frame. An `http.*` step marked async would
+// otherwise hand its round trip to the host's background sink and return at
+// once, so qorm_dispatch would answer the agent with the half-finished state
+// the request was launched from — and the agent would reason (and act) on it.
+//
+// The fix is the runtime's own fallback rather than a wait: detaching the
+// background sink for the duration of the call makes every async step take its
+// synchronous path, which is by definition the settled result. That keeps the
+// tool call atomic — the alternative, dropping the lock to poll Inflight(),
+// would open a window in which a human event or an OTA activate could land (or
+// swap the runtime out) halfway through a tool call that is currently
+// indivisible. Safe because the whole call holds the host lock, so no other
+// dispatch can observe the sink while it is detached.
+func (s *Server) dispatchSettled(action string, args map[string]any) {
+	background := s.rt.Async
+	s.rt.Async = nil
+	defer func() { s.rt.Async = background }()
+	s.rt.Dispatch(action, args)
+}
+
 func (s *Server) stateAndHTML() map[string]any {
 	return map[string]any{
 		"state": s.rt.State,

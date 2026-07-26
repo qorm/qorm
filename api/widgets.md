@@ -111,6 +111,7 @@ Each widget lists its **canonical name** first; the rest are equivalent aliases.
 | `selectabletext` | — | `selectableText` |
 | `sensors` | — | `sensors` |
 | `share` | — | `hwList` |
+| `sheet` | bottomsheet, draggablesheet, draggablescrollablesheet, modalbottomsheet | `sheet` |
 | `skeleton` | — | `skeleton` |
 | `slider` | — | `slider` |
 | `slot` | — | `slot` |

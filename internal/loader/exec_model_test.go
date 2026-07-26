@@ -312,3 +312,47 @@ func TestRenderStepFloodWarning(t *testing.T) {
 		t.Errorf("%d render steps must load clean: %v", maxRenderSteps, ok.Diagnostics)
 	}
 }
+
+// ---- async http step ---------------------------------------------------------
+
+// TestLoadAsyncHTTPStep: `"async": true` is a plain boolean on an http step —
+// it must survive the load, and its absence must stay false (the default that
+// keeps every existing app blocking exactly as it did).
+func TestLoadAsyncHTTPStep(t *testing.T) {
+	app := FromDocs(execDocs(map[string]any{
+		"type": "action", "id": "fetch",
+		"steps": []any{
+			map[string]any{"type": "http.get", "url": "https://example.com", "async": true, "result": "resp",
+				"onSuccess": []any{map[string]any{"type": "state.set", "path": "count", "value": "1"}}},
+			map[string]any{"type": "http.get", "url": "https://example.com", "result": "resp2"},
+		},
+	}))
+	if len(app.Diagnostics) != 0 {
+		t.Fatalf("an async http step must load clean: %v", app.Diagnostics)
+	}
+	steps := app.Actions["fetch"].Steps
+	if !steps[0].Async {
+		t.Error("\"async\": true must reach the step")
+	}
+	if steps[1].Async {
+		t.Error("a step without \"async\" must stay synchronous — that is the default the whole design rests on")
+	}
+}
+
+// TestAsyncOnNonHTTPStepWarns: only a backend call has a round trip to move to
+// the background. Anywhere else the field is inert, which reads like a promise
+// the runtime never keeps — so the loader says so rather than ignoring it.
+func TestAsyncOnNonHTTPStepWarns(t *testing.T) {
+	app := FromDocs(execDocs(map[string]any{
+		"type": "action", "id": "bad",
+		"steps": []any{map[string]any{"type": "state.set", "path": "count", "value": "1", "async": true}},
+	}))
+	if !hasDiag(app.Diagnostics, `只有 'http.*' 步骤支持`) {
+		t.Errorf("async on a non-http step must warn: %v", app.Diagnostics)
+	}
+	for _, d := range app.Diagnostics {
+		if strings.HasPrefix(d, "error:") {
+			t.Errorf("it is a warning, not an error — the step still runs: %v", d)
+		}
+	}
+}

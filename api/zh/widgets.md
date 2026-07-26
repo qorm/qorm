@@ -111,6 +111,7 @@
 | `selectabletext` | — | `selectableText` |
 | `sensors` | — | `sensors` |
 | `share` | — | `hwList` |
+| `sheet` | bottomsheet, draggablesheet, draggablescrollablesheet, modalbottomsheet | `sheet` |
 | `skeleton` | — | `skeleton` |
 | `slider` | — | `slider` |
 | `slot` | — | `slot` |

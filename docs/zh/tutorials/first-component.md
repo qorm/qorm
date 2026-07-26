@@ -150,6 +150,83 @@ invoke 的 `name` 本身也可以是绑定,因此组件可以把"要执行哪个
 所以上面的 `frame` 在实例没有提供 footer 子节点时会显示 "No actions"。单个匿名插槽
 的行为与以前完全一致,因此已有组件不受影响。
 
+## 声明 props 与 slots
+
+组件可以声明它期望的接口。把模板包进一个定义对象:`template` 是根节点,`props`
+声明属性,`slots` 声明具名插槽。
+
+```json
+"components": {
+  "metric": {
+    "props": {
+      "label": "string",
+      "value": { "type": "number", "required": true },
+      "unit":  { "type": "string", "default": "pts" }
+    },
+    "slots": { "header": { "required": false }, "body": { "required": true } },
+    "template": {
+      "type": "column",
+      "children": [
+        { "type": "slot", "name": "header" },
+        { "type": "text", "text": "{{ prop.label }}" },
+        { "type": "text", "text": "{{ prop.value }} {{ prop.unit }}" },
+        { "type": "slot", "name": "body" }
+      ]
+    }
+  }
+}
+```
+
+一个 prop 既可以只写类型(`"label": "string"`),也可以写成带 `type`、`default`、
+`required` 的对象。类型有 `string`、`number`、`boolean`、`array`、`object`、`any`。
+
+声明带来什么:
+
+- **默认值**——实例没传的 prop 用声明的 `default` 渲染(上面的 `{{ prop.unit }}`
+  在实例不传时就是 `pts`)。
+- **加载期校验**——缺少 `required` 的 prop 或 slot 是 error,字面量值与声明类型
+  不符是 error,实例嵌套 `props` 对象里出现组件未声明的键是 warning。绑定
+  (`{{ state.x }}`)的值只有渲染期才存在,因此不做类型判定。
+- **模板内的表达式检查**——声明的 prop 类型会加入模板的类型检查作用域,所以
+  在 string 类型的 prop 上写 `{{ prop.label * 2 }}` 会被指出。
+
+不写声明就保持原有行为:所有键照旧透传、不做任何校验,因此在声明能力出现之前
+写的组件完全不受影响。
+
+## 独立文件中的组件
+
+组件也可以放在自己的文档里——约定为 `components/<name>.json`,与 `scenes/`、
+`actions/` 平级。`type` 写 `"component"`,`id` 就是组件名,`props` / `slots` /
+`template` 三个字段与内联写法完全一致:
+
+```json
+{
+  "qorm": "0.1",
+  "type": "component",
+  "id": "panel",
+  "props": { "title": "string" },
+  "slots": { "body": { "required": true } },
+  "template": {
+    "type": "card",
+    "children": [
+      { "type": "text", "text": "{{ prop.title }}" },
+      { "type": "slot", "name": "body" }
+    ]
+  }
+}
+```
+
+组件文件与 qorm.json 内联的 `components` 映射填充的是同一个注册表,实例的用法
+没有区别。同名定义两次是加载期错误(先出现的定义生效,而 manifest 最先读取)。
+
+除了 `{"type": "panel"}`,实例也可以用 `ref` 显式指定组件名,并且接受规范的
+`component://` 形式:
+
+```json
+{ "type": "component", "ref": "panel", "props": { "title": "Settings" },
+  "children": [ { "type": "text", "text": "Body", "slot": "body" } ] }
+```
+
 - `{{ prop.* }}` 只在组件模板内部可见;实例上同名的字段就是传入的值。
 - 组件可以嵌套组件(最深 32 层);模板内部的 id 会按实例加后缀,因此两个实例绝不会冲突。
 - 组件没有自己的局部状态或生命周期——它们通过你传入的 prop 读取全局状态。

@@ -75,7 +75,40 @@ type Runtime struct {
 	// frames counts intermediate frames committed during the current top-level
 	// dispatch, capped at maxFrames.
 	frames int
+
+	// Async is the HOST's background work sink: an `http.*` step marked
+	// {"async": true} hands it the blocking half of the request (work) plus the
+	// continuation that consumes the outcome (resume), and the dispatch returns
+	// immediately instead of waiting out the round trip. nil means "no host
+	// installed" — the step then runs on its ordinary synchronous path, so the
+	// same JSON behaves exactly as it did before the field existed.
+	//
+	// The host contract, which every implementation must honour:
+	//   - work runs on a goroutine of the host's choosing and touches NOTHING
+	//     on the runtime, so it needs no lock;
+	//   - resume is called at most once, with work's return value, while the
+	//     host holds the lock it serialises dispatches with — it reads and
+	//     writes state and may publish frames;
+	//   - a host that decides to drop the result (the runtime was swapped out
+	//     from under it by a hot reload) simply never calls resume; the
+	//     abandoned runtime's Inflight count then stays raised, which is sound
+	//     precisely because that runtime is being discarded.
+	//
+	// Like Commit it is deliberately NOT set by New (nor carried by Clone), so
+	// bare runtimes, offline renders and MCP simulations never open a socket on
+	// a background goroutine.
+	Async func(work func() any, resume func(any))
+	// inflight counts async requests started but not yet resumed. Guarded by
+	// the host's dispatch lock, like the state it lives beside.
+	inflight int
 }
+
+// Inflight reports how many async `http.*` requests this runtime has started
+// that have not delivered their outcome yet. Zero means quiescent: every
+// continuation has run, so the state (and therefore the render) has settled.
+// Read it under whatever lock the host serialises dispatches with — the same
+// discipline that guards State.
+func (r *Runtime) Inflight() int { return r.inflight }
 
 // maxFrames caps the intermediate frames one top-level dispatch may publish, so
 // a looping action cannot flood the live-sync channel. Frames beyond the cap are
@@ -707,16 +740,31 @@ var httpClient = &http.Client{Timeout: 20 * time.Second}
 // bool) is JSON-encoded so it is valid under the JSON Content-Type. On success (a 2xx
 // status) the response (JSON decoded, or raw string if not JSON) is written to
 // Result (or Path) and any stale Error is cleared; on any other status the body
-// is discarded and the status text is written to Error. Blocks until it returns.
+// is discarded and the status text is written to Error.
 //
 // Result branches: after the classic Result/Error writes, the optional
 // OnSuccess steps run with the decoded response bound as `{{ response }}`
 // (whatever Result stored — or would have stored when Result is unset), and
 // the optional OnError steps run with the failure message bound as
-// `{{ error }}`. Both run inline in the caller's context, on the dispatching
-// goroutine — so this call does not return until the branch has finished. A
-// `render` step inside either branch publishes a frame at that point (via the
-// host's Commit sink) without changing that ordering.
+// `{{ error }}`. A `render` step inside either branch publishes a frame at
+// that point via the host's Commit sink.
+//
+// Two execution modes, selected by the step's Async field:
+//
+//   - Synchronous (the default, and the only mode when the host installed no
+//     Async sink): the round trip blocks the dispatching goroutine and the
+//     branch runs inline in the caller's context, so this call does not return
+//     until the branch has finished and the state is readable the moment
+//     Dispatch returns.
+//   - Async ({"async": true} AND a host sink): the request is built here — so
+//     a malformed URL still fails synchronously, before anything is handed off
+//     — and only the round trip plus the continuation move to the host's
+//     background sink. applyHTTP returns immediately and the step's siblings
+//     run while the request is still open; the continuation later writes
+//     Result/Error and runs the branch under the host's lock. It sees the LIVE
+//     state (whatever the rest of the action, and any event since, has written)
+//     but the FROZEN action args and handler scope, so `{{ state.x }}` reads
+//     "now" while `{{ someArg }}` still reads the value the click carried.
 func (r *Runtime) applyHTTP(step model.Step, ctx map[string]any, depth int) {
 	method := strings.ToUpper(step.Method)
 	if method == "" {
@@ -735,14 +783,6 @@ func (r *Runtime) applyHTTP(step model.Step, ctx map[string]any, depth int) {
 	resultPath := step.Result
 	if resultPath == "" {
 		resultPath = step.Path
-	}
-	fail := func(msg string) {
-		if step.Error != "" {
-			setPath(r.State, step.Error, msg) // classic error-path write, kept first
-		}
-		if len(step.OnError) > 0 {
-			r.applySteps(step.OnError, branchCtx(ctx, "error", msg), depth+1)
-		}
 	}
 	var body io.Reader
 	if step.Body != "" {
@@ -763,7 +803,10 @@ func (r *Runtime) applyHTTP(step model.Step, ctx map[string]any, depth int) {
 	}
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
-		fail(err.Error())
+		// A request that cannot even be built never reaches the async sink: the
+		// failure is reported inline, exactly as before, so a typo'd URL keeps
+		// behaving identically in both modes.
+		r.settleHTTP(step, resultPath, ctx, depth, httpOutcome{errMsg: err.Error()})
 		return
 	}
 	for k, v := range step.Headers {
@@ -772,30 +815,122 @@ func (r *Runtime) applyHTTP(step model.Step, ctx map[string]any, depth int) {
 	if body != nil && req.Header.Get("Content-Type") == "" {
 		req.Header.Set("Content-Type", "application/json")
 	}
+	if step.Async && r.Async != nil {
+		frozen := freezeCtx(r.State, ctx)
+		r.inflight++
+		r.Async(
+			// Background half: the request is already built, so this closure
+			// reads nothing off the runtime and needs no lock.
+			func() any { return doRequest(req) },
+			// Continuation: the host calls this holding its dispatch lock.
+			func(res any) {
+				r.inflight--
+				out, _ := res.(httpOutcome)
+				// A completion is a fresh top-level continuation, so it gets a
+				// fresh intermediate-frame budget rather than inheriting
+				// whatever the dispatch that started the request had left.
+				r.frames = 0
+				r.settleHTTP(step, resultPath, freshCtx(r, frozen), 0, out)
+			})
+		return
+	}
+	r.settleHTTP(step, resultPath, ctx, depth, doRequest(req))
+}
+
+// httpOutcome is a finished request normalised into the three things the
+// continuation needs: it is the only value that crosses the boundary between
+// the (lock-free, possibly background) request and the (locked) state writes.
+type httpOutcome struct {
+	response any    // decoded body on success, raw string when it is not JSON
+	errMsg   string // transport error or non-2xx status text
+	ok       bool
+}
+
+// doRequest performs an already-built request and normalises the result. It
+// deliberately closes over no runtime state, which is what makes it safe to run
+// on a background goroutine while the dispatch that started it carries on.
+func doRequest(req *http.Request) httpOutcome {
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		fail(err.Error())
-		return
+		return httpOutcome{errMsg: err.Error()}
 	}
 	defer resp.Body.Close()
 	data, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		fail(resp.Status) // non-success: record the status, never the body
-		return
+		return httpOutcome{errMsg: resp.Status} // record the status, never the body
 	}
 	var response any
 	if json.Unmarshal(data, &response) != nil {
 		response = string(data) // non-JSON body → raw text
 	}
+	return httpOutcome{response: response, ok: true}
+}
+
+// settleHTTP applies a finished request to state: the classic Result/Error
+// writes first, then the matching result branch. Both execution modes funnel
+// through it, so async and synchronous requests land identically — the only
+// difference is which goroutine and which context they run in.
+func (r *Runtime) settleHTTP(step model.Step, resultPath string, ctx map[string]any, depth int, out httpOutcome) {
+	if !out.ok {
+		if step.Error != "" {
+			setPath(r.State, step.Error, out.errMsg) // classic error-path write, kept first
+		}
+		if len(step.OnError) > 0 {
+			r.applySteps(step.OnError, branchCtx(ctx, "error", out.errMsg), depth+1)
+		}
+		return
+	}
 	if resultPath != "" {
-		setPath(r.State, resultPath, response)
+		setPath(r.State, resultPath, out.response)
 	}
 	if step.Error != "" {
 		setPath(r.State, step.Error, "") // clear stale error on success
 	}
 	if len(step.OnSuccess) > 0 {
-		r.applySteps(step.OnSuccess, branchCtx(ctx, "response", response), depth+1)
+		r.applySteps(step.OnSuccess, branchCtx(ctx, "response", out.response), depth+1)
 	}
+}
+
+// freezeCtx captures the part of an action context that must survive until an
+// async request completes: everything that is NOT a live view of the runtime —
+// the action's args, the handler's captured list-item scope (item/index/first/
+// last, which reach the action as args), an enclosing branch's `response` /
+// `error`. Net effect: `{{ someArg }}` still means what it meant when the
+// button was pressed, while `{{ state.x }}` means what it means now.
+//
+// The split is decided by NAME: state owns every name it declares, so `state`,
+// `t`, `viewport` and every top-level state key are re-read live, and an arg
+// that collides with a state key is read live too. The alternative — remembering
+// which names the args occupied — would make `{{ draft }}` mean "dispatch-time"
+// or "live" depending on an argument list written in a different file, which is
+// not a rule an author (or an agent) can apply by reading the action.
+func freezeCtx(state, ctx map[string]any) map[string]any {
+	frozen := make(map[string]any, len(ctx))
+	for k, v := range ctx {
+		if k == "state" || k == "t" || k == "viewport" {
+			continue
+		}
+		if _, live := state[k]; live {
+			continue
+		}
+		frozen[k] = v
+	}
+	return frozen
+}
+
+// freshCtx rebuilds an action context for a continuation: live state (and its
+// flattened top-level keys), live catalog and viewport, with the frozen
+// dispatch-time bindings layered on top — the same precedence Dispatch uses
+// when it merges args over state.
+func freshCtx(r *Runtime, frozen map[string]any) map[string]any {
+	ctx := map[string]any{"state": r.State, "t": r.Catalog(), "viewport": r.ViewportVars()}
+	for k, v := range r.State {
+		ctx[k] = v
+	}
+	for k, v := range frozen {
+		ctx[k] = v
+	}
+	return ctx
 }
 
 // sortArray sorts an array of objects in place by key; dir "desc" reverses.
