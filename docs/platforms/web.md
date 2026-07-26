@@ -19,6 +19,34 @@ See the [support matrix](support-matrix.md).
 ![The QORM dashboard packaged as a web app in a browser](img/web-dashboard.png)
 *`qorm package -p web` produces an installable PWA — here the dashboard example opened in a browser.*
 
+## `http.*` steps run in the background here
+
+The packaged app carries the QORM runtime as WASM, and js/wasm is
+single-threaded: the goroutine running your action is the same one servicing the
+browser's event loop. A blocking request there does not slow the app down, it
+deadlocks it. So this host — like the standalone WASM runtime and the live
+playground, which are the same binary — runs **every** `http.*` step on a
+background worker, whether or not its JSON opted in with `"async": true`.
+
+That is a user-visible semantic, not an implementation detail:
+
+> The steps that follow an `http.*` step run **while the request is still open**.
+> Any step that depends on the reply belongs in `onSuccess` / `onError`.
+
+An action written that way behaves identically under `qorm run` and in the
+package. An action that reads a response from a sibling step works on the dev
+server (where requests block unless you opt in) and silently reads a stale
+value once packaged — writing `"async": true` explicitly reproduces the packaged
+behaviour while you develop. See
+[First action](../tutorials/first-action.md) for the full pattern.
+
+The push channel that carries the answer back is the same one intermediate
+frames use: the page installs `window.qormApplyFrame`, so a `render` step's
+loading frame reaches the screen and the request's completion arrives later as
+its own frame. Every path that swaps the runtime — an applied OTA update, a
+rollback — re-installs it, and a reply that belongs to a runtime that has since
+been replaced is dropped rather than written into its successor.
+
 ## Architecture
 
 ```text

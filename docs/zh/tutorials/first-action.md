@@ -64,6 +64,34 @@
 `"state.count > 0"` 这样的裸字符串是一个非空常量,因此恒为真;加载器会针对这个
 错误给出警告。
 
+## 用 `forEach` 循环
+
+`forEach` 步骤对一个绑定集合的每个元素各执行一遍循环体:
+
+```json
+{
+  "type": "forEach",
+  "in": "{{ state.items }}",
+  "as": "line",
+  "steps": [
+    { "type": "state.updateWhere", "path": "items", "matchKey": "id",
+      "match": "{{ line.id }}", "item": { "gift": "{{ true }}" } }
+  ]
+}
+```
+
+元素绑定在 `as` 上(默认 `item`),同时还有 `index`、`first`、`last`——别名会把整组
+名字一起改掉,所以 `"as": "line"` 得到 `line` / `lineIndex` / `lineFirst` /
+`lineLast`。这与列表 `renderItem` 的作用域名字完全一致,包括别名是保留名或非法时
+回退为 `item` 的规则。
+
+- `in` 只求值**一次**,所以在循环体里往同一个数组追加元素并不会把循环撑长。元素
+  本身是活的,因此修改正在遍历的数组的步骤能看到自己写入的结果。
+- 任何不是非空数组的东西——`null`、数字、对象、空数组、不存在的状态键——都是循环
+  零次,而不是报错。
+- 迭代次数上限 10000,循环体与 `if` 步骤共用 32 层嵌套上限,循环体里的 `invoke`
+  仍然计入调用深度上限。任何嵌套方式都挂不死一次派发。
+
 ## 调用另一个动作
 
 `invoke` 步骤按名字调用另一个动作,让共享行为只存在于一个文件里,而不必到处复制:
@@ -224,6 +252,83 @@ JSON 在任何地方都是安全的。`examples/netdemo` 与 `examples/tasks` �
 `false`,所以那些从兄弟步骤读取响应的写法照旧可用。`examples/netdemo` 同时演示了这两种
 写法。
 
+#### 治理一个后台请求:`key`、`pending`、`timeout`
+
+三个可选字段把上面那两条规则变成不必再记的东西。`examples/netdemo` 在同一个搜索框上
+同时演示了三者:
+
+```json
+{ "type": "http.get", "url": "https://api.example.com/search?q={{ state.q }}",
+  "async": true, "key": "search", "pending": "searching", "timeout": 4000,
+  "result": "hits", "error": "searchErr" }
+```
+
+- **`key`** 给请求命名一个槽位。同 key 的新请求会取消该槽位上仍在途的旧请求,并
+  **整体丢弃**它的结果——不写 `result`、不写 `error`、不跑分支。每次按键都发一次,
+  落地的就是**最后一次**输入的结果,而不是最后返回的那一次。没有它,旧查询的快响应
+  会覆盖当前查询的慢响应,这正是「搜索框显示错结果」的经典 bug。
+- **`pending`** 是一个状态路径,在请求在途期间恒为 `true`:发起时置真,结束时复位,
+  **失败、超时、被上限拒绝时同样复位**。它替代那对 `state.set` 步骤(连同上面第二条
+  规则——已经没有分支可以漏了)。转圈组件照常绑定 `{{ state.searching }}`。该路径按
+  引用计数,两个重叠的请求会一直保持到最后一个结束,被取代的请求也绝不会关掉其后继
+  的转圈。
+- **`timeout`** 以毫秒为单位限定本次请求,覆盖共享的 20 秒上限。超时按普通失败处理:
+  写入 `error` 路径并执行 `onError`,错误信息为 `request timed out after 4000ms`。
+
+还有一道护栏不需要写 JSON:一个运行时最多允许 **64** 个在途后台请求。超出后该步骤会
+立刻走 `error` 路径失败,错误信息为 `too many concurrent requests (64 in flight)`,
+而不是悄悄排队——当一个 250ms 的定时器去轮询一个要好几秒才响应的后端时,救你的正是
+这条规则。
+
+#### 编排节奏:`delay`
+
+`{ "type": "delay", "ms": 500 }` 会在等待结束后执行**同一列表中位于它之后**的步骤,
+于是 `render` / `delay` / `render` 就能编排分段展示,不需要 timer 节点,也不需要第二个
+动作:
+
+```json
+[ { "type": "state.set", "path": "phase", "value": "{{ 'one' }}" },
+  { "type": "render" },
+  { "type": "delay", "ms": 400 },
+  { "type": "state.set", "path": "phase", "value": "{{ 'two' }}" },
+  { "type": "render" } ]
+```
+
+它不会阻塞:等待交给 `async` 用的那个后台工作者,所以会话全程可用。在没有后台工作者的
+宿主上(离线渲染、`qorm render`、MCP 模拟)它退化为完全不等待,后续步骤立即执行——
+动作仍然到达同样的最终状态,只是没人等过。
+
+#### 在打包后的应用里,每个请求都是异步的
+
+这是同一份 JSON 会因运行环境而行为不同的唯一一处,发布之前值得先弄清楚。
+
+客户端宿主——`qorm package` 产出的离线包(web / iOS / Android)、独立的 WASM 运行时,
+以及在线 playground——都是**单线程**的:执行你 action 的那个 goroutine,正是给浏览器
+事件循环提供服务的那一个。在那里做阻塞请求不只是卡住界面,而是把整个应用死锁。
+因此这些宿主会把**每一个** `http.*` 步骤都交给后台工作者,无论它的 JSON 有没有写
+`"async": true`。
+
+由此得到的是一条规则,而不是一条建议:
+
+> 在打包后的应用里,`http.*` 步骤之后的同级步骤会在**请求仍在进行时**执行。任何
+> 依赖响应的步骤都必须写进 `onSuccess` / `onError`。
+
+```json
+[
+  { "type": "http.get", "url": "…/items", "result": "items",
+    "onSuccess": [ { "type": "state.set", "path": "count", "value": "{{ count(response) }}" } ] },
+
+  { "type": "state.set", "path": "count", "value": "{{ count(state.items) }}" }
+]
+```
+
+第一种写法到哪里都对。第二种是同级读取:它在 `qorm run` 下能工作(服务端宿主除非
+你主动选择,否则是阻塞的),而同一个应用一旦打包,它就会悄悄读到**上一次**的值。
+显式写上 `"async": true` 是最省事的验证手段——它让开发服务器上也呈现打包后的行为。
+
+请求最终落到哪里则没有变化:所有响应都回来之后,状态——因而渲染结果——与同步写法
+完全一致。异步改变的是一次派发产生的帧序列,而不是它的终点。
+
 ### 错误处理(Error handling)
 
 `http.*` 会把任何失败信息写入 `error` 路径(成功时清空)。在 UI 中绑定 `{{ state.error }}` 并用 `if` 显示:
@@ -271,10 +376,54 @@ JSON 在任何地方都是安全的。`examples/netdemo` 与 `examples/tasks` �
 当一个字段的结果多于两种时,`if` 步骤比三元表达式更好读,而且它每个分支可以写入
 多个路径。
 
-输入类组件同时带有浏览器的原生约束属性——`required`、`pattern`、`maxLength`,
-以及决定软键盘形态的 `inputMode`。它们给用户即时的原生反馈,但**不会**阻断一个
-动作:按钮的 `onPress` 是从它自己的点击处理器派发的。请自行把提交按钮的
-`disabled` 绑定到你的有效性表达式来做门禁。
+### 让浏览器阻断提交
+
+输入类组件带有浏览器的原生约束属性——`required`、`pattern`、`maxLength`,以及决定
+软键盘形态的 `inputMode`。渲染器只输出这几个校验属性:没有 `minlength`、`min`、
+`max`、`step`,而 `pattern` 仅对 `input` 生效(`textarea` 没有这个属性)。
+
+放在 `form` 里、且**没有** `onPress` 的按钮本来就已经被拦住了:HTML 让它成为提交
+按钮,约束不满足时浏览器根本不会发起提交,表单自己的处理器也就不会运行。真正的
+漏洞是带有**自己** `onPress` 的按钮——它的点击处理器先于、且独立于约束检查运行。
+`submit` 属性堵上了这个口子:
+
+```json
+{ "type": "form", "id": "signup", "onPress": "createAccount", "children": [
+  { "type": "input",  "id": "email", "binding": "email", "required": true,
+    "inputMode": "email", "pattern": "[^@\\s]+@[^@\\s]+\\.[^@\\s]+" },
+  { "type": "button", "id": "save",   "label": "Create", "submit": true },
+  { "type": "button", "id": "cancel", "label": "Cancel", "submit": false, "onPress": "goBack" }
+] }
+```
+
+`form` 用 `onPress` 指定它的提交动作——在字段里按 Enter 和点击原生提交按钮触发的
+都是它。
+
+- `"submit": true` 让按钮成为真正的提交按钮。它自己没有 `onPress` 时,这次点击
+  **就是**提交,而提交已经由浏览器校验过;它带有 `onPress` 时,处理器会被表单的
+  有效性检查拦下,于是校验不通过的表单既不派发动作也不提交,浏览器自己的提示
+  气泡会指向出问题的字段。
+- `"submit": false` 让它成为普通按钮,永远不被拦截。这正是 Cancel 按钮需要的:
+  它不该被一个无关的无效字段挡住。
+- 不写 `submit` 时输出的标记与以前完全一致,所以你已经写好的东西行为不变。
+- 这个门禁刻意不从"位于表单内部"推断:渲染器没有祖先通道,而且那样推断会毁掉
+  Cancel 的场景。这个属性表达的是意图而不是位置;不在表单里的按钮上它是惰性的。
+- `form` 上的 `"novalidate": true` 关掉浏览器的检查,按钮的门禁读的正是表单的这个
+  标志,因此两者是一起关掉的。写在**按钮**上的 `"novalidate": true`(与 `submit`
+  同用)则是单个按钮的逃生舱——比如一个应当绕过校验的"保存草稿"。
+
+通过门禁的按钮会既运行自己的动作**又**让表单提交,所以把工作放在按钮上或表单上,
+不要两边都放。
+
+`textformfield` 把两条通道接在了一起:当字段选择了原生校验——它带有字面量形式的
+`required`,或非空的 `pattern`;这两个键按字面读取,不当作绑定——它的 `error` 文案
+也会经由原生通道输出为 `title` 与 `aria-invalid`,于是你写的措辞会出现在浏览器
+自己的气泡里。而用户真正交互过的字段会由原生 `:user-invalid` 画上红框,因此一个
+还没被碰过的必填字段不会在任何人输入之前就显得出错。
+
+原生约束仍然不是校验引擎:它表达不了"两次密码要一致",也做不了服务端校验。这些
+仍请使用上面的 `state.set` 写法;当你希望控件显得不可用、而不是点击后才抱怨时,
+再去绑定按钮的 `disabled`。
 
 ### 分页(Pagination)
 

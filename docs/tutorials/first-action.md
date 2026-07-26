@@ -71,6 +71,37 @@ and empty collections are falsy. Remember the `{{ … }}` — a bare string like
 `"state.count > 0"` is a non-empty constant, so it is always truthy; the loader
 warns about exactly that mistake.
 
+## Looping with `forEach`
+
+A `forEach` step runs its body once per element of a bound collection:
+
+```json
+{
+  "type": "forEach",
+  "in": "{{ state.items }}",
+  "as": "line",
+  "steps": [
+    { "type": "state.updateWhere", "path": "items", "matchKey": "id",
+      "match": "{{ line.id }}", "item": { "gift": "{{ true }}" } }
+  ]
+}
+```
+
+The element is bound under `as` (default `item`), together with `index`,
+`first` and `last` — and an alias renames the whole set, so `"as": "line"`
+gives `line` / `lineIndex` / `lineFirst` / `lineLast`. These are exactly a
+list's `renderItem` scope names, including the fallback to `item` when the
+alias is reserved or malformed.
+
+- `in` is evaluated **once**, so a body that appends to the same array does not
+  extend the loop. The elements themselves are live, so a step that updates the
+  array it is iterating sees its own writes.
+- Anything that is not a non-empty array — `null`, a number, an object, an
+  empty array, a missing state key — iterates zero times rather than erroring.
+- Iterations are capped at 10000, the body shares the `if` step's 32-deep
+  nesting cap, and an `invoke` inside it still counts against the call cap. No
+  nesting can hang a dispatch.
+
 ## Calling another action
 
 An `invoke` step calls another action by name, so shared behaviour lives in one
@@ -249,6 +280,97 @@ click carried. `async` defaults to `false`, and falls back to `false` on a host
 with no background worker, so a step that reads its response from a sibling
 keeps working unchanged. `examples/netdemo` ships both shapes side by side.
 
+#### Governing a background request: `key`, `pending`, `timeout`
+
+Three optional fields turn the two rules above into things you no longer have to
+remember. `examples/netdemo` ships all three on one search box:
+
+```json
+{ "type": "http.get", "url": "https://api.example.com/search?q={{ state.q }}",
+  "async": true, "key": "search", "pending": "searching", "timeout": 4000,
+  "result": "hits", "error": "searchErr" }
+```
+
+- **`key`** names a request slot. Starting a new request on a key cancels
+  whichever request is still open on it *and discards that one's outcome
+  entirely* — no `result` write, no `error` write, no branch. Fire this on every
+  keystroke and what lands is the reply to the **last** keystroke, not whichever
+  round trip happened to finish last. Without it, a fast reply to an old query
+  overwrites a slow reply to the current one, which is the classic
+  search-as-you-type bug.
+- **`pending`** is a state path held `true` for exactly as long as the request is
+  open — set on launch, cleared when it settles, *including* on failure, timeout
+  and refusal. It replaces the pair of `state.set` steps (and the second of the
+  two rules above: there is no branch left to forget). Bind your spinner to
+  `{{ state.searching }}` as usual. The path is reference-counted, so two
+  overlapping requests hold it until the last one settles, and a superseded
+  request never switches off its successor's spinner.
+- **`timeout`** caps this request in milliseconds, overriding the shared 20s
+  ceiling. Expiry is an ordinary failure — the `error` path is written and
+  `onError` runs, with the message `request timed out after 4000ms`.
+
+One more guard needs no JSON: a runtime allows **64** open background requests at
+a time. Past that a step fails immediately on its `error` path with
+`too many concurrent requests (64 in flight)` rather than queueing invisibly —
+the shape that saves you when a 250ms timer polls a backend that takes seconds.
+
+#### Pacing an action: `delay`
+
+`{ "type": "delay", "ms": 500 }` runs the steps that follow it *in the same list*
+when the wait expires, so `render` / `delay` / `render` stages a reveal without a
+timer node or a second action:
+
+```json
+[ { "type": "state.set", "path": "phase", "value": "{{ 'one' }}" },
+  { "type": "render" },
+  { "type": "delay", "ms": 400 },
+  { "type": "state.set", "path": "phase", "value": "{{ 'two' }}" },
+  { "type": "render" } ]
+```
+
+It never blocks: the wait goes to the same background worker `async` uses, so the
+session stays answerable throughout. On a host with no background worker (an
+offline render, `qorm render`, an MCP simulation) it degrades to no wait at all
+and the remaining steps run immediately — the action still reaches the same final
+state, nobody just waited for it.
+
+#### In a packaged app, every request is async
+
+This is the one place where the same JSON behaves differently depending on
+where it runs, and it is worth knowing before you ship.
+
+The client-side hosts — the offline package produced by `qorm package`
+(web / iOS / Android), the standalone WASM runtime, and the live playground —
+are **single-threaded**: the goroutine that runs your action is the same one
+servicing the browser's event loop. A blocking request there does not merely
+stall the UI, it deadlocks the whole app. So those hosts run **every** `http.*`
+step on the background worker, whether or not its JSON says `"async": true`.
+
+The consequence is a rule, not a preference:
+
+> On a packaged app, the steps that follow an `http.*` step run **while the
+> request is still open**. Anything that depends on the reply must live in
+> `onSuccess` / `onError`.
+
+```json
+[
+  { "type": "http.get", "url": "…/items", "result": "items",
+    "onSuccess": [ { "type": "state.set", "path": "count", "value": "{{ count(response) }}" } ] },
+
+  { "type": "state.set", "path": "count", "value": "{{ count(state.items) }}" }
+]
+```
+
+The first form is correct everywhere. The second is a sibling read: it works
+under `qorm run` (the server host blocks unless you opt in) and quietly reads
+the *previous* value once the same app is packaged. Writing `"async": true`
+explicitly is the cheapest way to find out — it gives you the packaged-app
+behaviour on the dev server too.
+
+Where the request lands is unchanged: once every reply is in, the state, and
+therefore the render, is exactly what the synchronous version would have
+produced. Async changes the sequence of frames, never the destination.
+
 ### Error handling
 
 `http.*` writes any failure message to the `error` path (and clears it on success). Bind `{{ state.error }}` in the UI and show it with an `if`:
@@ -297,12 +419,64 @@ Write each field's error with one conditional `state.set` (a ternary picks the m
 An `if` step reads better than a ternary once a field has more than two
 outcomes, and it can write several paths per branch.
 
-Input widgets also carry the browser's native constraint attributes —
-`required`, `pattern`, `maxLength`, plus `inputMode` for the on-screen
-keyboard. Those give the user immediate native feedback, but they do **not**
-block an action: a button's `onPress` dispatches from its own click handler.
-Gate submission yourself by binding the submit button's `disabled` to your
-validity expression.
+### Letting the browser block the submit
+
+Input widgets carry the browser's native constraint attributes — `required`,
+`pattern`, `maxLength`, plus `inputMode` for the on-screen keyboard. Those are
+the only validation attributes the renderer emits; there is no `minlength`,
+`min`, `max` or `step`, and `pattern` is `input`-only (a `textarea` has no such
+attribute).
+
+A button with **no** `onPress` inside a `form` is already gated: HTML makes it
+a submit button, so the browser refuses to start the submission while a
+constraint fails and the form's own handler never runs. The leak was a button
+carrying its **own** `onPress` — its click handler ran before, and independently
+of, the constraint check. The `submit` prop closes it:
+
+```json
+{ "type": "form", "id": "signup", "onPress": "createAccount", "children": [
+  { "type": "input",  "id": "email", "binding": "email", "required": true,
+    "inputMode": "email", "pattern": "[^@\\s]+@[^@\\s]+\\.[^@\\s]+" },
+  { "type": "button", "id": "save",   "label": "Create", "submit": true },
+  { "type": "button", "id": "cancel", "label": "Cancel", "submit": false, "onPress": "goBack" }
+] }
+```
+
+A `form` names its submit action with `onPress` — that is what Enter in a field
+and a native submit button both fire.
+
+- `"submit": true` makes the button a real submit button. With no `onPress` of
+  its own the press *is* the submission, which the browser has already
+  validated; with an `onPress`, the handler is gated on the form's validity
+  check, so a failing form neither dispatches the action nor submits, and the
+  browser's own message bubble appears pointing at the offending field.
+- `"submit": false` makes it an ordinary button, never gated. That is what a
+  Cancel button wants: it must not be blocked by an unrelated invalid field.
+- Leaving `submit` off keeps exactly the old markup, so nothing you already
+  wrote changes behaviour.
+- The gate is deliberately not inferred from being inside a form — the renderer
+  has no ancestor channel, and inferring it would break the Cancel case. The
+  prop states intent, not place; it is inert on a button that is not in a form.
+- `"novalidate": true` on the `form` turns the browser's checking off, and the
+  button gate reads the form's flag, so the two switch off together.
+  `"novalidate": true` on the *button* (alongside `submit`) is the per-button
+  escape hatch — a "Save draft" that should bypass validation.
+
+A gated button that passes runs its own action **and** lets the form submit, so
+put the work on the button or on the form, not both.
+
+`textformfield` ties the two channels together: when the field opts into native
+validation — it carries a literal `required`, or a non-empty `pattern`; those
+two are read as written, not as bindings — its `error` text also rides the
+native channel as `title` plus `aria-invalid`, so your wording shows in the
+browser's own bubble. And a field the user has actually interacted with draws a
+red border natively (`:user-invalid`), so an untouched required field does not
+look wrong before anyone has typed.
+
+Native constraints still are not a validation engine: they cannot express
+"passwords must match" or anything server-side. Keep using the `state.set`
+recipe above for those, and bind the button's `disabled` when you want the
+control to look unavailable rather than to complain on click.
 
 ### Pagination
 

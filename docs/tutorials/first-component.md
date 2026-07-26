@@ -195,7 +195,10 @@ object with `type`, `default` and `required`. Types are `string`, `number`,
 What a declaration buys you:
 
 - **Defaults** — a prop the instance omits renders as its declared `default`
-  (`{{ prop.unit }}` above is `pts` unless the instance passes one).
+  (`{{ prop.unit }}` above is `pts` unless the instance passes one). A default
+  is a literal from the definition, not an expression evaluated in the
+  instance's scope, and it never satisfies `required` — a required prop is
+  always the instance's job.
 - **Load-time checks** — a missing `required` prop or slot is an error, a
   literal value that cannot satisfy its declared type is an error, and a key in
   the instance's nested `props` object that the component never declared is a
@@ -243,6 +246,15 @@ Besides `{"type": "panel"}`, an instance may name the component explicitly with
 { "type": "component", "ref": "panel", "props": { "title": "Settings" },
   "children": [ { "type": "text", "text": "Body", "slot": "body" } ] }
 ```
+
+`ref` may itself be a binding — `"ref": "{{ item.widget }}"` — resolved in the
+instance's scope, which is how one row template picks a different component per
+item. A bound `ref` cannot be checked at load time, and a ref that resolves to
+no component renders an empty container rather than the unknown-node
+placeholder.
+
+The convention is `components/<name>.json`, but the split is driven by the
+document's `type`, so a component document can live anywhere in the app folder.
 
 - `{{ prop.* }}` is only visible inside the component template; a field of the same name on the instance is the value passed in.
 - Components can nest components (up to 32 deep); ids inside a template are suffixed per instance, so two instances never collide.

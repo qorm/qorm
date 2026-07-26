@@ -26,6 +26,11 @@ qorm package app -p ios|android --release --app-version 1.2.0 --build 42
 验签,不刷新页面热切换,并保留一级回滚副本——见
 [security-model.md](../security/security-model.md)。
 
+由于设备上的运行时与 web 包用的是同一个单线程 Go→WASM 构建,**那里的每一个
+`http.*` 步骤都跑在后台工作者上**,无论它的 JSON 有没有写 `"async": true`——因此
+请求之后的同级步骤会在请求仍在进行时执行,任何依赖响应的步骤都必须放进
+`onSuccess` / `onError`。参见 [Web](web.md) 与[第一个动作](../tutorials/first-action.md)。
+
 应用通过 Go→WASM 在 WebView 中于设备上离线运行。示例:[`hardware`](https://github.com/qorm/qorm/tree/main/examples/hardware)(演示能力目录)、[`i18n`](https://github.com/qorm/qorm/tree/main/examples/i18n)(语言环境、复数、货币、RTL)。有关各能力的平台支持情况,参见[支持矩阵](../../platforms/support-matrix.md)。
 
 ## 架构

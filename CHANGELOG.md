@@ -7,6 +7,37 @@ All notable changes to QORM are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- `computed` — derived values declared once in the manifest (beside or inside
+  `globalState`) instead of repeating the same expression in every binding.
+  They are evaluated once per frame boundary rather than once per read, may
+  read one another in any declaration order, and are published read-only at
+  `state.computed.<name>` (`{{ state.computed.total }}` in a scene binding,
+  `{{ computed.total }}` inside an action). A dependency cycle is an error
+  diagnostic and those values evaluate to nothing instead of recursing; a step
+  that writes into the namespace is an error diagnostic and the whole step is
+  dropped at dispatch, so a gated `http.get` never issues its request. A
+  derived expression sees `state.*`, `t` and `viewport.*`, but not `route.*`.
+  An app that declares none is untouched — `computed` stays an ordinary state
+  key.
+- Scene route `guard` — `{"guard": {"condition": …, "redirect": …, "params": …}}`
+  on a scene document declares the precondition for entering it. It runs on
+  every entry path (an action's `navigate` step, browser Back/Forward, a deep
+  link, and the initial entry scene), before the scene's `onEnter`, so a
+  protected route cannot be reached by spelling a URL and a private-data hook
+  never fires for a refused visitor. A redirect out of the entry scene replaces
+  the current frame rather than pushing one, guards chain through the redirect
+  target, and a chain that revisits a scene refuses the navigation (capped at 8
+  hops) — reported at load time as a possible redirect cycle. A guard
+  re-evaluates derived values privately first, so `set user` → `navigate` in one
+  action is not bounced by the pre-login view; `navigate` with `back: true` is
+  not guarded.
+- `forEach` step — `{"type":"forEach","in":"{{ state.items }}","as":"row",
+  "steps":[…]}` runs its body once per element, binding the element under `as`
+  (default `item`) plus `index` / `first` / `last`, exactly like a list's
+  `renderItem` scope. Non-array collections iterate zero times, `in` is
+  evaluated once so the body cannot extend its own loop, iterations are capped
+  at 10000, and the body shares the `if` depth cap and the `invoke` call cap, so
+  no nesting can hang a dispatch.
 - `http.*` steps: optional `"async": true` runs the request in the background.
   The dispatch returns as soon as the request is issued — so the frame at its
   boundary already shows the loading state, and the rest of the session stays
@@ -17,30 +48,45 @@ All notable changes to QORM are documented here. The format is based on
   are unchanged. Defaults to `false`, so a step whose sibling steps read its
   response keeps its blocking behaviour, and the loader warns when `async` is
   written on a step that is not an `http.*` call.
+- `http.*` steps: three governance fields for background requests.
+  `"key": "search"` names a request slot — starting a new request on a key
+  cancels whichever request is still open on it and discards that one's outcome
+  entirely (no `result`/`error` write, no branch), so search-as-you-type lands
+  the reply to the *last* keystroke rather than whichever round trip finished
+  last. `"pending": "searching"` holds a state path `true` for exactly as long
+  as the request is open — cleared on success, failure, timeout and refusal
+  alike, and reference-counted so overlapping requests hold it until the last
+  settles — which retires the hand-written loading-flag pair. `"timeout": 4000`
+  caps one request in milliseconds instead of the shared 20s ceiling, reporting
+  expiry through the ordinary error path as `request timed out after 4000ms`.
+  Alongside them, a runtime now caps background work at **64** open units:
+  past that a step fails immediately on its error path with
+  `too many concurrent requests (64 in flight)` instead of queueing invisibly or
+  leaking goroutines — the same class of self-protection as the 250ms timer
+  floor. `examples/netdemo` ships all three on one search box.
+- `delay` step — `{"type":"delay","ms":500}` runs the steps that follow it *in
+  the same list* when the wait expires, so `render` / `delay` / `render` paces a
+  staged reveal without a timer node or a second action. It never blocks: the
+  wait goes to the same background sink `async` uses, and on a host with no sink
+  (an offline render, an MCP simulation) it degrades to no wait at all, so the
+  action still reaches the same final state. A missing or non-positive `ms` is a
+  load-time error.
+- Load-time diagnostic for the invisible loading state: an action that raises a
+  flag, calls a backend synchronously and lowers the flag again — all in one
+  dispatch, which renders one frame at its boundary, so the flag is never seen —
+  is now reported, naming the three one-word cures (`render`, `"async": true`,
+  `"pending"`). It fires only on the full shape, so an ordinary boolean that
+  happens to precede a request is not reported.
+- `qorm_activity` now carries `inflight`: the background work the app still has
+  open (async `http.*` requests plus waiting `delay` steps). `0` is the
+  quiescence signal — the state an agent reads is final; above zero means a
+  reply is still coming and the current frame is a loading state.
 - The client-side hosts — the standalone WASM runtime, the offline package that
   embeds it, and the live playground — install the same two sinks the server
   has: `window.qormApplyFrame(frame)` is the push channel, and
   `playcore.InstallSinks` wires it to `Runtime.Commit` / `Runtime.Async`. A
   `render` step's loading frame now reaches the screen in a packaged app, and an
   `http.*` completion arrives as a later frame instead of being invisible.
-- **Fixed a hard freeze in packaged apps**: an `http.*` step in the WASM build
-  ran its round trip on the goroutine servicing the JS callback, which is
-  exactly the self-wait the single-threaded js/wasm scheduler cannot break —
-  the whole app died with "all goroutines are asleep - deadlock!". Those hosts
-  now set `Runtime.AsyncAll`, so every request takes the background sink
-  whether or not its JSON opted in. On such a host an `http.*` step's siblings
-  run while the request is open; put the steps that depend on the reply in
-  `onSuccess` / `onError`.
-- `tabs` — `swipe: true` drags a panel sideways to the neighbouring tab. It
-  activates that tab's own control, so it behaves identically for uncontrolled,
-  controlled (state-bound `active`) and `onChange` tabs. A `scrollable` tab bar
-  also scrolls its active tab into view automatically, however the tab changed.
-- `accordion` — `single: true` makes the panels exclusive (opening one closes
-  the rest). Opt-in; the default stays independent toggles.
-- `carousel` — `autoplay: <ms>` advances the track on a clock (floored at
-  250ms, paused while pointed at or while the tab is hidden, wrapping at the
-  end) and `indicators: true` renders a tappable dot row whose active dot is
-  derived from the live scroll position.
 - `Runtime.Async` — the host-installed background work sink `"async": true`
   needs, and `Runtime.Inflight()`, the exact count of requests still open. Like
   `Runtime.Commit`, neither `runtime.New` nor `Clone` ever installs it, so a
@@ -48,34 +94,126 @@ All notable changes to QORM are documented here. The format is based on
   and side-effect free; the server installs it wherever it installs the frame
   sink. `qorm_dispatch` detaches it for the duration of an agent's call, so an
   agent always receives the settled state rather than a loading frame.
-- `computed` — derived values declared once in the manifest (beside or inside
-  `globalState`) instead of repeating the same expression in every binding.
-  They are evaluated once per frame boundary rather than once per read, may
-  read one another in any declaration order, and are published read-only at
-  `state.computed.<name>` (`{{ state.computed.total }}` in a scene binding,
-  `{{ computed.total }}` inside an action). A dependency cycle is an error
-  diagnostic and those values evaluate to nothing instead of recursing; a step
-  that writes into the namespace is an error diagnostic and is dropped at
-  dispatch. An app that declares none is untouched — `computed` stays an
-  ordinary state key.
-- Scene route `guard` — `{"guard": {"condition": …, "redirect": …, "params": …}}`
-  on a scene document declares the precondition for entering it. It runs on
-  every entry path (an action's `navigate` step, browser Back/Forward, a deep
-  link, and the initial entry scene), before the scene's `onEnter`, so a
-  protected route cannot be reached by spelling a URL and a private-data hook
-  never fires for a refused visitor. A redirect replaces the current frame
-  rather than pushing one, guards chain through the redirect target, and a
-  chain that revisits a scene refuses the navigation (capped at 8 hops) —
-  reported at load time as a possible redirect cycle.
-- `forEach` step — `{"type":"forEach","in":"{{ state.items }}","as":"row",
-  "steps":[…]}` runs its body once per element, binding the element under `as`
-  (default `item`) plus `index` / `first` / `last`, exactly like a list's
-  `renderItem` scope. Non-array collections iterate zero times, iterations are
-  capped at 10000, and the body shares the `if` depth cap and the `invoke` call
-  cap, so no nesting can hang a dispatch.
-- `examples/derived` — a cart demonstrating all three: `computed` subtotal /
-  shipping / total, a `guard` bouncing an unauthenticated checkout to sign-in,
-  and a `forEach` bulk edit.
+- Components: a **declaration form** for a component definition — wrap the
+  template in `{"props": {…}, "slots": {…}, "template": {…}}` and the component
+  states the interface it expects. A prop is a type string (`"label": "string"`)
+  or an object with `type` / `default` / `required`; the types are `string`,
+  `number`, `boolean`, `array`, `object` and `any`. A missing required prop or
+  slot is a load-time error, a literal that cannot satisfy its declared type is
+  an error, and an undeclared key inside an instance's nested `props` object is
+  a warning — bindings are never type-checked here, since they are only known
+  at render time. Declared prop types also join the template's expression
+  checker, so `{{ prop.title * 2 }}` on a string prop is caught inside the
+  component. A default is a literal from the definition and never satisfies
+  `required`. The `template` key is the discriminator, so every component
+  written before this is untouched.
+- Components: a component may live in its own `type: "component"` document with
+  its name in `id` — by convention `components/<name>.json`, though the split
+  is type-driven like scenes and actions, so the file can sit anywhere.
+  Component documents and the manifest's inline `components` map fill one
+  registry (the manifest is read first; defining a name twice is an error and
+  the first definition wins). An instance may also use the spec's `ref` form —
+  `{"type":"component","ref":"panel"}`, the canonical `component://panel`
+  spelling, or a binding resolved in the instance's own scope.
+- `largetitle` / `sliverappbar` now actually collapse: the compact bar is
+  sticky and the big title scrolls behind it, cross-fading into the compact
+  title. The collapse itself needs no JavaScript and no modern CSS; the
+  cross-fade rides a CSS scroll-driven animation off the main thread where the
+  browser has one, and a small script drives the same declarations where it
+  does not. `"collapsible": false` restores the previous static header.
+- New `sheet` widget (aliases `bottomsheet`, `draggablesheet`,
+  `draggablescrollablesheet`, `modalbottomsheet`) — a bottom panel dragged
+  between snap points. `snapPoints` is a ladder of fractions (a value above 1
+  reads as a percentage) and may itself be state-bound; `initialSnap` picks the
+  opening stop; `onSnap` is registered once per stop and each registration
+  carries that stop's index as the `snap` arg; `onClose`, a scrim tap and a
+  fling below the lowest stop all close it, and a bound `open` gets the
+  built-in dismiss for free. A falsy `open` renders nothing at all. Only the
+  grab row claims the drag gesture, so a sheet can hold a list, a swipeable row
+  or a reorderable list without the two fighting.
+- Style: `backdropBlur` (a number of px, capped at 120) and `backdropTint` (the
+  translucent fill the blur shows through) give any node the frosted-glass
+  look. The shell rules they feed start from a **solid** surface, so a browser
+  without `backdrop-filter` gets an opaque panel rather than an unreadable
+  transparent one. `appbar` and `largetitle` are frosted by default, so there
+  the key retunes an existing radius and `0` turns the frost off.
+- `tabs` — bindable `active` (a plain state binding switches the widget to the
+  hidden-radio idiom `segmented` already uses, so controlled tabs need no
+  action file and no new JS; an out-of-range index clamps), a `scrollable` tab
+  bar that scrolls its active tab into view however the tab changed, a
+  styleable `indicator` / `indicatorColor` underline or pill, `onChange`
+  carrying the `index` and the `tab` label of the tab switched to, opt-in
+  `lazy` panels (gated on controlled mode — client-side switching can only
+  reveal panels already in the DOM), and `swipe: true` to drag a panel sideways
+  to its neighbour. The swipe carries no handler indices at all: it activates
+  the neighbour by synthesizing that tab's own tap, so it behaves identically
+  in uncontrolled, controlled and `onChange` modes.
+- `table` / `datatable` — a child carrying `column: "<key>"` becomes that
+  column's **cell template**, rendering widgets instead of plain text and
+  scoped through the same alias machinery lists use (`{{ row.x }}`,
+  `{{ rowIndex }}`, `{{ cell.value }}`, all renamed by `as`). A child with
+  `detail: true` adds a native expandable row under every row.
+  `stickyHeader` / `stickyTop`, `scrollX` / `maxHeight` / `minWidth` and a
+  per-column `sticky` give frozen headers and frozen leading columns.
+- `accordion` — `active` selects the open panel (bindable, clamped), and
+  `single: true` makes the panels exclusive (opening one closes the rest);
+  the default stays independent toggles. `tree` — `collapsed` starts every
+  branch closed, with a data item's own `expanded` still winning for its own
+  node. `timeline` — items take `color`, `icon` and `time`.
+- `carousel` — `autoplay: <ms>` advances the track on a clock (floored at
+  250ms, paused while pointed at or while the tab is hidden, wrapping at the
+  end) and `indicators: true` renders a tappable dot row whose active dot is
+  derived from the live scroll position.
+- Forms: native constraint validation can now block the action. `button` gains
+  `submit` — `true` emits a real submit button plus an inline validity gate, so
+  a button carrying its own `onPress` inside a `form` no longer dispatches past
+  a failing `required` / `pattern`, and the browser's own message bubble comes
+  free; `false` emits an ordinary button that is never gated, which is what a
+  Cancel button needs. It is deliberately not inferred from being inside a form
+  (the renderer has no ancestor channel, and inferring it would break Cancel).
+  `novalidate` on the button emits `formnovalidate`, `form` gains `novalidate`,
+  and the button's gate reads the form's flag so the two switch off together.
+  `textformfield` echoes its `error` into `title` / `aria-invalid` when the
+  field opts into native validation, so the author's wording rides the native
+  bubble, and a field the user has actually interacted with draws a red border
+  natively (`:user-invalid`) — an untouched required field does not look wrong
+  before anyone typed.
+- `examples/places` — scroll surfaces: a `largetitle` that collapses into a
+  sticky compact bar, a frosted `backdropBlur` panel, and a `sheet` dragged
+  between three snap points.
+- `examples/derived` — a cart demonstrating the other three: `computed`
+  subtotal / shipping / total, a `guard` bouncing an unauthenticated checkout
+  to sign-in, and a `forEach` bulk edit.
+
+### Fixed
+- **A hard freeze in packaged apps.** An `http.*` step in the WASM build ran its
+  round trip on the goroutine servicing the JS callback, which is exactly the
+  self-wait the single-threaded js/wasm scheduler cannot break — the whole app
+  died with "all goroutines are asleep - deadlock!", so a packaged app calling
+  `http.get` was bricked rather than merely slow. Those hosts now set
+  `Runtime.AsyncAll`, so every request takes the background sink whether or not
+  its JSON opted in. **This is a user-visible semantic**: on such a host an
+  `http.*` step's siblings run while the request is still open, so the steps
+  that depend on the reply must go in `onSuccess` / `onError`. Server-side
+  semantics are unchanged — the server never sets the flag.
+- `qorm package` produced a bundle whose components all rendered as unknown when
+  they were declared in cross-file `type: "component"` documents: `bundle.Build`
+  dropped them. The field is `omitempty`, so existing bundle bytes and content
+  hashes are unchanged.
+- **A top-level state key named `state` silently emptied every binding in the
+  app.** Action and derived-value contexts expose each top-level state key under
+  its bare name (so `{{ count + 1 }}` means `{{ state.count + 1 }}`), and those
+  bare names were written OVER the `state` / `t` / `viewport` roots rather than
+  under them. A key called `state` therefore repointed `{{ state.x }}` at
+  itself: every derived value collapsed to nothing, on every frame, with no
+  diagnostic anywhere and no way for the app to recover. The reserved roots now
+  always win — over state keys, over action args and over an async
+  continuation's frozen bindings — and the colliding key stays readable under
+  its bare name. The mis-rooted step path that creates such a key in the first
+  place (`{"path": "state.count"}`, copied from the `{{ state.count }}` two
+  lines up in the scene) is now a load-time **warning**, and the spelling
+  `state.computed.<name>` is refused as a write into the read-only derived
+  namespace exactly as the bare `computed.<name>` already was.
 
 ### Changed
 - The determinism guard grows a third tier: instantaneous determinism (two
@@ -84,6 +222,26 @@ All notable changes to QORM are documented here. The format is based on
   `Inflight()` reaches zero, an async action must render byte-identically to
   the same action written synchronously. Async may change the sequence of
   frames a dispatch produces; it may never change where the dispatch lands.
+  The example sweep behind it widens too: it now renders **every** scene of
+  every example (not only the entry one), three times rather than twice, and
+  re-checks the output after each of the app's actions has been dispatched —
+  the states where timers, intermediate frames, derived-value refreshes and
+  `forEach` actually exist.
+- **Rendered output changes.** Three of the additions above alter the HTML an
+  unchanged app produces. Twenty-three of the twenty-seven examples are
+  byte-identical to v0.4.0; these are the ones that are not.
+  - `image` now emits `loading="lazy"` by default. Off-screen images are no
+    longer fetched on first paint. Opt out per node with `"lazy": false`.
+  - `width` / `height` given as a **string** now take effect. `"100%"`,
+    `"30vw"`, `"40vh"` and `"120px"` were previously parsed as a number,
+    failed, and were dropped silently; they are now parsed and re-emitted as
+    the corresponding CSS length. An app that carried such a value was being
+    laid out by the fallback and will now be laid out as written —
+    `examples/floating`, whose stage is `"width": "100%"`, changes shape.
+  - `input.maxLength` (and `textarea` / `textformfield`) now reaches the DOM as
+    `maxlength`, so the field **actually truncates typing** instead of merely
+    documenting an intent. `examples/components`' email field caps at 40
+    characters where it previously accepted any length.
 
 ## [v0.4.0] - 2026-07-26
 

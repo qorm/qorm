@@ -12,6 +12,29 @@ qorm package examples/dashboard -p web -o dashboard-web   # an installable, offl
 
 托管输出目录并「添加到主屏幕」。任何示例都可以打包为 web。参见[支持矩阵](../../platforms/support-matrix.md)。
 
+## 这里的 `http.*` 步骤跑在后台
+
+打包后的应用把 QORM 运行时作为 WASM 携带,而 js/wasm 是单线程的:执行你 action 的
+那个 goroutine,正是给浏览器事件循环提供服务的那一个。在那里做阻塞请求不是让应用
+变慢,而是把它死锁。因此这个宿主——以及独立 WASM 运行时和在线 playground,它们是
+同一个二进制——会把**每一个** `http.*` 步骤都放到后台工作者上执行,无论它的 JSON
+有没有写 `"async": true`。
+
+这是一条用户可见的语义,而不是实现细节:
+
+> `http.*` 步骤之后的同级步骤会在**请求仍在进行时**执行。任何依赖响应的步骤都应当
+> 写进 `onSuccess` / `onError`。
+
+按这种方式写的 action 在 `qorm run` 与打包产物里行为一致。而从同级步骤读取响应的
+action 在开发服务器上能工作(那里的请求除非你主动选择,否则是阻塞的),同一份代码
+一旦打包就会悄悄读到过期的值——开发期显式写上 `"async": true`,就能复现打包后的
+行为。完整写法见[第一个动作](../tutorials/first-action.md)。
+
+把答案送回来的推送通道,与中间帧用的是同一条:页面安装 `window.qormApplyFrame`,
+因此 `render` 步骤的加载帧能真正到达屏幕,而请求完成时会作为它自己的一帧稍后到达。
+每一条会替换运行时的路径——应用了 OTA 更新、回滚——都会重新安装它;而属于一个已被
+替换掉的运行时的响应会被丢弃,不会写进它的后继者。
+
 ## 架构
 
 ```text

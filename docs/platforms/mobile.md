@@ -30,6 +30,13 @@ first paint, verifies each update against the trust key (ed25519), hot-swaps
 without a reload, and keeps a one-step rollback copy — see
 [security-model.md](../security/security-model.md).
 
+Because the runtime on device is the same single-threaded Go→WASM build the web
+package uses, **every `http.*` step runs on a background worker there**, whether
+or not its JSON says `"async": true` — so the steps after a request run while it
+is still open, and anything depending on the reply must sit in
+`onSuccess` / `onError`. See [Web](web.md) and
+[First action](../tutorials/first-action.md).
+
 The app runs offline on device via Go→WASM in a WebView. Examples:
 [`hardware`](https://github.com/qorm/qorm/tree/main/examples/hardware) (the capability catalog exercised),
 [`i18n`](https://github.com/qorm/qorm/tree/main/examples/i18n) (locales, plurals, currency, RTL). See the

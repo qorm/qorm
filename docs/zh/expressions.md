@@ -26,9 +26,12 @@
 | 名字 | 可用位置 | 含义 |
 |---|---|---|
 | `state.*` | 任意位置 | `qorm.json` 中声明的全局状态 |
+| `state.computed.*` | 任意位置 | 清单里声明的派生值(见下文) |
+| `computed.*` | 场景绑定、动作步骤、其它派生值内 | 同样的值,只是不带 `state.` 前缀。在动作内它是派发入口处的快照(见下文)。场景 `guard` 内**不可用** |
 | *裸参数名* | 动作的 steps 内 | invoke 传入的 `args`——`{{ id }}`、`{{ text }}` |
 | `prop.*` | 组件模板内 | 实例传入的属性 |
-| `item`、`index`、`first`、`last` | 列表/网格的 `renderItem` 模板内 | 当前行及其位置(见[第一个场景](tutorials/first-scene.md)) |
+| `item`、`index`、`first`、`last` | 列表/网格的 `renderItem` 模板内,以及 `forEach` 步骤的循环体内 | 当前元素及其位置(见[第一个场景](tutorials/first-scene.md))。`as` 别名会整组改名——`"as":"row"` 得到 `row` / `rowIndex` / `rowFirst` / `rowLast` |
+| `row`、`rowIndex`、`cell` | `table` / `datatable` 的单元格模板内 | 当前行、它的位置,以及 `{{ cell.value }}` / `{{ cell.column }}` / `{{ cell.index }}` |
 | `route.*` | 任意位置 | 当前深链的路由参数 |
 | `viewport.*` | 任意位置 | 当前视口,用于响应式绑定 |
 | `t` | 任意位置 | i18n 查找表 |
@@ -138,6 +141,74 @@
 
 未知函数名在运行时求值为 `null`——但加载器会对集合类与 `format` 调用做静态的元数与
 参数类型检查,所以 `qorm run` 会在你看到空白屏幕之前就报出错误。
+
+## 派生值(`computed`)
+
+当同一段表达式出现在十几个绑定里时,不如在清单里声明一次。`computed` 是一个
+名字 → 表达式的映射,写在 `globalState` 旁边(或嵌在它里面,序列化回写时会归一到
+顶层):
+
+```json
+{
+  "type": "app", "id": "cart", "entry": "main",
+  "globalState": { "schema": { "items": "array" }, "initial": { "items": [] } },
+  "computed": {
+    "itemCount": "{{ sum(map(state.items, \"it.qty\")) }}",
+    "subtotal":  "{{ sum(map(state.items, \"it.price * it.qty\")) }}",
+    "shipping":  "{{ computed.subtotal >= 50 ? 0 : 5 }}",
+    "total":     "{{ computed.subtotal + computed.shipping }}",
+    "isEmpty":   "{{ len(state.items) == 0 }}"
+  }
+}
+```
+
+在场景绑定里写 `{{ state.computed.total }}`,在动作里写 `{{ computed.total }}`。
+两种写法在两处都能解析(`examples/derived` 在场景里统一使用带 `state.` 前缀的
+形式),但在动作内它们并不完全是同一个表达式——见下文《动作里该用哪种写法》。
+派生值之间可以互相引用,且不受声明顺序限制,上面的 `shipping` 与 `total`
+就是这样。
+
+声明之后值得知道的几点:
+
+- **每帧求值一次,而不是每次读取都求值。** 被十二个节点绑定的值只算一次,并且在
+  一次派发的全过程中视图是稳定的:发布出来的值在帧边界刷新(顶层派发结束、
+  `render` 步骤、进入场景),而不是每步之后都刷新。因此同一个 action 里先写
+  `state.items`、**后面的步骤**再读 `{{ computed.subtotal }}`,读到的仍是派发前的值。
+- **只读。** 步骤的 `path` / `result` / `error` 指向该命名空间时,加载期报错,派发期
+  整步被丢弃——是整步,所以被拦下的 `http.get` 连请求都不会发出。两种写法都会被
+  拒绝:`"path": "computed.total"` 与 `"path": "state.computed.total"` 一样。
+  (步骤路径**本来就**相对状态根,因此任何以 `state.` 开头的路径都是笔误——写
+  `"path": "state.count"` 会真的创建一个名叫 `state` 的顶层状态键。加载期会告警。)
+- **成环是失效而不是致命。** 处在依赖环上(以及位于环下游)的值会在加载期被报出,
+  求值结果为空;应用其余部分照常工作。
+- 名字必须是普通标识符。派生表达式能看到 `state.*`、`t` 与 `viewport.*`,但**看不到**
+  `route.*`,所以路由参数无法喂给它。
+- 没有声明 `computed` 的应用,`computed` 仍是一个普通的、可写的状态键,以上规则
+  一概不适用。
+
+### 动作里该用哪种写法
+
+在动作内,两种写法读到的值一直相同——**直到动作中途落下一帧**,此后两者分道扬镳:
+
+| 写法 | 读到什么 |
+|---|---|
+| `{{ state.computed.total }}` | **实时**的命名空间——`render` 步骤、`delay`、异步回包都会刷新它 |
+| `{{ computed.total }}` | 动作**派发时刻**命名空间里的值 |
+
+这不是 `computed` 独有的。动作上下文只在派发入口构建一次:`state` 是实时的状态
+存储,而每个同时以裸名提供的顶层状态键(`{{ count }}` 即 `{{ state.count }}`)都是
+那一刻的拷贝。`{{ computed.total }}` 就是 `computed` 这个键的裸写法,行为与
+`{{ count }}` 完全一致。
+
+```json
+{ "type": "state.set", "path": "items", "value": "{{ append(state.items, 1) }}" },
+{ "type": "render" },
+{ "type": "state.set", "path": "shown", "value": "{{ state.computed.subtotal }}" }
+```
+
+最后一行若写成 `{{ computed.subtotal }}`,拿到的会是追加之前的小计。**在中途渲染
+的动作里请使用带 `state.` 前缀的写法**;直线执行的动作里裸写法没问题(而且更短),
+场景绑定中两种写法则始终是最新的。
 
 ## 下一步
 
