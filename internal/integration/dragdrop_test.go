@@ -10,11 +10,14 @@ import (
 )
 
 // TestDragDropExample exercises the examples/dragdrop kanban end to end: the
-// scene renders three drop zones full of draggable cards (each carrying its id
-// as the drag payload), and dropping a card — the server posts {_dragData} and
-// fires the column's action — moves it via state.updateWhere so the shared state
-// reflects the new column. This is the integration proof behind the isolated
-// Draggable/DragTarget render test.
+// columns are data-driven (a gridview over state.columns with as: "column",
+// its template holding each column's drop zone and card list), so the scene
+// renders three drop zones full of draggable cards (each carrying its id as
+// the drag payload), and dropping a card — the server posts {_dragData} and
+// fires the shared `move` action with the column's key captured from the
+// template scope — moves it via state.updateWhere so the shared state reflects
+// the new column. This is the integration proof behind the isolated
+// Draggable/DragTarget render test and the list `as`-alias scope tests.
 func TestDragDropExample(t *testing.T) {
 	app, err := loader.LoadDir("../../examples/dragdrop")
 	if err != nil {
@@ -34,8 +37,21 @@ func TestDragDropExample(t *testing.T) {
 			t.Errorf("dragdrop render missing %q", m)
 		}
 	}
+	// The three drop zones all invoke `move`; each captures its own column in
+	// the handler scope, so the re-evaluated {col} arg is per-column.
+	cols := map[string]bool{}
+	for _, h := range render.RenderScene(rt, rt.CurrentScene()).Handlers {
+		if h.Name == "move" {
+			if c, ok := h.Scope["column"].(map[string]any); ok {
+				cols[qrt.Stringify(c["key"])] = true
+			}
+		}
+	}
+	if !cols["todo"] || !cols["doing"] || !cols["done"] {
+		t.Errorf("want a move handler scoped to each column, got %v", cols)
+	}
 	// drop t1 (a To Do card) onto the Doing column
-	rt.Dispatch("moveDoing", map[string]any{"_dragData": "t1"})
+	rt.Dispatch("move", map[string]any{"_dragData": "t1", "col": "doing"})
 	got := ""
 	for _, it := range rt.State["items"].([]any) {
 		if m := it.(map[string]any); m["id"] == "t1" {

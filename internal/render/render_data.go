@@ -33,13 +33,9 @@ func (r *renderer) list(n *model.Node) {
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), r.containerCSS(n)+"flex-direction:column;")
 	prev := r.scope
 	prevSuf := r.idSuffix
+	alias, idxKey, firstKey, lastKey := ListAliasNames(propStr(n, "as"))
 	for i, it := range items {
-		r.scope = map[string]any{"item": it}
-		for k, v := range prev {
-			if k != "item" {
-				r.scope[k] = v
-			}
-		}
+		r.scope = itemScope(prev, alias, idxKey, firstKey, lastKey, it, i, len(items))
 		r.idSuffix = fmt.Sprintf("%s-%d", prevSuf, i)
 		if virt {
 			fmt.Fprintf(&r.sb, `<div style=%q>`, wrap)
@@ -55,6 +51,73 @@ func (r *renderer) list(n *model.Node) {
 	if reorderH >= 0 && n.ID != "" {
 		fmt.Fprintf(&r.sb, `<script>setTimeout(function(){qormReorder(document.getElementById(%s),%d)})</script>`, jsStringID(n.ID), reorderH)
 	}
+}
+
+// reservedScopeAliases are evaluation-context roots an `as` alias must never
+// shadow: binding the item over them would break every {{state.x}} (etc.)
+// inside the template. The renderer falls back to the default alias for these
+// (and the loader warns at load time), so a bad alias degrades loudly-but-
+// safely instead of silently killing state bindings.
+var reservedScopeAliases = map[string]bool{
+	"state": true, "t": true, "viewport": true, "route": true, "prop": true,
+}
+
+// ListAliasNames resolves a list/gridview `as` prop value to the four scope
+// names its renderItem template binds: the item alias plus the derived index/
+// first/last keys. The default alias keeps the short built-in names (`index`,
+// `first`, `last`); a custom alias namespaces them (`as: "row"` → `rowIndex`,
+// `rowFirst`, `rowLast`). Namespacing is what lets an aliased nested list
+// keep the whole outer scope visible: none of its four keys can collide with
+// the outer list's, so {{section.title}} and {{row.name}} work side by side.
+// An `as` that is reserved or not a plain identifier (which the expression
+// language could never reference) falls back to the default names.
+//
+// Exported for the loader's static expression checks, so what the loader
+// accepts and what the renderer binds can never drift apart.
+func ListAliasNames(as string) (alias, idxKey, firstKey, lastKey string) {
+	if as == "" || as == "item" || reservedScopeAliases[as] || !isIdent(as) {
+		return "item", "index", "first", "last"
+	}
+	return as, as + "Index", as + "First", as + "Last"
+}
+
+// isIdent reports whether s is a plain identifier ([A-Za-z_][A-Za-z0-9_]*) —
+// the only names the expression language can reference.
+func isIdent(s string) bool {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c == '_' || 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || (i > 0 && '0' <= c && c <= '9') {
+			continue
+		}
+		return false
+	}
+	return s != ""
+}
+
+// itemScope builds one item's template scope for list/gridview: a copy of the
+// outer scope with the item bound under alias plus its 0-based index and
+// first/last flags. Writing the four keys after the copy means the innermost
+// list wins on a name collision — so a default-named nested list shadows the
+// outer item/index/first/last exactly as it always shadowed `item`, while
+// everything else in the outer chain (including an outer list's `as` bindings)
+// stays visible.
+//
+// Conflict policy with user data: index/first/last are separate scope keys and
+// are never injected into the item value itself, so a data field named
+// `index` is untouched — {{item.index}} still reads the data, {{index}} reads
+// the loop position. Built-ins always win over an identically named key
+// inherited from an outer scope because the innermost iteration is the one
+// the template is rendering.
+func itemScope(outer map[string]any, alias, idxKey, firstKey, lastKey string, it any, i, total int) map[string]any {
+	s := make(map[string]any, len(outer)+4)
+	for k, v := range outer {
+		s[k] = v
+	}
+	s[alias] = it
+	s[idxKey] = i
+	s[firstKey] = i == 0
+	s[lastKey] = i == total-1
+	return s
 }
 
 // tabs renders a header row of tab labels and shows the child panel matching

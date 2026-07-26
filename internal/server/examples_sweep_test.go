@@ -273,7 +273,12 @@ func TestSweepDragDrop(t *testing.T) {
 		t.Fatalf("drop targets must carry their handler index:\n%s", html)
 	}
 
-	dropDoing := handlerIdx(t, s, "moveDoing", nil)
+	// The columns are data-driven: every drop zone invokes `move`, so the doing
+	// zone is the handler whose captured template scope holds that column.
+	dropDoing := handlerIdx(t, s, "move", func(h render.Handler) bool {
+		col, _ := h.Scope["column"].(map[string]any)
+		return col != nil && col["key"] == "doing"
+	})
 	html, _ = sweepEvent(t, base, tok, dropDoing, map[string]any{"_dragData": "t1"})
 
 	s.mu.Lock()

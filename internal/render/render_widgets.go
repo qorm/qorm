@@ -280,13 +280,9 @@ func (r *renderer) gridView(n *model.Node) {
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), r.boxCSS(n)+style)
 	prev := r.scope
 	prevSuf := r.idSuffix
+	alias, idxKey, firstKey, lastKey := ListAliasNames(propStr(n, "as")) // same item scope as list
 	for i, it := range items {
-		r.scope = map[string]any{"item": it}
-		for k, v := range prev {
-			if k != "item" {
-				r.scope[k] = v
-			}
-		}
+		r.scope = itemScope(prev, alias, idxKey, firstKey, lastKey, it, i, len(items))
 		r.idSuffix = fmt.Sprintf("%s-%d", prevSuf, i)
 		r.node(n.Template)
 	}

@@ -1,7 +1,13 @@
 { "type": "app", "id": "dragdrop", "name": "Drag & Drop", "entry": "main", "theme": "apple",
-  "globalState": { "schema": { "items": "array" }, "initial": { "items": [
-    { "id": "t1", "label": "Design the icon", "col": "todo" },
-    { "id": "t2", "label": "Write the docs",  "col": "todo" },
-    { "id": "t3", "label": "Ship v0.2.2",     "col": "doing" },
-    { "id": "t4", "label": "Cut the release",  "col": "done" }
-  ] } } }
+  "globalState": { "schema": { "items": "array", "columns": "array" }, "initial": {
+    "columns": [
+      { "key": "todo",  "title": "To Do" },
+      { "key": "doing", "title": "Doing" },
+      { "key": "done",  "title": "Done" }
+    ],
+    "items": [
+      { "id": "t1", "label": "Design the icon", "col": "todo" },
+      { "id": "t2", "label": "Write the docs",  "col": "todo" },
+      { "id": "t3", "label": "Ship v0.2.2",     "col": "doing" },
+      { "id": "t4", "label": "Cut the release",  "col": "done" }
+    ] } } }

@@ -107,7 +107,7 @@ func FromDocs(docs []map[string]any) *model.App {
 		case "scene":
 			if root, ok := doc["root"].(map[string]any); ok {
 				sceneID := asString(doc["id"])
-				app.Scenes[sceneID] = buildNode(root, &diags, sceneID, sceneVars)
+				app.Scenes[sceneID] = buildNode(root, &diags, sceneID, sceneVars, nil)
 			}
 		case "action":
 			act := buildAction(doc, &diags, actionVars)
@@ -181,7 +181,7 @@ func LoadFile(path string) (*model.App, error) {
 	if asString(doc["type"]) == "scene" {
 		if root, ok := doc["root"].(map[string]any); ok {
 			sceneID := asString(doc["id"])
-			app.Scenes[sceneID] = buildNode(root, &app.Diagnostics, sceneID, nil)
+			app.Scenes[sceneID] = buildNode(root, &app.Diagnostics, sceneID, nil, nil)
 			app.Entry = sceneID
 		}
 	}
@@ -306,7 +306,7 @@ func applyManifest(app *model.App, doc map[string]any, diags *[]string) {
 		compVars := stateVars(app.GlobalState.Schema, false)
 		for name, def := range comps {
 			if m, ok := def.(map[string]any); ok {
-				app.Components[name] = buildNode(m, diags, "component:"+name, compVars)
+				app.Components[name] = buildNode(m, diags, "component:"+name, compVars, nil)
 			}
 		}
 	}
@@ -359,7 +359,7 @@ func applyManifest(app *model.App, doc map[string]any, diags *[]string) {
 }
 
 // BuildNode builds a node tree from a raw JSON object (exported for patch ops).
-func BuildNode(m map[string]any) *model.Node { return buildNode(m, nil, "", nil) }
+func BuildNode(m map[string]any) *model.Node { return buildNode(m, nil, "", nil, nil) }
 
 // valueWidgets are the node types whose renderer legitimately consumes the
 // `value` attribute (two-way state binding or a display value) — see the
@@ -394,7 +394,11 @@ var valueWidgets = map[string]bool{
 
 // buildNode builds one node. vars is the identifier -> declared-type map for
 // static expression type checking (nil disables it, e.g. for patch ops).
-func buildNode(m map[string]any, diags *[]string, sceneID string, vars map[string]string) *model.Node {
+// scope is the set of bare names bound by enclosing renderItem templates
+// (item/index/first/last or their `as`-derived forms, accumulated across
+// nesting) — legal dot-less bindings there, so the "add a state./prop. prefix"
+// suggestion must not fire on them. nil outside any template.
+func buildNode(m map[string]any, diags *[]string, sceneID string, vars map[string]string, scope map[string]bool) *model.Node {
 	nodeID := asString(m["id"])
 	nodeType := asString(m["type"])
 
@@ -429,7 +433,7 @@ func buildNode(m map[string]any, diags *[]string, sceneID string, vars map[strin
 		}
 
 		// 校验表达式格式（如非 state. 或 prop. 的绑定）与静态类型
-		checkExpressions(m, diags, sceneID, nodeID, vars)
+		checkExpressions(m, diags, sceneID, nodeID, vars, scope)
 	}
 
 	n := &model.Node{
@@ -450,7 +454,25 @@ func buildNode(m map[string]any, diags *[]string, sceneID string, vars map[strin
 	n.OnPress = parseInvoke(m["onPress"], diags, sceneID, nodeID, "onPress")
 	n.OnChange = parseInvoke(m["onChange"], diags, sceneID, nodeID, "onChange")
 	if ri, ok := m["renderItem"].(map[string]any); ok {
-		n.Template = buildNode(ri, diags, sceneID, vars)
+		// A renderItem template runs with the item bound into the expression
+		// scope under `as` (default "item") plus index/first/last. Resolve the
+		// names through the renderer's own ListAliasNames so the static checks
+		// can never drift from what actually gets bound at render time, and
+		// warn when an explicit alias is unusable (reserved root like "state",
+		// or not a plain identifier) — the renderer silently falls back to
+		// "item" for those.
+		alias, idxKey, firstKey, lastKey := render.ListAliasNames(asString(m["as"]))
+		if diags != nil {
+			if as := asString(m["as"]); as != "" && as != "item" && alias == "item" {
+				*diags = append(*diags, fmt.Sprintf("warning: [Scene: %s] 节点 (id: %q) 的 renderItem 别名 as: %q 不可用（保留名或非法标识符），渲染器将回退为默认的 \"item\"。", sceneID, nodeID, as))
+			}
+		}
+		tScope := make(map[string]bool, len(scope)+4)
+		for k := range scope {
+			tScope[k] = true
+		}
+		tScope[alias], tScope[idxKey], tScope[firstKey], tScope[lastKey] = true, true, true, true
+		n.Template = buildNode(ri, diags, sceneID, vars, tScope)
 	}
 	n.Data = asString(m["data"])
 	// "when" node: responsive conditional — condition picks then/else subtree.
@@ -464,16 +486,16 @@ func buildNode(m map[string]any, diags *[]string, sceneID string, vars map[strin
 			*diags = append(*diags, fmt.Sprintf("warning: [Scene: %s] 节点 (id: %q) 的 when condition %q 不含 {{...}} 绑定：非空字符串恒为真，将永远渲染 then 分支。请写成表达式绑定，如 \"{{ %s }}\"。", sceneID, nodeID, n.Condition, n.Condition))
 		}
 		if tm, ok := m["then"].(map[string]any); ok {
-			n.Then = buildNode(tm, diags, sceneID, vars)
+			n.Then = buildNode(tm, diags, sceneID, vars, scope)
 		}
 		if em, ok := m["else"].(map[string]any); ok {
-			n.Else = buildNode(em, diags, sceneID, vars)
+			n.Else = buildNode(em, diags, sceneID, vars, scope)
 		}
 	}
 	if kids, ok := m["children"].([]any); ok {
 		for _, k := range kids {
 			if km, ok := k.(map[string]any); ok {
-				n.Children = append(n.Children, buildNode(km, diags, sceneID, vars))
+				n.Children = append(n.Children, buildNode(km, diags, sceneID, vars, scope))
 			}
 		}
 	}
@@ -586,7 +608,7 @@ func checkStepExprTypes(sm map[string]any, diags *[]string, actID string, vars m
 	}
 }
 
-func checkExpressions(m map[string]any, diags *[]string, sceneID, nodeID string, vars map[string]string) {
+func checkExpressions(m map[string]any, diags *[]string, sceneID, nodeID string, vars map[string]string, scope map[string]bool) {
 	isWhen := asString(m["type"]) == "when"
 	for k, v := range m {
 		if k == "children" || k == "renderItem" {
@@ -601,18 +623,21 @@ func checkExpressions(m map[string]any, diags *[]string, sceneID, nodeID string,
 		strVal, ok := v.(string)
 		if !ok {
 			if subMap, ok := v.(map[string]any); ok {
-				checkExpressions(subMap, diags, sceneID, nodeID, vars)
+				checkExpressions(subMap, diags, sceneID, nodeID, vars, scope)
 			}
 			continue
 		}
 		forEachExpr(strVal, func(src string) {
 			// A string-literal expression (e.g. {{ '}}' }} or {{ "x" }}) is a
 			// constant, not a bare state/prop binding, so the "add a prefix"
-			// suggestion does not apply.
+			// suggestion does not apply. Neither does it apply when the
+			// expression references a name a renderItem template binds
+			// ({{index}}, {{item}}, {{rowIndex + 1}}, ...) — those are the
+			// list scope's own bare identifiers, not a forgotten prefix.
 			isStrLit := len(src) > 0 && (src[0] == '\'' || src[0] == '"')
 			if len(src) > 0 && !isStrLit && !strings.Contains(src, ".") &&
 				!strings.Contains(src, "(") &&
-				src != "true" && src != "false" {
+				src != "true" && src != "false" && !usesScopeName(src, scope) {
 				*diags = append(*diags, fmt.Sprintf("[Scene: %s] 节点 (id: %q) 表达式 %q 使用了非标准的绑定，属性值绑定建议加上前缀，如 'state.%s' 或 'prop.%s'。", sceneID, nodeID, "{{"+src+"}}", src, src))
 			}
 			for _, mm := range expr.Check(src, vars) {
@@ -620,6 +645,38 @@ func checkExpressions(m map[string]any, diags *[]string, sceneID, nodeID string,
 			}
 		})
 	}
+}
+
+// usesScopeName reports whether src references any in-scope renderItem
+// template name (the item alias, index/first/last, or their `as`-derived
+// forms) as a standalone identifier token. It tokenizes rather than substring-
+// matches so a scope name "row" does not falsely claim "rows" or "arrow".
+func usesScopeName(src string, scope map[string]bool) bool {
+	if len(scope) == 0 {
+		return false
+	}
+	start := -1
+	for i := 0; i <= len(src); i++ {
+		var c byte
+		if i < len(src) {
+			c = src[i]
+		}
+		isIdentChar := c == '_' || 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' ||
+			(start >= 0 && '0' <= c && c <= '9')
+		if isIdentChar {
+			if start < 0 {
+				start = i
+			}
+			continue
+		}
+		if start >= 0 {
+			if scope[src[start:i]] {
+				return true
+			}
+			start = -1
+		}
+	}
+	return false
 }
 
 // forEachExpr calls fn with each trimmed `{{ ... }}` expression inside s.

@@ -17,7 +17,7 @@ func TestUnknownStyleKeyWarns(t *testing.T) {
 			"border":  "1px solid red",
 			"padding": 8,
 		},
-	}, &diags, "main", nil)
+	}, &diags, "main", nil, nil)
 	if n == nil || n.Style["border"] != "1px solid red" {
 		t.Fatalf("unknown style key must be non-fatal (node keeps its style), got %+v", n)
 	}

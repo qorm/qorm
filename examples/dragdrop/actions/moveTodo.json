@@ -1,3 +1,0 @@
-{ "type": "action", "id": "moveTodo", "steps": [
-  { "type": "state.updateWhere", "path": "items", "matchKey": "id", "match": "{{ _dragData }}", "item": { "col": "todo" } }
-] }
