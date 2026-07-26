@@ -302,23 +302,101 @@ func itemScope(outer map[string]any, alias, idxKey, firstKey, lastKey string, it
 }
 
 // tabs renders a header row of tab labels and shows the child panel matching
-// the active tab. Tab switching is handled client-side (no state round-trip).
+// the active tab.
+//
+// UNCONTROLLED is the default and stays exactly what it was: the first tab is
+// active and switching is handled client-side by qormTab (no state round-trip,
+// no server involvement). Every prop below is opt-in and inert when absent, so
+// a tabs node that declares none renders byte-identically to before they
+// existed:
+//
+//   - `active` — the active index, a literal or a binding ({{state.tab}}),
+//     clamped into range (see activeIndex). A PLAINLY STATE-BOUND active makes
+//     the tabs CONTROLLED: the labels render as <label>-wrapped hidden radios
+//     carrying data-state, so a tap writes the tapped index back to that state
+//     path over the existing qorm(-1) state-sync — controlled tabs with no
+//     action file and no new client JS (the same idiom `segmented` uses).
+//   - `onChange` — dispatched with {index, tab} on every tap, for apps that
+//     want an action to run (it composes with a bound `active`: the radio still
+//     syncs the index, the action still runs).
+//   - `scrollable` — the tab bar scrolls horizontally with scroll-snap instead
+//     of squeezing tabs to nothing once they overflow. Pure CSS: no gesture JS,
+//     so it works on the first paint and inside a static export.
+//   - `indicator` / `indicatorColor` — style the active-tab indicator
+//     (`underline` default, `pill`, or `none`), see tabIndicator.
+//   - `lazy` — render ONLY the active panel instead of all of them (see below).
+//
+// Lazy is deliberately gated on the tabs being controlled. Client-side
+// switching works by toggling the display of panels that are ALREADY in the
+// document; drop the inactive ones and a qormTab tap would reveal nothing. So
+// `lazy` takes effect only when a tap reaches the server (bound `active` or an
+// onChange) and is otherwise ignored — a lazy tabs never degrades into a dead
+// UI, it degrades into an eager one.
 func (r *renderer) tabs(n *model.Node) {
 	labels := stringList(n.Props["tabs"])
+	count := len(labels)
+	if len(n.Children) > count {
+		count = len(n.Children)
+	}
+	active := r.activeIndex(n, count)
+	path := boundPath(propStr(n, "active"))
+	lazy := propBool(n, "lazy") && (path != "" || n.OnChange != nil)
+
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;")
-	r.sb.WriteString(`<div class="qorm-tabbar" style="display:flex;gap:2px;border-bottom:1px solid var(--sep);">`)
+	r.tabIndicator(n)
+	bar := "display:flex;gap:2px;border-bottom:1px solid var(--sep);"
+	item := ""
+	if propBool(n, "scrollable") {
+		// scrollbar-width:none keeps the bar looking like a tab strip rather
+		// than a scroller; scroll-snap parks a tab at the leading edge.
+		bar += "overflow-x:auto;overflow-y:hidden;scrollbar-width:none;scroll-snap-type:x proximity;"
+		item = "flex:none;white-space:nowrap;scroll-snap-align:start;"
+	}
+	// The controlled form is a real radio group, so it gets the matching ARIA
+	// roles; the uncontrolled form keeps its original attribute-for-attribute
+	// markup (its buttons are not radios, and annotating them would be a lie).
+	role := ""
+	if path != "" {
+		role = ` role="tablist"`
+	}
+	fmt.Fprintf(&r.sb, `<div class="qorm-tabbar"%s style=%q>`, role, bar)
 	for i, lbl := range labels {
-		active := ""
-		if i == 0 {
-			active = " qorm-tab-active"
+		cls := ""
+		if i == active {
+			cls = " qorm-tab-active"
 		}
-		fmt.Fprintf(&r.sb, `<button class="qorm-tab%s" data-tab="%d" onclick="qormTab(this)">%s</button>`,
-			active, i, html.EscapeString(lbl))
+		if path == "" {
+			click := ` onclick="qormTab(this)"`
+			if n.OnChange != nil {
+				click = fmt.Sprintf(` onclick="qorm(%d)"`, r.tabHandler(n, i, lbl))
+			}
+			style := ""
+			if item != "" {
+				style = fmt.Sprintf(` style=%q`, item)
+			}
+			fmt.Fprintf(&r.sb, `<button class="qorm-tab%s"%s data-tab="%d"%s>%s</button>`,
+				cls, style, i, click, html.EscapeString(lbl))
+			continue
+		}
+		change := ` onchange="qorm(-1)"`
+		if n.OnChange != nil {
+			change = fmt.Sprintf(` onchange="qorm(%d)"`, r.tabHandler(n, i, lbl))
+		}
+		checked := ""
+		if i == active {
+			checked = " checked"
+		}
+		fmt.Fprintf(&r.sb, `<label class="qorm-tab%s" data-tab="%d" style=%q role="tab" aria-selected="%t"><input type="radio" name=%q value="%d"%s%s%s style="position:absolute;opacity:0;width:0;height:0;">%s</label>`,
+			cls, i, "display:inline-flex;align-items:center;position:relative;"+item, i == active,
+			attrID(n.ID), i, checked, dataStateAttr(path), change, html.EscapeString(lbl))
 	}
 	r.sb.WriteString(`</div>`)
 	for i, c := range n.Children {
+		if lazy && i != active {
+			continue
+		}
 		disp := "none"
-		if i == 0 {
+		if i == active {
 			disp = "block"
 		}
 		fmt.Fprintf(&r.sb, `<div class="qorm-tabpanel" data-panel="%d" style="display:%s;padding:12px 0;">`, i, disp)
@@ -326,6 +404,94 @@ func (r *renderer) tabs(n *model.Node) {
 		r.sb.WriteString(`</div>`)
 	}
 	r.sb.WriteString(`</div>`)
+}
+
+// tabHandler registers one tab's onChange dispatch, carrying the tapped tab's
+// {index} (0-based) and {tab} label on top of the author's own args — the same
+// shape pagination uses for {page}, so an app pairs it with a one-line
+// state.set action.
+func (r *renderer) tabHandler(n *model.Node, i int, label string) int {
+	args := mergeArgs(n.OnChange.Args, "index", strconv.Itoa(i))
+	args["tab"] = label
+	return r.register(&model.Invoke{Name: n.OnChange.Name, Args: args})
+}
+
+// activeIndex resolves an `active` index prop — a literal or a binding — into
+// [0, count). Absent means 0 (the pre-existing behaviour of every widget that
+// gained this prop), and an out-of-range index CLAMPS rather than selecting
+// nothing: a stale or overshot counter still shows a usable tab/panel the user
+// can navigate back from, exactly as pageWindow clamps an overshot page.
+func (r *renderer) activeIndex(n *model.Node, count int) int {
+	v := r.numProp(n, "active")
+	if v == nil || count <= 0 {
+		return 0
+	}
+	switch i := int(*v); {
+	case i < 0:
+		return 0
+	case i >= count:
+		return count - 1
+	default:
+		return i
+	}
+}
+
+// tabIndicator emits the node-scoped CSS that styles the active tab, and
+// nothing at all unless `indicator` or `indicatorColor` is declared (so the
+// default tabs output is unchanged). A scoped <style> rather than inline styles
+// is what lets the indicator survive CLIENT-side switching: qormTab moves the
+// qorm-tab-active class between tabs, and a rule keyed on that class follows
+// it, where an inline style would stay stuck on the tab that was active when
+// the frame was rendered.
+//
+//   - `underline` (default) — the accent rule under the active tab.
+//   - `pill` — a filled rounded capsule (Material/Chrome style).
+//   - `none` — label emphasis only, no rule.
+//
+// !important is needed because the shell's .qorm-tab-active rule declares the
+// underline colour !important. The scope is the tabs node's own id, so two tabs
+// widgets on one screen can carry different indicators; an id that is not a
+// plain identifier (which could not be written as a CSS selector) skips the
+// block instead of emitting a broken — or injectable — one, and cssValue keeps
+// a hand-written colour from closing the declaration.
+func (r *renderer) tabIndicator(n *model.Node) {
+	kind, color := propStr(n, "indicator"), cssValue(propStr(n, "indicatorColor"))
+	if kind == "" && color == "" {
+		return
+	}
+	if !isIdent(n.ID) {
+		return
+	}
+	if color == "" {
+		color = "var(--accent)"
+	}
+	decl := "border-bottom-color:" + color + " !important;color:" + color + " !important;"
+	switch kind {
+	case "none":
+		decl = "border-bottom-color:transparent !important;color:" + color + " !important;"
+	case "pill":
+		decl = "border-bottom-color:transparent !important;background:" + color + ";color:#fff !important;border-radius:999px;"
+	}
+	fmt.Fprintf(&r.sb, `<style>#%s .qorm-tab-active{%s}</style>`, attrID(n.ID), html.EscapeString(decl))
+}
+
+// cssValue passes an author-written CSS value through, or returns "" when it
+// carries a character that could end the declaration it is written into
+// (";" "}" "{") or open markup ("<"). Values reach a <style> block, where HTML
+// escaping alone would not stop a value from injecting extra rules, so the
+// filter is a strict allowlist: colours, keywords, numbers, functions
+// (var(--accent), color-mix(...), #0af, rgb(0 0 0 / 50%)) — nothing else.
+func cssValue(s string) string {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch {
+		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9':
+		case strings.IndexByte(" #(),.%-_/", c) >= 0:
+		default:
+			return ""
+		}
+	}
+	return s
 }
 
 // expansionTile is Flutter's ExpansionTile: a header that reveals its children
@@ -403,6 +569,209 @@ func (r *renderer) sortHandler(n *model.Node, column string) (int, bool) {
 	}}), true
 }
 
+// tableChrome is the structural depth table/datatable share, resolved once per
+// render. Every field is empty/nil unless its prop is declared, and an
+// all-empty chrome writes not one extra byte — so an existing table renders
+// exactly as it did before any of this existed:
+//
+//   - `scrollX` / `maxHeight` — wrap the <table> in its own scroll port. A
+//     table is the one widget that legitimately outgrows the screen in BOTH
+//     axes; wrapping keeps the overflow inside the widget instead of forcing
+//     the whole page to scroll sideways.
+//   - `stickyHeader` (+ `stickyTop`) — position:sticky column headers. Sticky
+//     pins against the nearest scroll port, which is why it pairs with
+//     `maxHeight` (pin inside the table's own port) or works against the page
+//     scroll otherwise; `stickyTop` parks the header under anything already
+//     pinned above it (an appbar), exactly as the list's section headers do.
+//   - column `sticky` — freeze a leading column against the left edge while
+//     the rest scrolls under it (see stickyColumns).
+//   - `minWidth` — the width the table refuses to squeeze below, which is what
+//     gives `scrollX` something to scroll.
+//
+// It is pure CSS on both counts: no scroll listeners, no measured offsets, no
+// second "frozen" table cloned beside the real one.
+type tableChrome struct {
+	open, close string   // scroll-port wrapper, or "" for no wrapper
+	head        string   // sticky-header CSS applied to every <th>
+	col         []string // per-column freeze CSS, aligned with optionList
+}
+
+// tableWidth is the `minWidth` CSS a table refuses to squeeze below — what
+// gives `scrollX` something to scroll — or "" when the prop is absent.
+func (r *renderer) tableWidth(n *model.Node) string {
+	if w := r.numProp(n, "minWidth"); w != nil {
+		return "min-width:" + num(*w) + "px;"
+	}
+	return ""
+}
+
+func (r *renderer) tableChrome(n *model.Node, selectable bool) tableChrome {
+	var tc tableChrome
+	wrap := ""
+	if propBool(n, "scrollX") {
+		wrap += "overflow-x:auto;"
+	}
+	if h := r.numProp(n, "maxHeight"); h != nil {
+		wrap += "overflow-y:auto;max-height:" + num(*h) + "px;"
+	}
+	if wrap != "" {
+		tc.open, tc.close = `<div style="`+wrap+`">`, `</div>`
+	}
+	if propBool(n, "stickyHeader") {
+		tc.head = "position:sticky;top:" + num(propNum(n, "stickyTop", 0)) + "px;z-index:2;background:var(--bg);"
+	}
+	tc.col = stickyColumns(n.Props["columns"], selectable)
+	return tc
+}
+
+// cellAttr returns the style attribute for column i's <th> (head) or <td>, or
+// "" when neither a sticky header nor a frozen column touches it. The corner
+// cell — a frozen column's header — is lifted above both so it never slides
+// under the cells it is meant to cover.
+func (tc tableChrome) cellAttr(i int, head bool) string {
+	css := ""
+	if head {
+		css = tc.head
+	}
+	if i >= 0 && i < len(tc.col) && tc.col[i] != "" {
+		css += tc.col[i]
+		if head {
+			css += "z-index:3;"
+		}
+	}
+	if css == "" {
+		return ""
+	}
+	return ` style="` + css + `"`
+}
+
+// stickyColumns returns, per column, the CSS that freezes it against the left
+// edge while the table scrolls under it — or nil when no column declares
+// `sticky`, which keeps the no-op path allocation-free and byte-identical.
+//
+// The left offset is the running sum of the frozen columns already placed
+// (plus datatable's 36px checkbox column), so a frozen column wants an explicit
+// numeric `width`: a column sized by content, or in %, contributes 0 and the
+// next frozen column would land on top of it. Freezing is therefore meant for
+// the leading identity column(s), not for arbitrary columns mid-table.
+func stickyColumns(v any, selectable bool) []string {
+	arr, ok := v.([]any)
+	if !ok {
+		return nil
+	}
+	out := make([]string, 0, len(arr))
+	left, on := 0.0, false
+	if selectable {
+		left = 36 // .qdt-check is a fixed 36px column
+	}
+	for _, e := range arr {
+		switch t := e.(type) {
+		case string:
+			out = append(out, "")
+		case map[string]any:
+			if !asBool(t["sticky"]) {
+				out = append(out, "")
+				continue
+			}
+			on = true
+			out = append(out, "position:sticky;left:"+num(left)+"px;z-index:1;background:var(--bg);")
+			left += pxWidth(colWidth(t["width"]))
+		}
+	}
+	if !on {
+		return nil
+	}
+	return out
+}
+
+// pxWidth is the pixel value of a normalized column width ("72px"), or 0 for a
+// width that is unset or not expressed in pixels.
+func pxWidth(w string) float64 {
+	if !strings.HasSuffix(w, "px") {
+		return 0
+	}
+	f, err := strconv.ParseFloat(strings.TrimSuffix(w, "px"), 64)
+	if err != nil {
+		return 0
+	}
+	return f
+}
+
+// cellTemplates maps a column key to the child node that renders that column's
+// cells, so a table cell can be a WIDGET (a badge, an avatar, a button, a
+// nested list) instead of the escaped fmt.Sprint of the field. A table's
+// children were previously ignored, so declaring one is purely additive:
+//
+//	{"type":"datatable","columns":[{"value":"name"},{"value":"state"}],
+//	 "children":[{"type":"tag","column":"state","label":"{{row.state}}"}]}
+//
+// The template renders in the ROW's scope, built by the same itemScope the list
+// uses: the row object under `as` (default `row`, so `{{row.name}}`) plus the
+// derived index/first/last keys (`rowIndex`, `rowFirst`, `rowLast` — see
+// ListAliasNames), and one more binding, `cell`, holding this cell's own
+// {value, column, index}. All of them are dotted paths ({{row.x}},
+// {{cell.value}}) because a bare {{cell}} is what the loader's static check
+// flags as a missing state./prop. prefix.
+//
+// A column with no template keeps the plain-text cell, so tables mix the two
+// freely; a template naming a column that does not exist is simply never
+// reached, and the first declaration wins if two children claim one column.
+func (r *renderer) cellTemplates(n *model.Node) map[string]*model.Node {
+	var m map[string]*model.Node
+	for _, c := range n.Children {
+		col := propStr(c, "column")
+		if col == "" {
+			continue
+		}
+		if m == nil {
+			m = make(map[string]*model.Node, len(n.Children))
+		}
+		if _, dup := m[col]; !dup {
+			m[col] = c
+		}
+	}
+	return m
+}
+
+// detailTemplate is the child marked `detail: true` — the expandable row body
+// rendered under every row inside a native <details>, so row expansion costs no
+// JS and no round-trip. Its `label` is the disclosure line's text.
+func (r *renderer) detailTemplate(n *model.Node) *model.Node {
+	for _, c := range n.Children {
+		if propBool(c, "detail") {
+			return c
+		}
+	}
+	return nil
+}
+
+// tableCells writes one row's <td>s: a cell template's widget where the column
+// has one, the escaped field value otherwise. The `cell` binding is written
+// into the row scope the caller installed — templated cells are the only path
+// that touches the scope, so a template-less table never builds one.
+func (r *renderer) tableCells(cols []option, obj map[string]any, tpls map[string]*model.Node, tc tableChrome) {
+	for i, c := range cols {
+		attr := tc.cellAttr(i, false)
+		tpl := tpls[c.value]
+		if tpl == nil {
+			r.sb.WriteString("<td" + attr + ">" + html.EscapeString(fmt.Sprint(obj[c.value])) + "</td>")
+			continue
+		}
+		r.scope["cell"] = map[string]any{"value": obj[c.value], "column": c.value, "index": i}
+		r.sb.WriteString("<td" + attr + ">")
+		r.node(tpl)
+		r.sb.WriteString("</td>")
+	}
+}
+
+// detailRow writes a row's expandable body as a full-width <details> row.
+func (r *renderer) detailRow(tpl *model.Node, span int) {
+	fmt.Fprintf(&r.sb, `<tr><td colspan="%d" style="padding:0 12px 8px;border-bottom:1px solid var(--sep);"><details><summary style="cursor:pointer;list-style:none;color:var(--label2);font-size:13px;padding:4px 0;">%s ▾</summary><div style="padding:6px 0;">`,
+		span, html.EscapeString(r.interp(labelOf(tpl))))
+	r.node(tpl)
+	r.sb.WriteString(`</div></details></td></tr>`)
+}
+
 // bound `selected` array holds the chosen keys. Columns accept `width` too.
 func (r *renderer) datatable(n *model.Node) {
 	cols := optionList(n.Props["columns"])
@@ -431,19 +800,23 @@ func (r *renderer) datatable(n *model.Node) {
 			break
 		}
 	}
-	fmt.Fprintf(&r.sb, `<table id=%q class="qorm-datatable" style=%q>`, attrID(n.ID), r.boxCSS(n))
+	tc := r.tableChrome(n, selectable)
+	tpls, detail := r.cellTemplates(n), r.detailTemplate(n)
+	r.sb.WriteString(tc.open)
+	fmt.Fprintf(&r.sb, `<table id=%q class="qorm-datatable" style=%q>`, attrID(n.ID), r.boxCSS(n)+r.tableWidth(n))
 	r.sb.WriteString(colGroup(colWidths(n.Props["columns"]), selectable))
 	r.sb.WriteString("<thead><tr>")
 	if selectable {
 		box := checkboxCell(allSel)
 		if n.OnPress != nil {
 			idx := r.register(&model.Invoke{Name: n.OnPress.Name, Args: mergeArgs(n.OnPress.Args, "key", "__all__")})
-			fmt.Fprintf(&r.sb, `<th class="qdt-check"><span onclick="qorm(%d)" style="cursor:pointer;font-size:16px;">%s</span></th>`, idx, box)
+			fmt.Fprintf(&r.sb, `<th class="qdt-check"%s><span onclick="qorm(%d)" style="cursor:pointer;font-size:16px;">%s</span></th>`, tc.cellAttr(-1, true), idx, box)
 		} else {
-			r.sb.WriteString(`<th class="qdt-check"></th>`)
+			fmt.Fprintf(&r.sb, `<th class="qdt-check"%s></th>`, tc.cellAttr(-1, true))
 		}
 	}
-	for _, c := range cols {
+	for i, c := range cols {
+		attr := tc.cellAttr(i, true)
 		idx, sortable := -1, false
 		if n.OnChange != nil {
 			idx = r.register(&model.Invoke{Name: n.OnChange.Name, Args: mergeArgs(n.OnChange.Args, "column", c.value)})
@@ -452,19 +825,25 @@ func (r *renderer) datatable(n *model.Node) {
 			idx, sortable = h, true
 		}
 		if !sortable {
-			r.sb.WriteString("<th>" + html.EscapeString(c.label) + "</th>")
+			r.sb.WriteString("<th" + attr + ">" + html.EscapeString(c.label) + "</th>")
 			continue
 		}
 		cls, glyph := indCls, "&#8250;"
 		if c.value == sortField {
 			cls, glyph = indCls+" on", ind
 		}
-		fmt.Fprintf(&r.sb, `<th><button class="qdt-sort" onclick="qorm(%d)">%s<span class="%s">%s</span></button></th>`,
-			idx, html.EscapeString(c.label), cls, glyph)
+		fmt.Fprintf(&r.sb, `<th%s><button class="qdt-sort" onclick="qorm(%d)">%s<span class="%s">%s</span></button></th>`,
+			attr, idx, html.EscapeString(c.label), cls, glyph)
 	}
 	r.sb.WriteString("</tr></thead><tbody>")
-	for _, row := range rows {
+	prev, prevSuf := r.scope, r.idSuffix
+	alias, idxKey, firstKey, lastKey := ListAliasNames(propStrOr(n, "as", "row"))
+	for ri, row := range rows {
 		obj, _ := row.(map[string]any)
+		if tpls != nil || detail != nil {
+			r.scope = itemScope(prev, alias, idxKey, firstKey, lastKey, row, ri, len(rows))
+			r.idSuffix = fmt.Sprintf("%s-%d", prevSuf, ri)
+		}
 		keyVal := fmt.Sprint(obj[rowKey])
 		sel := selSet[keyVal]
 		cls := ""
@@ -476,17 +855,24 @@ func (r *renderer) datatable(n *model.Node) {
 			box := checkboxCell(sel)
 			if n.OnPress != nil {
 				idx := r.register(&model.Invoke{Name: n.OnPress.Name, Args: mergeArgs(n.OnPress.Args, "key", keyVal)})
-				fmt.Fprintf(&r.sb, `<td class="qdt-check"><span onclick="qorm(%d)" style="cursor:pointer;font-size:16px;">%s</span></td>`, idx, box)
+				fmt.Fprintf(&r.sb, `<td class="qdt-check"%s><span onclick="qorm(%d)" style="cursor:pointer;font-size:16px;">%s</span></td>`, tc.cellAttr(-1, false), idx, box)
 			} else {
-				fmt.Fprintf(&r.sb, `<td class="qdt-check">%s</td>`, box)
+				fmt.Fprintf(&r.sb, `<td class="qdt-check"%s>%s</td>`, tc.cellAttr(-1, false), box)
 			}
 		}
-		for _, c := range cols {
-			r.sb.WriteString("<td>" + html.EscapeString(fmt.Sprint(obj[c.value])) + "</td>")
-		}
+		r.tableCells(cols, obj, tpls, tc)
 		r.sb.WriteString("</tr>")
+		if detail != nil {
+			span := len(cols)
+			if selectable {
+				span++
+			}
+			r.detailRow(detail, span)
+		}
 	}
+	r.scope, r.idSuffix = prev, prevSuf
 	r.sb.WriteString("</tbody></table>")
+	r.sb.WriteString(tc.close)
 }
 
 func (r *renderer) table(n *model.Node) {
@@ -494,10 +880,14 @@ func (r *renderer) table(n *model.Node) {
 	rows := r.boundArray(n, "data")
 	sortField := r.interp(propStr(n, "sortField"))
 	sortDir := r.interp(propStr(n, "sortDir"))
-	fmt.Fprintf(&r.sb, `<table id=%q class="qorm-table" style=%q>`, attrID(n.ID), r.boxCSS(n))
+	tc := r.tableChrome(n, false)
+	tpls, detail := r.cellTemplates(n), r.detailTemplate(n)
+	r.sb.WriteString(tc.open)
+	fmt.Fprintf(&r.sb, `<table id=%q class="qorm-table" style=%q>`, attrID(n.ID), r.boxCSS(n)+r.tableWidth(n))
 	r.sb.WriteString(colGroup(colWidths(n.Props["columns"]), false))
 	r.sb.WriteString("<thead><tr>")
-	for _, c := range cols {
+	for i, c := range cols {
+		attr := tc.cellAttr(i, true)
 		idx, sortable := -1, false
 		if n.OnChange != nil { // app-wired sort: header dispatches onChange with {column}
 			args := map[string]string{"column": c.value}
@@ -510,7 +900,7 @@ func (r *renderer) table(n *model.Node) {
 			idx, sortable = h, true
 		}
 		if !sortable {
-			r.sb.WriteString("<th>" + html.EscapeString(c.label) + "</th>")
+			r.sb.WriteString("<th" + attr + ">" + html.EscapeString(c.label) + "</th>")
 			continue
 		}
 		// macOS Finder convention: the chevron only shows on hover, except on
@@ -524,19 +914,28 @@ func (r *renderer) table(n *model.Node) {
 				glyph = "▴"
 			}
 		}
-		fmt.Fprintf(&r.sb, `<th><button class="qdt-sort" onclick="qorm(%d)">%s<span class="%s">%s</span></button></th>`,
-			idx, html.EscapeString(c.label), cls, glyph)
+		fmt.Fprintf(&r.sb, `<th%s><button class="qdt-sort" onclick="qorm(%d)">%s<span class="%s">%s</span></button></th>`,
+			attr, idx, html.EscapeString(c.label), cls, glyph)
 	}
 	r.sb.WriteString("</tr></thead><tbody>")
-	for _, row := range rows {
+	prev, prevSuf := r.scope, r.idSuffix
+	alias, idxKey, firstKey, lastKey := ListAliasNames(propStrOr(n, "as", "row"))
+	for ri, row := range rows {
 		obj, _ := row.(map[string]any)
-		r.sb.WriteString("<tr>")
-		for _, c := range cols {
-			r.sb.WriteString("<td>" + html.EscapeString(fmt.Sprint(obj[c.value])) + "</td>")
+		if tpls != nil || detail != nil {
+			r.scope = itemScope(prev, alias, idxKey, firstKey, lastKey, row, ri, len(rows))
+			r.idSuffix = fmt.Sprintf("%s-%d", prevSuf, ri)
 		}
+		r.sb.WriteString("<tr>")
+		r.tableCells(cols, obj, tpls, tc)
 		r.sb.WriteString("</tr>")
+		if detail != nil {
+			r.detailRow(detail, len(cols))
+		}
 	}
+	r.scope, r.idSuffix = prev, prevSuf
 	r.sb.WriteString("</tbody></table>")
+	r.sb.WriteString(tc.close)
 }
 
 // colWidths returns the optional per-column `width` of a table columns prop,
@@ -606,10 +1005,16 @@ func colGroup(widths []string, extraLeading bool) string {
 	b.WriteString("</colgroup>")
 	return b.String()
 }
+
+// accordion stacks its children as headed panels, one open at a time. Which
+// one starts open is `active` — a literal or a binding, clamped into range and
+// defaulting to the first panel, so an accordion that declares nothing renders
+// as it always did. Toggling stays client-side (qormAcc).
 func (r *renderer) accordion(n *model.Node) {
+	active := r.activeIndex(n, len(n.Children))
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;border:1px solid var(--sep);border-radius:10px;overflow:hidden;")
 	for i, c := range n.Children {
-		open := i == 0
+		open := i == active
 		disp := "none"
 		if open {
 			disp = "block"
@@ -709,16 +1114,22 @@ func (r *renderer) pagination(n *model.Node) {
 	r.sb.WriteString(`</div>`)
 }
 
-// tree renders a nested, natively-collapsible view from `data` ([{label,children}]).
+// tree renders a nested, natively-collapsible view from `data`
+// ([{label,children}]). Every branch is expanded by default; `collapsed: true`
+// flips the default for the whole tree, and a node's own `expanded` field
+// overrides it either way — so a big tree can ship folded with the path to the
+// interesting node already open. Collapsing is native <details>, so it survives
+// with no JS and no state round-trip.
 func (r *renderer) tree(n *model.Node) {
+	open := !propBool(n, "collapsed")
 	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-tree" style=%q>`, attrID(n.ID), r.boxCSS(n)+"font-size:14px;")
 	for _, it := range r.boundArray(n, "data") {
-		r.treeItem(it)
+		r.treeItem(it, open)
 	}
 	r.sb.WriteString(`</div>`)
 }
 
-func (r *renderer) treeItem(v any) {
+func (r *renderer) treeItem(v any, def bool) {
 	obj, _ := v.(map[string]any)
 	label := ""
 	if obj != nil {
@@ -731,14 +1142,32 @@ func (r *renderer) treeItem(v any) {
 		fmt.Fprintf(&r.sb, `<div class="qorm-tree-leaf">%s</div>`, html.EscapeString(label))
 		return
 	}
-	fmt.Fprintf(&r.sb, `<details class="qorm-tree-n" open><summary class="qorm-tree-sum">%s</summary><div class="qorm-tree-kids">`, html.EscapeString(label))
+	// A node's own `expanded` decides only that node: its descendants keep the
+	// tree default, so re-opening a folded branch does not reveal a subtree
+	// that was folded only because its parent was.
+	open := def
+	if e, ok := obj["expanded"]; ok {
+		open = asBool(e)
+	}
+	att := ""
+	if open {
+		att = " open"
+	}
+	fmt.Fprintf(&r.sb, `<details class="qorm-tree-n"%s><summary class="qorm-tree-sum">%s</summary><div class="qorm-tree-kids">`, att, html.EscapeString(label))
 	for _, c := range kids {
-		r.treeItem(c)
+		r.treeItem(c, def)
 	}
 	r.sb.WriteString(`</div></details>`)
 }
 
 // timeline renders a vertical dotted timeline from `items` ([{title,text}]).
+// Three optional per-item fields give an event its own identity without the app
+// dropping to a hand-built list: `color` (the marker's colour — status per
+// event, not one accent for the whole feed), `icon` (a built-in icon name drawn
+// inside the marker, which grows it to a 20px disc) and `time` (a small
+// timestamp line above the title). An item that carries none of them renders
+// byte-identically to before they existed. `color` is filtered through cssValue
+// and escaped: it lands in a style attribute, so it may not carry a quote.
 func (r *renderer) timeline(n *model.Node) {
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;")
 	items := r.boundArray(n, "items")
@@ -750,14 +1179,29 @@ func (r *renderer) timeline(n *model.Node) {
 		} else {
 			title = fmt.Sprint(it)
 		}
+		color := "var(--accent)"
+		if c, ok := obj["color"].(string); ok && cssValue(c) != "" {
+			color = html.EscapeString(c)
+		}
+		marker := `<span style="width:12px;height:12px;border-radius:50%;background:` + color + `;flex-shrink:0;margin-top:3px;"></span>`
+		if name, ok := obj["icon"].(string); ok {
+			if svg := iconSVG(name, 12); svg != "" {
+				marker = `<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:` +
+					color + `;color:#fff;flex-shrink:0;">` + svg + `</span>`
+			}
+		}
+		stamp := ""
+		if ts, ok := obj["time"].(string); ok && ts != "" {
+			stamp = `<div style="font-size:12px;color:var(--label2);">` + html.EscapeString(ts) + `</div>`
+		}
 		line := "flex:1;width:2px;background:var(--sep);"
 		if i == len(items)-1 {
 			line = ""
 		}
 		fmt.Fprintf(&r.sb, `<div style="display:flex;gap:12px;">`+
-			`<div style="display:flex;flex-direction:column;align-items:center;"><span style="width:12px;height:12px;border-radius:50%%;background:var(--accent);flex-shrink:0;margin-top:3px;"></span><span style="%s"></span></div>`+
-			`<div style="padding-bottom:16px;"><div style="font-weight:600;font-size:14px;color:var(--label);">%s</div><div style="font-size:13px;color:var(--label2);">%s</div></div></div>`,
-			line, html.EscapeString(title), html.EscapeString(textv))
+			`<div style="display:flex;flex-direction:column;align-items:center;">%s<span style="%s"></span></div>`+
+			`<div style="padding-bottom:16px;">%s<div style="font-weight:600;font-size:14px;color:var(--label);">%s</div><div style="font-size:13px;color:var(--label2);">%s</div></div></div>`,
+			marker, line, stamp, html.EscapeString(title), html.EscapeString(textv))
 	}
 	r.sb.WriteString(`</div>`)
 }

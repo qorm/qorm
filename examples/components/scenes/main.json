@@ -82,7 +82,16 @@
           }
         ],
         "sortField": "{{state.rowsSort}}",
-        "sortDir": "{{state.rowsDir}}"
+        "sortDir": "{{state.rowsDir}}",
+        "stickyHeader": true,
+        "children": [
+          {
+            "type": "tag",
+            "id": "tblrole",
+            "column": "role",
+            "label": "{{row.role}}"
+          }
+        ]
       },
       {
         "type": "accordion",
@@ -372,6 +381,7 @@
         "type": "tabs",
         "id": "tb",
         "tabs": ["Overview", "Specs", "Reviews"],
+        "scrollable": true,
         "children": [
           { "type": "text", "id": "tb1", "text": "Overview panel — tabs switch client-side, no server round-trip." },
           { "type": "text", "id": "tb2", "text": "Specs panel." },
