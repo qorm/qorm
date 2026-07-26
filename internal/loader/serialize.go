@@ -180,7 +180,7 @@ func ManifestToJSON(app *model.App) map[string]any {
 	if len(app.Components) > 0 {
 		comps := map[string]any{}
 		for name, node := range app.Components {
-			comps[name] = NodeToJSON(node)
+			comps[name] = componentToJSON(node, app.ComponentSchemas[name])
 		}
 		m["components"] = comps
 	}
@@ -195,6 +195,46 @@ func ManifestToJSON(app *model.App) map[string]any {
 		m["shortcuts"] = scs
 	}
 	return m
+}
+
+// componentToJSON serialises one component definition — the inverse of
+// defineComponent. A component that declared nothing is written back as its
+// bare template (the legacy spelling, so an app that never used declarations
+// round-trips byte-identically); one that declared props or slots is written in
+// the declaration form, with every prop in its canonical long form.
+func componentToJSON(tmpl *model.Node, sc *model.ComponentSchema) map[string]any {
+	node := NodeToJSON(tmpl)
+	if sc == nil {
+		return node
+	}
+	def := map[string]any{"template": node}
+	if sc.Props != nil {
+		props := map[string]any{}
+		for name, spec := range sc.Props {
+			p := map[string]any{}
+			putIf(p, "type", spec.Type)
+			if spec.Default != nil {
+				p["default"] = spec.Default
+			}
+			if spec.Required {
+				p["required"] = true
+			}
+			props[name] = p
+		}
+		def["props"] = props
+	}
+	if sc.Slots != nil {
+		slots := map[string]any{}
+		for name, spec := range sc.Slots {
+			s := map[string]any{}
+			if spec.Required {
+				s["required"] = true
+			}
+			slots[name] = s
+		}
+		def["slots"] = slots
+	}
+	return def
 }
 
 // ActionToJSON serialises an action document.
@@ -224,6 +264,11 @@ func stepToJSON(st model.Step) map[string]any {
 	putIf(s, "body", st.Body)
 	putIf(s, "result", st.Result)
 	putIf(s, "error", st.Error)
+	// Only emitted when set: false is the default, so a round trip must not
+	// grow an "async": false onto every http step that never asked for one.
+	if st.Async {
+		s["async"] = true
+	}
 	// navigate (and state.move) targeting fields: without these a
 	// re-serialised navigate step loses its target scene.
 	putIf(s, "to", st.To)
@@ -264,7 +309,11 @@ func stepToJSON(st model.Step) map[string]any {
 }
 
 // AppToDocs serialises a whole app (manifest + scenes + actions) back to the
-// raw document list, the inverse of FromDocs.
+// raw document list, the inverse of FromDocs. Components always come back
+// nested in the manifest's "components" map — the one canonical output form —
+// even when they were authored as standalone type:"component" documents, since
+// the two spellings are merged into a single map at load time and nothing in
+// the model records which file a component came from.
 func AppToDocs(app *model.App) []map[string]any {
 	docs := []map[string]any{ManifestToJSON(app)}
 	for id, root := range app.Scenes {

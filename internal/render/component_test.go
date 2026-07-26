@@ -474,3 +474,97 @@ func TestComponentRecursionGuard(t *testing.T) {
 		t.Errorf("self-referencing component should bottom out as unknown at the depth cap")
 	}
 }
+
+// schemaApp builds an app whose components carry declared schemas, for
+// exercising the parts of the declaration the RENDERER honours (defaults and
+// the spec's ref instance form).
+func schemaApp(components map[string]*model.Node, schemas map[string]*model.ComponentSchema, root *model.Node, initial map[string]any) *model.App {
+	return &model.App{
+		Entry:            "main",
+		Scenes:           map[string]*model.Node{"main": root},
+		Components:       components,
+		ComponentSchemas: schemas,
+		GlobalState:      model.GlobalState{Initial: initial},
+	}
+}
+
+// TestComponentPropDefaults guards the declared-default filling: a prop the
+// instance omits renders as its default, a prop the instance supplies always
+// wins (even via the nested props object or a state binding), and a declaration
+// without a default injects nothing.
+func TestComponentPropDefaults(t *testing.T) {
+	comps := map[string]*model.Node{
+		"Chip": {Type: "text", ID: "c", Text: "[{{ prop.label }}|{{ prop.count }}|{{ prop.tone }}]"},
+	}
+	schemas := map[string]*model.ComponentSchema{
+		"Chip": {Props: map[string]model.PropSpec{
+			"label": {Type: "string", Default: "DEFLABEL"},
+			"count": {Type: "number", Default: float64(7)},
+			"tone":  {Type: "string"}, // no default: nothing injected
+		}},
+	}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{
+		{Type: "Chip", ID: "c1"},
+		{Type: "Chip", ID: "c2", Props: map[string]any{"label": "GIVEN", "count": float64(1)}},
+		{Type: "Chip", ID: "c3", Props: map[string]any{"props": map[string]any{"label": "NESTED"}}},
+		{Type: "Chip", ID: "c4", Props: map[string]any{"label": "{{ state.msg }}"}},
+	}}
+	res := Render(runtime.New(schemaApp(comps, schemas, root, map[string]any{"msg": "BOUND"})))
+	for _, w := range []string{"[DEFLABEL|7|]", "[GIVEN|1|]", "[NESTED|7|]", "[BOUND|7|]"} {
+		if !strings.Contains(res.HTML, w) {
+			t.Errorf("prop defaults not applied as declared, lacks %q:\n%s", w, res.HTML)
+		}
+	}
+}
+
+// TestComponentDefaultsIgnoredWithoutSchema is the back-compat guard: with no
+// declaration the renderer injects nothing, so an undeclared prop stays empty.
+func TestComponentDefaultsIgnoredWithoutSchema(t *testing.T) {
+	comps := map[string]*model.Node{"Chip": {Type: "text", ID: "c", Text: "[{{ prop.label }}]"}}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{{Type: "Chip", ID: "c1"}}}
+	res := renderApp(t, comps, root)
+	if !strings.Contains(res.HTML, "[]") {
+		t.Errorf("an undeclared component must inject no defaults:\n%s", res.HTML)
+	}
+}
+
+// TestComponentRefInstance covers the spec's explicit instance form:
+// {"type":"component","ref":"panel"} instantiates the component (canonical
+// component:// prefix and bindings included), and an unresolvable ref still
+// renders the plain `component` container it always has.
+func TestComponentRefInstance(t *testing.T) {
+	comps := map[string]*model.Node{
+		"Panel": {Type: "card", ID: "p", Children: []*model.Node{
+			{Type: "text", ID: "pt", Text: "T:{{ prop.title }}"},
+			{Type: "slot", ID: "ps"},
+		}},
+	}
+	schemas := map[string]*model.ComponentSchema{
+		"Panel": {Props: map[string]model.PropSpec{"title": {Type: "string", Default: "DEF"}}},
+	}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{
+		{Type: "component", ID: "r1", Props: map[string]any{"ref": "Panel", "title": "A"}},
+		{Type: "component", ID: "r2", Props: map[string]any{"ref": "component://Panel"}},
+		{Type: "component", ID: "r3", Props: map[string]any{"ref": "{{ state.which }}"},
+			Children: []*model.Node{{Type: "text", ID: "kid", Text: "SLOTTED"}}},
+		{Type: "component", ID: "r4", Props: map[string]any{"ref": "NoSuch"}},
+		{Type: "component", ID: "r5", Children: []*model.Node{{Type: "text", ID: "plain", Text: "PLAIN"}}},
+	}}
+	res := Render(runtime.New(schemaApp(comps, schemas, root, map[string]any{"which": "Panel"})))
+	for _, w := range []string{"T:A", "T:DEF", "SLOTTED", "PLAIN"} {
+		if !strings.Contains(res.HTML, w) {
+			t.Errorf("ref instance form lacks %q:\n%s", w, res.HTML)
+		}
+	}
+	// r3's ref resolved through the binding, so its child filled the slot inside
+	// the component (id suffixed per instance); r5 stayed a plain container.
+	if !strings.Contains(res.HTML, `id="kid_r3"`) {
+		t.Errorf("a bound ref must instantiate the component:\n%s", res.HTML)
+	}
+	if !strings.Contains(res.HTML, `id="plain"`) {
+		t.Errorf("a ref-less component node must stay a plain container:\n%s", res.HTML)
+	}
+	if len(res.Unknown) != 0 {
+		t.Errorf("no node should degrade to unknown: %v", res.Unknown)
+	}
+}

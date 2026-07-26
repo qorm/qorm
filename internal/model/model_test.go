@@ -114,3 +114,43 @@ func TestJSONFieldTags(t *testing.T) {
 		t.Errorf("Widget lines mismatch: %+v", doc.Widget)
 	}
 }
+
+// TestComponentRefName pins the component instance `ref` normalisation: the
+// canonical component:// form, the bare shorthand, surrounding whitespace, and
+// the two "not a static reference" cases (empty and an unresolved binding).
+func TestComponentRefName(t *testing.T) {
+	tests := []struct{ in, want string }{
+		{"panel", "panel"},
+		{"component://panel", "panel"},
+		{"  component://panel  ", "panel"},
+		{"component:// panel ", "panel"},
+		{"", ""},
+		{"   ", ""},
+		{"component://", ""},
+		{"{{ state.which }}", ""},
+		{"component://{{ state.which }}", ""},
+	}
+	for _, tt := range tests {
+		if got := ComponentRefName(tt.in); got != tt.want {
+			t.Errorf("ComponentRefName(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+}
+
+// TestComponentSchemaZeroValues documents the declaration defaults: a schema
+// that declares nothing constrains nothing, so the loader's checks and the
+// renderer's default filling are both no-ops on it.
+func TestComponentSchemaZeroValues(t *testing.T) {
+	var sc ComponentSchema
+	if sc.Props != nil || sc.Slots != nil {
+		t.Errorf("a zero ComponentSchema must declare nothing: %+v", sc)
+	}
+	var p PropSpec
+	if p.Type != "" || p.Default != nil || p.Required {
+		t.Errorf("a zero PropSpec must be unconstrained: %+v", p)
+	}
+	var s SlotSpec
+	if s.Required {
+		t.Errorf("a zero SlotSpec must be optional: %+v", s)
+	}
+}

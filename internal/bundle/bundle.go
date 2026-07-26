@@ -35,6 +35,12 @@ type Content struct {
 	Scenes  map[string]map[string]any    `json:"scenes"`
 	Actions map[string]map[string]any    `json:"actions"`
 	Locales map[string]map[string]string `json:"locales,omitempty"`
+	// Components are standalone type:"component" definition documents
+	// (components/<name>.json), by component name. Components declared inline
+	// in qorm.json travel inside App and never appear here; omitempty keeps
+	// the canonical encoding — and therefore the content hash — of every
+	// bundle without cross-file components unchanged.
+	Components map[string]map[string]any `json:"components,omitempty"`
 	// RequiredCapabilities lists the hardware/native capabilities (by canonical
 	// capability name, e.g. "camera") the app needs at runtime. The runtime
 	// refuses to start the bundle on a platform missing any of them. omitempty
@@ -80,6 +86,11 @@ func fromDocs(docs []map[string]any, locales map[string]map[string]string) (*Bun
 			c.Scenes[id] = doc
 		case "action":
 			c.Actions[id] = doc
+		case "component":
+			if c.Components == nil {
+				c.Components = map[string]map[string]any{}
+			}
+			c.Components[id] = doc
 		}
 	}
 	b := &Bundle{Format: Format, Content: c}
@@ -281,7 +292,7 @@ func VerifyWithRevocation(b *Bundle, trust ed25519.PublicKey, revoked Revocation
 
 // ToApp reconstructs a runnable model.App from the bundle content.
 func (b *Bundle) ToApp() *model.App {
-	docs := make([]map[string]any, 0, len(b.Content.Scenes)+len(b.Content.Actions)+1)
+	docs := make([]map[string]any, 0, len(b.Content.Scenes)+len(b.Content.Actions)+len(b.Content.Components)+1)
 	if b.Content.App != nil {
 		docs = append(docs, b.Content.App)
 	}
@@ -290,6 +301,9 @@ func (b *Bundle) ToApp() *model.App {
 	}
 	for _, a := range b.Content.Actions {
 		docs = append(docs, a)
+	}
+	for _, c := range b.Content.Components {
+		docs = append(docs, c)
 	}
 	app := loader.FromDocs(docs)
 	app.Locales = b.Content.Locales

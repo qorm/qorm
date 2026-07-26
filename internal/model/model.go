@@ -4,6 +4,24 @@
 // run unchanged on this runtime.
 package model
 
+import "strings"
+
+// ComponentRefName normalises a component instance's `ref` to a component name.
+// The canonical form is "component://panel" and the shorthand — the form used
+// inside a component instance's fields — is plain "panel"
+// (planning/spec/json-format-spec.md "Component 文件"). A ref that is empty or
+// still carries an unresolved {{binding}} yields "", i.e. "not a static
+// component reference".
+func ComponentRefName(ref string) string {
+	ref = strings.TrimSpace(ref)
+	ref = strings.TrimPrefix(ref, "component://")
+	ref = strings.TrimSpace(ref)
+	if ref == "" || strings.Contains(ref, "{{") {
+		return ""
+	}
+	return ref
+}
+
 // App is a fully loaded QORM application.
 type App struct {
 	ID          string
@@ -40,7 +58,19 @@ type App struct {
 	// Components are app-defined reusable UI components, keyed by type name. A
 	// node whose type matches a component name instantiates it: the node's props
 	// become {{prop.x}} inside the component, and its children fill any {slot}.
+	// A component is defined either inline in qorm.json ("components": {name:
+	// template}) or by its own `type:"component"` document (conventionally
+	// components/<name>.json); both forms merge into this one map.
 	Components map[string]*Node
+	// ComponentSchemas holds the DECLARED contract of the components that opt
+	// into one — the props they accept and the named slots they expose. Keyed
+	// exactly like Components; a component that declares nothing has no entry
+	// here and keeps the historical "anything goes" behavior (every instance
+	// key is passed through to prop.*, every slot is optional). Declarations
+	// give the loader something to check instances against (missing required
+	// props/slots, statically-wrong literal types) and the renderer defaults to
+	// fill in for props the instance omits.
+	ComponentSchemas map[string]*ComponentSchema
 	// Shortcuts are the app's home-screen / Dock quick actions (long-press the
 	// app icon). Selecting one launches the app and fires qormEmit('shortcut', id).
 	Shortcuts []Shortcut
@@ -63,6 +93,40 @@ type App struct {
 	PluginABI string
 	// Diagnostics holds static compilation warnings or syntax errors found by the loader.
 	Diagnostics []string
+}
+
+// ComponentSchema is one component's declared interface: the props it accepts
+// and the named slots it exposes. It mirrors the `props` / `slots` objects of a
+// component definition (planning/spec/json-format-spec.md "Component 文件") and
+// is entirely optional — a component without one behaves exactly as before.
+type ComponentSchema struct {
+	// Props maps a prop name to its declaration. Present but empty means the
+	// component declared `"props": {}` (an explicitly propless component).
+	Props map[string]PropSpec
+	// Slots maps a named slot to its declaration.
+	Slots map[string]SlotSpec
+}
+
+// PropSpec declares one component prop. The JSON shorthand `"title": "string"`
+// yields PropSpec{Type: "string"}; the long form
+// `{"type":"number","default":0,"required":true}` fills all three fields.
+type PropSpec struct {
+	// Type is the normalised declared type: "string", "number", "boolean",
+	// "array", "object" or "" (unconstrained — the `any` declaration and any
+	// unrecognised type name both normalise to "").
+	Type string
+	// Default is injected into the component's prop.<name> scope when the
+	// instance does not supply the prop. nil means "no default".
+	Default any
+	// Required makes a missing prop a load-time error diagnostic.
+	Required bool
+}
+
+// SlotSpec declares one named slot of a component.
+type SlotSpec struct {
+	// Required makes an instance that fills no child with slot:"<name>" a
+	// load-time error diagnostic.
+	Required bool
 }
 
 // DesignToken is one entry in an app's design-token system: a named, typed value
@@ -242,10 +306,23 @@ type Step struct {
 	Headers map[string]string // request headers (values may contain {{bindings}})
 	Result  string            // state path to store the parsed response (defaults to Path)
 	Error   string            // state path to store an error message, if any
+	// Async requests that an http.* step run in the BACKGROUND: the dispatch
+	// hands the round trip to the host's background sink and returns at once,
+	// so the frame published at the dispatch boundary already shows the loading
+	// state and the session stays responsive for the whole request. Defaults to
+	// false — the request then blocks the dispatch, which is the original (and
+	// still the only) behavior for a step that reads the response from its
+	// sibling steps rather than from OnSuccess. It also degrades to false on a
+	// host that installed no background sink (a bare runtime, an offline
+	// render, an MCP simulation), so the same JSON stays portable.
+	Async bool
 	// OnSuccess / OnError are the http.* steps' optional result branches. They
-	// run inline once the request returns — on the dispatching goroutine, before
-	// the http step's sibling steps — so a dispatch is still run-to-completion
-	// and the state it produces is readable the moment Dispatch returns.
+	// run once the request returns: with the default synchronous step, inline
+	// on the dispatching goroutine before the http step's sibling steps, so the
+	// dispatch is run-to-completion and the state it produces is readable the
+	// moment Dispatch returns; with Async, on the host's background sink after
+	// the dispatch has already ended, holding the host's lock, with the
+	// dispatch-time args frozen but state read live (see Async).
 	// OnSuccess steps see the decoded response as `{{ response }}` (in addition
 	// to the Result state path, which is written first); OnError steps see the
 	// failure message as `{{ error }}` (the Error state path is still written

@@ -103,7 +103,28 @@ func roundTripApp() *model.App {
 			HideLog: true, HideTray: true,
 		},
 		Components: map[string]*model.Node{
+			// An undeclared component: serialised as its bare template, the
+			// spelling every app used before declarations existed.
 			"card": {Type: "text", ID: "card_text", Text: "{{ state.count }}"},
+			// A component with a declared props/slots schema: serialised in the
+			// declaration form ({props, slots, template}).
+			"panel": {Type: "card", ID: "panel_root", Children: []*model.Node{
+				{Type: "slot", ID: "panel_body", Props: map[string]any{"name": "body"}},
+			}},
+		},
+		ComponentSchemas: map[string]*model.ComponentSchema{
+			"panel": {
+				Props: map[string]model.PropSpec{
+					"title": {Type: "string"},                      // shorthand-equivalent
+					"count": {Type: "number", Default: float64(3)}, // default branch
+					"open":  {Type: "boolean", Required: true},     // required branch
+					"extra": {},                                    // unconstrained branch
+				},
+				Slots: map[string]model.SlotSpec{
+					"header": {},               // optional branch
+					"body":   {Required: true}, // required branch
+				},
+			},
 		},
 		Shortcuts: []model.Shortcut{
 			{ID: "s1", Title: "New"},
@@ -316,6 +337,10 @@ func checkAppFields(t *testing.T, want, got *model.App) {
 		t.Errorf("Shortcuts: want %+v got %+v", want.Shortcuts, got.Shortcuts)
 	}
 	checkNodeMap(t, "Components", want.Components, got.Components)
+	if !reflect.DeepEqual(want.ComponentSchemas, got.ComponentSchemas) {
+		t.Errorf("ComponentSchemas: want %+v got %+v (a declared component must round-trip through the manifest's declaration form)",
+			want.ComponentSchemas, got.ComponentSchemas)
+	}
 	checkNodeMap(t, "Scenes", want.Scenes, got.Scenes)
 	checkActionMap(t, "Actions", want.Actions, got.Actions)
 	for id, inv := range want.SceneEnter {
@@ -829,6 +854,27 @@ func TestSerializeRoundTripRegressionFields(t *testing.T) {
 				}
 				if st := act.Steps[0]; len(st.OnSuccess) != 1 || len(st.OnError) != 1 {
 					t.Errorf("http branches lost: %+v", st)
+				}
+			},
+		},
+		{
+			name: "http async flag",
+			mut: func(a *model.App) {
+				a.Actions["bg"] = &model.Action{ID: "bg", Steps: []model.Step{
+					{Type: "http.get", URL: "https://x.example/y", Result: "r", Async: true},
+					{Type: "http.get", URL: "https://x.example/z", Result: "s"},
+				}}
+			},
+			check: func(t *testing.T, got *model.App) {
+				act := got.Actions["bg"]
+				if act == nil || len(act.Steps) != 2 {
+					t.Fatalf("async action lost: %+v", act)
+				}
+				if !act.Steps[0].Async {
+					t.Errorf("the async flag must survive the round trip: %+v", act.Steps[0])
+				}
+				if act.Steps[1].Async {
+					t.Errorf("a synchronous step must not grow an async flag: %+v", act.Steps[1])
 				}
 			},
 		},

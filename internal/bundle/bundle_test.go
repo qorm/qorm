@@ -1,6 +1,7 @@
 package bundle
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -212,5 +213,112 @@ func TestLegacyBundleWithoutRequiredCapabilities(t *testing.T) {
 	}
 	if err := Verify(got, nil); err != nil {
 		t.Fatalf("legacy bundle must still verify: %v", err)
+	}
+}
+
+// componentAppDir writes an app whose component lives in its own
+// components/*.json document (the cross-file definition form).
+func componentAppDir(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	write := func(rel, content string) {
+		t.Helper()
+		p := filepath.Join(dir, rel)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("qorm.json", `{"type":"app","id":"cf","name":"CF","entry":"main"}`)
+	write("components/panel.json", `{"type":"component","id":"panel",
+		"props":{"title":{"type":"string","default":"DEF"}},
+		"slots":{"body":{"required":true}},
+		"template":{"type":"card","id":"pr","children":[
+			{"type":"text","id":"pt","text":"T:{{ prop.title }}"},
+			{"type":"slot","name":"body"}]}}`)
+	write("scenes/main.json", `{"type":"scene","id":"main","root":{"type":"column","id":"root","children":[
+		{"type":"panel","id":"p1","children":[{"type":"text","id":"pb","slot":"body","text":"BODY"}]}]}}`)
+	return dir
+}
+
+// TestCrossFileComponentsSurviveBundle: a standalone type:"component" document
+// is bundle content in its own right — Build must carry it (it is not part of
+// the manifest), ToApp must rehydrate it, and the hash must cover it. Without
+// this, packaging an app whose components live in components/*.json would
+// silently ship an app that renders them as unknown widgets.
+func TestCrossFileComponentsSurviveBundle(t *testing.T) {
+	b, err := Build(componentAppDir(t))
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	if b.Content.Components["panel"] == nil {
+		t.Fatalf("component document dropped from bundle content: %+v", b.Content)
+	}
+	app := b.ToApp()
+	if app.Components["panel"] == nil {
+		t.Fatalf("component lost through ToApp: %+v", app.Components)
+	}
+	if sc := app.ComponentSchemas["panel"]; sc == nil || !sc.Slots["body"].Required {
+		t.Errorf("component declaration lost through ToApp: %+v", sc)
+	}
+	html := render.Render(qrt.New(app)).HTML
+	for _, w := range []string{"T:DEF", "BODY"} {
+		if !strings.Contains(html, w) {
+			t.Errorf("bundled cross-file component did not render %q:\n%s", w, html)
+		}
+	}
+
+	// FromApp takes the other route (components fold into the manifest); both
+	// must reconstruct the same component registry.
+	loaded, err := loader.LoadDir(componentAppDir(t))
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	fb, err := FromApp(loaded)
+	if err != nil {
+		t.Fatalf("FromApp: %v", err)
+	}
+	if len(fb.Content.Components) != 0 {
+		t.Errorf("FromApp must fold components into the manifest, got %v", fb.Content.Components)
+	}
+	if fb.ToApp().Components["panel"] == nil {
+		t.Error("component lost through FromApp -> ToApp")
+	}
+
+	// The hash covers the component section: tampering must fail verification.
+	pub, priv, _ := keys.Generate()
+	if err := b.Sign(priv, keys.KeyID(pub)); err != nil {
+		t.Fatalf("sign: %v", err)
+	}
+	data, _ := Marshal(b)
+	c, err := Unmarshal(data)
+	if err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	c.Content.Components["panel"]["injected"] = true
+	if err := Verify(c, pub); err == nil {
+		t.Error("a tampered component document must fail verification")
+	}
+}
+
+// TestBundleWithoutComponentsKeepsLegacyEncoding: the components section is
+// omitempty, so every bundle without cross-file components encodes — and
+// therefore hashes — exactly as it did before the section existed.
+func TestBundleWithoutComponentsKeepsLegacyEncoding(t *testing.T) {
+	b, err := Build(counterDir())
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	if b.Content.Components != nil {
+		t.Errorf("an app with no component documents must leave the section nil: %v", b.Content.Components)
+	}
+	data, err := Marshal(b)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if strings.Contains(string(data), `"components"`) {
+		t.Error("the empty components section must be omitted from the encoding")
 	}
 }

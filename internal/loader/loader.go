@@ -126,6 +126,23 @@ func FromDocs(docs []map[string]any) *model.App {
 			if act.ID != "" {
 				app.Actions[act.ID] = act
 			}
+		case "component":
+			// A standalone component definition document (conventionally
+			// components/<name>.json), equivalent to one entry of qorm.json's
+			// inline "components" map: `id` is the component name and
+			// `template` its root node, with optional props/slots declarations.
+			// The manifest pass above ran first, so an inline definition of the
+			// same name wins and this one is diagnosed as a redefinition.
+			name := asString(doc["id"])
+			if name == "" {
+				diags = append(diags, fmt.Sprintf("error: document #%d 是 type:\"component\" 组件定义但缺少 \"id\"(组件名),已忽略。", i))
+				continue
+			}
+			if _, ok := doc["template"].(map[string]any); !ok {
+				diags = append(diags, fmt.Sprintf("error: 组件文档 %q 缺少 \"template\"(组件模板根节点对象),已忽略。", name))
+				continue
+			}
+			defineComponent(app, name, doc, sceneVars, &diags)
 		default:
 			// A doc with no recognised type used to be silently dropped, so
 			// an app whose only doc is typeless rendered "no scene" with zero
@@ -160,6 +177,7 @@ func FromDocs(docs []map[string]any) *model.App {
 	// actions it references).
 	checkActionRefs(app, &diags)
 	checkTimers(app, &diags)
+	checkComponents(app, &diags)
 	app.Diagnostics = diags
 	return app
 }
@@ -213,6 +231,406 @@ func checkActionRefs(app *model.App, diags *[]string) {
 	}
 }
 
+// ---- components: definitions, declared schemas, instance checks ----
+
+// componentTemplate splits a component definition object into its template node
+// and whether it used the declaration form. Two spellings mean the same thing:
+//
+//	{"type":"card","children":[...]}                    the definition IS the template
+//	{"props":{...},"slots":{...},"template":{...}}      the declaration form
+//
+// A `template` object is the discriminator — no node type reads a `template`
+// key (a list's item template is `renderItem`), so an app written before
+// declarations existed can never be mistaken for one.
+func componentTemplate(def map[string]any) (tmpl map[string]any, declaring bool) {
+	if t, ok := def["template"].(map[string]any); ok {
+		return t, true
+	}
+	return def, false
+}
+
+// defineComponent registers one component (from qorm.json's inline "components"
+// map or from its own type:"component" document) together with its optional
+// declared schema. Redefining a name is diagnosed and ignored, so whichever
+// definition is seen first — the manifest is applied before any document — is
+// the one that renders.
+func defineComponent(app *model.App, name string, def map[string]any, vars map[string]string, diags *[]string) {
+	if _, dup := app.Components[name]; dup {
+		if diags != nil {
+			*diags = append(*diags, fmt.Sprintf("error: 组件 %q 被重复定义(qorm.json 内联 components 与 type:\"component\" 组件文档,或多个组件文档同名),仅保留最先出现的定义。", name))
+		}
+		return
+	}
+	tmpl, declaring := componentTemplate(def)
+	if declaring {
+		if schema := parseComponentSchema(name, def, diags); schema != nil {
+			if app.ComponentSchemas == nil {
+				app.ComponentSchemas = map[string]*model.ComponentSchema{}
+			}
+			app.ComponentSchemas[name] = schema
+			// Declared prop types join the template's type-check scope, so
+			// {{ prop.count + 1 }} is checked exactly like {{ state.count + 1 }}.
+			vars = componentVars(vars, schema)
+		}
+	}
+	if app.Components == nil {
+		app.Components = map[string]*model.Node{}
+	}
+	app.Components[name] = buildNode(tmpl, diags, "component:"+name, vars, nil)
+}
+
+// parseComponentSchema reads the "props" / "slots" declarations off a component
+// definition, returning nil when it declares neither (the component then keeps
+// the historical anything-goes contract).
+func parseComponentSchema(comp string, def map[string]any, diags *[]string) *model.ComponentSchema {
+	rawProps, hasProps := def["props"].(map[string]any)
+	rawSlots, hasSlots := def["slots"].(map[string]any)
+	if !hasProps && !hasSlots {
+		return nil
+	}
+	sc := &model.ComponentSchema{}
+	if hasProps {
+		sc.Props = make(map[string]model.PropSpec, len(rawProps))
+		for _, name := range sortedKeys(rawProps) {
+			sc.Props[name] = parsePropSpec(comp, name, rawProps[name], diags)
+		}
+	}
+	if hasSlots {
+		sc.Slots = make(map[string]model.SlotSpec, len(rawSlots))
+		for _, name := range sortedKeys(rawSlots) {
+			spec := model.SlotSpec{}
+			switch t := rawSlots[name].(type) {
+			case map[string]any:
+				spec.Required = asBool(t["required"])
+			case nil:
+			default:
+				if diags != nil {
+					*diags = append(*diags, fmt.Sprintf("warning: 组件 %q 的 slot %q 声明格式无法识别(应为 {\"required\": true|false}),按可选 slot 处理。", comp, name))
+				}
+			}
+			sc.Slots[name] = spec
+		}
+	}
+	return sc
+}
+
+// parsePropSpec reads one prop declaration: the shorthand `"title": "string"`
+// or the long form `{"type":"number","default":0,"required":false}`.
+func parsePropSpec(comp, prop string, raw any, diags *[]string) model.PropSpec {
+	switch t := raw.(type) {
+	case string:
+		return model.PropSpec{Type: normalizePropType(comp, prop, t, diags)}
+	case map[string]any:
+		spec := model.PropSpec{
+			Type:     normalizePropType(comp, prop, asString(t["type"]), diags),
+			Required: asBool(t["required"]),
+		}
+		if d, ok := t["default"]; ok && d != nil {
+			spec.Default = d
+			if diags != nil && !propValueMatches(spec.Type, d) {
+				*diags = append(*diags, fmt.Sprintf("warning: 组件 %q 的 prop %q 声明类型为 %q,但其 default 是 %s。", comp, prop, spec.Type, propValueKind(d)))
+			}
+			if diags != nil && spec.Required {
+				*diags = append(*diags, fmt.Sprintf("warning: 组件 %q 的 prop %q 同时声明了 required 与 default:必填项永远由实例提供,default 不会生效。", comp, prop))
+			}
+		}
+		return spec
+	case nil:
+		return model.PropSpec{}
+	default:
+		if diags != nil {
+			*diags = append(*diags, fmt.Sprintf("warning: 组件 %q 的 prop %q 声明格式无法识别(应为类型字符串如 \"string\",或 {\"type\":…,\"default\":…,\"required\":…}),该 prop 将不做校验。", comp, prop))
+		}
+		return model.PropSpec{}
+	}
+}
+
+// normalizePropType maps a declared prop type onto the canonical names the
+// checks use, mirroring the expression checker's own aliases. "any", an empty
+// declaration and (with a warning) an unknown name all mean "unconstrained".
+func normalizePropType(comp, prop, t string, diags *[]string) string {
+	switch strings.ToLower(strings.TrimSpace(t)) {
+	case "", "any":
+		return ""
+	case "number", "num", "int", "integer", "float", "double":
+		return "number"
+	case "string", "str", "text":
+		return "string"
+	case "bool", "boolean":
+		return "boolean"
+	case "array", "list":
+		return "array"
+	case "object", "map":
+		return "object"
+	}
+	if diags != nil {
+		*diags = append(*diags, fmt.Sprintf("warning: 组件 %q 的 prop %q 声明了未知类型 %q(可用:string/number/boolean/array/object/any),该 prop 将不做类型校验。", comp, prop, t))
+	}
+	return ""
+}
+
+// componentVars extends a component template's type-check scope with its
+// declared prop types (prop.title -> "string", …). Undeclared props stay
+// unknown to the checker, which never reports what it cannot prove.
+func componentVars(base map[string]string, sc *model.ComponentSchema) map[string]string {
+	if sc == nil || len(sc.Props) == 0 {
+		return base
+	}
+	out := make(map[string]string, len(base)+len(sc.Props))
+	for k, v := range base {
+		out[k] = v
+	}
+	for name, spec := range sc.Props {
+		if spec.Type != "" {
+			out["prop."+name] = spec.Type
+		}
+	}
+	return out
+}
+
+// componentInstanceName resolves the component a node instantiates: either its
+// `type` names one directly ({"type":"panel"} — the form the runtime has always
+// used), or it is the spec's explicit instance form
+// ({"type":"component","ref":"panel"}, ref optionally "component://panel").
+// Returns "" for a node that instantiates nothing.
+func componentInstanceName(app *model.App, n *model.Node) string {
+	if _, ok := app.Components[n.Type]; ok {
+		return n.Type
+	}
+	if n.Type != "component" {
+		return ""
+	}
+	ref, _ := n.Props["ref"].(string)
+	name := model.ComponentRefName(ref)
+	if _, ok := app.Components[name]; ok {
+		return name
+	}
+	return ""
+}
+
+// instanceProps collects everything a component instance passes into the
+// template's prop.* scope — the exact union renderComponent builds: every node
+// key except the nested `props` object, then the text/label/value shorthands,
+// then the nested `props` object (which wins on conflict).
+func instanceProps(n *model.Node) map[string]any {
+	out := make(map[string]any, len(n.Props)+3)
+	for k, v := range n.Props {
+		if k == "props" {
+			continue
+		}
+		out[k] = v
+	}
+	if n.Text != "" {
+		out["text"] = n.Text
+	}
+	if n.Label != "" {
+		out["label"] = n.Label
+	}
+	if n.Value != "" {
+		out["value"] = n.Value
+	}
+	if pm, ok := n.Props["props"].(map[string]any); ok {
+		for k, v := range pm {
+			out[k] = v
+		}
+	}
+	return out
+}
+
+// checkComponents validates every component instance in every scene (and inside
+// component templates, which may nest components) against the declared schema
+// of the component it instantiates. Components without a declaration are not
+// checked at all, so an app that declares nothing is diagnosed exactly as before.
+func checkComponents(app *model.App, diags *[]string) {
+	if len(app.ComponentSchemas) == 0 {
+		return
+	}
+	scopes, roots := componentScopes(app)
+	for _, scope := range scopes {
+		walkSceneNodes(roots[scope], func(n *model.Node) {
+			name := componentInstanceName(app, n)
+			if name == "" {
+				return
+			}
+			sc := app.ComponentSchemas[name]
+			if sc == nil {
+				return
+			}
+			checkInstanceProps(scope, name, n, sc, diags)
+			checkInstanceSlots(scope, name, n, sc, diags)
+		})
+	}
+}
+
+// checkInstanceProps diagnoses a missing required prop, a literal value that
+// cannot satisfy its declared type, and an undeclared key in the instance's
+// nested props object.
+func checkInstanceProps(scope, name string, n *model.Node, sc *model.ComponentSchema, diags *[]string) {
+	if sc.Props == nil {
+		return
+	}
+	props := instanceProps(n)
+	for _, pn := range sortedPropNames(sc.Props) {
+		spec := sc.Props[pn]
+		v, ok := props[pn]
+		if !ok {
+			if spec.Required {
+				*diags = append(*diags, fmt.Sprintf("error: [Scene: %s] 组件 %q 的实例 (id: %q) 缺少必填 prop %q。", scope, name, n.ID, pn))
+			}
+			continue
+		}
+		if !propValueMatches(spec.Type, v) {
+			*diags = append(*diags, fmt.Sprintf("error: [Scene: %s] 组件 %q 的实例 (id: %q) 的 prop %q 声明类型为 %q,但传入了 %s。", scope, name, n.ID, pn, spec.Type, propValueKind(v)))
+		}
+	}
+	// Undeclared props are only reported inside the explicit nested `props`
+	// object: a node's TOP-LEVEL keys are indistinguishable from structural
+	// fields (type/id/style/children/slot/if/…), every one of which the
+	// renderer also exposes as prop.*, so flagging those would be noise.
+	pm, ok := n.Props["props"].(map[string]any)
+	if !ok {
+		return
+	}
+	for _, k := range sortedKeys(pm) {
+		if _, declared := sc.Props[k]; !declared {
+			*diags = append(*diags, fmt.Sprintf("warning: [Scene: %s] 组件 %q 的实例 (id: %q) 在 props 中传入了未声明的 prop %q(组件已声明 props schema,该 prop 仍会透传到 prop.%s)。", scope, name, n.ID, k, k))
+		}
+	}
+}
+
+// checkInstanceSlots diagnoses a missing required slot and a child attributed
+// to a slot the component never declared.
+func checkInstanceSlots(scope, name string, n *model.Node, sc *model.ComponentSchema, diags *[]string) {
+	if len(sc.Slots) == 0 {
+		return
+	}
+	filled := make(map[string]bool, len(n.Children))
+	for _, c := range n.Children {
+		s, _ := c.Props["slot"].(string)
+		if s == "" {
+			continue
+		}
+		filled[s] = true
+		if _, declared := sc.Slots[s]; !declared {
+			*diags = append(*diags, fmt.Sprintf("warning: [Scene: %s] 组件 %q 的实例 (id: %q) 的子节点 (id: %q) 填充了未声明的 slot %q。", scope, name, n.ID, c.ID, s))
+		}
+	}
+	for _, sn := range sortedSlotNames(sc.Slots) {
+		if sc.Slots[sn].Required && !filled[sn] {
+			*diags = append(*diags, fmt.Sprintf("error: [Scene: %s] 组件 %q 的实例 (id: %q) 缺少必填 slot %q(用一个带 \"slot\": %q 的子节点填充)。", scope, name, n.ID, sn, sn))
+		}
+	}
+}
+
+// propValueMatches reports whether a literal instance value can satisfy a
+// declared prop type. An unconstrained declaration, a null and any {{binding}}
+// (whose value exists only at render time) always match, so the check can only
+// fire on something statically wrong. Numbers and booleans spelled as strings
+// are accepted: the text/label/value shorthands are strings by construction
+// (model.Node stores them so), and requiring a JSON number there would flag
+// correct apps.
+func propValueMatches(declared string, v any) bool {
+	if declared == "" || v == nil {
+		return true
+	}
+	switch t := v.(type) {
+	case string:
+		if strings.Contains(t, "{{") {
+			return true
+		}
+		switch declared {
+		case "string":
+			return true
+		case "number":
+			_, err := strconv.ParseFloat(strings.TrimSpace(t), 64)
+			return err == nil
+		case "boolean":
+			s := strings.TrimSpace(t)
+			return s == "true" || s == "false"
+		}
+		return false
+	case float64, int, int64:
+		return declared == "number" || declared == "string"
+	case bool:
+		return declared == "boolean" || declared == "string"
+	case []any:
+		return declared == "array"
+	case map[string]any:
+		return declared == "object"
+	}
+	return true
+}
+
+// propValueKind names the JSON kind of a value, for the type-mismatch message.
+func propValueKind(v any) string {
+	switch t := v.(type) {
+	case string:
+		if strings.Contains(t, "{{") {
+			return "绑定表达式"
+		}
+		return "string"
+	case float64, int, int64:
+		return "number"
+	case bool:
+		return "boolean"
+	case []any:
+		return "array"
+	case map[string]any:
+		return "object"
+	case nil:
+		return "null"
+	default:
+		return fmt.Sprintf("%T", t)
+	}
+}
+
+// sortedKeys returns a raw JSON object's keys in a stable order, so every
+// diagnostic this file emits is deterministic.
+func sortedKeys(m map[string]any) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func sortedPropNames(m map[string]model.PropSpec) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func sortedSlotNames(m map[string]model.SlotSpec) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// componentScopes returns every checkable node tree — the scenes plus the
+// component templates (keyed "component:<name>") — with a sorted scope list so
+// the checks that walk them emit diagnostics in a stable order.
+func componentScopes(app *model.App) ([]string, map[string]*model.Node) {
+	scopes := make([]string, 0, len(app.Scenes)+len(app.Components))
+	roots := make(map[string]*model.Node, len(app.Scenes)+len(app.Components))
+	for id, root := range app.Scenes {
+		roots[id] = root
+		scopes = append(scopes, id)
+	}
+	for name, root := range app.Components {
+		roots["component:"+name] = root
+		scopes = append(scopes, "component:"+name)
+	}
+	sort.Strings(scopes)
+	return scopes, roots
+}
+
 // walkSceneNodes visits every node reachable from n, including renderItem
 // templates and `when` branches.
 func walkSceneNodes(n *model.Node, fn func(*model.Node)) {
@@ -234,17 +652,7 @@ func walkSceneNodes(n *model.Node, fn func(*model.Node)) {
 // render.TimerMinEveryMS is clamped at render time), and an onTick invoke
 // naming a loaded action.
 func checkTimers(app *model.App, diags *[]string) {
-	scopes := make([]string, 0, len(app.Scenes)+len(app.Components))
-	roots := map[string]*model.Node{}
-	for id, root := range app.Scenes {
-		roots[id] = root
-		scopes = append(scopes, id)
-	}
-	for name, root := range app.Components {
-		roots["component:"+name] = root
-		scopes = append(scopes, "component:"+name)
-	}
-	sort.Strings(scopes)
+	scopes, roots := componentScopes(app)
 	for _, scope := range scopes {
 		walkSceneNodes(roots[scope], func(n *model.Node) {
 			if n.Type != "timer" {
@@ -466,13 +874,20 @@ func applyManifest(app *model.App, doc map[string]any, diags *[]string) {
 		}
 	}
 	if comps, ok := doc["components"].(map[string]any); ok {
-		app.Components = map[string]*model.Node{}
+		if app.Components == nil {
+			app.Components = map[string]*model.Node{}
+		}
 		// Schema was parsed above (globalState precedes components in this
 		// function), so component expressions are type-checked too.
 		compVars := stateVars(app.GlobalState.Schema, false)
-		for name, def := range comps {
-			if m, ok := def.(map[string]any); ok {
-				app.Components[name] = buildNode(m, diags, "component:"+name, compVars, nil)
+		names := make([]string, 0, len(comps))
+		for name := range comps {
+			names = append(names, name)
+		}
+		sort.Strings(names) // stable diagnostics order
+		for _, name := range names {
+			if m, ok := comps[name].(map[string]any); ok {
+				defineComponent(app, name, m, compVars, diags)
 			}
 		}
 	}
@@ -791,6 +1206,7 @@ func buildStep(sm map[string]any, diags *[]string, actID string, vars map[string
 		Body:      asString(sm["body"]),
 		Result:    asString(sm["result"]),
 		Error:     asString(sm["error"]),
+		Async:     sm["async"] == true,
 		To:        toVal,
 		Back:      sm["back"] == true,
 		From:      asString(sm["from"]),
@@ -840,6 +1256,12 @@ func buildStep(sm map[string]any, diags *[]string, actID string, vars map[string
 			if step.Name == "" {
 				*diags = append(*diags, fmt.Sprintf("error: [Action: %s] 'invoke' 步骤缺少 name(目标动作 id),将被忽略。", actID))
 			}
+		}
+		// "async" only means something on a backend call: it is the request
+		// round trip that moves to the background. Anywhere else the field is
+		// silently inert, which reads like an unfulfilled promise — say so.
+		if step.Async && !strings.HasPrefix(step.Type, "http.") {
+			*diags = append(*diags, fmt.Sprintf("warning: [Action: %s] 只有 'http.*' 步骤支持 \"async\": true,%q 步骤上的该字段会被忽略。", actID, step.Type))
 		}
 	}
 	return step
