@@ -4,7 +4,10 @@
 package runtime
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -90,9 +93,11 @@ type Runtime struct {
 	//     host holds the lock it serialises dispatches with — it reads and
 	//     writes state and may publish frames;
 	//   - a host that decides to drop the result (the runtime was swapped out
-	//     from under it by a hot reload) simply never calls resume; the
-	//     abandoned runtime's Inflight count then stays raised, which is sound
-	//     precisely because that runtime is being discarded.
+	//     from under it by a hot reload) simply never calls resume, and calls
+	//     AbandonInflight on the retired runtime to say so — the continuation it
+	//     dropped is the one that would have released the in-flight count, and a
+	//     count left raised makes Inflight() promise a reply that is never
+	//     coming.
 	//
 	// Like Commit it is deliberately NOT set by New (nor carried by Clone), so
 	// bare runtimes, offline renders and MCP simulations never open a socket on
@@ -113,22 +118,110 @@ type Runtime struct {
 	// an offline render or an MCP simulation behave differently; and like the
 	// two sinks it is not set by New and not carried by Clone.
 	AsyncAll bool
-	// inflight counts async requests started but not yet resumed. Guarded by
-	// the host's dispatch lock, like the state it lives beside.
+	// inflight counts background units of work started but not yet resumed —
+	// async requests plus pending `delay` continuations. Guarded by the host's
+	// dispatch lock, like the state it lives beside.
 	inflight int
+	// keyed maps a step's `key` to the request currently occupying that slot,
+	// so a newer request on the same key can supersede it. Entries live only
+	// between launch and continuation; the map is nil until the first keyed
+	// request. Written and read exclusively under the host's dispatch lock (a
+	// launch runs inside a dispatch, a continuation inside the host's resume),
+	// which is what makes the plain map and the plain bool inside asyncSlot
+	// race-free without a mutex of their own.
+	keyed map[string]*asyncSlot
+	// pendingRefs counts the open requests holding each `pending` state path
+	// true, so overlapping requests release the flag only when the LAST of them
+	// settles. Same locking discipline as keyed.
+	pendingRefs map[string]int
 }
 
-// Inflight reports how many async `http.*` requests this runtime has started
-// that have not delivered their outcome yet. Zero means quiescent: every
-// continuation has run, so the state (and therefore the render) has settled.
-// Read it under whatever lock the host serialises dispatches with — the same
-// discipline that guards State.
+// asyncSlot is one keyed request's cancellation handle. cancel tears down the
+// transport (so a superseded request stops occupying a connection instead of
+// running to completion unread); dropped is the authoritative decision, taken
+// under the host's lock, that this request's continuation must not touch state.
+//
+// The two are deliberately separate. Cancellation is best-effort and racy by
+// nature — a reply can already be decoded when cancel fires — so it cannot be
+// what decides whether the outcome lands. `dropped` can: it is set by the
+// superseding dispatch under the same lock the continuation later runs under,
+// so the continuation reads a value that is already final.
+type asyncSlot struct {
+	cancel  context.CancelFunc
+	dropped bool
+}
+
+// Inflight reports how many background units of work this runtime has started
+// that have not delivered their outcome yet: async `http.*` requests plus
+// `delay` steps whose remaining steps are still waiting. Zero means quiescent:
+// every continuation has run, so the state (and therefore the render) has
+// settled. Read it under whatever lock the host serialises dispatches with —
+// the same discipline that guards State.
 func (r *Runtime) Inflight() int { return r.inflight }
+
+// releaseInflight retires one unit of background work. It floors at zero rather
+// than decrementing blindly, because AbandonInflight may have zeroed the count
+// out from under a continuation the host meant to drop and ran anyway: a
+// negative count would read as "quiescent" by luck on the next launch and as
+// nonsense to anyone printing it.
+func (r *Runtime) releaseInflight() {
+	if r.inflight > 0 {
+		r.inflight--
+	}
+}
+
+// AbandonInflight declares that this runtime is retired: the host has swapped
+// it out (a hot reload, an OTA activate, a rollback) and will never call the
+// continuation of any background work it started. The count drops to zero,
+// every keyed slot is marked dropped and its transport cancelled.
+//
+// It exists because "the abandoned runtime keeps its raised count, which is
+// sound because nothing reads it any more" is only true of the host that
+// abandoned it. Inflight() is a PUBLISHED quiescence signal — the MCP
+// qorm_activity payload, a test polling for the state to settle — and a
+// discarded runtime that reports work forever in flight makes any such caller
+// wait for a continuation that is never coming. Zero is the honest answer:
+// nothing further will happen to this runtime.
+//
+// Marking the slots dropped is belt and braces: if a continuation does reach a
+// retired runtime after all, it now takes the superseded path and writes
+// nothing. Idempotent, and safe to call on a runtime that never started any
+// background work. Call it under whatever lock the host serialises dispatches
+// with, like every other write to this runtime.
+func (r *Runtime) AbandonInflight() {
+	r.inflight = 0
+	for _, slot := range r.keyed { // claimKey only ever stores a live slot
+		slot.dropped = true
+		slot.cancel()
+	}
+	r.keyed = nil
+}
 
 // maxFrames caps the intermediate frames one top-level dispatch may publish, so
 // a looping action cannot flood the live-sync channel. Frames beyond the cap are
 // dropped silently (the final frame at the dispatch boundary always ships).
 const maxFrames = 64
+
+// maxInflight caps the background work one runtime may have open at once:
+// async `http.*` requests plus waiting `delay` continuations. It is the same
+// class of defence as the timer floor (render.TimerMinEveryMS) — a guard
+// against an app hurting ITSELF. A 250ms timer whose onTick fires an async
+// request against a backend taking 5s accumulates twenty open requests and
+// keeps climbing; without a ceiling that is an unbounded goroutine leak, an
+// unbounded connection count, and a self-inflicted denial of service on the
+// backend, all from JSON that looks entirely reasonable.
+//
+// Reaching the cap does NOT queue and does NOT silently drop: the step takes
+// its ERROR path immediately (the `error` state path is written and OnError
+// runs, with errTooManyInflight as the message), which is the one outcome an
+// app already knows how to render. Queuing would trade a visible failure for
+// an invisible, unbounded backlog — the very thing the cap exists to prevent —
+// and dropping silently would leave a spinner up forever.
+const maxInflight = 64
+
+// errTooManyInflight is the message a step gets when it is refused by
+// maxInflight. It is a stable string so an app (or a test) can match on it.
+var errTooManyInflight = fmt.Sprintf("too many concurrent requests (%d in flight)", maxInflight)
 
 // maxInvokeDepth caps nested Dispatch calls (invoke steps calling actions that
 // invoke further actions); beyond it a dispatch is silently dropped.
@@ -164,6 +257,26 @@ type navFrame struct {
 	Params map[string]any
 }
 
+// GuardBlocked is the reserved scene id a runtime shows when a route guard
+// refuses entry OUTRIGHT (no redirect, a redirect cycle, or a chain past
+// maxGuardRedirects) and nothing else may be entered either — no frame on the
+// back stack and not the entry scene. It is the fail-CLOSED terminal of the
+// entry path: the runtime would otherwise have to keep showing the very scene
+// its guard just refused.
+//
+// It is deliberately not a real scene: no app can declare it (the NUL byte
+// cannot appear in a scene id read from disk), it carries no onEnter and no
+// guard of its own, and it is never pushed onto the back stack. A host renders
+// it as an EMPTY frame — there is, by construction, nothing this session is
+// allowed to see. A host that does not know the id must fall back to rendering
+// nothing rather than to the entry scene, which may be the refused scene
+// itself.
+const GuardBlocked = "\x00guard-refused"
+
+// Blocked reports whether the runtime is parked on GuardBlocked — every entry a
+// guard would permit was refused, so there is nothing this session may render.
+func (r *Runtime) Blocked() bool { return r.Scene == GuardBlocked }
+
 // CurrentScene is the scene id to render ("" falls back to the entry scene).
 func (r *Runtime) CurrentScene() string { return r.Scene }
 
@@ -192,7 +305,7 @@ func (r *Runtime) Navigate(to string, params map[string]any) {
 		}
 		to, params = resolved, gparams
 	}
-	r.NavStack = append(r.NavStack, navFrame{Scene: r.Scene, Params: r.RouteParams})
+	r.pushFrame()
 	r.Scene = to
 	if params == nil {
 		params = map[string]any{}
@@ -202,20 +315,56 @@ func (r *Runtime) Navigate(to string, params map[string]any) {
 	r.pendingEnter = true
 }
 
-// NavigateBack returns to the previous scene, restoring its route params.
-func (r *Runtime) NavigateBack() {
-	if len(r.NavStack) == 0 {
+// pushFrame records the current scene (and its route params) as the frame Back
+// returns to. The blocked scene is never recorded: it is not somewhere the user
+// was, it is the absence of anywhere to be.
+func (r *Runtime) pushFrame() {
+	if r.Scene == GuardBlocked {
 		return
 	}
-	top := r.NavStack[len(r.NavStack)-1]
-	r.Scene = top.Scene
-	r.RouteParams = top.Params
-	if r.RouteParams == nil {
-		r.RouteParams = map[string]any{}
+	r.NavStack = append(r.NavStack, navFrame{Scene: r.Scene, Params: r.RouteParams})
+}
+
+// NavigateBack returns to the previous scene, restoring its route params — and
+// runs that scene's route guard first, exactly like every other entry path.
+//
+// Back is an ENTRY into the scene below, not an undo: the frame was pushed when
+// the user was allowed there, and by the time they return the permission may be
+// gone (a token expired, a role revoked, a sign-out earlier in the same
+// action). Re-resolving is therefore the whole point — without it Back is the
+// one door into a protected scene that nobody checks, and the scene renders in
+// full to every subscriber of the session.
+//
+// A frame whose guard now DIVERTS is followed to the redirect target, like any
+// other navigation. A frame the guard refuses outright is skipped and the
+// unwind continues into the frames below it: "go back" is the user's expressed
+// intent to leave the current scene, and the answer to "you may not enter that"
+// is the next place they may enter, never the refused scene. If no frame at all
+// may be entered the stack is left untouched and the runtime stays put — the
+// current scene was permitted when it was entered, and Back promises to leave,
+// not to find somewhere new.
+func (r *Runtime) NavigateBack() {
+	for i := len(r.NavStack) - 1; i >= 0; i-- {
+		f := r.NavStack[i]
+		to, params, ok := r.guardResolve(r.sceneID(f.Scene), f.Params)
+		if !ok {
+			continue // refused outright: keep unwinding past it
+		}
+		if r.sameScene(to, f.Scene) {
+			// Not diverted: restore the frame verbatim, including the entry
+			// scene's "" spelling and the params it was shown with.
+			to, params = f.Scene, f.Params
+		}
+		r.NavStack = r.NavStack[:i]
+		r.Scene = to
+		if params == nil {
+			params = map[string]any{}
+		}
+		r.RouteParams = params
+		r.NavDir = "pop"
+		r.pendingEnter = true
+		return
 	}
-	r.NavStack = r.NavStack[:len(r.NavStack)-1]
-	r.NavDir = "pop"
-	r.pendingEnter = true
 }
 
 // TakeNavDir returns and clears the pending navigation direction.
@@ -227,7 +376,10 @@ func (r *Runtime) TakeNavDir() string { d := r.NavDir; r.NavDir = ""; return d }
 // (values stringified). url.Values.Encode sorts keys, so the path is stable.
 func (r *Runtime) RoutePath() string {
 	scene := r.Scene
-	if scene == r.App.Entry { // the entry scene is addressed as "/", not by id
+	if scene == r.App.Entry || scene == GuardBlocked {
+		// The entry scene is addressed as "/", not by id — and so is the blocked
+		// scene, which is not addressable at all: a URL naming it would invite a
+		// deep link back into a state the guard produced, not one it permits.
 		scene = ""
 	}
 	q := url.Values{}
@@ -292,7 +444,7 @@ func (r *Runtime) NavigateTo(scene string, params map[string]any) {
 	if params == nil {
 		params = map[string]any{}
 	}
-	r.NavStack = append(r.NavStack, navFrame{Scene: r.Scene, Params: r.RouteParams})
+	r.pushFrame()
 	r.Scene = scene
 	r.RouteParams = params
 	r.NavDir = "push"
@@ -386,8 +538,49 @@ func (r *Runtime) ComputedVars() map[string]any {
 	if m, ok := r.State[model.ComputedNamespace].(map[string]any); ok {
 		return m
 	}
-	return map[string]any{}
+	return noComputed
 }
+
+// noComputed is the empty namespace returned for an app that declares nothing
+// derived. It is shared rather than allocated per call because the renderer
+// calls ComputedVars once per SCOPED node — a list of 200 rows allocated 200
+// empty maps per frame for apps that have no derived values at all. Sharing is
+// safe precisely because the return value is read-only by contract (it is the
+// published namespace itself in the non-empty case, so a caller that wrote to
+// it would already be corrupting live state); the only writes to the namespace
+// go through refreshComputed, which replaces the map wholesale.
+var noComputed = map[string]any{}
+
+// SetStatePath writes a value at a dotted state path and reports whether the
+// write happened. `user.name` descends into (and creates) nested maps, exactly
+// like the `state.set` action step — the one dotted-path semantics the whole
+// system uses, so a value written here is readable by `{{ state.user.name }}`.
+//
+// It refuses a path inside the read-only computed namespace, the same refusal
+// applyStep makes for a step and the loader makes at load time: those values
+// are DERIVED and republished wholesale at every frame boundary, so a write
+// there is overwritten within the frame and misleading until it is. As in
+// applyStep the check only applies to an app that actually declares computed
+// values — everywhere else `computed` is an ordinary state key and keeps
+// working.
+//
+// It is the entry point for a host that writes state from outside a dispatch
+// (the MCP qorm_set_state tool); actions go through applyStep.
+func (r *Runtime) SetStatePath(path string, val any) bool {
+	if path == "" {
+		return false
+	}
+	if r.App != nil && len(r.App.Computed) > 0 && model.IsComputedPath(path) {
+		return false
+	}
+	setPath(r.State, path, val)
+	return true
+}
+
+// StatePath reads the value at a dotted state path — the read that matches
+// SetStatePath's write, so a host reasoning about state uses the same spelling
+// an app binding does.
+func (r *Runtime) StatePath(path string) any { return getPath(r.State, path) }
 
 // refreshComputed re-evaluates every declared computed value and republishes
 // the whole namespace. It is the ONLY writer of state.<ComputedNamespace>.
@@ -427,10 +620,7 @@ func (r *Runtime) deriveComputed() map[string]any {
 		st[k] = v
 	}
 	st[model.ComputedNamespace] = out
-	ctx := map[string]any{"state": st, "t": r.Catalog(), "viewport": r.ViewportVars()}
-	for k, v := range st {
-		ctx[k] = v // bare spellings, including `computed` itself
-	}
+	ctx := r.bareCtx(st)
 	order, _ := r.App.ComputedOrder()
 	for _, name := range order {
 		out[name] = EvalBinding(r.App.Computed[name], ctx)
@@ -492,7 +682,29 @@ func (r *Runtime) RunPendingEnter() {
 		// session). A guard that fires REPLACES the current frame rather than
 		// pushing one: you were never legitimately on the guarded scene, so it
 		// must not become somewhere Back can return to.
-		if to, params, ok := r.guardResolve(scene, r.RouteParams); ok && !r.sameScene(to, scene) {
+		to, params, ok := r.guardResolve(scene, r.RouteParams)
+		if !ok {
+			// The guard refused entry OUTRIGHT — it named no redirect, its
+			// redirects cycle, or the chain ran past maxGuardRedirects.
+			//
+			// On Navigate/NavigateTo a refusal means "stay where you are",
+			// which is safe because "where you are" is the scene the user was
+			// already permitted. HERE it is the opposite: this scene IS the
+			// refused one, so falling through would render it and fire its
+			// onEnter — the load-the-private-data hook running for a visitor
+			// the guard just turned away. A refusal on this path must
+			// therefore LEAVE, and it must leave before onEnter.
+			//
+			// Retreat first (the nearest permitted frame, else the entry
+			// scene); if nothing at all may be entered, park on GuardBlocked,
+			// which renders empty. Both outcomes terminate: retreat only ever
+			// shortens the stack, and the blocked scene clears pendingEnter.
+			if !r.retreatToPermitted() {
+				r.block()
+			}
+			continue
+		}
+		if !r.sameScene(to, scene) {
 			r.Scene = to
 			if params == nil {
 				params = map[string]any{}
@@ -514,6 +726,63 @@ func (r *Runtime) RunPendingEnter() {
 		}
 		r.Dispatch(inv.Name, r.EvalArgs(inv.Args))
 	}
+	r.pendingEnter = false
+}
+
+// retreatToPermitted moves the runtime off a scene whose guard refused entry
+// outright, to the nearest place it may legitimately be: the topmost back-stack
+// frame the guards still admit (following that frame's own redirect if it has
+// one), or failing that the entry scene. It reports whether it found one.
+//
+// Frames it walks past are DROPPED rather than kept: they lead back to the
+// refusal, and leaving them on the stack would let one Back tap walk into it
+// again. The landing frame is marked pending so the scene actually entered runs
+// its own onEnter — the refused scene's never does.
+//
+// It never re-enters the scene it was called for, because that scene is not on
+// the stack (it is the current one) and, if it is the entry scene, the entry
+// fallback resolves the same refusal and declines.
+func (r *Runtime) retreatToPermitted() bool {
+	for i := len(r.NavStack) - 1; i >= 0; i-- {
+		f := r.NavStack[i]
+		to, params, ok := r.guardResolve(r.sceneID(f.Scene), f.Params)
+		if !ok {
+			continue
+		}
+		if r.sameScene(to, f.Scene) {
+			to, params = f.Scene, f.Params
+		}
+		r.NavStack = r.NavStack[:i]
+		r.enter(to, params)
+		return true
+	}
+	if to, params, ok := r.guardResolve(r.App.Entry, nil); ok {
+		r.NavStack = nil
+		r.enter(to, params)
+		return true
+	}
+	return false
+}
+
+// enter puts the runtime on a scene the guards have already admitted, marking
+// it pending so RunPendingEnter's loop dispatches its onEnter next.
+func (r *Runtime) enter(scene string, params map[string]any) {
+	r.Scene = scene
+	if params == nil {
+		params = map[string]any{}
+	}
+	r.RouteParams = params
+	r.pendingEnter = true
+}
+
+// block parks the runtime on GuardBlocked: there is no scene this session may
+// see. The back stack goes with it — every frame on it was just refused — and
+// the entry mark is cleared, because the blocked scene has no hook to run and
+// nothing to re-resolve.
+func (r *Runtime) block() {
+	r.Scene = GuardBlocked
+	r.NavStack = nil
+	r.RouteParams = map[string]any{}
 	r.pendingEnter = false
 }
 
@@ -575,6 +844,40 @@ func (r *Runtime) sceneCtx() map[string]any {
 	return map[string]any{"state": r.State, "t": r.Catalog(), "viewport": r.ViewportVars(), "route": r.RouteParams}
 }
 
+// isReservedRoot reports whether a name is one of the context roots every
+// dotted spelling in an app resolves through. These are owned by the runtime:
+// nothing an app can name — a state key, an action arg, a captured list-item
+// alias — may take one over. See bareCtx.
+func isReservedRoot(name string) bool {
+	return name == "state" || name == "t" || name == "viewport"
+}
+
+// bareCtx builds an action/derived evaluation context over the given state map:
+// the reserved roots (`state`, `t`, `viewport`) plus every TOP-LEVEL state key
+// spelled bare, so `{{ count + 1 }}` inside an action means `{{ state.count + 1 }}`
+// exactly as the message-format context already reads a bare `{count}`.
+//
+// The bare keys are laid down FIRST and the roots are written over them, so the
+// roots always win. That ordering is the whole point: a state key that happens
+// to be named `state` (or `t`, or `viewport`) is still readable bare, but it can
+// never displace the root. Written the other way round — roots first, bare keys
+// over them — a single top-level `state` key silently repointed every
+// `{{ state.x }}` in the app at itself, so every binding and every computed
+// value collapsed to nothing at once, on every frame, with no diagnostic.
+//
+// Callers layering args on top (Dispatch, freshCtx) skip the reserved roots for
+// the same reason; freezeCtx already refuses to freeze them.
+func (r *Runtime) bareCtx(st map[string]any) map[string]any {
+	ctx := make(map[string]any, len(st)+3)
+	for k, v := range st {
+		ctx[k] = v // bare spellings, including `computed` itself
+	}
+	ctx["state"] = st
+	ctx["t"] = r.Catalog()
+	ctx["viewport"] = r.ViewportVars()
+	return ctx
+}
+
 // CurrentLocale is state.locale, falling back to the app's default locale.
 func (r *Runtime) CurrentLocale() string {
 	if l, ok := r.State["locale"].(string); ok && l != "" {
@@ -629,10 +932,15 @@ func (r *Runtime) Catalog() map[string]any {
 		merged[k] = v
 	}
 	// message context: bare {key} resolves to state.key; {state.key} also works.
-	msgCtx := map[string]any{"state": r.State, "__locale": r.CurrentLocale()}
+	// The bare keys go down first so the `state` root wins over a state key of
+	// the same name, exactly as bareCtx does for action contexts. (This one
+	// cannot call bareCtx: bareCtx resolves the catalog.)
+	msgCtx := make(map[string]any, len(r.State)+2)
 	for k, v := range r.State {
 		msgCtx[k] = v
 	}
+	msgCtx["state"] = r.State
+	msgCtx["__locale"] = r.CurrentLocale()
 	out := make(map[string]any, len(merged))
 	for k, v := range merged {
 		out[k] = fillMessage(v, msgCtx)
@@ -773,14 +1081,14 @@ func (r *Runtime) Dispatch(name string, args map[string]any) {
 	if !ok {
 		return
 	}
-	ctx := map[string]any{"state": r.State, "t": r.Catalog(), "viewport": r.ViewportVars()}
-	// Expose top-level state keys so a bare `count` in an action expression
-	// resolves to state.count (as the message-format context already does);
-	// otherwise `{{ count + 1 }}` reads nil and never accumulates.
-	for k, v := range r.State {
-		ctx[k] = v
-	}
-	for k, v := range args { // args still win over state
+	// bareCtx exposes top-level state keys so a bare `count` in an action
+	// expression resolves to state.count (as the message-format context already
+	// does); otherwise `{{ count + 1 }}` reads nil and never accumulates.
+	ctx := r.bareCtx(r.State)
+	for k, v := range args { // args still win over state — but never over the roots
+		if isReservedRoot(k) {
+			continue
+		}
 		ctx[k] = v
 	}
 	r.applySteps(act.Steps, ctx, 0)
@@ -788,13 +1096,60 @@ func (r *Runtime) Dispatch(name string, args map[string]any) {
 
 // applySteps runs a step list in order. depth counts `if`/branch nesting
 // levels (not action calls — that is callDepth), capped at maxIfDepth.
+//
+// One step is resolved here rather than in applyStep: `delay` suspends the REST
+// OF ITS LIST, and this is the only place that knows what the rest of the list
+// is. When the wait is accepted, the remaining steps become the continuation
+// and this call returns without running them; applyStep's own `delay` case is
+// the degradation for when it is not (see there).
 func (r *Runtime) applySteps(steps []model.Step, ctx map[string]any, depth int) {
 	if depth > maxIfDepth {
 		return
 	}
-	for _, step := range steps {
+	for i, step := range steps {
+		if step.Type == "delay" && r.deferRest(step, steps[i+1:], ctx, depth) {
+			return
+		}
 		r.applyStep(step, ctx, depth)
 	}
+}
+
+// deferRest hands a `delay` step's wait to the host's background sink and
+// schedules `rest` — the steps that follow it in the same list — as the
+// continuation. It reports whether it took ownership of them.
+//
+// It declines (false) when there is no host sink, when `ms` is not positive, or
+// when the runtime is already at maxInflight. Declining is not an error: the
+// caller then runs `rest` immediately, so the action still reaches the same
+// final state and the only casualty is the pause. That is the same portability
+// rule `render` and `async` follow, and it is what keeps an offline render, an
+// MCP simulation and `qorm render` instantaneous instead of sleeping through
+// every animation an app declares.
+//
+// The pause is never a Sleep on the dispatching goroutine. On the server that
+// would hold the mutex serialising every request; on the single-threaded WASM
+// host it would freeze the UI outright.
+func (r *Runtime) deferRest(step model.Step, rest []model.Step, ctx map[string]any, depth int) bool {
+	if r.Async == nil || step.DelayMS <= 0 || r.inflight >= maxInflight {
+		return false
+	}
+	// Same context split as an async request: `{{ arg }}` keeps the value the
+	// dispatch carried, `{{ state.x }}` is read when the wait expires.
+	frozen := freezeCtx(r.State, ctx)
+	wait := time.Duration(step.DelayMS) * time.Millisecond
+	r.inflight++
+	r.Async(
+		func() any { time.Sleep(wait); return nil },
+		func(any) {
+			r.releaseInflight()
+			// A resumed tail is a fresh top-level unit of work, exactly like an
+			// http completion: new frame budget, and it must republish the
+			// derived values itself because it lands outside any Dispatch.
+			r.frames = 0
+			r.applySteps(rest, freshCtx(r, frozen), depth)
+			r.refreshComputed()
+		})
+	return true
 }
 
 // branchCtx returns ctx plus one extra binding (e.g. "response" or "error")
@@ -829,10 +1184,23 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any, depth int) {
 	// an error. The check costs nothing for an app that declares no computed
 	// values — where "computed" is just an ordinary state key and keeps working.
 	if len(r.App.Computed) > 0 &&
-		(model.IsComputedPath(step.Path) || model.IsComputedPath(step.Result) || model.IsComputedPath(step.Error)) {
+		(model.IsComputedPath(step.Path) || model.IsComputedPath(step.Result) ||
+			model.IsComputedPath(step.Error) || model.IsComputedPath(step.Pending)) {
 		return
 	}
 	switch step.Type {
+	case "delay":
+		// Reached only when applySteps could NOT defer the rest of the list —
+		// no host background sink, a missing/non-positive `ms`, or the
+		// in-flight cap. The wait then degrades to nothing (the following steps
+		// have already run, or are about to) rather than blocking the dispatch,
+		// which on the server would hold the mutex every request queues behind
+		// and on the single-threaded WASM host would freeze the app.
+		//
+		// The case is here, not only in applySteps, because this switch IS the
+		// step vocabulary: the API reference extracts it (see
+		// internal/integration/apiref_doc_test.go stepTypes), so a step handled
+		// exclusively elsewhere would be undocumented.
 	case "render":
 		// Publish the state written so far as a frame, mid-action. This is what
 		// makes a loading state visible: `state.set saving=true` -> `render` ->
@@ -1095,6 +1463,12 @@ var httpClient = &http.Client{Timeout: 20 * time.Second}
 //     state (whatever the rest of the action, and any event since, has written)
 //     but the FROZEN action args and handler scope, so `{{ state.x }}` reads
 //     "now" while `{{ someArg }}` still reads the value the click carried.
+//
+// Three governance fields shape either mode (see model.Step for their exact
+// contracts): Timeout bounds the round trip, Pending holds a state flag true
+// for its duration, and Key gives the request a slot that a newer request on
+// the same key takes over — cancelling the older transport and discarding its
+// continuation outright.
 func (r *Runtime) applyHTTP(step model.Step, ctx map[string]any, depth int) {
 	method := strings.ToUpper(step.Method)
 	if method == "" {
@@ -1145,30 +1519,133 @@ func (r *Runtime) applyHTTP(step model.Step, ctx map[string]any, depth int) {
 	if body != nil && req.Header.Get("Content-Type") == "" {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	if (step.Async || r.AsyncAll) && r.Async != nil {
-		frozen := freezeCtx(r.State, ctx)
-		r.inflight++
-		r.Async(
-			// Background half: the request is already built, so this closure
-			// reads nothing off the runtime and needs no lock.
-			func() any { return doRequest(req) },
-			// Continuation: the host calls this holding its dispatch lock.
-			func(res any) {
-				r.inflight--
-				out, _ := res.(httpOutcome)
-				// A completion is a fresh top-level continuation, so it gets a
-				// fresh intermediate-frame budget rather than inheriting
-				// whatever the dispatch that started the request had left.
-				r.frames = 0
-				r.settleHTTP(step, resultPath, freshCtx(r, frozen), 0, out)
-				// The continuation is its own dispatch boundary: it lands
-				// outside the Dispatch that started the request, so the derived
-				// values must be republished here too.
-				r.refreshComputed()
-			})
+	background := (step.Async || r.AsyncAll) && r.Async != nil
+	if background && r.inflight >= maxInflight {
+		// The cap is checked BEFORE the request is handed off, so a refused
+		// step neither opens a connection nor raises the count it was refused
+		// by. It takes the error path inline, like an unbuildable request.
+		r.settleHTTP(step, resultPath, ctx, depth, httpOutcome{errMsg: errTooManyInflight})
 		return
 	}
-	r.settleHTTP(step, resultPath, ctx, depth, doRequest(req))
+	// One context governs both the deadline and the supersede-cancel, because
+	// both are the same operation to the transport: stop this round trip. It is
+	// created even when neither field is set (an always-valid cancel to release
+	// on completion keeps the two paths one shape rather than two).
+	reqCtx, cancel := context.Background(), context.CancelFunc(nil)
+	if step.TimeoutMS > 0 {
+		reqCtx, cancel = context.WithTimeout(reqCtx, time.Duration(step.TimeoutMS)*time.Millisecond)
+	} else {
+		reqCtx, cancel = context.WithCancel(reqCtx)
+	}
+	req = req.WithContext(reqCtx)
+	r.holdPending(step.Pending)
+	if !background {
+		defer cancel()
+		out := doRequest(req, step.TimeoutMS)
+		r.releasePending(step.Pending)
+		r.settleHTTP(step, resultPath, ctx, depth, out)
+		return
+	}
+	// A keyed request takes over its slot here, in the dispatch — so by the
+	// time this call returns, the request it superseded can no longer write
+	// state no matter how its own round trip ends.
+	slot := r.claimKey(step.Key, cancel)
+	frozen := freezeCtx(r.State, ctx)
+	r.inflight++
+	r.Async(
+		// Background half: the request is already built, so this closure
+		// reads nothing off the runtime and needs no lock. cancel is released
+		// here rather than in the continuation, so a runtime the host retires
+		// mid-flight (whose continuation is therefore never called) still
+		// gives its timer back.
+		func() any { defer cancel(); return doRequest(req, step.TimeoutMS) },
+		// Continuation: the host calls this holding its dispatch lock.
+		func(res any) {
+			r.releaseInflight()
+			superseded := r.releaseKey(step.Key, slot)
+			r.releasePending(step.Pending)
+			// The continuation is its own dispatch boundary: it lands outside
+			// the Dispatch that started the request, so the derived values must
+			// be republished here too — including on the superseded path, whose
+			// pending release is itself a state write.
+			defer r.refreshComputed()
+			if superseded {
+				// A newer request owns this key. Writing the older reply now
+				// would be the exact bug `key` exists to prevent: the second
+				// keystroke's results replaced by the first keystroke's.
+				return
+			}
+			out, _ := res.(httpOutcome)
+			// A completion is a fresh top-level continuation, so it gets a
+			// fresh intermediate-frame budget rather than inheriting
+			// whatever the dispatch that started the request had left.
+			r.frames = 0
+			r.settleHTTP(step, resultPath, freshCtx(r, frozen), 0, out)
+		})
+}
+
+// claimKey gives a launching request the slot named by key, superseding
+// whatever request held it: that one's transport is cancelled and its slot is
+// marked dropped, which is the decision its continuation will read. Returns the
+// new slot, or nil for an unkeyed request (which supersedes nothing and is
+// never superseded). Caller holds the host's dispatch lock.
+func (r *Runtime) claimKey(key string, cancel context.CancelFunc) *asyncSlot {
+	if key == "" {
+		return nil
+	}
+	if prev := r.keyed[key]; prev != nil {
+		prev.dropped = true
+		prev.cancel()
+	}
+	slot := &asyncSlot{cancel: cancel}
+	if r.keyed == nil {
+		r.keyed = map[string]*asyncSlot{}
+	}
+	r.keyed[key] = slot
+	return slot
+}
+
+// releaseKey retires a finished request's slot and reports whether it was
+// superseded while it was open (in which case its outcome must be discarded).
+// The map entry is only cleared when this request still OWNS the slot: a
+// superseded request must not evict its successor. Caller holds the lock.
+func (r *Runtime) releaseKey(key string, slot *asyncSlot) bool {
+	if slot == nil {
+		return false
+	}
+	if r.keyed[key] == slot {
+		delete(r.keyed, key)
+	}
+	return slot.dropped
+}
+
+// holdPending raises a `pending` state path for one request: the first holder
+// writes true, later ones only add a reference. Caller holds the lock.
+func (r *Runtime) holdPending(path string) {
+	if path == "" {
+		return
+	}
+	if r.pendingRefs == nil {
+		r.pendingRefs = map[string]int{}
+	}
+	r.pendingRefs[path]++
+	setPath(r.State, path, true)
+}
+
+// releasePending drops one request's reference to a `pending` state path,
+// writing false only once the last holder is gone — so a superseded request
+// cannot switch off the spinner its successor is still keeping on, and two
+// overlapping requests on one flag behave like one. Caller holds the lock.
+func (r *Runtime) releasePending(path string) {
+	if path == "" {
+		return
+	}
+	if n := r.pendingRefs[path]; n > 1 {
+		r.pendingRefs[path] = n - 1
+		return
+	}
+	delete(r.pendingRefs, path)
+	setPath(r.State, path, false)
 }
 
 // httpOutcome is a finished request normalised into the three things the
@@ -1183,9 +1660,18 @@ type httpOutcome struct {
 // doRequest performs an already-built request and normalises the result. It
 // deliberately closes over no runtime state, which is what makes it safe to run
 // on a background goroutine while the dispatch that started it carries on.
-func doRequest(req *http.Request) httpOutcome {
+//
+// timeoutMS is passed only to phrase the deadline failure. Go reports it as
+// `Get "https://…": context deadline exceeded (Client.Timeout exceeded …)`,
+// which names an implementation detail the app author never wrote; the step
+// declared a timeout, so the message says exactly that, identically on every
+// host and stable enough for an app to match on.
+func doRequest(req *http.Request, timeoutMS int) httpOutcome {
 	resp, err := httpClient.Do(req)
 	if err != nil {
+		if timeoutMS > 0 && errors.Is(err, context.DeadlineExceeded) {
+			return httpOutcome{errMsg: fmt.Sprintf("request timed out after %dms", timeoutMS)}
+		}
 		return httpOutcome{errMsg: err.Error()}
 	}
 	defer resp.Body.Close()
@@ -1257,11 +1743,11 @@ func freezeCtx(state, ctx map[string]any) map[string]any {
 // dispatch-time bindings layered on top — the same precedence Dispatch uses
 // when it merges args over state.
 func freshCtx(r *Runtime, frozen map[string]any) map[string]any {
-	ctx := map[string]any{"state": r.State, "t": r.Catalog(), "viewport": r.ViewportVars()}
-	for k, v := range r.State {
-		ctx[k] = v
-	}
+	ctx := r.bareCtx(r.State)
 	for k, v := range frozen {
+		if isReservedRoot(k) { // freezeCtx never captures one; belt and braces
+			continue
+		}
 		ctx[k] = v
 	}
 	return ctx

@@ -252,8 +252,57 @@ func TestActivityProvider(t *testing.T) {
 
 	const log = `{"events":[{"who":"human","did":"tap"}]}`
 	s.SetActivityProvider(func() string { return log })
-	if got := resultText(t, toolCallRPC(t, s, "qorm_activity", map[string]any{})); got != log {
-		t.Errorf("activity = %q, want the provider payload", got)
+	got := resultText(t, toolCallRPC(t, s, "qorm_activity", map[string]any{}))
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(got), &payload); err != nil {
+		t.Fatalf("activity payload is not an object: %q (%v)", got, err)
+	}
+	if len(payload["events"].([]any)) != 1 {
+		t.Errorf("the host's own payload must survive: %q", got)
+	}
+	// The quiescence signal: an agent reads one tool to learn both what
+	// happened and whether the app has finished reacting to it.
+	if payload["inflight"] != float64(0) {
+		t.Errorf("a settled runtime must report inflight 0: %q", got)
+	}
+}
+
+// TestActivityInflightSurfacesOpenWork: the count is the runtime's, not a
+// constant — an agent that dispatched an async action must be able to see that
+// the reply has not landed yet, instead of reasoning about a loading frame as
+// if it were the final state.
+func TestActivityInflightSurfacesOpenWork(t *testing.T) {
+	s := newCounterHandler(t)
+	s.SetActivityProvider(func() string { return `{"events":[]}` })
+
+	// A host sink that never resumes: the request stays open, which is exactly
+	// the state an agent needs to be able to observe.
+	s.rt.Async = func(func() any, func(any)) {}
+	s.rt.App.Actions["fetch"] = &model.Action{ID: "fetch", Steps: []model.Step{
+		{Type: "http.get", URL: "http://127.0.0.1:1/never", Async: true, Result: "resp"},
+	}}
+	s.rt.Dispatch("fetch", nil)
+
+	got := resultText(t, toolCallRPC(t, s, "qorm_activity", map[string]any{}))
+	var payload map[string]any
+	if err := json.Unmarshal([]byte(got), &payload); err != nil {
+		t.Fatalf("activity payload: %q (%v)", got, err)
+	}
+	if payload["inflight"] != float64(1) {
+		t.Errorf("an open async request must show as inflight: %q", got)
+	}
+}
+
+// TestActivityNonObjectPayloadPassesThrough: a host whose activity log is not
+// a JSON object gets its payload back verbatim rather than mangled — losing the
+// log to bolt a counter onto it would be the wrong trade.
+func TestActivityNonObjectPayloadPassesThrough(t *testing.T) {
+	s := newCounterHandler(t)
+	for _, payload := range []string{`["not","an","object"]`, `not json at all`, `null`} {
+		s.SetActivityProvider(func() string { return payload })
+		if got := resultText(t, toolCallRPC(t, s, "qorm_activity", map[string]any{})); got != payload {
+			t.Errorf("payload %q came back as %q", payload, got)
+		}
 	}
 }
 
@@ -765,5 +814,42 @@ func TestDispatchReturnsTheSettledStateNotALoadingFrame(t *testing.T) {
 	}
 	if rt.Async == nil {
 		t.Error("the sink must be restored after the call — detaching it is scoped to the dispatch")
+	}
+}
+
+// TestDispatchRunsAPacedActionToCompletion extends the same contract to the
+// `delay` step. Detaching the background sink makes a paced action collapse to
+// its final state instead of leaving the agent holding stage one and no way to
+// know more is coming — and, just as importantly, without the tool call
+// sleeping through the pauses while it holds the host lock.
+func TestDispatchRunsAPacedActionToCompletion(t *testing.T) {
+	app := loader.FromDocs([]map[string]any{
+		{"type": "app", "id": "pace", "entry": "main", "globalState": map[string]any{
+			"schema": map[string]any{"phase": "string"}, "initial": map[string]any{"phase": "idle"}}},
+		{"type": "scene", "id": "main", "root": map[string]any{
+			"type": "text", "id": "t", "text": "phase={{ state.phase }}"}},
+		{"type": "action", "id": "go", "steps": []any{
+			map[string]any{"type": "state.set", "path": "phase", "value": "{{ 'one' }}"},
+			map[string]any{"type": "delay", "ms": float64(60000)},
+			map[string]any{"type": "state.set", "path": "phase", "value": "{{ 'two' }}"},
+		}},
+	})
+	if len(app.Diagnostics) != 0 {
+		t.Fatalf("fixture must load clean: %v", app.Diagnostics)
+	}
+	rt := qrt.New(app)
+	spawned := 0
+	rt.Async = func(func() any, func(any)) { spawned++ }
+	s := &Server{rt: rt, mu: &sync.Mutex{}}
+
+	text := resultText(t, toolCallRPC(t, s, "qorm_dispatch", map[string]any{"action": "go"}))
+	if spawned != 0 {
+		t.Errorf("a minute-long pause must not be handed to the sink during an agent call: %d", spawned)
+	}
+	if !strings.Contains(text, "phase=two") {
+		t.Errorf("the agent must receive the finished action: %s", text)
+	}
+	if rt.Inflight() != 0 {
+		t.Errorf("nothing may be left waiting: %d", rt.Inflight())
 	}
 }

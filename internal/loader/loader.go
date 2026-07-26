@@ -48,8 +48,22 @@ func loadLocales(dir string, app *model.App) {
 
 // LoadLocales reads <dir>/locales/<lang>.json into a lang -> key -> string map
 // (nil if there is no locales directory).
+//
+// Message catalogs are bundle CONTENT (they are hashed and signed), so this
+// walk is a trust boundary: it reads only files that live inside the app tree.
+// A `locales` directory that is itself a symlink out of the tree — the reported
+// `ln -s ~/.docker app/locales`, which baked registry credentials verbatim into
+// a signed, ready-to-ship bundle — is ignored wholesale, and so is any single
+// catalog symlinked out of it. Escapes are skipped rather than reported because
+// LoadLocales has no error channel and a missing catalog degrades visibly (keys
+// render untranslated); the collect() walk, which does have one, fails loudly.
 func LoadLocales(dir string) map[string]map[string]string {
-	entries, err := os.ReadDir(filepath.Join(dir, "locales"))
+	root, rootErr := resolvedRoot(dir)
+	localesDir := filepath.Join(dir, "locales")
+	if rootErr != nil || !symlinkStaysInside(root, localesDir) {
+		return nil
+	}
+	entries, err := os.ReadDir(localesDir)
 	if err != nil {
 		return nil
 	}
@@ -58,7 +72,11 @@ func LoadLocales(dir string) map[string]map[string]string {
 		if e.IsDir() || filepath.Ext(e.Name()) != ".json" {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(dir, "locales", e.Name()))
+		path := filepath.Join(localesDir, e.Name())
+		if !symlinkStaysInside(root, path) {
+			continue
+		}
+		data, err := os.ReadFile(path)
 		if err != nil {
 			continue
 		}
@@ -85,19 +103,78 @@ func CollectDocs(dir string) ([]map[string]any, error) {
 	return collect(dir)
 }
 
+// resolvedRoot returns dir with every symlink resolved and made absolute — the
+// prefix every file the loader is allowed to read must lie under. Resolving is
+// mandatory rather than cosmetic: on macOS a temp/app directory routinely lives
+// under /var -> /private/var, so comparing an unresolved root against a
+// resolved target would call every legitimate file an escape.
+func resolvedRoot(dir string) (string, error) {
+	resolved, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Abs(resolved)
+}
+
+// symlinkStaysInside reports whether path is safe to read for an app rooted at
+// root (already resolvedRoot'd). A path that is NOT a symlink is always safe:
+// filepath.WalkDir never descends into a symlinked directory, so an ordinary
+// entry is reached only through real directories inside the tree. A symlink is
+// safe only when it resolves to something still inside root — that is the whole
+// property, stated once: a signed bundle contains only bytes the developer
+// could see in the app directory they reviewed.
+//
+// Containment is checked rather than symlinks being skipped outright, so a
+// project that organises its own files with intra-tree links keeps working; a
+// link OUT of the tree is refused precisely because its target is not part of
+// what was reviewed. A BROKEN link still lstats (as a link) and then resolves
+// to nothing, so it is refused too — fail closed. A path that does not exist at
+// all admits nothing either way, so it is left to the caller's own read to
+// report, rather than being misreported here as an escape.
+func symlinkStaysInside(root, path string) bool {
+	fi, err := os.Lstat(path)
+	if err != nil {
+		return true
+	}
+	if fi.Mode()&os.ModeSymlink == 0 {
+		return true
+	}
+	target, err := resolvedRoot(path)
+	if err != nil {
+		return false
+	}
+	return target == root || strings.HasPrefix(target, root+string(filepath.Separator))
+}
+
 // FromDocs assembles a model.App from a set of raw source documents.
 // Manifests are applied first (a scene file may sort before qorm.json) so the
 // globalState schema is known when scene/action expressions are type-checked.
+//
+// A DUPLICATE definition — two manifests, two scenes with one id, two actions
+// with one id, two definitions of one component — is an error diagnostic and
+// the FIRST definition wins, uniformly. Both halves matter. "First wins" is the
+// only rule the collect() walk can state (it is lexicographic and stable), and
+// the bundle builder refuses duplicates outright, so the two paths can never
+// again ship different code than the one that was reviewed: previously a
+// component redefined in a file sorting LAST rendered as the benign first
+// definition under `qorm run`/CI and as the last one inside the signed bundle.
 func FromDocs(docs []map[string]any) *model.App {
 	app := &model.App{
 		Scenes:  map[string]*model.Node{},
 		Actions: map[string]*model.Action{},
 	}
 	var diags []string
+	manifested := false
 	for _, doc := range docs {
-		if asString(doc["type"]) == "app" {
-			applyManifest(app, doc, &diags)
+		if asString(doc["type"]) != "app" {
+			continue
 		}
+		if manifested {
+			diags = append(diags, fmt.Sprintf("error: 应用清单被重复定义:存在多个 type:\"app\" 文档(重复的一个 id 为 %q)。仅保留最先出现的清单,打包(qorm build)会直接拒绝构建。", asString(doc["id"])))
+			continue
+		}
+		applyManifest(app, doc, &diags)
+		manifested = true
 	}
 	sceneVars := stateVars(app.GlobalState.Schema, false)
 	actionVars := stateVars(app.GlobalState.Schema, true)
@@ -108,6 +185,10 @@ func FromDocs(docs []map[string]any) *model.App {
 		case "scene":
 			if root, ok := doc["root"].(map[string]any); ok {
 				sceneID := asString(doc["id"])
+				if _, dup := app.Scenes[sceneID]; dup {
+					diags = append(diags, fmt.Sprintf("error: 场景 %q 被重复定义(多个 type:\"scene\" 文档使用了同一个 id)。仅保留最先出现的定义,打包(qorm build)会直接拒绝构建。", sceneID))
+					continue
+				}
 				app.Scenes[sceneID] = buildNode(root, &diags, sceneID, sceneVars, nil)
 				// Scene lifecycle: an optional onEnter invoke, dispatched once
 				// each time navigation enters this scene (incl. first load and
@@ -132,6 +213,12 @@ func FromDocs(docs []map[string]any) *model.App {
 				}
 			}
 		case "action":
+			if actID := asString(doc["id"]); actID != "" {
+				if _, dup := app.Actions[actID]; dup {
+					diags = append(diags, fmt.Sprintf("error: 动作 %q 被重复定义(多个 type:\"action\" 文档使用了同一个 id)。仅保留最先出现的定义,打包(qorm build)会直接拒绝构建。", actID))
+					continue
+				}
+			}
 			act := buildAction(doc, &diags, actionVars)
 			if act.ID != "" {
 				app.Actions[act.ID] = act
@@ -152,7 +239,7 @@ func FromDocs(docs []map[string]any) *model.App {
 				diags = append(diags, fmt.Sprintf("error: 组件文档 %q 缺少 \"template\"(组件模板根节点对象),已忽略。", name))
 				continue
 			}
-			defineComponent(app, name, doc, sceneVars, &diags)
+			defineComponent(app, name, doc, sceneVars, true, &diags)
 		default:
 			// A doc with no recognised type used to be silently dropped, so
 			// an app whose only doc is typeless rendered "no scene" with zero
@@ -188,8 +275,10 @@ func FromDocs(docs []map[string]any) *model.App {
 	checkActionRefs(app, &diags)
 	checkTimers(app, &diags)
 	checkComponents(app, &diags)
+	checkDynamicComponentNames(app, &diags)
 	checkGuards(app, &diags)
 	checkComputed(app, sceneVars, &diags)
+	checkStatePaths(app, &diags)
 	app.Diagnostics = diags
 	return app
 }
@@ -272,18 +361,26 @@ func checkGuards(app *model.App, diags *[]string) {
 		g := app.SceneGuards[id]
 		switch {
 		case g.Redirect == "":
-			*diags = append(*diags, fmt.Sprintf("warning: [Scene: %s] guard 没有 redirect:条件不满足时只会拒绝导航(停在原场景),且无法保护入口场景(那里没有可退回的场景)。", id))
+			*diags = append(*diags, fmt.Sprintf("warning: [Scene: %s] guard 没有 redirect:条件不满足时,navigate 会停在原场景;而在入口路径(首次加载、深链、返回)上运行时会依次退回最近一个仍被允许的历史帧、入口场景,都不行则什么都不渲染。请补 redirect 指明被拒时应去哪里。", id))
 		case g.Redirect == id:
 			*diags = append(*diags, fmt.Sprintf("error: [Scene: %s] guard 的 redirect 指向自身,条件不满足时无处可去,该导航将被拒绝。", id))
+		case strings.Contains(g.Redirect, "{{"):
+			// The loader used to wave a bound redirect through as "resolved at
+			// run time". Nothing resolves it: the runtime uses g.Redirect
+			// verbatim as a scene id, so the literal "{{ ... }}" names no scene
+			// and the guard silently drops the navigation instead of sending
+			// the user anywhere. Until the runtime evaluates it, this spelling
+			// is broken, not dynamic — say so.
+			*diags = append(*diags, fmt.Sprintf("error: [Scene: %s] guard 的 redirect %q 是 {{...}} 绑定,但运行时不会对 redirect 求值 —— 它被原样当作场景 id,该导航会被静默拒绝。请写一个确定的场景 id。", id, g.Redirect))
 		default:
-			if _, ok := app.Scenes[g.Redirect]; !ok && !strings.Contains(g.Redirect, "{{") {
+			if _, ok := app.Scenes[g.Redirect]; !ok {
 				*diags = append(*diags, fmt.Sprintf("error: [Scene: %s] guard 的 redirect 指向不存在的场景 %q。", id, g.Redirect))
 			}
 		}
 	}
 	for _, id := range ids {
 		if cycle := guardRedirectCycle(app, id); len(cycle) > 0 {
-			*diags = append(*diags, fmt.Sprintf("warning: [Scene: %s] guard 的 redirect 可能构成环:%s。若这些条件同时为假,运行时会拒绝该次导航(停在原场景)。", id, strings.Join(cycle, " -> ")))
+			*diags = append(*diags, fmt.Sprintf("warning: [Scene: %s] guard 的 redirect 可能构成环:%s。若这些条件同时为假,navigate 会停在原场景;在入口路径上运行时会退回最近一个仍被允许的历史帧或入口场景,都不行则什么都不渲染。", id, strings.Join(cycle, " -> ")))
 		}
 	}
 }
@@ -356,10 +453,56 @@ func checkComputed(app *model.App, vars map[string]string, diags *[]string) {
 	}
 	for _, id := range sortedActionIDs(app) {
 		walkSteps(app.Actions[id].Steps, func(st model.Step) {
-			for _, p := range []string{st.Path, st.Result, st.Error} {
+			for _, p := range []string{st.Path, st.Result, st.Error, st.Pending} {
 				if model.IsComputedPath(p) {
 					*diags = append(*diags, fmt.Sprintf("error: [Action: %s] %q 步骤写入了派生值路径 %q:computed 是只读的(每帧由声明式重新求值),该步骤会被忽略。", id, st.Type, p))
 				}
+			}
+		})
+	}
+}
+
+// stepPathFields returns a step's state-write targets paired with the name of
+// the field each came from, so a diagnostic can quote the field the author
+// actually wrote.
+func stepPathFields(st model.Step) [][2]string {
+	return [][2]string{
+		{"path", st.Path}, {"result", st.Result}, {"error", st.Error}, {"pending", st.Pending},
+	}
+}
+
+// checkStatePaths diagnoses a step whose write target is spelled through the
+// `state.` root.
+//
+// A step path is ALREADY relative to the state root — `{"path": "count"}` writes
+// what `{{ state.count }}` reads. Writing `{"path": "state.count"}` therefore
+// creates a top-level state key literally named "state", which is never what an
+// author means; they copied the spelling from the binding two lines up. The
+// mistake used to be invisible twice over: no diagnostic, and at run time the
+// stray `state` key shadowed the state root inside every action and every
+// derived expression, so a whole app's bindings quietly read nothing. The
+// runtime no longer lets the key shadow anything (see Runtime.bareCtx), which
+// leaves this warning to point at the typo itself.
+//
+// It is a warning, not an error, because "state" is a legal state key name and
+// an app that genuinely wants one must stay loadable. A path INTO the derived
+// namespace is left to checkComputed, which reports it as an error — one
+// mistake earns one diagnostic.
+func checkStatePaths(app *model.App, diags *[]string) {
+	root := model.StateRoot + "."
+	for _, id := range sortedActionIDs(app) {
+		walkSteps(app.Actions[id].Steps, func(st model.Step) {
+			for _, f := range stepPathFields(st) {
+				p := strings.TrimSpace(f[1])
+				if !strings.HasPrefix(p, root) || len(p) == len(root) {
+					continue
+				}
+				if len(app.Computed) > 0 && model.IsComputedPath(p) {
+					continue // checkComputed already reports this one, as an error
+				}
+				*diags = append(*diags, fmt.Sprintf(
+					"warning: [Action: %s] %q 步骤的 %s 写作 %q:步骤路径本来就相对状态根,这样会真的创建一个名为 %q 的顶层状态键。你多半想写 %q。",
+					id, st.Type, f[0], p, model.StateRoot, strings.TrimPrefix(p, root)))
 			}
 		})
 	}
@@ -469,11 +612,17 @@ func componentTemplate(def map[string]any) (tmpl map[string]any, declaring bool)
 // map or from its own type:"component" document) together with its optional
 // declared schema. Redefining a name is diagnosed and ignored, so whichever
 // definition is seen first — the manifest is applied before any document — is
-// the one that renders.
-func defineComponent(app *model.App, name string, def map[string]any, vars map[string]string, diags *[]string) {
+// the one that renders. fromDoc records the spelling it was authored in, so the
+// serializer can write it back to the same place (model.App.ComponentDocs).
+func defineComponent(app *model.App, name string, def map[string]any, vars map[string]string, fromDoc bool, diags *[]string) {
 	if _, dup := app.Components[name]; dup {
 		if diags != nil {
-			*diags = append(*diags, fmt.Sprintf("error: 组件 %q 被重复定义(qorm.json 内联 components 与 type:\"component\" 组件文档,或多个组件文档同名),仅保留最先出现的定义。", name))
+			// The old wording ("only the first definition is kept") described
+			// the directory path alone. Packaging keyed a map by component
+			// name, so THERE the last definition won — the same sources
+			// rendered one component under `qorm run` and signed a different
+			// one into the bundle. Both paths now refuse to guess.
+			*diags = append(*diags, fmt.Sprintf("error: 组件 %q 被重复定义(qorm.json 内联 components 与 type:\"component\" 组件文档,或多个组件文档同名)。目录加载仅保留最先出现的定义,打包(qorm build)会直接拒绝构建 —— 请删除多余的定义,不要依赖谁先谁后。", name))
 		}
 		return
 	}
@@ -493,6 +642,12 @@ func defineComponent(app *model.App, name string, def map[string]any, vars map[s
 		app.Components = map[string]*model.Node{}
 	}
 	app.Components[name] = buildNode(tmpl, diags, "component:"+name, vars, nil)
+	if fromDoc {
+		if app.ComponentDocs == nil {
+			app.ComponentDocs = map[string]bool{}
+		}
+		app.ComponentDocs[name] = true
+	}
 }
 
 // parseComponentSchema reads the "props" / "slots" declarations off a component
@@ -674,6 +829,42 @@ func checkComponents(app *model.App, diags *[]string) {
 			}
 			checkInstanceProps(scope, name, n, sc, diags)
 			checkInstanceSlots(scope, name, n, sc, diags)
+		})
+	}
+}
+
+// checkDynamicComponentNames reports every instance whose COMPONENT NAME is a
+// binding — {"type":"{{ item.kind }}"} or {"type":"component","ref":"{{ … }}"}.
+//
+// The renderer resolves the name against live data, so the loader cannot know
+// which component is instantiated and every name-keyed check above (declared
+// props, required slots, "no such component") silently stands down. That
+// silence is the problem: with the name coming from data, whoever supplies the
+// data — a remote server filling a feed — chooses which of the app's components
+// each row instantiates, including ones that were never meant to appear in that
+// list, and nothing anywhere in the load says so.
+//
+// It only fires for an app that HAS components: without any, a bound type can
+// only name a built-in widget, which is the ordinary polymorphic-list idiom.
+func checkDynamicComponentNames(app *model.App, diags *[]string) {
+	if len(app.Components) == 0 {
+		return
+	}
+	scopes, roots := componentScopes(app)
+	for _, scope := range scopes {
+		walkSceneNodes(roots[scope], func(n *model.Node) {
+			binding := ""
+			if strings.Contains(n.Type, "{{") {
+				binding = n.Type
+			} else if n.Type == "component" {
+				if ref, _ := n.Props["ref"].(string); strings.Contains(ref, "{{") {
+					binding = ref
+				}
+			}
+			if binding == "" {
+				return
+			}
+			*diags = append(*diags, fmt.Sprintf("warning: [Scene: %s] 节点 (id: %q) 的组件名由绑定 %q 在运行期决定:该实例不会做任何组件名/schema 校验,数据源可以让它实例化本应用的任意组件。若取值来自远端,请改用确定的组件名或用 when 分支列出允许的取值。", scope, n.ID, binding))
 		})
 	}
 }
@@ -978,20 +1169,45 @@ func LoadFile(path string) (*model.App, error) {
 	return app, nil
 }
 
+// collect walks the app directory and returns every QORM source document in it.
+//
+// What it deliberately does NOT return, because each would end up hashed into a
+// signed bundle without the author ever meaning to ship it:
+//
+//   - locales/: message catalogs are typeless documents that LoadLocales reads
+//     on its own (into Content.Locales). Walking them in here only produced an
+//     "unknown or missing type" error for every catalog an i18n app owns.
+//   - a NESTED PROJECT — a subdirectory with its own qorm.json. Its scenes and
+//     actions belong to that app, and merging them into the parent silently
+//     produced duplicate ids. (The package comment has always claimed this; it
+//     is now true.)
+//   - a .json file symlinked OUT of the app tree. See symlinkStaysInside: this
+//     is the trust boundary, and it fails loudly here because collect can.
 func collect(dir string) ([]map[string]any, error) {
+	root, err := resolvedRoot(dir)
+	if err != nil {
+		return nil, err
+	}
+	localesDir := filepath.Join(dir, "locales")
 	var out []map[string]any
-	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+	err = filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if d.IsDir() {
-			if path != dir && skipDirs[d.Name()] {
+			if path == dir {
+				return nil
+			}
+			if skipDirs[d.Name()] || path == localesDir || isProjectRoot(path) {
 				return filepath.SkipDir
 			}
 			return nil
 		}
 		if filepath.Ext(path) != ".json" {
 			return nil
+		}
+		if !symlinkStaysInside(root, path) {
+			return fmt.Errorf("%s is a symlink resolving outside the app directory %s — refusing to read it into the app (a bundle must contain only files from the app tree)", path, dir)
 		}
 		data, err := os.ReadFile(path)
 		if err != nil {
@@ -1009,6 +1225,23 @@ func collect(dir string) ([]map[string]any, error) {
 	})
 	return out, err
 }
+
+// isProjectRoot reports whether a directory carries its own manifest, i.e. is
+// the root of a separate QORM app.
+func isProjectRoot(dir string) bool {
+	fi, err := os.Stat(filepath.Join(dir, "qorm.json"))
+	return err == nil && !fi.IsDir()
+}
+
+// DocID is the id of a raw source document, coerced exactly the way the loader
+// coerces it when assembling the app. Exported so the bundle builder keys its
+// content by the SAME string the loader keys the app by: the two used to
+// disagree on a non-string id ({"id": 1} became "1" for the loader and "" for
+// the bundle), which silently dropped the document from the packaged app.
+func DocID(doc map[string]any) string { return asString(doc["id"]) }
+
+// DocType is the type of a raw source document, coerced like DocID.
+func DocType(doc map[string]any) string { return asString(doc["type"]) }
 
 // parseMenuItems reads a JSON array of menu items.
 func parseMenuItems(raw any) []model.MenuItem {
@@ -1109,7 +1342,7 @@ func applyManifest(app *model.App, doc map[string]any, diags *[]string) {
 		sort.Strings(names) // stable diagnostics order
 		for _, name := range names {
 			if m, ok := comps[name].(map[string]any); ok {
-				defineComponent(app, name, m, compVars, diags)
+				defineComponent(app, name, m, compVars, false, diags)
 			}
 		}
 	}
@@ -1393,8 +1626,90 @@ func buildAction(doc map[string]any, diags *[]string, vars map[string]string) *m
 		if n := countRenderSteps(act.Steps); n > maxRenderSteps {
 			*diags = append(*diags, fmt.Sprintf("warning: [Action: %s] 有 %d 个 'render' 步骤(建议不超过 %d 个):每个 render 都会推送一帧实时同步,过多的中间帧会被订阅者丢弃。", actID, n, maxRenderSteps))
 		}
+		checkInvisibleLoading(act.Steps, diags, actID)
 	}
 	return act
+}
+
+// checkInvisibleLoading reports the loading state that never reaches the screen.
+//
+// The pattern is the single most common way to get async wrong in a declarative
+// runtime, and it is invisible in review because the JSON reads correctly: set a
+// flag, call the backend, clear the flag. A dispatch is run-to-completion and
+// renders ONE frame at its boundary, so a flag raised and lowered inside the
+// same dispatch is never observed — the user clicks, the app freezes for the
+// length of the round trip, and then everything appears at once. The three cures
+// are all one word of JSON, so the diagnostic names them:
+//
+//   - a `render` step between the flag and the request publishes a frame there;
+//   - `"async": true` returns the dispatch immediately, so the frame at its
+//     boundary IS the loading frame;
+//   - `"pending": "<path>"` replaces the flag pair entirely on an async request.
+//
+// It only fires on the full shape — flag raised, request, flag lowered — so an
+// ordinary boolean that happens to precede a request is not reported.
+func checkInvisibleLoading(steps []model.Step, diags *[]string, actID string) {
+	for i, st := range steps {
+		if st.Type != "state.set" || st.Path == "" || !isTruthyLiteral(st.Value) {
+			continue
+		}
+		for _, later := range steps[i+1:] {
+			if later.Type == "render" {
+				break // the frame is published: the flag IS seen
+			}
+			if !strings.HasPrefix(later.Type, "http.") {
+				continue
+			}
+			if later.Async || later.Pending != "" {
+				break
+			}
+			if clearsPath(later.OnSuccess, st.Path) || clearsPath(later.OnError, st.Path) ||
+				clearsPath(steps[i+1:], st.Path) {
+				*diags = append(*diags, fmt.Sprintf("warning: [Action: %s] 步骤把 loading 状态 %q 置真后直接调用同步的 %q,又在同一次派发内复位:该状态永远不会被渲染出来,用户只会看到界面卡住然后一次性更新。请在请求前加一个 {\"type\":\"render\"} 步骤,或给请求加 \"async\": true(推荐再用 \"pending\": %q 替代这对手写标志)。", actID, st.Path, later.Type, st.Path))
+			}
+			break // one request per flag is enough to report
+		}
+	}
+	// Nested lists are their own scopes: a flag and a request inside one branch
+	// have the same problem, and the same three cures.
+	for _, st := range steps {
+		checkInvisibleLoading(st.Then, diags, actID)
+		checkInvisibleLoading(st.Else, diags, actID)
+		checkInvisibleLoading(st.Steps, diags, actID)
+		checkInvisibleLoading(st.OnSuccess, diags, actID)
+		checkInvisibleLoading(st.OnError, diags, actID)
+	}
+}
+
+// isTruthyLiteral reports whether a step's `value` is a constant that raises a
+// flag — `{{ true }}` or a bare "true". A binding that depends on state is not
+// a loading flag being raised, it is data being copied.
+func isTruthyLiteral(v string) bool {
+	s := strings.TrimSpace(v)
+	if strings.HasPrefix(s, "{{") && strings.HasSuffix(s, "}}") {
+		s = strings.TrimSpace(s[2 : len(s)-2])
+	}
+	return s == "true"
+}
+
+// clearsPath reports whether any step in a list lowers the named flag — the
+// second half of the loading-flag shape.
+func clearsPath(steps []model.Step, path string) bool {
+	cleared := false
+	walkSteps(steps, func(st model.Step) {
+		if st.Path != path {
+			return
+		}
+		switch st.Type {
+		case "state.clear", "state.reset":
+			cleared = true
+		case "state.set":
+			if !isTruthyLiteral(st.Value) {
+				cleared = true
+			}
+		}
+	})
+	return cleared
 }
 
 // countRenderSteps counts `render` steps in a step tree, every nested step list
@@ -1456,6 +1771,10 @@ func buildStep(sm map[string]any, diags *[]string, actID string, vars map[string
 		Result:    asString(sm["result"]),
 		Error:     asString(sm["error"]),
 		Async:     sm["async"] == true,
+		Key:       asString(sm["key"]),
+		TimeoutMS: asMillis(sm["timeout"]),
+		Pending:   asString(sm["pending"]),
+		DelayMS:   asMillis(sm["ms"]),
 		To:        toVal,
 		Back:      sm["back"] == true,
 		From:      asString(sm["from"]),
@@ -1520,12 +1839,43 @@ func buildStep(sm map[string]any, diags *[]string, actID string, vars map[string
 			if alias, _, _, _ := render.ListAliasNames(step.As); step.As != "" && step.As != "item" && alias == "item" {
 				*diags = append(*diags, fmt.Sprintf("warning: [Action: %s] 'forEach' 步骤的别名 as: %q 不可用(保留名或非法标识符),运行时将回退为默认的 \"item\"。", actID, step.As))
 			}
+		case "delay":
+			// A delay with no positive `ms` is not a shorter pause, it is
+			// no pause at all: the following steps run immediately, so the
+			// step is pure noise in the JSON.
+			if _, ok := sm["ms"]; !ok {
+				*diags = append(*diags, fmt.Sprintf("error: [Action: %s] 'delay' 步骤缺少 ms(等待毫秒数),不会产生任何等待。", actID))
+			} else if step.DelayMS <= 0 {
+				*diags = append(*diags, fmt.Sprintf("error: [Action: %s] 'delay' 步骤的 ms 必须是正数(当前 %v),不会产生任何等待。", actID, sm["ms"]))
+			}
 		}
-		// "async" only means something on a backend call: it is the request
-		// round trip that moves to the background. Anywhere else the field is
-		// silently inert, which reads like an unfulfilled promise — say so.
-		if step.Async && !strings.HasPrefix(step.Type, "http.") {
+		// The http-only fields. Each is silently inert anywhere else, which
+		// reads like an unfulfilled promise — say so rather than let an
+		// author believe a request is cancellable / bounded / observable
+		// when nothing is listening.
+		isHTTP := strings.HasPrefix(step.Type, "http.")
+		if step.Async && !isHTTP {
 			*diags = append(*diags, fmt.Sprintf("warning: [Action: %s] 只有 'http.*' 步骤支持 \"async\": true,%q 步骤上的该字段会被忽略。", actID, step.Type))
+		}
+		if step.Key != "" && !isHTTP {
+			*diags = append(*diags, fmt.Sprintf("warning: [Action: %s] 只有 'http.*' 步骤支持 \"key\"(同 key 的新请求取消旧请求),%q 步骤上的该字段会被忽略。", actID, step.Type))
+		}
+		if step.Pending != "" && !isHTTP {
+			*diags = append(*diags, fmt.Sprintf("warning: [Action: %s] 只有 'http.*' 步骤支持 \"pending\"(请求在途期间置真的状态路径),%q 步骤上的该字段会被忽略。", actID, step.Type))
+		}
+		if _, ok := sm["timeout"]; ok {
+			switch {
+			case !isHTTP:
+				*diags = append(*diags, fmt.Sprintf("warning: [Action: %s] 只有 'http.*' 步骤支持 \"timeout\",%q 步骤上的该字段会被忽略。", actID, step.Type))
+			case step.TimeoutMS <= 0:
+				// Zero means "keep the client's 20s ceiling", so a typo'd
+				// or negative timeout does not shorten anything — it
+				// silently leaves the request unbounded-as-before.
+				*diags = append(*diags, fmt.Sprintf("warning: [Action: %s] 'http.*' 步骤的 timeout 必须是正数毫秒(当前 %v),该字段会被忽略,请求仍使用默认 20s 上限。", actID, sm["timeout"]))
+			}
+		}
+		if _, ok := sm["ms"]; ok && step.Type != "delay" {
+			*diags = append(*diags, fmt.Sprintf("warning: [Action: %s] 只有 'delay' 步骤支持 \"ms\",%q 步骤上的该字段会被忽略(http 超时请用 \"timeout\")。", actID, step.Type))
 		}
 	}
 	return step
@@ -1677,6 +2027,12 @@ func asBool(v any) bool {
 	b, _ := v.(bool)
 	return b
 }
+
+// asMillis coerces a JSON millisecond duration (`timeout`, `ms`) to a whole
+// number of milliseconds. Anything that is not a number — a quoted "500", a
+// binding, a fractional value below 1ms — yields 0, which every consumer reads
+// as "not set"; buildStep reports the ones that were clearly meant to be set.
+func asMillis(v any) int { return int(asFloat(v)) }
 
 func formatNumber(f float64) string {
 	if f == float64(int64(f)) {

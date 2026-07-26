@@ -54,7 +54,15 @@ func InstallSinks(rt *runtime.Runtime, live func() *runtime.Runtime, spawn func(
 		spawn(func() {
 			v := work()
 			if live != nil && live() != rt {
-				return // a replaced runtime's reply: drop it, do not publish
+				// A replaced runtime's reply: drop it, do not publish — and
+				// tell the retired runtime so, because the continuation that
+				// would have released its in-flight count is the one being
+				// dropped. Without this its Inflight() never returns to zero
+				// and anything polling that runtime for quiescence (the MCP
+				// activity payload, a test waiting for the app to settle) waits
+				// for a continuation that will never run.
+				rt.AbandonInflight()
+				return
 			}
 			resume(v)
 			publish()

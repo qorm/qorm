@@ -47,7 +47,7 @@ func toolList() []tool {
 		},
 		{
 			Name:        "qorm_render_html",
-			Description: "Render the current app to HTML so the agent can see what the UI looks like. Read-only.",
+			Description: "Render the current app to HTML so the agent can see what the UI looks like — the scene the session is actually on, after its route guard has been resolved (a guarded scene the session may not enter is never rendered). Read-only.",
 			InputSchema: obj(nil),
 		},
 		{
@@ -87,7 +87,7 @@ func toolList() []tool {
 		},
 		{
 			Name:        "qorm_activity",
-			Description: "Read the shared session's live presence: returns {events:[who (human/agent) did what, oldest to newest], humanFocus:{element, secondsAgo}, humanTyping:{entry, secondsAgo}, humanFilled:{field, secondsAgo}} — so the agent sees what the human just did, the element they are on now, the text they last typed, AND which hidden (password) fields they filled (label only; a password value is never captured), and collaborates in context. Only available in a running `qorm run` session. Read-only.",
+			Description: "Read the shared session's live presence: returns {events:[who (human/agent) did what, oldest to newest], humanFocus:{element, secondsAgo}, humanTyping:{entry, secondsAgo}, humanFilled:{field, secondsAgo}, inflight:N} — so the agent sees what the human just did, the element they are on now, the text they last typed, AND which hidden (password) fields they filled (label only; a password value is never captured), and collaborates in context. `inflight` counts the background work the app still has open (async `http.*` requests plus waiting `delay` steps): 0 means the app has settled and what you read now is final, above 0 means a reply is still coming and the current frame is a loading state — read again before drawing conclusions. Only available in a running `qorm run` session. Read-only.",
 			InputSchema: obj(nil),
 		},
 		{
@@ -119,7 +119,7 @@ func toolList() []tool {
 		},
 		{
 			Name:        "qorm_set_state",
-			Description: "OPERATE the live app: set a state path to a value and return the new state and rendered HTML.",
+			Description: "OPERATE the live app: set a state path to a value and return the new state and rendered HTML. A dotted path NESTS, exactly like the state.set action step: path 'user.name' writes name inside user, so a binding {{ state.user.name }} reads it back. Computed (derived) values are read-only — a path inside the computed namespace is rejected, because they are republished from their declarations at every frame.",
 			InputSchema: obj(map[string]any{
 				"path":  strProp,
 				"value": map[string]any{},
@@ -195,6 +195,35 @@ func (s *Server) handleToolCall(req request) *response {
 	return ok(req.ID, toolText(false, result))
 }
 
+// withInflight folds the runtime's open-background-work count into the host's
+// activity payload, so one read answers both "what just happened" and "is the
+// app still working on it".
+//
+// It matters because an agent's mental model of a QORM session is
+// dispatch-then-read, and an async `http.*` step breaks that: the reply lands
+// one or more revisions LATER, so an agent that inspects immediately sees a
+// loading frame and can conclude the app is broken, or worse act on the stale
+// state. `inflight: 0` is the quiescence signal — nothing is outstanding, the
+// state has settled and what it reads now is final; anything above zero means
+// "read again in a moment".
+//
+// The count is read under the same lock as every other tool call, so it is a
+// consistent snapshot alongside the events. A payload that is not a JSON object
+// is passed through untouched rather than mangled: an unparseable activity log
+// is the host's business, and losing it to add a counter would be a bad trade.
+func withInflight(payload string, n int) string {
+	var m map[string]any
+	if json.Unmarshal([]byte(payload), &m) != nil || m == nil {
+		return payload
+	}
+	m["inflight"] = n
+	out, err := json.Marshal(m)
+	if err != nil {
+		return payload
+	}
+	return string(out)
+}
+
 func isMutating(name string) bool {
 	switch name {
 	case "qorm_dispatch", "qorm_set_state", "qorm_apply_patch", "qorm_undo":
@@ -268,7 +297,7 @@ func (s *Server) callTool(name string, args json.RawMessage) (string, error) {
 	case "qorm_inspect":
 		return jsonPretty(s.inspect()), nil
 	case "qorm_render_html":
-		return render.Render(s.rt).HTML, nil
+		return s.currentHTML(), nil
 	case "qorm_a11y_tree":
 		return jsonPretty(a11y.Build(s.rt.App.EntryRoot())), nil
 	case "qorm_capabilities":
@@ -279,7 +308,7 @@ func (s *Server) callTool(name string, args json.RawMessage) (string, error) {
 		if s.activityProv == nil {
 			return "", fmt.Errorf("activity log unavailable (only in a running `qorm run` shared session)")
 		}
-		return s.activityProv(), nil
+		return withInflight(s.activityProv(), s.rt.Inflight()), nil
 	case "qorm_export_scene":
 		return jsonPretty(loader.SceneToJSON(s.rt.App.Entry, s.rt.App.EntryRoot())), nil
 	case "qorm_export_bundle":
@@ -367,7 +396,15 @@ func (s *Server) callTool(name string, args json.RawMessage) (string, error) {
 		if err := json.Unmarshal(args, &a); err != nil || a.Path == "" {
 			return "", fmt.Errorf("set_state requires path and value")
 		}
-		s.rt.State[a.Path] = a.Value
+		// SetStatePath is the same write the `state.set` step makes: dotted
+		// paths NEST (the raw assignment this replaced built a literal "a.b"
+		// key no binding could ever read), and the read-only computed namespace
+		// is refused. The loader refuses such a write in JSON and the runtime
+		// refuses it in a step; refusing it here closes the third door, through
+		// which an agent could publish a value that looked derived and was not.
+		if !s.rt.SetStatePath(a.Path, a.Value) {
+			return "", fmt.Errorf("%q is a computed (derived) value: it is republished from its declaration at every frame, so it cannot be set — write the state it reads instead", a.Path)
+		}
 		return jsonPretty(s.stateAndHTML()), nil
 	case "qorm_measure":
 		if s.measureProv == nil {
@@ -475,22 +512,60 @@ func (s *Server) callTool(name string, args json.RawMessage) (string, error) {
 // indivisible. Safe because the whole call holds the host lock, so no other
 // dispatch can observe the sink while it is detached.
 func (s *Server) dispatchSettled(action string, args map[string]any) {
+	s.settled(func() { s.rt.Dispatch(action, args) })
+}
+
+// settled runs fn with the host's background sink detached, so every async step
+// it reaches takes its synchronous path and the caller observes the state the
+// work SETTLES on. See dispatchSettled for why that is a detach rather than a
+// wait. Safe because the whole tool call holds the host lock.
+func (s *Server) settled(fn func()) {
 	background := s.rt.Async
 	s.rt.Async = nil
 	defer func() { s.rt.Async = background }()
-	s.rt.Dispatch(action, args)
+	fn()
+}
+
+// currentHTML renders what this session may actually see — and resolves the
+// route guards BEFORE it renders, which is the whole point of the method.
+//
+// Every MCP render point used to run ahead of the guard: a tool mutated state
+// (a dispatch whose `navigate` step entered a protected scene) and rendered
+// immediately, while the guard only ran later, in the host's afterMutate. One
+// qorm_dispatch therefore handed the agent the full HTML of a scene the guard
+// was about to refuse — no forged token, no race. RunPendingEnter is the same
+// choke point the server drains in bump(), so an MCP result now shows exactly
+// the scene a browser attached to the same session is shown, never the one
+// behind the guard.
+//
+// It is drained with the background sink detached, for dispatchSettled's
+// reason: an onEnter action that fires an async request must land inside this
+// call, not one revision later.
+//
+// A runtime the guards blocked outright renders as an EMPTY frame: there is, by
+// construction, no scene it may show. Falling back to the entry scene here —
+// what a plain render.Render does with an id it does not know — would render
+// the very scene the guard refused whenever the refusal happened AT the entry.
+func (s *Server) currentHTML() string {
+	s.settled(s.rt.RunPendingEnter)
+	scene := s.rt.CurrentScene()
+	if scene == qrt.GuardBlocked {
+		return `<div data-scene="blocked" style="padding:24px;color:#888">no scene available: a route guard refused every entry</div>`
+	}
+	return render.RenderScene(s.rt, scene).HTML
 }
 
 func (s *Server) stateAndHTML() map[string]any {
+	html := s.currentHTML() // guard-resolved first: never the refused scene
 	return map[string]any{
 		"state": s.rt.State,
-		"html":  render.RenderScene(s.rt, s.rt.CurrentScene()).HTML,
+		"html":  html,
 	}
 }
 
 // assert evaluates test checks against live state and rendered HTML.
 func (s *Server) assert(checks []map[string]any) map[string]any {
-	htmlOut := render.Render(s.rt).HTML
+	htmlOut := s.currentHTML() // guard-resolved: a test never reads a refused scene
 	results := make([]map[string]any, 0, len(checks))
 	allPass := true
 	for _, c := range checks {
@@ -500,7 +575,7 @@ func (s *Server) assert(checks []map[string]any) map[string]any {
 		switch kind {
 		case "stateEquals":
 			path, _ := c["path"].(string)
-			got := s.rt.State[path]
+			got := s.rt.StatePath(path) // dotted paths nest, as everywhere else
 			pass = fmt.Sprint(got) == fmt.Sprint(c["value"])
 			detail = fmt.Sprintf("state[%s]=%v want %v", path, got, c["value"])
 		case "htmlContains":

@@ -157,3 +157,112 @@ untyped), so a scene reached by deep link sees `route.userId` as `"u-101"`.
 Because a route parameter is the QORM analogue of a function argument, apps that
 pass identifiers as route params rather than stashing them in global state get
 shareable, reloadable deep links for free.
+
+## Route guards
+
+Once a URL can address any scene, "only signed-in users see this screen" stops
+being something a navigating action can enforce — a guard has to live on the
+destination. A scene declares its own precondition next to `root`:
+
+```json
+{
+  "type": "scene",
+  "id": "checkout",
+  "guard": {
+    "condition": "{{ state.computed.signedIn }}",
+    "redirect": "signin",
+    "params": { "next": "{{ 'checkout' }}" }
+  },
+  "root": { "type": "column", "id": "root", "children": [] }
+}
+```
+
+- **`condition`** is required — a `{{ … }}` expression over the scene scope
+  (`state.*`, `state.computed.*`, `t.*`, `viewport.*`, `route.*`). Truthy means
+  enter. A guard with no `condition` is dropped with a load-time error rather
+  than silently letting everyone through.
+- **`redirect`** is the scene id a failing guard sends you to instead. It is a
+  literal id, not a binding. Without one the navigation is simply **refused** —
+  you stay where you are. A refusal is fail-CLOSED everywhere, including at the
+  entry scene: see *When there is nowhere to go* below.
+- **`params`** are evaluated when the guard fires, in the context of the scene
+  you are leaving, and become the target's `{{ route.* }}` — the usual way to
+  carry a "come back here afterwards" hint. The refused navigation's own params
+  do not travel with the redirect.
+
+### Where it applies
+
+The guard runs on **every** entry path: an action's `navigate` step, a browser
+Back/Forward move, a deep link straight into the scene, `navigate` with
+`back: true`, and the initial entry scene at first render. So a protected route
+cannot be reached by spelling a URL, and the check lives in one place instead of
+being repeated in every action that navigates.
+
+It runs **before** the scene's `onEnter`, so a hook that fetches private data
+never fires for a visitor who was refused the page.
+
+Two details about the back stack:
+
+- A redirect out of the **entry scene** *replaces* rather than pushes, so Back
+  cannot return to a scene you were denied.
+- A refusal on a *navigation* never touches the back stack at all.
+
+### When there is nowhere to go
+
+A guard can refuse **outright** rather than redirect: it names no `redirect`,
+its redirects form a cycle, or the chain runs past the hop cap. On a navigation
+that means "stay where you are", which is safe — where you are is a scene you
+were already allowed.
+
+At **first render** it cannot mean that, because where you are IS the refused
+scene. So the runtime leaves, in this order:
+
+1. the nearest frame on the back stack the guards still admit (frames it walks
+   past are dropped, so one Back cannot walk into the refusal again);
+2. failing that, the entry scene;
+3. failing that — the entry scene is itself the refused one and there is no
+   history — the session is **blocked**: nothing renders, and the URL stays `/`.
+
+The refused scene's `onEnter` never runs in any of the three, and the scene
+actually entered runs its own.
+
+### Back is an entry, not an undo
+
+`navigate` with `back: true` is guarded like everything else. The frame was
+pushed when you were allowed there; by the time you return the permission may be
+gone (a token expired, a sign-out earlier in the same action), and Back must not
+be the one door nobody checks.
+
+A frame whose guard now redirects is followed to its redirect target. A frame
+refused outright is skipped and the unwind continues into the frames below it —
+"go back" is your intent to leave the current scene, and the answer to "you may
+not enter that" is the next place you may enter. If no frame at all may be
+entered, the stack is left untouched and you stay put.
+
+Guards chain: the redirect target is itself guarded. A chain is capped at 8
+hops, and a chain that revisits a scene refuses the navigation instead of
+looping — the loader reports a redirect that points at its own scene or at an
+unknown scene as an error, and flags a redirect cycle.
+
+### Guards and derived values
+
+A guard evaluates derived values freshly, for itself only. That matters for the
+most common shape there is — an action that signs the user in and then
+navigates:
+
+```json
+{ "type": "action", "id": "signIn", "steps": [
+  { "type": "state.set", "path": "user", "value": "{{ draftName }}" },
+  { "type": "navigate",  "to": "checkout" }
+] }
+```
+
+Derived values are otherwise frozen for the whole dispatch (see
+[Expressions](../expressions.md)), so a guard reading `{{ state.computed.signedIn }}`
+would decide on the pre-login view and bounce the user straight back. The
+private refresh is what makes the two steps above work. It is not published:
+steps *after* the `navigate` still read the frame-stable view, as they do
+everywhere else.
+
+`examples/derived` runs this end to end — a checkout scene guarded on a derived
+`signedIn`, redirecting to a sign-in scene that reads `{{ route.next }}`.

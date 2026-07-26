@@ -141,10 +141,12 @@ func TestInstallSinksDropsReplacedRuntime(t *testing.T) {
 	if h.frames != 0 {
 		t.Fatalf("published %d frames for a dropped reply, want 0", h.frames)
 	}
-	// The abandoned runtime keeps its raised count — documented and sound,
-	// because nothing reads it any more.
-	if old.Inflight() != 1 {
-		t.Fatalf("abandoned runtime Inflight = %d, want the raised 1", old.Inflight())
+	// The dropped continuation is the one that would have released the count, so
+	// the host retires the runtime explicitly. Otherwise Inflight() — a
+	// PUBLISHED quiescence signal — reports work in flight forever, and anything
+	// polling that runtime for "the app has settled" never stops waiting.
+	if old.Inflight() != 0 {
+		t.Fatalf("abandoned runtime Inflight = %d, want 0: its continuation was dropped", old.Inflight())
 	}
 }
 
