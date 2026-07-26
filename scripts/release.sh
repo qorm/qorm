@@ -77,7 +77,10 @@ changelog_preflight() {
   # body = the lines between the Unreleased heading and the next '## ' heading
   next="$(tail -n +"$((line + 1))" "$file" | grep -n '^## ' | head -n1 | cut -d: -f1 || true)"
   if [ -n "$next" ]; then
-    body="$(tail -n +"$((line + 1))" "$file" | head -n "$((next - 1))")"
+    # `|| true`: head closes the pipe once it has its lines; when the rest of
+    # the file exceeds the pipe buffer, tail dies with SIGPIPE and pipefail
+    # would turn this assignment into an errexit with no message (exit 141).
+    body="$(tail -n +"$((line + 1))" "$file" | head -n "$((next - 1))")" || true
   else
     body="$(tail -n +"$((line + 1))" "$file")"
   fi
@@ -239,7 +242,7 @@ EOF
   n="$(grep -c '^## \[v0\.2\.0\] - 2026-01-02$' "$f" || true)"
   [ "$n" = 1 ] && st_pass "archive: exactly one '## [v0.2.0] - 2026-01-02' heading" \
                || st_fail "archive: expected exactly one new version heading, got $n"
-  first_h="$(grep '^## ' "$f" | head -n1)"
+  first_h="$(grep '^## ' "$f" | head -n1)" || true
   [ "$first_h" = "## [Unreleased]" ] && st_pass "archive: fresh '## [Unreleased]' stays on top" \
                                      || st_fail "archive: first heading is '$first_h', not '## [Unreleased]'"
   u="$(grep -n '^## \[Unreleased\]$' "$f" | head -n1 | cut -d: -f1 || true)"
@@ -248,7 +251,7 @@ EOF
   [ "$nxt_heading" = "## [v0.2.0] - 2026-01-02" ] \
     && st_pass "archive: new version heading sits directly under [Unreleased]" \
     || st_fail "archive: heading under [Unreleased] is '$nxt_heading'"
-  body="$(tail -n +"$((u + 1))" "$f" | head -n "$((nxt - 1))")"
+  body="$(tail -n +"$((u + 1))" "$f" | head -n "$((nxt - 1))")" || true
   if printf '%s\n' "$body" | grep -q '[^[:space:]]'; then
     st_fail "archive: the fresh [Unreleased] section is not empty"
   else
