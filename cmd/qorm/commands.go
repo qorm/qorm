@@ -287,7 +287,17 @@ func cmdBuild(args []string) int {
 	// for requiredCapabilities, and adding diagnostics would touch the
 	// hash/signature surface again. Printing keeps the signal without a
 	// format change.
-	printDiagnostics(dir)
+	//
+	// Error-level diagnostics FAIL the build. A bundle is the artifact that
+	// gets hashed, signed and shipped, so "the loader already told you this is
+	// broken" must not be a line of stderr scrolling past a green build — an
+	// unreachable entry scene, a duplicated definition or a guard that cannot
+	// redirect are exactly the things nobody notices until the signed app is
+	// on a device. `qorm run` still starts such an app; only shipping stops.
+	if n := printDiagnostics(dir); n > 0 {
+		fmt.Fprintf(os.Stderr, "error: %d error-level diagnostic(s) above — refusing to build a bundle that would be signed and shipped with them (fix them, or use `qorm run` to iterate)\n", n)
+		return 1
+	}
 	if version != "" {
 		if err := b.SetVersion(version); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -334,22 +344,30 @@ func cmdBuild(args []string) int {
 }
 
 // printDiagnostics writes the loader's static diagnostics for an app
-// directory to stderr, one per line. Non-directory inputs (scene files,
-// compiled bundles) are skipped: diagnostics belong to authoring time.
-// Diagnostics never fail the command — `error:`-prefixed entries mark type
-// errors, the rest are warnings.
-func printDiagnostics(path string) {
+// directory to stderr, one per line, and returns how many were error-level
+// (`error:`-prefixed; the rest are warnings). Non-directory inputs (scene
+// files, compiled bundles) are skipped: diagnostics belong to authoring time.
+//
+// Printing alone never fails a command — `qorm run` still starts an app with
+// errors, which is what you want while editing it. `qorm build` is the one
+// caller that acts on the count: see cmdBuild.
+func printDiagnostics(path string) int {
 	info, err := os.Stat(path)
 	if err != nil || !info.IsDir() {
-		return
+		return 0
 	}
 	docs, err := loader.CollectDocs(path)
 	if err != nil {
-		return
+		return 0
 	}
+	errs := 0
 	for _, d := range loader.FromDocs(docs).Diagnostics {
 		fmt.Fprintln(os.Stderr, d)
+		if strings.HasPrefix(strings.ToLower(d), "error:") {
+			errs++
+		}
 	}
+	return errs
 }
 
 // splitCapabilityList parses a comma-separated --require-capability value

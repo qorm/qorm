@@ -270,8 +270,9 @@ func TestCrossFileComponentsSurviveBundle(t *testing.T) {
 		}
 	}
 
-	// FromApp takes the other route (components fold into the manifest); both
-	// must reconstruct the same component registry.
+	// FromApp takes the other route (the app is serialised back to documents
+	// first); it must put the component in the SAME place, or the two routes
+	// content-address the same app differently. See TestBuildAndFromAppAgreeOnHash.
 	loaded, err := loader.LoadDir(componentAppDir(t))
 	if err != nil {
 		t.Fatalf("load: %v", err)
@@ -280,8 +281,8 @@ func TestCrossFileComponentsSurviveBundle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FromApp: %v", err)
 	}
-	if len(fb.Content.Components) != 0 {
-		t.Errorf("FromApp must fold components into the manifest, got %v", fb.Content.Components)
+	if fb.Content.Components["panel"] == nil {
+		t.Errorf("FromApp must keep a component document in the components section, got %v", fb.Content.Components)
 	}
 	if fb.ToApp().Components["panel"] == nil {
 		t.Error("component lost through FromApp -> ToApp")

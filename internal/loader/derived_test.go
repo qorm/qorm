@@ -474,3 +474,83 @@ func TestForEachNestingDepthIsCapped(t *testing.T) {
 // contains is strings.Contains under a shorter name, for the counting loops
 // above.
 func contains(s, sub string) bool { return hasDiag([]string{s}, sub) }
+
+// ---- state-rooted step paths ---------------------------------------------------
+
+// TestStateRootedStepPathIsWarned: a step path is already relative to the state
+// root, so `state.count` is a typo that creates a top-level key named "state".
+// Nothing used to say so — and the mistake is the natural one to make, because
+// the binding two lines up in the scene really is spelled `{{ state.count }}`.
+func TestStateRootedStepPathIsWarned(t *testing.T) {
+	app := FromDocs(computedDocs(nil,
+		map[string]any{"type": "action", "id": "typo", "steps": []any{
+			map[string]any{"type": "state.set", "path": "state.count", "value": "{{ 1 }}"},
+			// Nested inside a branch and a loop body, and on the async write
+			// fields: the check must descend and cover every target field.
+			map[string]any{"type": "if", "condition": "{{ true }}", "then": []any{
+				map[string]any{"type": "forEach", "in": "{{ state.items }}", "steps": []any{
+					map[string]any{"type": "http.get", "url": "https://x.test",
+						"result": "state.resp", "error": "state.err", "pending": "state.busy"},
+				}},
+			}},
+		}}))
+	n := 0
+	for _, d := range app.Diagnostics {
+		if contains(d, "步骤路径本来就相对状态根") {
+			n++
+		}
+	}
+	if n != 4 {
+		t.Errorf("want 4 state-rooted-path warnings (path, result, error, pending), got %d in %v", n, app.Diagnostics)
+	}
+	for _, d := range app.Diagnostics {
+		if contains(d, "步骤路径本来就相对状态根") && !contains(d, "warning:") {
+			t.Errorf("the typo must stay a warning — \"state\" is a legal key name: %q", d)
+		}
+	}
+}
+
+// TestPlainStepPathsAreNotWarned guards the false-positive side: an ordinary
+// relative path, a nested one, and a key whose name merely STARTS with "state"
+// are all correct and must stay silent.
+func TestPlainStepPathsAreNotWarned(t *testing.T) {
+	app := FromDocs(computedDocs(nil,
+		map[string]any{"type": "action", "id": "fine", "steps": []any{
+			map[string]any{"type": "state.set", "path": "count", "value": "{{ 1 }}"},
+			map[string]any{"type": "state.set", "path": "user.name", "value": "{{ 'ada' }}"},
+			// "stateful" starts with the root's name but is not rooted through
+			// it: the dot boundary is what decides.
+			map[string]any{"type": "state.set", "path": "stateful", "value": "{{ 1 }}"},
+			// The root alone is a legal (if odd) key name, not a mis-rooted path.
+			map[string]any{"type": "state.set", "path": "state", "value": "{{ 1 }}"},
+		}}))
+	if hasDiag(app.Diagnostics, "步骤路径本来就相对状态根") {
+		t.Errorf("a correct relative path must not be warned: %v", app.Diagnostics)
+	}
+}
+
+// TestStateRootedComputedPathIsOneDiagnosticNotTwo: `state.computed.total` is
+// both a state-rooted typo and a write into the read-only namespace. It earns
+// the specific (error) diagnostic, not both.
+func TestStateRootedComputedPathIsOneDiagnosticNotTwo(t *testing.T) {
+	app := FromDocs(computedDocs(
+		map[string]any{"total": "{{ state.count * 2 }}"},
+		map[string]any{"type": "action", "id": "cheat", "steps": []any{
+			map[string]any{"type": "state.set", "path": "state.computed.total", "value": "{{ 1 }}"},
+		}}))
+	if !hasDiag(app.Diagnostics, "写入了派生值路径") {
+		t.Errorf("the binding spelling must be caught as a read-only write: %v", app.Diagnostics)
+	}
+	if hasDiag(app.Diagnostics, "步骤路径本来就相对状态根") {
+		t.Errorf("one mistake, one diagnostic: %v", app.Diagnostics)
+	}
+	// Without declarations `computed` is an ordinary key, so the same path is
+	// just the state-rooted typo — and must still be reported as one.
+	plain := FromDocs(computedDocs(nil,
+		map[string]any{"type": "action", "id": "cheat", "steps": []any{
+			map[string]any{"type": "state.set", "path": "state.computed.total", "value": "{{ 1 }}"},
+		}}))
+	if !hasDiag(plain.Diagnostics, "步骤路径本来就相对状态根") {
+		t.Errorf("without declarations it is still a mis-rooted path: %v", plain.Diagnostics)
+	}
+}

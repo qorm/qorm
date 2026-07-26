@@ -184,6 +184,12 @@ func cmdPackage(args []string) int {
 	if dev == "" && !confirmCommercial(in, app.Branding, subscribed) {
 		return 1
 	}
+	// Same gate as `qorm build`: a package IS a signed, shipped bundle, so an
+	// error-level diagnostic must stop it here rather than reach a device.
+	if n := printDiagnostics(in); n > 0 {
+		fmt.Fprintf(os.Stderr, "error: %d error-level diagnostic(s) above — refusing to package an app that would ship with them (fix them, or use `qorm run` to iterate)\n", n)
+		return 1
+	}
 	b, err := bundle.Build(in)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)

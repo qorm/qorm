@@ -1,6 +1,10 @@
 package loader
 
-import "github.com/qorm/qorm/internal/model"
+import (
+	"sort"
+
+	"github.com/qorm/qorm/internal/model"
+)
 
 // typedKeys are node fields represented by struct fields; everything else in a
 // node's Props is an extra (options, src, min, max, columns, checked, if,
@@ -186,9 +190,14 @@ func ManifestToJSON(app *model.App) map[string]any {
 	if len(app.Components) > 0 {
 		comps := map[string]any{}
 		for name, node := range app.Components {
+			if app.ComponentDocs[name] {
+				continue // written back as its own type:"component" document
+			}
 			comps[name] = componentToJSON(node, app.ComponentSchemas[name])
 		}
-		m["components"] = comps
+		if len(comps) > 0 {
+			m["components"] = comps
+		}
 	}
 	if len(app.Shortcuts) > 0 {
 		scs := make([]any, 0, len(app.Shortcuts))
@@ -243,6 +252,27 @@ func componentToJSON(tmpl *model.Node, sc *model.ComponentSchema) map[string]any
 	return def
 }
 
+// componentDocToJSON serialises one component back to its OWN standalone
+// type:"component" document — the inverse of the FromDocs "component" case, for
+// every component that was authored that way (model.App.ComponentDocs).
+//
+// A component document always carries its template under "template" (the loader
+// rejects one without it), so the bare-node spelling componentToJSON emits for
+// an undeclared INLINE component is not usable here: the node's own "type"
+// would collide with the document's.
+func componentDocToJSON(name string, tmpl *model.Node, sc *model.ComponentSchema) map[string]any {
+	doc := map[string]any{"type": "component", "id": name}
+	if sc != nil {
+		for k, v := range componentToJSON(tmpl, sc) {
+			if k != "template" {
+				doc[k] = v // the declared props / slots
+			}
+		}
+	}
+	doc["template"] = NodeToJSON(tmpl)
+	return doc
+}
+
 // ActionToJSON serialises an action document.
 func ActionToJSON(a *model.Action) map[string]any {
 	return map[string]any{"type": "action", "id": a.ID, "steps": stepsToJSON(a.Steps)}
@@ -270,10 +300,21 @@ func stepToJSON(st model.Step) map[string]any {
 	putIf(s, "body", st.Body)
 	putIf(s, "result", st.Result)
 	putIf(s, "error", st.Error)
-	// Only emitted when set: false is the default, so a round trip must not
-	// grow an "async": false onto every http step that never asked for one.
+	// Only emitted when set: false/0/"" are the defaults, so a round trip must
+	// not grow an "async": false (or a "timeout": 0) onto every http step that
+	// never asked for one.
 	if st.Async {
 		s["async"] = true
+	}
+	putIf(s, "key", st.Key)
+	putIf(s, "pending", st.Pending)
+	if st.TimeoutMS > 0 {
+		// A JSON number, so the re-read goes through asMillis unchanged; a
+		// string would round-trip to 0 and silently drop the timeout.
+		s["timeout"] = float64(st.TimeoutMS)
+	}
+	if st.DelayMS > 0 {
+		s["ms"] = float64(st.DelayMS)
 	}
 	// navigate (and state.move) targeting fields: without these a
 	// re-serialised navigate step loses its target scene.
@@ -321,13 +362,21 @@ func stepToJSON(st model.Step) map[string]any {
 }
 
 // AppToDocs serialises a whole app (manifest + scenes + actions) back to the
-// raw document list, the inverse of FromDocs. Components always come back
-// nested in the manifest's "components" map — the one canonical output form —
-// even when they were authored as standalone type:"component" documents, since
-// the two spellings are merged into a single map at load time and nothing in
-// the model records which file a component came from.
+// raw document list, the inverse of FromDocs. Each component comes back in the
+// spelling it was authored in: inline in the manifest's "components" map, or —
+// for the names in app.ComponentDocs — as its own type:"component" document.
+//
+// Preserving the spelling is what makes the document list a FIXED POINT, and
+// content addressing consistent with it: bundle.Build (raw source documents)
+// and bundle.FromApp (these serialised ones) put a cross-file component in the
+// same place and therefore compute the same contentHash. Folding every
+// component into the manifest made the two disagree on any app with a
+// components/*.json file.
 func AppToDocs(app *model.App) []map[string]any {
 	docs := []map[string]any{ManifestToJSON(app)}
+	for _, name := range sortedComponentDocNames(app) {
+		docs = append(docs, componentDocToJSON(name, app.Components[name], app.ComponentSchemas[name]))
+	}
 	for id, root := range app.Scenes {
 		doc := SceneToJSON(id, root)
 		// Scene lifecycle: the onEnter hook lives on the scene document, not
@@ -345,6 +394,23 @@ func AppToDocs(app *model.App) []map[string]any {
 		docs = append(docs, ActionToJSON(act))
 	}
 	return docs
+}
+
+// sortedComponentDocNames returns the components that were authored as their
+// own documents, in a stable order (the document list is content-addressed, so
+// its order must not depend on map iteration).
+func sortedComponentDocNames(app *model.App) []string {
+	if len(app.ComponentDocs) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(app.ComponentDocs))
+	for name := range app.ComponentDocs {
+		if app.Components[name] != nil {
+			out = append(out, name)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // guardToJSON serialises a scene's route guard — the inverse of parseGuard.

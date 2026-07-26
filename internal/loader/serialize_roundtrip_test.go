@@ -20,13 +20,16 @@ package loader
 //     identity: AppToDocs(FromDocs(AppToDocs(app))) == AppToDocs(app).
 //   - TestSerializeRoundTripRegressionFields: one minimal subtest per
 //     round-3 lost field, so a future regression points at the exact field.
-//   - FuzzSerializeRoundtrip: the serialize direction must never panic on
-//     arbitrary parseable docs (complements FuzzFromDocs).
+//   - FuzzSerializeRoundtrip: the serialize pipeline canon = AppToDocs∘FromDocs
+//     must be IDEMPOTENT on arbitrary parseable docs — canon(canon(d)) ==
+//     canon(d) — so one app has exactly one serialised form and therefore
+//     exactly one contentHash (complements FuzzFromDocs).
 //   - TestSerializeRoundTripZeroDiagnostics: a well-formed app must
 //     round-trip with ZERO diagnostics, so a future change that starts
 //     warning on valid input fails loudly.
 
 import (
+	"bytes"
 	"encoding/json"
 	"reflect"
 	"sort"
@@ -209,6 +212,11 @@ func roundTripApp() *model.App {
 						Type: "http.request", URL: "https://api.example.com/x", Method: "PUT", Body: " ",
 						Headers: map[string]string{"X-Token": "{{ state.name }}"},
 						Result:  "resp", Error: "errMsg",
+						// M4 governance fields on a real step. None of them
+						// shows up in a rendered diff when it is lost: a
+						// dropped `key` silently un-deduplicates, a dropped
+						// `timeout` silently restores the 20s ceiling.
+						Async: true, Key: "sync", TimeoutMS: 2500, Pending: "syncing",
 						// http result branches with nested steps.
 						OnSuccess: []model.Step{
 							{Type: "state.set", Path: "name", Value: "{{ response.title }}"},
@@ -217,6 +225,8 @@ func roundTripApp() *model.App {
 							{Type: "state.set", Path: "name", Value: "{{ error }}"},
 						},
 					},
+					{Type: "delay", DelayMS: 400},
+					{Type: "state.set", Path: "name", Value: "'done'"},
 				},
 			},
 			// `if` step with nested branches (a nested if inside else) and an
@@ -575,6 +585,25 @@ func checkStep(t *testing.T, path string, want, got model.Step) {
 	}
 	if got.Error != want.Error {
 		t.Errorf("%s.Error: want %q got %q", path, want.Error, got.Error)
+	}
+	// Async governance fields: a dropped `key` silently un-deduplicates a
+	// search box, a dropped `timeout` silently restores the 20s ceiling, a
+	// dropped `pending` leaves a spinner up — all invisible in a diff of the
+	// re-serialised app, which is exactly why they are pinned here.
+	if got.Async != want.Async {
+		t.Errorf("%s.Async: want %v got %v", path, want.Async, got.Async)
+	}
+	if got.Key != want.Key {
+		t.Errorf("%s.Key: want %q got %q", path, want.Key, got.Key)
+	}
+	if got.TimeoutMS != want.TimeoutMS {
+		t.Errorf("%s.TimeoutMS: want %d got %d", path, want.TimeoutMS, got.TimeoutMS)
+	}
+	if got.Pending != want.Pending {
+		t.Errorf("%s.Pending: want %q got %q", path, want.Pending, got.Pending)
+	}
+	if got.DelayMS != want.DelayMS {
+		t.Errorf("%s.DelayMS: want %d got %d", path, want.DelayMS, got.DelayMS)
 	}
 	// Execution-model fields: `if` condition + branches, invoke name/args,
 	// http result branches — all recursive step lists.
@@ -1037,9 +1066,36 @@ func TestSerializeRoundTripZeroDiagnostics(t *testing.T) {
 	}
 }
 
-// FuzzSerializeRoundtrip ensures the SERIALIZE direction never panics on
-// arbitrary parseable docs (FromDocs -> AppToDocs -> FromDocs), complementing
-// FuzzFromDocs, which only exercises assembly.
+// canonDocs is the app pipeline written as a function on documents:
+// canon(d) = AppToDocs(FromDocs(d)). It is what every consumer of the doc form
+// actually applies — bundle.FromApp, an MCP export, a patch write-back — and
+// its output is sorted here because document ORDER comes from the file walk and
+// is not part of an app's meaning.
+func canonDocs(docs []map[string]any) []map[string]any {
+	out := AppToDocs(FromDocs(docs))
+	sort.SliceStable(out, func(i, j int) bool {
+		key := func(d map[string]any) string { return asString(d["type"]) + "\x00" + asString(d["id"]) }
+		return key(out[i]) < key(out[j])
+	})
+	return out
+}
+
+// FuzzSerializeRoundtrip enforces the IDEMPOTENCE of that pipeline:
+//
+//	canon(canon(d)) == canon(d)
+//
+// which is strictly stronger than "does not panic" and is the property every
+// content-addressed use of the doc form silently assumes. If a second pass can
+// change the documents, then the same app has more than one serialised form,
+// and therefore more than one contentHash — so a bundle rebuilt from a live
+// app stops matching the bundle built from its sources, an exported design
+// cannot be pinned, and re-saving an app in an editor mutates it. It also
+// pins the LOSSY steps in place: canonicalisation (a prop shorthand becoming
+// its long form, a component document keeping its own spelling) is allowed to
+// change the input once, never twice.
+//
+// A counterexample is a real defect even when nothing crashes, which is why
+// this replaced the panic-only assertion.
 func FuzzSerializeRoundtrip(f *testing.F) {
 	for _, s := range []string{
 		// A valid counter-shaped doc set.
@@ -1067,6 +1123,24 @@ func FuzzSerializeRoundtrip(f *testing.F) {
 			`{"type":"scene","id":"s","root":{"type":"when","condition":{"deep":true},"then":[1],"children":["x",null,2],"style":{"k":{"nested":"{{ x }}"}}}},` +
 			`{"type":"action","id":"a","steps":[{"type":"navigate","to":42,"params":[1],"back":"no","item":{"k":{}}},"junk"]},` +
 			`{"id":"typeless"},{"type":"bogus","id":"b"}]`,
+		// Standalone component documents in both spellings (declared and bare
+		// template), plus one that collides with a manifest-inline component
+		// and one with a non-string id — the shapes where the serializer has
+		// to remember WHERE a component came from.
+		`[{"type":"app","id":"c","entry":"main","components":{"inline":{"type":"text","id":"i"}}},` +
+			`{"type":"component","id":"declared","props":{"n":"number","t":{"type":"string","required":true}},` +
+			`"slots":{"body":{"required":true}},"template":{"type":"card","id":"d","children":[{"type":"slot","name":"body"}]}},` +
+			`{"type":"component","id":"bare","template":{"type":"text","id":"b","text":"x"}},` +
+			`{"type":"component","id":"inline","template":{"type":"row","id":"shadow"}},` +
+			`{"type":"component","id":7,"template":{"type":"row","id":"numbered"}},` +
+			`{"type":"scene","id":"main","root":{"type":"declared","id":"inst","t":"T","children":[{"type":"text","id":"bd","slot":"body"}]}}]`,
+		// Duplicates and an onEnter/guard-bearing scene: first-wins resolution
+		// must itself be idempotent.
+		`[{"type":"app","id":"a","entry":"main"},{"type":"app","id":"b","entry":"other"},` +
+			`{"type":"scene","id":"main","root":{"type":"text","id":"x"},"onEnter":"go",` +
+			`"guard":{"condition":"{{ state.u }}","redirect":"main","params":{"n":"1"}}},` +
+			`{"type":"scene","id":"main","root":{"type":"text","id":"dup"}},` +
+			`{"type":"action","id":"go","steps":[]},{"type":"action","id":"go","steps":[{"type":"render"}]}]`,
 		`[]`,
 		`[{}]`,
 	} {
@@ -1077,10 +1151,19 @@ func FuzzSerializeRoundtrip(f *testing.F) {
 		if json.Unmarshal([]byte(data), &docs) != nil {
 			return // not an array of objects, as collect() would skip
 		}
-		app := FromDocs(docs) // assemble: must not panic
-		out := AppToDocs(app) // serialise: must not panic
-		app2 := FromDocs(out) // re-assemble the serialised form
-		_ = app2.EntryRoot()  // must not panic
-		_ = app2.Diagnostics  // must not panic
+		once := canonDocs(docs)  // assemble + serialise: must not panic
+		twice := canonDocs(once) // and doing it again must change nothing
+		a, err := json.Marshal(once)
+		if err != nil {
+			return // not comparable as JSON; the no-panic half still held
+		}
+		b, err := json.Marshal(twice)
+		if err != nil {
+			t.Fatalf("the serialised form must stay JSON-encodable: %v\ninput: %s", err, data)
+		}
+		if !bytes.Equal(a, b) {
+			t.Fatalf("AppToDocs∘FromDocs is not idempotent\n input: %s\n once:  %s\n twice: %s", data, a, b)
+		}
+		_ = FromDocs(twice).EntryRoot() // must not panic
 	})
 }

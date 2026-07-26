@@ -26,7 +26,17 @@ func TestIsComputedPath(t *testing.T) {
 		{"  computed.total  ", true}, // trimmed: a padded path still targets it
 		{"computedish", false},       // prefix without the dot boundary
 		{"computedish.x", false},
-		{"state.computed", false}, // step paths are state-rooted already
+		// The `state.`-rooted spelling counts too. A step path is already
+		// relative to the state root, so `state.computed.x` is the binding
+		// spelling copied into an action by mistake — and taken literally it
+		// creates a top-level key named "state". Both spellings are refused.
+		{"state.computed", true},
+		{"state.computed.total", true},
+		{"  state.computed.total  ", true},
+		{"state.computedish", false}, // the dot boundary still decides
+		{"state.total", false},       // an ordinary (if mis-rooted) write
+		{"item.computed.x", false},   // somebody else's field named computed
+		{"state", false},
 		{"total", false},
 		{"", false},
 	}

@@ -13,6 +13,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"sort"
 
 	"github.com/qorm/qorm/internal/loader"
 	"github.com/qorm/qorm/internal/model"
@@ -75,22 +76,66 @@ func FromApp(app *model.App) (*Bundle, error) {
 }
 
 // fromDocs splits raw documents into content (with i18n catalogs) and hashes it.
+//
+// A duplicate definition is REFUSED rather than resolved. Assigning into these
+// maps silently kept the last document seen, while the loader (`qorm run`, the
+// playground, CI rendering) keeps the first — so an attacker who added one
+// component document with a filename sorting after the original got the benign
+// version rendered everywhere a human or a check looked, and the malicious one
+// signed into the shipped bundle. Signing was never broken; what was signed
+// simply was not what was reviewed. There is no correct guess to make here, so
+// the build stops and names the id.
+//
+// Ids are coerced through loader.DocID, the same coercion the loader applies:
+// a document with a non-string id ({"id": 1}) used to key the loader's app
+// under "1" and this map under "", quietly dropping it from the package.
 func fromDocs(docs []map[string]any, locales map[string]map[string]string) (*Bundle, error) {
 	c := Content{Scenes: map[string]map[string]any{}, Actions: map[string]map[string]any{}, Locales: locales}
 	for _, doc := range docs {
-		id, _ := doc["id"].(string)
-		switch doc["type"] {
+		id := loader.DocID(doc)
+		switch loader.DocType(doc) {
 		case "app":
+			if c.App != nil {
+				return nil, fmt.Errorf(`more than one type:"app" manifest document in this app (the second has id %q): remove the extra manifest — the directory loader keeps the first and packaging would keep the last`, id)
+			}
 			c.App = doc
 		case "scene":
+			if _, dup := c.Scenes[id]; dup {
+				return nil, duplicateDocError("scene", id)
+			}
 			c.Scenes[id] = doc
 		case "action":
+			if _, dup := c.Actions[id]; dup {
+				return nil, duplicateDocError("action", id)
+			}
 			c.Actions[id] = doc
 		case "component":
+			if _, dup := c.Components[id]; dup {
+				return nil, duplicateDocError("component", id)
+			}
 			if c.Components == nil {
 				c.Components = map[string]map[string]any{}
 			}
 			c.Components[id] = doc
+		}
+	}
+	// A component document colliding with a manifest-INLINE component of the
+	// same name is the fourth shape of the same ambiguity. Both compile paths
+	// happen to resolve it the same way (the manifest is applied first and
+	// wins), but "happens to" is not a property anyone can rely on while
+	// reading the sources: two definitions are visible and only one renders.
+	// The directory load calls it an error, so packaging does too. Checked
+	// after the loop because the manifest may be walked last.
+	if inline, ok := c.App["components"].(map[string]any); ok {
+		shadowed := make([]string, 0, len(c.Components))
+		for name := range c.Components {
+			if _, dup := inline[name]; dup {
+				shadowed = append(shadowed, name)
+			}
+		}
+		if len(shadowed) > 0 {
+			sort.Strings(shadowed) // deterministic message
+			return nil, duplicateDocError("component", shadowed[0])
 		}
 	}
 	b := &Bundle{Format: Format, Content: c}
@@ -100,6 +145,11 @@ func fromDocs(docs []map[string]any, locales map[string]map[string]string) (*Bun
 	}
 	b.ContentHash = hash
 	return b, nil
+}
+
+// duplicateDocError reports two source documents competing for one id.
+func duplicateDocError(kind, id string) error {
+	return fmt.Errorf("two %s documents define the id %q: the directory loader would keep the first and packaging the last, so the bundle would not contain the app you rendered and reviewed — remove or rename one of them", kind, id)
 }
 
 // computeHash returns the sha256 of the canonical content encoding.

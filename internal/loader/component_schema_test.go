@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 
@@ -472,6 +473,44 @@ func TestComponentRedefinitionDiagnosed(t *testing.T) {
 	if root := app.Components["panel"]; root == nil || root.ID != "inline" {
 		t.Errorf("the first definition (the manifest's) must win, got %+v", root)
 	}
+	// The message must not claim the first definition is simply "kept": the
+	// packaging path keeps the LAST one, which is what let a redefinition in a
+	// late-sorting file render benignly and ship maliciously. It has to point
+	// at both outcomes.
+	for _, want := range []string{"目录加载", "qorm build", "拒绝构建"} {
+		if !compDiag(app, `组件 "panel" 被重复定义`, want) {
+			t.Errorf("the redefinition diagnostic must mention %q: %v", want, diagsWith(app, "被重复定义"))
+		}
+	}
+}
+
+// TestDuplicateDefinitionsAreErrors covers the other three duplicate shapes the
+// directory walk can produce. Each is an error-level diagnostic (so `qorm build`
+// refuses, see cmdBuild) and each resolves FIRST-wins, the only rule the
+// lexicographic collect() walk can state.
+func TestDuplicateDefinitionsAreErrors(t *testing.T) {
+	app := FromDocs([]map[string]any{
+		{"type": "app", "id": "first", "entry": "main", "name": "First"},
+		{"type": "app", "id": "second", "entry": "other", "name": "Second"},
+		{"type": "scene", "id": "main", "root": map[string]any{"type": "text", "id": "keep", "text": "a"}},
+		{"type": "scene", "id": "main", "root": map[string]any{"type": "text", "id": "shadow", "text": "b"}},
+		{"type": "action", "id": "go", "steps": []any{map[string]any{"type": "render"}}},
+		{"type": "action", "id": "go", "steps": []any{map[string]any{"type": "navigate", "to": "main"}}},
+	})
+	for _, want := range []string{"应用清单被重复定义", `场景 "main" 被重复定义`, `动作 "go" 被重复定义`} {
+		if !compDiag(app, "error:", want) {
+			t.Errorf("missing error diagnostic %q: %v", want, app.Diagnostics)
+		}
+	}
+	if app.Name != "First" || app.Entry != "main" {
+		t.Errorf("the first manifest must win, got name=%q entry=%q", app.Name, app.Entry)
+	}
+	if root := app.Scenes["main"]; root == nil || root.ID != "keep" {
+		t.Errorf("the first scene must win, got %+v", root)
+	}
+	if act := app.Actions["go"]; act == nil || len(act.Steps) != 1 || act.Steps[0].Type != "render" {
+		t.Errorf("the first action must win, got %+v", act)
+	}
 }
 
 // TestComponentDocumentIsNotAnUnknownDocument guards the doc-type dispatch: a
@@ -509,11 +548,51 @@ func TestComponentRefInstanceChecked(t *testing.T) {
 	if len(ok.Diagnostics) != 0 {
 		t.Errorf("a satisfied ref instance must load clean: %v", ok.Diagnostics)
 	}
-	for _, ref := range []string{"", "nosuch", "{{ state.which }}"} {
+	for _, ref := range []string{"", "nosuch"} {
 		app := componentApp(t, comps, `{"type":"component","id":"i","ref":"`+ref+`"}`)
 		if len(app.Diagnostics) != 0 {
 			t.Errorf("an unresolvable ref %q must not be checked: %v", ref, app.Diagnostics)
 		}
+	}
+	// A BOUND ref is unresolvable for a different reason: the name arrives at
+	// render time, so no prop/slot check can run — and whatever supplies the
+	// binding picks the component. That is worth exactly one diagnostic, and no
+	// prop-level ones (there is no schema to check against).
+	dyn := componentApp(t, comps, `{"type":"component","id":"i","ref":"{{ state.which }}"}`)
+	if !compDiag(dyn, "warning:", "组件名由绑定", "{{ state.which }}") {
+		t.Errorf("a bound ref must be diagnosed as a run-time component choice: %v", dyn.Diagnostics)
+	}
+	if len(dyn.Diagnostics) != 1 {
+		t.Errorf("a bound ref must produce exactly that one diagnostic: %v", dyn.Diagnostics)
+	}
+}
+
+// TestDynamicComponentNameDiagnosed is the P0/P1 guard for the silent
+// stand-down: when a node's `type` is a binding, every component check keys off
+// a name nobody knows yet, so the loader must SAY so instead of passing the
+// instance in silence — otherwise a feed's data decides which of the app's
+// components each row instantiates with no signal anywhere in the load.
+func TestDynamicComponentNameDiagnosed(t *testing.T) {
+	comps := `{"panel":{"props":{"title":{"type":"string","required":true}},
+		"template":{"type":"card","id":"p","children":[{"type":"text","id":"pt","text":"{{ prop.title }}"}]}}}`
+	app := componentApp(t, comps, `{"type":"{{ item.kind }}","id":"row"}`)
+	if !compDiag(app, "warning:", `节点 (id: "row")`, "组件名由绑定") {
+		t.Errorf("a bound node type must be diagnosed: %v", app.Diagnostics)
+	}
+	// It fires inside component TEMPLATES too (a component may nest another).
+	nested := componentApp(t, `{"outer":{"type":"card","id":"o","children":[{"type":"{{ prop.kind }}","id":"inner"}]}}`, "")
+	if !compDiag(nested, "component:outer", "组件名由绑定") {
+		t.Errorf("a bound type inside a component template must be diagnosed: %v", nested.Diagnostics)
+	}
+	// And NOT at all for an app with no components: there a bound type can only
+	// name a built-in widget, which is the ordinary polymorphic-list idiom.
+	plain := FromDocs([]map[string]any{
+		{"type": "app", "id": "x", "entry": "main"},
+		{"type": "scene", "id": "main", "root": map[string]any{"type": "column", "id": "r",
+			"children": []any{map[string]any{"type": "{{ item.kind }}", "id": "row"}}}},
+	})
+	if len(plain.Diagnostics) != 0 {
+		t.Errorf("an app without components must not be nagged about a bound type: %v", plain.Diagnostics)
 	}
 }
 
@@ -561,9 +640,12 @@ func TestComponentSchemaRoundTrip(t *testing.T) {
 	}
 }
 
-// TestCrossFileComponentRoundTrip: components authored as their own documents
-// come back nested in the manifest (the one canonical output form) with their
-// declaration intact.
+// TestCrossFileComponentRoundTrip: a component authored as its OWN document
+// comes back as its own document — not folded into the manifest. The spelling
+// is what makes the doc list a fixed point and what makes bundle.Build and
+// bundle.FromApp agree on a contentHash (see TestBuildAndFromAppAgreeOnHash);
+// folding it in moved the component from Content.Components into Content.App
+// and changed the hash of the very same app.
 func TestCrossFileComponentRoundTrip(t *testing.T) {
 	docs := []map[string]any{
 		{"type": "app", "id": "x", "entry": "main"},
@@ -575,8 +657,20 @@ func TestCrossFileComponentRoundTrip(t *testing.T) {
 	}
 	app := FromDocs(docs)
 	out := AppToDocs(app)
-	if len(out) != 2 {
-		t.Fatalf("components must fold into the manifest, got %d docs", len(out))
+	if len(out) != 3 {
+		t.Fatalf("a component document must stay its own document, got %d docs: %v", len(out), out)
+	}
+	var compDoc map[string]any
+	for _, d := range out {
+		if d["type"] == "component" {
+			compDoc = d
+		}
+		if comps, ok := d["components"]; ok {
+			t.Errorf("a component document must not also be folded into the manifest: %v", comps)
+		}
+	}
+	if compDoc == nil || compDoc["id"] != "panel" || compDoc["template"] == nil {
+		t.Fatalf("no usable component document in the output: %v", out)
 	}
 	back := FromDocs(out)
 	if !reflect.DeepEqual(app.ComponentSchemas, back.ComponentSchemas) {
@@ -585,6 +679,51 @@ func TestCrossFileComponentRoundTrip(t *testing.T) {
 	if back.Components["panel"] == nil || back.Components["panel"].ID != "p" {
 		t.Errorf("cross-file template lost: %+v", back.Components)
 	}
+	if !back.ComponentDocs["panel"] {
+		t.Errorf("the component's origin was lost in the round trip: %v", back.ComponentDocs)
+	}
+	// The doc form is a FIXED POINT: canon(canon(d)) == canon(d), the property
+	// FuzzSerializeRoundtrip enforces over arbitrary input.
+	if !reflect.DeepEqual(jsonNorm(t, out), jsonNorm(t, AppToDocs(back))) {
+		t.Errorf("AppToDocs is not a fixpoint over a component document:\n%v\n%v", out, AppToDocs(back))
+	}
+	if len(back.Diagnostics) != 0 {
+		t.Errorf("the round trip must not invent diagnostics: %v", back.Diagnostics)
+	}
+}
+
+// TestUndeclaredCrossFileComponentRoundTrip is the same property for a
+// component document that declares neither props nor slots: componentToJSON
+// writes an inline undeclared component as its BARE template, which as a
+// standalone document would put the template's own "type" where the document's
+// belongs. The document form must always carry "template".
+func TestUndeclaredCrossFileComponentRoundTrip(t *testing.T) {
+	docs := []map[string]any{
+		{"type": "app", "id": "x", "entry": "main"},
+		{"type": "scene", "id": "main", "root": map[string]any{"type": "column", "id": "r"}},
+		{"type": "component", "id": "plain", "template": map[string]any{"type": "text", "id": "pl", "text": "x"}},
+	}
+	out := AppToDocs(FromDocs(docs))
+	if !reflect.DeepEqual(normDocs(t, docs), normDocs(t, out)) {
+		t.Errorf("an undeclared component document must round-trip verbatim:\nwant %v\ngot  %v", docs, out)
+	}
+	back := FromDocs(out)
+	if back.Components["plain"] == nil || back.Components["plain"].Type != "text" {
+		t.Errorf("template lost or clobbered by the document type: %+v", back.Components["plain"])
+	}
+}
+
+// normDocs canonicalises a doc set for comparison: document ORDER is not part
+// of an app's meaning (the collect walk decides it), so sort by (type, id)
+// before normalising through JSON.
+func normDocs(t *testing.T, docs []map[string]any) any {
+	t.Helper()
+	sorted := append([]map[string]any(nil), docs...)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		key := func(d map[string]any) string { return asString(d["type"]) + "\x00" + asString(d["id"]) }
+		return key(sorted[i]) < key(sorted[j])
+	})
+	return jsonNorm(t, sorted)
 }
 
 // jsonNorm canonicalises a doc set through JSON so maps of any compare by value.

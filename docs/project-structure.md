@@ -19,6 +19,22 @@ myapp/
   assets/             images / icons referenced by nodes (e.g. "assets/icon.png")
 ```
 
+Documents are found by **type, not by folder**: a `{ "type": "component" }` file
+works wherever you put it, and the folder names above are convention. Three
+boundaries apply when the app is collected, because a bundle is signed and
+shipped and must contain only what you can review:
+
+- `locales/` is read separately as message catalogs, not as app documents.
+- A subfolder with its own `qorm.json` is a nested project and is skipped, so
+  its documents cannot collide with the parent's ids.
+- A symbolic link pointing outside the app folder is refused (a `.json` link
+  fails the load; an escaping `locales/` is skipped). Links *within* the folder
+  work normally.
+
+Two documents claiming the same id is an error. `qorm run` still starts, so you
+can keep iterating, but `qorm build` and `qorm package` refuse — a signed
+artifact must not depend on which file happened to sort last.
+
 ## `qorm.json` — the manifest
 
 The only required file. It names the app, picks the entry scene, and declares
@@ -47,6 +63,7 @@ the global state:
 | `entry` | the scene id shown first |
 | `theme` | `apple` / `material` / `dark`, or `auto` (default — Apple palette that follows the OS light/dark setting) |
 | `globalState` | `schema` (typed shape) + `initial` (starting values) for `state.*` |
+| `computed` | derived values — name → expression, read as `{{ state.computed.x }}` and re-evaluated once per frame ([Expressions](expressions.md)) |
 | `components` | reusable component definitions (or a folder of them) |
 | `platforms` | per-platform config — desktop `window`, and packaging options |
 | `defaultLocale` | initial language for multi-locale apps |
@@ -66,6 +83,10 @@ Each scene is one JSON file: `{ "type": "scene", "id": …, "root": <node> }`. T
 `root` is a node tree — see [Node & widget props](/api/props.md) for the
 node schema and [the widget catalog](/api/widgets.md) for every `type`.
 Move between scenes with the `navigate` step; see [Navigation](/api/navigation.md).
+
+Two optional keys sit beside `root`: `onEnter` names an action to run each time
+the scene is entered, and `guard` declares the precondition for entering it at
+all — see [Navigation & routing](spec/navigation-spec.md).
 
 ## `actions/` — behavior
 

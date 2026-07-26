@@ -18,6 +18,14 @@ myapp/
   assets/             节点引用的图片 / 图标(如 "assets/icon.png")
 ```
 
+文档按**类型识别,而非按目录**:`{ "type": "component" }` 文件放在哪里都能生效,上面的目录名只是约定。收集应用时有三条边界——bundle 是要签名并分发的产物,只能包含你能审阅的内容:
+
+- `locales/` 作为消息目录单独读取,不当作应用文档。
+- 带有自己 `qorm.json` 的子目录视为嵌套项目并跳过,其文档不会与父应用的 id 相撞。
+- 指向应用目录之外的符号链接会被拒绝(`.json` 链接使加载失败;逃逸的 `locales/` 被跳过)。目录**内部**的链接正常工作。
+
+两个文档声明同一个 id 是错误。`qorm run` 仍会启动以便你继续迭代,但 `qorm build` 与 `qorm package` 会拒绝——签名产物不该取决于哪个文件恰好排在后面。
+
 ## `qorm.json` —— 清单
 
 唯一必需的文件。它命名应用、指定入口场景,并声明全局状态:
@@ -45,6 +53,7 @@ myapp/
 | `entry` | 首先显示的场景 id |
 | `theme` | `apple` / `material` / `dark`,或 `auto`(默认——跟随系统明暗的 Apple 配色) |
 | `globalState` | 供 `state.*` 使用的 `schema`(类型化结构)+ `initial`(初始值) |
+| `computed` | 派生值——名字 → 表达式,用 `{{ state.computed.x }}` 读取,每帧重新求值一次(见[表达式](expressions.md)) |
 | `components` | 可复用的组件定义(或一个组件文件夹) |
 | `platforms` | 各平台配置——桌面 `window`、以及打包选项 |
 | `defaultLocale` | 多语言应用的初始语言 |
@@ -62,6 +71,9 @@ myapp/
 是一棵节点树——节点结构见[节点与组件属性](/api/props.md),每种 `type` 见
 [组件目录](/api/widgets.md)。用 `navigate` 步骤在场景间跳转,见
 [导航](/api/navigation.md)。
+
+`root` 旁边还有两个可选键:`onEnter` 指定每次进入该场景时运行的动作,`guard` 声明
+进入该场景的前置条件——见[导航与路由](spec/navigation-spec.md)。
 
 ## `actions/` —— 行为
 

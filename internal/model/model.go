@@ -74,6 +74,19 @@ type App struct {
 	// props/slots, statically-wrong literal types) and the renderer defaults to
 	// fill in for props the instance omits.
 	ComponentSchemas map[string]*ComponentSchema
+	// ComponentDocs is the set of component names that were authored as their
+	// OWN standalone `type:"component"` document (conventionally
+	// components/<name>.json) rather than inline in the manifest's "components"
+	// map. Keyed exactly like Components; absent name = declared inline.
+	//
+	// It exists so the serializer can write each component back to the spelling
+	// it came from. Without it AppToDocs folded every component into the
+	// manifest, and the same app compiled through bundle.Build (which carries
+	// the raw source documents) and through bundle.FromApp (which carries the
+	// serialised ones) produced two DIFFERENT contentHashes — content
+	// addressing that disagreed with itself, so an exported design and a CI
+	// build of the same tree could never be matched, deduplicated or pinned.
+	ComponentDocs map[string]bool
 	// Shortcuts are the app's home-screen / Dock quick actions (long-press the
 	// app icon). Selecting one launches the app and fires qormEmit('shortcut', id).
 	Shortcuts []Shortcut
@@ -240,10 +253,25 @@ const ComputedNamespace = "computed"
 
 // IsComputedPath reports whether a dotted state path targets the read-only
 // computed namespace (the namespace itself or anything beneath it).
+//
+// Both spellings count. A step `path` is relative to the state root, so
+// `computed.total` is the literal one — but `state.computed.total` is the
+// spelling a scene binding uses, and an author who reads
+// `{{ state.computed.total }}` in a scene writes exactly that into the next
+// action's `path` without a second thought. Taken literally that path is a
+// write to a top-level state key NAMED "state", which is never what anyone
+// means; refusing it here is what stops a typo from creating that key at all.
 func IsComputedPath(path string) bool {
 	p := strings.TrimSpace(path)
+	p = strings.TrimPrefix(p, StateRoot+".")
 	return p == ComputedNamespace || strings.HasPrefix(p, ComputedNamespace+".")
 }
+
+// StateRoot is the name of the state root in an evaluation context — the
+// `state` of `{{ state.x }}`. It is reserved: a step path may not be written
+// through it (paths are already relative to the root) and no state key, action
+// arg or list-item alias may displace it in an evaluation context.
+const StateRoot = "state"
 
 // ComputedOrder returns the app's computed names in dependency order — every
 // name after the computed values it reads — together with the names that can
@@ -482,6 +510,49 @@ type Step struct {
 	// host that installed no background sink (a bare runtime, an offline
 	// render, an MCP simulation), so the same JSON stays portable.
 	Async bool
+	// Key names a request SLOT for an http.* step: at most one request per key
+	// is ever in flight, and starting a new one supersedes whichever request
+	// was still open on that key — the older request's transport is cancelled
+	// and, decisively, its continuation is DROPPED (no Result/Error write, no
+	// OnSuccess/OnError). This is what makes a search-as-you-type box correct:
+	// the reply that lands on screen is the reply to the LAST keystroke, not
+	// whichever round trip happened to finish last.
+	//
+	// Only the async path can be superseded — a synchronous request blocks its
+	// own dispatch, so there is never a second one to supersede it — but the
+	// field is harmless there and a single-threaded host (AsyncAll) makes every
+	// http step async, so the same JSON keeps its meaning. Empty (the default)
+	// opts out entirely: unkeyed requests never cancel each other.
+	Key string
+	// TimeoutMS overrides the shared client's 20s ceiling for THIS request,
+	// in milliseconds. It applies to both execution modes. Expiry is an
+	// ordinary failure: the Error path is written and OnError runs, with the
+	// message "request timed out after <n>ms" — a stable, host-independent
+	// string rather than Go's transport wording, so an app may show it (or
+	// match on it) directly. Zero (the default) keeps the client ceiling.
+	TimeoutMS int
+	// Pending is a state path held true for exactly as long as this request is
+	// open: set on launch, cleared when the outcome settles — INCLUDING the
+	// failure, timeout and cap-rejection paths, which is what a hand-written
+	// pair of state.set steps reliably forgets. It replaces the loading flag,
+	// not the loading UI: bind a spinner to `{{ state.<path> }}` as usual.
+	//
+	// The path is REFERENCE-COUNTED across requests: two open requests sharing
+	// one path hold it true until both have settled, and a request superseded
+	// by Key releases its own reference without clearing a flag its successor
+	// is still holding.
+	Pending string
+	// DelayMS is the `delay` step's wait, in milliseconds. The steps FOLLOWING
+	// a delay in the same list run when it expires — the step suspends the rest
+	// of its list, it does not merely sleep — so `render` / `delay` / `render`
+	// paces an animation or a staged reveal declaratively.
+	//
+	// It never blocks: the wait is handed to the host's background sink, the
+	// same one an async http step uses. On a host that installed no sink (a
+	// bare runtime, an offline render, an MCP simulation) the pause degrades to
+	// nothing and the remaining steps run immediately, so the action still
+	// reaches the same final state — the sole difference is that nobody waited.
+	DelayMS int
 	// OnSuccess / OnError are the http.* steps' optional result branches. They
 	// run once the request returns: with the default synchronous step, inline
 	// on the dispatching goroutine before the http step's sibling steps, so the
