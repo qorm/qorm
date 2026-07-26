@@ -126,22 +126,50 @@ func RenderScene(rt *runtime.Runtime, sceneID string) Result {
 
 // renderComponent instantiates an app-defined component: the instance node's
 // props/text/label/value become {{prop.x}} inside the template, its children
-// fill any {type:slot}, and its id suffixes the template ids so repeated uses
-// stay unique.
+// fill any {type:slot} (named or default — see slot), and its id suffixes the
+// template ids so repeated uses stay unique.
+//
+// Prop values are evaluated in the INSTANCE's scope before injection: a value
+// like "{{state.open}}" or "{{item.name}}" (or an outer "{{prop.x}}" when
+// components nest) resolves to its live value at instantiation time, so the
+// template's {{prop.x}} bindings, `if` conditions and invoke names see real
+// data rather than an unevaluated binding string. Whole-string bindings keep
+// their type (EvalBinding's typed path: bool/number/list/object survive as
+// such — visible()'s asBool then works on a bool prop with no special case),
+// mixed text interpolates to a string, and non-string JSON literals (true,
+// 42, [...]) pass through typed and untouched.
+//
+// A spec-style nested "props":{...} object on the instance is equivalent to
+// top-level keys and wins on conflict (planning/spec/json-format-spec.md).
 func (r *renderer) renderComponent(n *model.Node, comp *model.Node) {
 	prevScope, prevKids, prevSuf := r.scope, r.compChildren, r.idSuffix
+	ctx := r.ctx() // the instance's own scope — prop values evaluate here
+	evalProp := func(v any) any {
+		if s, ok := v.(string); ok {
+			return runtime.EvalBinding(s, ctx)
+		}
+		return v
+	}
 	prop := map[string]any{}
 	for k, v := range n.Props {
-		prop[k] = v
+		if k == "props" {
+			continue // the nested props object merges below, not exposed raw
+		}
+		prop[k] = evalProp(v)
 	}
 	if n.Text != "" {
-		prop["text"] = n.Text
+		prop["text"] = evalProp(n.Text)
 	}
 	if n.Label != "" {
-		prop["label"] = n.Label
+		prop["label"] = evalProp(n.Label)
 	}
 	if n.Value != "" {
-		prop["value"] = n.Value
+		prop["value"] = evalProp(n.Value)
+	}
+	if pm, ok := n.Props["props"].(map[string]any); ok {
+		for k, v := range pm {
+			prop[k] = evalProp(v)
+		}
 	}
 	ns := make(map[string]any, len(prevScope)+1)
 	for k, v := range prevScope {
@@ -157,6 +185,29 @@ func (r *renderer) renderComponent(n *model.Node, comp *model.Node) {
 	r.node(comp)
 	r.compDepth--
 	r.scope, r.compChildren, r.idSuffix = prevScope, prevKids, prevSuf
+}
+
+// slot renders the component-instance children that belong to this slot. A
+// named slot ({"type":"slot","name":"header"} — the spec's slot form) takes
+// the instance children declaring slot:"header"; the default (unnamed) slot
+// takes the children with no slot attribution — which for an app that never
+// names slots is ALL instance children, preserving the original single-slot
+// behavior. When no instance child fills the slot, the slot's own children
+// render as its fallback (default) content.
+func (r *renderer) slot(n *model.Node) {
+	name := propStr(n, "name")
+	filled := false
+	for _, c := range r.compChildren {
+		if propStr(c, "slot") == name {
+			filled = true
+			r.node(c)
+		}
+	}
+	if !filled {
+		for _, c := range n.Children {
+			r.node(c)
+		}
+	}
 }
 
 func (r *renderer) ctx() map[string]any {
@@ -211,9 +262,7 @@ func (r *renderer) renderInner(n *model.Node) {
 	}
 	switch n.Type {
 	case "slot":
-		for _, c := range r.compChildren {
-			r.node(c)
-		}
+		r.slot(n)
 	case "when":
 		r.when(n)
 	case "text":
@@ -568,11 +617,21 @@ func (r *renderer) boundArray(n *model.Node, key string) []any {
 // ---- handler registration ----
 
 func (r *renderer) register(inv *model.Invoke) int {
+	// Callback props: an invoke name may itself be a binding — a component
+	// template writes onPress:{name:"{{prop.onConfirm}}"} and the instance
+	// passes onConfirm:"saveItem". Resolve it against the current scope at
+	// REGISTRATION time, so the handler table (and every dispatch path that
+	// reads it) carries the final action name; dispatching never has to guess
+	// whether a name is literal or bound.
+	name := inv.Name
+	if strings.Contains(name, "{{") {
+		name = r.interp(name)
+	}
 	scope := make(map[string]any, len(r.scope))
 	for k, v := range r.scope {
 		scope[k] = v
 	}
-	r.handlers = append(r.handlers, Handler{Name: inv.Name, Args: inv.Args, Scope: scope})
+	r.handlers = append(r.handlers, Handler{Name: name, Args: inv.Args, Scope: scope})
 	return len(r.handlers) - 1
 }
 

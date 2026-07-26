@@ -61,6 +61,73 @@ func TestComponentPipeline(t *testing.T) {
 	}
 }
 
+// TestDynamicComponentPipeline exercises the dynamic component model through
+// the full load -> render -> dispatch pipeline from real JSON: state-bound
+// props (typed), a spec-style nested props object, a callback prop resolving
+// to a dispatchable action, and named slots with fallback content.
+func TestDynamicComponentPipeline(t *testing.T) {
+	dir := writeApp(t,
+		`{"type":"app","id":"dyn","entry":"main",`+
+			`"globalState":{"schema":{"open":"boolean","user":"string","saved":"boolean"},`+
+			`"initial":{"open":true,"user":"Ada","saved":false}},`+
+			`"components":{`+
+			`"Panel":{"type":"card","children":[`+
+			`{"type":"slot","name":"header","children":[{"type":"text","id":"hf","text":"NO_HEADER"}]},`+
+			`{"type":"text","id":"who","text":"USER={{prop.user}}","if":"{{ prop.open }}"},`+
+			`{"type":"button","id":"save","label":"Save","onPress":{"name":"{{prop.onSave}}"}},`+
+			`{"type":"slot"}]}}}`,
+		`{"type":"scene","id":"main","root":{"type":"column","children":[`+
+			`{"type":"Panel","id":"p1",`+
+			`"props":{"user":"{{state.user}}","open":"{{state.open}}","onSave":"persist"},`+
+			`"children":[`+
+			`{"type":"text","id":"h","text":"MY_HEADER","slot":"header"},`+
+			`{"type":"text","id":"b","text":"BODY"}]}]}}`)
+	if err := os.MkdirAll(filepath.Join(dir, "actions"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	action := `{"type":"action","id":"persist","steps":[{"type":"state.set","path":"saved","value":"{{ true }}"}]}`
+	if err := os.WriteFile(filepath.Join(dir, "actions", "persist.json"), []byte(action), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	app, err := loader.LoadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rt := qrt.New(app)
+	res := render.Render(rt)
+
+	// typed state-bound props: open=true shows the guarded node, user resolves
+	if !strings.Contains(res.HTML, "USER=Ada") {
+		t.Errorf("nested props object with state binding not resolved:\n%s", res.HTML)
+	}
+	// named slot took the attributed child, fallback suppressed, default slot took the rest
+	if !strings.Contains(res.HTML, "MY_HEADER") || strings.Contains(res.HTML, "NO_HEADER") {
+		t.Errorf("named slot distribution/fallback wrong:\n%s", res.HTML)
+	}
+	if strings.Count(res.HTML, "BODY") != 1 {
+		t.Errorf("default slot should render the unattributed child exactly once:\n%s", res.HTML)
+	}
+	// callback prop: handler carries the final action name and really dispatches
+	var dispatched bool
+	for _, h := range res.Handlers {
+		if h.Name == "persist" {
+			rt.Dispatch(h.Name, nil)
+			dispatched = true
+		}
+	}
+	if !dispatched {
+		t.Fatalf("callback prop did not resolve to 'persist', handlers: %+v", res.Handlers)
+	}
+	if rt.State["saved"] != true {
+		t.Errorf("dispatching the resolved callback did not run the action, state: %v", rt.State)
+	}
+	// flip the bound state: the prop re-evaluates on the next render
+	rt.State["open"] = false
+	if html := render.Render(rt).HTML; strings.Contains(html, "USER=Ada") {
+		t.Errorf("prop bound to state.open=false should hide the guarded node:\n%s", html)
+	}
+}
+
 // TestUnknownWidgetReportedThroughLoader guards that a typo'd widget type in a
 // loaded scene is surfaced via Result.Unknown (the self-verify surface) while
 // still rendering a container.
