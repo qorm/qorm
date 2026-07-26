@@ -6,6 +6,8 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+## [v0.3.7] - 2026-07-26
+
 ### Security
 - OTA SSRF guard on the live server's `POST /update` source fetch: private
   (RFC 1918 / RFC 4193), link-local (including the `169.254.169.254` /
@@ -523,6 +525,7 @@ Initial release: QORM, an agent-native declarative-UI runtime in pure Go.
 - Render performance: cached parsed expressions and reflection-free CSS
   numeric writes in the hot path.
 
+[v0.3.7]: https://github.com/qorm/qorm/compare/v0.3.6...v0.3.7
 [v0.3.6]: https://github.com/qorm/qorm/compare/v0.3.5...v0.3.6
 [v0.3.5]: https://github.com/qorm/qorm/compare/v0.3.4...v0.3.5
 [v0.3.4]: https://github.com/qorm/qorm/compare/v0.3.3...v0.3.4
