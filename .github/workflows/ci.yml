@@ -29,6 +29,55 @@ jobs:
       - name: Test (race detector)
         run: go test -race ./...
 
+  per-commit-build:
+    name: per-commit buildability (bisect guard)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # the range walk needs full history
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+      # Red-team audit found a02237e unbuildable (render-side component changes
+      # landed before their model-side counterparts), which breaks git bisect.
+      # Build each commit of the push/PR range in a detached worktree (no
+      # stash, main checkout untouched) so a repeat is caught here.
+      # Trade-off: this repo mostly lands single-commit PRs / squash merges,
+      # so the range is capped at the 20 newest commits to bound job time;
+      # anything unbuildable deeper in the range is not checked.
+      - name: Build every commit in range
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+          fi
+          # `before` is all-zero on newly pushed branches (and can go stale on
+          # force-push); fall back to HEAD~1 so the pushed tip is still checked.
+          if [ -z "$BASE" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            BASE="HEAD~1"
+          fi
+          TOTAL=$(git rev-list --count "$BASE"..HEAD)
+          if [ "$TOTAL" -gt 20 ]; then
+            echo "::warning::range has $TOTAL commits; checking the 20 newest only"
+          fi
+          COMMITS=$(git rev-list "$BASE"..HEAD | head -n 20)
+          echo "checking $(echo "$COMMITS" | grep -c . || true) commit(s) in $BASE..HEAD"
+          WT="$(mktemp -d)"
+          trap 'git worktree remove --force "$WT" 2>/dev/null || true' EXIT
+          for SHA in $COMMITS; do
+            echo "::group::build $(git log -1 --format='%h %s' "$SHA")"
+            git worktree add --detach --force "$WT" "$SHA" >/dev/null
+            if ! (cd "$WT" && go build ./...); then
+              echo "::error::commit $SHA does not build: $(git log -1 --format=%s "$SHA")"
+              exit 1
+            fi
+            echo "::endgroup::"
+          done
+
   desktop:
     name: build (native desktop, cgo)
     strategy:
