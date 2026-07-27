@@ -75,6 +75,8 @@ jobs:
               echo "::error::commit $SHA does not build: $(git log -1 --format=%s "$SHA")"
               exit 1
             fi
+            # release the worktree before the next iteration reuses the path
+            git worktree remove --force "$WT"
             echo "::endgroup::"
           done
 
