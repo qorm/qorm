@@ -75,9 +75,13 @@ type Runtime struct {
 	// runs on the calling goroutine under whatever lock the dispatch already
 	// holds; it must not re-take that lock and must not block.
 	Commit func()
-	// frames counts intermediate frames committed during the current top-level
-	// dispatch, capped at maxFrames.
-	frames int
+	// budget is the intermediate-frame allowance of the current top-level
+	// interaction: the dispatch AND every continuation it spawns (an async
+	// reply, a resumed delay tail) draw from one shared allowance capped at
+	// MaxFrames, so a single click can never publish more than MaxFrames
+	// intermediate frames however many round trips it spans. nil outside a
+	// dispatch; the render step treats that as "no allowance".
+	budget *frameBudget
 
 	// Async is the HOST's background work sink: an `http.*` step marked
 	// {"async": true} hands it the blocking half of the request (work) plus the
@@ -197,10 +201,24 @@ func (r *Runtime) AbandonInflight() {
 	r.keyed = nil
 }
 
-// maxFrames caps the intermediate frames one top-level dispatch may publish, so
-// a looping action cannot flood the live-sync channel. Frames beyond the cap are
+// MaxFrames caps the intermediate frames one top-level interaction may publish,
+// so a looping action cannot flood the live-sync channel. The allowance is
+// shared by the dispatch and every continuation it spawns (see frameBudget), so
+// "one click" is bounded as a whole, not per leg. Frames beyond the cap are
 // dropped silently (the final frame at the dispatch boundary always ships).
-const maxFrames = 64
+//
+// It is exported because hosts must size their per-revision handler rings to
+// cover at least this many frames plus the boundary frame (see
+// server.handlerHistory): a click from any frame of even the most
+// frame-flooding interaction must stay resolvable.
+const MaxFrames = 64
+
+// frameBudget is one top-level interaction's remaining intermediate-frame
+// allowance. It is heap-allocated and shared by pointer with the continuations
+// the dispatch launches, so a completion that lands after the dispatch ended —
+// possibly after OTHER dispatches have run — draws down the SAME allowance
+// instead of starting over (which is what let one click publish 128+ frames).
+type frameBudget struct{ left int }
 
 // maxInflight caps the background work one runtime may have open at once:
 // async `http.*` requests plus waiting `delay` continuations. It is the same
@@ -791,6 +809,13 @@ func (r *Runtime) block() {
 // over), so the entry hook a fresh runtime would fire must not replay.
 func (r *Runtime) ClearPendingEnter() { r.pendingEnter = false }
 
+// PendingEnter reports whether a scene-entry mark is waiting to be drained
+// (the current scene's onEnter has not run yet). Hosts rendering outside a
+// dispatch use it to decide whether the render must instead publish a fresh
+// revision: a pending hook can write state, and a frame rendered after it
+// differs from whatever the current revision last published.
+func (r *Runtime) PendingEnter() bool { return r.pendingEnter }
+
 // Stringify renders a value as display text (re-exported from expr).
 func Stringify(v any) string { return expr.Stringify(v) }
 
@@ -1027,11 +1052,12 @@ func (r *Runtime) Dispatch(name string, args map[string]any) {
 	if r.callDepth >= maxInvokeDepth {
 		return
 	}
-	// The intermediate-frame budget is per top-level dispatch: nested invokes
+	// The intermediate-frame budget is per top-level INTERACTION: nested invokes
 	// share the outer dispatch's allowance, so a recursive action cannot reset
-	// it and publish without bound.
+	// it and publish without bound — and the continuations the dispatch spawns
+	// draw from the same allowance (they restore this pointer when they land).
 	if r.callDepth == 0 {
-		r.frames = 0
+		r.budget = &frameBudget{left: MaxFrames}
 	}
 	r.callDepth++
 	// Derived values are republished at the dispatch BOUNDARY, not per step:
@@ -1136,17 +1162,23 @@ func (r *Runtime) deferRest(step model.Step, rest []model.Step, ctx map[string]a
 	// Same context split as an async request: `{{ arg }}` keeps the value the
 	// dispatch carried, `{{ state.x }}` is read when the wait expires.
 	frozen := freezeCtx(r.State, ctx)
+	budget := r.budget
 	wait := time.Duration(step.DelayMS) * time.Millisecond
 	r.inflight++
 	r.Async(
 		func() any { time.Sleep(wait); return nil },
 		func(any) {
 			r.releaseInflight()
-			// A resumed tail is a fresh top-level unit of work, exactly like an
-			// http completion: new frame budget, and it must republish the
-			// derived values itself because it lands outside any Dispatch.
-			r.frames = 0
+			// A resumed tail EXTENDS the interaction that scheduled it: it draws
+			// from the same frame budget (restored here — other dispatches may
+			// have replaced r.budget meanwhile) and runs as a nested dispatch
+			// level, so an `invoke` from the tail cannot mint a fresh budget.
+			// It must still republish the derived values itself, because it
+			// lands outside any Dispatch.
+			r.budget = budget
+			r.callDepth++
 			r.applySteps(rest, freshCtx(r, frozen), depth)
+			r.callDepth--
 			r.refreshComputed()
 		})
 	return true
@@ -1206,8 +1238,8 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any, depth int) {
 		// makes a loading state visible: `state.set saving=true` -> `render` ->
 		// a slow `http.*` -> `state.set saving=false`. Without a host frame sink
 		// it is a no-op, so the same JSON runs unchanged on every host.
-		if r.Commit != nil && r.frames < maxFrames {
-			r.frames++
+		if r.Commit != nil && r.budget != nil && r.budget.left > 0 {
+			r.budget.left--
 			// An intermediate frame is a real frame: refresh the derived values
 			// so the loading state it shows carries a consistent computed view
 			// (the dispatch boundary is still to come).
@@ -1551,6 +1583,7 @@ func (r *Runtime) applyHTTP(step model.Step, ctx map[string]any, depth int) {
 	// state no matter how its own round trip ends.
 	slot := r.claimKey(step.Key, cancel)
 	frozen := freezeCtx(r.State, ctx)
+	budget := r.budget
 	r.inflight++
 	r.Async(
 		// Background half: the request is already built, so this closure
@@ -1576,11 +1609,16 @@ func (r *Runtime) applyHTTP(step model.Step, ctx map[string]any, depth int) {
 				return
 			}
 			out, _ := res.(httpOutcome)
-			// A completion is a fresh top-level continuation, so it gets a
-			// fresh intermediate-frame budget rather than inheriting
-			// whatever the dispatch that started the request had left.
-			r.frames = 0
+			// A completion EXTENDS the interaction that launched the request: it
+			// draws from the same frame budget (restored here — other dispatches
+			// may have replaced r.budget meanwhile) and runs as a nested dispatch
+			// level, so an `invoke` from a result branch cannot mint a fresh
+			// budget either. One click is bounded to MaxFrames intermediate
+			// frames however many round trips it spans.
+			r.budget = budget
+			r.callDepth++
 			r.settleHTTP(step, resultPath, freshCtx(r, frozen), 0, out)
+			r.callDepth--
 		})
 }
 

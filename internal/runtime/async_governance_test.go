@@ -625,8 +625,9 @@ func TestDelaySuspendsOnlyItsOwnList(t *testing.T) {
 }
 
 // TestDelayPacesIntermediateFrames is what the step is for: render, wait,
-// render. Each resumed tail is a fresh top-level unit of work, so it gets its
-// own frame budget instead of inheriting an exhausted one.
+// render. Each resumed tail draws from the SAME interaction frame budget as the
+// dispatch that scheduled it (one click stays bounded as a whole) — three
+// frames sit comfortably inside it.
 func TestDelayPacesIntermediateFrames(t *testing.T) {
 	d := &deferHost{}
 	rt := asyncRT([]model.Step{

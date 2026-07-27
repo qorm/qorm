@@ -64,10 +64,10 @@ func TestRenderStepNoHostIsNoOp(t *testing.T) {
 }
 
 // TestRenderStepFrameCap: a looping action cannot flood live-sync — frames are
-// capped per top-level dispatch, and the steps keep running past the cap.
+// capped per top-level interaction, and the steps keep running past the cap.
 func TestRenderStepFrameCap(t *testing.T) {
-	steps := make([]model.Step, 0, maxFrames+1)
-	for i := 0; i < maxFrames+1; i++ {
+	steps := make([]model.Step, 0, MaxFrames+1)
+	for i := 0; i < MaxFrames+1; i++ {
 		steps = append(steps, model.Step{Type: "render"})
 	}
 	steps = append(steps, model.Step{Type: "state.set", Path: "done", Value: "{{ true }}"})
@@ -75,8 +75,8 @@ func TestRenderStepFrameCap(t *testing.T) {
 	n := 0
 	rt.Commit = func() { n++ }
 	rt.Dispatch("go", nil)
-	if n != maxFrames {
-		t.Errorf("frames must be capped at %d per dispatch: got %d", maxFrames, n)
+	if n != MaxFrames {
+		t.Errorf("frames must be capped at %d per dispatch: got %d", MaxFrames, n)
 	}
 	if rt.State["done"] != true {
 		t.Error("steps after the cap is reached must still run")
@@ -91,8 +91,8 @@ func TestRenderStepBudgetIsPerTopLevelDispatch(t *testing.T) {
 		model.Step{Type: "render"},
 		model.Step{Type: "invoke", Name: "inner"},
 	)
-	inner := make([]model.Step, 0, maxFrames)
-	for i := 0; i < maxFrames; i++ {
+	inner := make([]model.Step, 0, MaxFrames)
+	for i := 0; i < MaxFrames; i++ {
 		inner = append(inner, model.Step{Type: "render"})
 	}
 	app.Actions["inner"] = &model.Action{ID: "inner", Steps: inner}
@@ -100,12 +100,12 @@ func TestRenderStepBudgetIsPerTopLevelDispatch(t *testing.T) {
 	n := 0
 	rt.Commit = func() { n++ }
 	rt.Dispatch("go", nil)
-	if n != maxFrames {
-		t.Errorf("a nested invoke shares the caller's frame budget: got %d, want %d", n, maxFrames)
+	if n != MaxFrames {
+		t.Errorf("a nested invoke shares the caller's frame budget: got %d, want %d", n, MaxFrames)
 	}
 	rt.Dispatch("go", nil)
-	if n != 2*maxFrames {
-		t.Errorf("a new top-level dispatch resets the budget: got %d, want %d", n, 2*maxFrames)
+	if n != 2*MaxFrames {
+		t.Errorf("a new top-level dispatch resets the budget: got %d, want %d", n, 2*MaxFrames)
 	}
 }
 
@@ -136,8 +136,8 @@ func TestNewRuntimeHasNoHostHooks(t *testing.T) {
 	if rt.Commit != nil {
 		t.Error("runtime.New must not install a host frame sink — hosts install it explicitly")
 	}
-	if rt.frames != 0 {
-		t.Errorf("a fresh runtime starts with an empty frame budget: got %d", rt.frames)
+	if rt.budget != nil {
+		t.Errorf("a fresh runtime starts with no frame budget: got %+v", rt.budget)
 	}
 }
 

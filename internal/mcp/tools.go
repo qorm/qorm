@@ -185,11 +185,12 @@ func (s *Server) handleToolCall(req request) *response {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 	}
+	s.bumped = false
 	result, err := s.callTool(p.Name, p.Arguments)
 	if err != nil {
 		return ok(req.ID, toolText(true, err.Error()))
 	}
-	if s.afterMutate != nil && isMutating(p.Name) {
+	if s.afterMutate != nil && isMutating(p.Name) && !s.bumped {
 		s.afterMutate() // must not take s.mu (server bumps rev lock-free)
 	}
 	return ok(req.ID, toolText(false, result))
@@ -431,7 +432,19 @@ func (s *Server) callTool(name string, args json.RawMessage) (string, error) {
 			// Simulate a viewport so responsive `when` branches resolve for the
 			// check. The live browser client re-reports its real size on its next
 			// load/resize, overwriting this.
-			s.rt.Viewport = qrt.Viewport{W: a.ViewportW, H: a.ViewportH}
+			vp := qrt.Viewport{W: a.ViewportW, H: a.ViewportH}
+			if s.rt.Viewport != vp {
+				s.rt.Viewport = vp
+				// A viewport write changes what renders, so it is a MUTATION
+				// and must publish a fresh revision like every other mutation
+				// path (serveViewport does the same). Writing it bare would let
+				// the next same-revision re-render (serveIndex, /poll, an SSE
+				// catch-up) file a different handler table for a rev clients
+				// already hold (P0-4).
+				if s.afterMutate != nil {
+					s.afterMutate()
+				}
+			}
 		}
 		if s.measureProv == nil {
 			return "", fmt.Errorf("measurement unavailable")
@@ -546,8 +559,24 @@ func (s *Server) settled(fn func()) {
 // construction, no scene it may show. Falling back to the entry scene here —
 // what a plain render.Render does with an id it does not know — would render
 // the very scene the guard refused whenever the refusal happened AT the entry.
+//
+// Draining a pending hook is a MUTATION (the hook's action writes state, and a
+// `render` step in it publishes intermediate frames), so the settled state must
+// ship as a NEW revision: without the bump, the next render at the current
+// revision — a browser's first load arriving after the agent's read, /poll, an
+// SSE catch-up — would file a different frame under it (the "one revision, one
+// frame" violation, with dead buttons on the page). Read-only tools therefore
+// bump too, but ONLY when a hook actually drained: once per scene entry, never
+// per read, so agents polling qorm_render_html cause no rev churn.
 func (s *Server) currentHTML() string {
+	drained := s.rt.PendingEnter()
 	s.settled(s.rt.RunPendingEnter)
+	if drained && s.afterMutate != nil {
+		s.afterMutate()
+		// Remember the bump: a MUTATING tool reaching this via stateAndHTML is
+		// bumped again by handleToolCall, and one call must publish one frame.
+		s.bumped = true
+	}
 	scene := s.rt.CurrentScene()
 	if scene == qrt.GuardBlocked {
 		return `<div data-scene="blocked" style="padding:24px;color:#888">no scene available: a route guard refused every entry</div>`

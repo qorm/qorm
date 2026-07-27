@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/qorm/qorm/internal/loader"
+	"github.com/qorm/qorm/internal/render"
 	"github.com/qorm/qorm/internal/runtime"
 )
 
@@ -344,7 +346,9 @@ func TestEventWithoutRevFallsBackToNewestTable(t *testing.T) {
 
 // TestEventWithEvictedRevFallsBackToNewestTable: the ring keeps a bounded
 // number of frames. A revision older than the ring is unknown, so it degrades
-// to the newest table rather than dropping the human's click on the floor.
+// to the newest table rather than dropping the human's click on the floor —
+// and the degradation is LOGGED, because it is the moment the rev-scoped
+// guarantee silently turned off before.
 func TestEventWithEvictedRevFallsBackToNewestTable(t *testing.T) {
 	s, base, tok := serverFromDocs(t, staleHandlerDocs()...)
 	revN := s.rev.Load()
@@ -376,24 +380,305 @@ func TestEventWithEvictedRevFallsBackToNewestTable(t *testing.T) {
 	if a != float64(1) || b != float64(0) {
 		t.Errorf("an evicted revision must fall back to the newest table: a=%v b=%v", a, b)
 	}
+	s.actMu.Lock()
+	logged := false
+	for _, e := range s.activity {
+		if strings.Contains(e.Detail, "no longer in the handler ring") {
+			logged = true
+		}
+	}
+	s.actMu.Unlock()
+	if !logged {
+		t.Error("a ring eviction that bites a client's click must be logged, not silent")
+	}
 }
 
-// TestSetHandlersOverwritesSameRevision: serveIndex, /poll and the SSE catch-up
-// all re-render the CURRENT revision without advancing it. Those must refresh
-// that revision's entry, never stack duplicates that push live frames out of
-// the ring.
-func TestSetHandlersOverwritesSameRevision(t *testing.T) {
-	s, base, _ := serverFromDocs(t, staleHandlerDocs()...)
+// TestSetHandlersRefusesADifferentTableAtTheSameRevision pins the INVARIANT
+// "one revision publishes exactly one frame". A same-revision re-render must
+// carry the IDENTICAL table — a no-op re-file, never a duplicate ring entry. A
+// DIFFERENT table at the same revision means a mutation reached render without
+// bumping the revision: the already-published table wins (clients holding that
+// rev keep resolving against the frame they actually saw) and the violation is
+// logged. Replaces TestSetHandlersOverwritesSameRevision, which pinned the
+// in-place overwrite that let a deep link silently retarget another tab's
+// clicks (P0-4).
+func TestSetHandlersRefusesADifferentTableAtTheSameRevision(t *testing.T) {
+	s, _, _ := serverFromDocs(t, staleHandlerDocs()...)
+	first := []render.Handler{{Name: "doA"}}
+	other := []render.Handler{{Name: "doB"}}
+	const rev = 4242
 	s.mu.Lock()
 	before := len(s.handlerHist)
-	s.mu.Unlock()
-	for i := 0; i < 4; i++ {
-		getPage(t, base+"/")
-	}
-	s.mu.Lock()
+	s.setHandlers(rev, first)
+	s.setHandlers(rev, other) // a different frame at the same rev: refused
+	s.setHandlers(rev, append([]render.Handler{}, first...))
+	revCopy := int64(rev)
+	got := s.lookupHandlers(&revCopy)
+	current := s.handlers
 	after := len(s.handlerHist)
 	s.mu.Unlock()
-	if after != before {
-		t.Errorf("re-rendering the same revision must not grow the ring: %d -> %d", before, after)
+	if len(got) != 1 || got[0].Name != "doA" {
+		t.Errorf("a different table at the same revision must be refused, kept %v", got)
+	}
+	if len(current) != 1 || current[0].Name != "doA" {
+		t.Errorf("the current table must stay the published one: %v", current)
+	}
+	if after != before+1 {
+		t.Errorf("same-revision re-files must not grow the ring: %d -> %d", before, after)
+	}
+	s.actMu.Lock()
+	logged := false
+	for _, e := range s.activity {
+		if strings.Contains(e.Detail, "revision 4242") {
+			logged = true
+		}
+	}
+	s.actMu.Unlock()
+	if !logged {
+		t.Error("a same-revision handler-table conflict must be logged")
+	}
+}
+
+// TestSameRevIsNeverRenderedTwiceDifferently is the end-to-end shape of P0-4:
+// tab A loads scene "one" at revision N (index 0 = markA). Tab B then deep
+// links into scene "two". The deep link MUTATES the shared session, so it must
+// publish a NEW revision — under the bug it rendered without bumping and
+// overwrote revision N's handler table in place, so tab A's honest
+// {h:0, rev:N} click resolved against scene two's table and dispatched markB.
+func TestSameRevIsNeverRenderedTwiceDifferently(t *testing.T) {
+	s, base, tok := serverFromDocs(t,
+		`{"type":"app","id":"sr","entry":"one","globalState":{
+			"schema":{"a":"number","b":"number"},"initial":{"a":0,"b":0}}}`,
+		`{"type":"scene","id":"one","root":{"type":"button","id":"ba","label":"A","onPress":{"name":"markA"}}}`,
+		`{"type":"scene","id":"two","root":{"type":"button","id":"bb","label":"B","onPress":{"name":"markB"}}}`,
+		`{"type":"action","id":"markA","steps":[{"type":"state.increment","path":"a"}]}`,
+		`{"type":"action","id":"markB","steps":[{"type":"state.increment","path":"b"}]}`,
+	)
+	// Tab A loads the entry scene's page.
+	getPage(t, base+"/")
+	revA := s.rev.Load()
+
+	// Tab B deep links into the other scene: the session navigated, so the
+	// revision MUST advance (and the new frame is filed under the new rev).
+	getPage(t, base+"/?scene=two")
+	revB := s.rev.Load()
+	if revB <= revA {
+		t.Fatalf("a deep link that navigates must bump the revision: %d -> %d", revA, revB)
+	}
+
+	// Tab A clicks its button, honestly reporting the rev its page was minted
+	// on. Its own table must still be filed under that rev.
+	postEventAtRev(t, base, tok, 0, &revA)
+	s.mu.Lock()
+	a, b := s.rt.State["a"], s.rt.State["b"]
+	s.mu.Unlock()
+	if a != float64(1) || b != float64(0) {
+		t.Errorf("tab A's click must dispatch ITS frame's handler (markA): a=%v b=%v", a, b)
+	}
+}
+
+// TestHandlerRingCoversMaxFrames: one top-level interaction can publish up to
+// runtime.MaxFrames intermediate frames plus its boundary frame
+// (runtime.frameBudget). The ring must retain at least that many tables, or a
+// click from an early frame of a frame-flooding action (forEach + render)
+// silently degrades to the newest table — with the agent able to trigger the
+// flood on demand.
+func TestHandlerRingCoversMaxFrames(t *testing.T) {
+	if handlerHistory < runtime.MaxFrames+1 {
+		t.Fatalf("handlerHistory (%d) must cover one interaction's frames (runtime.MaxFrames=%d plus the boundary frame)", handlerHistory, runtime.MaxFrames)
+	}
+}
+
+// TestRenderStepNeverPublishesAGuardedScene: an action that navigates to a
+// guarded scene and then renders mid-action publishes the frame the guard
+// DIVERTED to — never the refused scene. The intermediate frame from the
+// `render` step goes straight to SSE subscribers, so a leak here bypasses every
+// click-level check (see TestGuardDivertsNavigateStep for the navigation half
+// and internal/render/guard_blocked_test.go for the render half).
+func TestRenderStepNeverPublishesAGuardedScene(t *testing.T) {
+	s, base, tok := serverFromDocs(t,
+		`{"type":"app","id":"gr","entry":"home","globalState":{
+			"schema":{"user":"string"},"initial":{"user":""}}}`,
+		`{"type":"scene","id":"home","root":{"type":"button","id":"go","label":"Go","onPress":{"name":"go"}}}`,
+		`{"type":"scene","id":"vault","guard":{"condition":"{{ state.user != '' }}","redirect":"login"},
+			"root":{"type":"text","id":"v","text":"TOP-SECRET-PAYROLL"}}`,
+		`{"type":"scene","id":"login","root":{"type":"text","id":"l","text":"LOGIN-PAGE"}}`,
+		`{"type":"action","id":"go","steps":[
+			{"type":"navigate","to":"vault"},
+			{"type":"render"}]}`,
+	)
+	_, cancel, lines := connectSSE(t, base, nil)
+	defer cancel()
+	waitUntil(t, 2*time.Second, func() bool { return s.subscriberCount() == 1 }, "SSE subscriber to register")
+
+	final, _ := postEventAtRev(t, base, tok, handlerIndexByName(t, s, "go"), nil)
+
+	mid := nextDataFrame(t, lines, 3*time.Second)
+	if strings.Contains(mid, "TOP-SECRET-PAYROLL") {
+		t.Errorf("the intermediate frame must not publish the guarded scene: %s", mid)
+	}
+	if !strings.Contains(mid, "LOGIN-PAGE") {
+		t.Errorf("the intermediate frame must show the guard's redirect: %s", mid)
+	}
+	if strings.Contains(final, "TOP-SECRET-PAYROLL") || !strings.Contains(final, "LOGIN-PAGE") {
+		t.Errorf("the completion frame must also be the redirect target: %s", final)
+	}
+	s.mu.Lock()
+	scene := s.rt.CurrentScene()
+	s.mu.Unlock()
+	if scene != "login" {
+		t.Errorf("the session must land on the guard's redirect, scene=%q", scene)
+	}
+}
+
+// ---- onEnter with a `render` step: one revision, one frame, live buttons -----
+
+// onEnterRenderDocs is an app whose entry scene's onEnter carries a `render`
+// step — the canonical "flash a loading state on boot" shape — and then writes
+// the state that reveals a SECOND button. The intermediate frame (one button)
+// and the final frame (two) must never be filed under the same revision, and
+// the final frame must be broadcast, or the first page ships with a dead
+// EXTRA button (and subscribers never see the settled state).
+func onEnterRenderDocs() []string {
+	return []string{
+		`{"type":"app","id":"oe","entry":"main","globalState":{
+			"schema":{"ready":"bool","n":"number"},"initial":{"ready":false,"n":0}}}`,
+		`{"type":"scene","id":"main","onEnter":"boot","root":{"type":"column","id":"root","children":[
+			{"type":"button","id":"base","label":"Base","onPress":{"name":"hit"}},
+			{"type":"button","id":"extra","if":"{{ state.ready }}","label":"EXTRA","onPress":{"name":"hit"}}]}}`,
+		`{"type":"action","id":"boot","steps":[
+			{"type":"render"},
+			{"type":"state.set","path":"ready","value":"{{ true }}"}]}`,
+		`{"type":"action","id":"hit","steps":[{"type":"state.increment","path":"n"}]}`,
+	}
+}
+
+func bootServer(t *testing.T) (*Server, string) {
+	t.Helper()
+	app := loader.FromDocs(docsFrom(t, onEnterRenderDocs()...))
+	if len(app.Diagnostics) != 0 {
+		t.Fatalf("fixture must load clean: %v", app.Diagnostics)
+	}
+	s := New(runtime.New(app))
+	ts := httptest.NewServer(s.Handler())
+	t.Cleanup(ts.Close)
+	return s, ts.URL
+}
+
+// pageRevision extracts the revision a page was stamped with (var __rev=N).
+func pageRevision(t *testing.T, page string) int64 {
+	t.Helper()
+	const anchor = "var __rev="
+	i := strings.Index(page, anchor)
+	if i < 0 {
+		t.Fatal("page should embed its revision (var __rev=...)")
+	}
+	rest := page[i+len(anchor):]
+	j := strings.Index(rest, ";")
+	if j < 0 {
+		t.Fatal("unterminated revision in page")
+	}
+	rev, err := strconv.ParseInt(strings.TrimSpace(rest[:j]), 10, 64)
+	if err != nil {
+		t.Fatalf("page revision not a number: %v", err)
+	}
+	return rev
+}
+
+// frameConflictLogged reports whether the "one revision, one frame" invariant
+// was violated anywhere so far (setHandlers logged the conflict).
+func frameConflictLogged(s *Server) bool {
+	s.actMu.Lock()
+	defer s.actMu.Unlock()
+	for _, e := range s.activity {
+		if strings.Contains(e.Detail, "re-rendered with a different handler table") {
+			return true
+		}
+	}
+	return false
+}
+
+// TestFirstLoadOnEnterRenderStepKeepsPageButtonsLive: the FIRST load drains an
+// onEnter that publishes an intermediate frame via its `render` step. The
+// final render must ship as a NEW revision — under the bug it was filed under
+// the intermediate frame's rev, the ring kept the shorter table, the page's
+// EXTRA button was silently dead, and subscribers never received the settled
+// frame at all.
+func TestFirstLoadOnEnterRenderStepKeepsPageButtonsLive(t *testing.T) {
+	s, base := bootServer(t)
+	_, cancel, lines := connectSSE(t, base, nil)
+	defer cancel()
+	waitUntil(t, 2*time.Second, func() bool { return s.subscriberCount() == 1 }, "SSE subscriber to register")
+
+	page := getPage(t, base+"/") // THE first load: drains the boot hook
+	tok := pageEventToken(t, base)
+	rev := pageRevision(t, page)
+	if !strings.Contains(page, "EXTRA") {
+		t.Fatalf("the first page must render the post-onEnter state: %s", excerpt(page, "Base"))
+	}
+
+	// Subscribers see the boot's intermediate frame AND the settled frame, at
+	// strictly increasing revisions.
+	mid := nextDataFrame(t, lines, 3*time.Second)
+	if strings.Contains(mid, "EXTRA") {
+		t.Errorf("the intermediate frame must show the loading state only: %s", mid)
+	}
+	final := nextDataFrame(t, lines, 3*time.Second)
+	if !strings.Contains(final, "EXTRA") {
+		t.Errorf("the settled frame must be broadcast too: %s", final)
+	}
+
+	// The revision the page is stamped with must carry BOTH buttons' handlers.
+	s.mu.Lock()
+	table := s.lookupHandlers(&rev)
+	s.mu.Unlock()
+	if len(table) != 2 {
+		t.Fatalf("the page's revision must carry both buttons' handlers: %v", table)
+	}
+	postEventAtRev(t, base, tok, 1, &rev) // EXTRA is handler index 1
+	s.mu.Lock()
+	n := s.rt.State["n"]
+	s.mu.Unlock()
+	if n != float64(1) {
+		t.Errorf("the first page's EXTRA button must dispatch: n=%v", n)
+	}
+	if frameConflictLogged(s) {
+		t.Error("no revision may be rendered into two different frames")
+	}
+}
+
+// TestAgentReadToolDrainLeavesFirstPageButtonsLive: an agent's READ-ONLY tool
+// (qorm_render_html) drains a pending onEnter to resolve guards before it
+// renders. That drain is a mutation, so the settled state must be published —
+// under the bug it was not, and the browser's first load afterwards rendered
+// the final frame under the intermediate frame's rev: same dead-button shape
+// as the first-load case, triggered by a read.
+func TestAgentReadToolDrainLeavesFirstPageButtonsLive(t *testing.T) {
+	s, base := bootServer(t)
+
+	// The agent reads BEFORE any browser load: this drains the entry hook.
+	post(t, base+"/mcp", `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"qorm_render_html","arguments":{}}}`)
+
+	page := getPage(t, base+"/") // the browser's first load, after the agent
+	tok := pageEventToken(t, base)
+	rev := pageRevision(t, page)
+	if !strings.Contains(page, "EXTRA") {
+		t.Fatalf("the first page must render the post-onEnter state: %s", excerpt(page, "Base"))
+	}
+	s.mu.Lock()
+	table := s.lookupHandlers(&rev)
+	s.mu.Unlock()
+	if len(table) != 2 {
+		t.Fatalf("the page's revision must carry both buttons' handlers: %v", table)
+	}
+	postEventAtRev(t, base, tok, 1, &rev)
+	s.mu.Lock()
+	n := s.rt.State["n"]
+	s.mu.Unlock()
+	if n != float64(1) {
+		t.Errorf("the first page's EXTRA button must dispatch after an agent drained the hook: n=%v", n)
+	}
+	if frameConflictLogged(s) {
+		t.Error("no revision may be rendered into two different frames")
 	}
 }

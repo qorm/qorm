@@ -49,6 +49,7 @@ type Server struct {
 	mu           *sync.Mutex   // guards rt during shared sessions
 	readOnly     bool          // reject mutating tools (qorm run --mcp-read-only)
 	afterMutate  func()        // called after a mutating tool (for live-sync)
+	bumped       bool          // current tool call already published (currentHTML drained a hook) — handleToolCall must not bump twice
 	measureProv  func() []byte // latest self-reported layout, if a live client is measuring
 	activityProv func() string // shared-session activity log JSON (who did what), if wired
 	windowMover  func(id string, x, y, w, h int)

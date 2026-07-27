@@ -18,6 +18,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	goruntime "runtime"
 	"strconv"
 	"strings"
@@ -323,29 +324,53 @@ type handlerFrame struct {
 	h   []render.Handler
 }
 
-// handlerHistory is how many recent frames' handler tables are retained. A
-// browser is at most a few frames behind (it applies every frame it receives),
-// and an intermediate `render` step can advance the revision several times
-// within one dispatch — eight covers both with room to spare, and is a fixed,
-// tiny memory cost.
-const handlerHistory = 8
+// handlerHistory is how many recent frames' handler tables are retained. One
+// top-level interaction can publish at most runtime.MaxFrames intermediate
+// frames plus its final boundary frame (runtime.frameBudget), so the ring sizes
+// to exactly that span: a click from ANY frame of even the most frame-flooding
+// interaction still resolves against the table it was minted on, instead of
+// silently degrading to the newest table.
+const handlerHistory = runtime.MaxFrames + 1
 
 // setHandlers records the handler table produced for a revision: it becomes the
-// current table and enters the small history ring. Re-rendering the same
-// revision (serveIndex, /poll, an SSE catch-up) overwrites that revision's
-// entry rather than adding a duplicate. Caller must hold s.mu.
+// current table and enters the history ring.
+//
+// INVARIANT: one revision publishes exactly one frame. Every path that changes
+// what renders (a dispatch, a navigation, a viewport write, a deep link) bumps
+// the revision FIRST, so a same-revision call here is a deterministic RE-render
+// of the frame already filed for it (a serveIndex refresh, /poll, an SSE
+// catch-up) and must carry the identical table — re-filing it is a no-op, never
+// a duplicate ring entry. A same-revision call with a DIFFERENT table means a
+// mutation reached a render without bumping: the already-published table wins
+// (clients holding that rev keep resolving against the frame they actually
+// saw), the new one is dropped, and the violation is logged. Caller must hold
+// s.mu.
 func (s *Server) setHandlers(rev int64, h []render.Handler) {
-	s.handlers = h
 	for i := range s.handlerHist {
 		if s.handlerHist[i].rev == rev {
-			s.handlerHist[i].h = h
+			if sameHandlers(s.handlerHist[i].h, h) {
+				s.handlers = h
+				return
+			}
+			s.logEvent("system", fmt.Sprintf("revision %d re-rendered with a different handler table — a mutation reached render without bumping the revision; keeping the published frame's table", rev))
+			s.handlers = s.handlerHist[i].h
 			return
 		}
 	}
+	s.handlers = h
 	s.handlerHist = append(s.handlerHist, handlerFrame{rev: rev, h: h})
 	if len(s.handlerHist) > handlerHistory {
 		s.handlerHist = s.handlerHist[len(s.handlerHist)-handlerHistory:]
 	}
+}
+
+// sameHandlers reports whether two handler tables are interchangeable for
+// positional dispatch — same length, same action at every index, same captured
+// args and scope. Render is deterministic, so a same-revision re-render must
+// produce an identical table; anything else is a mutation that skipped its
+// revision bump.
+func sameHandlers(a, b []render.Handler) bool {
+	return reflect.DeepEqual(a, b)
 }
 
 // lookupHandlers returns the handler table the given revision was rendered
@@ -353,6 +378,12 @@ func (s *Server) setHandlers(rev int64, h []render.Handler) {
 // a non-browser driver) or when that frame has already been evicted from the
 // ring. The fallback is exactly the pre-M1 behavior, so nothing regresses when
 // the revision is missing — it only gets more precise when it is present.
+//
+// A NAMED revision that misses the ring is the moment the rev-scoped guarantee
+// silently degraded before (the frame was evicted, or predates this app
+// generation): it is logged, so an agent flood or a pathological frame burst
+// shows up in the shared activity log instead of failing quiet. At most one
+// line per such click — a routine click always hits, so this cannot spam.
 // Caller must hold s.mu.
 func (s *Server) lookupHandlers(rev *int64) []render.Handler {
 	if rev != nil {
@@ -361,6 +392,11 @@ func (s *Server) lookupHandlers(rev *int64) []render.Handler {
 				return s.handlerHist[i].h
 			}
 		}
+		oldest := "none"
+		if len(s.handlerHist) > 0 {
+			oldest = strconv.FormatInt(s.handlerHist[0].rev, 10)
+		}
+		s.logEvent("system", fmt.Sprintf("event named revision %d, which is no longer in the handler ring (oldest kept: %s) — resolving against the newest table", *rev, oldest))
 	}
 	return s.handlers
 }
@@ -1018,33 +1054,75 @@ func (s *Server) serveIndex(w http.ResponseWriter, r *http.Request) {
 	// its params bound to route.*. Unknown scenes are ignored by NavigateToPath
 	// (falls back to the entry scene). Without a scene query we follow the live
 	// navigation state as before.
+	mutated := s.rt.PendingEnter()
 	if r.URL.Query().Get("scene") != "" {
+		before := s.rt.RoutePath()
 		s.rt.NavigateToPath(r.URL.RawQuery)
 		// A page load renders the deep-linked scene DIRECTLY — there is no page
 		// transition to play — so drop the pending nav direction here. Left set,
 		// it would leak into the next unrelated broadcast (say an agent edit)
 		// and a later scene swap would replay it as a stale "push".
 		s.rt.TakeNavDir()
+		mutated = mutated || s.rt.RoutePath() != before || s.rt.PendingEnter()
 	}
-	// Scene lifecycle: drain a pending onEnter before this page renders — the
-	// initial load of the entry scene and a deep link straight into a scene
-	// both dispatch here. A plain refresh of an already-entered scene has no
-	// pending mark (the server session persists), so it never replays; neither
-	// does an SSE reconnect (its catch-up render doesn't touch the mark).
-	s.rt.RunPendingEnter()
-	scene := s.rt.CurrentScene()
-	res := render.RenderScene(s.rt, scene)
-	// Read the revision AFTER RunPendingEnter: an onEnter action carrying a
-	// `render` step will have advanced it. The page is stamped with the same
-	// revision its handler table is filed under, which is what lets a later
-	// /event from this page resolve against exactly this frame.
-	rev := s.rev.Load()
-	s.setHandlers(rev, res.Handlers)
+	var rev int64
+	var body string
+	if mutated && s.handlers != nil {
+		// This load MUTATES the session (a deep link that actually moved, or a
+		// pending scene-entry hook about to run) and at least one frame is
+		// already published. INVARIANT: one revision publishes exactly one
+		// frame — the frame this page renders differs from what the current
+		// revision shipped, so it ships as a NEW revision: bump renders, files
+		// the handler table under the new rev and broadcasts, so the other
+		// viewers follow the navigation (it is a session event, not a local
+		// one). Filing it under the old rev would overwrite that rev's table in
+		// place: another tab honestly reporting the rev ITS page was minted on
+		// would resolve its click against THIS scene's actions (P0-4).
+		//
+		// The very first load (s.handlers == nil) files the first frame at
+		// revision 0 instead: nothing was published yet, so no client can hold
+		// a conflicting frame. A deep-link REFRESH that moved nothing and has
+		// no pending hook takes the plain path below — a deterministic
+		// re-render of the current revision, no rev churn.
+		rev, body, _ = s.bump()
+	} else {
+		// Scene lifecycle: drain a pending onEnter before this page renders —
+		// the initial load of the entry scene and a first-ever deep link both
+		// dispatch here. A plain refresh of an already-entered scene has no
+		// pending mark (the server session persists), so it never replays;
+		// neither does an SSE reconnect (its catch-up render doesn't touch the
+		// mark).
+		revBefore := s.rev.Load()
+		s.rt.RunPendingEnter()
+		if s.rev.Load() != revBefore {
+			// The drained onEnter carried a `render` step: it already published
+			// intermediate frame(s), the LAST of them under the current
+			// revision. Rendering the final state under that same revision
+			// would be a second, different frame at one rev — the page would be
+			// stamped with a rev whose ring entry holds the intermediate frame's
+			// (shorter) handler table, deadening any button the final frame
+			// added; and when both frames happen to carry the same table the
+			// subscribers would silently never see the final state. Publish the
+			// final frame as a NEW revision instead (bump's drain is now a
+			// no-op). This is the same invariant as the branch above, reached
+			// through the first load, where s.handlers was still nil.
+			rev, body, _ = s.bump()
+		} else {
+			scene := s.rt.CurrentScene()
+			res := render.RenderScene(s.rt, scene)
+			// The page is stamped with the same revision its handler table is
+			// filed under, which is what lets a later /event from this page
+			// resolve against exactly this frame.
+			rev = s.rev.Load()
+			s.setHandlers(rev, res.Handlers)
+			body = res.HTML
+		}
+	}
 	rt := s.rt
 	// Build the page while still holding the lock: Page/userWebJS read rt.State
 	// (locale/theme/rtl), which a concurrent POST /event mutates — reading it
 	// unlocked is a concurrent-map read+write and crashes the process.
-	html := Page(rt, res.HTML, rev, s.eventToken)
+	html := Page(rt, body, rev, s.eventToken)
 	if js := userWebJS(rt); js != "" {
 		html = strings.Replace(html, "</body>", "<script>"+js+"</script></body>", 1)
 	}

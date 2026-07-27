@@ -434,30 +434,37 @@ func TestAsyncContinuationCanPublishFrames(t *testing.T) {
 	}
 }
 
-// TestAsyncContinuationGetsAFreshFrameBudget: a continuation is a new top-level
-// unit of work, so it must not inherit the exhausted frame allowance of the
-// dispatch that launched the request — otherwise every loading spinner would
-// stop updating after one busy action.
-func TestAsyncContinuationGetsAFreshFrameBudget(t *testing.T) {
+// TestAsyncContinuationSharesTheDispatchFrameBudget: a continuation EXTENDS the
+// interaction that launched the request — it draws from the same frame budget
+// rather than starting over. One click can therefore never publish more than
+// MaxFrames intermediate frames however many round trips it spans; before this,
+// a continuation reset the budget, so dispatch + completion alone could publish
+// 2*MaxFrames and push the client's revision past the live-sync buffer. The
+// continuation's STEPS still run to completion past the cap — only publishing
+// stops.
+func TestAsyncContinuationSharesTheDispatchFrameBudget(t *testing.T) {
 	be := jsonBackend(t, 0, `{"ok":true}`)
 	d := &deferHost{}
-	steps := make([]model.Step, 0, maxFrames+1)
-	for i := 0; i < maxFrames; i++ {
+	steps := make([]model.Step, 0, MaxFrames+1)
+	for i := 0; i < MaxFrames; i++ {
 		steps = append(steps, model.Step{Type: "render"})
 	}
 	steps = append(steps, model.Step{
 		Type: "http.get", URL: be.URL, Async: true,
-		OnSuccess: []model.Step{{Type: "render"}},
+		OnSuccess: []model.Step{{Type: "state.set", Path: "landed", Value: "{{ true }}"}, {Type: "render"}},
 	})
 	rt := asyncRT(steps, nil)
 	n := 0
 	rt.Async, rt.Commit = d.sink, func() { n++ }
 	rt.Dispatch("call", nil)
-	if n != maxFrames {
-		t.Fatalf("the dispatch must exhaust its own budget: %d", n)
+	if n != MaxFrames {
+		t.Fatalf("the dispatch must exhaust the interaction's budget: %d", n)
 	}
 	d.run()
-	if n != maxFrames+1 {
-		t.Errorf("the continuation must start on a fresh budget: %d", n)
+	if n != MaxFrames {
+		t.Errorf("the continuation must draw from the same (exhausted) budget: %d", n)
+	}
+	if rt.State["landed"] != true {
+		t.Error("the continuation's steps must still run past the frame cap")
 	}
 }
