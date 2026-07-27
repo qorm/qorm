@@ -107,7 +107,7 @@ func qormInit(_ js.Value, args []js.Value) any {
 	if data, mErr := bundle.Marshal(b); mErr == nil {
 		currentBundleJSON = string(data)
 	}
-	return renderNow()
+	return drainAndRender()
 }
 
 // adopt installs r as the runtime this build is executing, together with the
@@ -127,8 +127,15 @@ func adopt(r *runtime.Runtime) {
 		r,
 		func() *runtime.Runtime { return rt }, // generation pin: OTA/rollback/recompile
 		func(f func()) { go f() },             // the mandatory goroutine hop — see promise()
-		pushFrame,
+		pushSettled,
 	)
+	// InstallSinks points both sinks at one publish; split them back into the
+	// server's two shapes. The frame sink (a `render` step firing mid-action)
+	// is the twin of the server's frame(): it must NOT drain a pending
+	// scene-entry hook, which would re-enter Dispatch from inside Dispatch.
+	// The async-completion publish (pushSettled) is the twin of bump(): the
+	// continuation is its own dispatch boundary, so it drains.
+	r.Commit = pushFrame
 }
 
 // pushFrame renders the live runtime and hands the frame to the page's
@@ -140,6 +147,11 @@ func adopt(r *runtime.Runtime) {
 // simply has no qormApplyFrame, and the frame is dropped rather than throwing
 // into JS: the app then behaves exactly as it did before intermediate frames
 // existed.
+//
+// It renders through renderNow — never drainAndRender: this sink fires from
+// inside Dispatch (the `render` step), and draining a pending scene-entry hook
+// here would re-enter Dispatch, exactly the re-entrancy the server's frame()
+// refuses.
 func pushFrame() {
 	if rt == nil {
 		return
@@ -149,6 +161,18 @@ func pushFrame() {
 		return
 	}
 	fn.Invoke(renderNow())
+}
+
+// pushSettled is the publish half of an async continuation completing — the
+// WASM twin of the server's spawn finishing with bump(): the continuation is
+// its own dispatch boundary and its branch may have navigated, so a pending
+// scene-entry hook fires exactly once before the frame ships.
+func pushSettled() {
+	if rt == nil {
+		return
+	}
+	rt.RunPendingEnter()
+	pushFrame()
 }
 
 // qormEvent(h, inputsJSON) folds any bound input values into state, dispatches
@@ -180,7 +204,7 @@ func qormEvent(_ js.Value, args []js.Value) any {
 			rt.Dispatch(hd.Name, ev)
 		}
 	}
-	return renderNow()
+	return drainAndRender()
 }
 
 // qormSetState(path, valueJSON) sets a top-level state key (for host bridges).
@@ -191,7 +215,7 @@ func qormSetState(_ js.Value, args []js.Value) any {
 	var v any
 	json.Unmarshal([]byte(args[1].String()), &v)
 	rt.State[args[0].String()] = v
-	return renderNow()
+	return drainAndRender()
 }
 
 // qormCompile(docsJSON) compiles a live, UNSIGNED doc array (the playground's
@@ -229,7 +253,7 @@ func qormSetViewport(_ js.Value, args []js.Value) any {
 		return errResult(nil)
 	}
 	rt.Viewport = runtime.Viewport{W: args[0].Int(), H: args[1].Int()}
-	return renderNow()
+	return drainAndRender()
 }
 
 // compileResult packs a playcore.Result into the JS object the bridge expects:
@@ -255,11 +279,12 @@ func jsStringArray(s []string) []any {
 	return out
 }
 
+// renderNow renders the live runtime exactly as it stands. It deliberately
+// does NOT drain a pending scene-entry hook: it is the twin of the server's
+// frame(), reachable mid-action through the frame sink, where draining would
+// re-enter Dispatch from inside Dispatch. Dispatch, mutation and entry
+// boundaries call drainAndRender instead.
 func renderNow() any {
-	// Drain a pending scene-entry hook first — the WASM twin of the server's
-	// bump(): a fresh init fires the entry scene's onEnter, and a dispatch
-	// that navigated fires the target scene's, exactly once each.
-	rt.RunPendingEnter()
 	res := render.Render(rt)
 	handlers = res.Handlers
 	dir := "ltr"
@@ -267,6 +292,15 @@ func renderNow() any {
 		dir = "rtl"
 	}
 	return map[string]any{"html": res.HTML, "theme": rt.CurrentTheme(), "dir": dir, "locale": rt.CurrentLocale()}
+}
+
+// drainAndRender is the WASM twin of the server's bump(): a dispatch, mutation
+// or entry boundary fires a pending scene-entry hook exactly once — a fresh
+// init fires the entry scene's onEnter, a dispatch that navigated fires the
+// target scene's — then renders the frame that ships.
+func drainAndRender() any {
+	rt.RunPendingEnter()
+	return renderNow()
 }
 
 func errResult(err error) any {
@@ -375,7 +409,7 @@ func qormCheckUpdate(js.Value, []js.Value) any {
 		}
 		adopt(runtime.New(next.ToApp()))
 		currentBundleJSON = string(data)
-		res := renderNow().(map[string]any)
+		res := drainAndRender().(map[string]any)
 		res["updated"] = true
 		resolve(res)
 	})
@@ -410,7 +444,7 @@ func qormOTARollback(js.Value, []js.Value) any {
 	if data, mErr := bundle.Marshal(b); mErr == nil {
 		currentBundleJSON = string(data)
 	}
-	return renderNow()
+	return drainAndRender()
 }
 
 // otaClientID returns this install's stable random client id (so the update

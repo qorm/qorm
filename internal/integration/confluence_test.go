@@ -488,3 +488,116 @@ func callsBackend(app *model.App, name string, depth int) bool {
 	}
 	return walk(act.Steps)
 }
+
+// ---- AsyncAll: the shipped examples under the packaged-app host --------------
+//
+// TestAsyncConvergesToSyncResult pins confluence for actions that OPTED INTO
+// async. Packaged hosts (the standalone WASM runtime, the offline bundle, the
+// playground) set Runtime.AsyncAll, which forces EVERY http step — declared
+// sync or not — onto the background sink. An action whose post-request logic
+// sits in SIBLING steps then reads the state from before the request: the
+// loading flag is lowered the instant the request leaves, and a failure
+// rollback silently never runs. That was P0-5, and the shipped examples below
+// are where it bit.
+//
+// The cure is declaring the request async with its follow-up in the result
+// branches (or a governance field), and this guard keeps the examples on that
+// side of the line: each action must settle to the same render on a
+// synchronous host (async stripped, no sink, the round trip blocking the
+// dispatch) and on an AsyncAll host (sink installed, drained to quiescence).
+
+// retargetHTTP points every http step of a step tree at a hermetic backend, so
+// the shipped example JSON can be exercised without the public internet.
+func retargetHTTP(steps []model.Step, url string) {
+	for i := range steps {
+		if len(steps[i].Type) > 5 && steps[i].Type[:5] == "http." {
+			steps[i].URL = url
+		}
+		retargetHTTP(steps[i].Then, url)
+		retargetHTTP(steps[i].Else, url)
+		retargetHTTP(steps[i].OnSuccess, url)
+		retargetHTTP(steps[i].OnError, url)
+	}
+}
+
+// TestExampleActionsConvergeUnderAsyncAll runs the examples that call a
+// backend through both host readings of the same JSON. A gated backend makes
+// the in-flight window deterministic: the request stays open until the test
+// releases it, so "the dispatch returned while the request was still open" is
+// an assertion, not a race.
+func TestExampleActionsConvergeUnderAsyncAll(t *testing.T) {
+	newBackend := func(status int) (*httptest.Server, chan struct{}) {
+		release := make(chan struct{})
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			<-release
+			w.Header().Set("Content-Type", "application/json")
+			if status != http.StatusOK {
+				http.Error(w, "nope", status)
+				return
+			}
+			_, _ = w.Write([]byte(`{"fact":"from backend"}`))
+		}))
+		return srv, release
+	}
+
+	cases := []struct {
+		name   string
+		dir    string
+		action string
+		args   map[string]any
+		status int
+	}{
+		{"tasks/saveTask success", "tasks", "saveTask", map[string]any{"id": "a"}, http.StatusOK},
+		{"tasks/saveTask failure rolls back", "tasks", "saveTask", map[string]any{"id": "a"}, http.StatusInternalServerError},
+		{"netdemo/getFact success", "netdemo", "getFact", nil, http.StatusOK},
+		{"netdemo/getFact failure", "netdemo", "getFact", nil, http.StatusInternalServerError},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			srv, release := newBackend(c.status)
+			defer srv.Close()
+			app, err := loader.LoadDir(filepath.Join("..", "..", "examples", c.dir))
+			if err != nil {
+				t.Fatalf("load example %s: %v", c.dir, err)
+			}
+			for _, act := range app.Actions {
+				retargetHTTP(act.Steps, srv.URL)
+			}
+
+			// The packaged-app host: every http step forced onto the
+			// background sink, drained to quiescence before rendering.
+			h := &bgHost{rt: qrt.New(app)}
+			h.rt.AsyncAll = true
+			h.rt.Async = h.sink
+			h.dispatch(c.action, c.args)
+			h.mu.Lock()
+			n := h.rt.Inflight()
+			h.mu.Unlock()
+			if n != 1 {
+				t.Fatalf("AsyncAll host: dispatch returned with %d request(s) in flight, want 1 — the request did not go background", n)
+			}
+			close(release)
+			h.settle(t, 10*time.Second)
+
+			// The synchronous reading of the same JSON: async stripped, no
+			// sink, the round trip blocking the dispatch.
+			syncApp := *app
+			syncApp.Actions = make(map[string]*model.Action, len(app.Actions))
+			for id, act := range app.Actions {
+				syncApp.Actions[id] = &model.Action{ID: act.ID, Steps: stripAsync(act.Steps)}
+			}
+			syncRT := qrt.New(&syncApp)
+			syncRT.Dispatch(c.action, c.args)
+
+			h.mu.Lock()
+			defer h.mu.Unlock()
+			if got, want := render.Render(h.rt).HTML, render.Render(syncRT).HTML; got != want {
+				t.Errorf("AsyncAll changed the settled render\n asyncAll: %s\n     sync: %s", got, want)
+			}
+			if h.rt.CurrentScene() != syncRT.CurrentScene() {
+				t.Errorf("AsyncAll changed the settled scene: %q vs %q",
+					h.rt.CurrentScene(), syncRT.CurrentScene())
+			}
+		})
+	}
+}

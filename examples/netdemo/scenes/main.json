@@ -88,7 +88,7 @@
           {
             "type": "button",
             "id": "go",
-            "label": "New Cat Fact (blocking)",
+            "label": "New Cat Fact (pending flag)",
             "variant": "filled",
             "onPress": {
               "type": "invoke",
@@ -99,7 +99,7 @@
           {
             "type": "button",
             "id": "goasync",
-            "label": "New Cat Fact (async)",
+            "label": "New Cat Fact (branch flags)",
             "variant": "outlined",
             "onPress": {
               "type": "invoke",
@@ -110,7 +110,7 @@
           {
             "type": "text",
             "id": "hint",
-            "text": "The async button hands the request to a background worker and returns at once — keep tapping the counter below while it is still loading. The blocking one paints its spinner with a 'render' step, then holds the session until the reply lands.",
+            "text": "Both buttons hand the request to a background worker and return at once — keep tapping the counter below while one is still loading. The first drives the spinner with \"pending\": \"loading\", held for the request's lifetime and cleared on success and failure alike; the second clears a hand-written loading flag in its onSuccess/onError branches.",
             "style": {
               "fontSize": 12,
               "lineHeight": 1.4,
