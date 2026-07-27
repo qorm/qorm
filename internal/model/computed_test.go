@@ -179,10 +179,56 @@ func TestComputedRefs(t *testing.T) {
 	}
 }
 
+func TestComputedRefsSeesBracketSpelling(t *testing.T) {
+	// Every accessor spelling the expr grammar accepts must create the same
+	// dependency edge — a cycle written in any of them is a real cycle.
+	tests := []struct {
+		src  string
+		want []string
+	}{
+		{"{{ computed['total'] }}", []string{"total"}},
+		{"{{ computed[\"total\"] }}", []string{"total"}},
+		{"{{ state.computed['total'] }}", []string{"total"}},
+		{"{{ computed ['total'] }}", []string{"total"}}, // whitespace before the bracket
+		{"{{ computed['a'].b }}", []string{"a"}},        // mixed: dot access resumes after a bracket
+		{"{{ computed['a']['b'] }}", []string{"a"}},     // chained brackets still name the first key
+		{"{{ computed['a'] + computed.b }}", []string{"a", "b"}},
+		{"{{ computed . total }}", []string{"total"}},               // whitespace around the dot is still member access
+		{"{{ computed . ['total'] }}", nil},                         // a dot before a bracket is a parse error, no static name
+		{"{{ (computed)['total'] }}", []string{"total"}},            // parens do not change the root
+		{"{{ map(state.rows, \"computed['b']\") }}", []string{"b"}}, // bracket spelling inside a predicate string
+		{"{{ rows['computed.x'] }}", nil},                           // a string index key is app data, not a reference
+		{"{{ computed[key] }}", nil},                                // a dynamic key names nothing statically
+		{"{{ item['computed'].x }}", nil},                           // someone else's bracketed field named computed
+	}
+	for _, tt := range tests {
+		if got := computedRefs(tt.src); !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("computedRefs(%q) = %v, want %v", tt.src, got, tt.want)
+		}
+	}
+
+	// The point of the edges: a cycle written in bracket spelling must be
+	// REPORTED as cyclic, not silently ordered (and published as garbage).
+	app := &App{Computed: map[string]string{
+		"a": "{{ computed['b'] + 1 }}",
+		"b": "{{ computed['a'] + 1 }}",
+	}}
+	order, cyclic := app.ComputedOrder()
+	if len(order) != 0 {
+		t.Errorf("order = %v, want none (the whole graph is one cycle)", order)
+	}
+	if !reflect.DeepEqual(cyclic, []string{"a", "b"}) {
+		t.Errorf("cyclic = %v, want [a b] — a bracket-spelled cycle must not pass silently", cyclic)
+	}
+}
+
 func TestComputedRefsInsideStringLiteralIsSafelyOverBroad(t *testing.T) {
-	// The scanner does not parse, so a name inside a string literal counts as a
-	// reference. That can only ADD an edge — a stricter order or a cycle
-	// report — never drop one, which is what keeps the recursion guard sound.
+	// A string literal is scanned for references because a map/filter/count
+	// predicate is re-parsed by evalSub at runtime: `computed.b` inside one is
+	// a genuine read of b. Scanning every string keeps that edge; where the
+	// scan is broader than the runtime it can only ADD an edge — a stricter
+	// order or a cycle report — never drop one, which is what keeps the
+	// recursion guard sound.
 	app := &App{Computed: map[string]string{
 		"a": "{{ map(state.rows, \"computed.b\") }}",
 		"b": "{{ state.x }}",

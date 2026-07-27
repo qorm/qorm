@@ -7,6 +7,7 @@ package model
 import (
 	"sort"
 	"strings"
+	"unicode"
 )
 
 // ComponentRefName normalises a component instance's `ref` to a component name.
@@ -339,49 +340,138 @@ func (a *App) ComputedOrder() (order, cyclic []string) {
 	return order, cyclic
 }
 
-// computedRefs returns the computed names an expression references, in either
-// spelling: the scene form `state.computed.total` and the action form
-// `computed.total`. It scans dotted identifier runs instead of parsing, so a
-// name that merely appears inside a string literal counts as a reference too —
-// which can only ADD an edge to the dependency graph (a stricter evaluation
-// order, or a cycle report on a genuinely self-referential text), never drop
-// one, so the recursion guard stays sound.
+// computedRefs returns the computed names an expression references, in every
+// spelling the evaluator resolves to the computed namespace: the dotted forms
+// `computed.total` / `state.computed.total`, the bracket forms
+// `computed['total']` / `state.computed["total"]`, and the same accessors with
+// whitespace around them (`computed . total`, `computed ['total']` — the expr
+// grammar allows all of these, so the scan must too).
+//
+// The scan re-lexes with the expr package's exact tokenization rules — dotted
+// runs arrive as single identifier tokens, `.name` and `['name']` following a
+// token extend the same access path — and then keeps only paths ROOTED at
+// `computed` or `state.computed`. (The expr AST itself is not exported, so the
+// walk cannot reuse it; mirroring its lexer is what keeps the scan's notion of
+// "one reference" identical to the parser's.) A deeper path such as
+// `item.computed.x` is app data, not the namespace, and yields no edge.
+//
+// Two deliberate precision calls, both safe for the recursion guard:
+//   - A string literal's contents are scanned recursively: a map/filter/count
+//     predicate is a string that evalSub re-parses at runtime, so a reference
+//     inside one is a real dependency edge.
+//   - A dynamic bracket key (`computed[key]`) yields no edge — the name is
+//     unknowable until runtime — and neither does a string used as a plain
+//     index key (`rows['computed.x']` reads a field of app data; index keys
+//     are never re-parsed). Dropping such spurious edges can only remove a
+//     false cycle report, never hide a real one.
 func computedRefs(src string) []string {
 	var out []string
-	for i := 0; i < len(src); {
-		if !isRefChar(src[i]) {
-			i++
-			continue
-		}
-		j := i
-		for j < len(src) && isRefChar(src[j]) {
-			j++
-		}
-		run := src[i:j]
-		i = j
-		parts := strings.Split(run, ".")
-		for k := 0; k+1 < len(parts); k++ {
-			if parts[k] != ComputedNamespace {
-				continue
-			}
-			// Only the two real spellings count: a bare `computed.x` and the
-			// state-rooted `state.computed.x`. Something else's field named
-			// `computed` (e.g. `item.computed.x`) is unrelated data.
-			if k > 0 && parts[k-1] != "state" {
-				break
-			}
-			if name := parts[k+1]; name != "" {
+	toks := refTokens(src)
+	for i := 0; i < len(toks); i++ {
+		t := toks[i]
+		switch t.kind {
+		case 's':
+			out = append(out, computedRefs(t.text)...)
+		case 'i':
+			var path []string
+			path, i = refPath(toks, i)
+			if name := computedPathName(path); name != "" {
 				out = append(out, name)
 			}
-			break
 		}
 	}
 	return out
 }
 
-// isRefChar reports whether c can appear inside a dotted identifier run.
-func isRefChar(c byte) bool {
-	return c == '_' || c == '.' || '0' <= c && c <= '9' || 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z'
+// refToken is one lexeme of the reference scan: an identifier run (dots
+// included, exactly as the expr lexer produces them), a string literal's
+// decoded contents, or one of the accessor punctuation marks.
+type refToken struct {
+	kind rune // 'i' identifier, 's' string, or '.', '[', ']'
+	text string
+}
+
+// refTokens lexes src the way the expr package's lexer does — identifiers are
+// maximal letter/digit/_/$/. runs, number literals swallow their own dots,
+// string literals honor backslash escapes — but it never fails: anything the
+// real parser would reject simply yields no useful tokens here (reporting a
+// syntax error is the loader's job, not the dependency scan's).
+func refTokens(src string) []refToken {
+	var toks []refToken
+	r := []rune(src)
+	i := 0
+	for i < len(r) {
+		c := r[i]
+		switch {
+		case unicode.IsLetter(c) || c == '_' || c == '$':
+			j := i
+			for j < len(r) && (unicode.IsLetter(r[j]) || unicode.IsDigit(r[j]) || r[j] == '_' || r[j] == '$' || r[j] == '.') {
+				j++
+			}
+			toks = append(toks, refToken{'i', string(r[i:j])})
+			i = j
+		case unicode.IsDigit(c) || (c == '.' && i+1 < len(r) && unicode.IsDigit(r[i+1])):
+			j := i
+			for j < len(r) && (unicode.IsDigit(r[j]) || r[j] == '.') {
+				j++
+			}
+			i = j // a number token is not a reference; skip it
+		case c == '\'' || c == '"':
+			quote := c
+			j := i + 1
+			var sb strings.Builder
+			for j < len(r) && r[j] != quote {
+				if r[j] == '\\' && j+1 < len(r) {
+					j++
+				}
+				sb.WriteRune(r[j])
+				j++
+			}
+			toks = append(toks, refToken{'s', sb.String()})
+			i = j + 1 // past the closing quote (or the end, if unterminated)
+		case c == '.' || c == '[' || c == ']':
+			toks = append(toks, refToken{c, ""})
+			i++
+		default:
+			i++
+		}
+	}
+	return toks
+}
+
+// refPath reassembles the postfix accessor chain the parser would build on the
+// identifier at toks[i]: every following `.name` or `['name']` / `["name"]`
+// extends the same path. It returns the full path and the index of the last
+// token consumed. A `[` whose key is not a plain string literal (a dynamic
+// key, an expression) ends the path: what follows is not a static name.
+func refPath(toks []refToken, i int) ([]string, int) {
+	path := strings.Split(toks[i].text, ".")
+	for {
+		switch {
+		case i+2 < len(toks) && toks[i+1].kind == '.' && toks[i+2].kind == 'i':
+			path = append(path, strings.Split(toks[i+2].text, ".")...)
+			i += 2
+		case i+3 < len(toks) && toks[i+1].kind == '[' && toks[i+2].kind == 's' && toks[i+3].kind == ']':
+			path = append(path, toks[i+2].text)
+			i += 3
+		default:
+			return path, i
+		}
+	}
+}
+
+// computedPathName returns the computed value a rooted access path names:
+// "total" for `computed.total` and `state.computed.total` alike. A path not
+// rooted at the namespace names no computed value, and the bare namespace
+// itself names none either.
+func computedPathName(path []string) string {
+	if path[0] == ComputedNamespace && len(path) > 1 {
+		return path[1]
+	}
+	if path[0] == StateRoot && len(path) > 2 && path[1] == ComputedNamespace {
+		return path[2]
+	}
+	return ""
 }
 
 // EntryRoot returns the root node of the entry scene (or nil).
