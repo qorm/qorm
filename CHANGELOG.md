@@ -6,6 +6,8 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+## [v0.5.0] - 2026-07-27
+
 ### Added
 - `computed` — derived values declared once in the manifest (beside or inside
   `globalState`) instead of repeating the same expression in every binding.
@@ -969,6 +971,7 @@ Initial release: QORM, an agent-native declarative-UI runtime in pure Go.
 - Render performance: cached parsed expressions and reflection-free CSS
   numeric writes in the hot path.
 
+[v0.5.0]: https://github.com/qorm/qorm/compare/v0.4.0...v0.5.0
 [v0.4.0]: https://github.com/qorm/qorm/compare/v0.3.7...v0.4.0
 [v0.3.7]: https://github.com/qorm/qorm/compare/v0.3.6...v0.3.7
 [v0.3.6]: https://github.com/qorm/qorm/compare/v0.3.5...v0.3.6
