@@ -214,6 +214,46 @@ All notable changes to QORM are documented here. The format is based on
   lines up in the scene) is now a load-time **warning**, and the spelling
   `state.computed.<name>` is refused as a write into the read-only derived
   namespace exactly as the bare `computed.<name>` already was.
+- **One frame per revision, everywhere.** A deep link (`GET /?scene=X`), a
+  `/poll` catch-up, an SSE catch-up, an MCP `qorm_check_layout` viewport write,
+  a first page load whose entry scene's `onEnter` contains a `render` step, and
+  a read-only MCP tool draining that hook before the browser loads could each
+  re-render and overwrite the handler table of an already-published revision
+  without bumping it — so a second tab honestly reporting that revision
+  dispatched actions from the *other* scene (deterministically, no race), and
+  a first page could ship buttons whose handles were never published, their
+  clicks silently swallowed. Every mutation now bumps the revision before
+  publishing; the handler ring refuses a different table at the same revision
+  (keeping the published one, with a log); and the first-load / agent-drain
+  paths re-bump when draining advanced the revision. Guards:
+  `TestSameRevIsNeverRenderedTwiceDifferently`,
+  `TestFirstLoadOnEnterRenderStepKeepsPageButtonsLive`,
+  `TestAgentReadToolDrainLeavesFirstPageButtonsLive`.
+- **The handler ring was smaller than the frame budget.** `handlerHistory` (8)
+  vs `MaxFrames` (64) meant one `forEach` + `render` could evict a live
+  revision eight times over, silently. The ring is now derived as
+  `MaxFrames + 1`, an eviction that actually bites a client is logged, and
+  async continuations share the dispatch's frame budget instead of resetting it
+  — one click costs at most 64 intermediate frames, continuations included.
+- **`computed['x']` produced no dependency edge.** The derived-value dependency
+  scan was a string match that missed bracket spellings, so a real cycle
+  through `computed['a']` was reported acyclic and silently published garbage
+  with zero diagnostics. Reference extraction is now a token-level scan
+  mirroring the expression lexer — brackets, whitespace variants, mixed
+  spellings and predicate string literals all produce edges. Guard:
+  `TestComputedRefsSeesBracketSpelling`.
+- **The WASM host executed `onEnter` at different times than the server.** The
+  wasm frame sink drained pending enter hooks on every `render` step while the
+  server drains only at dispatch/entry boundaries, so the same JSON ran in two
+  orders. The wasm host now mirrors the server's `bump()`/`frame()` split:
+  render steps never drain, entry/dispatch boundaries drain exactly once.
+- **`examples/tasks` and `examples/netdemo` showed the async pattern the
+  packaged host breaks.** `saveTask`'s failure rollback and `getFact`'s
+  loading flag were sibling steps of a blocking-looking `http.*` — correct on
+  the server, skipped or instantly overwritten on AsyncAll hosts (packaged /
+  offline / playground). Both actions now use the governed form (`async: true`
+  with `pending`), and `TestExampleActionsConvergeUnderAsyncAll` proves their
+  settled output is byte-identical under both host semantics.
 
 ### Changed
 - The determinism guard grows a third tier: instantaneous determinism (two
