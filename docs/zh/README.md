@@ -11,7 +11,7 @@ web / iOS / Android / 桌面——人和 AI 智能体都能读写。
 再经由 actions 与写接口**修改(Mutate)**它。
 
 > **1-Prompt Agent 快速开始提示词：**
-> *“使用 QORM 框架在 `./my-app` 下创建一个全新的桌面应用，直接运行 `qorm run ./my-app` 自动脚手架并启动原生可执行程序窗口，保持 DevTool 可见。”*
+> *“请使用 QORM 框架在 `./my-app` 下创建应用。自动载入 QORM 的 MCP 配置与 Skill 技能库，搭好环境并启动原生应用窗口，保持 DevTool 可见。然后根据以下需求构建应用：<在这里输入你的应用想法，例如：带连续打卡天数的习惯追踪器>。”*
 
 初来乍到?先读[顶层 README](https://github.com/qorm/qorm/blob/main/README.zh.md) 了解全局与 CLI,然后从下方深入。
 [`examples/`](https://github.com/qorm/qorm/tree/main/examples) 应用是权威的、可运行的参考——当文档与运行中的示例不一致时,

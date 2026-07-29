@@ -16,7 +16,7 @@ over HTTP/MCP, **Observe** it in real time over SSE, **Render** it on every
 platform, **Mutate** it through actions and the write API.
 
 > **1-Prompt Agent Quickstart:**
-> *"Use QORM framework to create a new desktop app in `./my-app`. Run `qorm run ./my-app` to scaffold, launch the native executable application window, and keep DevTool open."*
+> *"Build a new app in `./my-app` using the QORM framework. Automatically load the QORM MCP server configuration and Skill library, set up the environment, launch the native application window for the host OS, keep DevTool active, and build the app for: <your app idea here>."*
 
 New here? Read the [top-level README](https://github.com/qorm/qorm/blob/main/README.md) for the big picture and the
 CLI, then dive in below. The [`examples/`](https://github.com/qorm/qorm/tree/main/examples) apps are the canonical,

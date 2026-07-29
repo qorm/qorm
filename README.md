@@ -41,15 +41,15 @@ web / iOS / Android / desktop / mini-program — cross-compiled from any machine
 Developed in collaboration with Kimi (Moonshot AI), Claude (Anthropic), and Gemini (Google) — fitting, since human-AI
 collaboration is QORM's whole premise.
 
-## Build with your AI assistant (0-to-1 in 1 Prompt)
+## Give your Agent 1 prompt to launch the QORM architecture
 
-QORM is agent-native: copy a single prompt to your AI assistant (Claude Code, Cursor, Windsurf, Antigravity, ...), and it will **set up the environment, scaffold, edit, run, and verify** a native standalone application window for your platform — with zero manual setup.
+QORM is built for AI agents: give your AI assistant **a single sentence**, and it automatically loads QORM's **MCP tools and Skill library**, sets up the environment, and launches a native application window for real-time collaboration.
 
-> **Copy & paste this prompt to your AI assistant:**
+> **Copy & paste this prompt to your AI assistant (Claude Code / Cursor / Windsurf / Antigravity):**
 >
-> *"Set up the environment and build a QORM app in `./myapp`. Run `qorm run ./myapp` (or `go run github.com/qorm/qorm/cmd/qorm@latest run ./myapp`) to automatically scaffold the app and launch it as a native standalone executable application window for the current platform (not a web browser tab), then implement <your app idea> by editing `qorm.json`, `scenes/`, and `actions/`."*
+> *"Build a new app in `./my-app` using the QORM framework. Automatically load the QORM MCP server configuration and Skill library, set up the environment, launch the native application window for the host OS, keep DevTool active, and build the app for: <your app idea here>."*
 
-You click, it sees you (`qorm_activity`); it edits, you see an **"AI edited"** toast. Full guide: **[Build with your AI](docs/build-with-ai.md)** · [Human-AI collaboration](docs/collaboration.md).
+You click, the agent sees you (`qorm_activity`); the agent edits UI and logic, and changes appear instantly. Full guide: **[Build with your AI](docs/build-with-ai.md)** · [Human-AI collaboration](docs/collaboration.md).
 
 ## Platform support
 

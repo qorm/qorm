@@ -37,15 +37,15 @@ Rendering Model,可查询对象渲染模型)是一个面向智能体的
 
 与 Kimi(Moonshot AI)、Claude(Anthropic) 和 Gemini(Google) 协作开发——这很贴切,毕竟人机协作正是 QORM 的全部前提。
 
-## 与你的 AI 助手一起构建 (从 0 到 1 只需要一句话)
+## 给你的 Agent 一句话，直接用起 QORM 架构
 
-QORM 面向智能体：复制一条提示词发给你的 AI 编码助手（Claude Code、Cursor、Windsurf、Antigravity……），AI 就能自动**配置环境、搭建、编辑、运行并验证**当前操作系统对应的独立可执行程序窗口——零手动配置。
+QORM 为 AI 智能体而生：只需**给你的 Agent 一句话**，就能自动加载 QORM 的 **MCP 协议与 Skill 技能库**，让 AI 自动搭起环境、启动当前系统下的原生应用窗口，并与你实时协同。
 
-> **复制以下提示词直接发送给你的 AI 助手：**
+> **一键复制提示词投递给你的 AI 助手（Claude Code / Cursor / Windsurf / Antigravity）：**
 >
-> *"我想在 `./myapp` 中构建一个 QORM 应用。请帮我配置好环境并运行 `qorm run ./myapp`（或 `go run github.com/qorm/qorm/cmd/qorm@latest run ./myapp`），系统会自动脚手架生成初始应用并启动当前操作系统对应的原生独立可执行程序窗口（而非网页）。然后根据以下需求构建应用：<在这里输入你的应用想法，例如：带连续打卡天数的习惯追踪器>，通过修改 `qorm.json`、`scenes/` 和 `actions/` 实现。" *
+> *“请使用 QORM 框架在 `./my-app` 下创建应用。自动载入 QORM 的 MCP 配置与 Skill 技能库，搭好环境并启动原生应用窗口，保持 DevTool 可见。然后根据以下需求构建应用：<在这里输入你的应用想法，例如：带连续打卡天数的习惯追踪器>。”*
 
-你在窗口里点击，AI 看得见（`qorm_activity`）；AI 编辑，改动实时呈现并弹出 **"AI edited"** 提示。完整指南：**[与你的 AI 一起构建](docs/zh/build-with-ai.md)** · [人机协作](docs/zh/collaboration.md)。
+你在窗口中操作，Agent 实时感知；Agent 实时调整 UI 与逻辑，改动即刻呈现。完整指南：**[与你的 AI 一起构建](docs/zh/build-with-ai.md)** · [人机协作](docs/zh/collaboration.md)。
 
 ## 平台支持
 
