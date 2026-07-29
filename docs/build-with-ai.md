@@ -24,7 +24,7 @@ The 60-second version: [`scripts/demo.sh`](https://github.com/qorm/qorm/blob/mai
 
 ## Quickstart (Give your Agent 1 prompt)
 
-No complex manual setup needed. Simply copy and paste the prompt below directly into your AI assistant (Claude Code, Cursor, Windsurf, Antigravity, etc.):
+No complex manual setup needed. Simply copy and paste the prompt below directly into your AI assistant (ChatGPT, Claude Code, Cursor, Windsurf, Antigravity, DeepSeek, Kimi, etc.):
 
 ```text
 Build a new app in ./myapp using the QORM framework (https://github.com/qorm/qorm).

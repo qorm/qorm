@@ -17,7 +17,7 @@ QORM 面向智能体:让你的 AI 编码助手(Claude Code、Claude Desktop、Cu
 
 ## 快速开始（给 Agent 一句话，用起 QORM 架构）
 
-无需任何复杂的手动配置。只需复制以下提示词直接发送给你的 AI 编码助手（Claude Code、Cursor、Windsurf、Antigravity……）：
+无需任何复杂的手动配置。只需复制以下提示词直接发送给你的 AI 编码助手（ChatGPT、Claude Code、Cursor、Windsurf、Antigravity、DeepSeek、Kimi……）：
 
 ```text
 请使用 QORM 框架（https://github.com/qorm/qorm）在 `./myapp` 下创建应用。
