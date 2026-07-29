@@ -4,6 +4,8 @@ QORM ships an **MCP server** (`qorm mcp <app-dir|bundle>`, stdio JSON-RPC) that
 lets an agent read, edit, run, and verify a live QORM app, plus a **skill**
 ([`skill/SKILL.md`](skill/SKILL.md)) that teaches an agent the runnable format.
 
+> 💡 **Quickest Way**: Copy the 1-Prompt Quickstart from [README.md](../README.md) to your AI agent. Running `qorm run ./myapp` automatically scaffolds, serves, and opens the live app and HTTP MCP endpoint in one step!
+
 Prerequisite: `qorm` on PATH — `go install github.com/qorm/qorm/cmd/qorm@latest`
 (or use the container: `ghcr.io/qorm/qorm`).
 

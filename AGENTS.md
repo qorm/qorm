@@ -17,6 +17,7 @@ the acronym as verbs and you have the API surface: **Query** (HTTP/MCP reads),
 - [`examples/`](examples) — the canonical runnable apps. **Trust these over any spec.**
 
 ## Write / edit an app
+- **One-Command Scaffold & Run**: Run `qorm run <app-dir>` (or `go run ./cmd/qorm run <app-dir>`) — if `<app-dir>` doesn't exist, it automatically scaffolds the starter app and launches the native standalone executable application window for the platform.
 - Use the format the runtime accepts **today**: text via `text`, bind with
   `{{state.x}}`, `onPress` names an action in `actions/`, components in
   `qorm.json` use `{{prop.x}}`. See
@@ -40,7 +41,7 @@ the acronym as verbs and you have the API surface: **Query** (HTTP/MCP reads),
   `qorm_dispatch` / `qorm_set_state`; change design with `qorm_preview_patch` →
   `qorm_apply_patch` (apply must carry the preview's token). See
   [docs/agent/mcp-tools.md](docs/agent/mcp-tools.md).
-- **CRITICAL: During development, editing, and live debugging, agents MUST always keep the human observation window (logwindow / DevTool) open and active (serving on http://127.0.0.1:10383/logwindow or /console) so humans can inspect updates in real time.**
+- **CRITICAL: During development, editing, and live debugging, agents MUST always keep the human observation window (logwindow / DevTool) open and active as a standalone executable application window for the current platform (serving on http://127.0.0.1:10383/logwindow or /console) so humans can inspect updates in real time.**
 - **Self-verify** every edit against the rendered reality with `qorm measure` /
   `qorm check` (or `qorm_measure` / `qorm_check_layout`) — see
   [docs/verification.md](docs/verification.md).

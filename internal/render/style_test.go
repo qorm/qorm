@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/qorm/qorm/internal/model"
+	qrt "github.com/qorm/qorm/internal/runtime"
 )
 
 // styleHTML renders a single text node carrying the given style map and returns
@@ -744,3 +745,38 @@ func TestCSSFetchOrComment(t *testing.T) {
 		}
 	}
 }
+
+func TestResponsiveBreakpointStyles(t *testing.T) {
+	style := map[string]any{
+		"color": map[string]any{
+			"sm": "#ff0000",
+			"lg": "#00ff00",
+		},
+		"padding": map[string]any{
+			"sm": "8px",
+			"lg": "24px",
+		},
+	}
+	html := styleHTML(t, style, nil)
+	if !strings.Contains(html, "color:#ff0000;") {
+		t.Errorf("responsive color style should resolve sm breakpoint fallback: got %q", html)
+	}
+}
+
+func TestRenderSubtree(t *testing.T) {
+	child := &model.Node{Type: "text", ID: "target_child", Text: "Subtree Content"}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{child}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}}
+	rt := qrt.New(app)
+
+	res := RenderSubtree(rt, "target_child")
+	if !strings.Contains(res.HTML, "Subtree Content") {
+		t.Errorf("RenderSubtree should render targeted subtree: got %q", res.HTML)
+	}
+
+	missing := RenderSubtree(rt, "nonexistent_node")
+	if !strings.Contains(missing.HTML, "node not found") {
+		t.Errorf("RenderSubtree for missing node should report node not found: got %q", missing.HTML)
+	}
+}
+

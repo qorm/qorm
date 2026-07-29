@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-K3FQCHWD');</script>
+<!-- End Google Tag Manager -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1529418578004538"
+     crossorigin="anonymous"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>工程结构 · QORM</title>
+<meta name="description" content="一个 QORM 应用就是一小撮 JSON 文件——没有构建步骤,没有打包器。运行时直接加载这个 文件夹(qorm run &lt;目录&gt;),打包器把同一个文件夹变成桌面应用、移动应用或 PWA。一个 可选的 Go 文件即可加入编译进所有目标的原生代码。">
+<meta property="og:title" content="工程结构">
+<meta property="og:description" content="一个 QORM 应用就是一小撮 JSON 文件——没有构建步骤,没有打包器。运行时直接加载这个 文件夹(qorm run &lt;目录&gt;),打包器把同一个文件夹变成桌面应用、移动应用或 PWA。一个 可选的 Go 文件即可加入编译进所有目标的原生代码。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://qorm.com/docs/zh/project-structure.html">
+<meta property="og:site_name" content="QORM">
+<meta property="og:locale" content="zh_CN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="工程结构">
+<meta name="twitter:description" content="一个 QORM 应用就是一小撮 JSON 文件——没有构建步骤,没有打包器。运行时直接加载这个 文件夹(qorm run &lt;目录&gt;),打包器把同一个文件夹变成桌面应用、移动应用或 PWA。一个 可选的 Go 文件即可加入编译进所有目标的原生代码。">
+<link rel="canonical" href="https://qorm.com/docs/zh/project-structure.html">
+<link rel="alternate" hreflang="en" href="https://qorm.com/docs/project-structure.html">
+<link rel="alternate" hreflang="zh" href="https://qorm.com/docs/zh/project-structure.html">
+<link rel="alternate" hreflang="x-default" href="https://qorm.com/docs/project-structure.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"一个 QORM 应用就是一小撮 JSON 文件——没有构建步骤,没有打包器。运行时直接加载这个 文件夹(qorm run \u003c目录\u003e),打包器把同一个文件夹变成桌面应用、移动应用或 PWA。一个 可选的 Go 文件即可加入编译进所有目标的原生代码。","headline":"工程结构","inLanguage":"zh","name":"工程结构","url":"https://qorm.com/docs/zh/project-structure.html"}</script>
+<link rel="icon" href="/assets/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+  :root{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
+  @media (prefers-color-scheme:dark){ :root{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; } }
+  :root[data-theme="light"]{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
+  :root[data-theme="dark"]{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Inter",-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;color:var(--ink);background:var(--ground);line-height:1.62;letter-spacing:-.011em;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent-ink);text-decoration:none} a:hover{text-decoration:underline}
+  code,pre{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+  header.top{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--ground) 82%,transparent);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--line)}
+  header.top .tnav{height:56px;display:flex;align-items:center;gap:14px;max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,32px)}
+  header.top .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:16px;letter-spacing:-.02em;color:var(--ink)}
+  header.top .brand img{width:24px;height:24px}
+  @media (prefers-color-scheme:dark){ header.top .brand img{filter:invert(1) brightness(1.7)} }
+  :root[data-theme="dark"] header.top .brand img{filter:invert(1) brightness(1.7)}
+  :root[data-theme="light"] header.top .brand img{filter:none}
+  header.top .doc{color:var(--faint);font-weight:600;font-size:15px}
+  header.top a.ver{font-size:11.5px;font-weight:700;color:var(--muted);border:.5px solid var(--line);border-radius:999px;padding:2px 8px;letter-spacing:.01em}
+  header.top a.ver:hover{color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));text-decoration:none}
+  header.top .sp{flex:1}
+  header.top a.tl{color:var(--muted);font-size:14px;font-weight:500} header.top a.tl:hover{color:var(--ink);text-decoration:none} header.top a.tl.active-nav{color:var(--ink);font-weight:700}
+  .tbtn{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:transform 0.2s ease, background 0.2s, color 0.2s, border-color 0.2s}
+  .tbtn:hover{color:var(--ink);transform:rotate(15deg) scale(1.05)} .tbtn svg{width:16px;height:16px}
+  header.top .iconlink{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;transition:transform .2s cubic-bezier(.16,1,.3,1),color .2s,border-color .2s}
+  header.top .iconlink:hover{color:var(--ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));transform:translateY(-1px);text-decoration:none}
+  header.top .iconlink.patreon:hover{color:#f96854;border-color:color-mix(in srgb,#f96854 45%,var(--line))}
+  header.top .iconlink svg{width:17px;height:17px}
+  header.top .iconlink.lang{width:auto;padding:0 9px;gap:3px;font-size:11px;font-weight:800;letter-spacing:.02em}
+  header.top .iconlink.lang svg{width:14px;height:14px}
+  header.top .iconlink.lang.off{opacity:.4;pointer-events:none}
+  header.top .lang{display:inline-flex;align-items:center;border:.5px solid var(--line);border-radius:8px;overflow:hidden;font-size:13px;font-weight:600}
+  header.top .lang a,header.top .lang span{padding:5px 10px;color:var(--muted)}
+  header.top .lang a:hover{color:var(--ink);text-decoration:none;background:var(--surface)}
+  header.top .lang .on{background:var(--accent);color:#fff}
+  header.top .lang .off{color:var(--faint);opacity:.55}
+  .shell{display:flex;max-width:1280px;margin:0 auto;padding:0 clamp(0px,2vw,20px)}
+  aside{width:262px;min-width:262px;height:calc(100vh - 56px);overflow:auto;position:sticky;top:56px;padding:22px 8px 48px 22px}
+  aside .nav-group{text-transform:uppercase;font-size:11px;font-weight:700;color:var(--faint);margin:20px 0 6px;letter-spacing:.05em}
+  aside ul{list-style:none;margin:0;padding:0}
+  aside li a{display:block;padding:6px 12px;color:var(--muted);border-radius:8px;font-size:14px;font-weight:500;transition:background 0.15s ease, color 0.15s ease, transform 0.15s ease}
+  aside li a:hover{background:var(--surface);color:var(--ink);text-decoration:none;transform:translateX(2px)}
+  aside li a.active{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent-ink);font-weight:600}
+  aside li a .entag{font-size:9.5px;font-weight:700;letter-spacing:.04em;color:var(--faint);border:.5px solid var(--line);border-radius:4px;padding:0 4px;margin-left:6px;vertical-align:1px}
+  main{flex:1;min-width:0;max-width:800px;padding:38px 46px 90px}
+  main>*:first-child{margin-top:0}
+  main h1{font-size:33px;font-weight:800;letter-spacing:-.03em;margin:0 0 .5em}
+  main h2{font-size:23px;font-weight:700;letter-spacing:-.02em;margin:1.7em 0 .5em;padding-bottom:.3em;border-bottom:.5px solid var(--line)}
+  main h3{font-size:18px;font-weight:700;margin:1.5em 0 .4em}
+  main code{background:var(--raise);border:.5px solid var(--line);padding:.12em .4em;border-radius:6px;font-size:.88em}
+  main pre{background:var(--raise);border:.5px solid var(--line);padding:14px 16px;border-radius:12px;overflow:auto;font-size:13.5px;line-height:1.7}
+  main pre code{background:none;border:none;padding:0}
+  main table{border-collapse:collapse;width:100%;margin:1em 0;display:block;overflow-x:auto;font-size:14px}
+  main th,main td{border:.5px solid var(--line);padding:8px 13px;text-align:left}
+  main th{background:var(--surface);font-weight:600}
+  main blockquote{border-left:3px solid var(--accent);margin:1.1em 0;padding:.5em 1.1em;color:var(--muted);background:var(--surface);border-radius:0 10px 10px 0}
+  main img{max-width:100%;height:auto}
+  @media (max-width:800px){ aside{display:none} main{padding:26px 22px} }
+</style>
+</head>
+<body>
+<header class="top"><div class="tnav">
+  <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
+  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.5.0</a>
+  <span class="doc">docs</span>
+  <span class="sp"></span>
+  <a class="tl" href="/">首页</a>
+  <a class="tl active-nav" href="/docs/zh/">文档</a><a class="tl" href="/api/zh/">接口</a>
+  <a class="iconlink" href="https://github.com/qorm/qorm" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
+  <a class="iconlink patreon" href="https://www.patreon.com/qorm" target="_blank" rel="noopener" aria-label="资助" title="资助"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="14.4" cy="9.6" r="6.6"/><rect x="1.5" y="2.5" width="4" height="19" rx="0.3"/></svg></a>
+  <a class="iconlink lang" href="../project-structure.html" data-lang="en" aria-label="English" title="English"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/></svg><span>EN</span></a>
+  <button class="tbtn" id="theme" aria-label="Theme"></button>
+</div></header>
+<div class="shell">
+  <aside><div class="nav-group">概览</div><ul><li><a href="README.html">QORM 文档</a></li><li><a href="project-structure.html" class="active">工程结构</a></li><li><a href="build-with-ai.html">与你的 AI 助手一起构建 QORM 应用</a></li><li><a href="collaboration.html">在运行中的应用上进行人机协作</a></li><li><a href="verification.html">解释并验证一个 QORM 应用</a></li><li><a href="expressions.html">表达式</a></li></ul><div class="nav-group">教程</div><ul><li><a href="tutorials/getting-started.html">QORM 快速上手</a></li><li><a href="tutorials/first-scene.html">第一个场景</a></li><li><a href="tutorials/first-action.html">第一个动作</a></li><li><a href="tutorials/first-component.html">第一个组件</a></li><li><a href="tutorials/first-platform-pack.html">第一个平台包</a></li></ul><div class="nav-group">示例</div><ul><li><a href="examples/counter.html">示例:计数器</a></li><li><a href="examples/todo.html">示例:待办事项</a></li><li><a href="examples/login.html">示例:登录</a></li><li><a href="examples/dashboard.html">示例:仪表盘</a></li></ul><div class="nav-group">平台</div><ul><li><a href="platforms/web.html">QORM Web 平台</a></li><li><a href="platforms/mobile.html">QORM 移动平台</a></li><li><a href="platforms/desktop.html">QORM 桌面平台</a></li><li><a href="platforms/miniapp.html">QORM 小程序平台</a></li><li><a href="platforms/native-middlelayer.html">用户中间层:为应用添加你自己的能力</a></li><li><a href="platforms/capabilities.html">能力清单</a></li><li><a href="platforms/support-matrix.html">平台支持矩阵</a></li></ul><div class="nav-group">智能体</div><ul><li><a href="agent/permissions.html">QORM Agent 权限</a></li><li><a href="agent/mcp-tools.html">QORM MCP 工具</a></li><li><a href="agent/skills.html">QORM Skills</a></li><li><a href="agent/claude-pack.html">QORM Claude Pack</a></li><li><a href="agent/codex-pack.html">QORM Codex Pack</a></li><li><a href="agent/openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">安全</div><ul><li><a href="security/security-model.html">QORM 安全模型</a></li><li><a href="security/permission-model.html">QORM 权限模型</a></li><li><a href="security/bundle-signing.html">QORM Bundle 签名</a></li></ul><div class="nav-group">spec</div><ul><li><a href="spec/navigation-spec.html">导航与路由</a></li></ul></aside>
+  <main><h1 id="工程结构">工程结构</h1>
+<p>一个 QORM 应用就是一小撮 JSON 文件——没有构建步骤,没有打包器。运行时直接加载这个 文件夹(<code>qorm run &lt;目录&gt;</code>),打包器把同一个文件夹变成桌面应用、移动应用或 PWA。一个 可选的 Go 文件即可加入编译进所有目标的原生代码。</p>
+<pre><code>myapp/
+  qorm.json            清单——唯一必需的文件
+  scenes/              每个屏幕一个文件
+    main.json          { &#34;type&#34;: &#34;scene&#34;, &#34;id&#34;: &#34;main&#34;, &#34;root&#34;: { … 节点树 … } }
+  actions/             每个动作一个文件
+    addTodo.json       { &#34;type&#34;: &#34;action&#34;, &#34;id&#34;: &#34;addTodo&#34;, &#34;steps&#34;: [ … ] }
+  components/          可选——可复用的组件定义({ &#34;type&#34;: &#34;component&#34; })
+  native/             可选——应用自己的中间层
+    desktop.go         Go 原生操作(同时编译进桌面与移动/web WASM)
+    web.js             可选——纯 web 构建的浏览器端操作
+  assets/             节点引用的图片 / 图标(如 &#34;assets/icon.png&#34;)</code></pre>
+<p>文档按<strong>类型识别,而非按目录</strong>:<code>{ &#34;type&#34;: &#34;component&#34; }</code> 文件放在哪里都能生效,上面的目录名只是约定。收集应用时有三条边界——bundle 是要签名并分发的产物,只能包含你能审阅的内容:</p>
+<ul>
+<li><code>locales/</code> 作为消息目录单独读取,不当作应用文档。</li>
+<li>带有自己 <code>qorm.json</code> 的子目录视为嵌套项目并跳过,其文档不会与父应用的 id 相撞。</li>
+<li>指向应用目录之外的符号链接会被拒绝(<code>.json</code> 链接使加载失败;逃逸的 <code>locales/</code> 被跳过)。目录<strong>内部</strong>的链接正常工作。</li>
+</ul>
+<p>两个文档声明同一个 id 是错误。<code>qorm run</code> 仍会启动以便你继续迭代,但 <code>qorm build</code> 与 <code>qorm package</code> 会拒绝——签名产物不该取决于哪个文件恰好排在后面。</p>
+<h2 id="qormjson--清单"><code>qorm.json</code> —— 清单</h2>
+<p>唯一必需的文件。它命名应用、指定入口场景,并声明全局状态:</p>
+<pre><code>{
+  &#34;type&#34;: &#34;app&#34;,
+  &#34;id&#34;: &#34;qorm_todo&#34;,
+  &#34;name&#34;: &#34;Productive Todo&#34;,
+  &#34;entry&#34;: &#34;main&#34;,
+  &#34;theme&#34;: &#34;apple&#34;,
+  &#34;globalState&#34;: {
+    &#34;schema&#34;:  { &#34;items&#34;: &#34;array&#34;, &#34;inputValue&#34;: &#34;string&#34; },
+    &#34;initial&#34;: { &#34;items&#34;: [], &#34;inputValue&#34;: &#34;&#34; }
+  },
+  &#34;platforms&#34;: {
+    &#34;desktop&#34;: { &#34;window&#34;: { &#34;width&#34;: 500, &#34;height&#34;: 700, &#34;icon&#34;: &#34;assets/icon.png&#34; } }
+  }
+}</code></pre>
+<table>
+<thead><tr><th>键</th><th>含义</th></tr></thead>
+<tbody>
+<tr><td><code>id</code> · <code>name</code></td><td>应用标识与显示名</td></tr>
+<tr><td><code>entry</code></td><td>首先显示的场景 id</td></tr>
+<tr><td><code>theme</code></td><td><code>apple</code> / <code>material</code> / <code>dark</code>,或 <code>auto</code>(默认——跟随系统明暗的 Apple 配色)</td></tr>
+<tr><td><code>globalState</code></td><td>供 <code>state.*</code> 使用的 <code>schema</code>(类型化结构)+ <code>initial</code>(初始值)</td></tr>
+<tr><td><code>computed</code></td><td>派生值——名字 → 表达式,用 <code>{{ state.computed.x }}</code> 读取,每帧重新求值一次(见<a href="expressions.html">表达式</a>)</td></tr>
+<tr><td><code>components</code></td><td>可复用的组件定义(或一个组件文件夹)</td></tr>
+<tr><td><code>platforms</code></td><td>各平台配置——桌面 <code>window</code>、以及打包选项</td></tr>
+<tr><td><code>defaultLocale</code></td><td>多语言应用的初始语言</td></tr>
+</tbody></table>
+<h2 id="实时开发热重载">实时开发(热重载)</h2>
+<p><code>qorm run &lt;目录&gt;</code> 会监视应用文件夹:编辑场景、动作或清单并保存,所有已连接的 浏览器/窗口会立即更新——无需重启。重载会保留当前会话(你正在进行的状态、当前 场景和视口都不变),停在原地。半途保存导致解析失败时会给出提示并保留正在运行 的应用,直到下一次成功保存。加 <code>--no-watch</code> 可关闭。</p>
+<h2 id="scenes--屏幕"><code>scenes/</code> —— 屏幕</h2>
+<p>每个场景是一个 JSON 文件:<code>{ &#34;type&#34;: &#34;scene&#34;, &#34;id&#34;: …, &#34;root&#34;: &lt;节点&gt; }</code>。<code>root</code> 是一棵节点树——节点结构见<a href="/api/props.html">节点与组件属性</a>,每种 <code>type</code> 见 <a href="/api/widgets.html">组件目录</a>。用 <code>navigate</code> 步骤在场景间跳转,见 <a href="/api/navigation.html">导航</a>。</p>
+<p><code>root</code> 旁边还有两个可选键:<code>onEnter</code> 指定每次进入该场景时运行的动作,<code>guard</code> 声明 进入该场景的前置条件——见<a href="spec/navigation-spec.html">导航与路由</a>。</p>
+<h2 id="actions--行为"><code>actions/</code> —— 行为</h2>
+<p>每个动作是 <code>{ &#34;type&#34;: &#34;action&#34;, &#34;id&#34;: …, &#34;steps&#34;: [ … ] }</code>,由节点的 <code>onPress</code> / <code>onChange</code> 引用。步骤修改状态、调用后端或导航——完整词汇见 <a href="/api/actions.html">动作与状态</a>。</p>
+<h2 id="native--应用自己的代码"><code>native/</code> —— 应用自己的代码</h2>
+<p>可选。一个 Go 文件(<code>native/desktop.go</code>)通过 <a href="/api/go-api.html"><code>pkg/qormext</code></a> 注册应用<strong>自己的</strong>原生操作;打包器把它编译进桌面二进制<strong>和</strong>移动/web WASM,因此同一份 自定义逻辑在所有目标上运行。<code>native/web.js</code> 可加入仅浏览器的操作。这是应用的扩展点—— 见<a href="platforms/native-middlelayer.html">中间层指南</a>。</p>
+<h2 id="应用文件夹里没有什么">应用文件夹里<strong>没有</strong>什么</h2>
+<p>运行时、渲染器、打包器,以及内置(vendored)的 WebView,都是 QORM 的职责,而非应用的—— 应用永远不携带工具链。应用文件夹只包含它自己的声明,外加那一个可选的原生文件。</p>
+</main>
+</div>
+<script>
+  (function(){var r=document.documentElement,b=document.getElementById('theme');
+   var sun='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>';
+   var moon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+   function c(){return r.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');}
+   try{var s=localStorage.getItem('qorm-theme');if(s)r.setAttribute('data-theme',s);}catch(e){}
+   function p(){b.innerHTML=c()==='dark'?sun:moon;} p();
+   b.onclick=function(){var t=c()==='dark'?'light':'dark';r.setAttribute('data-theme',t);try{localStorage.setItem('qorm-theme',t);}catch(e){}p();};})();
+  (function(){/* remember the reader's language across pages + both sites */
+   try{var cur=document.documentElement.lang;
+     document.querySelectorAll('header [data-lang]').forEach(function(el){
+       if(el.tagName==='A')el.addEventListener('click',function(){try{localStorage.setItem('qorm-lang',el.getAttribute('data-lang'));}catch(e){}});});
+     var pref;try{pref=localStorage.getItem('qorm-lang');}catch(e){}
+     if(pref&&pref!==cur){var alt=document.querySelector('header a[data-lang="'+pref+'"]');if(alt)location.replace(alt.getAttribute('href'));}
+   }catch(e){}})();
+</script>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-K3FQCHWD"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+</body>
+</html>

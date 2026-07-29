@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-K3FQCHWD');</script>
+<!-- End Google Tag Manager -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1529418578004538"
+     crossorigin="anonymous"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CLI:qorm · QORM</title>
+<meta name="description" content="一个二进制即是完整工具链:脚手架、运行、渲染、度量、验证、签名、打包、发布,以及面向智能体的服务。默认纯 Go 构建(可交叉编译到各平台);-tags desktop 构建额外提供原生 WebView,shot / measure / check / preview 与 run --app 都依赖它。">
+<meta property="og:title" content="CLI:qorm">
+<meta property="og:description" content="一个二进制即是完整工具链:脚手架、运行、渲染、度量、验证、签名、打包、发布,以及面向智能体的服务。默认纯 Go 构建(可交叉编译到各平台);-tags desktop 构建额外提供原生 WebView,shot / measure / check / preview 与 run --app 都依赖它。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://qorm.com/api/zh/cli.html">
+<meta property="og:site_name" content="QORM">
+<meta property="og:locale" content="zh_CN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="CLI:qorm">
+<meta name="twitter:description" content="一个二进制即是完整工具链:脚手架、运行、渲染、度量、验证、签名、打包、发布,以及面向智能体的服务。默认纯 Go 构建(可交叉编译到各平台);-tags desktop 构建额外提供原生 WebView,shot / measure / check / preview 与 run --app 都依赖它。">
+<link rel="canonical" href="https://qorm.com/api/zh/cli.html">
+<link rel="alternate" hreflang="en" href="https://qorm.com/api/cli.html">
+<link rel="alternate" hreflang="zh" href="https://qorm.com/api/zh/cli.html">
+<link rel="alternate" hreflang="x-default" href="https://qorm.com/api/cli.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"一个二进制即是完整工具链:脚手架、运行、渲染、度量、验证、签名、打包、发布,以及面向智能体的服务。默认纯 Go 构建(可交叉编译到各平台);-tags desktop 构建额外提供原生 WebView,shot / measure / check / preview 与 run --app 都依赖它。","headline":"CLI:qorm","inLanguage":"zh","name":"CLI:qorm","url":"https://qorm.com/api/zh/cli.html"}</script>
+<link rel="icon" href="/assets/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+  :root{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
+  @media (prefers-color-scheme:dark){ :root{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; } }
+  :root[data-theme="light"]{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
+  :root[data-theme="dark"]{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Inter",-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;color:var(--ink);background:var(--ground);line-height:1.62;letter-spacing:-.011em;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent-ink);text-decoration:none} a:hover{text-decoration:underline}
+  code,pre{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+  header.top{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--ground) 82%,transparent);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--line)}
+  header.top .tnav{height:56px;display:flex;align-items:center;gap:14px;max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,32px)}
+  header.top .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:16px;letter-spacing:-.02em;color:var(--ink)}
+  header.top .brand img{width:24px;height:24px}
+  @media (prefers-color-scheme:dark){ header.top .brand img{filter:invert(1) brightness(1.7)} }
+  :root[data-theme="dark"] header.top .brand img{filter:invert(1) brightness(1.7)}
+  :root[data-theme="light"] header.top .brand img{filter:none}
+  header.top .doc{color:var(--faint);font-weight:600;font-size:15px}
+  header.top a.ver{font-size:11.5px;font-weight:700;color:var(--muted);border:.5px solid var(--line);border-radius:999px;padding:2px 8px;letter-spacing:.01em}
+  header.top a.ver:hover{color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));text-decoration:none}
+  header.top .sp{flex:1}
+  header.top a.tl{color:var(--muted);font-size:14px;font-weight:500} header.top a.tl:hover{color:var(--ink);text-decoration:none} header.top a.tl.active-nav{color:var(--ink);font-weight:700}
+  .tbtn{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:transform 0.2s ease, background 0.2s, color 0.2s, border-color 0.2s}
+  .tbtn:hover{color:var(--ink);transform:rotate(15deg) scale(1.05)} .tbtn svg{width:16px;height:16px}
+  header.top .iconlink{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;transition:transform .2s cubic-bezier(.16,1,.3,1),color .2s,border-color .2s}
+  header.top .iconlink:hover{color:var(--ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));transform:translateY(-1px);text-decoration:none}
+  header.top .iconlink.patreon:hover{color:#f96854;border-color:color-mix(in srgb,#f96854 45%,var(--line))}
+  header.top .iconlink svg{width:17px;height:17px}
+  header.top .iconlink.lang{width:auto;padding:0 9px;gap:3px;font-size:11px;font-weight:800;letter-spacing:.02em}
+  header.top .iconlink.lang svg{width:14px;height:14px}
+  header.top .iconlink.lang.off{opacity:.4;pointer-events:none}
+  header.top .lang{display:inline-flex;align-items:center;border:.5px solid var(--line);border-radius:8px;overflow:hidden;font-size:13px;font-weight:600}
+  header.top .lang a,header.top .lang span{padding:5px 10px;color:var(--muted)}
+  header.top .lang a:hover{color:var(--ink);text-decoration:none;background:var(--surface)}
+  header.top .lang .on{background:var(--accent);color:#fff}
+  header.top .lang .off{color:var(--faint);opacity:.55}
+  .shell{display:flex;max-width:1280px;margin:0 auto;padding:0 clamp(0px,2vw,20px)}
+  aside{width:262px;min-width:262px;height:calc(100vh - 56px);overflow:auto;position:sticky;top:56px;padding:22px 8px 48px 22px}
+  aside .nav-group{text-transform:uppercase;font-size:11px;font-weight:700;color:var(--faint);margin:20px 0 6px;letter-spacing:.05em}
+  aside ul{list-style:none;margin:0;padding:0}
+  aside li a{display:block;padding:6px 12px;color:var(--muted);border-radius:8px;font-size:14px;font-weight:500;transition:background 0.15s ease, color 0.15s ease, transform 0.15s ease}
+  aside li a:hover{background:var(--surface);color:var(--ink);text-decoration:none;transform:translateX(2px)}
+  aside li a.active{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent-ink);font-weight:600}
+  aside li a .entag{font-size:9.5px;font-weight:700;letter-spacing:.04em;color:var(--faint);border:.5px solid var(--line);border-radius:4px;padding:0 4px;margin-left:6px;vertical-align:1px}
+  main{flex:1;min-width:0;max-width:800px;padding:38px 46px 90px}
+  main>*:first-child{margin-top:0}
+  main h1{font-size:33px;font-weight:800;letter-spacing:-.03em;margin:0 0 .5em}
+  main h2{font-size:23px;font-weight:700;letter-spacing:-.02em;margin:1.7em 0 .5em;padding-bottom:.3em;border-bottom:.5px solid var(--line)}
+  main h3{font-size:18px;font-weight:700;margin:1.5em 0 .4em}
+  main code{background:var(--raise);border:.5px solid var(--line);padding:.12em .4em;border-radius:6px;font-size:.88em}
+  main pre{background:var(--raise);border:.5px solid var(--line);padding:14px 16px;border-radius:12px;overflow:auto;font-size:13.5px;line-height:1.7}
+  main pre code{background:none;border:none;padding:0}
+  main table{border-collapse:collapse;width:100%;margin:1em 0;display:block;overflow-x:auto;font-size:14px}
+  main th,main td{border:.5px solid var(--line);padding:8px 13px;text-align:left}
+  main th{background:var(--surface);font-weight:600}
+  main blockquote{border-left:3px solid var(--accent);margin:1.1em 0;padding:.5em 1.1em;color:var(--muted);background:var(--surface);border-radius:0 10px 10px 0}
+  main img{max-width:100%;height:auto}
+  @media (max-width:800px){ aside{display:none} main{padding:26px 22px} }
+</style>
+</head>
+<body>
+<header class="top"><div class="tnav">
+  <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
+  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.5.0</a>
+  <span class="doc">api</span>
+  <span class="sp"></span>
+  <a class="tl" href="/">首页</a>
+  <a class="tl" href="/docs/zh/">文档</a><a class="tl active-nav" href="/api/zh/">接口</a>
+  <a class="iconlink" href="https://github.com/qorm/qorm" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
+  <a class="iconlink patreon" href="https://www.patreon.com/qorm" target="_blank" rel="noopener" aria-label="资助" title="资助"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="14.4" cy="9.6" r="6.6"/><rect x="1.5" y="2.5" width="4" height="19" rx="0.3"/></svg></a>
+  <a class="iconlink lang" href="../cli.html" data-lang="en" aria-label="English" title="English"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/></svg><span>EN</span></a>
+  <button class="tbtn" id="theme" aria-label="Theme"></button>
+</div></header>
+<div class="shell">
+  <aside><div class="nav-group">概览</div><ul><li><a href="README.html">QORM API 参考</a></li><li><a href="props.html">节点与组件属性</a></li><li><a href="widgets.html">组件目录</a></li><li><a href="actions.html">动作与状态</a></li><li><a href="gestures.html">手势</a></li><li><a href="animation.html">动画</a></li><li><a href="navigation.html">导航</a></li><li><a href="http-api.html">HTTP 与 SSE</a></li><li><a href="go-api.html">Go 包:qormext</a></li><li><a href="cli.html" class="active">CLI:qorm</a></li></ul></aside>
+  <main><h1 id="cliqorm">CLI:qorm</h1>
+<blockquote><code>qorm</code> 二进制的手工编写参考(实现于 <code>cmd/qorm/</code>)。与本站其他页面不同,本页不是生成的——CLI 变化时请同步更新本页。</blockquote>
+<p>一个二进制即是完整工具链:脚手架、运行、渲染、度量、验证、签名、打包、发布,以及面向智能体的服务。默认纯 Go 构建(可交叉编译到各平台);<code>-tags desktop</code> 构建额外提供原生 WebView,<code>shot</code> / <code>measure</code> / <code>check</code> / <code>preview</code> 与 <code>run --app</code> 都依赖它。</p>
+<table>
+<thead><tr><th>命令</th><th>作用</th></tr></thead>
+<tbody>
+<tr><td><a href="#new"><code>new</code></a></td><td>生成可运行的应用脚手架</td></tr>
+<tr><td><a href="#run"><code>run</code></a></td><td>实时运行应用(浏览器与智能体共享同一运行时)</td></tr>
+<tr><td><a href="#render"><code>render</code></a></td><td>输出静态 HTML 快照</td></tr>
+<tr><td><a href="#shot"><code>shot</code></a></td><td>把应用 / 页面 / 窗口栅格化为 PNG(macOS,<code>-tags desktop</code>)</td></tr>
+<tr><td><a href="#measure"><code>measure</code></a></td><td>渲染并自我度量布局与样式(<code>-tags desktop</code>)</td></tr>
+<tr><td><a href="#check"><code>check</code></a></td><td>对照期望验证渲染结果(<code>-tags desktop</code>)</td></tr>
+<tr><td><a href="#build"><code>build</code></a></td><td>编译(并可选签名)捆绑包</td></tr>
+<tr><td><a href="#keygen"><code>keygen</code></a></td><td>生成 ed25519 签名密钥对</td></tr>
+<tr><td><a href="#sign"><code>sign</code></a></td><td>为已有捆绑包签名</td></tr>
+<tr><td><a href="#verify"><code>verify</code></a></td><td>验证捆绑包的完整性 / 签名 / 吊销状态</td></tr>
+<tr><td><a href="#mcp"><code>mcp</code></a></td><td>通过 MCP(stdio)把应用提供给智能体</td></tr>
+<tr><td><a href="#preview"><code>preview</code></a></td><td>渲染已打包的应用并报告其布局(<code>-tags desktop</code>)</td></tr>
+<tr><td><a href="#package"><code>package</code></a></td><td>打包为可安装应用(web / iOS / Android / mac / 小程序)</td></tr>
+<tr><td><a href="#docs"><code>docs</code></a></td><td>把 markdown 文档树渲染为静态 HTML 站点</td></tr>
+<tr><td><a href="#audit"><code>audit</code></a></td><td>验证哈希链式活动审计日志</td></tr>
+<tr><td><a href="#updates"><code>updates</code></a></td><td>OTA 发布服务器,支持分阶段(金丝雀)发布</td></tr>
+<tr><td><a href="#update"><code>update</code></a></td><td>自更新 CLI(验证签名校验和)</td></tr>
+<tr><td><a href="#version"><code>version</code></a></td><td>打印版本</td></tr>
+</tbody></table>
+<h2 id="约定">约定</h2>
+<ul>
+<li><strong>输入。</strong> <code>&lt;app-dir&gt;</code> 是应用源码目录(<code>qorm.json</code> + <code>scenes/</code> + <code>actions/</code>)。<code>run</code>、<code>render</code>、<code>mcp</code> 也接受编译后的 <code>.qorm.bundle</code>——使用前会先验证(始终验证完整性;给出 <code>--trust</code> 时验证真实性;给出 <code>--revoked</code> 时验证吊销)。<code>render</code> 还接受单个场景 JSON 文件。</li>
+<li><strong>退出码。</strong> <code>0</code> 成功,<code>1</code> 运行时或验证失败,<code>2</code> 用法错误(未知命令也是 <code>2</code>)。</li>
+<li><strong>标志。</strong> <code>-o</code> 与 <code>--out</code> 处处等价,<code>-p</code> 与 <code>--platform</code> 同理。标志为手工解析:大多数命令会把无法识别的记号当作位置参数;<code>qorm update</code> 例外,会拒绝未知标志。</li>
+<li><strong>环境变量。</strong></li>
+</ul>
+<table>
+<thead><tr><th>变量</th><th>使用者</th></tr></thead>
+<tbody>
+<tr><td><code>QORM_KEYSTORE_PASS</code> / <code>QORM_KEY_PASS</code></td><td><code>package -p android --release</code>——keystore / key 密码(否则交互询问)</td></tr>
+<tr><td><code>ANDROID_HOME</code> / <code>ANDROID_SDK_ROOT</code></td><td><code>package -p android</code>——定位 Android SDK</td></tr>
+</tbody></table>
+<ul>
+<li><strong>无参数。</strong> 在打包好的 macOS <code>.app</code> 内,裸 <code>qorm</code> 会运行内嵌的应用;其他场合打印用法并以 <code>2</code> 退出。</li>
+<li><strong>内部命令。</strong> <code>__release-sign</code>、<code>__logwin</code>、<code>__tray</code> 是内部子进程辅助命令(CI 发布签名、桌面日志窗口、系统托盘)——不是用户命令;<code>__release-sign</code> 从 <code>QORM_RELEASE_KEY</code> 读取发布密钥。</li>
+</ul>
+<h2 id="new">new</h2>
+<pre><code>qorm new &lt;dir&gt; [--name &#34;App Name&#34;]</code></pre>
+<p>生成最小可运行应用的脚手架:<code>qorm.json</code>(清单;应用 <code>id</code> 由目录名净化而来)、<code>scenes/main.json</code>(一个计数器界面)、<code>actions/inc.json</code>。拒绝非空目录(退出码 <code>1</code>)。<code>--name</code> 设置显示名(默认:目录基名)。</p>
+<h2 id="run">run</h2>
+<pre><code>qorm run &lt;app-dir|bundle&gt; [标志]</code></pre>
+<p>实时提供应用服务:浏览器 UI、SSE 推送通道与 <code>/mcp</code> 智能体端点共享同一运行时。端点契约见 <a href="http-api.html">HTTP 与 SSE</a>。</p>
+<table>
+<thead><tr><th>标志</th><th>效果</th></tr></thead>
+<tbody>
+<tr><td><code>--port N</code></td><td>监听端口(默认 <code>10383</code>;被占用时回退到随机空闲端口并打印)</td></tr>
+<tr><td><code>--no-open</code></td><td>不打开浏览器窗口</td></tr>
+<tr><td><code>--app</code></td><td>独立窗口:<code>-tags desktop</code> 构建下为原生 WebView;否则为无铬边的 Chromium 系窗口(<code>--app=&lt;url&gt;</code>),再退化为普通标签页</td></tr>
+<tr><td><code>--console</code></td><td>打开协作控制台(<code>/console</code>)而不是应用页</td></tr>
+<tr><td><code>--lan</code></td><td>绑定 <code>0.0.0.0</code>,让物理设备加入同一会话;打印 Wi-Fi URL,并为已连接的 Android 设备执行 <code>adb reverse</code>;隐含 <code>--no-open</code></td></tr>
+<tr><td><code>--tls</code></td><td>使用覆盖 localhost 与各 LAN IP 的自签名证书提供 HTTPS(安全上下文,设备上相机/麦克风/定位等 Web API 所必需);隐含 <code>--lan</code></td></tr>
+<tr><td><code>--mcp-read-only</code></td><td>共享 MCP 会话拒绝产生变更的工具(<code>qorm_dispatch</code>、<code>qorm_set_state</code>、<code>qorm_apply_patch</code>、<code>qorm_undo</code>);检查与预览类工具照常工作</td></tr>
+<tr><td><code>--no-watch</code></td><td>关闭热重载</td></tr>
+<tr><td><code>--trust pub.key</code></td><td>要求捆绑包携带该密钥的有效签名</td></tr>
+<tr><td><code>--revoked list.json</code></td><td>拒绝由已吊销密钥签名的捆绑包</td></tr>
+<tr><td><code>--audit-log file</code></td><td>把每条活动条目追加到哈希链式 JSONL 日志(用 <a href="#audit"><code>qorm audit</code></a> 验证);链在多次重启间延续</td></tr>
+</tbody></table>
+<p>行为说明:</p>
+<ul>
+<li><strong>目录</strong>输入会热重载:400 毫秒 mtime 轮询,文件变化时重新解析应用并把重渲染推送给每个客户端,保留状态/场景/视口。写到一半的文件会被报告,当前应用保持不变。</li>
+<li><strong>捆绑包</strong>输入在提供服务前先验证,并启用 OTA 端点(<code>/update</code>、<code>/rollback</code>)。不带 <code>--trust</code> 时只做完整性校验——stderr 会警告真实性未验证。</li>
+<li>加载器的静态诊断(废弃属性、表达式类型不匹配)打印到 stderr,从不阻止运行。</li>
+</ul>
+<h2 id="render">render</h2>
+<pre><code>qorm render &lt;app-dir|scene.json|bundle&gt; [-o out.html]</code></pre>
+<p>输出静态 HTML 快照(服务端首帧;无实时客户端)。默认输出:<code>&lt;输入基名&gt;.html</code>。捆绑包输入只做完整性校验——本命令没有 <code>--trust</code>,因此会警告真实性未验证。</p>
+<h2 id="shot">shot</h2>
+<pre><code>qorm shot &lt;app-dir&gt; -o out.png [--width W --height H]
+qorm shot --html page.html -o out.png
+qorm shot --url URL -o out.png
+qorm shot --live &#34;窗口标题&#34; -o out.png</code></pre>
+<p>经离屏 WebKit WebView 栅格化为 PNG。<strong>仅 macOS + <code>-tags desktop</code></strong>——其他构建打印错误并以 <code>2</code> 退出。需要 GUI 会话,且终端需有&#34;屏幕录制&#34;权限(截图经由系统 <code>screencapture</code> 工具)。捕获前 CSS 动画被冻结在最终状态。</p>
+<ul>
+<li>应用目录:先渲染再捕获(默认 <code>--width 440 --height 720</code>,默认输出 <code>&lt;目录&gt;.png</code>)。</li>
+<li><code>--html</code>:捕获静态 HTML 文件(默认输出 <code>&lt;名称&gt;.png</code>)。</li>
+<li><code>--url</code>:捕获实时 URL——适用于 <code>/console</code> 这类依赖服务端的页面(默认输出 <code>shot.png</code>)。</li>
+<li><code>--live</code>:按标题捕获一个已在运行的窗口(先精确匹配标题,再子串匹配),不启动新的 WebView(默认输出 <code>shot.png</code>)。</li>
+</ul>
+<h2 id="measure">measure</h2>
+<pre><code>qorm measure &lt;app-dir&gt; [--width N] [-o report.json]</code></pre>
+<p>在原生 WebView 中渲染应用,让它自我度量,然后每个节点输出一行 JSON,把<strong>意图</strong>(类型 / 文本 / 绑定)与<strong>渲染结果</strong>(矩形 + 计算样式)对应起来——打到 stdout,或写入 <code>-o</code>。视口宽度默认 400(高度固定 820)。<strong>需要 <code>-tags desktop</code> 构建</strong>;其他构建以 <code>1</code> 退出。报告字段见<a href="/docs/zh/verification.html">解读与验证 QORM 应用</a>。</p>
+<h2 id="check">check</h2>
+<pre><code>qorm check &lt;app-dir&gt; (--checks checks.json | --audit) [--width N] [-o report.json]</code></pre>
+<p>像 <a href="#measure"><code>measure</code></a> 一样度量应用,再对照真实渲染评估期望。<strong>需要 <code>-tags desktop</code> 构建。</strong></p>
+<ul>
+<li><code>--checks checks.json</code>——可以是 <code>{ &#34;id&#34;: …, &lt;断言&gt;… }</code> 静态检查数组(可见性、文本、几何、对比度、ARIA 等),也可以是 <code>{&#34;steps&#34;:[…]}</code> 流程对象:每一步先执行 <code>do.dispatch &#34;&lt;动作&gt;&#34;</code> 或 <code>do.setState</code>,等待重渲染与重度量,再执行该步的检查——即交互测试。</li>
+<li><code>--audit</code>——无需手写检查:对每个<strong>可见</strong>组件验证通用不变量(尺寸非零、无水平溢出、在窗口内)。</li>
+</ul>
+<p><strong>退出状态:</strong> 即使检查失败也是 <code>0</code>——通过与否在报告的 <code>ok</code> 字段中。只有运行时错误(检查 JSON 非法、加载失败)才非零。断言模式与报告格式见<a href="/docs/zh/verification.html">验证</a>。</p>
+<h2 id="build">build</h2>
+<pre><code>qorm build &lt;app-dir&gt; [-o app.qorm.bundle] [--key priv.key] [--version V] [--require-capability camera,location]</code></pre>
+<p>把应用编译为单个捆绑包(<code>qorm-bundle/1</code> JSON):内容(清单 + 场景 + 动作 + 多语言)、对规范编码计算的 <code>contentHash</code>,以及——给出 <code>--key</code> 时——分离式 ed25519 签名。默认输出:<code>&lt;目录基名&gt;.qorm.bundle</code>。</p>
+<ul>
+<li><code>--version V</code>——在签名前把版本盖入清单(被哈希覆盖)。</li>
+<li><code>--require-capability a,b</code>——把所需能力记入被签名的内容;运行时在缺少任一能力的平台上拒绝启动该捆绑包。</li>
+<li>静态诊断打印到 stderr;不导致构建失败。</li>
+</ul>
+<h2 id="keygen">keygen</h2>
+<pre><code>qorm keygen [--out-dir .]</code></pre>
+<p>生成 ed25519 密钥对:<code>--out-dir</code> 下的 <code>qorm_key</code>(私钥,权限 <code>0600</code>)与 <code>qorm_key.pub</code>,并打印 12 字符密钥 id。密钥文件为两行文本——一行头部加 base64 密钥字节——便于查看与搬运。</p>
+<h2 id="sign">sign</h2>
+<pre><code>qorm sign &lt;bundle&gt; --key priv.key [-o out]</code></pre>
+<p>为已有捆绑包签名——例如经 MCP <code>qorm_export_bundle</code> 工具从实时设计会话导出的捆绑包。<strong>不带 <code>-o</code> 时原地覆盖输入文件。</strong></p>
+<h2 id="verify">verify</h2>
+<pre><code>qorm verify &lt;bundle&gt; [--trust pub.key] [--revoked list.json]</code></pre>
+<p>分层验证捆绑包并打印已证明的范围:始终验证完整性(重算内容哈希),<code>--trust</code> 时 <code>+ signature</code>,<code>--revoked</code> 时 <code>+ revocation</code>。同时打印捆绑包声明的所需能力。</p>
+<ul>
+<li>吊销列表是 JSON 数组 <code>[&#34;keyid&#34;, …]</code> 或对象 <code>{&#34;revoked&#34;: […]}</code>;校验针对实际验证用的密钥,而非捆绑包自声明的 <code>keyId</code>。</li>
+<li>失败时在 stderr 打印 <code>VERIFY FAILED: &lt;原因&gt;</code> 并以 <code>1</code> 退出。</li>
+</ul>
+<h2 id="mcp">mcp</h2>
+<pre><code>qorm mcp &lt;app-dir|bundle&gt; [--trust pub.key] [--revoked list.json]</code></pre>
+<p>通过 MCP(stdio JSON-RPC)把应用提供给 AI 智能体——与运行中的 <a href="#run"><code>qorm run</code></a> 在 <code>/mcp</code> 暴露的是同一套工具,但使用独立的私有运行时(无共享浏览器会话)。工具参考见 <a href="/docs/zh/agent/mcp-tools.html">MCP 工具</a>。</p>
+<h2 id="preview">preview</h2>
+<pre><code>qorm preview &lt;package-dir&gt; [--width N] [--eval JS] [-o report.json]</code></pre>
+<p>验证的是<strong>已打包</strong>的应用而非源码:伺服 <code>qorm package -p web</code> 的静态输出,让其客户端 WASM 运行时在无应用服务器的情况下启动并渲染,并捕获应用的自我度量(stdout,或 <code>-o</code>)。<code>--eval JS</code> 在首次度量后于页面内执行 JavaScript——例如 <code>qorm(0)</code> 按下第一个动作按钮——然后重新度量,从而检验打包产物的交互性。<strong>需要 <code>-tags desktop</code> 构建。</strong></p>
+<p>不要与 MCP <code>qorm_preview_patch</code> 工具混淆,后者是在实时会话上预览设计补丁。</p>
+<h2 id="package">package</h2>
+<pre><code>qorm package &lt;app-dir&gt; [-p web|ios|android|mac|miniapp] [-o out-dir] [标志]</code></pre>
+<p>把应用编译为可安装、完全离线的包。默认平台 <code>web</code>;默认输出 <code>&lt;应用目录名&gt;-&lt;平台&gt;</code>。构建前会向 stderr 打印能力矩阵,就目标平台不支持的功能(以及目标平台缺失的原生中间层)给出警告。</p>
+<table>
+<thead><tr><th>平台</th><th>产物</th></tr></thead>
+<tbody>
+<tr><td><code>web</code></td><td>可安装、可离线的 PWA:<code>index.html</code> + <code>bundle.json</code> + <code>qorm.wasm</code> + <code>wasm_exec.js</code> + manifest + 图标 + <code>sw.js</code></td></tr>
+<tr><td><code>ios</code></td><td>Xcode 工程;装有 <code>xcodegen</code> + <code>xcodebuild</code> 时还会直接构建(未签名的模拟器构建;给出 <code>--team</code> 时为已签名真机构建)</td></tr>
+<tr><td><code>android</code></td><td>Gradle 工程;装有 <code>gradle</code> + Android SDK(<code>ANDROID_HOME</code> / <code>ANDROID_SDK_ROOT</code>)时还会直接构建(wrapper 固定 Gradle 8.9)</td></tr>
+<tr><td><code>mac</code></td><td>内嵌桌面二进制的 macOS <code>.app</code>(需要 macOS + cgo);开发期使用 ad-hoc 代码签名</td></tr>
+<tr><td><code>miniapp</code></td><td>微信风格小程序工程(WXML/WXSS 静态导出初始 UI;在微信开发者工具中打开)</td></tr>
+</tbody></table>
+<p><code>web</code>/<code>ios</code>/<code>android</code> 的产物会用 <code>go build</code>(<code>GOOS=js GOARCH=wasm</code>)编译客户端运行时,因此必须能访问 Go 工具链与 QORM 模块——请在 QORM 仓库内,或 <code>go.mod</code> 依赖 <code>github.com/qorm/qorm</code> 的目录中运行。应用自己的 Go 中间层(<code>native/desktop.go</code>)会被注入该构建,<code>mac</code> 平台则注入桌面二进制。</p>
+<p>通用标志:</p>
+<table>
+<thead><tr><th>标志</th><th>效果</th></tr></thead>
+<tbody>
+<tr><td><code>--dev URL</code></td><td>(仅 ios/android)构建连接实时 <code>qorm run --lan</code> 服务器的轻薄 <strong>QORM Dev</strong> 客户端——装一次,所有应用复用,改动热重载。与 <code>--release</code> 互斥</td></tr>
+<tr><td><code>--team ID</code></td><td>iOS 签名的 Apple 开发团队</td></tr>
+<tr><td><code>--no-branding</code></td><td>去掉 &#34;Made with QORM&#34; 标注</td></tr>
+<tr><td><code>--subscribed</code></td><td>非交互地确认 QORM 会员资格(见下)</td></tr>
+<tr><td><code>--update-url URL</code> + <code>--trust pub.key</code></td><td>把包接入 OTA 更新服务器。两个标志<strong>必须成对给出</strong>(失败即关闭:更新仅在被信任密钥签名时才应用);URL 必须是 http(s)</td></tr>
+</tbody></table>
+<p><strong>商业闸门(荣誉制度)。</strong> 应用目录中的自定义 <code>icon.png</code>,或 <code>--no-branding</code>,属于商业化白标:打包器会打印说明并要求确认 QORM Patreon 会员——交互确认,或经 <code>--subscribed</code>。非交互运行且不带 <code>--subscribed</code> 会失败(退出码 <code>1</code>)。个人 / 教学 / 开源使用(默认图标、保留品牌标注)永不触发。</p>
+<p>发布标志——<code>qorm package … --release</code> 产出可分发、已签名的产物:</p>
+<table>
+<thead><tr><th>标志</th><th>平台</th><th>效果</th></tr></thead>
+<tbody>
+<tr><td><code>--app-version V</code></td><td>全部</td><td>市场版本号(默认 <code>1.0</code>)</td></tr>
+<tr><td><code>--build N</code></td><td>全部</td><td>构建号(默认 <code>1</code>)</td></tr>
+<tr><td><code>--export-method M</code></td><td>ios</td><td>导出方式(默认 <code>app-store-connect</code>)</td></tr>
+<tr><td><code>--upload</code></td><td>ios</td><td>导出后上传 App Store Connect(TestFlight)</td></tr>
+<tr><td><code>--api-key F --api-key-id ID --api-issuer UUID</code></td><td>ios</td><td>无人值守上传用的 App Store Connect API 凭据</td></tr>
+<tr><td><code>--keystore F --key-alias A</code></td><td>android</td><td>用已有 keystore 签名(默认别名 <code>qorm</code>;密码取自 <code>QORM_KEYSTORE_PASS</code> / <code>QORM_KEY_PASS</code> 或交互询问)</td></tr>
+<tr><td><code>--apk</code></td><td>android</td><td>在 AAB 之外再产出已签名 APK</td></tr>
+<tr><td><code>--identity &#34;Developer ID Application: …&#34;</code></td><td>mac</td><td>签名身份(缺省自动发现)</td></tr>
+<tr><td><code>--notarize [--keychain-profile P]</code></td><td>mac</td><td>用 <code>notarytool</code> 公证</td></tr>
+<tr><td><code>--no-dmg</code></td><td>mac</td><td>跳过 DMG 镜像</td></tr>
+</tbody></table>
+<p>Android 发布签名不带 <code>--keystore</code> 时使用托管 keystore <code>&lt;app-dir&gt;/.qorm/release.keystore</code>:首次发布用 <code>keytool</code> 生成(需要 JDK),密码存于 <code>keystore.properties</code>(权限 <code>0600</code>),整个 <code>.qorm</code> 目录已被 git 忽略,并反复复用,使每次更新签名一致。macOS <code>--release</code> 构建绝不回退到 ad-hoc 签名——直接失败。</p>
+<h2 id="docs">docs</h2>
+<pre><code>qorm docs [--docs docs] [-o docs-site] [--name Name]</code></pre>
+<p>把 markdown 文档树渲染为静态 HTML 站点(本文档站即由它构建)。默认值:源 <code>docs/</code>,输出 <code>docs-site/</code>,页眉标签 = 源目录基名。页眉会盖上执行渲染的 <code>qorm</code> 二进制的版本。</p>
+<h2 id="audit">audit</h2>
+<pre><code>qorm audit &lt;audit-log.jsonl&gt;</code></pre>
+<p>验证 <code>qorm run --audit-log</code> 写出的哈希链式活动日志:每条目的哈希覆盖前一条目的哈希加上自身的序号、时间戳、来源与详情,因此任何被编辑、删除、重排或改换来源的条目都会破坏链条。成功打印 <code>AUDIT OK: N entries, hash chain intact</code>;失败打印 <code>AUDIT FAIL after N verified entries: &lt;原因&gt;</code>(定位第一个坏条目)并以 <code>1</code> 退出。链从首条自锚定——在带外保存最终哈希的副本,才能同时检出截断。</p>
+<h2 id="updates">updates</h2>
+<pre><code>qorm updates [bundles-dir] [--port N]</code></pre>
+<p>OTA 的发布侧:一个 HTTP 服务器,按分阶段(金丝雀)发布把客户端应运行的捆绑包发给它。默认值:目录 <code>.</code>,端口 <code>0</code>(随机空闲端口,启动时打印)。</p>
+<ul>
+<li><code>bundles-dir/rollout.json</code> 把应用 id 映射为 <code>{&#34;stable&#34;: &#34;app-v1.qorm.bundle&#34;, &#34;canary&#34;: &#34;app-v2.qorm.bundle&#34;, &#34;canaryPercent&#34;: 10}</code>(<code>canary</code> / <code>canaryPercent</code> 可选)。文件在启动时读取一次。</li>
+<li><code>GET /resolve?app=&lt;id&gt;&amp;client=&lt;id&gt;</code> 返回该客户端应运行的捆绑包 JSON:当 <code>FNV-1a(client id) % 100 &lt; canaryPercent</code> 时给金丝雀版——按客户端确定——否则给稳定版。未知应用 id 与缺失文件返回 <code>404</code>;不是合法捆绑包的文件永不发放。</li>
+<li><code>GET /bundles/&lt;file&gt;</code> 直接伺服捆绑包文件。所有路由开放 CORS(<code>*</code>)——打包外壳是跨源调用的;信任来自客户端侧的 ed25519 验证(见 <a href="#package"><code>qorm package --update-url</code></a>),而非谁能读取捆绑包。</li>
+</ul>
+<h2 id="update">update</h2>
+<pre><code>qorm update [--insecure-skip-verify]</code></pre>
+<p>从最新 GitHub release 自更新 CLI。已是最新(release 标签等于运行版本):打印说明并以 <code>0</code> 退出。否则,有 Go 工具链时执行 <code>go install github.com/qorm/qorm/cmd/qorm@latest</code>;没有则下载 <code>qorm-&lt;os&gt;-&lt;arch&gt;[.exe]</code> 资产,用构建内嵌的发布公钥对照 release 的 <code>SHA256SUMS</code> + <code>SHA256SUMS.sig</code> 验证(没有内嵌密钥的构建无法验证,会拒绝),然后替换可执行文件——旧二进制先改名为 <code>&lt;exe&gt;.old</code>,替换失败时恢复。<code>--insecure-skip-verify</code> 跳过验证直接安装(打印警告;不推荐)。</p>
+<h2 id="version">version</h2>
+<pre><code>qorm version        # 别名:--version、-v</code></pre>
+<p>打印 <code>qorm &lt;版本&gt; (&lt;go 版本&gt; &lt;os&gt;/&lt;arch&gt;)</code>。版本在构建时经 <code>-ldflags -X main.version=&lt;tag&gt;</code> 盖入;未盖章的构建报告源码内的开发默认值。</p>
+</main>
+</div>
+<script>
+  (function(){var r=document.documentElement,b=document.getElementById('theme');
+   var sun='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>';
+   var moon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+   function c(){return r.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');}
+   try{var s=localStorage.getItem('qorm-theme');if(s)r.setAttribute('data-theme',s);}catch(e){}
+   function p(){b.innerHTML=c()==='dark'?sun:moon;} p();
+   b.onclick=function(){var t=c()==='dark'?'light':'dark';r.setAttribute('data-theme',t);try{localStorage.setItem('qorm-theme',t);}catch(e){}p();};})();
+  (function(){/* remember the reader's language across pages + both sites */
+   try{var cur=document.documentElement.lang;
+     document.querySelectorAll('header [data-lang]').forEach(function(el){
+       if(el.tagName==='A')el.addEventListener('click',function(){try{localStorage.setItem('qorm-lang',el.getAttribute('data-lang'));}catch(e){}});});
+     var pref;try{pref=localStorage.getItem('qorm-lang');}catch(e){}
+     if(pref&&pref!==cur){var alt=document.querySelector('header a[data-lang="'+pref+'"]');if(alt)location.replace(alt.getAttribute('href'));}
+   }catch(e){}})();
+</script>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-K3FQCHWD"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+</body>
+</html>

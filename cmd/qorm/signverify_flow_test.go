@@ -641,8 +641,8 @@ func TestCmdRunAndMCPFlagValidation(t *testing.T) {
 	if code := cmdRun(nil); code != 2 {
 		t.Errorf("run no args: exit = %d, want 2", code)
 	}
-	if code := cmdRun([]string{filepath.Join(t.TempDir(), "missing")}); code != 1 {
-		t.Errorf("run missing app: exit = %d, want 1", code)
+	if code := cmdRun([]string{filepath.Join(t.TempDir(), "missing.bundle")}); code != 1 {
+		t.Errorf("run missing bundle: exit = %d, want 1", code)
 	}
 	if code := cmdMCP(nil); code != 2 {
 		t.Errorf("mcp no args: exit = %d, want 2", code)

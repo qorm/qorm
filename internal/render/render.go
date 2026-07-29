@@ -186,6 +186,50 @@ func RenderScene(rt *runtime.Runtime, sceneID string) Result {
 	return Result{HTML: html, Handlers: r.handlers, Unknown: r.unknowns}
 }
 
+// RenderSubtree renders a specific node subtree by node ID within the active scene.
+// Returns the isolated HTML, event handlers and unknowns for that subtree.
+func RenderSubtree(rt *runtime.Runtime, nodeID string) Result {
+	r := &renderer{rt: rt, scope: map[string]any{}}
+	if rt == nil || rt.App == nil {
+		return Result{HTML: `<div style="padding:24px;color:#888">no app</div>`}
+	}
+	root := rt.App.EntryRoot()
+	if sceneID := rt.CurrentScene(); sceneID != "" {
+		if sc := rt.App.Scenes[sceneID]; sc != nil {
+			root = sc
+		}
+	}
+	target := findNodeInTree(root, nodeID)
+	if target != nil {
+		r.rootID = target.ID
+		r.rtl = rt.IsRTL()
+		r.node(target)
+	} else {
+		r.sb.WriteString(`<div style="padding:24px;color:#888">node not found</div>`)
+	}
+	return Result{HTML: r.sb.String(), Handlers: r.handlers, Unknown: r.unknowns}
+}
+
+func findNodeInTree(n *model.Node, id string) *model.Node {
+	if n == nil {
+		return nil
+	}
+	if n.ID == id {
+		return n
+	}
+	for _, c := range n.Children {
+		if got := findNodeInTree(c, id); got != nil {
+			return got
+		}
+	}
+	for _, b := range []*model.Node{n.Then, n.Else, n.Template} {
+		if got := findNodeInTree(b, id); got != nil {
+			return got
+		}
+	}
+	return nil
+}
+
 // renderComponent instantiates an app-defined component: the instance node's
 // props/text/label/value become {{prop.x}} inside the template, its children
 // fill any {type:slot} (named or default — see slot), and its id suffixes the

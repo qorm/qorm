@@ -189,6 +189,8 @@ func TestComputedRefsSeesBracketSpelling(t *testing.T) {
 		{"{{ computed['total'] }}", []string{"total"}},
 		{"{{ computed[\"total\"] }}", []string{"total"}},
 		{"{{ state.computed['total'] }}", []string{"total"}},
+		{"{{ state['computed']['total'] }}", []string{"total"}},
+		{"{{ state['computed'].total }}", []string{"total"}},
 		{"{{ computed ['total'] }}", []string{"total"}}, // whitespace before the bracket
 		{"{{ computed['a'].b }}", []string{"a"}},        // mixed: dot access resumes after a bracket
 		{"{{ computed['a']['b'] }}", []string{"a"}},     // chained brackets still name the first key

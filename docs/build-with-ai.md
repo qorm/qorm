@@ -22,50 +22,24 @@ The 60-second version: [`scripts/demo.sh`](https://github.com/qorm/qorm/blob/mai
 ![Your AI assistant editing a live QORM app while you watch](agent/img/console.png)
 *Run a shared session and the AI's edits appear live in your browser, while its MCP calls show up in the log on the right.*
 
-## 1. Install QORM
+## Quickstart (0-to-1 in 1 Prompt)
 
-```sh
-go install github.com/qorm/qorm/cmd/qorm@latest   # puts `qorm` on your PATH
-# or use the container: ghcr.io/qorm/qorm
+No complex configuration needed. Simply copy and paste the prompt below directly into your AI assistant (Claude Code, Cursor, Windsurf, Antigravity, etc.):
+
+```text
+I want to build a QORM app in ./myapp. 
+1. Set up the environment and run `qorm run ./myapp` (or `go run github.com/qorm/qorm/cmd/qorm@latest run ./myapp`) to automatically scaffold the starter app and launch it as a native standalone executable application window for the current platform (not a web browser tab).
+2. Implement the following requirement: <YOUR APP IDEA HERE, e.g. a habit tracker with a daily check-off and streak count>.
+3. Edit qorm.json, scenes/main.json, and actions/*.json using QORM's declarative schema and verify the live UI window.
 ```
 
-## 2. Give your AI the QORM tools + skill
+`qorm run ./myapp` auto-scaffolds non-existent directories, starts the live HTTP server and MCP endpoint at `/mcp`, and opens your platform's native standalone application window automatically. Use `--web` if you specifically want a web browser tab instead.
 
-QORM ships a drop-in MCP server (so the AI can read, edit, and verify a live app)
-and a skill (so it writes the format the runtime actually accepts). Per-agent
-setup is in [`integrations/`](https://github.com/qorm/qorm/tree/main/integrations). In short:
+## How live collaboration works
 
-- **Claude Code:** `claude mcp add qorm -- qorm mcp .`
-- **Claude Desktop / Cursor / Windsurf:** merge the block from
-  [`integrations/mcp.json`](https://github.com/qorm/qorm/blob/main/integrations/mcp.json) into your agent's MCP config.
-- Point the AI at the skill
-  [`integrations/skill/SKILL.md`](https://github.com/qorm/qorm/blob/main/integrations/skill/SKILL.md) (or this repo's
-  [`llms.txt`](https://github.com/qorm/qorm/blob/main/llms.txt) / [`AGENTS.md`](https://github.com/qorm/qorm/blob/main/AGENTS.md)) so it uses the runnable
-  format instead of guessing.
-
-## 3. Ask it to build something
-
-With the tools attached, ask in plain language, e.g.:
-
-> "Scaffold a QORM habit-tracker in ./habits — a list of habits with a daily
-> check-off and a streak count."
-
-The AI writes `qorm.json` + `scenes/` + `actions/`, and can run `qorm run ./habits`
-and `qorm check ./habits` to see and verify what it built.
-
-## 4. Collaborate on the live app
-
-Start a shared session and work alongside the AI:
-
-```sh
-qorm run ./habits          # opens in your browser; agent endpoint at /mcp
-```
-
-- You click in the browser; the AI sees your actions via `qorm_activity`.
-- The AI edits over MCP; the change appears in your browser instantly, with an
-  **"AI edited"** toast so you watch it happen.
-- The AI's design changes are review-bound (preview → apply), and it self-verifies
-  its edits with `qorm measure` / `qorm check`.
+- **You click in the browser**: the AI sees your actions via `qorm_activity`.
+- **The AI edits live**: files hot-reload or mutate over MCP, appearing instantly in your browser with an **"AI edited"** toast.
+- **Self-verification**: the AI verifies layout and state using `qorm check` / `qorm measure`.
 
 ![QORM DevTool showing human and agent activity](assets/screenshots/logwindow.png)
 *The DevTool makes the human-AI loop visible: who did what, in order, and what is shared with the AI.*

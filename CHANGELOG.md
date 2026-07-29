@@ -6,6 +6,14 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+- Single-Prompt Quickstart & Native Executable App Window Default: `qorm run <dir>` automatically scaffolds missing directories and launches as a standalone native executable application window for the host platform by default (`--web` / `--browser` for browser tab mode). DevTool (`logwindow` / `/console`) also opens as a standalone native executable window.
+- Declarative Responsive Breakpoints DSL: `sm` (<=640px), `md` (641-1024px), `lg` (>=1025px) breakpoint style maps in `internal/render`.
+- MCP Structured Agent Self-Healing Error Payloads: `qorm_preview_patch` and `qorm_apply_patch` include `validTokens` and `suggestedFix` when `designTokens` are violated.
+- Hardware Capability Requirement Enforcement: `qorm build --require-capability` stamps requirements into bundle manifests and `qorm run` validates against host platform capability matrix at startup.
+- Subtree Partial Rendering: `RenderSubtree(rt, nodeID)` in `internal/render` for isolated node subtree rendering without full-scene string allocation.
+- Bracket-Spelled Computed Dependency Scanning: `computedRefs` in `internal/model` supports bracket-rooted paths (`state['computed']['total']`).
+
 ## [v0.5.0] - 2026-07-27
 
 ### Added

@@ -57,13 +57,13 @@ func runTray(url, title, trayJSON string) {
 		nativeTrayJSON(icon, trayJSON, title)
 		return
 	}
-	items := []string{"Activity Log", "Open in Browser", "Quit QORM"}
+	items := []string{"Activity Log", "Open App", "Quit QORM"}
 	nativeTray(icon, items, title, func(i int) {
 		switch i {
 		case 0:
-			openBrowser(url + "logwindow")
+			openAppWindow(url + "logwindow")
 		case 1:
-			openBrowser(url)
+			openAppWindow(url)
 		case 2:
 			terminateParent() // quit the app window too
 			os.Exit(0)

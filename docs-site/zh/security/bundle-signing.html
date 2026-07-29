@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-K3FQCHWD');</script>
+<!-- End Google Tag Manager -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1529418578004538"
+     crossorigin="anonymous"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QORM Bundle 签名 · QORM</title>
+<meta name="description" content="QORM 应用以单个 JSON Bundle 的形式分发:内容寻址、可选 ed25519 签名。 签名是空中下载(OTA)UI 交付背后的信任原语 —— Runtime 在运行 Bundle 之前 先验证它,而不是信任投递它的服务器。实现位于 internal/bundle(格式与验证)、…">
+<meta property="og:title" content="QORM Bundle 签名">
+<meta property="og:description" content="QORM 应用以单个 JSON Bundle 的形式分发:内容寻址、可选 ed25519 签名。 签名是空中下载(OTA)UI 交付背后的信任原语 —— Runtime 在运行 Bundle 之前 先验证它,而不是信任投递它的服务器。实现位于 internal/bundle(格式与验证)、…">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://qorm.com/docs/zh/security/bundle-signing.html">
+<meta property="og:site_name" content="QORM">
+<meta property="og:locale" content="zh_CN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="QORM Bundle 签名">
+<meta name="twitter:description" content="QORM 应用以单个 JSON Bundle 的形式分发:内容寻址、可选 ed25519 签名。 签名是空中下载(OTA)UI 交付背后的信任原语 —— Runtime 在运行 Bundle 之前 先验证它,而不是信任投递它的服务器。实现位于 internal/bundle(格式与验证)、…">
+<link rel="canonical" href="https://qorm.com/docs/zh/security/bundle-signing.html">
+<link rel="alternate" hreflang="en" href="https://qorm.com/docs/security/bundle-signing.html">
+<link rel="alternate" hreflang="zh" href="https://qorm.com/docs/zh/security/bundle-signing.html">
+<link rel="alternate" hreflang="x-default" href="https://qorm.com/docs/security/bundle-signing.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"QORM 应用以单个 JSON Bundle 的形式分发:内容寻址、可选 ed25519 签名。 签名是空中下载(OTA)UI 交付背后的信任原语 —— Runtime 在运行 Bundle 之前 先验证它,而不是信任投递它的服务器。实现位于 internal/bundle(格式与验证)、…","headline":"QORM Bundle 签名","inLanguage":"zh","name":"QORM Bundle 签名","url":"https://qorm.com/docs/zh/security/bundle-signing.html"}</script>
+<link rel="icon" href="/assets/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+  :root{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
+  @media (prefers-color-scheme:dark){ :root{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; } }
+  :root[data-theme="light"]{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
+  :root[data-theme="dark"]{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Inter",-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;color:var(--ink);background:var(--ground);line-height:1.62;letter-spacing:-.011em;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent-ink);text-decoration:none} a:hover{text-decoration:underline}
+  code,pre{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+  header.top{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--ground) 82%,transparent);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--line)}
+  header.top .tnav{height:56px;display:flex;align-items:center;gap:14px;max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,32px)}
+  header.top .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:16px;letter-spacing:-.02em;color:var(--ink)}
+  header.top .brand img{width:24px;height:24px}
+  @media (prefers-color-scheme:dark){ header.top .brand img{filter:invert(1) brightness(1.7)} }
+  :root[data-theme="dark"] header.top .brand img{filter:invert(1) brightness(1.7)}
+  :root[data-theme="light"] header.top .brand img{filter:none}
+  header.top .doc{color:var(--faint);font-weight:600;font-size:15px}
+  header.top a.ver{font-size:11.5px;font-weight:700;color:var(--muted);border:.5px solid var(--line);border-radius:999px;padding:2px 8px;letter-spacing:.01em}
+  header.top a.ver:hover{color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));text-decoration:none}
+  header.top .sp{flex:1}
+  header.top a.tl{color:var(--muted);font-size:14px;font-weight:500} header.top a.tl:hover{color:var(--ink);text-decoration:none} header.top a.tl.active-nav{color:var(--ink);font-weight:700}
+  .tbtn{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:transform 0.2s ease, background 0.2s, color 0.2s, border-color 0.2s}
+  .tbtn:hover{color:var(--ink);transform:rotate(15deg) scale(1.05)} .tbtn svg{width:16px;height:16px}
+  header.top .iconlink{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;transition:transform .2s cubic-bezier(.16,1,.3,1),color .2s,border-color .2s}
+  header.top .iconlink:hover{color:var(--ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));transform:translateY(-1px);text-decoration:none}
+  header.top .iconlink.patreon:hover{color:#f96854;border-color:color-mix(in srgb,#f96854 45%,var(--line))}
+  header.top .iconlink svg{width:17px;height:17px}
+  header.top .iconlink.lang{width:auto;padding:0 9px;gap:3px;font-size:11px;font-weight:800;letter-spacing:.02em}
+  header.top .iconlink.lang svg{width:14px;height:14px}
+  header.top .iconlink.lang.off{opacity:.4;pointer-events:none}
+  header.top .lang{display:inline-flex;align-items:center;border:.5px solid var(--line);border-radius:8px;overflow:hidden;font-size:13px;font-weight:600}
+  header.top .lang a,header.top .lang span{padding:5px 10px;color:var(--muted)}
+  header.top .lang a:hover{color:var(--ink);text-decoration:none;background:var(--surface)}
+  header.top .lang .on{background:var(--accent);color:#fff}
+  header.top .lang .off{color:var(--faint);opacity:.55}
+  .shell{display:flex;max-width:1280px;margin:0 auto;padding:0 clamp(0px,2vw,20px)}
+  aside{width:262px;min-width:262px;height:calc(100vh - 56px);overflow:auto;position:sticky;top:56px;padding:22px 8px 48px 22px}
+  aside .nav-group{text-transform:uppercase;font-size:11px;font-weight:700;color:var(--faint);margin:20px 0 6px;letter-spacing:.05em}
+  aside ul{list-style:none;margin:0;padding:0}
+  aside li a{display:block;padding:6px 12px;color:var(--muted);border-radius:8px;font-size:14px;font-weight:500;transition:background 0.15s ease, color 0.15s ease, transform 0.15s ease}
+  aside li a:hover{background:var(--surface);color:var(--ink);text-decoration:none;transform:translateX(2px)}
+  aside li a.active{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent-ink);font-weight:600}
+  aside li a .entag{font-size:9.5px;font-weight:700;letter-spacing:.04em;color:var(--faint);border:.5px solid var(--line);border-radius:4px;padding:0 4px;margin-left:6px;vertical-align:1px}
+  main{flex:1;min-width:0;max-width:800px;padding:38px 46px 90px}
+  main>*:first-child{margin-top:0}
+  main h1{font-size:33px;font-weight:800;letter-spacing:-.03em;margin:0 0 .5em}
+  main h2{font-size:23px;font-weight:700;letter-spacing:-.02em;margin:1.7em 0 .5em;padding-bottom:.3em;border-bottom:.5px solid var(--line)}
+  main h3{font-size:18px;font-weight:700;margin:1.5em 0 .4em}
+  main code{background:var(--raise);border:.5px solid var(--line);padding:.12em .4em;border-radius:6px;font-size:.88em}
+  main pre{background:var(--raise);border:.5px solid var(--line);padding:14px 16px;border-radius:12px;overflow:auto;font-size:13.5px;line-height:1.7}
+  main pre code{background:none;border:none;padding:0}
+  main table{border-collapse:collapse;width:100%;margin:1em 0;display:block;overflow-x:auto;font-size:14px}
+  main th,main td{border:.5px solid var(--line);padding:8px 13px;text-align:left}
+  main th{background:var(--surface);font-weight:600}
+  main blockquote{border-left:3px solid var(--accent);margin:1.1em 0;padding:.5em 1.1em;color:var(--muted);background:var(--surface);border-radius:0 10px 10px 0}
+  main img{max-width:100%;height:auto}
+  @media (max-width:800px){ aside{display:none} main{padding:26px 22px} }
+</style>
+</head>
+<body>
+<header class="top"><div class="tnav">
+  <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
+  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.5.0</a>
+  <span class="doc">docs</span>
+  <span class="sp"></span>
+  <a class="tl" href="/">首页</a>
+  <a class="tl active-nav" href="/docs/zh/">文档</a><a class="tl" href="/api/zh/">接口</a>
+  <a class="iconlink" href="https://github.com/qorm/qorm" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
+  <a class="iconlink patreon" href="https://www.patreon.com/qorm" target="_blank" rel="noopener" aria-label="资助" title="资助"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="14.4" cy="9.6" r="6.6"/><rect x="1.5" y="2.5" width="4" height="19" rx="0.3"/></svg></a>
+  <a class="iconlink lang" href="../../security/bundle-signing.html" data-lang="en" aria-label="English" title="English"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/></svg><span>EN</span></a>
+  <button class="tbtn" id="theme" aria-label="Theme"></button>
+</div></header>
+<div class="shell">
+  <aside><div class="nav-group">概览</div><ul><li><a href="../README.html">QORM 文档</a></li><li><a href="../project-structure.html">工程结构</a></li><li><a href="../build-with-ai.html">与你的 AI 助手一起构建 QORM 应用</a></li><li><a href="../collaboration.html">在运行中的应用上进行人机协作</a></li><li><a href="../verification.html">解释并验证一个 QORM 应用</a></li><li><a href="../expressions.html">表达式</a></li></ul><div class="nav-group">教程</div><ul><li><a href="../tutorials/getting-started.html">QORM 快速上手</a></li><li><a href="../tutorials/first-scene.html">第一个场景</a></li><li><a href="../tutorials/first-action.html">第一个动作</a></li><li><a href="../tutorials/first-component.html">第一个组件</a></li><li><a href="../tutorials/first-platform-pack.html">第一个平台包</a></li></ul><div class="nav-group">示例</div><ul><li><a href="../examples/counter.html">示例:计数器</a></li><li><a href="../examples/todo.html">示例:待办事项</a></li><li><a href="../examples/login.html">示例:登录</a></li><li><a href="../examples/dashboard.html">示例:仪表盘</a></li></ul><div class="nav-group">平台</div><ul><li><a href="../platforms/web.html">QORM Web 平台</a></li><li><a href="../platforms/mobile.html">QORM 移动平台</a></li><li><a href="../platforms/desktop.html">QORM 桌面平台</a></li><li><a href="../platforms/miniapp.html">QORM 小程序平台</a></li><li><a href="../platforms/native-middlelayer.html">用户中间层:为应用添加你自己的能力</a></li><li><a href="../platforms/capabilities.html">能力清单</a></li><li><a href="../platforms/support-matrix.html">平台支持矩阵</a></li></ul><div class="nav-group">智能体</div><ul><li><a href="../agent/permissions.html">QORM Agent 权限</a></li><li><a href="../agent/mcp-tools.html">QORM MCP 工具</a></li><li><a href="../agent/skills.html">QORM Skills</a></li><li><a href="../agent/claude-pack.html">QORM Claude Pack</a></li><li><a href="../agent/codex-pack.html">QORM Codex Pack</a></li><li><a href="../agent/openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">安全</div><ul><li><a href="security-model.html">QORM 安全模型</a></li><li><a href="permission-model.html">QORM 权限模型</a></li><li><a href="bundle-signing.html" class="active">QORM Bundle 签名</a></li></ul><div class="nav-group">spec</div><ul><li><a href="../spec/navigation-spec.html">导航与路由</a></li></ul></aside>
+  <main><h1 id="qorm-bundle-签名">QORM Bundle 签名</h1>
+<p>QORM 应用以单个 JSON <strong>Bundle</strong> 的形式分发:内容寻址、可选 ed25519 签名。 签名是空中下载(OTA)UI 交付背后的信任原语 —— Runtime 在运行 Bundle 之前 先验证它,而不是信任投递它的服务器。实现位于 <code>internal/bundle</code>(格式与验证)、 <code>internal/keys</code>(密钥生成与存储)和 <code>internal/ota</code>(拉取与验证)。</p>
+<p>本页描述的是代码中实际实现的格式与信任模型。旧文档中出现过的、代码里并不存在 的字段(<code>bundleVersion</code>、<code>minRuntimeVersion</code>、顶层 <code>hash</code>),以下文的代码行为 为准。</p>
+<h2 id="bundle-格式">Bundle 格式</h2>
+<p>一个真实的 Bundle,由 <code>qorm build examples/counter --key qorm_key --version 1.0.0</code> 生成(content 部分有省略):</p>
+<pre><code>{
+  &#34;format&#34;: &#34;qorm-bundle/1&#34;,
+  &#34;content&#34;: {
+    &#34;app&#34;: {
+      &#34;id&#34;: &#34;qorm_counter&#34;,
+      &#34;type&#34;: &#34;app&#34;,
+      &#34;name&#34;: &#34;QORM Premium Counter&#34;,
+      &#34;version&#34;: &#34;1.0.0&#34;,
+      &#34;entry&#34;: &#34;main&#34;
+    },
+    &#34;scenes&#34;: {
+      &#34;main&#34;: { &#34;id&#34;: &#34;main&#34;, &#34;type&#34;: &#34;scene&#34;, &#34;root&#34;: { &#34;...&#34;: &#34;...&#34; } }
+    },
+    &#34;actions&#34;: {
+      &#34;increment&#34;: { &#34;id&#34;: &#34;increment&#34;, &#34;type&#34;: &#34;action&#34;, &#34;...&#34;: &#34;...&#34; }
+    }
+  },
+  &#34;contentHash&#34;: &#34;sha256:FoElQYNuc1V8SWyz8F3g53INEnriY9wR7w1PM1jfzck=&#34;,
+  &#34;signature&#34;: {
+    &#34;algorithm&#34;: &#34;ed25519&#34;,
+    &#34;keyId&#34;: &#34;fod5SMmyqtJJ&#34;,
+    &#34;value&#34;: &#34;ziVsnGtOX6oiB/sNBq2D18mRJKYgoGx2y6y6+YGlGpn8rao1DPbk7NsL/4CLZiYfe1IRjonB0lZ7v0IckMEADA==&#34;
+  }
+}</code></pre>
+<p>顶层字段:</p>
+<ul>
+<li><code>format</code> —— 固定为 <code>&#34;qorm-bundle/1&#34;</code>。其他值在解码阶段即被拒绝。</li>
+<li><code>content</code> —— hash 与签名所覆盖的规范载荷:</li>
+<li><code>app</code> —— 清单文档(来自 <code>qorm.json</code>)。用 <code>qorm build --version</code> 盖入的</li>
+</ul>
+<p>应用 <code>version</code> 就位于这里,处于被签名内容之内。</p>
+<ul>
+<li><code>scenes</code> —— 场景 id 到场景文档的映射。</li>
+<li><code>actions</code> —— 动作 id 到动作文档的映射。</li>
+<li><code>locales</code> —— 可选的 i18n 目录(<code>locale -&gt; key -&gt; string</code>)。</li>
+<li><code>requiredCapabilities</code> —— 可选的能力名称列表(如 <code>&#34;camera&#34;</code>),声明应用</li>
+</ul>
+<p>运行所需能力;平台缺少其中任何一项时,Runtime 拒绝激活该 Bundle。用 <code>qorm build --require-capability</code> 盖入。</p>
+<ul>
+<li><code>contentHash</code> —— <code>&#34;sha256:&#34; + base64(sha256(content 的规范 JSON))</code>。</li>
+<li><code>signature</code> —— 可选;未签名的 Bundle 省略此字段。</li>
+</ul>
+<p>不存在多文件形态:构建 Bundle 时会先把所有源文档(<code>qorm.json</code>、 <code>scenes/*.json</code>、<code>actions/*.json</code>)收集进 <code>content</code>,因此单个 hash 即覆盖 清单、全部场景、全部动作与语言目录。&#34;只对根文件签名&#34;的问题在格式层面就不存在 —— 没有根文件,只有 <code>content</code>。</p>
+<h2 id="规范化与内容哈希">规范化与内容哈希</h2>
+<p>哈希是对 <code>content</code> 的 Go <code>encoding/json</code> 序列化结果计算的,该序列化是确定性的:</p>
+<ul>
+<li>对象键按字典序排序,</li>
+<li>数组保持原有顺序,</li>
+<li>不含无关空白字符。</li>
+</ul>
+<p>同一个 <code>content</code> 值重新序列化总是得到相同的字节,因此哈希跨机器稳定。 <code>signature</code> 与 <code>contentHash</code> 本身位于被哈希区域之外;<code>content</code> 内的一切 —— 包括盖入的 <code>version</code> 与 <code>requiredCapabilities</code> —— 都被哈希以及后续的任何签名 覆盖。</p>
+<h2 id="签名">签名</h2>
+<p>签名是对 <code>contentHash</code> 字符串(即 <code>&#34;sha256:FoEl...&#34;</code> 的 ASCII 字节,而非原始 摘要)的<strong>ed25519</strong> 分离签名:</p>
+<pre><code>hash:      对规范化 content JSON 做 SHA-256,base64 编码,加 &#34;sha256:&#34; 前缀
+signature: 对 contentHash 字符串做 ed25519 签名,base64 编码存入 signature.value</code></pre>
+<p><code>signature.algorithm</code> 为 <code>&#34;ed25519&#34;</code>;其他任何值都会验证失败。 <code>signature.keyId</code> 用于标识签名密钥,供展示与诊断使用。key id 由公钥派生 —— 取原始公钥字节 base64 编码的前 12 个字符 —— <code>qorm build --key</code> 与 <code>qorm sign</code> 会自动填写。由于签名只覆盖 <code>contentHash</code>,<code>keyId</code> 本身<strong>并未被 签名</strong>;它只能当作提示,绝不能作为信任决策的输入(见下文&#34;吊销&#34;)。</p>
+<h2 id="验证流程">验证流程</h2>
+<p><code>bundle.VerifyWithRevocation</code> 按以下顺序执行:</p>
+<pre><code>1. 解码 JSON;format != &#34;qorm-bundle/1&#34; 则拒绝
+2. 重新计算内容哈希;不匹配则拒绝(内容被篡改)
+3. 若未提供可信公钥:到此为止 —— 完整性已验证,真实性未验证
+4. 要求 signature 存在
+5. 要求 signature.algorithm == &#34;ed25519&#34;
+6. base64 解码 signature.value
+7. 用可信公钥对 contentHash 做 ed25519 验证
+8. 若提供了吊销列表:验证密钥已被吊销则拒绝</code></pre>
+<p>每一步失败都是硬错误 —— 在 <code>Verify</code> 内部,验证绝不会降级为&#34;带警告继续运行&#34;。 (<code>qorm run</code> 在你不带 <code>--trust</code> 加载 Bundle 时会自己打印一条警告,因为该运行 模式只验证完整性;传入 <code>--trust</code> 才会强制要求签名。)</p>
+<h3 id="完整性与真实性">完整性与真实性</h3>
+<ul>
+<li><strong>不带 <code>--trust &lt;key.pub&gt;</code></strong> 时,验证仅是防篡改检测:它证明 Bundle 自哈希</li>
+</ul>
+<p>计算之后未被损坏,但对制作者一无所知。<code>qorm verify</code> 报告 <code>OK ... (integrity)</code>。</p>
+<ul>
+<li><strong>带 <code>--trust</code></strong> 时,额外证明该 Bundle 由持有对应私钥的人签名:</li>
+</ul>
+<p><code>OK ... (integrity + signature (key fod5SMmyqtJJ))</code>。</p>
+<ul>
+<li><strong><code>--revoked &lt;list.json&gt;</code></strong> 追加吊销检查。</li>
+</ul>
+<h2 id="威胁模型">威胁模型</h2>
+<p>Bundle 签名防御的是:</p>
+<ul>
+<li><strong>被攻陷或恶意的更新服务器 / CDN / 中间人</strong> —— 被修改的 Bundle 过不了哈希</li>
+</ul>
+<p>检查;由可信密钥之外的人重新签名的 Bundle 过不了签名检查。服务器只是传输 通道,不是信任根。</p>
+<ul>
+<li><strong>意外损坏</strong> —— 哈希不匹配。</li>
+<li><strong>签名密钥泄漏</strong> —— 将该 key id 加入本地吊销列表;此后即使签名完全有效也</li>
+</ul>
+<p>会被拒绝。</p>
+<p>它不能防御未被吊销的私钥泄漏,也不能替代平台权限:已签名的 Bundle 仍然只能获得 平台与策略授予的能力(见 <code>permission-model.md</code>)。</p>
+<h2 id="密钥">密钥</h2>
+<p><code>qorm keygen [--out-dir .]</code> 生成 ed25519 密钥对并写入两个文件(权限 <code>0600</code>):</p>
+<pre><code>qorm_key       QORM-ED25519-PRIVATE-KEY\n&lt;base64 私钥&gt;
+qorm_key.pub   QORM-ED25519-PUBLIC-KEY\n&lt;base64 公钥&gt;</code></pre>
+<p>密钥管理建议:</p>
+<ul>
+<li>私钥不要进仓库、不要随构建产物分发;按发布签名密钥对待(CI secret、硬件</li>
+</ul>
+<p>令牌,或至少是受访问控制的文件)。<code>qorm sign</code> 与 <code>qorm build --key</code> 只在 签名时刻需要私钥文件。</p>
+<ul>
+<li>把<strong>公钥</strong>分发给 Bundle 的消费方 —— 它就是信任根(<code>--trust qorm_key.pub</code>,</li>
+</ul>
+<p>或通过 <code>qorm package --update-url ... --trust qorm_key.pub</code> 内嵌进包)。</p>
+<ul>
+<li>轮换方式:生成新密钥对,先把新公钥下发到客户端,再发布用新密钥签名的</li>
+</ul>
+<p>Bundle;过渡期间客户端更新后即信任新密钥,切换完成后可把旧密钥加入吊销 列表。</p>
+<h2 id="吊销">吊销</h2>
+<p>吊销列表是一个本地 JSON 文件 —— 裸数组或对象均可:</p>
+<pre><code>[&#34;fod5SMmyqtJJ&#34;]</code></pre>
+<pre><code>{ &#34;revoked&#34;: [&#34;fod5SMmyqtJJ&#34;] }</code></pre>
+<p>吊销检查刻意针对<strong>实际验证密钥</strong>派生出的 id,而不是 Bundle 自我声明的 <code>signature.keyId</code>:签名只覆盖 <code>contentHash</code>,否则持有被吊销密钥的人可以把 <code>keyId</code> 改成任意未被吊销的字符串,在签名仍然有效的情况下绕过吊销。</p>
+<p>当前实现没有远程吊销刷新;吊销列表就是你通过 <code>--revoked</code> 传入(或在打包时 内嵌)的本地文件。更新后的列表与公钥走同一个分发渠道。</p>
+<h2 id="ota-更新">OTA 更新</h2>
+<p><code>internal/ota</code> 是传输的一半:先拉取字节,<strong>先验证、后激活</strong> —— 顺序从不颠倒。</p>
+<ul>
+<li><code>Fetch</code> 从 <code>http(s)</code> URL(30 秒超时,32 MiB 上限)或本地文件路径读取。</li>
+<li><code>FetchVerified</code> 拉取、解码并执行 <code>VerifyWithRevocation</code>。任何错误都不会</li>
+</ul>
+<p>产出 Bundle,调用方只需继续运行当前 Bundle。这就是回滚策略:<strong>不作为式 回滚(rollback by inaction)</strong> —— 失败的更新从不触碰正在运行的应用,因此 最近一个已知良好的 Bundle 就是当前正在运行的那个。</p>
+<h3 id="在-bundle-上执行-qorm-run">在 Bundle 上执行 <code>qorm run</code></h3>
+<p>以 Bundle 文件(而非源码目录)运行时,服务器具备 OTA 能力,多两个端点(均对 跨域调用者屏蔽):</p>
+<ul>
+<li><code>POST /update {&#34;source&#34;: &#34;https://example.com/app.qorm.bundle&#34;}</code> —— 拉取、</li>
+</ul>
+<p>验证、按本平台检查 <code>requiredCapabilities</code>,然后激活。服务器必须以 <code>--trust</code> 启动,否则该端点拒绝服务(403),因为真实性无法验证。任何失败都返回 409, 正在运行的应用继续保持之前的 Bundle。 source 的拉取带有 SSRF 防护:私网(RFC 1918 / RFC 4193)、链路本地 (覆盖 <code>169.254.169.254</code> / <code>fe80::</code> 云元数据地址)、组播及未指定地址一律 拒绝。检查在 DNS 解析之后、建立连接时执行,因此重定向跳转或 DNS 重绑定 的域名都绕不过去;重定向最多跟随 5 跳,且只允许 http(s)。回环地址与本地 文件路径仍然放行 —— 本机上的 Bundle 服务器是正常的开发工作流,而回环 并不会给本地调用方增加它本来没有的可达性。</p>
+<ul>
+<li><code>POST /rollback</code> —— 重新激活内存中保存的上一个 Bundle(仅一级:即最近一次</li>
+</ul>
+<p>成功 <code>/update</code> 所替换掉的那个)。</p>
+<h3 id="打包应用">打包应用</h3>
+<p><code>qorm package --update-url &lt;url&gt; --trust &lt;key.pub&gt;</code> 把 OTA 能力烘焙进打包的 Web/移动应用;这两个参数强制成对出现。信任的划分是刻意的:</p>
+<ul>
+<li><strong>随包载荷</strong>(包内的 <code>bundle.json</code>)经由安装渠道获得信任 —— 应用商店签名 /</li>
+</ul>
+<p>TLS 源站 —— 与投递 Runtime 本身的是同一渠道,因此启动时不再重复验证;</p>
+<ul>
+<li>每个 <strong>OTA 来源的 Bundle</strong>(从更新服务器拉取的,或从早前更新持久化到的本地</li>
+</ul>
+<p>存储中恢复的)在激活前都要用内嵌的信任公钥做 ed25519 验证。验证失败的 Bundle 被丢弃,应用回退一层(当前更新 → 上一次更新 → 随包载荷)。</p>
+<h2 id="cli-参考">CLI 参考</h2>
+<pre><code>qorm keygen [--out-dir .]                                     生成 ed25519 签名密钥对
+qorm build &lt;app-dir&gt; [-o out] [--key priv] [--version v] [--require-capability a,b]
+                                                              编译 Bundle;给出 --key 时签名
+qorm sign &lt;bundle&gt; --key priv [-o out]                        为已有(如 agent 导出的)Bundle 签名
+qorm verify &lt;bundle&gt; [--trust pub] [--revoked list.json]      验证完整性(+ 签名,+ 吊销)
+qorm run &lt;bundle&gt; [--trust pub] [--revoked list.json]         运行 Bundle;运行前先验证,启用 /update 与 /rollback</code></pre>
+<p><code>qorm sign</code> 在签名前会重新计算内容哈希,因此给被篡改的 Bundle 重新签名并不能 洗白它 —— 此时签名覆盖的是被篡改后的哈希,只有当篡改者持有私钥时验证方才 会接受。保证链始终是:可信公钥决定谁的内容可以运行。</p>
+<h2 id="本格式不做的事">本格式不做的事</h2>
+<p>明确列出,以免被误当作保证:</p>
+<ul>
+<li>没有 <code>minRuntimeVersion</code> / Runtime 版本门控 —— <code>qorm-bundle/1</code> 的 Runtime</li>
+</ul>
+<p>接受任何带该格式标记的 Bundle;版本信息(<code>content.app.version</code>)仅供展示 (出现在更新/回滚状态行中),不是激活条件。</p>
+<ul>
+<li>签名中没有过期时间或时间戳 —— 有效签名的 Bundle 在其密钥被吊销之前一直</li>
+</ul>
+<p>有效。</p>
+<ul>
+<li>没有远程吊销或信任元数据刷新 —— 信任根与吊销列表都是你自行分发的本地</li>
+</ul>
+<p>文件。</p>
+<ul>
+<li>没有按字段签名 —— 签名一次覆盖整个 <code>content</code>;无法单独签名某个场景。</li>
+</ul>
+</main>
+</div>
+<script>
+  (function(){var r=document.documentElement,b=document.getElementById('theme');
+   var sun='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>';
+   var moon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+   function c(){return r.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');}
+   try{var s=localStorage.getItem('qorm-theme');if(s)r.setAttribute('data-theme',s);}catch(e){}
+   function p(){b.innerHTML=c()==='dark'?sun:moon;} p();
+   b.onclick=function(){var t=c()==='dark'?'light':'dark';r.setAttribute('data-theme',t);try{localStorage.setItem('qorm-theme',t);}catch(e){}p();};})();
+  (function(){/* remember the reader's language across pages + both sites */
+   try{var cur=document.documentElement.lang;
+     document.querySelectorAll('header [data-lang]').forEach(function(el){
+       if(el.tagName==='A')el.addEventListener('click',function(){try{localStorage.setItem('qorm-lang',el.getAttribute('data-lang'));}catch(e){}});});
+     var pref;try{pref=localStorage.getItem('qorm-lang');}catch(e){}
+     if(pref&&pref!==cur){var alt=document.querySelector('header a[data-lang="'+pref+'"]');if(alt)location.replace(alt.getAttribute('href'));}
+   }catch(e){}})();
+</script>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-K3FQCHWD"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+</body>
+</html>

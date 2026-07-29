@@ -37,20 +37,15 @@ Rendering Model,可查询对象渲染模型)是一个面向智能体的
 
 与 Kimi(Moonshot AI)、Claude(Anthropic) 和 Gemini(Google) 协作开发——这很贴切,毕竟人机协作正是 QORM 的全部前提。
 
-## 与你的 AI 助手一起构建
+## 与你的 AI 助手一起构建 (从 0 到 1 只需要一句话)
 
-QORM 面向智能体:让你的 AI 编码助手(Claude Code、Claude Desktop、Cursor、Windsurf……)
-指向它,由它来**搭建、编辑、运行并验证** QORM 应用——然后与你实时协作一个运行中的应用。
-你点击,它看得见(`qorm_activity`);它编辑,你会看到一个 **"AI edited"** 提示。一次性配置好:
+QORM 面向智能体：复制一条提示词发给你的 AI 编码助手（Claude Code、Cursor、Windsurf、Antigravity……），AI 就能自动**配置环境、搭建、编辑、运行并验证**当前操作系统对应的独立可执行程序窗口——零手动配置。
 
-```sh
-go install github.com/qorm/qorm/cmd/qorm@latest
-claude mcp add qorm -- qorm mcp .      # or add integrations/mcp.json to your agent
-```
+> **复制以下提示词直接发送给你的 AI 助手：**
+>
+> *"我想在 `./myapp` 中构建一个 QORM 应用。请帮我配置好环境并运行 `qorm run ./myapp`（或 `go run github.com/qorm/qorm/cmd/qorm@latest run ./myapp`），系统会自动脚手架生成初始应用并启动当前操作系统对应的原生独立可执行程序窗口（而非网页）。然后根据以下需求构建应用：<在这里输入你的应用想法，例如：带连续打卡天数的习惯追踪器>，通过修改 `qorm.json`、`scenes/` 和 `actions/` 实现。" *
 
-然后只管开口——*"搭一个习惯追踪器"*、*"修一下这个溢出"*、*"打包成 web 应用"*。
-完整指南:**[与你的 AI 一起构建](docs/zh/build-with-ai.md)** ·
-[人机协作](docs/zh/collaboration.md)。
+你在窗口里点击，AI 看得见（`qorm_activity`）；AI 编辑，改动实时呈现并弹出 **"AI edited"** 提示。完整指南：**[与你的 AI 一起构建](docs/zh/build-with-ai.md)** · [人机协作](docs/zh/collaboration.md)。
 
 ## 平台支持
 

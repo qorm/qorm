@@ -630,7 +630,13 @@ func (s *Server) assert(checks []map[string]any) map[string]any {
 func (s *Server) previewPatch(ops []PatchOp) map[string]any {
 	clone := cloneApp(s.rt.App)
 	if err := applyPatch(clone, ops); err != nil {
-		return map[string]any{"ok": false, "error": err.Error()}
+		res := map[string]any{"ok": false, "error": err.Error()}
+		if strings.Contains(err.Error(), "design token violation") {
+			_, display := enforcedColorTokens(s.rt.App)
+			res["validTokens"] = display
+			res["suggestedFix"] = fmt.Sprintf("Use one of the allowed design tokens: %s", strings.Join(display, ", "))
+		}
+		return res
 	}
 	token := patchToken(ops)
 	s.preview = &previewState{token: token, ops: ops}
@@ -651,6 +657,15 @@ func (s *Server) applyPatchTool(ops []PatchOp, token string) (map[string]any, er
 	// op succeeds do we swap it in. On any failure the live app is untouched.
 	working := cloneApp(s.rt.App)
 	if err := applyPatch(working, ops); err != nil {
+		if strings.Contains(err.Error(), "design token violation") {
+			_, display := enforcedColorTokens(s.rt.App)
+			return map[string]any{
+				"ok":           false,
+				"error":        err.Error(),
+				"validTokens":  display,
+				"suggestedFix": fmt.Sprintf("Use one of the allowed design tokens: %s", strings.Join(display, ", ")),
+			}, nil
+		}
 		return nil, err
 	}
 	s.history = append(s.history, s.rt.App) // pre-image for undo

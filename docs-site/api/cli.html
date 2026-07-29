@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-K3FQCHWD');</script>
+<!-- End Google Tag Manager -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1529418578004538"
+     crossorigin="anonymous"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CLI: qorm · QORM</title>
+<meta name="description" content="One binary is the whole toolchain: scaffold, run, render, measure, verify, sign, package, publish, and serve agents. Pure Go by default (cross-compiles…">
+<meta property="og:title" content="CLI: qorm">
+<meta property="og:description" content="One binary is the whole toolchain: scaffold, run, render, measure, verify, sign, package, publish, and serve agents. Pure Go by default (cross-compiles…">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://qorm.com/api/cli.html">
+<meta property="og:site_name" content="QORM">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="CLI: qorm">
+<meta name="twitter:description" content="One binary is the whole toolchain: scaffold, run, render, measure, verify, sign, package, publish, and serve agents. Pure Go by default (cross-compiles…">
+<link rel="canonical" href="https://qorm.com/api/cli.html">
+<link rel="alternate" hreflang="en" href="https://qorm.com/api/cli.html">
+<link rel="alternate" hreflang="zh" href="https://qorm.com/api/zh/cli.html">
+<link rel="alternate" hreflang="x-default" href="https://qorm.com/api/cli.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"One binary is the whole toolchain: scaffold, run, render, measure, verify, sign, package, publish, and serve agents. Pure Go by default (cross-compiles…","headline":"CLI: qorm","inLanguage":"en","name":"CLI: qorm","url":"https://qorm.com/api/cli.html"}</script>
+<link rel="icon" href="/assets/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+  :root{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
+  @media (prefers-color-scheme:dark){ :root{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; } }
+  :root[data-theme="light"]{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
+  :root[data-theme="dark"]{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Inter",-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;color:var(--ink);background:var(--ground);line-height:1.62;letter-spacing:-.011em;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent-ink);text-decoration:none} a:hover{text-decoration:underline}
+  code,pre{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+  header.top{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--ground) 82%,transparent);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--line)}
+  header.top .tnav{height:56px;display:flex;align-items:center;gap:14px;max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,32px)}
+  header.top .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:16px;letter-spacing:-.02em;color:var(--ink)}
+  header.top .brand img{width:24px;height:24px}
+  @media (prefers-color-scheme:dark){ header.top .brand img{filter:invert(1) brightness(1.7)} }
+  :root[data-theme="dark"] header.top .brand img{filter:invert(1) brightness(1.7)}
+  :root[data-theme="light"] header.top .brand img{filter:none}
+  header.top .doc{color:var(--faint);font-weight:600;font-size:15px}
+  header.top a.ver{font-size:11.5px;font-weight:700;color:var(--muted);border:.5px solid var(--line);border-radius:999px;padding:2px 8px;letter-spacing:.01em}
+  header.top a.ver:hover{color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));text-decoration:none}
+  header.top .sp{flex:1}
+  header.top a.tl{color:var(--muted);font-size:14px;font-weight:500} header.top a.tl:hover{color:var(--ink);text-decoration:none} header.top a.tl.active-nav{color:var(--ink);font-weight:700}
+  .tbtn{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:transform 0.2s ease, background 0.2s, color 0.2s, border-color 0.2s}
+  .tbtn:hover{color:var(--ink);transform:rotate(15deg) scale(1.05)} .tbtn svg{width:16px;height:16px}
+  header.top .iconlink{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;transition:transform .2s cubic-bezier(.16,1,.3,1),color .2s,border-color .2s}
+  header.top .iconlink:hover{color:var(--ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));transform:translateY(-1px);text-decoration:none}
+  header.top .iconlink.patreon:hover{color:#f96854;border-color:color-mix(in srgb,#f96854 45%,var(--line))}
+  header.top .iconlink svg{width:17px;height:17px}
+  header.top .iconlink.lang{width:auto;padding:0 9px;gap:3px;font-size:11px;font-weight:800;letter-spacing:.02em}
+  header.top .iconlink.lang svg{width:14px;height:14px}
+  header.top .iconlink.lang.off{opacity:.4;pointer-events:none}
+  header.top .lang{display:inline-flex;align-items:center;border:.5px solid var(--line);border-radius:8px;overflow:hidden;font-size:13px;font-weight:600}
+  header.top .lang a,header.top .lang span{padding:5px 10px;color:var(--muted)}
+  header.top .lang a:hover{color:var(--ink);text-decoration:none;background:var(--surface)}
+  header.top .lang .on{background:var(--accent);color:#fff}
+  header.top .lang .off{color:var(--faint);opacity:.55}
+  .shell{display:flex;max-width:1280px;margin:0 auto;padding:0 clamp(0px,2vw,20px)}
+  aside{width:262px;min-width:262px;height:calc(100vh - 56px);overflow:auto;position:sticky;top:56px;padding:22px 8px 48px 22px}
+  aside .nav-group{text-transform:uppercase;font-size:11px;font-weight:700;color:var(--faint);margin:20px 0 6px;letter-spacing:.05em}
+  aside ul{list-style:none;margin:0;padding:0}
+  aside li a{display:block;padding:6px 12px;color:var(--muted);border-radius:8px;font-size:14px;font-weight:500;transition:background 0.15s ease, color 0.15s ease, transform 0.15s ease}
+  aside li a:hover{background:var(--surface);color:var(--ink);text-decoration:none;transform:translateX(2px)}
+  aside li a.active{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent-ink);font-weight:600}
+  aside li a .entag{font-size:9.5px;font-weight:700;letter-spacing:.04em;color:var(--faint);border:.5px solid var(--line);border-radius:4px;padding:0 4px;margin-left:6px;vertical-align:1px}
+  main{flex:1;min-width:0;max-width:800px;padding:38px 46px 90px}
+  main>*:first-child{margin-top:0}
+  main h1{font-size:33px;font-weight:800;letter-spacing:-.03em;margin:0 0 .5em}
+  main h2{font-size:23px;font-weight:700;letter-spacing:-.02em;margin:1.7em 0 .5em;padding-bottom:.3em;border-bottom:.5px solid var(--line)}
+  main h3{font-size:18px;font-weight:700;margin:1.5em 0 .4em}
+  main code{background:var(--raise);border:.5px solid var(--line);padding:.12em .4em;border-radius:6px;font-size:.88em}
+  main pre{background:var(--raise);border:.5px solid var(--line);padding:14px 16px;border-radius:12px;overflow:auto;font-size:13.5px;line-height:1.7}
+  main pre code{background:none;border:none;padding:0}
+  main table{border-collapse:collapse;width:100%;margin:1em 0;display:block;overflow-x:auto;font-size:14px}
+  main th,main td{border:.5px solid var(--line);padding:8px 13px;text-align:left}
+  main th{background:var(--surface);font-weight:600}
+  main blockquote{border-left:3px solid var(--accent);margin:1.1em 0;padding:.5em 1.1em;color:var(--muted);background:var(--surface);border-radius:0 10px 10px 0}
+  main img{max-width:100%;height:auto}
+  @media (max-width:800px){ aside{display:none} main{padding:26px 22px} }
+</style>
+</head>
+<body>
+<header class="top"><div class="tnav">
+  <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
+  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.5.0</a>
+  <span class="doc">api</span>
+  <span class="sp"></span>
+  <a class="tl" href="/">Home</a>
+  <a class="tl" href="/docs/">Docs</a><a class="tl active-nav" href="/api/">API</a>
+  <a class="iconlink" href="https://github.com/qorm/qorm" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
+  <a class="iconlink patreon" href="https://www.patreon.com/qorm" target="_blank" rel="noopener" aria-label="Patreon" title="Patreon"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="14.4" cy="9.6" r="6.6"/><rect x="1.5" y="2.5" width="4" height="19" rx="0.3"/></svg></a>
+  <a class="iconlink lang" href="zh/cli.html" data-lang="zh" aria-label="中文" title="中文"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/></svg><span>中</span></a>
+  <button class="tbtn" id="theme" aria-label="Theme"></button>
+</div></header>
+<div class="shell">
+  <aside><div class="nav-group">overview</div><ul><li><a href="README.html">QORM API reference</a></li><li><a href="props.html">Node &amp; Widget Props</a></li><li><a href="widgets.html">Widget Catalog</a></li><li><a href="actions.html">Actions &amp; State</a></li><li><a href="gestures.html">Gestures</a></li><li><a href="animation.html">Animation</a></li><li><a href="navigation.html">Navigation</a></li><li><a href="http-api.html">HTTP &amp; SSE</a></li><li><a href="go-api.html">Go package: qormext</a></li><li><a href="cli.html" class="active">CLI: qorm</a></li></ul></aside>
+  <main><h1 id="cli-qorm">CLI: qorm</h1>
+<blockquote>Hand-written reference for the <code>qorm</code> binary (implemented in <code>cmd/qorm/</code>). Unlike the other pages here it is not generated — update it when the CLI changes.</blockquote>
+<p>One binary is the whole toolchain: scaffold, run, render, measure, verify, sign, package, publish, and serve agents. Pure Go by default (cross-compiles everywhere); a <code>-tags desktop</code> build adds the native WebView that <code>shot</code> / <code>measure</code> / <code>check</code> / <code>preview</code> and <code>run --app</code> build on.</p>
+<table>
+<thead><tr><th>Command</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><a href="#new"><code>new</code></a></td><td>scaffold a runnable app</td></tr>
+<tr><td><a href="#run"><code>run</code></a></td><td>serve an app live (browser + agent share the runtime)</td></tr>
+<tr><td><a href="#render"><code>render</code></a></td><td>write a static HTML snapshot</td></tr>
+<tr><td><a href="#shot"><code>shot</code></a></td><td>rasterize an app / page / window to PNG (macOS, <code>-tags desktop</code>)</td></tr>
+<tr><td><a href="#measure"><code>measure</code></a></td><td>render + self-measure layout and styles (<code>-tags desktop</code>)</td></tr>
+<tr><td><a href="#check"><code>check</code></a></td><td>verify the render against expectations (<code>-tags desktop</code>)</td></tr>
+<tr><td><a href="#build"><code>build</code></a></td><td>compile (+ optionally sign) a bundle</td></tr>
+<tr><td><a href="#keygen"><code>keygen</code></a></td><td>generate an ed25519 signing keypair</td></tr>
+<tr><td><a href="#sign"><code>sign</code></a></td><td>sign an existing bundle</td></tr>
+<tr><td><a href="#verify"><code>verify</code></a></td><td>verify a bundle&#39;s integrity / signature / revocation</td></tr>
+<tr><td><a href="#mcp"><code>mcp</code></a></td><td>serve an app to agents over MCP (stdio)</td></tr>
+<tr><td><a href="#preview"><code>preview</code></a></td><td>render a packaged app and report its layout (<code>-tags desktop</code>)</td></tr>
+<tr><td><a href="#package"><code>package</code></a></td><td>package as an installable app (web / iOS / Android / mac / miniapp)</td></tr>
+<tr><td><a href="#docs"><code>docs</code></a></td><td>render a markdown docs tree to a static HTML site</td></tr>
+<tr><td><a href="#audit"><code>audit</code></a></td><td>verify a hash-chained activity audit log</td></tr>
+<tr><td><a href="#updates"><code>updates</code></a></td><td>OTA publish server with staged (canary) rollout</td></tr>
+<tr><td><a href="#update"><code>update</code></a></td><td>self-update the CLI (verifies signed checksums)</td></tr>
+<tr><td><a href="#version"><code>version</code></a></td><td>print the version</td></tr>
+</tbody></table>
+<h2 id="conventions">Conventions</h2>
+<ul>
+<li><strong>Inputs.</strong> <code>&lt;app-dir&gt;</code> is an app source directory (<code>qorm.json</code> + <code>scenes/</code> + <code>actions/</code>). <code>run</code>, <code>render</code>, and <code>mcp</code> also accept a compiled <code>.qorm.bundle</code> — verified before use (integrity always; authenticity with <code>--trust</code>; revocation with <code>--revoked</code>). <code>render</code> additionally accepts a single scene JSON file.</li>
+<li><strong>Exit codes.</strong> <code>0</code> success, <code>1</code> runtime or verification failure, <code>2</code> usage error (also for an unknown command).</li>
+<li><strong>Flags.</strong> <code>-o</code> and <code>--out</code> are synonyms everywhere, as are <code>-p</code> and <code>--platform</code>. Flags are parsed by hand: an unrecognized token is taken as the positional input by most commands; <code>qorm update</code> is the exception and rejects unknown flags.</li>
+<li><strong>Environment variables.</strong></li>
+</ul>
+<table>
+<thead><tr><th>Variable</th><th>Used by</th></tr></thead>
+<tbody>
+<tr><td><code>QORM_KEYSTORE_PASS</code> / <code>QORM_KEY_PASS</code></td><td><code>package -p android --release</code> — keystore / key passwords (else prompted)</td></tr>
+<tr><td><code>ANDROID_HOME</code> / <code>ANDROID_SDK_ROOT</code></td><td><code>package -p android</code> — locating the Android SDK</td></tr>
+</tbody></table>
+<ul>
+<li><strong>No arguments.</strong> Inside a packaged macOS <code>.app</code>, a bare <code>qorm</code> runs the embedded app. Anywhere else it prints usage and exits <code>2</code>.</li>
+<li><strong>Internal commands.</strong> <code>__release-sign</code>, <code>__logwin</code>, and <code>__tray</code> are internal sub-process helpers (CI release signing, the desktop log window, the system tray) — not user commands; <code>__release-sign</code> reads the release key from <code>QORM_RELEASE_KEY</code>.</li>
+</ul>
+<h2 id="new">new</h2>
+<pre><code>qorm new &lt;dir&gt; [--name &#34;App Name&#34;]</code></pre>
+<p>Scaffolds a minimal runnable app: <code>qorm.json</code> (manifest; the app <code>id</code> is sanitized from the directory name), <code>scenes/main.json</code> (a counter screen), and <code>actions/inc.json</code>. Refuses a non-empty directory (exit <code>1</code>). <code>--name</code> sets the display name (default: the directory base name).</p>
+<h2 id="run">run</h2>
+<pre><code>qorm run &lt;app-dir|bundle&gt; [flags]</code></pre>
+<p>Serves the app live: the browser UI, the SSE push channel, and the agent endpoint at <code>/mcp</code> all share one runtime. See <a href="http-api.html">HTTP &amp; SSE</a> for the endpoint contract.</p>
+<table>
+<thead><tr><th>Flag</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td><code>--port N</code></td><td>listen port (default <code>10383</code>; if taken, falls back to a random free port and prints it)</td></tr>
+<tr><td><code>--no-open</code></td><td>do not open a browser window</td></tr>
+<tr><td><code>--app</code></td><td>standalone window: a native WebView in a <code>-tags desktop</code> build, otherwise a chromeless Chromium-family window (<code>--app=&lt;url&gt;</code>), falling back to a normal tab</td></tr>
+<tr><td><code>--console</code></td><td>open the collaboration console (<code>/console</code>) instead of the app page</td></tr>
+<tr><td><code>--lan</code></td><td>bind <code>0.0.0.0</code> so physical devices join the same session; prints the Wi-Fi URL and runs <code>adb reverse</code> for attached Android devices; implies <code>--no-open</code></td></tr>
+<tr><td><code>--tls</code></td><td>HTTPS with a self-signed certificate covering localhost + the LAN IPs (a secure context, required by camera/mic/location Web APIs on a device); implies <code>--lan</code></td></tr>
+<tr><td><code>--mcp-read-only</code></td><td>the shared MCP session rejects mutating tools (<code>qorm_dispatch</code>, <code>qorm_set_state</code>, <code>qorm_apply_patch</code>, <code>qorm_undo</code>); inspection and preview tools keep working</td></tr>
+<tr><td><code>--no-watch</code></td><td>disable hot-reload</td></tr>
+<tr><td><code>--trust pub.key</code></td><td>require a bundle to carry a valid signature from this key</td></tr>
+<tr><td><code>--revoked list.json</code></td><td>reject bundles signed by a revoked key</td></tr>
+<tr><td><code>--audit-log file</code></td><td>append every activity entry to a hash-chained JSONL log (verify with <a href="#audit"><code>qorm audit</code></a>); the chain resumes across restarts</td></tr>
+</tbody></table>
+<p>Behavior notes:</p>
+<ul>
+<li>A <strong>directory</strong> input hot-reloads: a 400 ms mtime poll re-parses the app on change and pushes the re-render to every client, preserving state/scene/viewport. A half-written file is reported and the current app kept.</li>
+<li>A <strong>bundle</strong> input is verified before serving and enables the OTA endpoints (<code>/update</code>, <code>/rollback</code>). Without <code>--trust</code> only integrity is checked — a warning on stderr says authenticity is not verified.</li>
+<li>The loader&#39;s static diagnostics (deprecated attributes, expression type mismatches) print to stderr and never block the run.</li>
+</ul>
+<h2 id="render">render</h2>
+<pre><code>qorm render &lt;app-dir|scene.json|bundle&gt; [-o out.html]</code></pre>
+<p>Writes a static HTML snapshot (the server-side first frame; no live client). Default output: <code>&lt;input base name&gt;.html</code>. A bundle input is integrity-checked only — this command has no <code>--trust</code>, so a warning notes authenticity is not verified.</p>
+<h2 id="shot">shot</h2>
+<pre><code>qorm shot &lt;app-dir&gt; -o out.png [--width W --height H]
+qorm shot --html page.html -o out.png
+qorm shot --url URL -o out.png
+qorm shot --live &#34;window title&#34; -o out.png</code></pre>
+<p>Rasterizes to PNG via an offscreen WebKit WebView. <strong>macOS + <code>-tags desktop</code> only</strong> — any other build prints an error and exits <code>2</code>. Requires a GUI session and Screen Recording permission for the terminal (capture goes through the system <code>screencapture</code> tool). CSS animations are frozen at their final state before capture.</p>
+<ul>
+<li>App directory: rendered, then captured (default <code>--width 440 --height 720</code>, default output <code>&lt;dir&gt;.png</code>).</li>
+<li><code>--html</code>: capture a static HTML file (default output <code>&lt;name&gt;.png</code>).</li>
+<li><code>--url</code>: capture a live URL — useful for server-backed pages like <code>/console</code> (default output <code>shot.png</code>).</li>
+<li><code>--live</code>: capture an already-running window whose title matches (exact title match preferred, then substring), without spinning up a new WebView (default output <code>shot.png</code>).</li>
+</ul>
+<h2 id="measure">measure</h2>
+<pre><code>qorm measure &lt;app-dir&gt; [--width N] [-o report.json]</code></pre>
+<p>Renders the app in a native WebView, lets it self-measure, and prints one JSON row per node joining the <strong>intent</strong> (type / text / binding) with the <strong>rendered result</strong> (rect + computed styles) — to stdout, or to <code>-o</code>. Viewport width defaults to 400 (height is fixed at 820). <strong>Needs a <code>-tags desktop</code> build</strong>; other builds exit <code>1</code>. Report fields: see <a href="/docs/verification.html">Interpreting &amp; verifying a QORM app</a>.</p>
+<h2 id="check">check</h2>
+<pre><code>qorm check &lt;app-dir&gt; (--checks checks.json | --audit) [--width N] [-o report.json]</code></pre>
+<p>Measures the app like <a href="#measure"><code>measure</code></a>, then evaluates expectations against the real render. <strong>Needs a <code>-tags desktop</code> build.</strong></p>
+<ul>
+<li><code>--checks checks.json</code> — either an array of <code>{ &#34;id&#34;: …, &lt;assertion&gt;… }</code> static checks (visible, text, geometry, contrast, ARIA, …), or a <code>{&#34;steps&#34;:[…]}</code> flow object: each step applies <code>do.dispatch &#34;&lt;action&gt;&#34;</code> or <code>do.setState</code>, waits for the re-render + re-measure, then runs that step&#39;s checks — interaction testing.</li>
+<li><code>--audit</code> — no authored checks: generic invariants over every visible component (non-zero size, no horizontal overflow, within the window).</li>
+</ul>
+<p><strong>Exit status:</strong> <code>0</code> even when checks fail — pass/fail lives in the report&#39;s <code>ok</code> field. Non-zero only on runtime errors (bad checks JSON, load failure). Assertion schema and report format: <a href="/docs/verification.html">verification</a>.</p>
+<h2 id="build">build</h2>
+<pre><code>qorm build &lt;app-dir&gt; [-o app.qorm.bundle] [--key priv.key] [--version V] [--require-capability camera,location]</code></pre>
+<p>Compiles the app into a single bundle (<code>qorm-bundle/1</code> JSON): the content (manifest + scenes + actions + locales), a <code>contentHash</code> over its canonical encoding, and — with <code>--key</code> — a detached ed25519 signature. Default output: <code>&lt;dir base name&gt;.qorm.bundle</code>.</p>
+<ul>
+<li><code>--version V</code> — stamp the manifest version (covered by the hash) before signing.</li>
+<li><code>--require-capability a,b</code> — record required capabilities in the signed content; the runtime refuses to start the bundle on a platform missing any of them.</li>
+<li>Static diagnostics print to stderr; they do not fail the build.</li>
+</ul>
+<h2 id="keygen">keygen</h2>
+<pre><code>qorm keygen [--out-dir .]</code></pre>
+<p>Generates an ed25519 keypair: <code>qorm_key</code> (private, mode <code>0600</code>) and <code>qorm_key.pub</code> in <code>--out-dir</code>, and prints the 12-character key id. Key files are two lines of text — a header line plus base64 key bytes — easy to inspect and move.</p>
+<h2 id="sign">sign</h2>
+<pre><code>qorm sign &lt;bundle&gt; --key priv.key [-o out]</code></pre>
+<p>Signs an existing bundle — e.g. one exported from a live design session via the MCP <code>qorm_export_bundle</code> tool. <strong>Without <code>-o</code> the input file is overwritten in place.</strong></p>
+<h2 id="verify">verify</h2>
+<pre><code>qorm verify &lt;bundle&gt; [--trust pub.key] [--revoked list.json]</code></pre>
+<p>Verifies a bundle in layers and prints the scope it proved: integrity (content hash recomputed) always, <code>+ signature</code> with <code>--trust</code>, <code>+ revocation</code> with <code>--revoked</code>. Also prints any required capabilities the bundle declares.</p>
+<ul>
+<li>The revocation list is a JSON array <code>[&#34;keyid&#34;, …]</code> or an object <code>{&#34;revoked&#34;: […]}</code>; it is checked against the actual verifying key, not the bundle&#39;s self-declared <code>keyId</code>.</li>
+<li>Failure prints <code>VERIFY FAILED: &lt;reason&gt;</code> on stderr and exits <code>1</code>.</li>
+</ul>
+<h2 id="mcp">mcp</h2>
+<pre><code>qorm mcp &lt;app-dir|bundle&gt; [--trust pub.key] [--revoked list.json]</code></pre>
+<p>Serves the app to an AI agent over MCP (stdio JSON-RPC) — the same tool set a running <a href="#run"><code>qorm run</code></a> exposes at <code>/mcp</code>, but on its own private runtime (no shared browser session). Tool reference: <a href="/docs/agent/mcp-tools.html">MCP tools</a>.</p>
+<h2 id="preview">preview</h2>
+<pre><code>qorm preview &lt;package-dir&gt; [--width N] [--eval JS] [-o report.json]</code></pre>
+<p>Verifies a <strong>packaged</strong> app, not the source: serves the static output of <code>qorm package -p web</code>, lets its client-side WASM runtime boot and render with no app server, and captures the app&#39;s self-measurement (stdout, or <code>-o</code>). <code>--eval JS</code> runs JavaScript in the page after the first measurement — e.g. <code>qorm(0)</code> to press the first action button — then re-measures, so the packaged build&#39;s interactivity is exercised too. <strong>Needs a <code>-tags desktop</code> build.</strong></p>
+<p>Not to be confused with the MCP <code>qorm_preview_patch</code> tool, which previews a design patch on a live session.</p>
+<h2 id="package">package</h2>
+<pre><code>qorm package &lt;app-dir&gt; [-p web|ios|android|mac|miniapp] [-o out-dir] [flags]</code></pre>
+<p>Compiles the app into an installable, fully offline package. Default platform <code>web</code>; default output <code>&lt;app dir name&gt;-&lt;platform&gt;</code>. Before building, a capability matrix prints to stderr warning about features the target platform does not support (and about a native middle layer missing for the target).</p>
+<table>
+<thead><tr><th>Platform</th><th>Output</th></tr></thead>
+<tbody>
+<tr><td><code>web</code></td><td>installable, offline-capable PWA: <code>index.html</code> + <code>bundle.json</code> + <code>qorm.wasm</code> + <code>wasm_exec.js</code> + manifest + icons + <code>sw.js</code></td></tr>
+<tr><td><code>ios</code></td><td>an Xcode project; with <code>xcodegen</code> + <code>xcodebuild</code> installed it also builds (unsigned simulator build, or a signed device build with <code>--team</code>)</td></tr>
+<tr><td><code>android</code></td><td>a Gradle project; with <code>gradle</code> + an Android SDK (<code>ANDROID_HOME</code> / <code>ANDROID_SDK_ROOT</code>) it also builds (wrapper pinned to Gradle 8.9)</td></tr>
+<tr><td><code>mac</code></td><td>a macOS <code>.app</code> with the desktop binary compiled in (needs macOS + cgo); ad-hoc code-signed for development</td></tr>
+<tr><td><code>miniapp</code></td><td>a WeChat-style mini-program project (WXML/WXSS static export of the initial UI; open in WeChat DevTools)</td></tr>
+</tbody></table>
+<p>The <code>web</code>/<code>ios</code>/<code>android</code> payloads compile the client runtime with <code>go build</code> (<code>GOOS=js GOARCH=wasm</code>), so the Go toolchain and the QORM module must be reachable — run it from the QORM repo, or a directory whose <code>go.mod</code> requires <code>github.com/qorm/qorm</code>. The app&#39;s own Go middle layer (<code>native/desktop.go</code>) is injected into that build, and into the desktop binary for <code>mac</code>.</p>
+<p>General flags:</p>
+<table>
+<thead><tr><th>Flag</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td><code>--dev URL</code></td><td>(ios/android only) build the thin <strong>QORM Dev</strong> client that connects to a live <code>qorm run --lan</code> server — install once, reuse for every app, changes hot-reload. Mutually exclusive with <code>--release</code></td></tr>
+<tr><td><code>--team ID</code></td><td>Apple development team for iOS signing</td></tr>
+<tr><td><code>--no-branding</code></td><td>drop the &#34;Made with QORM&#34; note</td></tr>
+<tr><td><code>--subscribed</code></td><td>confirm a QORM membership non-interactively (see below)</td></tr>
+<tr><td><code>--update-url URL</code> + <code>--trust pub.key</code></td><td>wire the package to an OTA update server. The two flags <strong>must be given together</strong> (fail-closed: updates are only applied when signed by the trusted key); the URL must be http(s)</td></tr>
+</tbody></table>
+<p><strong>Commercial gate (honour system).</strong> A custom <code>icon.png</code> in the app dir, or <code>--no-branding</code>, is commercial white-labeling: the packager prints a note and asks you to confirm a QORM Patreon membership — interactively, or via <code>--subscribed</code>. Non-interactive runs without <code>--subscribed</code> fail (exit <code>1</code>). Personal / educational / open-source use (default icon, branding on) never triggers it.</p>
+<p>Release flags — <code>qorm package … --release</code> produces a distributable, signed artifact:</p>
+<table>
+<thead><tr><th>Flag</th><th>Platform</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td><code>--app-version V</code></td><td>all</td><td>marketing version (default <code>1.0</code>)</td></tr>
+<tr><td><code>--build N</code></td><td>all</td><td>build number (default <code>1</code>)</td></tr>
+<tr><td><code>--export-method M</code></td><td>ios</td><td>export method (default <code>app-store-connect</code>)</td></tr>
+<tr><td><code>--upload</code></td><td>ios</td><td>upload to App Store Connect (TestFlight) after export</td></tr>
+<tr><td><code>--api-key F --api-key-id ID --api-issuer UUID</code></td><td>ios</td><td>App Store Connect API credentials for unattended upload</td></tr>
+<tr><td><code>--keystore F --key-alias A</code></td><td>android</td><td>sign with an existing keystore (default alias <code>qorm</code>; passwords from <code>QORM_KEYSTORE_PASS</code> / <code>QORM_KEY_PASS</code> or a prompt)</td></tr>
+<tr><td><code>--apk</code></td><td>android</td><td>also produce a signed APK next to the AAB</td></tr>
+<tr><td><code>--identity &#34;Developer ID Application: …&#34;</code></td><td>mac</td><td>signing identity (else auto-discovered)</td></tr>
+<tr><td><code>--notarize [--keychain-profile P]</code></td><td>mac</td><td>notarize with <code>notarytool</code></td></tr>
+<tr><td><code>--no-dmg</code></td><td>mac</td><td>skip the DMG image</td></tr>
+</tbody></table>
+<p>Android release signing without <code>--keystore</code> uses a managed keystore at <code>&lt;app-dir&gt;/.qorm/release.keystore</code>: generated with <code>keytool</code> on the first release (a JDK is required), passwords stored in <code>keystore.properties</code> (mode <code>0600</code>), the whole <code>.qorm</code> directory git-ignored, and reused so every update carries the same signature. A macOS <code>--release</code> build never falls back to ad-hoc signing — it fails instead.</p>
+<h2 id="docs">docs</h2>
+<pre><code>qorm docs [--docs docs] [-o docs-site] [--name Name]</code></pre>
+<p>Renders a markdown tree into a static HTML site (this documentation site is built with it). Defaults: source <code>docs/</code>, output <code>docs-site/</code>, header label = the source directory&#39;s base name. The header is stamped with the version of the <code>qorm</code> binary doing the render.</p>
+<h2 id="audit">audit</h2>
+<pre><code>qorm audit &lt;audit-log.jsonl&gt;</code></pre>
+<p>Verifies a hash-chained activity log written by <code>qorm run --audit-log</code>: each entry&#39;s hash covers the previous entry&#39;s hash plus its own sequence, timestamp, source, and detail, so any edited, dropped, reordered, or re-attributed entry breaks the chain. Success prints <code>AUDIT OK: N entries, hash chain intact</code>; failure prints <code>AUDIT FAIL after N verified entries: &lt;reason&gt;</code> (locating the first bad entry) and exits <code>1</code>. The chain is self-anchoring from the first entry — keep an out-of-band copy of the final hash to also detect truncation.</p>
+<h2 id="updates">updates</h2>
+<pre><code>qorm updates [bundles-dir] [--port N]</code></pre>
+<p>The publish side of OTA: an HTTP server that hands each client the bundle it should run, honoring a staged (canary) rollout. Defaults: directory <code>.</code>, port <code>0</code> (a random free port, printed on startup).</p>
+<ul>
+<li><code>bundles-dir/rollout.json</code> maps app id to <code>{&#34;stable&#34;: &#34;app-v1.qorm.bundle&#34;, &#34;canary&#34;: &#34;app-v2.qorm.bundle&#34;, &#34;canaryPercent&#34;: 10}</code> (<code>canary</code> / <code>canaryPercent</code> optional). The file is read once at startup.</li>
+<li><code>GET /resolve?app=&lt;id&gt;&amp;client=&lt;id&gt;</code> returns the bundle JSON this client should run: the canary when <code>FNV-1a(client id) % 100 &lt; canaryPercent</code> — deterministic per client — else the stable bundle. Unknown app ids and missing files get <code>404</code>; a file that is not a well-formed bundle is never served.</li>
+<li><code>GET /bundles/&lt;file&gt;</code> serves bundle files directly. All routes answer with open CORS (<code>*</code>) — packaged shells call cross-origin; trust comes from the client-side ed25519 verification (see <a href="#package"><code>qorm package --update-url</code></a>), not from who may read the bundles.</li>
+</ul>
+<h2 id="update">update</h2>
+<pre><code>qorm update [--insecure-skip-verify]</code></pre>
+<p>Self-updates the CLI from the latest GitHub release. Already current (release tag equals the running version): prints so and exits <code>0</code>. Otherwise, with a Go toolchain present it runs <code>go install github.com/qorm/qorm/cmd/qorm@latest</code>; without one it downloads the <code>qorm-&lt;os&gt;-&lt;arch&gt;[.exe]</code> asset, verifies it against the release&#39;s <code>SHA256SUMS</code> + <code>SHA256SUMS.sig</code> using the release public keys embedded in the build (a build without embedded keys cannot verify and refuses), then swaps the executable — the old binary is renamed to <code>&lt;exe&gt;.old</code> first and restored if the swap fails. <code>--insecure-skip-verify</code> installs the download without verification (prints a warning; not recommended).</p>
+<h2 id="version">version</h2>
+<pre><code>qorm version        # aliases: --version, -v</code></pre>
+<p>Prints <code>qorm &lt;version&gt; (&lt;go version&gt; &lt;os&gt;/&lt;arch&gt;)</code>. The version is stamped at build time via <code>-ldflags -X main.version=&lt;tag&gt;</code>; un-stamped builds report the in-source dev default.</p>
+</main>
+</div>
+<script>
+  (function(){var r=document.documentElement,b=document.getElementById('theme');
+   var sun='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>';
+   var moon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+   function c(){return r.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');}
+   try{var s=localStorage.getItem('qorm-theme');if(s)r.setAttribute('data-theme',s);}catch(e){}
+   function p(){b.innerHTML=c()==='dark'?sun:moon;} p();
+   b.onclick=function(){var t=c()==='dark'?'light':'dark';r.setAttribute('data-theme',t);try{localStorage.setItem('qorm-theme',t);}catch(e){}p();};})();
+  (function(){/* remember the reader's language across pages + both sites */
+   try{var cur=document.documentElement.lang;
+     document.querySelectorAll('header [data-lang]').forEach(function(el){
+       if(el.tagName==='A')el.addEventListener('click',function(){try{localStorage.setItem('qorm-lang',el.getAttribute('data-lang'));}catch(e){}});});
+     var pref;try{pref=localStorage.getItem('qorm-lang');}catch(e){}
+     if(pref&&pref!==cur){var alt=document.querySelector('header a[data-lang="'+pref+'"]');if(alt)location.replace(alt.getAttribute('href'));}
+   }catch(e){}})();
+</script>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-K3FQCHWD"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+</body>
+</html>

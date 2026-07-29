@@ -452,7 +452,7 @@ func styleDisabled(s map[string]any) bool {
 
 func (r *renderer) textCSS(n *model.Node) string {
 	var b strings.Builder
-	s := n.Style
+	s := r.resolveStyle(n.Style)
 	if v := colorStr(s, "color"); v != "" {
 		fmt.Fprintf(&b, "color:%s;", v)
 	}
@@ -715,37 +715,49 @@ func clampPct(f float64) float64 {
 	return f
 }
 
+func resolveResponsiveVal(v any) any {
+	if v == nil {
+		return nil
+	}
+	switch m := v.(type) {
+	case map[string]any:
+		for _, bk := range []string{"sm", "md", "lg"} {
+			if val, ok := m[bk]; ok {
+				return val
+			}
+		}
+	case map[string]string:
+		for _, bk := range []string{"sm", "md", "lg"} {
+			if val, ok := m[bk]; ok {
+				return val
+			}
+		}
+	}
+	return v
+}
+
 func pick(m map[string]any, key string) any {
 	if m == nil {
 		return nil
 	}
-	return m[key]
+	return resolveResponsiveVal(m[key])
 }
 
 func str(m map[string]any, key string) string {
 	if m == nil {
 		return ""
 	}
-	s, _ := m[key].(string)
+	s, _ := resolveResponsiveVal(m[key]).(string)
 	return s
 }
 
 func layoutStr(n *model.Node, key string) string { return str(n.Layout, key) }
 
-// colorStr reads a STRING-valued style key (background, gradient, shadow,
-// cursor, transition, color, fontFamily, backdropTint, hoverBackground, …) and
-// returns it only if it is a well-formed CSS value — see cssStyleValue. Every
-// caller writes the result straight into a `prop:<value>;` declaration inside
-// the style attribute, so this reader is the single choke point where an
-// author- or binding-supplied value becomes CSS, and therefore where it is
-// validated. A rejected value yields "" and the declaration is simply not
-// emitted (the CSS-injection equivalent of an unknown widget degrading to
-// unknown(): drop the malformed thing, keep rendering).
 func colorStr(m map[string]any, key string) string {
 	if m == nil {
 		return ""
 	}
-	if s, ok := m[key].(string); ok {
+	if s, ok := resolveResponsiveVal(m[key]).(string); ok {
 		return cssStyleValue(s)
 	}
 	return ""
@@ -934,8 +946,18 @@ func numOK(m map[string]any, key string) (float64, bool) {
 	if m == nil {
 		return 0, false
 	}
-	f, ok := m[key].(float64)
-	return f, ok
+	v := resolveResponsiveVal(m[key])
+	switch f := v.(type) {
+	case float64:
+		return f, true
+	case int:
+		return float64(f), true
+	case string:
+		if n, err := strconv.ParseFloat(f, 64); err == nil {
+			return n, true
+		}
+	}
+	return 0, false
 }
 
 func propNum(n *model.Node, key string, def float64) float64 {

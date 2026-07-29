@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-K3FQCHWD');</script>
+<!-- End Google Tag Manager -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1529418578004538"
+     crossorigin="anonymous"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>User middle layer: adding your own capabilities to an app · QORM</title>
+<meta name="description" content="QORM ships with about 26 built-in hardware capabilities (camera/recording, location, Bluetooth, NFC, biometrics, vibration/haptics, flashlight…">
+<meta property="og:title" content="User middle layer: adding your own capabilities to an app">
+<meta property="og:description" content="QORM ships with about 26 built-in hardware capabilities (camera/recording, location, Bluetooth, NFC, biometrics, vibration/haptics, flashlight…">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://qorm.com/docs/platforms/native-middlelayer.html">
+<meta property="og:site_name" content="QORM">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="User middle layer: adding your own capabilities to an app">
+<meta name="twitter:description" content="QORM ships with about 26 built-in hardware capabilities (camera/recording, location, Bluetooth, NFC, biometrics, vibration/haptics, flashlight…">
+<link rel="canonical" href="https://qorm.com/docs/platforms/native-middlelayer.html">
+<link rel="alternate" hreflang="en" href="https://qorm.com/docs/platforms/native-middlelayer.html">
+<link rel="alternate" hreflang="zh" href="https://qorm.com/docs/zh/platforms/native-middlelayer.html">
+<link rel="alternate" hreflang="x-default" href="https://qorm.com/docs/platforms/native-middlelayer.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"QORM ships with about 26 built-in hardware capabilities (camera/recording, location, Bluetooth, NFC, biometrics, vibration/haptics, flashlight…","headline":"User middle layer: adding your own capabilities to an app","inLanguage":"en","name":"User middle layer: adding your own capabilities to an app","url":"https://qorm.com/docs/platforms/native-middlelayer.html"}</script>
+<link rel="icon" href="/assets/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+  :root{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
+  @media (prefers-color-scheme:dark){ :root{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; } }
+  :root[data-theme="light"]{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
+  :root[data-theme="dark"]{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Inter",-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;color:var(--ink);background:var(--ground);line-height:1.62;letter-spacing:-.011em;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent-ink);text-decoration:none} a:hover{text-decoration:underline}
+  code,pre{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+  header.top{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--ground) 82%,transparent);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--line)}
+  header.top .tnav{height:56px;display:flex;align-items:center;gap:14px;max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,32px)}
+  header.top .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:16px;letter-spacing:-.02em;color:var(--ink)}
+  header.top .brand img{width:24px;height:24px}
+  @media (prefers-color-scheme:dark){ header.top .brand img{filter:invert(1) brightness(1.7)} }
+  :root[data-theme="dark"] header.top .brand img{filter:invert(1) brightness(1.7)}
+  :root[data-theme="light"] header.top .brand img{filter:none}
+  header.top .doc{color:var(--faint);font-weight:600;font-size:15px}
+  header.top a.ver{font-size:11.5px;font-weight:700;color:var(--muted);border:.5px solid var(--line);border-radius:999px;padding:2px 8px;letter-spacing:.01em}
+  header.top a.ver:hover{color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));text-decoration:none}
+  header.top .sp{flex:1}
+  header.top a.tl{color:var(--muted);font-size:14px;font-weight:500} header.top a.tl:hover{color:var(--ink);text-decoration:none} header.top a.tl.active-nav{color:var(--ink);font-weight:700}
+  .tbtn{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:transform 0.2s ease, background 0.2s, color 0.2s, border-color 0.2s}
+  .tbtn:hover{color:var(--ink);transform:rotate(15deg) scale(1.05)} .tbtn svg{width:16px;height:16px}
+  header.top .iconlink{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;transition:transform .2s cubic-bezier(.16,1,.3,1),color .2s,border-color .2s}
+  header.top .iconlink:hover{color:var(--ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));transform:translateY(-1px);text-decoration:none}
+  header.top .iconlink.patreon:hover{color:#f96854;border-color:color-mix(in srgb,#f96854 45%,var(--line))}
+  header.top .iconlink svg{width:17px;height:17px}
+  header.top .iconlink.lang{width:auto;padding:0 9px;gap:3px;font-size:11px;font-weight:800;letter-spacing:.02em}
+  header.top .iconlink.lang svg{width:14px;height:14px}
+  header.top .iconlink.lang.off{opacity:.4;pointer-events:none}
+  header.top .lang{display:inline-flex;align-items:center;border:.5px solid var(--line);border-radius:8px;overflow:hidden;font-size:13px;font-weight:600}
+  header.top .lang a,header.top .lang span{padding:5px 10px;color:var(--muted)}
+  header.top .lang a:hover{color:var(--ink);text-decoration:none;background:var(--surface)}
+  header.top .lang .on{background:var(--accent);color:#fff}
+  header.top .lang .off{color:var(--faint);opacity:.55}
+  .shell{display:flex;max-width:1280px;margin:0 auto;padding:0 clamp(0px,2vw,20px)}
+  aside{width:262px;min-width:262px;height:calc(100vh - 56px);overflow:auto;position:sticky;top:56px;padding:22px 8px 48px 22px}
+  aside .nav-group{text-transform:uppercase;font-size:11px;font-weight:700;color:var(--faint);margin:20px 0 6px;letter-spacing:.05em}
+  aside ul{list-style:none;margin:0;padding:0}
+  aside li a{display:block;padding:6px 12px;color:var(--muted);border-radius:8px;font-size:14px;font-weight:500;transition:background 0.15s ease, color 0.15s ease, transform 0.15s ease}
+  aside li a:hover{background:var(--surface);color:var(--ink);text-decoration:none;transform:translateX(2px)}
+  aside li a.active{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent-ink);font-weight:600}
+  aside li a .entag{font-size:9.5px;font-weight:700;letter-spacing:.04em;color:var(--faint);border:.5px solid var(--line);border-radius:4px;padding:0 4px;margin-left:6px;vertical-align:1px}
+  main{flex:1;min-width:0;max-width:800px;padding:38px 46px 90px}
+  main>*:first-child{margin-top:0}
+  main h1{font-size:33px;font-weight:800;letter-spacing:-.03em;margin:0 0 .5em}
+  main h2{font-size:23px;font-weight:700;letter-spacing:-.02em;margin:1.7em 0 .5em;padding-bottom:.3em;border-bottom:.5px solid var(--line)}
+  main h3{font-size:18px;font-weight:700;margin:1.5em 0 .4em}
+  main code{background:var(--raise);border:.5px solid var(--line);padding:.12em .4em;border-radius:6px;font-size:.88em}
+  main pre{background:var(--raise);border:.5px solid var(--line);padding:14px 16px;border-radius:12px;overflow:auto;font-size:13.5px;line-height:1.7}
+  main pre code{background:none;border:none;padding:0}
+  main table{border-collapse:collapse;width:100%;margin:1em 0;display:block;overflow-x:auto;font-size:14px}
+  main th,main td{border:.5px solid var(--line);padding:8px 13px;text-align:left}
+  main th{background:var(--surface);font-weight:600}
+  main blockquote{border-left:3px solid var(--accent);margin:1.1em 0;padding:.5em 1.1em;color:var(--muted);background:var(--surface);border-radius:0 10px 10px 0}
+  main img{max-width:100%;height:auto}
+  @media (max-width:800px){ aside{display:none} main{padding:26px 22px} }
+</style>
+</head>
+<body>
+<header class="top"><div class="tnav">
+  <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
+  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.5.0</a>
+  <span class="doc">docs</span>
+  <span class="sp"></span>
+  <a class="tl" href="/">Home</a>
+  <a class="tl active-nav" href="/docs/">Docs</a><a class="tl" href="/api/">API</a>
+  <a class="iconlink" href="https://github.com/qorm/qorm" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
+  <a class="iconlink patreon" href="https://www.patreon.com/qorm" target="_blank" rel="noopener" aria-label="Patreon" title="Patreon"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="14.4" cy="9.6" r="6.6"/><rect x="1.5" y="2.5" width="4" height="19" rx="0.3"/></svg></a>
+  <a class="iconlink lang" href="../zh/platforms/native-middlelayer.html" data-lang="zh" aria-label="中文" title="中文"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/></svg><span>中</span></a>
+  <button class="tbtn" id="theme" aria-label="Theme"></button>
+</div></header>
+<div class="shell">
+  <aside><div class="nav-group">overview</div><ul><li><a href="../README.html">QORM documentation</a></li><li><a href="../project-structure.html">Project structure</a></li><li><a href="../build-with-ai.html">Build QORM apps with your AI assistant</a></li><li><a href="../collaboration.html">Human-AI collaboration on a live app</a></li><li><a href="../verification.html">Interpreting &amp; verifying a QORM app</a></li><li><a href="../expressions.html">Expressions</a></li></ul><div class="nav-group">tutorials</div><ul><li><a href="../tutorials/getting-started.html">Getting Started with QORM</a></li><li><a href="../tutorials/first-scene.html">First Scene</a></li><li><a href="../tutorials/first-action.html">First Action</a></li><li><a href="../tutorials/first-component.html">First Component</a></li><li><a href="../tutorials/first-platform-pack.html">First Platform Pack</a></li></ul><div class="nav-group">examples</div><ul><li><a href="../examples/counter.html">Example: Counter</a></li><li><a href="../examples/todo.html">Example: Todo</a></li><li><a href="../examples/login.html">Example: Login</a></li><li><a href="../examples/dashboard.html">Example: Dashboard</a></li></ul><div class="nav-group">platforms</div><ul><li><a href="web.html">QORM Web Platform</a></li><li><a href="mobile.html">QORM Mobile Platform</a></li><li><a href="desktop.html">QORM Desktop Platform</a></li><li><a href="miniapp.html">QORM Mini-program platform</a></li><li><a href="native-middlelayer.html" class="active">User middle layer: adding your own capabilities to an app</a></li><li><a href="capabilities.html">Capabilities</a></li><li><a href="support-matrix.html">Platform support matrix</a></li></ul><div class="nav-group">agent</div><ul><li><a href="../agent/permissions.html">QORM Agent Permissions</a></li><li><a href="../agent/mcp-tools.html">QORM MCP tools</a></li><li><a href="../agent/skills.html">QORM Skills</a></li><li><a href="../agent/claude-pack.html">QORM Claude Pack</a></li><li><a href="../agent/codex-pack.html">QORM Codex Pack</a></li><li><a href="../agent/openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">security</div><ul><li><a href="../security/security-model.html">QORM Security Model</a></li><li><a href="../security/permission-model.html">QORM Permission Model</a></li><li><a href="../security/bundle-signing.html">QORM Bundle Signing</a></li></ul><div class="nav-group">spec</div><ul><li><a href="../spec/navigation-spec.html">Navigation &amp;amp; routing</a></li></ul></aside>
+  <main><h1 id="user-middle-layer-adding-your-own-capabilities-to-an-app">User middle layer: adding your own capabilities to an app</h1>
+<p>QORM ships with about 26 built-in hardware capabilities (camera/recording, location, Bluetooth, NFC, biometrics, vibration/haptics, flashlight, brightness/volume, battery, sensors, network status, clipboard, sharing, notifications, screenshot/screen recording, and more), and app developers can add their own capabilities <strong>without modifying framework source code</strong>. <strong>Go is recommended</strong> -- write it once, run it everywhere. Swift/Java are reserved only for rare pure-native SDKs.</p>
+<h2 id="recommended-go-middle-layer-one-go-source-usable-everywhere">Recommended: Go middle layer (one Go source, usable everywhere)</h2>
+<p>Write a <code>native/desktop.go</code> and register your op with <code>qormext.Register</code>. It is <strong>compiled into the desktop binary</strong> and also <strong>compiled into the offline WASM for mobile/web</strong> -- the <strong>same Go source</strong> for iOS/Android/desktop/browser.</p>
+<pre><code>//go:build ignore
+
+package main
+import &#34;github.com/qorm/qorm/pkg/qormext&#34;
+func init() {
+    qormext.Register(&#34;myBankSDK&#34;, func(data map[string]any) string {
+        // Your Go logic: algorithms, protocols, HTTP, backend integration... data is the qormToNative payload
+        return `qormOnBankSDK(&#34;done&#34;)`  // return one line of JS, executed back in the app
+    })
+}</code></pre>
+<p>In a component, <code>qormToNative(&#39;myBankSDK&#39;, {...})</code> is handed <strong>first</strong> to this Go (<code>window.qormWasmOp</code> in a WebView, the compiled-in binary on desktop), and the <code>qormOnBankSDK</code> callback updates the UI.</p>
+<h3 id="the-go-middle-layer-calls-hardware--framework-internals-directly">The Go middle layer calls hardware / framework internals directly</h3>
+<p>From Go you can reach framework internals directly, rather than relying only on returning JS:</p>
+<pre><code>qormext.Native(&#34;bluetoothScan&#34;, `{}`)     // → framework native bridge or Web API
+qormext.Emit(&#34;orderDone&#34;, `{&#34;id&#34;:42}`)     // → push an event to the UI event bus; the frontend receives it via qormOn(&#39;orderDone&#39;, fn)
+qormext.CallJS(`navigator.vibrate(200)`)   // → any JS</code></pre>
+<ul>
+<li><strong>Common hardware</strong> (camera/location/sensors/vibration) → Web API, works everywhere</li>
+<li><strong>What iOS lacks</strong> (Bluetooth/NFC, no Web API in Safari) → <strong>the framework&#39;s built-in native bridge</strong> (maintained by the framework; you don&#39;t write it)</li>
+<li>Results return to the app&#39;s <code>qormOn&lt;X&gt;</code> callback</li>
+<li><code>qormext.Emit(event, dataJSON)</code> uses the <strong>native→UI event bus</strong>: the lower layer actively pushes signals to the UI, and the frontend only listens with <code>qormOn(event, fn)</code> -- no request-response needed</li>
+</ul>
+<blockquote>When hardware access must go through the native bridge, <strong>the offline package must include the framework native bridge</strong> (see the boundaries at the end).</blockquote>
+<h2 id="bridging-contract-built-in-hardware--custom-same-mechanism">Bridging contract (built-in hardware + custom, same mechanism)</h2>
+<pre><code>component/JS  ──①qormToNative(op, data)──►  Go middle layer / framework native bridge
+component/JS  ◄──③qormOn&lt;X&gt;(result)────────┘  callback returns to web</code></pre>
+<p><code>qormHasNative()</code> (a native bridge is present) / <code>qormHasMobileNative()</code> (the full iOS/Android bridge); browser/desktop automatically fall back to the Web API.</p>
+<h2 id="advanced-rare-pure-native-sdks-swift--java-injection">Advanced: rare pure-native SDKs (Swift / Java injection)</h2>
+<p>If a capability <strong>must</strong> use a platform-native API and neither the Web API nor the framework bridge can reach it (certain vendor-proprietary SDKs), add <code>native/ios.swift</code> / <code>native/android.java</code> snippets, which are injected into the generated project at package time. <strong>Most of the time this is unnecessary -- use the Go above first.</strong></p>
+<pre><code>myapp/native/
+    desktop.go      # recommended: Go middle layer (desktop binary + mobile/web WASM)
+    web.js          # web side: qormOn&lt;X&gt; callbacks + wiring buttons to ops
+    ios.swift       # advanced: rare iOS pure-native SDK
+    android.java    # advanced: rare Android pure-native SDK</code></pre>
+<h3 id="nativeiosswift"><code>native/ios.swift</code></h3>
+<p>Define a <code>qormUserOp</code> function and dispatch your ops with a <code>switch</code>. The default branch of the iOS bridge&#39;s <code>switch</code> calls it. Inside the class you can use the <code>js(_:)</code> callback and <code>body</code> to get the data passed by <code>qormToNative</code>.</p>
+<pre><code>func qormUserOp(_ op: String, _ body: [String: Any]) {
+    switch op {
+    case &#34;myBankSDK&#34;:
+        let amount = body[&#34;amount&#34;] as? Double ?? 0
+        // call your real native SDK here...
+        js(&#34;qormOnBankSDK(\&#34;paid \\(amount) via native SDK\&#34;)&#34;)
+    default:
+        break
+    }
+}</code></pre>
+<h3 id="nativeandroidjava"><code>native/android.java</code></h3>
+<p>Each op is a <code>@JavascriptInterface</code> method (injected into the Bridge class, exposed on <code>window.qormAndroid</code>). Use the <code>js(String)</code> callback.</p>
+<pre><code>@JavascriptInterface public void myBankSDK() {
+    runOnUiThread(() -&gt; js(&#34;qormOnBankSDK(\&#34;paid via native SDK (Android)\&#34;)&#34;));
+}</code></pre>
+<h3 id="nativewebjs"><code>native/web.js</code></h3>
+<p>Injected into the page, responsible for two things on the <strong>web side</strong>: defining <code>qormOn&lt;X&gt;</code> callbacks, and wiring the app&#39;s buttons (by id) to <code>qormToNative</code>. This way browser/desktop use the Web API and mobile uses the native bridge, with the same logic.</p>
+<pre><code>// click #payBtn → trigger the custom native op
+document.addEventListener(&#39;click&#39;, function (e) {
+  if (e.target.closest(&#39;#payBtn&#39;)) qormToNative(&#39;myBankSDK&#39;, { amount: 9.99 });
+});
+// native/Web callback: update the UI
+function qormOnBankSDK(msg) {
+  var el = document.getElementById(&#39;result&#39;);
+  if (el) el.textContent = msg;
+}</code></pre>
+<blockquote>A component&#39;s <code>id</code> (declared in qorm.json) renders as the DOM <code>id</code>, so <code>web.js</code> can locate it with <code>getElementById</code> / <code>closest(&#39;#id&#39;)</code>.</blockquote>
+<h2 id="complete-examples">Complete examples</h2>
+<ul>
+<li><a href="https://github.com/qorm/qorm/tree/main/examples/middleware"><code>examples/middleware</code></a> -- <strong>recommended</strong>, showing the full Go middle layer:</li>
+</ul>
+<p><code>hash</code> (real <code>crypto/sha256</code>, logic that declarative JSON cannot express), <code>visit</code> (stateful counting held in Go memory), <code>celebrate</code> (Go calling the framework hardware bridge <code>qormext.Native</code> + using <code>qormext.Emit</code> to push events to the UI event bus). A single <code>native/desktop.go</code>, compiled into the desktop binary and the mobile/web WASM alike.</p>
+<ul>
+<li><a href="https://github.com/qorm/qorm/tree/main/examples/native-ext"><code>examples/native-ext</code></a> -- minimal version: a &#34;Pay via Native SDK&#34; button,</li>
+</ul>
+<p>with <code>ios.swift</code> / <code>android.java</code> pure-native escape-hatch snippets.</p>
+<pre><code>qorm run examples/middleware                         # desktop: Go middle layer compiled into the binary, runs directly
+qorm package examples/middleware -p web              # one Go source compiled into the offline WASM
+qorm package examples/native-ext -p ios --dev URL    # inject ios.swift into the dev client</code></pre>
+<h2 id="boundaries-and-tips">Boundaries and tips</h2>
+<ul>
+<li><strong>iOS / Android</strong>: fully supported. The generated project injects your snippets under the same contract as the built-in hardware.</li>
+<li><strong>Mobile / web (WASM)</strong>: the same <code>native/desktop.go</code> is also <strong>compiled into the offline WASM</strong> (the QORM runtime is itself Go→WASM), running inside the WebView on iOS/Android/browser -- <strong>one Go source, usable everywhere</strong>. During <code>qorm package -p web/ios/android</code>, the packager injects it into <code>cmd/qorm-wasm</code> and compiles it together. In the WebView, <code>qormToNative(&#39;op&#39;)</code> is handed first to the Go inside the WASM (<code>window.qormWasmOp</code>), which returns one line of JS to execute.</li>
+<li><strong>WASM can drive hardware</strong>: the Go middle layer can <code>qormext.Native(&#34;bluetoothScan&#34;, &#34;{}&#34;)</code> / <code>qormext.CallJS(js)</code> to <strong>call framework internals directly</strong> -- common hardware goes through the Web API, and the Bluetooth/NFC that iOS lacks go through the framework native bridge (built into the framework; the user doesn&#39;t write it). Results return to the app&#39;s <code>qormOn&lt;X&gt;</code> callback.</li>
+<li><strong>Note (in progress)</strong>: the offline package&#39;s WebView currently ships WASM, but <strong>the framework native bridge is being merged into the offline VC</strong>. Before that merge, offline-package hardware goes through the Web API (iOS Bluetooth/NFC temporarily unavailable); the dev client has the full native bridge. After the merge, the offline package = WASM (including user Go) + the full native bridge, and the Go middle layer reaches all hardware.</li>
+<li><strong>Desktop (macOS)</strong>: the user middle layer is just <strong>Go</strong>, <strong>compiled into that single binary</strong> together with the frontend + framework (not a subprocess, not another language). Write <code>native/desktop.go</code>:</li>
+</ul>
+<p>```go //go:build ignore</p>
+<p>package main import &#34;github.com/qorm/qorm/pkg/qormext&#34; func init() { qormext.Register(&#34;myBankSDK&#34;, func(data map[string]any) string { // Your Go logic: HTTP, computation, protocols, backend integration... data is the qormToNative payload return <code>qormOnBankSDK(&#34;paid via Go middle-layer&#34;)</code> // return one line of JS, which desktop evals back into the page }) } ```</p>
+<p><code>qorm package -p mac</code> runs <code>go build</code> on it together with the framework into a <strong>single binary</strong> (the packager injects it into cmd/qorm for compilation, then removes it afterward); when the desktop bridge hits an unknown op, it looks it up in the <code>qormext</code> registry. <code>web.js</code> also works as usual (on desktop, camera/microphone/location use the Web API directly, since localhost is a secure context).</p>
+<blockquote><code>//go:build ignore</code> keeps <code>go build ./...</code> from compiling it standalone; at package time the packager strips this line before compiling it in.</blockquote>
+<ul>
+<li><strong>Platform consistency warning</strong>: if you have <code>native/ios.swift</code> but no <code>native/android.java</code> (or vice versa), <code>qorm package</code> warns you -- your custom op will not run on the platform that is missing its snippet.</li>
+<li><strong>Permissions</strong>: the system permissions that native capabilities require (camera, Bluetooth, location, and so on) are declared in the generated project&#39;s <code>Info.plist</code> / <code>AndroidManifest.xml</code>; paid-team / special entitlements (such as NFC) are handled per the platform&#39;s guidance.</li>
+</ul>
+<h2 id="plugin-abi-version">Plugin ABI version</h2>
+<p>The <code>qormext</code> contract (the <code>Op</code> signature, <code>Register</code>, <code>Emit</code>, the bridge) has a version — <code>qormext.ABIVersion</code>. Declare the ABI your native code targets in <code>qorm.json</code>:</p>
+<pre><code>{ &#34;pluginABI&#34;: &#34;1&#34; }</code></pre>
+<p>The loader compares its major to the runtime&#39;s <code>ABIVersion</code> and emits a diagnostic if they differ, so an app built against an incompatible middle-layer contract is caught at load time instead of silently misbehaving. It is a warning, not a hard failure — the app still loads; only its custom native ops may not work. Apps that use no versioned middle-layer omit <code>pluginABI</code> entirely (always compatible).</p>
+<p>Related: <a href="mobile.html">Mobile</a> · <a href="desktop.html">Desktop</a></p>
+</main>
+</div>
+<script>
+  (function(){var r=document.documentElement,b=document.getElementById('theme');
+   var sun='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>';
+   var moon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+   function c(){return r.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');}
+   try{var s=localStorage.getItem('qorm-theme');if(s)r.setAttribute('data-theme',s);}catch(e){}
+   function p(){b.innerHTML=c()==='dark'?sun:moon;} p();
+   b.onclick=function(){var t=c()==='dark'?'light':'dark';r.setAttribute('data-theme',t);try{localStorage.setItem('qorm-theme',t);}catch(e){}p();};})();
+  (function(){/* remember the reader's language across pages + both sites */
+   try{var cur=document.documentElement.lang;
+     document.querySelectorAll('header [data-lang]').forEach(function(el){
+       if(el.tagName==='A')el.addEventListener('click',function(){try{localStorage.setItem('qorm-lang',el.getAttribute('data-lang'));}catch(e){}});});
+     var pref;try{pref=localStorage.getItem('qorm-lang');}catch(e){}
+     if(pref&&pref!==cur){var alt=document.querySelector('header a[data-lang="'+pref+'"]');if(alt)location.replace(alt.getAttribute('href'));}
+   }catch(e){}})();
+</script>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-K3FQCHWD"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+</body>
+</html>

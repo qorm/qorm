@@ -41,21 +41,15 @@ web / iOS / Android / desktop / mini-program — cross-compiled from any machine
 Developed in collaboration with Kimi (Moonshot AI), Claude (Anthropic), and Gemini (Google) — fitting, since human-AI
 collaboration is QORM's whole premise.
 
-## Build with your AI assistant
+## Build with your AI assistant (0-to-1 in 1 Prompt)
 
-QORM is agent-native: point your AI coding assistant (Claude Code, Claude Desktop,
-Cursor, Windsurf, …) at it and have it **scaffold, edit, run, and verify** QORM
-apps — then collaborate with you on a live app in real time. You click, it sees
-you (`qorm_activity`); it edits, you see an **"AI edited"** toast. Set it up once:
+QORM is agent-native: copy a single prompt to your AI assistant (Claude Code, Cursor, Windsurf, Antigravity, ...), and it will **set up the environment, scaffold, edit, run, and verify** a native standalone application window for your platform — with zero manual setup.
 
-```sh
-go install github.com/qorm/qorm/cmd/qorm@latest
-claude mcp add qorm -- qorm mcp .      # or add integrations/mcp.json to your agent
-```
+> **Copy & paste this prompt to your AI assistant:**
+>
+> *"Set up the environment and build a QORM app in `./myapp`. Run `qorm run ./myapp` (or `go run github.com/qorm/qorm/cmd/qorm@latest run ./myapp`) to automatically scaffold the app and launch it as a native standalone executable application window for the current platform (not a web browser tab), then implement <your app idea> by editing `qorm.json`, `scenes/`, and `actions/`."*
 
-Then just ask — *"scaffold a habit tracker"*, *"fix this overflow"*, *"package it
-for web"*. Full guide: **[Build with your AI](docs/build-with-ai.md)** ·
-[Human-AI collaboration](docs/collaboration.md).
+You click, it sees you (`qorm_activity`); it edits, you see an **"AI edited"** toast. Full guide: **[Build with your AI](docs/build-with-ai.md)** · [Human-AI collaboration](docs/collaboration.md).
 
 ## Platform support
 

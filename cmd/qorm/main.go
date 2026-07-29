@@ -97,12 +97,13 @@ func usage() {
 
 usage:
   qorm new <dir> [--name "App Name"]              scaffold a new runnable app
-  qorm run <app-dir|bundle> [--trust pub.key] [--revoked list.json] [--app] [--console] [--port N=10383] [--no-open]
+  qorm run <app-dir|bundle> [--trust pub.key] [--revoked list.json] [--web] [--console] [--port N=10383] [--no-open]
                             [--lan] [--tls] [--mcp-read-only] [--no-watch] [--audit-log file.jsonl]
-                                                  run app live (verifies signed bundles; --app = standalone window;
-                                                  --console = DevTool window; --lan/--tls = serve the LAN (--tls =
-                                                  auto self-signed HTTPS); --mcp-read-only = agents may inspect but
-                                                  not mutate;
+                                                  run app live (auto-scaffolds if <app-dir> is empty/missing;
+                                                  default is standalone executable app window; --web = open in browser;
+                                                  verifies signed bundles; --console = DevTool window; --lan/--tls =
+                                                  serve the LAN (--tls = auto self-signed HTTPS); --mcp-read-only =
+                                                  agents may inspect but not mutate;
                                                   a directory hot-reloads on file change — --no-watch disables it)
   qorm render <app-dir|scene.json|bundle> [-o out.html]
                                                   write a static HTML snapshot

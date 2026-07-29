@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-K3FQCHWD');</script>
+<!-- End Google Tag Manager -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1529418578004538"
+     crossorigin="anonymous"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>First Action · QORM</title>
+<meta name="description" content="Actions are declarative step lists that mutate state and call backends, triggered by name from an onPress in the UI.">
+<meta property="og:title" content="First Action">
+<meta property="og:description" content="Actions are declarative step lists that mutate state and call backends, triggered by name from an onPress in the UI.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://qorm.com/docs/tutorials/first-action.html">
+<meta property="og:site_name" content="QORM">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="First Action">
+<meta name="twitter:description" content="Actions are declarative step lists that mutate state and call backends, triggered by name from an onPress in the UI.">
+<link rel="canonical" href="https://qorm.com/docs/tutorials/first-action.html">
+<link rel="alternate" hreflang="en" href="https://qorm.com/docs/tutorials/first-action.html">
+<link rel="alternate" hreflang="zh" href="https://qorm.com/docs/zh/tutorials/first-action.html">
+<link rel="alternate" hreflang="x-default" href="https://qorm.com/docs/tutorials/first-action.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"Actions are declarative step lists that mutate state and call backends, triggered by name from an onPress in the UI.","headline":"First Action","inLanguage":"en","name":"First Action","url":"https://qorm.com/docs/tutorials/first-action.html"}</script>
+<link rel="icon" href="/assets/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+  :root{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
+  @media (prefers-color-scheme:dark){ :root{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; } }
+  :root[data-theme="light"]{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
+  :root[data-theme="dark"]{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Inter",-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;color:var(--ink);background:var(--ground);line-height:1.62;letter-spacing:-.011em;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent-ink);text-decoration:none} a:hover{text-decoration:underline}
+  code,pre{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+  header.top{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--ground) 82%,transparent);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--line)}
+  header.top .tnav{height:56px;display:flex;align-items:center;gap:14px;max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,32px)}
+  header.top .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:16px;letter-spacing:-.02em;color:var(--ink)}
+  header.top .brand img{width:24px;height:24px}
+  @media (prefers-color-scheme:dark){ header.top .brand img{filter:invert(1) brightness(1.7)} }
+  :root[data-theme="dark"] header.top .brand img{filter:invert(1) brightness(1.7)}
+  :root[data-theme="light"] header.top .brand img{filter:none}
+  header.top .doc{color:var(--faint);font-weight:600;font-size:15px}
+  header.top a.ver{font-size:11.5px;font-weight:700;color:var(--muted);border:.5px solid var(--line);border-radius:999px;padding:2px 8px;letter-spacing:.01em}
+  header.top a.ver:hover{color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));text-decoration:none}
+  header.top .sp{flex:1}
+  header.top a.tl{color:var(--muted);font-size:14px;font-weight:500} header.top a.tl:hover{color:var(--ink);text-decoration:none} header.top a.tl.active-nav{color:var(--ink);font-weight:700}
+  .tbtn{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:transform 0.2s ease, background 0.2s, color 0.2s, border-color 0.2s}
+  .tbtn:hover{color:var(--ink);transform:rotate(15deg) scale(1.05)} .tbtn svg{width:16px;height:16px}
+  header.top .iconlink{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;transition:transform .2s cubic-bezier(.16,1,.3,1),color .2s,border-color .2s}
+  header.top .iconlink:hover{color:var(--ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));transform:translateY(-1px);text-decoration:none}
+  header.top .iconlink.patreon:hover{color:#f96854;border-color:color-mix(in srgb,#f96854 45%,var(--line))}
+  header.top .iconlink svg{width:17px;height:17px}
+  header.top .iconlink.lang{width:auto;padding:0 9px;gap:3px;font-size:11px;font-weight:800;letter-spacing:.02em}
+  header.top .iconlink.lang svg{width:14px;height:14px}
+  header.top .iconlink.lang.off{opacity:.4;pointer-events:none}
+  header.top .lang{display:inline-flex;align-items:center;border:.5px solid var(--line);border-radius:8px;overflow:hidden;font-size:13px;font-weight:600}
+  header.top .lang a,header.top .lang span{padding:5px 10px;color:var(--muted)}
+  header.top .lang a:hover{color:var(--ink);text-decoration:none;background:var(--surface)}
+  header.top .lang .on{background:var(--accent);color:#fff}
+  header.top .lang .off{color:var(--faint);opacity:.55}
+  .shell{display:flex;max-width:1280px;margin:0 auto;padding:0 clamp(0px,2vw,20px)}
+  aside{width:262px;min-width:262px;height:calc(100vh - 56px);overflow:auto;position:sticky;top:56px;padding:22px 8px 48px 22px}
+  aside .nav-group{text-transform:uppercase;font-size:11px;font-weight:700;color:var(--faint);margin:20px 0 6px;letter-spacing:.05em}
+  aside ul{list-style:none;margin:0;padding:0}
+  aside li a{display:block;padding:6px 12px;color:var(--muted);border-radius:8px;font-size:14px;font-weight:500;transition:background 0.15s ease, color 0.15s ease, transform 0.15s ease}
+  aside li a:hover{background:var(--surface);color:var(--ink);text-decoration:none;transform:translateX(2px)}
+  aside li a.active{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent-ink);font-weight:600}
+  aside li a .entag{font-size:9.5px;font-weight:700;letter-spacing:.04em;color:var(--faint);border:.5px solid var(--line);border-radius:4px;padding:0 4px;margin-left:6px;vertical-align:1px}
+  main{flex:1;min-width:0;max-width:800px;padding:38px 46px 90px}
+  main>*:first-child{margin-top:0}
+  main h1{font-size:33px;font-weight:800;letter-spacing:-.03em;margin:0 0 .5em}
+  main h2{font-size:23px;font-weight:700;letter-spacing:-.02em;margin:1.7em 0 .5em;padding-bottom:.3em;border-bottom:.5px solid var(--line)}
+  main h3{font-size:18px;font-weight:700;margin:1.5em 0 .4em}
+  main code{background:var(--raise);border:.5px solid var(--line);padding:.12em .4em;border-radius:6px;font-size:.88em}
+  main pre{background:var(--raise);border:.5px solid var(--line);padding:14px 16px;border-radius:12px;overflow:auto;font-size:13.5px;line-height:1.7}
+  main pre code{background:none;border:none;padding:0}
+  main table{border-collapse:collapse;width:100%;margin:1em 0;display:block;overflow-x:auto;font-size:14px}
+  main th,main td{border:.5px solid var(--line);padding:8px 13px;text-align:left}
+  main th{background:var(--surface);font-weight:600}
+  main blockquote{border-left:3px solid var(--accent);margin:1.1em 0;padding:.5em 1.1em;color:var(--muted);background:var(--surface);border-radius:0 10px 10px 0}
+  main img{max-width:100%;height:auto}
+  @media (max-width:800px){ aside{display:none} main{padding:26px 22px} }
+</style>
+</head>
+<body>
+<header class="top"><div class="tnav">
+  <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
+  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.5.0</a>
+  <span class="doc">docs</span>
+  <span class="sp"></span>
+  <a class="tl" href="/">Home</a>
+  <a class="tl active-nav" href="/docs/">Docs</a><a class="tl" href="/api/">API</a>
+  <a class="iconlink" href="https://github.com/qorm/qorm" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
+  <a class="iconlink patreon" href="https://www.patreon.com/qorm" target="_blank" rel="noopener" aria-label="Patreon" title="Patreon"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="14.4" cy="9.6" r="6.6"/><rect x="1.5" y="2.5" width="4" height="19" rx="0.3"/></svg></a>
+  <a class="iconlink lang" href="../zh/tutorials/first-action.html" data-lang="zh" aria-label="中文" title="中文"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/></svg><span>中</span></a>
+  <button class="tbtn" id="theme" aria-label="Theme"></button>
+</div></header>
+<div class="shell">
+  <aside><div class="nav-group">overview</div><ul><li><a href="../README.html">QORM documentation</a></li><li><a href="../project-structure.html">Project structure</a></li><li><a href="../build-with-ai.html">Build QORM apps with your AI assistant</a></li><li><a href="../collaboration.html">Human-AI collaboration on a live app</a></li><li><a href="../verification.html">Interpreting &amp; verifying a QORM app</a></li><li><a href="../expressions.html">Expressions</a></li></ul><div class="nav-group">tutorials</div><ul><li><a href="getting-started.html">Getting Started with QORM</a></li><li><a href="first-scene.html">First Scene</a></li><li><a href="first-action.html" class="active">First Action</a></li><li><a href="first-component.html">First Component</a></li><li><a href="first-platform-pack.html">First Platform Pack</a></li></ul><div class="nav-group">examples</div><ul><li><a href="../examples/counter.html">Example: Counter</a></li><li><a href="../examples/todo.html">Example: Todo</a></li><li><a href="../examples/login.html">Example: Login</a></li><li><a href="../examples/dashboard.html">Example: Dashboard</a></li></ul><div class="nav-group">platforms</div><ul><li><a href="../platforms/web.html">QORM Web Platform</a></li><li><a href="../platforms/mobile.html">QORM Mobile Platform</a></li><li><a href="../platforms/desktop.html">QORM Desktop Platform</a></li><li><a href="../platforms/miniapp.html">QORM Mini-program platform</a></li><li><a href="../platforms/native-middlelayer.html">User middle layer: adding your own capabilities to an app</a></li><li><a href="../platforms/capabilities.html">Capabilities</a></li><li><a href="../platforms/support-matrix.html">Platform support matrix</a></li></ul><div class="nav-group">agent</div><ul><li><a href="../agent/permissions.html">QORM Agent Permissions</a></li><li><a href="../agent/mcp-tools.html">QORM MCP tools</a></li><li><a href="../agent/skills.html">QORM Skills</a></li><li><a href="../agent/claude-pack.html">QORM Claude Pack</a></li><li><a href="../agent/codex-pack.html">QORM Codex Pack</a></li><li><a href="../agent/openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">security</div><ul><li><a href="../security/security-model.html">QORM Security Model</a></li><li><a href="../security/permission-model.html">QORM Permission Model</a></li><li><a href="../security/bundle-signing.html">QORM Bundle Signing</a></li></ul><div class="nav-group">spec</div><ul><li><a href="../spec/navigation-spec.html">Navigation &amp;amp; routing</a></li></ul></aside>
+  <main><h1 id="first-action">First Action</h1>
+<p>An action is QORM&#39;s declarative behavior. An action is a sequence of <code>steps</code>, placed in <code>actions/&lt;id&gt;.json</code>, and triggered by name from an <code>onPress</code> in the UI.</p>
+<h2 id="defining-an-action">Defining an action</h2>
+<p><code>actions/increment.json</code>:</p>
+<pre><code>{
+  &#34;type&#34;: &#34;action&#34;,
+  &#34;id&#34;: &#34;increment&#34;,
+  &#34;steps&#34;: [
+    { &#34;type&#34;: &#34;state.set&#34;, &#34;path&#34;: &#34;count&#34;, &#34;value&#34;: &#34;{{ state.count + 1 }}&#34; }
+  ]
+}</code></pre>
+<h2 id="triggering-from-the-ui">Triggering from the UI</h2>
+<p>A button&#39;s <code>onPress</code> is the action name (a string); to pass arguments, use an object <code>{ &#34;name&#34;: …, &#34;args&#34;: … }</code>.</p>
+<pre><code>{ &#34;type&#34;: &#34;button&#34;, &#34;id&#34;: &#34;inc&#34;, &#34;text&#34;: &#34;+1&#34;, &#34;onPress&#34;: &#34;increment&#34; }
+
+{ &#34;type&#34;: &#34;button&#34;, &#34;id&#34;: &#34;toggleTask&#34;, &#34;text&#34;: &#34;Done&#34;,
+  &#34;onPress&#34;: { &#34;name&#34;: &#34;toggle&#34;, &#34;args&#34;: { &#34;id&#34;: &#34;{{ item.id }}&#34; } } }</code></pre>
+<p><img src="../assets/screenshots/counter.png" alt="The QORM counter app on iOS" loading="lazy" decoding="async"> <em>The <code>+</code> button fires the <code>increment</code> action above; both the number and the status label read state the action writes.</em></p>
+<h2 id="common-step-types">Common step types</h2>
+<pre><code>{ &#34;type&#34;: &#34;state.set&#34;,       &#34;path&#34;: &#34;name&#34;,  &#34;value&#34;: &#34;Ada&#34; }
+{ &#34;type&#34;: &#34;state.increment&#34;, &#34;path&#34;: &#34;count&#34;, &#34;value&#34;: 1 }
+{ &#34;type&#34;: &#34;state.toggle&#34;,    &#34;path&#34;: &#34;dark&#34; }
+{ &#34;type&#34;: &#34;state.append&#34;,    &#34;path&#34;: &#34;items&#34;, &#34;value&#34;: { &#34;id&#34;: 3, &#34;text&#34;: &#34;new&#34; } }
+{ &#34;type&#34;: &#34;state.toggle&#34;,    &#34;path&#34;: &#34;items&#34;, &#34;matchKey&#34;: &#34;id&#34;, &#34;match&#34;: &#34;{{ id }}&#34;, &#34;field&#34;: &#34;done&#34; }</code></pre>
+<p>Inside <code>{{ … }}</code> is a full expression (it can read <code>state.*</code> / action arguments and do arithmetic); list-oriented steps use <code>matchKey</code> + <code>match</code> to locate a specific item. See <a href="../expressions.html">Expressions</a> for the whole language.</p>
+<h2 id="branching-with-if">Branching with <code>if</code></h2>
+<p>An <code>if</code> step runs one of two nested step lists depending on a condition:</p>
+<pre><code>{
+  &#34;type&#34;: &#34;if&#34;,
+  &#34;condition&#34;: &#34;{{ len(trim(state.name)) &gt; 0 }}&#34;,
+  &#34;then&#34;: [
+    { &#34;type&#34;: &#34;state.set&#34;, &#34;path&#34;: &#34;message&#34;, &#34;value&#34;: &#34;Hello {{ state.name }}&#34; },
+    { &#34;type&#34;: &#34;state.set&#34;, &#34;path&#34;: &#34;formError&#34;, &#34;value&#34;: &#34;&#34; }
+  ],
+  &#34;else&#34;: [
+    { &#34;type&#34;: &#34;state.set&#34;, &#34;path&#34;: &#34;formError&#34;, &#34;value&#34;: &#34;Name is required&#34; }
+  ]
+}</code></pre>
+<p>Both branches are optional and <code>if</code> steps nest (up to 32 deep). The condition uses the same truthiness rules as a node&#39;s <code>if</code> prop: <code>null</code>, <code>false</code>, <code>0</code>, <code>&#34;&#34;</code> and empty collections are falsy. Remember the <code>{{ … }}</code> — a bare string like <code>&#34;state.count &gt; 0&#34;</code> is a non-empty constant, so it is always truthy; the loader warns about exactly that mistake.</p>
+<h2 id="looping-with-foreach">Looping with <code>forEach</code></h2>
+<p>A <code>forEach</code> step runs its body once per element of a bound collection:</p>
+<pre><code>{
+  &#34;type&#34;: &#34;forEach&#34;,
+  &#34;in&#34;: &#34;{{ state.items }}&#34;,
+  &#34;as&#34;: &#34;line&#34;,
+  &#34;steps&#34;: [
+    { &#34;type&#34;: &#34;state.updateWhere&#34;, &#34;path&#34;: &#34;items&#34;, &#34;matchKey&#34;: &#34;id&#34;,
+      &#34;match&#34;: &#34;{{ line.id }}&#34;, &#34;item&#34;: { &#34;gift&#34;: &#34;{{ true }}&#34; } }
+  ]
+}</code></pre>
+<p>The element is bound under <code>as</code> (default <code>item</code>), together with <code>index</code>, <code>first</code> and <code>last</code> — and an alias renames the whole set, so <code>&#34;as&#34;: &#34;line&#34;</code> gives <code>line</code> / <code>lineIndex</code> / <code>lineFirst</code> / <code>lineLast</code>. These are exactly a list&#39;s <code>renderItem</code> scope names, including the fallback to <code>item</code> when the alias is reserved or malformed.</p>
+<ul>
+<li><code>in</code> is evaluated <strong>once</strong>, so a body that appends to the same array does not</li>
+</ul>
+<p>extend the loop. The elements themselves are live, so a step that updates the array it is iterating sees its own writes.</p>
+<ul>
+<li>Anything that is not a non-empty array — <code>null</code>, a number, an object, an</li>
+</ul>
+<p>empty array, a missing state key — iterates zero times rather than erroring.</p>
+<ul>
+<li>Iterations are capped at 10000, the body shares the <code>if</code> step&#39;s 32-deep</li>
+</ul>
+<p>nesting cap, and an <code>invoke</code> inside it still counts against the call cap. No nesting can hang a dispatch.</p>
+<h2 id="calling-another-action">Calling another action</h2>
+<p>An <code>invoke</code> step calls another action by name, so shared behaviour lives in one file instead of being copy-pasted:</p>
+<pre><code>{ &#34;type&#34;: &#34;invoke&#34;, &#34;name&#34;: &#34;resetForm&#34;, &#34;args&#34;: { &#34;keepEmail&#34;: &#34;{{ true }}&#34; } }</code></pre>
+<p><code>args</code> are evaluated in the <strong>caller&#39;s</strong> context and merged into the callee&#39;s scope, exactly like the args on a button&#39;s <code>onPress</code>. Call depth is capped at 16, so a recursive or mutually-recursive chain terminates instead of hanging; the loader reports a target action that does not exist.</p>
+<h2 id="calling-a-backend">Calling a backend</h2>
+<p><code>http.get</code> writes the response to a state path, and writes failures to the <code>error</code> path:</p>
+<pre><code>{ &#34;type&#34;: &#34;http.get&#34;, &#34;url&#34;: &#34;https://catfact.ninja/fact&#34;, &#34;result&#34;: &#34;fact&#34;, &#34;error&#34;: &#34;err&#34; }</code></pre>
+<h3 id="success-and-failure-branches">Success and failure branches</h3>
+<p>Any <code>http.*</code> step can carry <code>onSuccess</code> / <code>onError</code> step lists that run after the request returns. Inside <code>onSuccess</code> the decoded body is bound to <code>{{ response }}</code>; inside <code>onError</code> the failure message is bound to <code>{{ error }}</code>:</p>
+<pre><code>{
+  &#34;type&#34;: &#34;http.get&#34;,
+  &#34;url&#34;: &#34;https://api.example.com/items&#34;,
+  &#34;result&#34;: &#34;items&#34;,
+  &#34;error&#34;: &#34;loadError&#34;,
+  &#34;onSuccess&#34;: [
+    { &#34;type&#34;: &#34;state.set&#34;, &#34;path&#34;: &#34;total&#34;,  &#34;value&#34;: &#34;{{ count(response) }}&#34; },
+    { &#34;type&#34;: &#34;state.set&#34;, &#34;path&#34;: &#34;status&#34;, &#34;value&#34;: &#34;loaded&#34; }
+  ],
+  &#34;onError&#34;: [
+    { &#34;type&#34;: &#34;state.set&#34;, &#34;path&#34;: &#34;status&#34;, &#34;value&#34;: &#34;Could not load: {{ error }}&#34; }
+  ]
+}</code></pre>
+<p>The classic writes still happen first and are unchanged: on success <code>result</code> is written and any stale <code>error</code> path is cleared, on failure the <code>error</code> path is written and <code>result</code> is left alone. The branches run after that, so <code>{{ state.items }}</code> is already populated inside <code>onSuccess</code>.</p>
+<p>Failures include transport errors and any non-2xx status (whose message is the status line, e.g. <code>500 Internal Server Error</code>). Requests time out after 20 seconds; there is no per-step timeout field.</p>
+<h2 id="timers">Timers</h2>
+<p>A <code>timer</code> is an invisible node you place in the scene tree — it renders nothing and schedules an action instead. Use <code>every</code> for a repeating tick or <code>after</code> for a one-shot, both in milliseconds:</p>
+<pre><code>{ &#34;type&#34;: &#34;timer&#34;, &#34;id&#34;: &#34;poll&#34;,      &#34;every&#34;: 5000, &#34;onTick&#34;: &#34;refresh&#34; }
+{ &#34;type&#34;: &#34;timer&#34;, &#34;id&#34;: &#34;hint_once&#34;, &#34;after&#34;: 2000, &#34;onTick&#34;: &#34;showHint&#34; }</code></pre>
+<p><code>onTick</code> takes an action name or the <code>{ &#34;name&#34;: …, &#34;args&#34;: … }</code> form, and dispatches through exactly the same path as a button press. Because a timer is a node, its <strong>lifetime is its presence in the tree</strong> — put an <code>if</code> on it and it stops itself:</p>
+<pre><code>{ &#34;type&#34;: &#34;timer&#34;, &#34;id&#34;: &#34;countdown&#34;, &#34;every&#34;: 1000,
+  &#34;if&#34;: &#34;{{ state.running }}&#34;, &#34;onTick&#34;: &#34;tick&#34; }</code></pre>
+<p>The scheduler reconciles timers after every re-render, so the same <code>id</code> is never double-scheduled, a timer that disappears is cancelled, and a changed interval reschedules. <code>every</code> is floored at 250 ms, and repeating ticks pause while the browser tab is hidden. A timer needs an <code>id</code> — that is the key the scheduler reconciles on.</p>
+<h2 id="scene-lifecycle-onenter">Scene lifecycle: <code>onEnter</code></h2>
+<p>A scene can name an action to run whenever it is entered — the usual &#34;load this screen&#39;s data&#34; hook. It sits next to <code>root</code> in the scene file:</p>
+<pre><code>{
+  &#34;type&#34;: &#34;scene&#34;,
+  &#34;id&#34;: &#34;main&#34;,
+  &#34;onEnter&#34;: &#34;loadData&#34;,
+  &#34;root&#34;: { &#34;type&#34;: &#34;column&#34;, &#34;id&#34;: &#34;root&#34;, &#34;children&#34;: [] }
+}</code></pre>
+<p>The object form <code>{ &#34;name&#34;: &#34;load&#34;, &#34;args&#34;: { … } }</code> works too, with args evaluated in the scene&#39;s context. <code>onEnter</code> fires on the entry scene&#39;s first load, on a deep link straight into the scene, on a <code>navigate</code> step, and on navigating <strong>back</strong> into it. It is deliberately not replayed by a page refresh, an SSE reconnect, or a dev hot reload — so a load action does not run twice for one visit. Make it idempotent anyway by guarding it with an <code>if</code>.</p>
+<p>There is no <code>onExit</code> counterpart today.</p>
+<p><code>examples/lifecycle</code> wires all of this together — an <code>onEnter</code> load, a polling timer, a one-shot <code>after</code> hint, an <code>if</code>-guarded countdown that stops itself, and a form submit with <code>if</code>/<code>else</code> branches plus an <code>invoke</code> reset:</p>
+<pre><code>qorm run examples/lifecycle</code></pre>
+<h2 id="standard-action-patterns">Standard action patterns</h2>
+<p>These are the reusable shapes built entirely from the step types above. Each is a real, load-clean recipe — copy the JSON and rename the paths. Working examples live in <code>examples/form</code> (form validation) and <code>examples/tasks</code> (optimistic update + error handling).</p>
+<h3 id="loading-state">Loading state</h3>
+<p>A dispatch paints one frame by default, <strong>after</strong> every step has finished — by which time <code>loading</code> is already back to <code>false</code>, so the flag would never be seen. The <code>render</code> step is what makes it visible: it publishes the state written so far as a frame, right where it appears, before the slow step blocks.</p>
+<pre><code>[
+  { &#34;type&#34;: &#34;state.set&#34;, &#34;path&#34;: &#34;loading&#34;, &#34;value&#34;: &#34;{{ true }}&#34; },
+  { &#34;type&#34;: &#34;render&#34; },
+  { &#34;type&#34;: &#34;http.get&#34;, &#34;url&#34;: &#34;https://api.example.com/items&#34;, &#34;result&#34;: &#34;items&#34;, &#34;error&#34;: &#34;error&#34; },
+  { &#34;type&#34;: &#34;state.set&#34;, &#34;path&#34;: &#34;loading&#34;, &#34;value&#34;: &#34;{{ false }}&#34; }
+]</code></pre>
+<p>That frame is an ordinary render, so anything conditioned on the flag appears:</p>
+<pre><code>{ &#34;type&#34;: &#34;row&#34;, &#34;if&#34;: &#34;{{ state.loading }}&#34;, &#34;children&#34;: [
+  { &#34;type&#34;: &#34;spinner&#34;, &#34;id&#34;: &#34;spin&#34;, &#34;size&#34;: 16 },
+  { &#34;type&#34;: &#34;text&#34;, &#34;id&#34;: &#34;lbl&#34;, &#34;text&#34;: &#34;Loading…&#34; }
+] }</code></pre>
+<p><code>render</code> only ever adds frames — leave it out and the action lands in a single frame exactly as before, and where the app is running determines whether the extra frames are drawn at all. It is a no-op on a host that does not paint mid-action, so the same JSON is safe everywhere. <code>examples/netdemo</code> and <code>examples/tasks</code> both ship this shape.</p>
+<h3 id="background-request-async">Background request (<code>async</code>)</h3>
+<p><code>render</code> makes the spinner visible, but the request still runs to completion before the dispatch ends — so nothing else in the session moves until the backend answers. Add <code>&#34;async&#34;: true</code> and the request is handed to a background worker instead: the dispatch returns immediately (its frame already shows the loading state) and the result branch runs when the reply arrives.</p>
+<pre><code>[
+  { &#34;type&#34;: &#34;state.set&#34;, &#34;path&#34;: &#34;loading&#34;, &#34;value&#34;: &#34;{{ true }}&#34; },
+  { &#34;type&#34;: &#34;http.get&#34;, &#34;url&#34;: &#34;https://api.example.com/items&#34;, &#34;async&#34;: true,
+    &#34;result&#34;: &#34;items&#34;, &#34;error&#34;: &#34;error&#34;,
+    &#34;onSuccess&#34;: [ { &#34;type&#34;: &#34;state.set&#34;, &#34;path&#34;: &#34;loading&#34;, &#34;value&#34;: &#34;{{ false }}&#34; } ],
+    &#34;onError&#34;:   [ { &#34;type&#34;: &#34;state.set&#34;, &#34;path&#34;: &#34;loading&#34;, &#34;value&#34;: &#34;{{ false }}&#34; } ] }
+]</code></pre>
+<p>Two rules follow from the request outliving the dispatch:</p>
+<ul>
+<li><strong>Read the result in <code>onSuccess</code> / <code>onError</code>, never in a sibling step.</strong> The</li>
+</ul>
+<p>steps after an async request run straight away, while it is still open, so a sibling would read the value from <em>before</em> the call.</p>
+<ul>
+<li><strong>Clear the loading flag in both branches.</strong> A flag cleared only in</li>
+</ul>
+<p><code>onSuccess</code> is stuck on forever the first time the backend fails.</p>
+<p>Inside a branch, <code>{{ state.x }}</code> reads the state as it is <em>now</em> (the user may have kept typing), while the action&#39;s own arguments still hold the values the click carried. <code>async</code> defaults to <code>false</code>, and falls back to <code>false</code> on a host with no background worker, so a step that reads its response from a sibling keeps working unchanged. <code>examples/netdemo</code> ships both shapes side by side.</p>
+<h4 id="governing-a-background-request-key-pending-timeout">Governing a background request: <code>key</code>, <code>pending</code>, <code>timeout</code></h4>
+<p>Three optional fields turn the two rules above into things you no longer have to remember. <code>examples/netdemo</code> ships all three on one search box:</p>
+<pre><code>{ &#34;type&#34;: &#34;http.get&#34;, &#34;url&#34;: &#34;https://api.example.com/search?q={{ state.q }}&#34;,
+  &#34;async&#34;: true, &#34;key&#34;: &#34;search&#34;, &#34;pending&#34;: &#34;searching&#34;, &#34;timeout&#34;: 4000,
+  &#34;result&#34;: &#34;hits&#34;, &#34;error&#34;: &#34;searchErr&#34; }</code></pre>
+<ul>
+<li><strong><code>key</code></strong> names a request slot. Starting a new request on a key cancels</li>
+</ul>
+<p>whichever request is still open on it <em>and discards that one&#39;s outcome entirely</em> — no <code>result</code> write, no <code>error</code> write, no branch. Fire this on every keystroke and what lands is the reply to the <strong>last</strong> keystroke, not whichever round trip happened to finish last. Without it, a fast reply to an old query overwrites a slow reply to the current one, which is the classic search-as-you-type bug.</p>
+<ul>
+<li><strong><code>pending</code></strong> is a state path held <code>true</code> for exactly as long as the request is</li>
+</ul>
+<p>open — set on launch, cleared when it settles, <em>including</em> on failure, timeout and refusal. It replaces the pair of <code>state.set</code> steps (and the second of the two rules above: there is no branch left to forget). Bind your spinner to <code>{{ state.searching }}</code> as usual. The path is reference-counted, so two overlapping requests hold it until the last one settles, and a superseded request never switches off its successor&#39;s spinner.</p>
+<ul>
+<li><strong><code>timeout</code></strong> caps this request in milliseconds, overriding the shared 20s</li>
+</ul>
+<p>ceiling. Expiry is an ordinary failure — the <code>error</code> path is written and <code>onError</code> runs, with the message <code>request timed out after 4000ms</code>.</p>
+<p>One more guard needs no JSON: a runtime allows <strong>64</strong> open background requests at a time. Past that a step fails immediately on its <code>error</code> path with <code>too many concurrent requests (64 in flight)</code> rather than queueing invisibly — the shape that saves you when a 250ms timer polls a backend that takes seconds.</p>
+<h4 id="pacing-an-action-delay">Pacing an action: <code>delay</code></h4>
+<p><code>{ &#34;type&#34;: &#34;delay&#34;, &#34;ms&#34;: 500 }</code> runs the steps that follow it <em>in the same list</em> when the wait expires, so <code>render</code> / <code>delay</code> / <code>render</code> stages a reveal without a timer node or a second action:</p>
+<pre><code>[ { &#34;type&#34;: &#34;state.set&#34;, &#34;path&#34;: &#34;phase&#34;, &#34;value&#34;: &#34;{{ &#39;one&#39; }}&#34; },
+  { &#34;type&#34;: &#34;render&#34; },
+  { &#34;type&#34;: &#34;delay&#34;, &#34;ms&#34;: 400 },
+  { &#34;type&#34;: &#34;state.set&#34;, &#34;path&#34;: &#34;phase&#34;, &#34;value&#34;: &#34;{{ &#39;two&#39; }}&#34; },
+  { &#34;type&#34;: &#34;render&#34; } ]</code></pre>
+<p>It never blocks: the wait goes to the same background worker <code>async</code> uses, so the session stays answerable throughout. On a host with no background worker (an offline render, <code>qorm render</code>, an MCP simulation) it degrades to no wait at all and the remaining steps run immediately — the action still reaches the same final state, nobody just waited for it.</p>
+<h4 id="in-a-packaged-app-every-request-is-async">In a packaged app, every request is async</h4>
+<p>This is the one place where the same JSON behaves differently depending on where it runs, and it is worth knowing before you ship.</p>
+<p>The client-side hosts — the offline package produced by <code>qorm package</code> (web / iOS / Android), the standalone WASM runtime, and the live playground — are <strong>single-threaded</strong>: the goroutine that runs your action is the same one servicing the browser&#39;s event loop. A blocking request there does not merely stall the UI, it deadlocks the whole app. So those hosts run <strong>every</strong> <code>http.*</code> step on the background worker, whether or not its JSON says <code>&#34;async&#34;: true</code>.</p>
+<p>The consequence is a rule, not a preference:</p>
+<blockquote>On a packaged app, the steps that follow an <code>http.*</code> step run <strong>while the request is still open</strong>. Anything that depends on the reply must live in <code>onSuccess</code> / <code>onError</code>.</blockquote>
+<pre><code>[
+  { &#34;type&#34;: &#34;http.get&#34;, &#34;url&#34;: &#34;…/items&#34;, &#34;result&#34;: &#34;items&#34;,
+    &#34;onSuccess&#34;: [ { &#34;type&#34;: &#34;state.set&#34;, &#34;path&#34;: &#34;count&#34;, &#34;value&#34;: &#34;{{ count(response) }}&#34; } ] },
+
+  { &#34;type&#34;: &#34;state.set&#34;, &#34;path&#34;: &#34;count&#34;, &#34;value&#34;: &#34;{{ count(state.items) }}&#34; }
+]</code></pre>
+<p>The first form is correct everywhere. The second is a sibling read: it works under <code>qorm run</code> (the server host blocks unless you opt in) and quietly reads the <em>previous</em> value once the same app is packaged. Writing <code>&#34;async&#34;: true</code> explicitly is the cheapest way to find out — it gives you the packaged-app behaviour on the dev server too.</p>
+<p>Where the request lands is unchanged: once every reply is in, the state, and therefore the render, is exactly what the synchronous version would have produced. Async changes the sequence of frames, never the destination.</p>
+<h3 id="error-handling">Error handling</h3>
+<p><code>http.*</code> writes any failure message to the <code>error</code> path (and clears it on success). Bind <code>{{ state.error }}</code> in the UI and show it with an <code>if</code>:</p>
+<pre><code>{ &#34;type&#34;: &#34;http.post&#34;, &#34;url&#34;: &#34;https://api.example.com/save&#34;, &#34;body&#34;: &#34;{{ state.draft }}&#34;, &#34;error&#34;: &#34;error&#34; }</code></pre>
+<pre><code>{ &#34;type&#34;: &#34;text&#34;, &#34;if&#34;: &#34;{{ len(state.error) &gt; 0 }}&#34;, &#34;text&#34;: &#34;Could not save: {{ state.error }}&#34; }</code></pre>
+<p>When the two outcomes need different follow-up work rather than a different message, use the <code>onSuccess</code> / <code>onError</code> branches shown above instead of inspecting the error path afterwards.</p>
+<h3 id="optimistic-update-with-rollback">Optimistic update (with rollback)</h3>
+<p>Mutate state immediately, call the backend, then revert <strong>only if</strong> the call set the error path. The rollback re-applies the same toggle, but its <code>match</code> collapses to an empty string (matching nothing) on success — so success is a no-op and failure reverts:</p>
+<pre><code>[
+  { &#34;type&#34;: &#34;state.toggle&#34;, &#34;path&#34;: &#34;tasks&#34;, &#34;matchKey&#34;: &#34;id&#34;, &#34;match&#34;: &#34;{{ id }}&#34;, &#34;field&#34;: &#34;done&#34; },
+  { &#34;type&#34;: &#34;http.put&#34;, &#34;url&#34;: &#34;https://api.example.com/tasks/{{ id }}&#34;, &#34;error&#34;: &#34;error&#34; },
+  { &#34;type&#34;: &#34;state.toggle&#34;, &#34;path&#34;: &#34;tasks&#34;, &#34;matchKey&#34;: &#34;id&#34;, &#34;match&#34;: &#34;{{ len(state.error) &gt; 0 ? id : \&#34;\&#34; }}&#34;, &#34;field&#34;: &#34;done&#34; }
+]</code></pre>
+<h3 id="form-validation">Form validation</h3>
+<p>Write each field&#39;s error with one conditional <code>state.set</code> (a ternary picks the message or an empty string), then bind <code>{{ state.fieldErrors.email }}</code>. A later step can read the errors it just wrote to derive an overall status:</p>
+<pre><code>[
+  { &#34;type&#34;: &#34;state.set&#34;, &#34;path&#34;: &#34;fieldErrors.email&#34;,
+    &#34;value&#34;: &#34;{{ len(trim(state.email)) == 0 ? \&#34;Email is required\&#34; : (matches(state.email, \&#34;^[^@\\\\s]+@[^@\\\\s]+\\\\.[^@\\\\s]+$\&#34;) ? \&#34;\&#34; : \&#34;Enter a valid email address\&#34;) }}&#34; },
+  { &#34;type&#34;: &#34;state.set&#34;, &#34;path&#34;: &#34;status&#34;,
+    &#34;value&#34;: &#34;{{ len(state.fieldErrors.email) == 0 ? \&#34;OK\&#34; : \&#34;Please fix the highlighted fields\&#34; }}&#34; }
+]</code></pre>
+<pre><code>{ &#34;type&#34;: &#34;text&#34;, &#34;if&#34;: &#34;{{ len(state.fieldErrors.email) &gt; 0 }}&#34;, &#34;text&#34;: &#34;{{ state.fieldErrors.email }}&#34; }</code></pre>
+<p>An <code>if</code> step reads better than a ternary once a field has more than two outcomes, and it can write several paths per branch.</p>
+<h3 id="letting-the-browser-block-the-submit">Letting the browser block the submit</h3>
+<p>Input widgets carry the browser&#39;s native constraint attributes — <code>required</code>, <code>pattern</code>, <code>maxLength</code>, plus <code>inputMode</code> for the on-screen keyboard. Those are the only validation attributes the renderer emits; there is no <code>minlength</code>, <code>min</code>, <code>max</code> or <code>step</code>, and <code>pattern</code> is <code>input</code>-only (a <code>textarea</code> has no such attribute).</p>
+<p>A button with <strong>no</strong> <code>onPress</code> inside a <code>form</code> is already gated: HTML makes it a submit button, so the browser refuses to start the submission while a constraint fails and the form&#39;s own handler never runs. The leak was a button carrying its <strong>own</strong> <code>onPress</code> — its click handler ran before, and independently of, the constraint check. The <code>submit</code> prop closes it:</p>
+<pre><code>{ &#34;type&#34;: &#34;form&#34;, &#34;id&#34;: &#34;signup&#34;, &#34;onPress&#34;: &#34;createAccount&#34;, &#34;children&#34;: [
+  { &#34;type&#34;: &#34;input&#34;,  &#34;id&#34;: &#34;email&#34;, &#34;binding&#34;: &#34;email&#34;, &#34;required&#34;: true,
+    &#34;inputMode&#34;: &#34;email&#34;, &#34;pattern&#34;: &#34;[^@\\s]+@[^@\\s]+\\.[^@\\s]+&#34; },
+  { &#34;type&#34;: &#34;button&#34;, &#34;id&#34;: &#34;save&#34;,   &#34;label&#34;: &#34;Create&#34;, &#34;submit&#34;: true },
+  { &#34;type&#34;: &#34;button&#34;, &#34;id&#34;: &#34;cancel&#34;, &#34;label&#34;: &#34;Cancel&#34;, &#34;submit&#34;: false, &#34;onPress&#34;: &#34;goBack&#34; }
+] }</code></pre>
+<p>A <code>form</code> names its submit action with <code>onPress</code> — that is what Enter in a field and a native submit button both fire.</p>
+<ul>
+<li><code>&#34;submit&#34;: true</code> makes the button a real submit button. With no <code>onPress</code> of</li>
+</ul>
+<p>its own the press <em>is</em> the submission, which the browser has already validated; with an <code>onPress</code>, the handler is gated on the form&#39;s validity check, so a failing form neither dispatches the action nor submits, and the browser&#39;s own message bubble appears pointing at the offending field.</p>
+<ul>
+<li><code>&#34;submit&#34;: false</code> makes it an ordinary button, never gated. That is what a</li>
+</ul>
+<p>Cancel button wants: it must not be blocked by an unrelated invalid field.</p>
+<ul>
+<li>Leaving <code>submit</code> off keeps exactly the old markup, so nothing you already</li>
+</ul>
+<p>wrote changes behaviour.</p>
+<ul>
+<li>The gate is deliberately not inferred from being inside a form — the renderer</li>
+</ul>
+<p>has no ancestor channel, and inferring it would break the Cancel case. The prop states intent, not place; it is inert on a button that is not in a form.</p>
+<ul>
+<li><code>&#34;novalidate&#34;: true</code> on the <code>form</code> turns the browser&#39;s checking off, and the</li>
+</ul>
+<p>button gate reads the form&#39;s flag, so the two switch off together. <code>&#34;novalidate&#34;: true</code> on the <em>button</em> (alongside <code>submit</code>) is the per-button escape hatch — a &#34;Save draft&#34; that should bypass validation.</p>
+<p>A gated button that passes runs its own action <strong>and</strong> lets the form submit, so put the work on the button or on the form, not both.</p>
+<p><code>textformfield</code> ties the two channels together: when the field opts into native validation — it carries a literal <code>required</code>, or a non-empty <code>pattern</code>; those two are read as written, not as bindings — its <code>error</code> text also rides the native channel as <code>title</code> plus <code>aria-invalid</code>, so your wording shows in the browser&#39;s own bubble. And a field the user has actually interacted with draws a red border natively (<code>:user-invalid</code>), so an untouched required field does not look wrong before anyone has typed.</p>
+<p>Native constraints still are not a validation engine: they cannot express &#34;passwords must match&#34; or anything server-side. Keep using the <code>state.set</code> recipe above for those, and bind the button&#39;s <code>disabled</code> when you want the control to look unavailable rather than to complain on click.</p>
+<h3 id="pagination">Pagination</h3>
+<p>For <strong>server-side</strong> paging, keep a <code>page</code> counter in state and advance it; the offset is computed in the request URL binding:</p>
+<pre><code>[
+  { &#34;type&#34;: &#34;state.increment&#34;, &#34;path&#34;: &#34;page&#34;, &#34;value&#34;: 1 },
+  { &#34;type&#34;: &#34;http.get&#34;, &#34;url&#34;: &#34;https://api.example.com/items?offset={{ state.page * 20 }}&amp;limit=20&#34;, &#34;result&#34;: &#34;items&#34;, &#34;error&#34;: &#34;error&#34; }
+]</code></pre>
+<p>For <strong>client-side</strong> paging over an array you already hold, no action is needed: give the <code>list</code> (or <code>gridview</code>) a <code>pageSize</code> and bind <code>page</code> to the counter — see <a href="first-scene.html">First Scene</a>. <code>datatable</code> has no built-in paging, so it still needs a <code>slice()</code> expression over the state array.</p>
+<h3 id="debounced-search--pattern-via-existing-mechanism">Debounced search — <em>pattern via existing mechanism</em></h3>
+<p>There is no <code>debounce</code> step. Debounce is a client-side concern: bind the input to <code>{{ state.q }}</code> via <code>onChange</code> and let the UI throttle how often it invokes the search action. The action itself is just an <code>http.get</code>:</p>
+<pre><code>{ &#34;type&#34;: &#34;http.get&#34;, &#34;url&#34;: &#34;https://api.example.com/search?q={{ state.q }}&#34;, &#34;result&#34;: &#34;results&#34;, &#34;error&#34;: &#34;error&#34; }</code></pre>
+<p>Request cancellation (cancel token) is likewise not modeled by a step today — treat it as <strong>planned</strong>; the last response written to <code>result</code> wins.</p>
+<ul>
+<li>Actions are entirely declarative data — no arbitrary code. When you need custom native logic, see the <a href="../platforms/native-middlelayer.html">User middle layer</a>.</li>
+<li>When external side effects / system capabilities are involved, follow the <a href="../security/permission-model.html">Permission model</a>.</li>
+</ul>
+</main>
+</div>
+<script>
+  (function(){var r=document.documentElement,b=document.getElementById('theme');
+   var sun='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>';
+   var moon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+   function c(){return r.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');}
+   try{var s=localStorage.getItem('qorm-theme');if(s)r.setAttribute('data-theme',s);}catch(e){}
+   function p(){b.innerHTML=c()==='dark'?sun:moon;} p();
+   b.onclick=function(){var t=c()==='dark'?'light':'dark';r.setAttribute('data-theme',t);try{localStorage.setItem('qorm-theme',t);}catch(e){}p();};})();
+  (function(){/* remember the reader's language across pages + both sites */
+   try{var cur=document.documentElement.lang;
+     document.querySelectorAll('header [data-lang]').forEach(function(el){
+       if(el.tagName==='A')el.addEventListener('click',function(){try{localStorage.setItem('qorm-lang',el.getAttribute('data-lang'));}catch(e){}});});
+     var pref;try{pref=localStorage.getItem('qorm-lang');}catch(e){}
+     if(pref&&pref!==cur){var alt=document.querySelector('header a[data-lang="'+pref+'"]');if(alt)location.replace(alt.getAttribute('href'));}
+   }catch(e){}})();
+</script>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-K3FQCHWD"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+</body>
+</html>

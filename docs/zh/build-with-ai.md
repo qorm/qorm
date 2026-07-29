@@ -15,49 +15,24 @@ QORM 面向智能体:让你的 AI 编码助手(Claude Code、Claude Desktop、Cu
 ./scripts/demo.sh examples/dashboard
 ```
 
-## 1. 安装 QORM
+## 快速开始（从 0 到 1 只需要一句话）
 
-```sh
-go install github.com/qorm/qorm/cmd/qorm@latest   # puts `qorm` on your PATH
-# or use the container: ghcr.io/qorm/qorm
+无需任何复杂的配置。只需复制以下提示词直接发送给你的 AI 编码助手（Claude Code、Cursor、Windsurf、Antigravity……）：
+
+```text
+我想在 ./myapp 中构建一个 QORM 应用。
+1. 请帮我配置好环境并运行 `qorm run ./myapp`（或 `go run github.com/qorm/qorm/cmd/qorm@latest run ./myapp`），系统会自动脚手架生成初始应用并启动当前操作系统对应的原生独立可执行程序窗口（而非网页）。
+2. 根据以下需求构建应用：<在这里输入你的应用想法，例如：带连续打卡天数的习惯追踪器>。
+3. 修改 qorm.json、scenes/main.json 和 actions/*.json，并在实时的独立程序窗口中验证效果。
 ```
 
-## 2. 把 QORM 的工具 + 技能交给你的 AI
+`qorm run ./myapp` 会自动检测并生成缺失的目录脚手架、启动实时 HTTP 服务与 MCP 接口，并自动在当前系统弹出原生独立可执行程序窗口。如果明确需要网页浏览器标签页，可附加 `--web` 参数。
 
-QORM 附带一个即插即用的 MCP 服务器(让 AI 能读取、编辑并验证一个运行中的应用)
-和一个技能(让它写出运行时真正接受的格式)。各智能体的具体配置见
-[`integrations/`](https://github.com/qorm/qorm/tree/main/integrations)。简而言之:
+## 实时人机协作如何工作
 
-- **Claude Code:** `claude mcp add qorm -- qorm mcp .`
-- **Claude Desktop / Cursor / Windsurf:** 把
-  [`integrations/mcp.json`](https://github.com/qorm/qorm/blob/main/integrations/mcp.json) 里的代码块合并进你智能体的 MCP 配置。
-- 把 AI 指向技能
-  [`integrations/skill/SKILL.md`](https://github.com/qorm/qorm/blob/main/integrations/skill/SKILL.md)(或本仓库的
-  [`llms.txt`](https://github.com/qorm/qorm/blob/main/llms.txt) / [`AGENTS.md`](https://github.com/qorm/qorm/blob/main/AGENTS.md)),让它使用可运行的
-  格式而不是靠猜。
-
-## 3. 让它构建点东西
-
-工具挂载好后,用大白话开口,例如:
-
-> "在 ./habits 里搭一个 QORM 习惯追踪器——一个习惯列表,带每日打卡和连续天数计数。"
-
-AI 会写出 `qorm.json` + `scenes/` + `actions/`,并能运行 `qorm run ./habits`
-和 `qorm check ./habits` 来查看并验证它所构建的东西。
-
-## 4. 在运行中的应用上协作
-
-启动一个共享会话,与 AI 并肩工作:
-
-```sh
-qorm run ./habits          # opens in your browser; agent endpoint at /mcp
-```
-
-- 你在浏览器里点击;AI 通过 `qorm_activity` 看到你的操作。
-- AI 经由 MCP 编辑;改动即时出现在你的浏览器中,并带一个
-  **"AI edited"** 提示,让你眼看着它发生。
-- AI 的设计改动是评审绑定的(预览 → 应用),它会用 `qorm measure` / `qorm check`
-  自我验证其编辑。
+- **你在浏览器里点击**：AI 通过 `qorm_activity` 实时感知你的行为。
+- **AI 实时编辑**：代码文件热更新或经由 MCP 变更，改动即刻呈现在你的浏览器中，并带 **"AI edited"** 提示。
+- **自我验证**：AI 会使用 `qorm check` / `qorm measure` 验证布局与状态正确性。
 
 完整闭环见[人机协作](collaboration.md)。
 

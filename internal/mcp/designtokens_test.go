@@ -112,4 +112,10 @@ func TestDesignTokenEnforcedAtPreview(t *testing.T) {
 	if e, _ := res["error"].(string); !strings.Contains(e, "design token violation") {
 		t.Errorf("preview error should name the violation, got %q", e)
 	}
+	if fix, _ := res["suggestedFix"].(string); !strings.Contains(fix, "#0a84ff") {
+		t.Errorf("preview result should include structured suggestedFix, got %v", res["suggestedFix"])
+	}
+	if vt, _ := res["validTokens"].([]string); len(vt) != 2 {
+		t.Errorf("preview result should include validTokens list, got %v", res["validTokens"])
+	}
 }

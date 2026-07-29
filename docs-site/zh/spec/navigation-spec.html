@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-K3FQCHWD');</script>
+<!-- End Google Tag Manager -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1529418578004538"
+     crossorigin="anonymous"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>导航与路由 · QORM</title>
+<meta name="description" content="QORM 应用如何在场景(scene)之间跳转、在跳转时携带数据,以及这些数据相对于应用其余 状态处于什么位置。">
+<meta property="og:title" content="导航与路由">
+<meta property="og:description" content="QORM 应用如何在场景(scene)之间跳转、在跳转时携带数据,以及这些数据相对于应用其余 状态处于什么位置。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://qorm.com/docs/zh/spec/navigation-spec.html">
+<meta property="og:site_name" content="QORM">
+<meta property="og:locale" content="zh_CN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="导航与路由">
+<meta name="twitter:description" content="QORM 应用如何在场景(scene)之间跳转、在跳转时携带数据,以及这些数据相对于应用其余 状态处于什么位置。">
+<link rel="canonical" href="https://qorm.com/docs/zh/spec/navigation-spec.html">
+<link rel="alternate" hreflang="en" href="https://qorm.com/docs/spec/navigation-spec.html">
+<link rel="alternate" hreflang="zh" href="https://qorm.com/docs/zh/spec/navigation-spec.html">
+<link rel="alternate" hreflang="x-default" href="https://qorm.com/docs/spec/navigation-spec.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"QORM 应用如何在场景(scene)之间跳转、在跳转时携带数据,以及这些数据相对于应用其余 状态处于什么位置。","headline":"导航与路由","inLanguage":"zh","name":"导航与路由","url":"https://qorm.com/docs/zh/spec/navigation-spec.html"}</script>
+<link rel="icon" href="/assets/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+  :root{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
+  @media (prefers-color-scheme:dark){ :root{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; } }
+  :root[data-theme="light"]{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
+  :root[data-theme="dark"]{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Inter",-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;color:var(--ink);background:var(--ground);line-height:1.62;letter-spacing:-.011em;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent-ink);text-decoration:none} a:hover{text-decoration:underline}
+  code,pre{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+  header.top{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--ground) 82%,transparent);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--line)}
+  header.top .tnav{height:56px;display:flex;align-items:center;gap:14px;max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,32px)}
+  header.top .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:16px;letter-spacing:-.02em;color:var(--ink)}
+  header.top .brand img{width:24px;height:24px}
+  @media (prefers-color-scheme:dark){ header.top .brand img{filter:invert(1) brightness(1.7)} }
+  :root[data-theme="dark"] header.top .brand img{filter:invert(1) brightness(1.7)}
+  :root[data-theme="light"] header.top .brand img{filter:none}
+  header.top .doc{color:var(--faint);font-weight:600;font-size:15px}
+  header.top a.ver{font-size:11.5px;font-weight:700;color:var(--muted);border:.5px solid var(--line);border-radius:999px;padding:2px 8px;letter-spacing:.01em}
+  header.top a.ver:hover{color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));text-decoration:none}
+  header.top .sp{flex:1}
+  header.top a.tl{color:var(--muted);font-size:14px;font-weight:500} header.top a.tl:hover{color:var(--ink);text-decoration:none} header.top a.tl.active-nav{color:var(--ink);font-weight:700}
+  .tbtn{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:transform 0.2s ease, background 0.2s, color 0.2s, border-color 0.2s}
+  .tbtn:hover{color:var(--ink);transform:rotate(15deg) scale(1.05)} .tbtn svg{width:16px;height:16px}
+  header.top .iconlink{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;transition:transform .2s cubic-bezier(.16,1,.3,1),color .2s,border-color .2s}
+  header.top .iconlink:hover{color:var(--ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));transform:translateY(-1px);text-decoration:none}
+  header.top .iconlink.patreon:hover{color:#f96854;border-color:color-mix(in srgb,#f96854 45%,var(--line))}
+  header.top .iconlink svg{width:17px;height:17px}
+  header.top .iconlink.lang{width:auto;padding:0 9px;gap:3px;font-size:11px;font-weight:800;letter-spacing:.02em}
+  header.top .iconlink.lang svg{width:14px;height:14px}
+  header.top .iconlink.lang.off{opacity:.4;pointer-events:none}
+  header.top .lang{display:inline-flex;align-items:center;border:.5px solid var(--line);border-radius:8px;overflow:hidden;font-size:13px;font-weight:600}
+  header.top .lang a,header.top .lang span{padding:5px 10px;color:var(--muted)}
+  header.top .lang a:hover{color:var(--ink);text-decoration:none;background:var(--surface)}
+  header.top .lang .on{background:var(--accent);color:#fff}
+  header.top .lang .off{color:var(--faint);opacity:.55}
+  .shell{display:flex;max-width:1280px;margin:0 auto;padding:0 clamp(0px,2vw,20px)}
+  aside{width:262px;min-width:262px;height:calc(100vh - 56px);overflow:auto;position:sticky;top:56px;padding:22px 8px 48px 22px}
+  aside .nav-group{text-transform:uppercase;font-size:11px;font-weight:700;color:var(--faint);margin:20px 0 6px;letter-spacing:.05em}
+  aside ul{list-style:none;margin:0;padding:0}
+  aside li a{display:block;padding:6px 12px;color:var(--muted);border-radius:8px;font-size:14px;font-weight:500;transition:background 0.15s ease, color 0.15s ease, transform 0.15s ease}
+  aside li a:hover{background:var(--surface);color:var(--ink);text-decoration:none;transform:translateX(2px)}
+  aside li a.active{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent-ink);font-weight:600}
+  aside li a .entag{font-size:9.5px;font-weight:700;letter-spacing:.04em;color:var(--faint);border:.5px solid var(--line);border-radius:4px;padding:0 4px;margin-left:6px;vertical-align:1px}
+  main{flex:1;min-width:0;max-width:800px;padding:38px 46px 90px}
+  main>*:first-child{margin-top:0}
+  main h1{font-size:33px;font-weight:800;letter-spacing:-.03em;margin:0 0 .5em}
+  main h2{font-size:23px;font-weight:700;letter-spacing:-.02em;margin:1.7em 0 .5em;padding-bottom:.3em;border-bottom:.5px solid var(--line)}
+  main h3{font-size:18px;font-weight:700;margin:1.5em 0 .4em}
+  main code{background:var(--raise);border:.5px solid var(--line);padding:.12em .4em;border-radius:6px;font-size:.88em}
+  main pre{background:var(--raise);border:.5px solid var(--line);padding:14px 16px;border-radius:12px;overflow:auto;font-size:13.5px;line-height:1.7}
+  main pre code{background:none;border:none;padding:0}
+  main table{border-collapse:collapse;width:100%;margin:1em 0;display:block;overflow-x:auto;font-size:14px}
+  main th,main td{border:.5px solid var(--line);padding:8px 13px;text-align:left}
+  main th{background:var(--surface);font-weight:600}
+  main blockquote{border-left:3px solid var(--accent);margin:1.1em 0;padding:.5em 1.1em;color:var(--muted);background:var(--surface);border-radius:0 10px 10px 0}
+  main img{max-width:100%;height:auto}
+  @media (max-width:800px){ aside{display:none} main{padding:26px 22px} }
+</style>
+</head>
+<body>
+<header class="top"><div class="tnav">
+  <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
+  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.5.0</a>
+  <span class="doc">docs</span>
+  <span class="sp"></span>
+  <a class="tl" href="/">首页</a>
+  <a class="tl active-nav" href="/docs/zh/">文档</a><a class="tl" href="/api/zh/">接口</a>
+  <a class="iconlink" href="https://github.com/qorm/qorm" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
+  <a class="iconlink patreon" href="https://www.patreon.com/qorm" target="_blank" rel="noopener" aria-label="资助" title="资助"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="14.4" cy="9.6" r="6.6"/><rect x="1.5" y="2.5" width="4" height="19" rx="0.3"/></svg></a>
+  <a class="iconlink lang" href="../../spec/navigation-spec.html" data-lang="en" aria-label="English" title="English"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/></svg><span>EN</span></a>
+  <button class="tbtn" id="theme" aria-label="Theme"></button>
+</div></header>
+<div class="shell">
+  <aside><div class="nav-group">概览</div><ul><li><a href="../README.html">QORM 文档</a></li><li><a href="../project-structure.html">工程结构</a></li><li><a href="../build-with-ai.html">与你的 AI 助手一起构建 QORM 应用</a></li><li><a href="../collaboration.html">在运行中的应用上进行人机协作</a></li><li><a href="../verification.html">解释并验证一个 QORM 应用</a></li><li><a href="../expressions.html">表达式</a></li></ul><div class="nav-group">教程</div><ul><li><a href="../tutorials/getting-started.html">QORM 快速上手</a></li><li><a href="../tutorials/first-scene.html">第一个场景</a></li><li><a href="../tutorials/first-action.html">第一个动作</a></li><li><a href="../tutorials/first-component.html">第一个组件</a></li><li><a href="../tutorials/first-platform-pack.html">第一个平台包</a></li></ul><div class="nav-group">示例</div><ul><li><a href="../examples/counter.html">示例:计数器</a></li><li><a href="../examples/todo.html">示例:待办事项</a></li><li><a href="../examples/login.html">示例:登录</a></li><li><a href="../examples/dashboard.html">示例:仪表盘</a></li></ul><div class="nav-group">平台</div><ul><li><a href="../platforms/web.html">QORM Web 平台</a></li><li><a href="../platforms/mobile.html">QORM 移动平台</a></li><li><a href="../platforms/desktop.html">QORM 桌面平台</a></li><li><a href="../platforms/miniapp.html">QORM 小程序平台</a></li><li><a href="../platforms/native-middlelayer.html">用户中间层:为应用添加你自己的能力</a></li><li><a href="../platforms/capabilities.html">能力清单</a></li><li><a href="../platforms/support-matrix.html">平台支持矩阵</a></li></ul><div class="nav-group">智能体</div><ul><li><a href="../agent/permissions.html">QORM Agent 权限</a></li><li><a href="../agent/mcp-tools.html">QORM MCP 工具</a></li><li><a href="../agent/skills.html">QORM Skills</a></li><li><a href="../agent/claude-pack.html">QORM Claude Pack</a></li><li><a href="../agent/codex-pack.html">QORM Codex Pack</a></li><li><a href="../agent/openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">安全</div><ul><li><a href="../security/security-model.html">QORM 安全模型</a></li><li><a href="../security/permission-model.html">QORM 权限模型</a></li><li><a href="../security/bundle-signing.html">QORM Bundle 签名</a></li></ul><div class="nav-group">spec</div><ul><li><a href="navigation-spec.html" class="active">导航与路由</a></li></ul></aside>
+  <main><h1 id="导航与路由">导航与路由</h1>
+<p>QORM 应用如何在场景(scene)之间跳转、在跳转时携带数据,以及这些数据相对于应用其余 状态处于什么位置。</p>
+<h2 id="场景栈">场景栈</h2>
+<p>运行中的应用同一时刻只显示一个场景。当前显示哪个场景是<strong>运行时</strong>的属性,而非应用定义 的属性——manifest 只声明应用启动时打开的 <code>entry</code> 场景,之后的一切都由 <code>navigate</code> 动作步骤驱动。</p>
+<p>运行时维护一个<strong>返回栈(back stack)</strong>,记录你一路走来的场景。向前导航会把当前场景 <em>压栈</em>并显示目标场景;返回导航则把栈顶<em>弹出</em>并回到它。</p>
+<pre><code>entry: home
+  home                      栈: []
+  → navigate 到 profile     栈: [home]           显示: profile
+  → navigate 到 settings    栈: [home, profile]  显示: settings
+  → back                    栈: [home]           显示: profile
+  → back                    栈: []               显示: home
+  → back                    栈: []               显示: home   (空操作)</code></pre>
+<p>对空栈执行返回是空操作,因此在入口场景上按硬件/返回键永远不会让应用走进死胡同。导航到 当前已显示的场景、或导航到未知的场景 id,都会被忽略。</p>
+<h3 id="导航">导航</h3>
+<p><code>navigate</code> 步骤通过 id 指定目标场景(<code>to</code>),或弹出栈(<code>back: true</code>):</p>
+<pre><code>{ &#34;type&#34;: &#34;action&#34;, &#34;id&#34;: &#34;openProfile&#34;,
+  &#34;steps&#34;: [ { &#34;type&#34;: &#34;navigate&#34;, &#34;to&#34;: &#34;profile&#34; } ] }
+
+{ &#34;type&#34;: &#34;action&#34;, &#34;id&#34;: &#34;back&#34;,
+  &#34;steps&#34;: [ { &#34;type&#34;: &#34;navigate&#34;, &#34;back&#34;: true } ] }</code></pre>
+<p><code>to</code> 本身也可以是绑定表达式——<code>&#34;to&#34;: &#34;{{ state.nextScene }}&#34;</code>——因此一个动作就能实现 动态路由。</p>
+<h3 id="页面过渡">页面过渡</h3>
+<p>每次导航都会记录一个<strong>方向</strong>——向前 <code>navigate</code> 记为 <code>push</code>,返回记为 <code>pop</code>。客户端每帧 读取一次该方向(读取后即清除),以播放对应的页面过渡:向前 push 时新场景从尾侧边缘滑入, pop 时向反方向滑回。方向纯属表现层,绝不影响状态。</p>
+<h2 id="导航参数route">导航参数——<code>route.*</code></h2>
+<p>一个 navigate 步骤可以携带<strong>路由参数</strong>:在派发时计算、附着到目标场景上的具名值。目标 场景通过 <code>route.*</code> 命名空间读取它们,与 <code>state.*</code>、<code>viewport.*</code>、<code>t.*</code> 并列。</p>
+<p>在 <code>params</code> 下声明(参数名 → 值表达式):</p>
+<pre><code>{ &#34;type&#34;: &#34;navigate&#34;, &#34;to&#34;: &#34;profile&#34;,
+  &#34;params&#34;: { &#34;userId&#34;: &#34;{{ userId }}&#34;, &#34;name&#34;: &#34;{{ name }}&#34; } }</code></pre>
+<p>每个表达式在动作的上下文中求值一次,因此可以读取动作的调用参数(如上例)、<code>state.*</code> 或作用域内的任何东西。求得的带类型的值即成为目标场景的 route。</p>
+<p>目标场景用 <code>{{ route.&lt;名字&gt; }}</code> 绑定它们:</p>
+<pre><code>{ &#34;type&#34;: &#34;text&#34;, &#34;text&#34;: &#34;{{ route.name }}&#34; }
+{ &#34;type&#34;: &#34;text&#34;, &#34;text&#34;: &#34;User id: {{ route.userId }}&#34; }</code></pre>
+<p>缺失的键解析为 nil(渲染为空文本),因此没有携带某个参数就到达的场景会优雅降级,而不会 报错。</p>
+<h3 id="参数随栈帧走">参数随栈帧走</h3>
+<p>路由参数是<strong>帧局部(frame-local)</strong>的:它属于显示该场景的那一个具体栈帧,而不属于场景 id。向前导航时,当前场景<em>连同其当前 route</em>一起压栈;返回时两者一起恢复。因此从详情页 返回,会把上一屏原样放回——参数也一并恢复。</p>
+<pre><code>home  (route: {})                  → openProfile(userId=u-101)
+profile  (route: {userId:u-101})   → openProfile(userId=u-102)   [继续下钻]
+profile  (route: {userId:u-102})   → back
+profile  (route: {userId:u-101})   ← 恢复更早那个帧的 route
+home  (route: {})                  ← 再 back 恢复入口的空 route</code></pre>
+<p>入口场景从一个空 route 开始(<code>{}</code>,永不为 nil)。</p>
+<h2 id="场景局部-route-vs-全局-state">场景局部 route vs. 全局 state</h2>
+<p>QORM 有两个截然不同的数据存放处,而导航正是二者边界最关键的地方:</p>
+<table>
+<thead><tr><th></th><th><code>globalState</code>(<code>state.*</code>)</th><th>路由参数(<code>route.*</code>)</th></tr></thead>
+<tbody>
+<tr><td>作用范围</td><td><strong>所有</strong>场景共享的一个存储</td><td>仅<strong>当前栈帧</strong></td></tr>
+<tr><td>生命周期</td><td>整个应用会话</td><td>该帧位于栈上期间</td></tr>
+<tr><td>由谁写入</td><td><code>state.*</code> 动作步骤、<code>http.*</code> 结果</td><td><code>navigate</code> 步骤的 <code>params</code></td></tr>
+<tr><td>如何读取</td><td><code>{{ state.x }}</code></td><td><code>{{ route.x }}</code></td></tr>
+<tr><td>在哪声明</td><td><code>qorm.json</code> 的 <code>globalState.schema</code></td><td>每次导航临时指定</td></tr>
+</tbody></table>
+<p><strong>全局 state</strong> 用于存放跨越单个屏幕、或被多个屏幕共享的数据——登录用户、购物车、缓存 列表、当前主题/语言。<strong>路由参数</strong>用于存放那些说明<em>这是哪一个实例</em>的小小标识符——某个 profile 屏正在展示的 <code>userId</code>、某个详情屏打开的订单 id。路由参数是 QORM 里函数实参的 类比:它是调用方告诉目标屏该渲染什么的方式,而无需改动其他屏幕都能看见的共享状态。</p>
+<p>经验法则:如果返回时应当把它忘掉,它就是路由参数;如果应当持久保留,它就属于全局 state。</p>
+<h2 id="url-路由已实现">URL 路由(已实现)</h2>
+<p>内存中的场景栈会镜像到浏览器地址栏,于是深链 URL 与浏览器的前进/后退按钮都从同一个 模型里自然导出。URL 用查询串编码当前场景及其路由参数:</p>
+<pre><code>/?scene=profile&amp;userId=u-101&amp;name=Ada
+   │       │        └────┬─────┘
+   │       │             └── 路由参数  → route.userId、route.name
+   │       └── 场景 id                  → &#34;profile&#34; 场景
+   └── 入口场景就是 &#34;/&#34;</code></pre>
+<p>规则如下:</p>
+<ul>
+<li><strong><code>RoutePath</code></strong> —— 运行时把当前场景 + 路由参数渲染成这个路径(入口场景且无参数时为</li>
+</ul>
+<p><code>/</code>;键会排序以保证稳定)。它是&#34;地址栏该显示什么&#34;的唯一真相来源。</p>
+<ul>
+<li><strong>深链入口</strong> —— 加载 <code>/?scene=&lt;id&gt;&amp;k=v</code> 会在首次渲染<em>之前</em>把运行时导航到该场景,于是</li>
+</ul>
+<p>页面直接打开到那里,且查询参数绑定到 <code>route.*</code>。未知场景 id 会被忽略,回落到入口场景。</p>
+<ul>
+<li><strong>地址栏同步</strong> —— 每次导航都会把它的 <code>RoutePath</code> 送给客户端(<code>/event</code> 响应的</li>
+</ul>
+<p><code>X-Qorm-Route</code> 头,以及 SSE/轮询负载里的 <code>route</code> 字段)。当它变化时客户端 <code>history.pushState</code>,于是 URL 无需刷新就跟随导航。</p>
+<ul>
+<li><strong>前进 / 后退</strong> —— 浏览器的历史移动会把目标 URL 的场景 + 参数回报给服务端</li>
+</ul>
+<p>(<code>POST /navigate</code>,与 <code>/event</code> 一样有人侧 token 校验),由它驱动运行时对齐。回到上一帧 会弹栈(恢复其参数);前进则压栈。</p>
+<p>来自 URL 的路由参数值是字符串(查询串是无类型的),所以通过深链到达的场景看到的 <code>route.userId</code> 是 <code>&#34;u-101&#34;</code>。由于路由参数是 QORM 中函数实参的类比,把标识符作为路由参数 传递(而不是塞进全局 state)的应用,可以免费获得可分享、可刷新的深链。</p>
+<h2 id="路由守卫">路由守卫</h2>
+<p>一旦 URL 能指向任意场景,&#34;只有登录用户才能看到这个页面&#34;就不再是导航动作能保证的 事情了——守卫必须长在目的地上。场景在 <code>root</code> 旁边声明自己的前置条件:</p>
+<pre><code>{
+  &#34;type&#34;: &#34;scene&#34;,
+  &#34;id&#34;: &#34;checkout&#34;,
+  &#34;guard&#34;: {
+    &#34;condition&#34;: &#34;{{ state.computed.signedIn }}&#34;,
+    &#34;redirect&#34;: &#34;signin&#34;,
+    &#34;params&#34;: { &#34;next&#34;: &#34;{{ &#39;checkout&#39; }}&#34; }
+  },
+  &#34;root&#34;: { &#34;type&#34;: &#34;column&#34;, &#34;id&#34;: &#34;root&#34;, &#34;children&#34;: [] }
+}</code></pre>
+<ul>
+<li><strong><code>condition</code></strong> 必填——一个作用于场景作用域(<code>state.*</code>、<code>state.computed.*</code>、<code>t.*</code>、</li>
+</ul>
+<p><code>viewport.*</code>、<code>route.*</code>)的 <code>{{ … }}</code> 表达式。为真即放行。缺少 <code>condition</code> 的守卫 会带着加载期错误被整个丢弃,而不是悄悄放所有人进去。</p>
+<ul>
+<li><strong><code>redirect</code></strong> 是守卫不通过时改去的场景 id。它是字面 id,不是绑定。不写它则这次</li>
+</ul>
+<p>导航直接被<strong>拒绝</strong>——你留在原地。拒绝在任何路径上都是 fail-closed 的,入口场景也 不例外:见下面的&#34;无处可去时&#34;。</p>
+<ul>
+<li><strong><code>params</code></strong> 在守卫触发时、在你正要离开的那个场景的上下文中求值,并成为目标场景的</li>
+</ul>
+<p><code>{{ route.* }}</code>——这是携带&#34;办完之后回到这里&#34;提示的常用手段。被拒绝的那次导航自己 的参数不会跟着重定向走。</p>
+<h3 id="生效范围">生效范围</h3>
+<p>守卫在<strong>每一条</strong>进入路径上都会跑:动作的 <code>navigate</code> 步骤、浏览器的前进/后退、直接 深链进入该场景、<code>back: true</code> 的 <code>navigate</code>,以及首次渲染时的入口场景。因此受保护的 路由无法靠手敲 URL 抵达,而这项检查只写在一处,不必在每个会导航的动作里重复。</p>
+<p>它在场景的 <code>onEnter</code> <strong>之前</strong>运行,所以拉取私有数据的钩子不会为一个被拒之门外的 访客触发。</p>
+<p>关于后退栈的两个细节:</p>
+<ul>
+<li>从<strong>入口场景</strong>发生的重定向是<em>替换</em>而不是压栈,因此后退不会回到一个你被拒绝过的</li>
+</ul>
+<p>场景。</p>
+<ul>
+<li>一次<em>导航</em>被拒绝则完全不动后退栈。</li>
+</ul>
+<h3 id="无处可去时">无处可去时</h3>
+<p>守卫可以<strong>直接拒绝</strong>而不是重定向:它没写 <code>redirect</code>、它的重定向成环,或者链条超过 跳数上限。在一次导航上,这意味着&#34;留在原地&#34;,这是安全的——你所在的场景本来就是被 允许的。</p>
+<p>但在<strong>首次渲染</strong>上它不能这么解释,因为&#34;原地&#34;恰恰就是那个被拒绝的场景。于是运行时 会按以下顺序离开:</p>
+<ol>
+<li>后退栈上最近的、守卫仍然放行的那一帧(被跳过的帧会被丢弃,这样一次后退不会又</li>
+</ol>
+<p>走回那次拒绝);</p>
+<ol>
+<li>若没有,则入口场景;</li>
+<li>若还是没有——入口场景本身就是被拒绝的那个,且没有历史——会话进入<strong>阻断</strong>状态:</li>
+</ol>
+<p>什么都不渲染,URL 保持为 <code>/</code>。</p>
+<p>三种情况下被拒场景的 <code>onEnter</code> 都不会运行,而真正进入的那个场景会运行它自己的。</p>
+<h3 id="后退是一次进入不是撤销">后退是一次进入,不是撤销</h3>
+<p><code>back: true</code> 的 <code>navigate</code> 和其他路径一样要过守卫。那一帧是在你被允许时压入的;等你 回去时权限可能已经没了(令牌过期、同一个动作里先登出),后退绝不能成为唯一没人检查 的那扇门。</p>
+<p>如果那一帧的守卫现在会重定向,就跟随它的重定向目标。如果那一帧被直接拒绝,就跳过它 继续往下弹——&#34;后退&#34;表达的是你要离开当前场景的意图,而&#34;你不能进那里&#34;的答案是下一个 你可以进的地方。如果整个栈都进不去,则保持栈不动、留在原地。</p>
+<p>守卫会链式生效:重定向的目标自身也受守卫保护。链的上限是 8 跳,且一条重复访问同一 场景的链会拒绝本次导航而不是打转——加载器把指向自身或指向不存在场景的 <code>redirect</code> 报为错误,并对重定向成环给出诊断。</p>
+<h3 id="守卫与派生值">守卫与派生值</h3>
+<p>守卫会为自己单独重新求一次派生值。这一点对最常见的写法——先登录再导航的动作—— 至关重要:</p>
+<pre><code>{ &#34;type&#34;: &#34;action&#34;, &#34;id&#34;: &#34;signIn&#34;, &#34;steps&#34;: [
+  { &#34;type&#34;: &#34;state.set&#34;, &#34;path&#34;: &#34;user&#34;, &#34;value&#34;: &#34;{{ draftName }}&#34; },
+  { &#34;type&#34;: &#34;navigate&#34;,  &#34;to&#34;: &#34;checkout&#34; }
+] }</code></pre>
+<p>派生值在一次派发内本来是冻结的(见<a href="../expressions.html">表达式</a>),所以读 <code>{{ state.computed.signedIn }}</code> 的守卫会依据登录前的视图判断,把用户当场弹回去。 正是这次私有刷新让上面这两步能正常工作。它不会被发布出去:<code>navigate</code> <strong>之后</strong>的 步骤读到的仍是帧内稳定的那份视图,与别处一致。</p>
+<p><code>examples/derived</code> 端到端地演示了这条路径——一个以派生值 <code>signedIn</code> 为守卫条件的 结算场景,重定向到一个读取 <code>{{ route.next }}</code> 的登录场景。</p>
+</main>
+</div>
+<script>
+  (function(){var r=document.documentElement,b=document.getElementById('theme');
+   var sun='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>';
+   var moon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+   function c(){return r.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');}
+   try{var s=localStorage.getItem('qorm-theme');if(s)r.setAttribute('data-theme',s);}catch(e){}
+   function p(){b.innerHTML=c()==='dark'?sun:moon;} p();
+   b.onclick=function(){var t=c()==='dark'?'light':'dark';r.setAttribute('data-theme',t);try{localStorage.setItem('qorm-theme',t);}catch(e){}p();};})();
+  (function(){/* remember the reader's language across pages + both sites */
+   try{var cur=document.documentElement.lang;
+     document.querySelectorAll('header [data-lang]').forEach(function(el){
+       if(el.tagName==='A')el.addEventListener('click',function(){try{localStorage.setItem('qorm-lang',el.getAttribute('data-lang'));}catch(e){}});});
+     var pref;try{pref=localStorage.getItem('qorm-lang');}catch(e){}
+     if(pref&&pref!==cur){var alt=document.querySelector('header a[data-lang="'+pref+'"]');if(alt)location.replace(alt.getAttribute('href'));}
+   }catch(e){}})();
+</script>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-K3FQCHWD"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+</body>
+</html>

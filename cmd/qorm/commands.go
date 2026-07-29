@@ -58,7 +58,7 @@ func cmdMCP(args []string) int {
 func cmdRun(args []string) int {
 	port := 10383
 	open := true
-	appMode := false
+	appMode := true // Default to standalone app executable window
 	consoleMode := false
 	lan := false
 	tlsOn := false
@@ -100,6 +100,8 @@ func cmdRun(args []string) int {
 			}
 		case "--app":
 			appMode = true
+		case "--web", "--browser":
+			appMode = false
 		case "--console":
 			consoleMode = true
 		case "--no-open":
@@ -111,6 +113,15 @@ func cmdRun(args []string) int {
 	if dir == "" {
 		fmt.Fprintln(os.Stderr, "error: missing <app-dir>")
 		return 2
+	}
+	if !strings.HasSuffix(dir, ".bundle") {
+		st, err := os.Stat(dir)
+		if os.IsNotExist(err) || (err == nil && st.IsDir() && isDirEmpty(dir)) {
+			fmt.Printf("dir %s is empty or does not exist — auto-scaffolding new QORM app...\n", dir)
+			if code := cmdNew([]string{dir}); code != 0 {
+				return code
+			}
+		}
 	}
 	srv, name, err := buildServer(dir, trust, revoked)
 	if err != nil {
@@ -727,3 +738,9 @@ func latestModTime(dir string) time.Time {
 	})
 	return t
 }
+
+func isDirEmpty(dir string) bool {
+	entries, err := os.ReadDir(dir)
+	return err == nil && len(entries) == 0
+}
+

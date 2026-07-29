@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-K3FQCHWD');</script>
+<!-- End Google Tag Manager -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1529418578004538"
+     crossorigin="anonymous"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>解释并验证一个 QORM 应用 · QORM</title>
+<meta name="description" content="QORM 的目标是让 AI 能够完整而精确地解释并验证用户在应用中表达的一切—— 它的布局、样式、行为和翻译——使用框架本身,无需外部浏览器。">
+<meta property="og:title" content="解释并验证一个 QORM 应用">
+<meta property="og:description" content="QORM 的目标是让 AI 能够完整而精确地解释并验证用户在应用中表达的一切—— 它的布局、样式、行为和翻译——使用框架本身,无需外部浏览器。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://qorm.com/docs/zh/verification.html">
+<meta property="og:site_name" content="QORM">
+<meta property="og:locale" content="zh_CN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="解释并验证一个 QORM 应用">
+<meta name="twitter:description" content="QORM 的目标是让 AI 能够完整而精确地解释并验证用户在应用中表达的一切—— 它的布局、样式、行为和翻译——使用框架本身,无需外部浏览器。">
+<link rel="canonical" href="https://qorm.com/docs/zh/verification.html">
+<link rel="alternate" hreflang="en" href="https://qorm.com/docs/verification.html">
+<link rel="alternate" hreflang="zh" href="https://qorm.com/docs/zh/verification.html">
+<link rel="alternate" hreflang="x-default" href="https://qorm.com/docs/verification.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"QORM 的目标是让 AI 能够完整而精确地解释并验证用户在应用中表达的一切—— 它的布局、样式、行为和翻译——使用框架本身,无需外部浏览器。","headline":"解释并验证一个 QORM 应用","inLanguage":"zh","name":"解释并验证一个 QORM 应用","url":"https://qorm.com/docs/zh/verification.html"}</script>
+<link rel="icon" href="/assets/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+  :root{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
+  @media (prefers-color-scheme:dark){ :root{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; } }
+  :root[data-theme="light"]{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
+  :root[data-theme="dark"]{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Inter",-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;color:var(--ink);background:var(--ground);line-height:1.62;letter-spacing:-.011em;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent-ink);text-decoration:none} a:hover{text-decoration:underline}
+  code,pre{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+  header.top{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--ground) 82%,transparent);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--line)}
+  header.top .tnav{height:56px;display:flex;align-items:center;gap:14px;max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,32px)}
+  header.top .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:16px;letter-spacing:-.02em;color:var(--ink)}
+  header.top .brand img{width:24px;height:24px}
+  @media (prefers-color-scheme:dark){ header.top .brand img{filter:invert(1) brightness(1.7)} }
+  :root[data-theme="dark"] header.top .brand img{filter:invert(1) brightness(1.7)}
+  :root[data-theme="light"] header.top .brand img{filter:none}
+  header.top .doc{color:var(--faint);font-weight:600;font-size:15px}
+  header.top a.ver{font-size:11.5px;font-weight:700;color:var(--muted);border:.5px solid var(--line);border-radius:999px;padding:2px 8px;letter-spacing:.01em}
+  header.top a.ver:hover{color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));text-decoration:none}
+  header.top .sp{flex:1}
+  header.top a.tl{color:var(--muted);font-size:14px;font-weight:500} header.top a.tl:hover{color:var(--ink);text-decoration:none} header.top a.tl.active-nav{color:var(--ink);font-weight:700}
+  .tbtn{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:transform 0.2s ease, background 0.2s, color 0.2s, border-color 0.2s}
+  .tbtn:hover{color:var(--ink);transform:rotate(15deg) scale(1.05)} .tbtn svg{width:16px;height:16px}
+  header.top .iconlink{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;transition:transform .2s cubic-bezier(.16,1,.3,1),color .2s,border-color .2s}
+  header.top .iconlink:hover{color:var(--ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));transform:translateY(-1px);text-decoration:none}
+  header.top .iconlink.patreon:hover{color:#f96854;border-color:color-mix(in srgb,#f96854 45%,var(--line))}
+  header.top .iconlink svg{width:17px;height:17px}
+  header.top .iconlink.lang{width:auto;padding:0 9px;gap:3px;font-size:11px;font-weight:800;letter-spacing:.02em}
+  header.top .iconlink.lang svg{width:14px;height:14px}
+  header.top .iconlink.lang.off{opacity:.4;pointer-events:none}
+  header.top .lang{display:inline-flex;align-items:center;border:.5px solid var(--line);border-radius:8px;overflow:hidden;font-size:13px;font-weight:600}
+  header.top .lang a,header.top .lang span{padding:5px 10px;color:var(--muted)}
+  header.top .lang a:hover{color:var(--ink);text-decoration:none;background:var(--surface)}
+  header.top .lang .on{background:var(--accent);color:#fff}
+  header.top .lang .off{color:var(--faint);opacity:.55}
+  .shell{display:flex;max-width:1280px;margin:0 auto;padding:0 clamp(0px,2vw,20px)}
+  aside{width:262px;min-width:262px;height:calc(100vh - 56px);overflow:auto;position:sticky;top:56px;padding:22px 8px 48px 22px}
+  aside .nav-group{text-transform:uppercase;font-size:11px;font-weight:700;color:var(--faint);margin:20px 0 6px;letter-spacing:.05em}
+  aside ul{list-style:none;margin:0;padding:0}
+  aside li a{display:block;padding:6px 12px;color:var(--muted);border-radius:8px;font-size:14px;font-weight:500;transition:background 0.15s ease, color 0.15s ease, transform 0.15s ease}
+  aside li a:hover{background:var(--surface);color:var(--ink);text-decoration:none;transform:translateX(2px)}
+  aside li a.active{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent-ink);font-weight:600}
+  aside li a .entag{font-size:9.5px;font-weight:700;letter-spacing:.04em;color:var(--faint);border:.5px solid var(--line);border-radius:4px;padding:0 4px;margin-left:6px;vertical-align:1px}
+  main{flex:1;min-width:0;max-width:800px;padding:38px 46px 90px}
+  main>*:first-child{margin-top:0}
+  main h1{font-size:33px;font-weight:800;letter-spacing:-.03em;margin:0 0 .5em}
+  main h2{font-size:23px;font-weight:700;letter-spacing:-.02em;margin:1.7em 0 .5em;padding-bottom:.3em;border-bottom:.5px solid var(--line)}
+  main h3{font-size:18px;font-weight:700;margin:1.5em 0 .4em}
+  main code{background:var(--raise);border:.5px solid var(--line);padding:.12em .4em;border-radius:6px;font-size:.88em}
+  main pre{background:var(--raise);border:.5px solid var(--line);padding:14px 16px;border-radius:12px;overflow:auto;font-size:13.5px;line-height:1.7}
+  main pre code{background:none;border:none;padding:0}
+  main table{border-collapse:collapse;width:100%;margin:1em 0;display:block;overflow-x:auto;font-size:14px}
+  main th,main td{border:.5px solid var(--line);padding:8px 13px;text-align:left}
+  main th{background:var(--surface);font-weight:600}
+  main blockquote{border-left:3px solid var(--accent);margin:1.1em 0;padding:.5em 1.1em;color:var(--muted);background:var(--surface);border-radius:0 10px 10px 0}
+  main img{max-width:100%;height:auto}
+  @media (max-width:800px){ aside{display:none} main{padding:26px 22px} }
+</style>
+</head>
+<body>
+<header class="top"><div class="tnav">
+  <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
+  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.5.0</a>
+  <span class="doc">docs</span>
+  <span class="sp"></span>
+  <a class="tl" href="/">首页</a>
+  <a class="tl active-nav" href="/docs/zh/">文档</a><a class="tl" href="/api/zh/">接口</a>
+  <a class="iconlink" href="https://github.com/qorm/qorm" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
+  <a class="iconlink patreon" href="https://www.patreon.com/qorm" target="_blank" rel="noopener" aria-label="资助" title="资助"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="14.4" cy="9.6" r="6.6"/><rect x="1.5" y="2.5" width="4" height="19" rx="0.3"/></svg></a>
+  <a class="iconlink lang" href="../verification.html" data-lang="en" aria-label="English" title="English"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/></svg><span>EN</span></a>
+  <button class="tbtn" id="theme" aria-label="Theme"></button>
+</div></header>
+<div class="shell">
+  <aside><div class="nav-group">概览</div><ul><li><a href="README.html">QORM 文档</a></li><li><a href="project-structure.html">工程结构</a></li><li><a href="build-with-ai.html">与你的 AI 助手一起构建 QORM 应用</a></li><li><a href="collaboration.html">在运行中的应用上进行人机协作</a></li><li><a href="verification.html" class="active">解释并验证一个 QORM 应用</a></li><li><a href="expressions.html">表达式</a></li></ul><div class="nav-group">教程</div><ul><li><a href="tutorials/getting-started.html">QORM 快速上手</a></li><li><a href="tutorials/first-scene.html">第一个场景</a></li><li><a href="tutorials/first-action.html">第一个动作</a></li><li><a href="tutorials/first-component.html">第一个组件</a></li><li><a href="tutorials/first-platform-pack.html">第一个平台包</a></li></ul><div class="nav-group">示例</div><ul><li><a href="examples/counter.html">示例:计数器</a></li><li><a href="examples/todo.html">示例:待办事项</a></li><li><a href="examples/login.html">示例:登录</a></li><li><a href="examples/dashboard.html">示例:仪表盘</a></li></ul><div class="nav-group">平台</div><ul><li><a href="platforms/web.html">QORM Web 平台</a></li><li><a href="platforms/mobile.html">QORM 移动平台</a></li><li><a href="platforms/desktop.html">QORM 桌面平台</a></li><li><a href="platforms/miniapp.html">QORM 小程序平台</a></li><li><a href="platforms/native-middlelayer.html">用户中间层:为应用添加你自己的能力</a></li><li><a href="platforms/capabilities.html">能力清单</a></li><li><a href="platforms/support-matrix.html">平台支持矩阵</a></li></ul><div class="nav-group">智能体</div><ul><li><a href="agent/permissions.html">QORM Agent 权限</a></li><li><a href="agent/mcp-tools.html">QORM MCP 工具</a></li><li><a href="agent/skills.html">QORM Skills</a></li><li><a href="agent/claude-pack.html">QORM Claude Pack</a></li><li><a href="agent/codex-pack.html">QORM Codex Pack</a></li><li><a href="agent/openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">安全</div><ul><li><a href="security/security-model.html">QORM 安全模型</a></li><li><a href="security/permission-model.html">QORM 权限模型</a></li><li><a href="security/bundle-signing.html">QORM Bundle 签名</a></li></ul><div class="nav-group">spec</div><ul><li><a href="spec/navigation-spec.html">导航与路由</a></li></ul></aside>
+  <main><h1 id="解释并验证一个-qorm-应用">解释并验证一个 QORM 应用</h1>
+<p>QORM 的目标是让 AI 能够<strong>完整而精确地解释并验证</strong>用户在应用中表达的一切—— 它的布局、样式、行为和翻译——使用框架本身,无需外部浏览器。</p>
+<p>机制如下:运行中的应用在它自己的运行时(浏览器或原生 WebView)中<strong>自我测量</strong>。 一段小脚本遍历每个带 id 的元素,记录其 <code>getBoundingClientRect</code> 和计算样式, 并将它们 POST 到 <code>/measure</code>。随后框架将那份真实的渲染结果与用户的<strong>意图</strong> (每个节点的类型、文本和状态绑定,来自应用 JSON)连接起来。于是对于每个组件, 你都同时得到<em>用户所要求的</em>和<em>实际渲染出来的</em>。</p>
+<p>下面的一切都可以从 CLI(<code>-tags desktop</code> 构建,它驱动一个原生 WebView) 和经由 MCP 的实时共享会话中运行。</p>
+<h2 id="qorm-measure读取真实渲染"><code>qorm measure</code>——读取真实渲染</h2>
+<pre><code>qorm measure &lt;app-dir&gt; [-o report.json]</code></pre>
+<p>渲染应用、自我测量,并每个组件打印一行,将意图与结果连接起来:</p>
+<pre><code>{ &#34;id&#34;: &#34;wifi&#34;, &#34;type&#34;: &#34;switchlisttile&#34;, &#34;intent&#34;: {&#34;label&#34;: &#34;Wi-Fi&#34;, &#34;binding&#34;: &#34;{{state.wifi}}&#34;},
+  &#34;x&#34;: 32, &#34;y&#34;: 499, &#34;w&#34;: 336, &#34;h&#34;: 47, &#34;visible&#34;: true,
+  &#34;color&#34;: &#34;rgb(0,0,0)&#34;, &#34;background&#34;: &#34;rgba(0,0,0,0)&#34;, &#34;fontSize&#34;: &#34;15px&#34;,
+  &#34;padding&#34;: &#34;…&#34;, &#34;borderRadius&#34;: &#34;…&#34;, &#34;overflowX&#34;: false }</code></pre>
+<p>每个组件的字段:<code>id</code>、<code>type</code>、<code>intent</code>(text/label/binding)、<code>x y w h</code>、 <code>visible</code>、<code>tag</code>、<code>text</code>(用于叶子节点),以及计算出的 <code>color</code>、<code>background</code>、 <code>fontSize</code>、<code>fontWeight</code>、<code>textAlign</code>、<code>padding</code>、<code>margin</code>、<code>borderRadius</code>、 <code>border</code>、<code>opacity</code>、<code>zIndex</code>、<code>position</code>、<code>overflowX</code>。</p>
+<h2 id="qorm-check---checks验证期望"><code>qorm check --checks</code>——验证期望</h2>
+<pre><code>qorm check &lt;app-dir&gt; --checks checks.json [-o report.json]</code></pre>
+<p><code>checks.json</code> 是一个 <code>{id, &lt;assertion&gt;…}</code> 的数组。每个断言都针对真实渲染进行验证; 报告给出每项检查的通过/失败以及实际值。</p>
+<table>
+<thead><tr><th>assertion</th><th>meaning</th></tr></thead>
+<tbody>
+<tr><td>`visible: true\</td><td>false`</td><td>组件实际可见 / 不可见</td></tr>
+<tr><td><code>type: &#34;&lt;widget&gt;&#34;</code></td><td>由预期的节点类型渲染而来</td></tr>
+<tr><td><code>text: &#34;&lt;s&gt;&#34;</code></td><td>包含 <code>&lt;s&gt;</code>(对表达的文本或渲染的文本进行匹配)</td></tr>
+<tr><td><code>noOverflow: true</code></td><td>无水平内容溢出</td></tr>
+<tr><td><code>minW / maxW / minH / maxH: &lt;px&gt;</code></td><td>尺寸在界限之内</td></tr>
+<tr><td><code>x / y: &lt;px&gt;</code></td><td>位置(±3px 容差)</td></tr>
+<tr><td><code>within: &#34;&lt;id&gt;&#34;</code></td><td>该组件的盒子位于那个 id 的盒子之内</td></tr>
+<tr><td><code>below: &#34;&lt;id&gt;&#34;</code></td><td>起始位置在那个 id 的下方</td></tr>
+<tr><td><code>backgroundNot / colorNot: &#34;&lt;substr&gt;&#34;</code></td><td>那个子串<strong>不存在</strong>(例如用 <code>&#34;255, 255, 255&#34;</code> 来断言深色模式下非白色)</td></tr>
+<tr><td><code>role: &#34;&lt;role&gt;&#34;</code></td><td>渲染后的 ARIA role(含渲染器隐式注入的,如 root→<code>main</code>、modal→<code>dialog</code>)</td></tr>
+<tr><td><code>hasAriaLabel: true</code></td><td>元素带有 <code>aria-label</code></td></tr>
+<tr><td><code>contrastRatio: &lt;n&gt;</code></td><td>文本/背景对比度至少为 <code>n</code>(WCAG AA:正文 4.5、大字号 3.0),针对有效背景色计算</td></tr>
+</tbody></table>
+<p>无障碍断言读取的是<strong>渲染后</strong>的 DOM,因此能捕捉渲染器隐式注入的 role 和 label, 而不只是 JSON 里声明的。<code>focusTrap</code> 目前被刻意拒绝:焦点陷阱是动态的 Tab 键序行为, 不是静态快照,验证工具绝不应为一个它实际做不到的检查背书。</p>
+<p>检查明确失败:无法识别的断言键(如拼写错误)会判定为失败,未被测量的 <code>within</code>/<code>below</code> 目标 id 会以 &#39;not found&#39; 判定为失败 —— 绝不会有检查项被 静默通过。</p>
+<pre><code>[
+  {&#34;id&#34;: &#34;nav&#34;,      &#34;type&#34;: &#34;appbar&#34;, &#34;visible&#34;: true, &#34;y&#34;: 0, &#34;text&#34;: &#34;Today&#34;},
+  {&#34;id&#34;: &#34;wifi&#34;,     &#34;type&#34;: &#34;switchlisttile&#34;, &#34;visible&#34;: true, &#34;within&#34;: &#34;settings&#34;},
+  {&#34;id&#34;: &#34;chart&#34;,    &#34;noOverflow&#34;: true, &#34;maxW&#34;: 370}
+]</code></pre>
+<h2 id="qorm-check-步骤流验证行为"><code>qorm check</code> 步骤流——验证行为</h2>
+<p>传入一个 <code>{&#34;steps&#34;:[…]}</code> 对象而非数组,以验证<em>交互</em>:每一步应用一个 action, 等待重新渲染 + 重新测量,然后进行检查。</p>
+<pre><code>{ &#34;steps&#34;: [
+  { &#34;name&#34;: &#34;increment&#34;, &#34;do&#34;: {&#34;dispatch&#34;: &#34;increment&#34;}, &#34;checks&#34;: [{&#34;id&#34;: &#34;number&#34;, &#34;text&#34;: &#34;1&#34;}] },
+  { &#34;name&#34;: &#34;go dark&#34;,   &#34;do&#34;: {&#34;setState&#34;: {&#34;path&#34;: &#34;theme&#34;, &#34;value&#34;: &#34;dark&#34;}},
+    &#34;checks&#34;: [{&#34;id&#34;: &#34;card&#34;, &#34;backgroundNot&#34;: &#34;255, 255, 255&#34;}] }
+] }</code></pre>
+<p><code>do</code> 是 <code>{&#34;dispatch&#34;: &#34;&lt;action&gt;&#34;, &#34;args&#34;: {…}}</code> 或 <code>{&#34;setState&#34;: {&#34;path&#34;: …, &#34;value&#34;: …}}</code>。</p>
+<h2 id="qorm-check---audit一次性回归"><code>qorm check --audit</code>——一次性回归</h2>
+<pre><code>qorm check &lt;app-dir&gt; --audit</code></pre>
+<p>无需手写检查:针对每个<strong>可见</strong>组件验证通用的不变量——非零尺寸、无水平溢出、 在窗口之内(水平滚动/分页容器及其后代不在此列)。返回 <code>{ok, visibleComponents, issues, details}</code>。</p>
+<h2 id="在实时共享会话中mcp">在实时共享会话中(MCP)</h2>
+<p>当一个人在运行应用时,同一会话上的智能体可以调用:</p>
+<ul>
+<li><strong><code>qorm_measure</code></strong>——完整的意图 + 渲染结果(如上)。</li>
+<li><strong><code>qorm_check_layout</code></strong>——传入 <code>checks</code>(与 <code>--checks</code> 相同的 schema),</li>
+</ul>
+<p>得到每项检查的通过/失败以及实际值。</p>
+<p>两者都读取实时客户端的自我测量,因此智能体看到的正是人所看到的。 工具描述中携带完整的断言列表。</p>
+<h2 id="设备上实时调试">设备上实时调试</h2>
+<pre><code>qorm run &lt;app&gt; --lan</code></pre>
+<p>绑定到局域网,并打印一台物理手机如何加入与开发机器和智能体<strong>同一个实时 会话</strong>:</p>
+<ul>
+<li><strong>Wi-Fi</strong>:在手机浏览器(同一网络)中打开打印出的 <code>http://&lt;lan-ip&gt;:PORT/</code>。</li>
+</ul>
+<p>真实的局域网地址会排在最前。</p>
+<ul>
+<li><strong>USB(Android)</strong>:<code>adb reverse tcp:PORT</code> 会自动设置好,因此手机打开</li>
+</ul>
+<p><code>http://localhost:PORT/</code>。</p>
+<p>一旦连接,设备就只是实时服务器的又一个客户端:</p>
+<ul>
+<li>智能体的编辑(经 MCP)即时热重载到设备上(SSE),</li>
+<li>设备的自我测量回传到 <code>/measure</code>,因此 <code>qorm_measure</code></li>
+</ul>
+<p>和 <code>qorm_check_layout</code> 报告的是<strong>真实设备的</strong>渲染——实际的 屏幕尺寸、字体和 WebView——而非模拟,</p>
+<ul>
+<li>SSE 的连接/断开会带客户端 IP 写入活动日志,</li>
+</ul>
+<p>因此一台设备加入会话是可见的。</p>
+<p>这让解释并验证得以针对真实硬件进行,闭合了从编写到设备上确认的循环。</p>
+<h2 id="一条命令搞定一切">一条命令搞定一切</h2>
+<pre><code>bash scripts/verify.sh</code></pre>
+<p>运行 <code>go test ./...</code>(渲染标记、actions、i18n 格式化、fuzz、 确定性)外加对每个示例的自我测量布局审计,汇总成单一的 ALL-GREEN / 有回归 判定。无需外部浏览器。</p>
+<h2 id="说明">说明</h2>
+<ul>
+<li>测量需要应用在一个渲染运行时中运行。CLI 使用</li>
+</ul>
+<p><code>-tags desktop</code> 的 WebView(以无头方式运行);实时会话使用人所打开的任意 浏览器/WebView。</p>
+<ul>
+<li><code>visible: false</code> + 零尺寸对于非活动 tab 内容、已关闭的</li>
+</ul>
+<p>覆盖层(<code>open:false</code> 的 modal/dialog/sheet)以及空的条件文本是正常的—— 审计只标记<em>可见</em>的组件。</p>
+</main>
+</div>
+<script>
+  (function(){var r=document.documentElement,b=document.getElementById('theme');
+   var sun='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>';
+   var moon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+   function c(){return r.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');}
+   try{var s=localStorage.getItem('qorm-theme');if(s)r.setAttribute('data-theme',s);}catch(e){}
+   function p(){b.innerHTML=c()==='dark'?sun:moon;} p();
+   b.onclick=function(){var t=c()==='dark'?'light':'dark';r.setAttribute('data-theme',t);try{localStorage.setItem('qorm-theme',t);}catch(e){}p();};})();
+  (function(){/* remember the reader's language across pages + both sites */
+   try{var cur=document.documentElement.lang;
+     document.querySelectorAll('header [data-lang]').forEach(function(el){
+       if(el.tagName==='A')el.addEventListener('click',function(){try{localStorage.setItem('qorm-lang',el.getAttribute('data-lang'));}catch(e){}});});
+     var pref;try{pref=localStorage.getItem('qorm-lang');}catch(e){}
+     if(pref&&pref!==cur){var alt=document.querySelector('header a[data-lang="'+pref+'"]');if(alt)location.replace(alt.getAttribute('href'));}
+   }catch(e){}})();
+</script>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-K3FQCHWD"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+</body>
+</html>

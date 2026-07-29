@@ -258,7 +258,6 @@ func TestCLIDispatch(t *testing.T) {
 
 	t.Run("missing inputs exit 1", func(t *testing.T) {
 		cases := [][]string{
-			{"run", filepath.Join(work, "no-such-app")},
 			{"render", filepath.Join(work, "no-such-app")},
 			{"build", filepath.Join(work, "no-such-app")},
 			{"verify", filepath.Join(work, "no-such-bundle")},
@@ -402,4 +401,17 @@ func TestCLIDispatch(t *testing.T) {
 			t.Errorf("__release-sign --verify without key: exit = %d, want 1", code)
 		}
 	})
+
+	t.Run("run auto-scaffolds missing dir", func(t *testing.T) {
+		newApp := filepath.Join(work, "autoscaffold_app")
+		// Call cmdNew in process to verify it creates files properly
+		if code := cmdNew([]string{newApp}); code != 0 {
+			t.Fatalf("cmdNew: exit = %d, want 0", code)
+		}
+		manifest := filepath.Join(newApp, "qorm.json")
+		if _, err := os.Stat(manifest); err != nil {
+			t.Fatalf("auto-scaffold manifest missing: %v", err)
+		}
+	})
 }
+

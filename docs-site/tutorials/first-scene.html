@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-K3FQCHWD');</script>
+<!-- End Google Tag Manager -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1529418578004538"
+     crossorigin="anonymous"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>First Scene · QORM</title>
+<meta name="description" content="A QORM scene is the UI entry point: a root node tree of text, layout, and interpolation that the renderer turns into a screen.">
+<meta property="og:title" content="First Scene">
+<meta property="og:description" content="A QORM scene is the UI entry point: a root node tree of text, layout, and interpolation that the renderer turns into a screen.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://qorm.com/docs/tutorials/first-scene.html">
+<meta property="og:site_name" content="QORM">
+<meta property="og:locale" content="en_US">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="First Scene">
+<meta name="twitter:description" content="A QORM scene is the UI entry point: a root node tree of text, layout, and interpolation that the renderer turns into a screen.">
+<link rel="canonical" href="https://qorm.com/docs/tutorials/first-scene.html">
+<link rel="alternate" hreflang="en" href="https://qorm.com/docs/tutorials/first-scene.html">
+<link rel="alternate" hreflang="zh" href="https://qorm.com/docs/zh/tutorials/first-scene.html">
+<link rel="alternate" hreflang="x-default" href="https://qorm.com/docs/tutorials/first-scene.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"A QORM scene is the UI entry point: a root node tree of text, layout, and interpolation that the renderer turns into a screen.","headline":"First Scene","inLanguage":"en","name":"First Scene","url":"https://qorm.com/docs/tutorials/first-scene.html"}</script>
+<link rel="icon" href="/assets/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+  :root{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
+  @media (prefers-color-scheme:dark){ :root{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; } }
+  :root[data-theme="light"]{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
+  :root[data-theme="dark"]{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Inter",-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;color:var(--ink);background:var(--ground);line-height:1.62;letter-spacing:-.011em;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent-ink);text-decoration:none} a:hover{text-decoration:underline}
+  code,pre{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+  header.top{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--ground) 82%,transparent);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--line)}
+  header.top .tnav{height:56px;display:flex;align-items:center;gap:14px;max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,32px)}
+  header.top .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:16px;letter-spacing:-.02em;color:var(--ink)}
+  header.top .brand img{width:24px;height:24px}
+  @media (prefers-color-scheme:dark){ header.top .brand img{filter:invert(1) brightness(1.7)} }
+  :root[data-theme="dark"] header.top .brand img{filter:invert(1) brightness(1.7)}
+  :root[data-theme="light"] header.top .brand img{filter:none}
+  header.top .doc{color:var(--faint);font-weight:600;font-size:15px}
+  header.top a.ver{font-size:11.5px;font-weight:700;color:var(--muted);border:.5px solid var(--line);border-radius:999px;padding:2px 8px;letter-spacing:.01em}
+  header.top a.ver:hover{color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));text-decoration:none}
+  header.top .sp{flex:1}
+  header.top a.tl{color:var(--muted);font-size:14px;font-weight:500} header.top a.tl:hover{color:var(--ink);text-decoration:none} header.top a.tl.active-nav{color:var(--ink);font-weight:700}
+  .tbtn{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:transform 0.2s ease, background 0.2s, color 0.2s, border-color 0.2s}
+  .tbtn:hover{color:var(--ink);transform:rotate(15deg) scale(1.05)} .tbtn svg{width:16px;height:16px}
+  header.top .iconlink{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;transition:transform .2s cubic-bezier(.16,1,.3,1),color .2s,border-color .2s}
+  header.top .iconlink:hover{color:var(--ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));transform:translateY(-1px);text-decoration:none}
+  header.top .iconlink.patreon:hover{color:#f96854;border-color:color-mix(in srgb,#f96854 45%,var(--line))}
+  header.top .iconlink svg{width:17px;height:17px}
+  header.top .iconlink.lang{width:auto;padding:0 9px;gap:3px;font-size:11px;font-weight:800;letter-spacing:.02em}
+  header.top .iconlink.lang svg{width:14px;height:14px}
+  header.top .iconlink.lang.off{opacity:.4;pointer-events:none}
+  header.top .lang{display:inline-flex;align-items:center;border:.5px solid var(--line);border-radius:8px;overflow:hidden;font-size:13px;font-weight:600}
+  header.top .lang a,header.top .lang span{padding:5px 10px;color:var(--muted)}
+  header.top .lang a:hover{color:var(--ink);text-decoration:none;background:var(--surface)}
+  header.top .lang .on{background:var(--accent);color:#fff}
+  header.top .lang .off{color:var(--faint);opacity:.55}
+  .shell{display:flex;max-width:1280px;margin:0 auto;padding:0 clamp(0px,2vw,20px)}
+  aside{width:262px;min-width:262px;height:calc(100vh - 56px);overflow:auto;position:sticky;top:56px;padding:22px 8px 48px 22px}
+  aside .nav-group{text-transform:uppercase;font-size:11px;font-weight:700;color:var(--faint);margin:20px 0 6px;letter-spacing:.05em}
+  aside ul{list-style:none;margin:0;padding:0}
+  aside li a{display:block;padding:6px 12px;color:var(--muted);border-radius:8px;font-size:14px;font-weight:500;transition:background 0.15s ease, color 0.15s ease, transform 0.15s ease}
+  aside li a:hover{background:var(--surface);color:var(--ink);text-decoration:none;transform:translateX(2px)}
+  aside li a.active{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent-ink);font-weight:600}
+  aside li a .entag{font-size:9.5px;font-weight:700;letter-spacing:.04em;color:var(--faint);border:.5px solid var(--line);border-radius:4px;padding:0 4px;margin-left:6px;vertical-align:1px}
+  main{flex:1;min-width:0;max-width:800px;padding:38px 46px 90px}
+  main>*:first-child{margin-top:0}
+  main h1{font-size:33px;font-weight:800;letter-spacing:-.03em;margin:0 0 .5em}
+  main h2{font-size:23px;font-weight:700;letter-spacing:-.02em;margin:1.7em 0 .5em;padding-bottom:.3em;border-bottom:.5px solid var(--line)}
+  main h3{font-size:18px;font-weight:700;margin:1.5em 0 .4em}
+  main code{background:var(--raise);border:.5px solid var(--line);padding:.12em .4em;border-radius:6px;font-size:.88em}
+  main pre{background:var(--raise);border:.5px solid var(--line);padding:14px 16px;border-radius:12px;overflow:auto;font-size:13.5px;line-height:1.7}
+  main pre code{background:none;border:none;padding:0}
+  main table{border-collapse:collapse;width:100%;margin:1em 0;display:block;overflow-x:auto;font-size:14px}
+  main th,main td{border:.5px solid var(--line);padding:8px 13px;text-align:left}
+  main th{background:var(--surface);font-weight:600}
+  main blockquote{border-left:3px solid var(--accent);margin:1.1em 0;padding:.5em 1.1em;color:var(--muted);background:var(--surface);border-radius:0 10px 10px 0}
+  main img{max-width:100%;height:auto}
+  @media (max-width:800px){ aside{display:none} main{padding:26px 22px} }
+</style>
+</head>
+<body>
+<header class="top"><div class="tnav">
+  <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
+  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.5.0</a>
+  <span class="doc">docs</span>
+  <span class="sp"></span>
+  <a class="tl" href="/">Home</a>
+  <a class="tl active-nav" href="/docs/">Docs</a><a class="tl" href="/api/">API</a>
+  <a class="iconlink" href="https://github.com/qorm/qorm" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
+  <a class="iconlink patreon" href="https://www.patreon.com/qorm" target="_blank" rel="noopener" aria-label="Patreon" title="Patreon"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="14.4" cy="9.6" r="6.6"/><rect x="1.5" y="2.5" width="4" height="19" rx="0.3"/></svg></a>
+  <a class="iconlink lang" href="../zh/tutorials/first-scene.html" data-lang="zh" aria-label="中文" title="中文"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/></svg><span>中</span></a>
+  <button class="tbtn" id="theme" aria-label="Theme"></button>
+</div></header>
+<div class="shell">
+  <aside><div class="nav-group">overview</div><ul><li><a href="../README.html">QORM documentation</a></li><li><a href="../project-structure.html">Project structure</a></li><li><a href="../build-with-ai.html">Build QORM apps with your AI assistant</a></li><li><a href="../collaboration.html">Human-AI collaboration on a live app</a></li><li><a href="../verification.html">Interpreting &amp; verifying a QORM app</a></li><li><a href="../expressions.html">Expressions</a></li></ul><div class="nav-group">tutorials</div><ul><li><a href="getting-started.html">Getting Started with QORM</a></li><li><a href="first-scene.html" class="active">First Scene</a></li><li><a href="first-action.html">First Action</a></li><li><a href="first-component.html">First Component</a></li><li><a href="first-platform-pack.html">First Platform Pack</a></li></ul><div class="nav-group">examples</div><ul><li><a href="../examples/counter.html">Example: Counter</a></li><li><a href="../examples/todo.html">Example: Todo</a></li><li><a href="../examples/login.html">Example: Login</a></li><li><a href="../examples/dashboard.html">Example: Dashboard</a></li></ul><div class="nav-group">platforms</div><ul><li><a href="../platforms/web.html">QORM Web Platform</a></li><li><a href="../platforms/mobile.html">QORM Mobile Platform</a></li><li><a href="../platforms/desktop.html">QORM Desktop Platform</a></li><li><a href="../platforms/miniapp.html">QORM Mini-program platform</a></li><li><a href="../platforms/native-middlelayer.html">User middle layer: adding your own capabilities to an app</a></li><li><a href="../platforms/capabilities.html">Capabilities</a></li><li><a href="../platforms/support-matrix.html">Platform support matrix</a></li></ul><div class="nav-group">agent</div><ul><li><a href="../agent/permissions.html">QORM Agent Permissions</a></li><li><a href="../agent/mcp-tools.html">QORM MCP tools</a></li><li><a href="../agent/skills.html">QORM Skills</a></li><li><a href="../agent/claude-pack.html">QORM Claude Pack</a></li><li><a href="../agent/codex-pack.html">QORM Codex Pack</a></li><li><a href="../agent/openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">security</div><ul><li><a href="../security/security-model.html">QORM Security Model</a></li><li><a href="../security/permission-model.html">QORM Permission Model</a></li><li><a href="../security/bundle-signing.html">QORM Bundle Signing</a></li></ul><div class="nav-group">spec</div><ul><li><a href="../spec/navigation-spec.html">Navigation &amp;amp; routing</a></li></ul></aside>
+  <main><h1 id="first-scene">First Scene</h1>
+<p>A scene is QORM&#39;s UI entry point. A scene has an <code>id</code> and a root node <code>root</code>; the node tree describes the UI. Text content goes in the <code>text</code> field, and <code>{{ state.x }}</code> interpolates global state.</p>
+<h2 id="minimal-scene">Minimal scene</h2>
+<pre><code>{
+  &#34;type&#34;: &#34;scene&#34;,
+  &#34;id&#34;: &#34;main&#34;,
+  &#34;root&#34;: { &#34;type&#34;: &#34;text&#34;, &#34;id&#34;: &#34;hello&#34;, &#34;text&#34;: &#34;Hello QORM&#34; }
+}</code></pre>
+<h2 id="scene-with-layout">Scene with layout</h2>
+<p>Container nodes (<code>column</code> / <code>row</code>) arrange their children using <code>style</code> (padding, spacing, background) and <code>layout</code> (size, alignment).</p>
+<pre><code>{
+  &#34;type&#34;: &#34;scene&#34;,
+  &#34;id&#34;: &#34;main&#34;,
+  &#34;root&#34;: {
+    &#34;type&#34;: &#34;column&#34;,
+    &#34;id&#34;: &#34;root&#34;,
+    &#34;style&#34;:  { &#34;padding&#34;: 24, &#34;gap&#34;: 12 },
+    &#34;layout&#34;: { &#34;width&#34;: &#34;fill&#34;, &#34;height&#34;: &#34;fill&#34;, &#34;align&#34;: &#34;center&#34; },
+    &#34;children&#34;: [
+      { &#34;type&#34;: &#34;text&#34;,   &#34;id&#34;: &#34;title&#34;,  &#34;text&#34;: &#34;Title&#34; },
+      { &#34;type&#34;: &#34;button&#34;, &#34;id&#34;: &#34;submit&#34;, &#34;text&#34;: &#34;Submit&#34;, &#34;onPress&#34;: &#34;save&#34; }
+    ]
+  }
+}</code></pre>
+<ul>
+<li>Use <code>text</code> (not <code>value</code>) for text; template interpolation like <code>&#34;Welcome, {{ state.user }}&#34;</code> also goes in <code>text</code>.</li>
+<li>Buttons use <code>onPress</code> to trigger actions (see <a href="first-action.html">First Action</a>).</li>
+<li>For all available node types, see the <a href="/api/widgets.html">Widget catalog</a>.</li>
+</ul>
+<p><img src="img/first-scene.png" alt="A rendered QORM scene with a title, text, and a button" loading="lazy" decoding="async"> <em>A scene renders to a screen — text nodes plus a button laid out by a column.</em></p>
+<h2 id="lists-and-item-scope">Lists and item scope</h2>
+<p>A <code>list</code> binds <code>data</code> to an array and repeats one <code>renderItem</code> template. Inside that template the row is <code>item</code>, and its position is <code>index</code> (0-based) plus the <code>first</code> / <code>last</code> flags.</p>
+<pre><code>{
+  &#34;type&#34;: &#34;list&#34;, &#34;id&#34;: &#34;rows&#34;, &#34;data&#34;: &#34;{{ state.items }}&#34;,
+  &#34;renderItem&#34;: {
+    &#34;type&#34;: &#34;row&#34;, &#34;children&#34;: [
+      { &#34;type&#34;: &#34;text&#34;, &#34;text&#34;: &#34;{{ index + 1 }}.&#34; },
+      { &#34;type&#34;: &#34;text&#34;, &#34;text&#34;: &#34;{{ item.title }}&#34; }
+    ]
+  }
+}</code></pre>
+<p><code>index</code> / <code>first</code> / <code>last</code> are separate scope names, so a data field of the same name is never shadowed: <code>{{ item.index }}</code> is your data, <code>{{ index }}</code> is the loop position.</p>
+<p><strong>Nested lists</strong> rebind <code>item</code> on the inner loop. Give the outer list an <code>as</code> alias to keep it reachable — <code>&#34;as&#34;: &#34;section&#34;</code> binds <code>section</code> plus <code>sectionIndex</code> / <code>sectionFirst</code> / <code>sectionLast</code>:</p>
+<pre><code>{
+  &#34;type&#34;: &#34;list&#34;, &#34;data&#34;: &#34;{{ state.sections }}&#34;, &#34;as&#34;: &#34;section&#34;,
+  &#34;renderItem&#34;: {
+    &#34;type&#34;: &#34;column&#34;, &#34;children&#34;: [
+      { &#34;type&#34;: &#34;text&#34;, &#34;text&#34;: &#34;{{ section.title }}&#34; },
+      { &#34;type&#34;: &#34;list&#34;, &#34;data&#34;: &#34;{{ section.rows }}&#34;,
+        &#34;renderItem&#34;: { &#34;type&#34;: &#34;text&#34;, &#34;text&#34;: &#34;{{ section.title }} / {{ item }}&#34; } }
+    ]
+  }
+}</code></pre>
+<p>An invalid or reserved alias falls back to <code>item</code> with a load-time warning. <code>gridview</code> takes the same <code>as</code> and the same scope names.</p>
+<h3 id="list-props-worth-knowing">List props worth knowing</h3>
+<table>
+<thead><tr><th>Prop</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>separator</code></td><td>draws a hairline between items — <code>true</code>, or <code>{ &#34;height&#34;: 1, &#34;inset&#34;: 16, &#34;color&#34;: &#34;…&#34; }</code>. Never after the last item</td></tr>
+<tr><td><code>pageSize</code> + <code>page</code></td><td>built-in pagination: only one window of <code>data</code> renders. <code>page</code> is 1-based and clamps into range, so an overshooting page shows the last one instead of a blank screen</td></tr>
+<tr><td><code>groupBy</code> + <code>sectionHeader</code></td><td>splits <strong>consecutive runs</strong> of an equal key into sections with a header label. The renderer never reorders your data — sort it first</td></tr>
+<tr><td><code>sticky</code> + <code>stickyTop</code></td><td>section headers stick while scrolling (<code>sticky</code> defaults to <code>true</code>); <code>stickyTop</code> parks them below an appbar</td></tr>
+<tr><td><code>onRefresh</code></td><td>pull-to-refresh; dispatches the named action</td></tr>
+<tr><td><code>reorderable</code> + <code>onReorder</code></td><td>press-hold drag to reorder</td></tr>
+</tbody></table>
+<pre><code>{
+  &#34;type&#34;: &#34;list&#34;, &#34;id&#34;: &#34;contacts&#34;, &#34;data&#34;: &#34;{{ state.contacts }}&#34;,
+  &#34;groupBy&#34;: &#34;letter&#34;, &#34;sectionHeader&#34;: &#34;{{ item.letter }}&#34;, &#34;stickyTop&#34;: 44,
+  &#34;separator&#34;: true, &#34;pageSize&#34;: 50, &#34;page&#34;: &#34;{{ state.page }}&#34;,
+  &#34;onRefresh&#34;: &#34;reloadContacts&#34;,
+  &#34;renderItem&#34;: { &#34;type&#34;: &#34;listtile&#34;, &#34;text&#34;: &#34;{{ item.name }}&#34; }
+}</code></pre>
+<p><code>index</code> stays global to the whole <code>data</code>, not to the current page, so numbering keeps counting across pages. <code>groupBy</code> and <code>reorderable</code> are not combined (section headers would misindex the drag), and <code>reorderable</code> takes precedence over <code>onRefresh</code> (both would claim the same drag gesture).</p>
+<p>Note that <code>virtualize</code> is a rendering hint (<code>content-visibility</code>), not real windowing — the full item markup is still produced. Use <code>pageSize</code> when you need the DOM itself to stay small.</p>
+<h2 id="tabs-and-panels">Tabs and panels</h2>
+<p><code>tabs</code> takes its labels from a <code>tabs</code> array and its panels from <code>children</code>, matched <strong>by index</strong>:</p>
+<pre><code>{
+  &#34;type&#34;: &#34;tabs&#34;, &#34;id&#34;: &#34;detail&#34;,
+  &#34;tabs&#34;: [&#34;Overview&#34;, &#34;Specs&#34;, &#34;Reviews&#34;],
+  &#34;active&#34;: &#34;{{ state.tab }}&#34;,
+  &#34;scrollable&#34;: true, &#34;swipe&#34;: true, &#34;lazy&#34;: true,
+  &#34;indicator&#34;: &#34;pill&#34;, &#34;indicatorColor&#34;: &#34;var(--accent)&#34;,
+  &#34;onChange&#34;: &#34;tabChanged&#34;,
+  &#34;children&#34;: [
+    { &#34;type&#34;: &#34;text&#34;, &#34;id&#34;: &#34;t1&#34;, &#34;text&#34;: &#34;Overview…&#34; },
+    { &#34;type&#34;: &#34;text&#34;, &#34;id&#34;: &#34;t2&#34;, &#34;text&#34;: &#34;Specs…&#34; },
+    { &#34;type&#34;: &#34;text&#34;, &#34;id&#34;: &#34;t3&#34;, &#34;text&#34;: &#34;Reviews…&#34; }
+  ]
+}</code></pre>
+<table>
+<thead><tr><th>Prop</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>active</code></td><td>which tab is open, 0-based. Out of range clamps into range</td></tr>
+<tr><td><code>scrollable</code></td><td>a horizontally scrolling tab bar; the active tab is scrolled into view automatically, however it changed</td></tr>
+<tr><td><code>swipe</code></td><td>drag a panel sideways to the neighbouring tab. It activates that neighbour&#39;s own control, so it behaves the same in every mode; there is no wrap-around at the ends</td></tr>
+<tr><td><code>lazy</code></td><td>render only the active panel</td></tr>
+<tr><td><code>indicator</code> · <code>indicatorColor</code></td><td><code>&#34;pill&#34;</code> or <code>&#34;none&#34;</code> (anything else is the default underline), tinted by <code>indicatorColor</code></td></tr>
+</tbody></table>
+<p>Binding <code>active</code> to a <strong>plain</strong> <code>{{ state.x }}</code> path makes the tabs <em>controlled</em>: the tab bar writes that state key itself, so switching tabs needs no action file at all, and any other node bound to the same key follows along. An expression like <code>{{ state.i + 1 }}</code> is not a plain path, so it renders a read-only value instead.</p>
+<p><code>onChange</code> fires on every switch with two args merged in: <code>index</code> (the 0-based position, as a string) and <code>tab</code> (the label). <code>lazy</code> needs the tabs to be controlled or to carry an <code>onChange</code> — with neither, switching happens purely in the browser and could only reveal panels that are already in the DOM, so <code>lazy</code> is ignored. <code>indicatorColor</code> needs the node to have a plain identifier <code>id</code>, and its value passes through a strict character allowlist, so anything that could end a CSS declaration is dropped rather than emitted.</p>
+<h2 id="tables-with-widgets-in-cells">Tables with widgets in cells</h2>
+<p><code>table</code> and <code>datatable</code> render <code>data</code> against a <code>columns</code> list. A column is a key string, or an object with <code>value</code> (the data key), <code>label</code> (the header text), <code>width</code> and <code>sticky</code>.</p>
+<p>By default a cell is the plain text of <code>obj[key]</code>. Give the table a <strong>child node carrying <code>column</code></strong> and that column renders your widget instead:</p>
+<pre><code>{
+  &#34;type&#34;: &#34;table&#34;, &#34;id&#34;: &#34;people&#34;,
+  &#34;data&#34;: &#34;{{ state.people }}&#34;,
+  &#34;columns&#34;: [
+    { &#34;value&#34;: &#34;name&#34;, &#34;label&#34;: &#34;Name&#34;, &#34;width&#34;: 180, &#34;sticky&#34;: true },
+    { &#34;value&#34;: &#34;role&#34;, &#34;label&#34;: &#34;Role&#34; }
+  ],
+  &#34;stickyHeader&#34;: true, &#34;stickyTop&#34;: 44,
+  &#34;scrollX&#34;: true, &#34;maxHeight&#34;: 420, &#34;minWidth&#34;: 720,
+  &#34;children&#34;: [
+    { &#34;type&#34;: &#34;tag&#34;, &#34;id&#34;: &#34;role&#34;, &#34;column&#34;: &#34;role&#34;, &#34;label&#34;: &#34;{{ row.role }}&#34; },
+    { &#34;type&#34;: &#34;text&#34;, &#34;id&#34;: &#34;bio&#34;, &#34;detail&#34;: true, &#34;label&#34;: &#34;Details&#34;, &#34;text&#34;: &#34;{{ row.bio }}&#34; }
+  ]
+}</code></pre>
+<p>Inside a cell template the row is <code>row</code>, its position is <code>rowIndex</code> / <code>rowFirst</code> / <code>rowLast</code>, and the cell itself is <code>cell</code> — <code>{{ cell.value }}</code>, <code>{{ cell.column }}</code>, <code>{{ cell.index }}</code>. This is the same alias machinery a list uses, so <code>&#34;as&#34;: &#34;person&#34;</code> renames the set to <code>person</code> / <code>personIndex</code> / <code>personFirst</code> / <code>personLast</code>, and an outer list&#39;s <code>item</code> stays reachable alongside it.</p>
+<p>A child carrying <code>detail: true</code> is not a column — it renders an expandable row under every row, using the browser&#39;s own disclosure control. Its <code>label</code> (or <code>text</code>) is the summary line, evaluated in the row scope.</p>
+<p>The chrome keys are table-level, except <code>sticky</code>, which belongs to a column object:</p>
+<table>
+<thead><tr><th>Key</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td><code>stickyHeader</code> + <code>stickyTop</code></td><td>the header row freezes while the body scrolls; <code>stickyTop</code> parks it below an appbar</td></tr>
+<tr><td><code>scrollX</code></td><td>the table scrolls horizontally inside its own box</td></tr>
+<tr><td><code>maxHeight</code></td><td>the body scrolls vertically inside that height</td></tr>
+<tr><td><code>minWidth</code></td><td>keeps columns from crushing when <code>scrollX</code> is on</td></tr>
+<tr><td>column <code>sticky</code></td><td>freezes that leading column while the table scrolls sideways</td></tr>
+</tbody></table>
+<p><code>datatable</code> takes all of the above on top of its own selection and sorting props. Neither widget has built-in paging — see <a href="first-action.html">First action</a>.</p>
+<h2 id="accordion-tree-timeline-carousel">Accordion, tree, timeline, carousel</h2>
+<table>
+<thead><tr><th>Widget</th><th>Props worth knowing</th></tr></thead>
+<tbody>
+<tr><td><code>accordion</code></td><td><code>active</code> is the index of the open panel (bindable, clamped, defaults to the first). <code>single: true</code> makes the panels exclusive — opening one closes the rest; the default is independent toggles</td></tr>
+<tr><td><code>tree</code></td><td><code>collapsed: true</code> starts every branch closed. A data item&#39;s own <code>expanded</code> field still overrides that for its own node</td></tr>
+<tr><td><code>timeline</code></td><td>each <code>items</code> entry may carry <code>time</code> (rendered above the title), <code>color</code> (the dot&#39;s colour) and <code>icon</code> (a name from the built-in SVG icon set, drawn inside the dot; an unknown name falls back to the plain dot)</td></tr>
+<tr><td><code>carousel</code></td><td><code>autoplay: 4000</code> advances the track on a clock — floored at 250 ms, paused while pointed at or while the browser tab is hidden, wrapping at the end. <code>indicators: true</code> draws a tappable dot row whose active dot follows the live scroll position</td></tr>
+</tbody></table>
+<h2 id="a-collapsing-large-title">A collapsing large title</h2>
+<p><code>largetitle</code> (aliases <code>sliverappbar</code>, <code>cupertinolargetitle</code>) draws the iOS large-title header, and it <strong>collapses by default</strong>: the compact bar sticks to the top while the big title scrolls up behind it and cross-fades into the compact one.</p>
+<pre><code>{ &#34;type&#34;: &#34;largetitle&#34;, &#34;id&#34;: &#34;hdr&#34;, &#34;label&#34;: &#34;Places&#34;, &#34;subtitle&#34;: &#34;8 saved nearby&#34;,
+  &#34;children&#34;: [ { &#34;type&#34;: &#34;icon&#34;, &#34;id&#34;: &#34;hdr-plus&#34;, &#34;name&#34;: &#34;plus&#34;, &#34;size&#34;: 20 } ] }</code></pre>
+<ul>
+<li>The title text is the node&#39;s <code>label</code> (or <code>text</code>); <code>subtitle</code> is optional.</li>
+<li><code>children</code> are the trailing actions in the compact bar.</li>
+<li><code>&#34;collapsible&#34;: false</code> restores the old static header — one title, no sticky</li>
+</ul>
+<p>bar, byte-identical to what the widget rendered before collapsing existed.</p>
+<ul>
+<li><code>background</code> sets the bar&#39;s fill (default <code>var(--bg)</code>).</li>
+<li><code>appbar</code> is a separate widget and does not collapse.</li>
+</ul>
+<p>The collapse itself is plain sticky positioning, so it works everywhere; the cross-fade rides a CSS scroll-driven animation where the browser has one and a small script drives the same declarations where it does not.</p>
+<h2 id="sheets">Sheets</h2>
+<p><code>sheet</code> (aliases <code>bottomsheet</code>, <code>draggablesheet</code>, <code>draggablescrollablesheet</code>, <code>modalbottomsheet</code>) is a bottom panel the user drags between snap points.</p>
+<pre><code>{ &#34;type&#34;: &#34;sheet&#34;, &#34;id&#34;: &#34;detail&#34;, &#34;open&#34;: &#34;{{ state.detail }}&#34;,
+  &#34;title&#34;: &#34;Blue Bottle Coffee&#34;,
+  &#34;snapPoints&#34;: [0.3, 0.6, 0.92], &#34;initialSnap&#34;: 1,
+  &#34;onSnap&#34;: { &#34;name&#34;: &#34;setSnap&#34; },
+  &#34;children&#34;: [ { &#34;type&#34;: &#34;text&#34;, &#34;id&#34;: &#34;d1&#34;, &#34;text&#34;: &#34;Ferry Building · 240m&#34; } ] }</code></pre>
+<table>
+<thead><tr><th>Prop</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>open</code></td><td>a falsy value renders <strong>nothing at all</strong> — there is no hidden markup. Omit it and the sheet is always present</td></tr>
+<tr><td><code>snapPoints</code></td><td>the stop ladder as fractions of the containing box, sorted ascending. A value above 1 is read as a percentage (<code>90</code> is <code>0.9</code>). May itself be a binding to an array. Default <code>[0.25, 0.5, 0.9]</code></td></tr>
+<tr><td><code>initialSnap</code></td><td>index into that ladder; out of range falls back to the lowest stop</td></tr>
+<tr><td><code>onSnap</code></td><td>one action, dispatched whenever the drag settles. It is registered once per stop and each carries the arg <code>snap</code> — the stop&#39;s index — so <code>{{ snap }}</code> tells the action where it landed</td></tr>
+<tr><td><code>onClose</code></td><td>dispatched when the sheet is dismissed</td></tr>
+<tr><td><code>title</code> · <code>handle</code> · <code>backdrop</code></td><td>the header line, the grab pill (<code>false</code> removes it) and the dimming scrim (<code>false</code> removes it)</td></tr>
+</tbody></table>
+<p>If <code>open</code> is bound to a plain state path and <code>dismissable</code> is not <code>false</code>, a tap on the scrim closes the sheet through the built-in dismiss, so the common case needs no action file. Flinging the sheet below 60% of its lowest stop closes it the same way. There is no Escape-key dismiss.</p>
+<p>Only the grab row claims the drag gesture — content scrolls normally — so a sheet can hold a list, a swipeable row or a reorderable list without the two gestures fighting.</p>
+<p><code>examples/places</code> puts all three of these together: a collapsing large title, a frosted panel, and a sheet dragged between three stops.</p>
+<pre><code>qorm run examples/places</code></pre>
+<h2 id="interactive-styling">Interactive styling</h2>
+<p>Pseudo-state style keys describe how a node reacts, with no JavaScript and no extra nodes:</p>
+<pre><code>{
+  &#34;type&#34;: &#34;button&#34;, &#34;id&#34;: &#34;save&#34;, &#34;text&#34;: &#34;Save&#34;,
+  &#34;style&#34;: {
+    &#34;hoverBackground&#34;: &#34;#0a84ff&#34;, &#34;hoverColor&#34;: &#34;#ffffff&#34;,
+    &#34;pressedScale&#34;: 0.97,
+    &#34;focusBorderColor&#34;: &#34;var(--accent)&#34;,
+    &#34;disabled&#34;: &#34;{{ state.saving }}&#34;, &#34;disabledOpacity&#34;: 0.4
+  }
+}</code></pre>
+<p>The eight keys are <code>hoverBackground</code>, <code>hoverColor</code>, <code>hoverOpacity</code>, <code>pressedScale</code>, <code>pressedOpacity</code>, <code>focusBorderColor</code>, <code>disabled</code> and <code>disabledOpacity</code>. Hover styling only applies on devices that really hover, so a tap can never strand a node in a hover state; <code>disabled</code> also emits <code>aria-disabled</code>.</p>
+<p><code>width</code> and <code>height</code> accept a number of pixels, <code>&#34;fill&#34;</code>, or a string with a unit — <code>&#34;50%&#34;</code>, <code>&#34;30vw&#34;</code>, <code>&#34;40vh&#34;</code>, <code>&#34;120px&#34;</code>. Layering and flex behaviour are available as <code>zIndex</code>, <code>alignSelf</code> and <code>flexShrink</code>.</p>
+<h2 id="frosted-glass">Frosted glass</h2>
+<p>Two more style keys give any node the iOS translucent-panel look:</p>
+<pre><code>{ &#34;type&#34;: &#34;column&#34;, &#34;id&#34;: &#34;glass&#34;,
+  &#34;style&#34;: {
+    &#34;position&#34;: &#34;sticky&#34;, &#34;top&#34;: 0, &#34;padding&#34;: 14, &#34;borderRadius&#34;: 16,
+    &#34;backdropBlur&#34;: 18,
+    &#34;backdropTint&#34;: &#34;color-mix(in srgb,var(--surface) 62%,transparent)&#34;
+  } }</code></pre>
+<ul>
+<li><code>backdropBlur</code> is a <strong>number</strong> of pixels, capped at 120. It may be a binding,</li>
+</ul>
+<p>but not a string with a unit — <code>&#34;18px&#34;</code> is ignored, <code>18</code> is not. A value of <code>0</code> or less emits nothing.</p>
+<ul>
+<li><code>backdropTint</code> is the translucent fill the blur shows through, any CSS colour</li>
+</ul>
+<p>expression. It only takes effect alongside a positive <code>backdropBlur</code>.</p>
+<ul>
+<li>A browser without <code>backdrop-filter</code> gets a <strong>solid</strong> <code>var(--surface)</code> panel</li>
+</ul>
+<p>instead — never an unreadable transparent one.</p>
+<p><code>appbar</code> and <code>largetitle</code> are already frosted (radius 20), so on those two the key retunes an existing effect and <code>&#34;backdropBlur&#34;: 0</code> turns it off.</p>
+<h2 id="images">Images</h2>
+<p><code>src</code> and <code>alt</code> are interpolated, so an image works inside a <code>renderItem</code>. Three props cover the states a remote image goes through:</p>
+<pre><code>{ &#34;type&#34;: &#34;image&#34;, &#34;id&#34;: &#34;hero&#34;,
+  &#34;src&#34;: &#34;{{ item.photo }}&#34;, &#34;alt&#34;: &#34;{{ item.caption }}&#34;,
+  &#34;placeholder&#34;: &#34;#e5e5ea&#34;,
+  &#34;fallback&#34;: &#34;/assets/missing.png&#34;,
+  &#34;fit&#34;: &#34;cover&#34; }</code></pre>
+<ul>
+<li><code>placeholder</code> is what shows while the image loads — a CSS color, or a</li>
+</ul>
+<p>low-resolution URL painted as a blur-up background.</p>
+<ul>
+<li><code>fallback</code> replaces the image if it fails to load. The swap happens once, so</li>
+</ul>
+<p>a broken fallback cannot loop.</p>
+<ul>
+<li>Lazy loading is <strong>on by default</strong>; set <code>&#34;lazy&#34;: false</code> to opt out for an</li>
+</ul>
+<p>above-the-fold image.</p>
+<p><code>placeholder</code> and <code>fallback</code> are static values, not bindings.</p>
+<h2 id="choosing-a-widget-at-runtime">Choosing a widget at runtime</h2>
+<p>A node&#39;s <code>type</code> may itself be a binding, resolved per render against the current scope. One list template can then render a different widget per row instead of stacking <code>if</code> branches:</p>
+<pre><code>{
+  &#34;type&#34;: &#34;list&#34;, &#34;id&#34;: &#34;feed&#34;, &#34;data&#34;: &#34;{{ state.messages }}&#34;,
+  &#34;renderItem&#34;: { &#34;type&#34;: &#34;{{ item.kind }}&#34;, &#34;text&#34;: &#34;{{ item.text }}&#34;, &#34;src&#34;: &#34;{{ item.src }}&#34; }
+}</code></pre>
+<p>With <code>kind</code> of <code>&#34;text&#34;</code> or <code>&#34;image&#34;</code> the same row renders a text node or an image. If the binding resolves to nothing, or to a name no widget answers to, the node degrades to the renderer&#39;s unknown-node placeholder and the diagnostic names the offending expression — so a typo is visible rather than silent.</p>
+<p>For the expression language itself, see <a href="../expressions.html">Expressions</a>.</p>
+</main>
+</div>
+<script>
+  (function(){var r=document.documentElement,b=document.getElementById('theme');
+   var sun='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>';
+   var moon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+   function c(){return r.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');}
+   try{var s=localStorage.getItem('qorm-theme');if(s)r.setAttribute('data-theme',s);}catch(e){}
+   function p(){b.innerHTML=c()==='dark'?sun:moon;} p();
+   b.onclick=function(){var t=c()==='dark'?'light':'dark';r.setAttribute('data-theme',t);try{localStorage.setItem('qorm-theme',t);}catch(e){}p();};})();
+  (function(){/* remember the reader's language across pages + both sites */
+   try{var cur=document.documentElement.lang;
+     document.querySelectorAll('header [data-lang]').forEach(function(el){
+       if(el.tagName==='A')el.addEventListener('click',function(){try{localStorage.setItem('qorm-lang',el.getAttribute('data-lang'));}catch(e){}});});
+     var pref;try{pref=localStorage.getItem('qorm-lang');}catch(e){}
+     if(pref&&pref!==cur){var alt=document.querySelector('header a[data-lang="'+pref+'"]');if(alt)location.replace(alt.getAttribute('href'));}
+   }catch(e){}})();
+</script>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-K3FQCHWD"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+</body>
+</html>

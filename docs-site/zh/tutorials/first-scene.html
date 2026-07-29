@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-K3FQCHWD');</script>
+<!-- End Google Tag Manager -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1529418578004538"
+     crossorigin="anonymous"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>第一个场景 · QORM</title>
+<meta name="description" content="场景是 QORM 的 UI 入口。一个场景有一个 id 和一个根节点 root;节点树描述 UI。文本内容放在 text 字段里,{{ state.x }} 会插值全局状态。">
+<meta property="og:title" content="第一个场景">
+<meta property="og:description" content="场景是 QORM 的 UI 入口。一个场景有一个 id 和一个根节点 root;节点树描述 UI。文本内容放在 text 字段里,{{ state.x }} 会插值全局状态。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://qorm.com/docs/zh/tutorials/first-scene.html">
+<meta property="og:site_name" content="QORM">
+<meta property="og:locale" content="zh_CN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="第一个场景">
+<meta name="twitter:description" content="场景是 QORM 的 UI 入口。一个场景有一个 id 和一个根节点 root;节点树描述 UI。文本内容放在 text 字段里,{{ state.x }} 会插值全局状态。">
+<link rel="canonical" href="https://qorm.com/docs/zh/tutorials/first-scene.html">
+<link rel="alternate" hreflang="en" href="https://qorm.com/docs/tutorials/first-scene.html">
+<link rel="alternate" hreflang="zh" href="https://qorm.com/docs/zh/tutorials/first-scene.html">
+<link rel="alternate" hreflang="x-default" href="https://qorm.com/docs/tutorials/first-scene.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"场景是 QORM 的 UI 入口。一个场景有一个 id 和一个根节点 root;节点树描述 UI。文本内容放在 text 字段里,{{ state.x }} 会插值全局状态。","headline":"第一个场景","inLanguage":"zh","name":"第一个场景","url":"https://qorm.com/docs/zh/tutorials/first-scene.html"}</script>
+<link rel="icon" href="/assets/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+  :root{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
+  @media (prefers-color-scheme:dark){ :root{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; } }
+  :root[data-theme="light"]{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
+  :root[data-theme="dark"]{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Inter",-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;color:var(--ink);background:var(--ground);line-height:1.62;letter-spacing:-.011em;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent-ink);text-decoration:none} a:hover{text-decoration:underline}
+  code,pre{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+  header.top{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--ground) 82%,transparent);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--line)}
+  header.top .tnav{height:56px;display:flex;align-items:center;gap:14px;max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,32px)}
+  header.top .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:16px;letter-spacing:-.02em;color:var(--ink)}
+  header.top .brand img{width:24px;height:24px}
+  @media (prefers-color-scheme:dark){ header.top .brand img{filter:invert(1) brightness(1.7)} }
+  :root[data-theme="dark"] header.top .brand img{filter:invert(1) brightness(1.7)}
+  :root[data-theme="light"] header.top .brand img{filter:none}
+  header.top .doc{color:var(--faint);font-weight:600;font-size:15px}
+  header.top a.ver{font-size:11.5px;font-weight:700;color:var(--muted);border:.5px solid var(--line);border-radius:999px;padding:2px 8px;letter-spacing:.01em}
+  header.top a.ver:hover{color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));text-decoration:none}
+  header.top .sp{flex:1}
+  header.top a.tl{color:var(--muted);font-size:14px;font-weight:500} header.top a.tl:hover{color:var(--ink);text-decoration:none} header.top a.tl.active-nav{color:var(--ink);font-weight:700}
+  .tbtn{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:transform 0.2s ease, background 0.2s, color 0.2s, border-color 0.2s}
+  .tbtn:hover{color:var(--ink);transform:rotate(15deg) scale(1.05)} .tbtn svg{width:16px;height:16px}
+  header.top .iconlink{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;transition:transform .2s cubic-bezier(.16,1,.3,1),color .2s,border-color .2s}
+  header.top .iconlink:hover{color:var(--ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));transform:translateY(-1px);text-decoration:none}
+  header.top .iconlink.patreon:hover{color:#f96854;border-color:color-mix(in srgb,#f96854 45%,var(--line))}
+  header.top .iconlink svg{width:17px;height:17px}
+  header.top .iconlink.lang{width:auto;padding:0 9px;gap:3px;font-size:11px;font-weight:800;letter-spacing:.02em}
+  header.top .iconlink.lang svg{width:14px;height:14px}
+  header.top .iconlink.lang.off{opacity:.4;pointer-events:none}
+  header.top .lang{display:inline-flex;align-items:center;border:.5px solid var(--line);border-radius:8px;overflow:hidden;font-size:13px;font-weight:600}
+  header.top .lang a,header.top .lang span{padding:5px 10px;color:var(--muted)}
+  header.top .lang a:hover{color:var(--ink);text-decoration:none;background:var(--surface)}
+  header.top .lang .on{background:var(--accent);color:#fff}
+  header.top .lang .off{color:var(--faint);opacity:.55}
+  .shell{display:flex;max-width:1280px;margin:0 auto;padding:0 clamp(0px,2vw,20px)}
+  aside{width:262px;min-width:262px;height:calc(100vh - 56px);overflow:auto;position:sticky;top:56px;padding:22px 8px 48px 22px}
+  aside .nav-group{text-transform:uppercase;font-size:11px;font-weight:700;color:var(--faint);margin:20px 0 6px;letter-spacing:.05em}
+  aside ul{list-style:none;margin:0;padding:0}
+  aside li a{display:block;padding:6px 12px;color:var(--muted);border-radius:8px;font-size:14px;font-weight:500;transition:background 0.15s ease, color 0.15s ease, transform 0.15s ease}
+  aside li a:hover{background:var(--surface);color:var(--ink);text-decoration:none;transform:translateX(2px)}
+  aside li a.active{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent-ink);font-weight:600}
+  aside li a .entag{font-size:9.5px;font-weight:700;letter-spacing:.04em;color:var(--faint);border:.5px solid var(--line);border-radius:4px;padding:0 4px;margin-left:6px;vertical-align:1px}
+  main{flex:1;min-width:0;max-width:800px;padding:38px 46px 90px}
+  main>*:first-child{margin-top:0}
+  main h1{font-size:33px;font-weight:800;letter-spacing:-.03em;margin:0 0 .5em}
+  main h2{font-size:23px;font-weight:700;letter-spacing:-.02em;margin:1.7em 0 .5em;padding-bottom:.3em;border-bottom:.5px solid var(--line)}
+  main h3{font-size:18px;font-weight:700;margin:1.5em 0 .4em}
+  main code{background:var(--raise);border:.5px solid var(--line);padding:.12em .4em;border-radius:6px;font-size:.88em}
+  main pre{background:var(--raise);border:.5px solid var(--line);padding:14px 16px;border-radius:12px;overflow:auto;font-size:13.5px;line-height:1.7}
+  main pre code{background:none;border:none;padding:0}
+  main table{border-collapse:collapse;width:100%;margin:1em 0;display:block;overflow-x:auto;font-size:14px}
+  main th,main td{border:.5px solid var(--line);padding:8px 13px;text-align:left}
+  main th{background:var(--surface);font-weight:600}
+  main blockquote{border-left:3px solid var(--accent);margin:1.1em 0;padding:.5em 1.1em;color:var(--muted);background:var(--surface);border-radius:0 10px 10px 0}
+  main img{max-width:100%;height:auto}
+  @media (max-width:800px){ aside{display:none} main{padding:26px 22px} }
+</style>
+</head>
+<body>
+<header class="top"><div class="tnav">
+  <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
+  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.5.0</a>
+  <span class="doc">docs</span>
+  <span class="sp"></span>
+  <a class="tl" href="/">首页</a>
+  <a class="tl active-nav" href="/docs/zh/">文档</a><a class="tl" href="/api/zh/">接口</a>
+  <a class="iconlink" href="https://github.com/qorm/qorm" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
+  <a class="iconlink patreon" href="https://www.patreon.com/qorm" target="_blank" rel="noopener" aria-label="资助" title="资助"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="14.4" cy="9.6" r="6.6"/><rect x="1.5" y="2.5" width="4" height="19" rx="0.3"/></svg></a>
+  <a class="iconlink lang" href="../../tutorials/first-scene.html" data-lang="en" aria-label="English" title="English"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/></svg><span>EN</span></a>
+  <button class="tbtn" id="theme" aria-label="Theme"></button>
+</div></header>
+<div class="shell">
+  <aside><div class="nav-group">概览</div><ul><li><a href="../README.html">QORM 文档</a></li><li><a href="../project-structure.html">工程结构</a></li><li><a href="../build-with-ai.html">与你的 AI 助手一起构建 QORM 应用</a></li><li><a href="../collaboration.html">在运行中的应用上进行人机协作</a></li><li><a href="../verification.html">解释并验证一个 QORM 应用</a></li><li><a href="../expressions.html">表达式</a></li></ul><div class="nav-group">教程</div><ul><li><a href="getting-started.html">QORM 快速上手</a></li><li><a href="first-scene.html" class="active">第一个场景</a></li><li><a href="first-action.html">第一个动作</a></li><li><a href="first-component.html">第一个组件</a></li><li><a href="first-platform-pack.html">第一个平台包</a></li></ul><div class="nav-group">示例</div><ul><li><a href="../examples/counter.html">示例:计数器</a></li><li><a href="../examples/todo.html">示例:待办事项</a></li><li><a href="../examples/login.html">示例:登录</a></li><li><a href="../examples/dashboard.html">示例:仪表盘</a></li></ul><div class="nav-group">平台</div><ul><li><a href="../platforms/web.html">QORM Web 平台</a></li><li><a href="../platforms/mobile.html">QORM 移动平台</a></li><li><a href="../platforms/desktop.html">QORM 桌面平台</a></li><li><a href="../platforms/miniapp.html">QORM 小程序平台</a></li><li><a href="../platforms/native-middlelayer.html">用户中间层:为应用添加你自己的能力</a></li><li><a href="../platforms/capabilities.html">能力清单</a></li><li><a href="../platforms/support-matrix.html">平台支持矩阵</a></li></ul><div class="nav-group">智能体</div><ul><li><a href="../agent/permissions.html">QORM Agent 权限</a></li><li><a href="../agent/mcp-tools.html">QORM MCP 工具</a></li><li><a href="../agent/skills.html">QORM Skills</a></li><li><a href="../agent/claude-pack.html">QORM Claude Pack</a></li><li><a href="../agent/codex-pack.html">QORM Codex Pack</a></li><li><a href="../agent/openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">安全</div><ul><li><a href="../security/security-model.html">QORM 安全模型</a></li><li><a href="../security/permission-model.html">QORM 权限模型</a></li><li><a href="../security/bundle-signing.html">QORM Bundle 签名</a></li></ul><div class="nav-group">spec</div><ul><li><a href="../spec/navigation-spec.html">导航与路由</a></li></ul></aside>
+  <main><h1 id="第一个场景">第一个场景</h1>
+<p>场景是 QORM 的 UI 入口。一个场景有一个 <code>id</code> 和一个根节点 <code>root</code>;节点树描述 UI。文本内容放在 <code>text</code> 字段里,<code>{{ state.x }}</code> 会插值全局状态。</p>
+<h2 id="最小场景">最小场景</h2>
+<pre><code>{
+  &#34;type&#34;: &#34;scene&#34;,
+  &#34;id&#34;: &#34;main&#34;,
+  &#34;root&#34;: { &#34;type&#34;: &#34;text&#34;, &#34;id&#34;: &#34;hello&#34;, &#34;text&#34;: &#34;Hello QORM&#34; }
+}</code></pre>
+<h2 id="带布局的场景">带布局的场景</h2>
+<p>容器节点(<code>column</code> / <code>row</code>)使用 <code>style</code>(内边距、间距、背景)和 <code>layout</code>(尺寸、对齐)来排布它们的子节点。</p>
+<pre><code>{
+  &#34;type&#34;: &#34;scene&#34;,
+  &#34;id&#34;: &#34;main&#34;,
+  &#34;root&#34;: {
+    &#34;type&#34;: &#34;column&#34;,
+    &#34;id&#34;: &#34;root&#34;,
+    &#34;style&#34;:  { &#34;padding&#34;: 24, &#34;gap&#34;: 12 },
+    &#34;layout&#34;: { &#34;width&#34;: &#34;fill&#34;, &#34;height&#34;: &#34;fill&#34;, &#34;align&#34;: &#34;center&#34; },
+    &#34;children&#34;: [
+      { &#34;type&#34;: &#34;text&#34;,   &#34;id&#34;: &#34;title&#34;,  &#34;text&#34;: &#34;Title&#34; },
+      { &#34;type&#34;: &#34;button&#34;, &#34;id&#34;: &#34;submit&#34;, &#34;text&#34;: &#34;Submit&#34;, &#34;onPress&#34;: &#34;save&#34; }
+    ]
+  }
+}</code></pre>
+<ul>
+<li>文本使用 <code>text</code>(而非 <code>value</code>);模板插值(如 <code>&#34;Welcome, {{ state.user }}&#34;</code>)同样放在 <code>text</code> 里。</li>
+<li>按钮通过 <code>onPress</code> 触发动作(参见 <a href="first-action.html">第一个动作</a>)。</li>
+<li>所有可用的节点类型,参见 <a href="/api/zh/widgets.html">组件目录</a>。</li>
+</ul>
+<h2 id="列表与条目作用域">列表与条目作用域</h2>
+<p><code>list</code> 把 <code>data</code> 绑定到一个数组,并重复渲染一份 <code>renderItem</code> 模板。在该模板内部, 当前行是 <code>item</code>,它的位置是 <code>index</code>(从 0 开始),外加 <code>first</code> / <code>last</code> 两个标志。</p>
+<pre><code>{
+  &#34;type&#34;: &#34;list&#34;, &#34;id&#34;: &#34;rows&#34;, &#34;data&#34;: &#34;{{ state.items }}&#34;,
+  &#34;renderItem&#34;: {
+    &#34;type&#34;: &#34;row&#34;, &#34;children&#34;: [
+      { &#34;type&#34;: &#34;text&#34;, &#34;text&#34;: &#34;{{ index + 1 }}.&#34; },
+      { &#34;type&#34;: &#34;text&#34;, &#34;text&#34;: &#34;{{ item.title }}&#34; }
+    ]
+  }
+}</code></pre>
+<p><code>index</code> / <code>first</code> / <code>last</code> 是独立的作用域名字,因此同名的数据字段不会被遮蔽: <code>{{ item.index }}</code> 读的是你的数据,<code>{{ index }}</code> 读的是循环位置。</p>
+<p><strong>嵌套列表</strong>会在内层重新绑定 <code>item</code>。给外层列表一个 <code>as</code> 别名即可让它保持可达—— <code>&#34;as&#34;: &#34;section&#34;</code> 会绑定 <code>section</code> 以及 <code>sectionIndex</code> / <code>sectionFirst</code> / <code>sectionLast</code>:</p>
+<pre><code>{
+  &#34;type&#34;: &#34;list&#34;, &#34;data&#34;: &#34;{{ state.sections }}&#34;, &#34;as&#34;: &#34;section&#34;,
+  &#34;renderItem&#34;: {
+    &#34;type&#34;: &#34;column&#34;, &#34;children&#34;: [
+      { &#34;type&#34;: &#34;text&#34;, &#34;text&#34;: &#34;{{ section.title }}&#34; },
+      { &#34;type&#34;: &#34;list&#34;, &#34;data&#34;: &#34;{{ section.rows }}&#34;,
+        &#34;renderItem&#34;: { &#34;type&#34;: &#34;text&#34;, &#34;text&#34;: &#34;{{ section.title }} / {{ item }}&#34; } }
+    ]
+  }
+}</code></pre>
+<p>非法或保留的别名会退回 <code>item</code>,并在加载期给出警告。<code>gridview</code> 接受同样的 <code>as</code> 和同样的作用域名字。</p>
+<h3 id="值得知道的列表属性">值得知道的列表属性</h3>
+<table>
+<thead><tr><th>属性</th><th>作用</th></tr></thead>
+<tbody>
+<tr><td><code>separator</code></td><td>在条目之间画一条细线——<code>true</code>,或 <code>{ &#34;height&#34;: 1, &#34;inset&#34;: 16, &#34;color&#34;: &#34;…&#34; }</code>。绝不画在末项之后</td></tr>
+<tr><td><code>pageSize</code> + <code>page</code></td><td>内建分页:只渲染 <code>data</code> 的一个窗口。<code>page</code> 从 1 开始并会钳制到有效范围,页码越界时显示最后一页而不是空白</td></tr>
+<tr><td><code>groupBy</code> + <code>sectionHeader</code></td><td>把<strong>连续相等</strong>的键切分为分节并加上分节标题。渲染器绝不重排你的数据——请先排序</td></tr>
+<tr><td><code>sticky</code> + <code>stickyTop</code></td><td>滚动时分节标题吸顶(<code>sticky</code> 默认为 <code>true</code>);<code>stickyTop</code> 让它停在 appbar 之下</td></tr>
+<tr><td><code>onRefresh</code></td><td>下拉刷新;派发指定的动作</td></tr>
+<tr><td><code>reorderable</code> + <code>onReorder</code></td><td>长按拖拽重排</td></tr>
+</tbody></table>
+<pre><code>{
+  &#34;type&#34;: &#34;list&#34;, &#34;id&#34;: &#34;contacts&#34;, &#34;data&#34;: &#34;{{ state.contacts }}&#34;,
+  &#34;groupBy&#34;: &#34;letter&#34;, &#34;sectionHeader&#34;: &#34;{{ item.letter }}&#34;, &#34;stickyTop&#34;: 44,
+  &#34;separator&#34;: true, &#34;pageSize&#34;: 50, &#34;page&#34;: &#34;{{ state.page }}&#34;,
+  &#34;onRefresh&#34;: &#34;reloadContacts&#34;,
+  &#34;renderItem&#34;: { &#34;type&#34;: &#34;listtile&#34;, &#34;text&#34;: &#34;{{ item.name }}&#34; }
+}</code></pre>
+<p><code>index</code> 始终相对于完整的 <code>data</code>,而不是当前页,所以序号会跨页连续。<code>groupBy</code> 与 <code>reorderable</code> 不会同时生效(分节标题会让拖拽索引错位),而 <code>reorderable</code> 优先于 <code>onRefresh</code>(两者会争抢同一个拖拽手势)。</p>
+<p>注意 <code>virtualize</code> 只是一个渲染提示(<code>content-visibility</code>),不是真正的窗口化—— 完整的条目标记仍会输出。当你需要 DOM 本身变小时,请用 <code>pageSize</code>。</p>
+<h2 id="标签页与面板">标签页与面板</h2>
+<p><code>tabs</code> 的标签文字来自一个 <code>tabs</code> 数组,面板来自 <code>children</code>,两者<strong>按下标配对</strong>:</p>
+<pre><code>{
+  &#34;type&#34;: &#34;tabs&#34;, &#34;id&#34;: &#34;detail&#34;,
+  &#34;tabs&#34;: [&#34;Overview&#34;, &#34;Specs&#34;, &#34;Reviews&#34;],
+  &#34;active&#34;: &#34;{{ state.tab }}&#34;,
+  &#34;scrollable&#34;: true, &#34;swipe&#34;: true, &#34;lazy&#34;: true,
+  &#34;indicator&#34;: &#34;pill&#34;, &#34;indicatorColor&#34;: &#34;var(--accent)&#34;,
+  &#34;onChange&#34;: &#34;tabChanged&#34;,
+  &#34;children&#34;: [
+    { &#34;type&#34;: &#34;text&#34;, &#34;id&#34;: &#34;t1&#34;, &#34;text&#34;: &#34;Overview…&#34; },
+    { &#34;type&#34;: &#34;text&#34;, &#34;id&#34;: &#34;t2&#34;, &#34;text&#34;: &#34;Specs…&#34; },
+    { &#34;type&#34;: &#34;text&#34;, &#34;id&#34;: &#34;t3&#34;, &#34;text&#34;: &#34;Reviews…&#34; }
+  ]
+}</code></pre>
+<table>
+<thead><tr><th>属性</th><th>作用</th></tr></thead>
+<tbody>
+<tr><td><code>active</code></td><td>当前打开的是第几个标签页,从 0 开始。越界会钳制回范围内</td></tr>
+<tr><td><code>scrollable</code></td><td>横向可滚动的标签条;无论标签页是怎么切换的,当前标签都会自动滚入视野</td></tr>
+<tr><td><code>swipe</code></td><td>在面板上横向拖动即切到相邻标签页。它触发的是那个标签自己的控件,所以三种模式下行为一致;两端不循环</td></tr>
+<tr><td><code>lazy</code></td><td>只渲染当前面板</td></tr>
+<tr><td><code>indicator</code> · <code>indicatorColor</code></td><td><code>&#34;pill&#34;</code> 或 <code>&#34;none&#34;</code>(其它值都是默认的下划线),颜色由 <code>indicatorColor</code> 决定</td></tr>
+</tbody></table>
+<p>把 <code>active</code> 绑定到一个<strong>纯</strong>  <code>{{ state.x }}</code> 路径,标签页就变成<strong>受控</strong>的: 标签条自己写入那个状态键,因此切换标签完全不需要 action 文件,任何绑定同一个键的 节点也会随之联动。像 <code>{{ state.i + 1 }}</code> 这样的表达式不是纯路径,只会渲染成一个 只读的值。</p>
+<p><code>onChange</code> 在每次切换时触发,并额外合入两个参数:<code>index</code>(0 起的位置,字符串) 与 <code>tab</code>(标签文字)。<code>lazy</code> 要求标签页是受控的、或者带有 <code>onChange</code>——两者都没有 时切换纯粹发生在浏览器里,只能显示已经在 DOM 里的面板,因此 <code>lazy</code> 会被忽略。 <code>indicatorColor</code> 要求节点有一个普通标识符形式的 <code>id</code>,并且它的值会经过一张严格的 字符白名单:任何可能提前结束 CSS 声明的内容都会被整体丢弃,而不是原样输出。</p>
+<h2 id="单元格里放组件的表格">单元格里放组件的表格</h2>
+<p><code>table</code> 与 <code>datatable</code> 按 <code>columns</code> 渲染 <code>data</code>。一个列可以是一个键字符串,也可以是 一个带 <code>value</code>(数据键)、<code>label</code>(表头文字)、<code>width</code>、<code>sticky</code> 的对象。</p>
+<p>默认单元格就是 <code>obj[key]</code> 的纯文本。给表格一个<strong>带 <code>column</code> 的子节点</strong>,该列就改为 渲染你的组件:</p>
+<pre><code>{
+  &#34;type&#34;: &#34;table&#34;, &#34;id&#34;: &#34;people&#34;,
+  &#34;data&#34;: &#34;{{ state.people }}&#34;,
+  &#34;columns&#34;: [
+    { &#34;value&#34;: &#34;name&#34;, &#34;label&#34;: &#34;Name&#34;, &#34;width&#34;: 180, &#34;sticky&#34;: true },
+    { &#34;value&#34;: &#34;role&#34;, &#34;label&#34;: &#34;Role&#34; }
+  ],
+  &#34;stickyHeader&#34;: true, &#34;stickyTop&#34;: 44,
+  &#34;scrollX&#34;: true, &#34;maxHeight&#34;: 420, &#34;minWidth&#34;: 720,
+  &#34;children&#34;: [
+    { &#34;type&#34;: &#34;tag&#34;, &#34;id&#34;: &#34;role&#34;, &#34;column&#34;: &#34;role&#34;, &#34;label&#34;: &#34;{{ row.role }}&#34; },
+    { &#34;type&#34;: &#34;text&#34;, &#34;id&#34;: &#34;bio&#34;, &#34;detail&#34;: true, &#34;label&#34;: &#34;Details&#34;, &#34;text&#34;: &#34;{{ row.bio }}&#34; }
+  ]
+}</code></pre>
+<p>在单元格模板内部,当前行是 <code>row</code>,它的位置是 <code>rowIndex</code> / <code>rowFirst</code> / <code>rowLast</code>, 单元格本身是 <code>cell</code>——<code>{{ cell.value }}</code>、<code>{{ cell.column }}</code>、<code>{{ cell.index }}</code>。 这与列表用的是同一套别名机制,所以 <code>&#34;as&#34;: &#34;person&#34;</code> 会把这组名字改成 <code>person</code> / <code>personIndex</code> / <code>personFirst</code> / <code>personLast</code>,外层列表的 <code>item</code> 仍然可以同时读到。</p>
+<p>带 <code>detail: true</code> 的子节点不是列:它在每一行下面渲染一个可展开行,用的是浏览器 自己的折叠控件。它的 <code>label</code>(或 <code>text</code>)是摘要行,在行作用域里求值。</p>
+<p>除 <code>sticky</code> 属于列对象外,其余外观键都写在表格节点上:</p>
+<table>
+<thead><tr><th>键</th><th>效果</th></tr></thead>
+<tbody>
+<tr><td><code>stickyHeader</code> + <code>stickyTop</code></td><td>表头在表体滚动时固定;<code>stickyTop</code> 把它停在 appbar 下面</td></tr>
+<tr><td><code>scrollX</code></td><td>表格在自己的盒子里横向滚动</td></tr>
+<tr><td><code>maxHeight</code></td><td>表体在该高度内纵向滚动</td></tr>
+<tr><td><code>minWidth</code></td><td>开启 <code>scrollX</code> 时避免列被压扁</td></tr>
+<tr><td>列的 <code>sticky</code></td><td>横向滚动时冻结该前置列</td></tr>
+</tbody></table>
+<p><code>datatable</code> 在自己的选择、排序属性之外同样支持以上全部。两者都没有内建分页—— 参见<a href="first-action.html">第一个动作</a>。</p>
+<h2 id="手风琴树时间线轮播">手风琴、树、时间线、轮播</h2>
+<table>
+<thead><tr><th>组件</th><th>值得知道的属性</th></tr></thead>
+<tbody>
+<tr><td><code>accordion</code></td><td><code>active</code> 是当前展开面板的下标(可绑定、会钳制、默认第一个)。<code>single: true</code> 让面板互斥——展开一个就收起其余;默认是各自独立开合</td></tr>
+<tr><td><code>tree</code></td><td><code>collapsed: true</code> 让所有分支初始收起。数据项自己的 <code>expanded</code> 字段仍会覆盖它自己那一个节点</td></tr>
+<tr><td><code>timeline</code></td><td><code>items</code> 的每一项可以带 <code>time</code>(渲染在标题上方)、<code>color</code>(圆点颜色)与 <code>icon</code>(内置 SVG 图标集里的名字,画在圆点里;未知名字退回普通圆点)</td></tr>
+<tr><td><code>carousel</code></td><td><code>autoplay: 4000</code> 按时钟推进(下限 250 毫秒,指针悬停或浏览器标签页隐藏时暂停,到末尾回卷)。<code>indicators: true</code> 渲染一行可点的圆点,当前点由实时滚动位置推导</td></tr>
+</tbody></table>
+<h2 id="会折叠的大标题">会折叠的大标题</h2>
+<p><code>largetitle</code>(别名 <code>sliverappbar</code>、<code>cupertinolargetitle</code>)绘制 iOS 大标题头,并且 <strong>默认会折叠</strong>:紧凑条吸顶,大标题在它后面向上滚走并交叉淡入紧凑标题。</p>
+<pre><code>{ &#34;type&#34;: &#34;largetitle&#34;, &#34;id&#34;: &#34;hdr&#34;, &#34;label&#34;: &#34;Places&#34;, &#34;subtitle&#34;: &#34;8 saved nearby&#34;,
+  &#34;children&#34;: [ { &#34;type&#34;: &#34;icon&#34;, &#34;id&#34;: &#34;hdr-plus&#34;, &#34;name&#34;: &#34;plus&#34;, &#34;size&#34;: 20 } ] }</code></pre>
+<ul>
+<li>标题文字是节点的 <code>label</code>(或 <code>text</code>);<code>subtitle</code> 可选。</li>
+<li><code>children</code> 是紧凑条右侧的操作区。</li>
+<li><code>&#34;collapsible&#34;: false</code> 恢复旧的静态头——只有一个标题、没有吸顶条,与折叠能力</li>
+</ul>
+<p>出现之前逐字节一致。</p>
+<ul>
+<li><code>background</code> 决定条的填充(默认 <code>var(--bg)</code>)。</li>
+<li><code>appbar</code> 是另一个组件,不会折叠。</li>
+</ul>
+<p>折叠本身只是普通的 sticky 定位,因此到处都能用;交叉淡入在支持滚动驱动动画的 浏览器上走 CSS,不支持的浏览器则由一小段脚本驱动同一批声明。</p>
+<h2 id="底部弹层sheet">底部弹层(sheet)</h2>
+<p><code>sheet</code>(别名 <code>bottomsheet</code>、<code>draggablesheet</code>、<code>draggablescrollablesheet</code>、 <code>modalbottomsheet</code>)是一个可以在若干吸附档位之间拖动的底部面板。</p>
+<pre><code>{ &#34;type&#34;: &#34;sheet&#34;, &#34;id&#34;: &#34;detail&#34;, &#34;open&#34;: &#34;{{ state.detail }}&#34;,
+  &#34;title&#34;: &#34;Blue Bottle Coffee&#34;,
+  &#34;snapPoints&#34;: [0.3, 0.6, 0.92], &#34;initialSnap&#34;: 1,
+  &#34;onSnap&#34;: { &#34;name&#34;: &#34;setSnap&#34; },
+  &#34;children&#34;: [ { &#34;type&#34;: &#34;text&#34;, &#34;id&#34;: &#34;d1&#34;, &#34;text&#34;: &#34;Ferry Building · 240m&#34; } ] }</code></pre>
+<table>
+<thead><tr><th>属性</th><th>作用</th></tr></thead>
+<tbody>
+<tr><td><code>open</code></td><td>取值为假时<strong>什么都不渲染</strong>——没有隐藏的标记。不写这个键则弹层始终存在</td></tr>
+<tr><td><code>snapPoints</code></td><td>档位阶梯,取值是所在盒子高度的比例,升序排列。大于 1 的值按百分比读(<code>90</code> 即 <code>0.9</code>)。它本身也可以是一个绑定到数组的表达式。默认 <code>[0.25, 0.5, 0.9]</code></td></tr>
+<tr><td><code>initialSnap</code></td><td>阶梯的下标;越界回退到最低档</td></tr>
+<tr><td><code>onSnap</code></td><td>一个动作,每次拖拽停稳时派发。它会为每个档位各注册一次,并各自带上参数 <code>snap</code>——该档位的下标,因此动作里用 <code>{{ snap }}</code> 就知道停在哪</td></tr>
+<tr><td><code>onClose</code></td><td>弹层被关闭时派发</td></tr>
+<tr><td><code>title</code> · <code>handle</code> · <code>backdrop</code></td><td>标题行、拖拽把手(<code>false</code> 去掉)与背景遮罩(<code>false</code> 去掉)</td></tr>
+</tbody></table>
+<p>如果 <code>open</code> 绑定的是一个纯状态路径,且 <code>dismissable</code> 不为 <code>false</code>,点击遮罩就会 经由内建的 dismiss 关闭弹层,常见场景因此不需要任何 action 文件。把弹层甩到最低 档位的 60% 以下,也会以同样的方式关闭。没有 Escape 键关闭。</p>
+<p>只有把手那一行会占用拖拽手势——内容照常滚动——所以弹层里可以放列表、可滑动行或 可重排列表,两种手势不会互相打架。</p>
+<p><code>examples/places</code> 把这三样放在了一起:会折叠的大标题、一块毛玻璃面板,以及一个在 三个档位之间拖动的弹层。</p>
+<pre><code>qorm run examples/places</code></pre>
+<h2 id="交互态样式">交互态样式</h2>
+<p>伪状态样式键描述节点如何响应交互,不需要 JavaScript,也不需要额外节点:</p>
+<pre><code>{
+  &#34;type&#34;: &#34;button&#34;, &#34;id&#34;: &#34;save&#34;, &#34;text&#34;: &#34;Save&#34;,
+  &#34;style&#34;: {
+    &#34;hoverBackground&#34;: &#34;#0a84ff&#34;, &#34;hoverColor&#34;: &#34;#ffffff&#34;,
+    &#34;pressedScale&#34;: 0.97,
+    &#34;focusBorderColor&#34;: &#34;var(--accent)&#34;,
+    &#34;disabled&#34;: &#34;{{ state.saving }}&#34;, &#34;disabledOpacity&#34;: 0.4
+  }
+}</code></pre>
+<p>八个键是 <code>hoverBackground</code>、<code>hoverColor</code>、<code>hoverOpacity</code>、<code>pressedScale</code>、 <code>pressedOpacity</code>、<code>focusBorderColor</code>、<code>disabled</code> 和 <code>disabledOpacity</code>。悬停样式 只在真正支持悬停的设备上生效,因此一次点按不会把节点卡在悬停态;<code>disabled</code> 同时会输出 <code>aria-disabled</code>。</p>
+<p><code>width</code> 与 <code>height</code> 接受像素数字、<code>&#34;fill&#34;</code>,或带单位的字符串——<code>&#34;50%&#34;</code>、<code>&#34;30vw&#34;</code>、 <code>&#34;40vh&#34;</code>、<code>&#34;120px&#34;</code>。层叠与弹性行为则由 <code>zIndex</code>、<code>alignSelf</code>、<code>flexShrink</code> 提供。</p>
+<h2 id="图片">图片</h2>
+<p><code>src</code> 与 <code>alt</code> 会被插值,因此图片可以放在 <code>renderItem</code> 里。三个属性覆盖了一张 远程图片会经历的各个状态:</p>
+<pre><code>{ &#34;type&#34;: &#34;image&#34;, &#34;id&#34;: &#34;hero&#34;,
+  &#34;src&#34;: &#34;{{ item.photo }}&#34;, &#34;alt&#34;: &#34;{{ item.caption }}&#34;,
+  &#34;placeholder&#34;: &#34;#e5e5ea&#34;,
+  &#34;fallback&#34;: &#34;/assets/missing.png&#34;,
+  &#34;fit&#34;: &#34;cover&#34; }</code></pre>
+<ul>
+<li><code>placeholder</code> 是加载期间显示的内容——一个 CSS 颜色,或一张低清 URL 作为模糊占位背景。</li>
+<li><code>fallback</code> 在图片加载失败时顶替它。替换只发生一次,所以坏掉的 fallback 不会死循环。</li>
+<li>懒加载<strong>默认开启</strong>;首屏图片可以设 <code>&#34;lazy&#34;: false</code> 关掉它。</li>
+</ul>
+<p><code>placeholder</code> 与 <code>fallback</code> 是静态值,不是绑定。</p>
+<h2 id="在运行时选择组件">在运行时选择组件</h2>
+<p>节点的 <code>type</code> 本身可以是一个绑定,在每次渲染时按当前作用域解析。一份列表模板 因此能按行渲染不同的组件,而不必堆叠 <code>if</code> 分支:</p>
+<pre><code>{
+  &#34;type&#34;: &#34;list&#34;, &#34;id&#34;: &#34;feed&#34;, &#34;data&#34;: &#34;{{ state.messages }}&#34;,
+  &#34;renderItem&#34;: { &#34;type&#34;: &#34;{{ item.kind }}&#34;, &#34;text&#34;: &#34;{{ item.text }}&#34;, &#34;src&#34;: &#34;{{ item.src }}&#34; }
+}</code></pre>
+<p>当 <code>kind</code> 为 <code>&#34;text&#34;</code> 或 <code>&#34;image&#34;</code> 时,同一行会渲染成文本节点或图片。如果该绑定 解析为空,或解析出的名字没有对应组件,节点会退化为渲染器的未知节点占位,并且 诊断信息会点名该表达式——所以拼写错误是看得见的,而不是悄无声息。</p>
+<p>表达式语言本身,参见<a href="../expressions.html">表达式</a>。</p>
+</main>
+</div>
+<script>
+  (function(){var r=document.documentElement,b=document.getElementById('theme');
+   var sun='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>';
+   var moon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+   function c(){return r.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');}
+   try{var s=localStorage.getItem('qorm-theme');if(s)r.setAttribute('data-theme',s);}catch(e){}
+   function p(){b.innerHTML=c()==='dark'?sun:moon;} p();
+   b.onclick=function(){var t=c()==='dark'?'light':'dark';r.setAttribute('data-theme',t);try{localStorage.setItem('qorm-theme',t);}catch(e){}p();};})();
+  (function(){/* remember the reader's language across pages + both sites */
+   try{var cur=document.documentElement.lang;
+     document.querySelectorAll('header [data-lang]').forEach(function(el){
+       if(el.tagName==='A')el.addEventListener('click',function(){try{localStorage.setItem('qorm-lang',el.getAttribute('data-lang'));}catch(e){}});});
+     var pref;try{pref=localStorage.getItem('qorm-lang');}catch(e){}
+     if(pref&&pref!==cur){var alt=document.querySelector('header a[data-lang="'+pref+'"]');if(alt)location.replace(alt.getAttribute('href'));}
+   }catch(e){}})();
+</script>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-K3FQCHWD"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+</body>
+</html>

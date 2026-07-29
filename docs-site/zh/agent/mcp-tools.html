@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-K3FQCHWD');</script>
+<!-- End Google Tag Manager -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1529418578004538"
+     crossorigin="anonymous"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QORM MCP 工具 · QORM</title>
+<meta name="description" content="AI 智能体用于读取、操作、设计并验证运行中 QORM 应用的 Model Context Protocol 工具，由源码自动生成。">
+<meta property="og:title" content="QORM MCP 工具">
+<meta property="og:description" content="AI 智能体用于读取、操作、设计并验证运行中 QORM 应用的 Model Context Protocol 工具，由源码自动生成。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://qorm.com/docs/zh/agent/mcp-tools.html">
+<meta property="og:site_name" content="QORM">
+<meta property="og:locale" content="zh_CN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="QORM MCP 工具">
+<meta name="twitter:description" content="AI 智能体用于读取、操作、设计并验证运行中 QORM 应用的 Model Context Protocol 工具，由源码自动生成。">
+<link rel="canonical" href="https://qorm.com/docs/zh/agent/mcp-tools.html">
+<link rel="alternate" hreflang="en" href="https://qorm.com/docs/agent/mcp-tools.html">
+<link rel="alternate" hreflang="zh" href="https://qorm.com/docs/zh/agent/mcp-tools.html">
+<link rel="alternate" hreflang="x-default" href="https://qorm.com/docs/agent/mcp-tools.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"AI 智能体用于读取、操作、设计并验证运行中 QORM 应用的 Model Context Protocol 工具，由源码自动生成。","headline":"QORM MCP 工具","inLanguage":"zh","name":"QORM MCP 工具","url":"https://qorm.com/docs/zh/agent/mcp-tools.html"}</script>
+<link rel="icon" href="/assets/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+  :root{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
+  @media (prefers-color-scheme:dark){ :root{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; } }
+  :root[data-theme="light"]{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
+  :root[data-theme="dark"]{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Inter",-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;color:var(--ink);background:var(--ground);line-height:1.62;letter-spacing:-.011em;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent-ink);text-decoration:none} a:hover{text-decoration:underline}
+  code,pre{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+  header.top{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--ground) 82%,transparent);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--line)}
+  header.top .tnav{height:56px;display:flex;align-items:center;gap:14px;max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,32px)}
+  header.top .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:16px;letter-spacing:-.02em;color:var(--ink)}
+  header.top .brand img{width:24px;height:24px}
+  @media (prefers-color-scheme:dark){ header.top .brand img{filter:invert(1) brightness(1.7)} }
+  :root[data-theme="dark"] header.top .brand img{filter:invert(1) brightness(1.7)}
+  :root[data-theme="light"] header.top .brand img{filter:none}
+  header.top .doc{color:var(--faint);font-weight:600;font-size:15px}
+  header.top a.ver{font-size:11.5px;font-weight:700;color:var(--muted);border:.5px solid var(--line);border-radius:999px;padding:2px 8px;letter-spacing:.01em}
+  header.top a.ver:hover{color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));text-decoration:none}
+  header.top .sp{flex:1}
+  header.top a.tl{color:var(--muted);font-size:14px;font-weight:500} header.top a.tl:hover{color:var(--ink);text-decoration:none} header.top a.tl.active-nav{color:var(--ink);font-weight:700}
+  .tbtn{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:transform 0.2s ease, background 0.2s, color 0.2s, border-color 0.2s}
+  .tbtn:hover{color:var(--ink);transform:rotate(15deg) scale(1.05)} .tbtn svg{width:16px;height:16px}
+  header.top .iconlink{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;transition:transform .2s cubic-bezier(.16,1,.3,1),color .2s,border-color .2s}
+  header.top .iconlink:hover{color:var(--ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));transform:translateY(-1px);text-decoration:none}
+  header.top .iconlink.patreon:hover{color:#f96854;border-color:color-mix(in srgb,#f96854 45%,var(--line))}
+  header.top .iconlink svg{width:17px;height:17px}
+  header.top .iconlink.lang{width:auto;padding:0 9px;gap:3px;font-size:11px;font-weight:800;letter-spacing:.02em}
+  header.top .iconlink.lang svg{width:14px;height:14px}
+  header.top .iconlink.lang.off{opacity:.4;pointer-events:none}
+  header.top .lang{display:inline-flex;align-items:center;border:.5px solid var(--line);border-radius:8px;overflow:hidden;font-size:13px;font-weight:600}
+  header.top .lang a,header.top .lang span{padding:5px 10px;color:var(--muted)}
+  header.top .lang a:hover{color:var(--ink);text-decoration:none;background:var(--surface)}
+  header.top .lang .on{background:var(--accent);color:#fff}
+  header.top .lang .off{color:var(--faint);opacity:.55}
+  .shell{display:flex;max-width:1280px;margin:0 auto;padding:0 clamp(0px,2vw,20px)}
+  aside{width:262px;min-width:262px;height:calc(100vh - 56px);overflow:auto;position:sticky;top:56px;padding:22px 8px 48px 22px}
+  aside .nav-group{text-transform:uppercase;font-size:11px;font-weight:700;color:var(--faint);margin:20px 0 6px;letter-spacing:.05em}
+  aside ul{list-style:none;margin:0;padding:0}
+  aside li a{display:block;padding:6px 12px;color:var(--muted);border-radius:8px;font-size:14px;font-weight:500;transition:background 0.15s ease, color 0.15s ease, transform 0.15s ease}
+  aside li a:hover{background:var(--surface);color:var(--ink);text-decoration:none;transform:translateX(2px)}
+  aside li a.active{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent-ink);font-weight:600}
+  aside li a .entag{font-size:9.5px;font-weight:700;letter-spacing:.04em;color:var(--faint);border:.5px solid var(--line);border-radius:4px;padding:0 4px;margin-left:6px;vertical-align:1px}
+  main{flex:1;min-width:0;max-width:800px;padding:38px 46px 90px}
+  main>*:first-child{margin-top:0}
+  main h1{font-size:33px;font-weight:800;letter-spacing:-.03em;margin:0 0 .5em}
+  main h2{font-size:23px;font-weight:700;letter-spacing:-.02em;margin:1.7em 0 .5em;padding-bottom:.3em;border-bottom:.5px solid var(--line)}
+  main h3{font-size:18px;font-weight:700;margin:1.5em 0 .4em}
+  main code{background:var(--raise);border:.5px solid var(--line);padding:.12em .4em;border-radius:6px;font-size:.88em}
+  main pre{background:var(--raise);border:.5px solid var(--line);padding:14px 16px;border-radius:12px;overflow:auto;font-size:13.5px;line-height:1.7}
+  main pre code{background:none;border:none;padding:0}
+  main table{border-collapse:collapse;width:100%;margin:1em 0;display:block;overflow-x:auto;font-size:14px}
+  main th,main td{border:.5px solid var(--line);padding:8px 13px;text-align:left}
+  main th{background:var(--surface);font-weight:600}
+  main blockquote{border-left:3px solid var(--accent);margin:1.1em 0;padding:.5em 1.1em;color:var(--muted);background:var(--surface);border-radius:0 10px 10px 0}
+  main img{max-width:100%;height:auto}
+  @media (max-width:800px){ aside{display:none} main{padding:26px 22px} }
+</style>
+</head>
+<body>
+<header class="top"><div class="tnav">
+  <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
+  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.5.0</a>
+  <span class="doc">docs</span>
+  <span class="sp"></span>
+  <a class="tl" href="/">首页</a>
+  <a class="tl active-nav" href="/docs/zh/">文档</a><a class="tl" href="/api/zh/">接口</a>
+  <a class="iconlink" href="https://github.com/qorm/qorm" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
+  <a class="iconlink patreon" href="https://www.patreon.com/qorm" target="_blank" rel="noopener" aria-label="资助" title="资助"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="14.4" cy="9.6" r="6.6"/><rect x="1.5" y="2.5" width="4" height="19" rx="0.3"/></svg></a>
+  <a class="iconlink lang" href="../../agent/mcp-tools.html" data-lang="en" aria-label="English" title="English"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/></svg><span>EN</span></a>
+  <button class="tbtn" id="theme" aria-label="Theme"></button>
+</div></header>
+<div class="shell">
+  <aside><div class="nav-group">概览</div><ul><li><a href="../README.html">QORM 文档</a></li><li><a href="../project-structure.html">工程结构</a></li><li><a href="../build-with-ai.html">与你的 AI 助手一起构建 QORM 应用</a></li><li><a href="../collaboration.html">在运行中的应用上进行人机协作</a></li><li><a href="../verification.html">解释并验证一个 QORM 应用</a></li><li><a href="../expressions.html">表达式</a></li></ul><div class="nav-group">教程</div><ul><li><a href="../tutorials/getting-started.html">QORM 快速上手</a></li><li><a href="../tutorials/first-scene.html">第一个场景</a></li><li><a href="../tutorials/first-action.html">第一个动作</a></li><li><a href="../tutorials/first-component.html">第一个组件</a></li><li><a href="../tutorials/first-platform-pack.html">第一个平台包</a></li></ul><div class="nav-group">示例</div><ul><li><a href="../examples/counter.html">示例:计数器</a></li><li><a href="../examples/todo.html">示例:待办事项</a></li><li><a href="../examples/login.html">示例:登录</a></li><li><a href="../examples/dashboard.html">示例:仪表盘</a></li></ul><div class="nav-group">平台</div><ul><li><a href="../platforms/web.html">QORM Web 平台</a></li><li><a href="../platforms/mobile.html">QORM 移动平台</a></li><li><a href="../platforms/desktop.html">QORM 桌面平台</a></li><li><a href="../platforms/miniapp.html">QORM 小程序平台</a></li><li><a href="../platforms/native-middlelayer.html">用户中间层:为应用添加你自己的能力</a></li><li><a href="../platforms/capabilities.html">能力清单</a></li><li><a href="../platforms/support-matrix.html">平台支持矩阵</a></li></ul><div class="nav-group">智能体</div><ul><li><a href="permissions.html">QORM Agent 权限</a></li><li><a href="mcp-tools.html" class="active">QORM MCP 工具</a></li><li><a href="skills.html">QORM Skills</a></li><li><a href="claude-pack.html">QORM Claude Pack</a></li><li><a href="codex-pack.html">QORM Codex Pack</a></li><li><a href="openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">安全</div><ul><li><a href="../security/security-model.html">QORM 安全模型</a></li><li><a href="../security/permission-model.html">QORM 权限模型</a></li><li><a href="../security/bundle-signing.html">QORM Bundle 签名</a></li></ul><div class="nav-group">spec</div><ul><li><a href="../spec/navigation-spec.html">导航与路由</a></li></ul></aside>
+  <main><h1 id="qorm-mcp-工具">QORM MCP 工具</h1>
+<blockquote>由 <code>internal/mcp/tools.go</code> (<code>TestMCPDocInSync</code>) 自动生成 —— 请勿手动修改。 请使用 <code>QORM_UPDATE_DOCS=1 go test ./internal/mcp/</code> 重新生成。</blockquote>
+<p>QORM 暴露了一个 <a href="https://modelcontextprotocol.io">Model Context Protocol</a> 服务端，使 AI 智能体可以<strong>读取、操作、设计并验证</strong>一个运行中的 QORM 应用。可以使用 <code>qorm mcp &lt;app-dir|bundle&gt;</code> 启动它（基于标准输入输出的 JSON-RPC），或在运行的 <code>qorm run</code> 中通过 HTTP 的 <code>/mcp</code> 访问相同的工具 —— 此时智能体和浏览器将共享同一个运行中的运行时会话。</p>
+<p><img src="../../agent/img/console.png" alt="运行中的 QORM 应用与共享协作日志并列" loading="lazy" decoding="async"> <em>人类运行的应用，与智能体通过 MCP 读取的共享会话日志并列——同一个运行中的运行时。</em></p>
+<p><img src="../../assets/screenshots/logwindow.png" alt="共享会话的 QORM DevTool 活动日志" loading="lazy" decoding="async"> <em>DevTool 将你的点击与智能体在同一应用上的 MCP 调用按时间交错列出，并以颜色区分操作者。</em></p>
+<p><strong>安全模型</strong>：<code>qorm_simulate_action</code>、<code>qorm_preview_patch</code> 和 <code>qorm_diff</code> 均对应用副本运行，绝不触碰运行中的应用。<code>qorm_apply_patch</code> 提交修改，但它必须携带由相同操作的 <code>qorm_preview_patch</code> 返回的 <code>previewToken</code> —— 从而保证每次提交的编辑都有前置审查。<code>qorm_undo</code> 撤销最后一次提交的操作。</p>
+<table>
+<thead><tr><th>工具</th><th>参数</th><th>描述</th></tr></thead>
+<tbody>
+<tr><td><code>qorm_window</code></td><td><code>h</code> (integer), <code>id</code> (string), <code>js</code> (string), <code>op</code> (move\</td><td>open\</td><td>close\</td><td>eval\</td><td>tile\</td><td>focus\</td><td>minimize\</td><td>pin\</td><td>unpin), <code>url</code> (string), <code>w</code> (integer), <code>x</code> (integer), <code>y</code> (integer)</td><td>控制桌面应用窗口：op=move 时需要 x,y,w,h（左上角像素坐标）；op=focus/minimize/pin/unpin 作用于窗口。控制引擎调整用户窗口的位置。支持 macOS 和 Windows 桌面应用。</td></tr>
+<tr><td><code>qorm_inspect</code></td><td>—</td><td>检查 QORM 应用：id、名称、入口场景、场景 id 列表、状态模式 (schema)、当前状态、动作 (action) id 列表、静态编译诊断警告，以及（若已声明）设计令牌系统（designTokens：名称 -&gt; {type,value,enforce}）。声明为 enforce 的颜色令牌会硬约束 apply_patch：颜色样式只能设为这些令牌的值。只读。</td></tr>
+<tr><td><code>qorm_render_html</code></td><td>—</td><td>将当前应用渲染为 HTML，以便智能体查看 UI 的外观——渲染的是会话当前实际所处的场景，且已先完成该场景的路由守卫解析（会话无权进入的受保护场景绝不会被渲染）。只读。</td></tr>
+<tr><td><code>qorm_a11y_tree</code></td><td>—</td><td>推导入口场景的无障碍（accessibility）树：每个节点的 ARIA role、可访问名称（accessible name）与语义状态（checked/disabled/required/value），并附带无障碍问题审计——会到达屏幕阅读器却没有可访问名称的交互控件与图片。用于检查无障碍覆盖或定位待修复项。只读。</td></tr>
+<tr><td><code>qorm_capabilities</code></td><td>—</td><td>列出所有内置的硬件/原生能力：每个能力的规范名称 + 组件类型、它接受的 qormToNative 操作字符串、它的 qormOn&lt;Name&gt; 回调，以及实现它的平台（ios/android/mac/linux/windows/web）。只读 —— 用于智能体发现存在哪些硬件以及如何调用它们。</td></tr>
+<tr><td><code>qorm_get_node</code></td><td><code>id</code>* (string)</td><td>通过节点 id 返回节点的类型、属性（props）和子节点 id 列表。只读。</td></tr>
+<tr><td><code>qorm_source_location</code></td><td><code>id</code>* (string)</td><td>反查：给定节点 id（例如用户在 devtool 里点击的、或你通过 qorm_query 找到的），返回它在应用源码中的声明位置——文件（相对应用目录）、1 起始的行号，以及该行文本。让你直接跳到 JSON 去修改。签名 bundle（无源码树）或模板化 id 不可用。只读。</td></tr>
+<tr><td><code>qorm_query</code></td><td><code>hasProp</code> (string), <code>idContains</code> (string), <code>textContains</code> (string), <code>type</code> (string)</td><td>查找与选择器匹配 of：type、textContains、idContains、hasProp（通过 AND 组合）。返回每个匹配项的 id、类型、标签和祖先路径。在应用补丁 (patch) 前使用此工具定位节点。只读。</td></tr>
+<tr><td><code>qorm_list_actions</code></td><td>—</td><td>列出可用动作以及每个动作步骤的摘要。只读。</td></tr>
+<tr><td><code>qorm_activity</code></td><td>—</td><td>读取共享会话的实时状态：返回 {events:[谁（人类/智能体）做了什么，从旧到新], humanFocus:{元素, 秒数前}, humanTyping:{输入内容, 秒数前}, humanFilled:{字段, 秒数前}, inflight:N} —— 从而使智能体看到人类刚刚做了什么、当前聚焦在哪个元素、最后输入的文本，以及填写了哪些隐藏（密码）字段（仅标签；密码值绝不会被捕获），实现上下文协同。<code>inflight</code> 是应用尚未完成的后台工作数（异步 <code>http.*</code> 请求加上等待中的 <code>delay</code> 步骤）：为 0 表示应用已静默、此刻读到的就是最终状态；大于 0 表示还有响应在路上、当前这一帧只是 loading 态，请稍后重读再下结论。仅在运行中的 <code>qorm run</code> session中可用。只读。</td></tr>
+<tr><td><code>qorm_export_scene</code></td><td>—</td><td>将当前（可能已被应用补丁的）入口场景序列化回 QORM JSON，以便保存或交付通过 apply_patch 完成的设计工作。只读。</td></tr>
+<tr><td><code>qorm_export_bundle</code></td><td>—</td><td>将整个当前应用（清单 + 场景 + 动作）序列化为一个未签名的包（包含内容哈希）。人类/CI 在 OTA 部署前对其进行签名（<code>qorm sign</code>） —— 智能体绝不会持有签名密钥。只读。</td></tr>
+<tr><td><code>qorm_simulate_action</code></td><td><code>action</code>* (string), <code>args</code> (object)</td><td>对状态的副本分发动作，并返回 before/after/changed 信息。无副作用：绝不会修改运行中的应用。</td></tr>
+<tr><td><code>qorm_dispatch</code></td><td><code>action</code>* (string), <code>args</code> (object)</td><td>操作运行中的应用：分发动作（修改状态）并返回新状态和渲染后的 HTML。</td></tr>
+<tr><td><code>qorm_set_state</code></td><td><code>path</code><em> (string), <code>value</code></em></td><td>操作运行中的应用：将状态路径设为特定值，并返回新状态和渲染后的 HTML。点号路径按嵌套解释，与 state.set 动作步骤完全一致：路径 &#39;user.name&#39; 会写入 user 内部的 name，因此绑定 {{ state.user.name }} 能读回它。computed（派生）值是只读的——指向 computed 命名空间的路径会被拒绝，因为它们在每一帧都会依据声明重新发布。</td></tr>
+<tr><td><code>qorm_assert</code></td><td><code>checks</code>* (array)</td><td>测试应用：对当前状态和渲染后的 HTML 评估检查项。每个检查项为 {kind: &#39;stateEquals&#39;\</td><td>&#39;htmlContains&#39;\</td><td>&#39;nodeExists&#39;, ...}。返回每个检查项的通过/失败状态以及总体结果。</td></tr>
+<tr><td><code>qorm_preview_patch</code></td><td><code>ops</code>* (array)</td><td>设计（安全）：将补丁操作应用到应用的副本，并返回生成的 HTML 以及一个 previewToken。无副作用 —— 运行中的应用不会被改变。操作类型：{op:&#39;setProp&#39;,target,key,value} \</td><td>{op:&#39;addChild&#39;,target,node} \</td><td>{op:&#39;insertBefore&#39;\</td><td>&#39;insertAfter&#39;,target,node} \</td><td>{op:&#39;replace&#39;,target,node} \</td><td>{op:&#39;wrap&#39;,target,node} \</td><td>{op:&#39;move&#39;,target,into} \</td><td>{op:&#39;remove&#39;,target}。</td></tr>
+<tr><td><code>qorm_diff</code></td><td><code>ops</code>* (array)</td><td>设计（安全）：在不接触运行中应用的前提下，显示补丁将会产生的结构差异（新增/删除的节点 id，以及每个改变的节点中被修改的字段）。在应用前进行评审。</td></tr>
+<tr><td><code>qorm_apply_patch</code></td><td><code>ops</code><em> (array), <code>previewToken</code></em> (string)</td><td>设计（提交）：将补丁操作应用到运行中的应用。必须传递由相同操作的 qorm_preview_patch 返回的 previewToken —— 提交应用绑定于评审。会对当前状态进行快照备份以便后续撤销。若应用声明了 enforce 的颜色设计令牌（见 qorm_inspect 的 designTokens），将颜色样式设为非令牌值的 setProp style 操作会被拒绝（预览阶段亦然）。</td></tr>
+<tr><td><code>qorm_undo</code></td><td>—</td><td>设计：撤销最后一次应用的补丁，将应用恢复到该应用前的状态。返回撤销后的 HTML 以及剩余的撤销深度。</td></tr>
+<tr><td><code>qorm_measure</code></td><td>—</td><td>精确解析运行中的渲染：返回连接用户表达（类型、文本、状态绑定）与实际渲染方式的每一个组件细节 —— x,y,w,h, visible, 以及计算出的 color/background/fontSize/fontWeight/padding/borderRadius/border/opacity/zIndex/position/x-overflow —— 由运行中应用在其窗口中自行测量。要求应用在窗口/浏览器中打开（它在加载时以及每次更改后会进行自我测量）。用于查看用户应用的确切渲染情况。</td></tr>
+<tr><td><code>qorm_check_layout</code></td><td><code>checks</code>* (array), <code>viewportH</code> (integer), <code>viewportW</code> (integer)</td><td>根据预期校验运行中的渲染；返回每个检查项的通过/失败状态以及实际值。<code>checks</code> 是由 {id, &lt;assertions&gt;} 组成的数组。断言：visible(bool) \</td><td>type(组件类型 string) \</td><td>text(组件必须包含的子字符串，与所表达或渲染后的文本匹配) \</td><td>noOverflow(bool, 无水平溢出) \</td><td>minW\</td><td>maxW\</td><td>minH\</td><td>maxH(px 数值) \</td><td>x\</td><td>y(px 数值, ±3 容差) \</td><td>within(id: 该盒子必须位于该 id 盒子的内部) \</td><td>below(id: 必须在该 id 的下方开始) \</td><td>backgroundNot\</td><td>colorNot(必须不存在的子字符串 —— 例如在暗黑模式下断言 &#34;255, 255, 255&#34; 即非白色) \</td><td>role(渲染后的 ARIA role 字符串，含渲染器隐式注入的 role) \</td><td>hasAriaLabel(bool) \</td><td>contrastRatio(最小 WCAG 对比度，如 AA 正文 4.5 —— 针对有效背景色计算)。示例：[{&#34;id&#34;:&#34;wifi&#34;,&#34;type&#34;:&#34;switchlisttile&#34;,&#34;visible&#34;:true,&#34;within&#34;:&#34;settings&#34;},{&#34;id&#34;:&#34;chart&#34;,&#34;noOverflow&#34;:true}]。明确失败：无法识别的断言键（如拼写错误）会判定为失败，未被测量的 within/below 目标 id 会以 &#39;not found&#39; 判定为失败 —— 绝不会有检查项被静默通过。要求应用在窗口中打开（它会自我测量）。可选的 viewportW/viewportH（px）在校验前设置运行时视口，使响应式 <code>when</code> 分支按该窗口尺寸解析 —— 注意测得的矩形仍来自客户端的真实窗口（活动客户端也会在下次加载/缩放时覆盖该视口）。</td></tr>
+</tbody></table>
+<p>带有 <code>*</code> 标记的参数为必填项；其余为选填项。</p>
+</main>
+</div>
+<script>
+  (function(){var r=document.documentElement,b=document.getElementById('theme');
+   var sun='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>';
+   var moon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+   function c(){return r.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');}
+   try{var s=localStorage.getItem('qorm-theme');if(s)r.setAttribute('data-theme',s);}catch(e){}
+   function p(){b.innerHTML=c()==='dark'?sun:moon;} p();
+   b.onclick=function(){var t=c()==='dark'?'light':'dark';r.setAttribute('data-theme',t);try{localStorage.setItem('qorm-theme',t);}catch(e){}p();};})();
+  (function(){/* remember the reader's language across pages + both sites */
+   try{var cur=document.documentElement.lang;
+     document.querySelectorAll('header [data-lang]').forEach(function(el){
+       if(el.tagName==='A')el.addEventListener('click',function(){try{localStorage.setItem('qorm-lang',el.getAttribute('data-lang'));}catch(e){}});});
+     var pref;try{pref=localStorage.getItem('qorm-lang');}catch(e){}
+     if(pref&&pref!==cur){var alt=document.querySelector('header a[data-lang="'+pref+'"]');if(alt)location.replace(alt.getAttribute('href'));}
+   }catch(e){}})();
+</script>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-K3FQCHWD"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+</body>
+</html>
