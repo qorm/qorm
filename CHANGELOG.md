@@ -6,6 +6,8 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+## [v0.5.3] - 2026-07-29
+
 ### Added
 - Container Queries DSL (`cq-sm`, `cq-md`, `cq-lg` breakpoints & `container: true` style key) in `internal/render`.
 - Multi-token agent self-healing & enforcement for `fontSize` and `spacing` tokens in `internal/mcp`.
@@ -991,6 +993,7 @@ Initial release: QORM, an agent-native declarative-UI runtime in pure Go.
 - Render performance: cached parsed expressions and reflection-free CSS
   numeric writes in the hot path.
 
+[v0.5.3]: https://github.com/qorm/qorm/compare/v0.5.2...v0.5.3
 [v0.5.2]: https://github.com/qorm/qorm/compare/v0.5.1...v0.5.2
 [v0.5.1]: https://github.com/qorm/qorm/compare/v0.5.0...v0.5.1
 [v0.5.0]: https://github.com/qorm/qorm/compare/v0.4.0...v0.5.0
