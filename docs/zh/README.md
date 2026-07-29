@@ -10,6 +10,9 @@ web / iOS / Android / 桌面——人和 AI 智能体都能读写。
 节点树与状态,通过 SSE 实时**观察(Observe)**它,把它**渲染(Render)**到每个平台,
 再经由 actions 与写接口**修改(Mutate)**它。
 
+> **1-Prompt Agent 快速开始提示词：**
+> *“使用 QORM 框架在 `./my-app` 下创建一个全新的桌面应用，直接运行 `qorm run ./my-app` 自动脚手架并启动原生可执行程序窗口，保持 DevTool 可见。”*
+
 初来乍到?先读[顶层 README](https://github.com/qorm/qorm/blob/main/README.zh.md) 了解全局与 CLI,然后从下方深入。
 [`examples/`](https://github.com/qorm/qorm/tree/main/examples) 应用是权威的、可运行的参考——当文档与运行中的示例不一致时,
 以示例为准。

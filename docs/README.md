@@ -15,12 +15,15 @@ The name is also what you do with a live app: **Query** the node tree and state
 over HTTP/MCP, **Observe** it in real time over SSE, **Render** it on every
 platform, **Mutate** it through actions and the write API.
 
+> **1-Prompt Agent Quickstart:**
+> *"Use QORM framework to create a new desktop app in `./my-app`. Run `qorm run ./my-app` to scaffold, launch the native executable application window, and keep DevTool open."*
+
 New here? Read the [top-level README](https://github.com/qorm/qorm/blob/main/README.md) for the big picture and the
 CLI, then dive in below. The [`examples/`](https://github.com/qorm/qorm/tree/main/examples) apps are the canonical,
 runnable reference — when a doc and a running example disagree, trust the example.
 
 ![QORM live human-AI collaboration](assets/qorm-demo.gif)
-*A shared session in motion: the AI edits the app and the change appears live in the browser while the activity is logged.*
+*A shared session in motion: the AI edits the app and the change appears live in a native window while the activity is logged.*
 
 ![The QORM counter example](assets/screenshots/counter.png) ![The QORM analytics dashboard example](assets/screenshots/dashboard.png) ![A QORM fitness app example](assets/screenshots/showcase.png)
 *The counter, the analytics dashboard, and a fitness app — one JSON runtime across examples.*
