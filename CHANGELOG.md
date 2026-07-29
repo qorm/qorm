@@ -6,6 +6,8 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+## [v0.5.4] - 2026-07-29
+
 ### Added
 - `RenderNodeDiff` in `internal/render`: renders isolated node subtrees wrapped in morph template tags for live SSE updates.
 - `qorm_capture_subtree` MCP tool in `internal/mcp`: allows AI agents to capture node subtree HTML and layout structure for visual feedback.
@@ -998,6 +1000,7 @@ Initial release: QORM, an agent-native declarative-UI runtime in pure Go.
 - Render performance: cached parsed expressions and reflection-free CSS
   numeric writes in the hot path.
 
+[v0.5.4]: https://github.com/qorm/qorm/compare/v0.5.3...v0.5.4
 [v0.5.3]: https://github.com/qorm/qorm/compare/v0.5.2...v0.5.3
 [v0.5.2]: https://github.com/qorm/qorm/compare/v0.5.1...v0.5.2
 [v0.5.1]: https://github.com/qorm/qorm/compare/v0.5.0...v0.5.1
