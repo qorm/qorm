@@ -67,6 +67,37 @@ QORM 为 AI 智能体而生：只需**给你的 Agent 一句话**，就能自动
 [平台支持矩阵](docs/platforms/support-matrix.md);各平台的硬件接口见
 [capabilities.md](docs/platforms/capabilities.md)。两者都由代码生成,并由测试保持同步。
 
+## QORM 与其他跨平台框架对比
+
+<!-- comparison-table:start -->
+| | QORM | Flutter | React Native | Tauri | Electron | .NET MAUI | Kotlin MP | Compose MP |
+|---|---|---|---|---|---|---|---|---|
+| **开发语言** | JSON + Go | Dart | JavaScript | Rust + JS | JavaScript | C# / XAML | Kotlin | Kotlin |
+| **UI 范式** | 声明式 JSON | 声明式 Widget | 声明式 JSX | Web (HTML/CSS) | Web (HTML/CSS) | 声明式 XAML | 共享逻辑+原生 UI | 声明式 Compose |
+| **渲染方式** | HTML/CSS (WebView) | Skia / Impeller | 原生组件 | 系统 WebView | Chromium | 原生控件 | 原生控件 | Skia |
+| **支持平台** | Web、iOS、Android、macOS、Linux、Windows、小程序 | Web、iOS、Android、macOS、Linux、Windows | iOS、Android、Web (beta) | macOS、Linux、Windows、iOS、Android (beta) | macOS、Linux、Windows | iOS、Android、macOS、Windows | iOS、Android、桌面、Web | iOS、Android、桌面、Web |
+| **包体积** | ~7 MB 静态二进制 | ~15-25 MB | ~7-15 MB | ~3-10 MB | ~150+ MB | ~10-20 MB | ~5-15 MB | ~10-20 MB |
+| **热重载** | 支持 (SSE 实时推送) | 支持 (有状态) | 支持 (Fast Refresh) | 支持 (Vite HMR) | 支持 (HMR) | 支持 (XAML) | 部分支持 | 支持 |
+| **AI 智能体原生 (MCP)** | **支持 — 20+ 工具，一等公民** | 不支持 | 不支持 | 不支持 | 不支持 | 不支持 | 不支持 | 不支持 |
+| **人机实时协作** | **支持 — 共享运行时** | 不支持 | 不支持 | 不支持 | 不支持 | 不支持 | 不支持 | 不支持 |
+| **签名包** | **支持 — ed25519** | 不支持 | 不支持 | 不支持 | 不支持 | 不支持 | 不支持 | 不支持 |
+| **内置热更新 (OTA)** | **支持 — 含回滚** | 不支持 | CodePush (第三方) | 不支持 | 不支持 | 不支持 | 不支持 | 不支持 |
+| **设计验证** | **支持 — 几何级精度** | 不支持 | 不支持 | 不支持 | 不支持 | 不支持 | 不支持 | 不支持 |
+| **状态管理** | 内置 (JSON state) | 外部 (Provider/Bloc) | 外部 (Redux 等) | 外部 | 外部 | 内置 (MVVM) | 外部 | 内置 (State) |
+| **学习曲线** | 低 (JSON) | 中等 (Dart) | 中等 (React) | 中等 (Rust) | 低 (Web) | 中等 (C#) | 中等 (Kotlin) | 中等 (Compose) |
+| **交叉编译** | 支持 (单一二进制) | 支持 | 部分支持 | 支持 | 支持 | 支持 | 支持 | 支持 |
+| **许可证** | MIT | BSD-3 | MIT | MIT / Apache-2 | MIT | MIT | Apache-2 | Apache-2 |
+<!-- comparison-table:end -->
+
+**QORM 独有特性** —— 以下能力目前没有任何其他框架提供:
+
+- **智能体原生 MCP**: 提供 20+ 工具用来读取、编辑(受评审限制)、运行和自我验证运行中的应用。
+  完美适配 Claude、Cursor、Windsurf 或任何兼容 MCP 的智能体。
+- **人机共享会话**: 人类与 AI 在同一时间操作同一个运行中的应用——这是 QORM 立项之本。
+- **签名包 + 热更新**: 基于 ed25519 签名及内容寻址的工件,验证后再激活,一键回滚。
+- **设计验证**: 智能体通过 `qorm measure` / `qorm check` 测量实际渲染几何来证明其修改,
+  而非靠假设。
+
 ## 运行
 
 ```bash

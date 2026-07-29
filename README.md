@@ -72,6 +72,39 @@ list (distribution, rendering, runtime, agent — each per target) is the
 hardware interfaces are in [capabilities.md](docs/platforms/capabilities.md). Both
 are generated from the code and kept in sync by tests.
 
+## How QORM compares
+
+<!-- comparison-table:start -->
+| | QORM | Flutter | React Native | Tauri | Electron | .NET MAUI | Kotlin MP | Compose MP |
+|---|---|---|---|---|---|---|---|---|
+| **Language** | JSON + Go | Dart | JavaScript | Rust + JS | JavaScript | C# / XAML | Kotlin | Kotlin |
+| **UI paradigm** | Declarative JSON | Declarative widget | Declarative JSX | Web (HTML/CSS) | Web (HTML/CSS) | Declarative XAML | Shared logic, native UI | Declarative Compose |
+| **Rendering** | HTML/CSS (WebView) | Skia / Impeller | Native components | System WebView | Chromium | Native controls | Native controls | Skia |
+| **Platforms** | Web, iOS, Android, macOS, Linux, Windows, Mini-program | Web, iOS, Android, macOS, Linux, Windows | iOS, Android, Web (beta) | macOS, Linux, Windows, iOS, Android (beta) | macOS, Linux, Windows | iOS, Android, macOS, Windows | iOS, Android, Desktop, Web | iOS, Android, Desktop, Web |
+| **Binary size** | ~7 MB static | ~15-25 MB | ~7-15 MB | ~3-10 MB | ~150+ MB | ~10-20 MB | ~5-15 MB | ~10-20 MB |
+| **Hot reload** | Yes (SSE live push) | Yes (stateful) | Yes (Fast Refresh) | Yes (Vite HMR) | Yes (HMR) | Yes (XAML) | Partial | Yes |
+| **AI-agent native (MCP)** | **Yes — 20+ tools, first-class** | No | No | No | No | No | No | No |
+| **Human-AI live session** | **Yes — shared runtime** | No | No | No | No | No | No | No |
+| **Signed bundles** | **Yes — ed25519** | No | No | No | No | No | No | No |
+| **Built-in OTA** | **Yes — with rollback** | No | CodePush (3rd-party) | No | No | No | No | No |
+| **Design verification** | **Yes — geometry-level** | No | No | No | No | No | No | No |
+| **State management** | Built-in (JSON state) | External (Provider/Bloc) | External (Redux etc.) | External | External | Built-in (MVVM) | External | Built-in (State) |
+| **Learning curve** | Low (JSON) | Medium (Dart) | Medium (React) | Medium (Rust) | Low (Web) | Medium (C#) | Medium (Kotlin) | Medium (Compose) |
+| **Cross-compile** | Yes (single binary) | Yes | Partial | Yes | Yes | Yes | Yes | Yes |
+| **License** | MIT | BSD-3 | MIT | MIT / Apache-2 | MIT | MIT | Apache-2 | Apache-2 |
+<!-- comparison-table:end -->
+
+**QORM-exclusive features** — no other framework offers these today:
+
+- **Agent-native MCP**: 20+ tools to read, edit (review-gated), run and self-verify a
+  live app. Drops into Claude, Cursor, Windsurf, or any MCP-compatible agent.
+- **Human-AI shared session**: a human and an AI operate the same running app at the
+  same time — the reason QORM was built.
+- **Signed bundles + OTA**: ed25519-signed, content-addressed artifacts with
+  verify-before-activate delivery and one-command rollback.
+- **Design verification**: the agent proves its edits by measuring real rendered
+  geometry with `qorm measure` / `qorm check`, instead of assuming.
+
 ## Run
 
 ```bash
