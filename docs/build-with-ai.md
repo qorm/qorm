@@ -27,7 +27,7 @@ The 60-second version: [`scripts/demo.sh`](https://github.com/qorm/qorm/blob/mai
 No complex manual setup needed. Simply copy and paste the prompt below directly into your AI assistant (Claude Code, Cursor, Windsurf, Antigravity, etc.):
 
 ```text
-Build a new app in ./myapp using the QORM framework.
+Build a new app in ./myapp using the QORM framework (https://github.com/qorm/qorm).
 1. Automatically load the QORM MCP server configuration and Skill library (including qorm_inspect, qorm_apply_patch, etc.), set up the environment, and launch the native application window for the host OS with DevTool active.
 2. Implement the following requirement: <YOUR APP IDEA HERE, e.g. a habit tracker with a daily check-off and streak count>.
 3. Edit qorm.json, scenes/, and actions/*.json, and verify the UI live in the native application window.

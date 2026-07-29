@@ -20,7 +20,7 @@ QORM 面向智能体:让你的 AI 编码助手(Claude Code、Claude Desktop、Cu
 无需任何复杂的手动配置。只需复制以下提示词直接发送给你的 AI 编码助手（Claude Code、Cursor、Windsurf、Antigravity……）：
 
 ```text
-请使用 QORM 框架在 `./myapp` 下创建应用。
+请使用 QORM 框架（https://github.com/qorm/qorm）在 `./myapp` 下创建应用。
 1. 请自动载入 QORM 的 MCP 配置与 Skill 技能库（包含 qorm_inspect, qorm_apply_patch 等工具），自动搭好环境并启动原生应用窗口，保持 DevTool 可见。
 2. 根据以下需求构建应用：<在这里输入你的应用想法，例如：带连续打卡天数的习惯追踪器>。
 3. 修改 qorm.json、scenes/ 和 actions/*.json，并在实时的原生应用窗口中验证效果。
