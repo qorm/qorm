@@ -45,9 +45,10 @@ collaboration is QORM's whole premise.
 
 QORM is built for AI agents: give your AI assistant **a single sentence**, and it automatically loads QORM's **MCP tools and Skill library**, sets up the environment, and launches a native application window for real-time collaboration.
 
-> **Copy & paste this prompt to your AI assistant (ChatGPT / Claude Code / Cursor / Windsurf / Antigravity / DeepSeek / Kimi):**
+> **Copy & paste these 2 sequential prompts to your AI assistant (ChatGPT / Claude Code / Cursor / Windsurf / Antigravity / DeepSeek / Kimi):**
 >
-> *"Build a new app in `./my-app` using the QORM framework (https://github.com/qorm/qorm). Automatically load the QORM MCP server configuration and Skill library, set up the environment, launch the native application window for the host OS, keep DevTool active, and build the app for: <your app idea here>."*
+> 1. *"Load QORM framework MCP configuration and Skill library (https://github.com/qorm/qorm), set up environment, keep DevTool active."*
+> 2. *"Use QORM to create a new app in `./my-app`, launch native window, and build the app for: <your app idea here>."*
 
 You click, the agent sees you (`qorm_activity`); the agent edits UI and logic, and changes appear instantly. Full guide: **[Build with your AI](docs/build-with-ai.md)** · [Human-AI collaboration](docs/collaboration.md).
 

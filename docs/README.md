@@ -15,8 +15,9 @@ The name is also what you do with a live app: **Query** the node tree and state
 over HTTP/MCP, **Observe** it in real time over SSE, **Render** it on every
 platform, **Mutate** it through actions and the write API.
 
-> **1-Prompt Agent Quickstart:**
-> *"Build a new app in `./my-app` using the QORM framework (https://github.com/qorm/qorm). Automatically load the QORM MCP server configuration and Skill library, set up the environment, launch the native application window for the host OS, keep DevTool active, and build the app for: <your app idea here>."*
+> **2-Prompt Agent Quickstart:**
+> 1. *"Load QORM framework MCP configuration and Skill library (https://github.com/qorm/qorm), set up environment, keep DevTool active."*
+> 2. *"Use QORM to create a new app in `./my-app`, launch native window, and build: <your app idea here>."*
 
 New here? Read the [top-level README](https://github.com/qorm/qorm/blob/main/README.md) for the big picture and the
 CLI, then dive in below. The [`examples/`](https://github.com/qorm/qorm/tree/main/examples) apps are the canonical,

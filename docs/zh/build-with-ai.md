@@ -15,15 +15,16 @@ QORM 面向智能体:让你的 AI 编码助手(Claude Code、Claude Desktop、Cu
 ./scripts/demo.sh examples/dashboard
 ```
 
-## 快速开始（给 Agent 一句话，用起 QORM 架构）
+## 快速开始（分二步向 Agent 提问）
 
-无需任何复杂的手动配置。只需复制以下提示词直接发送给你的 AI 编码助手（ChatGPT、Claude Code、Cursor、Windsurf、Antigravity、DeepSeek、Kimi……）：
+无需任何复杂的手动配置。只需将以下两句提示词依次投递给你的 AI 编码助手（ChatGPT、Claude Code、Cursor、Windsurf、Antigravity、DeepSeek、Kimi……）：
 
 ```text
-请使用 QORM 框架（https://github.com/qorm/qorm）在 `./myapp` 下创建应用。
-1. 请自动载入 QORM 的 MCP 配置与 Skill 技能库（包含 qorm_inspect, qorm_apply_patch 等工具），自动搭好环境并启动原生应用窗口，保持 DevTool 可见。
-2. 根据以下需求构建应用：<在这里输入你的应用想法，例如：带连续打卡天数的习惯追踪器>。
-3. 修改 qorm.json、scenes/ 和 actions/*.json，并在实时的原生应用窗口中验证效果。
+提示词 1 (载入框架与技能):
+请加载 QORM 框架的 MCP 配置与 Skill 技能库（https://github.com/qorm/qorm），搭好环境，保持 DevTool 可见。
+
+提示词 2 (新建并构建应用):
+使用 QORM 在 ./myapp 创建应用，启动原生窗口，然后根据以下需求构建应用：<在此输入你的应用想法，例如：带连续打卡天数的习惯追踪器>。
 ```
 
 `qorm run ./myapp` 会自动检测并生成缺失的目录脚手架、启动实时 HTTP 服务与 MCP 接口，并自动在当前系统弹出原生独立可执行程序窗口。如果明确需要网页浏览器标签页，可附加 `--web` 参数。

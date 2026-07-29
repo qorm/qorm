@@ -112,12 +112,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <p>60 秒版本:<a href="https://github.com/qorm/qorm/blob/main/scripts/demo.sh"><code>scripts/demo.sh</code></a> 会开一个共享会话并按脚本自动做一串 AI 编辑——打开打印出的 URL、按下录制,就能看到应用实时变化 + 「AI edited」提示:</p>
 <pre><code>./scripts/demo.sh                 # examples/counter
 ./scripts/demo.sh examples/dashboard</code></pre>
-<h2 id="快速开始给-agent-一句话用起-qorm-架构">快速开始（给 Agent 一句话，用起 QORM 架构）</h2>
-<p>无需任何复杂的手动配置。只需复制以下提示词直接发送给你的 AI 编码助手（ChatGPT、Claude Code、Cursor、Windsurf、Antigravity、DeepSeek、Kimi……）：</p>
-<pre><code>请使用 QORM 框架（https://github.com/qorm/qorm）在 `./myapp` 下创建应用。
-1. 请自动载入 QORM 的 MCP 配置与 Skill 技能库（包含 qorm_inspect, qorm_apply_patch 等工具），自动搭好环境并启动原生应用窗口，保持 DevTool 可见。
-2. 根据以下需求构建应用：&lt;在这里输入你的应用想法，例如：带连续打卡天数的习惯追踪器&gt;。
-3. 修改 qorm.json、scenes/ 和 actions/*.json，并在实时的原生应用窗口中验证效果。</code></pre>
+<h2 id="快速开始分二步向-agent-提问">快速开始（分二步向 Agent 提问）</h2>
+<p>无需任何复杂的手动配置。只需将以下两句提示词依次投递给你的 AI 编码助手（ChatGPT、Claude Code、Cursor、Windsurf、Antigravity、DeepSeek、Kimi……）：</p>
+<pre><code>提示词 1 (载入框架与技能):
+请加载 QORM 框架的 MCP 配置与 Skill 技能库（https://github.com/qorm/qorm），搭好环境，保持 DevTool 可见。
+
+提示词 2 (新建并构建应用):
+使用 QORM 在 ./myapp 创建应用，启动原生窗口，然后根据以下需求构建应用：&lt;在此输入你的应用想法，例如：带连续打卡天数的习惯追踪器&gt;。</code></pre>
 <p><code>qorm run ./myapp</code> 会自动检测并生成缺失的目录脚手架、启动实时 HTTP 服务与 MCP 接口，并自动在当前系统弹出原生独立可执行程序窗口。如果明确需要网页浏览器标签页，可附加 <code>--web</code> 参数。</p>
 <h2 id="实时人机协作如何工作">实时人机协作如何工作</h2>
 <ul>

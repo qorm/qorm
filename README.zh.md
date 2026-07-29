@@ -41,9 +41,10 @@ Rendering Model,可查询对象渲染模型)是一个面向智能体的
 
 QORM 为 AI 智能体而生：只需**给你的 Agent 一句话**，就能自动加载 QORM 的 **MCP 协议与 Skill 技能库**，让 AI 自动搭起环境、启动当前系统下的原生应用窗口，并与你实时协同。
 
-> **一键复制提示词投递给你的 AI 助手（ChatGPT / Claude Code / Cursor / Windsurf / Antigravity / DeepSeek / Kimi）：**
+> **两句提示词投递给你的 AI 助手（ChatGPT / Claude Code / Cursor / Windsurf / Antigravity / DeepSeek / Kimi）：**
 >
-> *“请使用 QORM 框架（https://github.com/qorm/qorm）在 `./my-app` 下创建应用。自动载入 QORM 的 MCP 配置与 Skill 技能库，搭好环境并启动原生应用窗口，保持 DevTool 可见。然后根据以下需求构建应用：<在这里输入你的应用想法，例如：带连续打卡天数的习惯追踪器>。”*
+> 1. *“请加载 QORM 框架的 MCP 配置与 Skill 技能库（https://github.com/qorm/qorm），搭好环境，保持 DevTool 可见。”*
+> 2. *“使用 QORM 在 `./my-app` 创建应用，启动原生窗口，然后根据以下需求构建应用：<在这里输入你的应用想法，例如：带连续打卡天数的习惯追踪器>。”*
 
 你在窗口中操作，Agent 实时感知；Agent 实时调整 UI 与逻辑，改动即刻呈现。完整指南：**[与你的 AI 一起构建](docs/zh/build-with-ai.md)** · [人机协作](docs/zh/collaboration.md)。
 

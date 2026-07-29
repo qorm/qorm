@@ -22,15 +22,16 @@ The 60-second version: [`scripts/demo.sh`](https://github.com/qorm/qorm/blob/mai
 ![Your AI assistant editing a live QORM app while you watch](agent/img/console.png)
 *Run a shared session and the AI's edits appear live in your browser, while its MCP calls show up in the log on the right.*
 
-## Quickstart (Give your Agent 1 prompt)
+## Quickstart (Send 2 Sequential Prompts)
 
-No complex manual setup needed. Simply copy and paste the prompt below directly into your AI assistant (ChatGPT, Claude Code, Cursor, Windsurf, Antigravity, DeepSeek, Kimi, etc.):
+No complex manual setup needed. Simply send these two prompts in sequence to your AI assistant (ChatGPT, Claude Code, Cursor, Windsurf, Antigravity, DeepSeek, Kimi, etc.):
 
 ```text
-Build a new app in ./myapp using the QORM framework (https://github.com/qorm/qorm).
-1. Automatically load the QORM MCP server configuration and Skill library (including qorm_inspect, qorm_apply_patch, etc.), set up the environment, and launch the native application window for the host OS with DevTool active.
-2. Implement the following requirement: <YOUR APP IDEA HERE, e.g. a habit tracker with a daily check-off and streak count>.
-3. Edit qorm.json, scenes/, and actions/*.json, and verify the UI live in the native application window.
+Prompt 1 (Load Framework & Skills):
+Load QORM framework MCP configuration and Skill library (https://github.com/qorm/qorm), set up environment, keep DevTool active.
+
+Prompt 2 (Create & Build App):
+Use QORM to create a new app in ./myapp, launch native window, and build: <YOUR APP IDEA HERE>.
 ```
 
 `qorm run ./myapp` auto-scaffolds non-existent directories, starts the live HTTP server and MCP endpoint at `/mcp`, and opens your platform's native standalone application window automatically. Use `--web` if you specifically want a web browser tab instead.
