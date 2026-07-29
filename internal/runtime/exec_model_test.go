@@ -440,3 +440,35 @@ func TestOnEnterNoHookScene(t *testing.T) {
 		t.Errorf("hookless entry must not block later hooks: got %v", rt.State["detailEnters"])
 	}
 }
+
+func TestSwapAppPreservingState(t *testing.T) {
+	app1 := &model.App{
+		Entry:  "main",
+		Scenes: map[string]*model.Node{"main": {Type: "view", ID: "root"}},
+		GlobalState: model.GlobalState{
+			Initial: map[string]any{"count": float64(10), "user": "Alice"},
+		},
+	}
+	rt := New(app1)
+	rt.State["count"] = float64(42) // User modified state
+
+	app2 := &model.App{
+		Entry:  "main",
+		Scenes: map[string]*model.Node{"main": {Type: "view", ID: "root"}},
+		GlobalState: model.GlobalState{
+			Initial: map[string]any{"count": float64(10), "theme": "dark"},
+		},
+	}
+
+	rt.SwapAppPreservingState(app2)
+
+	if rt.State["count"] != float64(42) {
+		t.Errorf("modified state 'count' should be preserved: got %v", rt.State["count"])
+	}
+	if rt.State["user"] != "Alice" {
+		t.Errorf("state 'user' should be preserved: got %v", rt.State["user"])
+	}
+	if rt.State["theme"] != "dark" {
+		t.Errorf("new state 'theme' should be seeded: got %v", rt.State["theme"])
+	}
+}

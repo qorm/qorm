@@ -6,6 +6,11 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+- `RenderNodeDiff` in `internal/render`: renders isolated node subtrees wrapped in morph template tags for live SSE updates.
+- `qorm_capture_subtree` MCP tool in `internal/mcp`: allows AI agents to capture node subtree HTML and layout structure for visual feedback.
+- `SwapAppPreservingState` in `internal/runtime`: preserves user form inputs and state bindings when hot reloading app manifests.
+
 ## [v0.5.3] - 2026-07-29
 
 ### Added

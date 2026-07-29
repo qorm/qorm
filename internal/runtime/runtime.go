@@ -496,6 +496,26 @@ func New(app *model.App) *Runtime {
 	return rt
 }
 
+// SwapAppPreservingState swaps out the app manifest (e.g. during a hot reload)
+// while preserving active runtime state and user inputs.
+func (r *Runtime) SwapAppPreservingState(newApp *model.App) {
+	if newApp == nil {
+		return
+	}
+	r.App = newApp
+	if r.State == nil {
+		r.State = map[string]any{}
+	}
+	if newApp.GlobalState.Initial != nil {
+		for k, v := range newApp.GlobalState.Initial {
+			if _, exists := r.State[k]; !exists {
+				r.State[k] = deepCopy(v)
+			}
+		}
+	}
+	r.refreshComputed()
+}
+
 // sceneID normalises a scene spelling to a concrete id: the entry scene is
 // addressed both as "" and by its id, and everything that reasons about a
 // scene's declarations (guards, onEnter) must see the same key for both.

@@ -210,6 +210,13 @@ func RenderSubtree(rt *runtime.Runtime, nodeID string) Result {
 	return Result{HTML: r.sb.String(), Handlers: r.handlers, Unknown: r.unknowns}
 }
 
+// RenderNodeDiff renders an isolated node subtree and formats it as a morph template payload for SSE live updates.
+func RenderNodeDiff(rt *runtime.Runtime, nodeID string) Result {
+	res := RenderSubtree(rt, nodeID)
+	res.HTML = fmt.Sprintf(`<template data-morph-target="%s">%s</template>`, html.EscapeString(nodeID), res.HTML)
+	return res
+}
+
 func findNodeInTree(n *model.Node, id string) *model.Node {
 	if n == nil {
 		return nil

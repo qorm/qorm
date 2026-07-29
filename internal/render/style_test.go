@@ -821,3 +821,15 @@ func TestDatatableWidget(t *testing.T) {
 		t.Errorf("datatable widget should render table with data and sticky header: got %q", res.HTML)
 	}
 }
+
+func TestRenderNodeDiff(t *testing.T) {
+	child := &model.Node{Type: "text", ID: "target_child", Text: "Subtree Content"}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{child}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}}
+	rt := qrt.New(app)
+
+	diffRes := RenderNodeDiff(rt, "target_child")
+	if !strings.Contains(diffRes.HTML, `data-morph-target="target_child"`) {
+		t.Errorf("RenderNodeDiff should wrap target node in morph template: got %q", diffRes.HTML)
+	}
+}

@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -147,5 +148,19 @@ func TestDesignTokenEnforcesFontSizeAndSpacing(t *testing.T) {
 	opSpacingValid := []PatchOp{{Op: "setProp", Target: "title", Key: "style", Value: map[string]any{"padding": "24px"}}}
 	if err := applyPatch(app, opSpacingValid); err != nil {
 		t.Fatalf("valid spacing token should pass: %v", err)
+	}
+}
+
+func TestCaptureSubtreeTool(t *testing.T) {
+	app := tokenApp()
+	s := &Server{rt: qrt.New(app)}
+
+	args, _ := json.Marshal(map[string]any{"id": "title"})
+	out, err := s.callTool("qorm_capture_subtree", args)
+	if err != nil {
+		t.Fatalf("qorm_capture_subtree call failed: %v", err)
+	}
+	if !strings.Contains(out, "Hi") {
+		t.Errorf("qorm_capture_subtree should return rendered HTML for title node: got %s", out)
 	}
 }

@@ -51,6 +51,11 @@ func toolList() []tool {
 			InputSchema: obj(nil),
 		},
 		{
+			Name:        "qorm_capture_subtree",
+			Description: "Capture a specific node subtree by node id: returns isolated rendered HTML and child layout hierarchy for visual AI feedback. Read-only.",
+			InputSchema: obj(map[string]any{"id": strProp}, "id"),
+		},
+		{
 			Name:        "qorm_a11y_tree",
 			Description: "Derive the accessibility tree for the entry scene: every node's ARIA role, accessible name and semantic state (checked/disabled/required/value), plus an audit of accessibility issues — interactive controls and images that would reach a screen reader with no accessible name. Use it to check a11y coverage or find what to fix. Read-only.",
 			InputSchema: obj(nil),
@@ -299,6 +304,20 @@ func (s *Server) callTool(name string, args json.RawMessage) (string, error) {
 		return jsonPretty(s.inspect()), nil
 	case "qorm_render_html":
 		return s.currentHTML(), nil
+	case "qorm_capture_subtree":
+		var a struct{ ID string }
+		if err := decodeArgs(name, args, &a); err != nil {
+			return "", err
+		}
+		if a.ID == "" {
+			return "", fmt.Errorf("qorm_capture_subtree: missing id parameter")
+		}
+		res := render.RenderSubtree(s.rt, a.ID)
+		return jsonPretty(map[string]any{
+			"id":       a.ID,
+			"html":     res.HTML,
+			"unknowns": res.Unknown,
+		}), nil
 	case "qorm_a11y_tree":
 		return jsonPretty(a11y.Build(s.rt.App.EntryRoot())), nil
 	case "qorm_capabilities":
