@@ -6,6 +6,8 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+## [v0.5.1] - 2026-07-29
+
 ### Added
 - Single-Prompt Quickstart & Native Executable App Window Default: `qorm run <dir>` automatically scaffolds missing directories and launches as a standalone native executable application window for the host platform by default (`--web` / `--browser` for browser tab mode). DevTool (`logwindow` / `/console`) also opens as a standalone native executable window.
 - Declarative Responsive Breakpoints DSL: `sm` (<=640px), `md` (641-1024px), `lg` (>=1025px) breakpoint style maps in `internal/render`.
@@ -979,6 +981,7 @@ Initial release: QORM, an agent-native declarative-UI runtime in pure Go.
 - Render performance: cached parsed expressions and reflection-free CSS
   numeric writes in the hot path.
 
+[v0.5.1]: https://github.com/qorm/qorm/compare/v0.5.0...v0.5.1
 [v0.5.0]: https://github.com/qorm/qorm/compare/v0.4.0...v0.5.0
 [v0.4.0]: https://github.com/qorm/qorm/compare/v0.3.7...v0.4.0
 [v0.3.7]: https://github.com/qorm/qorm/compare/v0.3.6...v0.3.7
