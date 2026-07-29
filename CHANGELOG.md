@@ -6,6 +6,11 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+- Container Queries DSL (`cq-sm`, `cq-md`, `cq-lg` breakpoints & `container: true` style key) in `internal/render`.
+- Multi-token agent self-healing & enforcement for `fontSize` and `spacing` tokens in `internal/mcp`.
+- Enhanced `datatable` widget with key/title column parsing and sticky headers.
+
 ## [v0.5.2] - 2026-07-29
 
 ### Fixed

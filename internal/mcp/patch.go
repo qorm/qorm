@@ -270,63 +270,119 @@ var colorStyleKeys = map[string]bool{
 	"borderColor":     true,
 }
 
-// enforceDesignTokens rejects a style merge that sets a color style key to a
-// value that is not one of the app's enforced color tokens. If the app declares
-// no enforced color tokens the behaviour is unchanged (backward compatible), so
-// apps that don't opt in are never affected.
+var fontStyleKeys = map[string]bool{
+	"fontSize": true,
+}
+
+var spacingStyleKeys = map[string]bool{
+	"gap":     true,
+	"padding": true,
+	"margin":  true,
+}
+
+// enforceDesignTokens rejects a style merge that sets a style key to a
+// value that is not one of the app's enforced design tokens (color, fontSize, spacing).
 func enforceDesignTokens(app *model.App, style map[string]any) error {
-	allowed, display := enforcedColorTokens(app)
-	if len(allowed) == 0 {
-		return nil
-	}
-	// Deterministic key order so a violation reports the first offending key
-	// stably (map iteration is randomised).
 	keys := make([]string, 0, len(style))
 	for k := range style {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
-	for _, k := range keys {
-		if !colorStyleKeys[k] {
-			continue
-		}
-		val, ok := style[k].(string)
-		if !ok || val == "" {
-			continue
-		}
-		if !allowed[normalizeColor(val)] {
-			return fmt.Errorf("design token violation: color %q is not an allowed token (allowed: %s)", val, strings.Join(display, ", "))
+
+	// 1. Color tokens
+	if allowed, display := enforcedTokensByType(app, "color"); len(allowed) > 0 {
+		for _, k := range keys {
+			if !colorStyleKeys[k] {
+				continue
+			}
+			val, ok := style[k].(string)
+			if !ok || val == "" {
+				continue
+			}
+			if !allowed[normalizeTokenVal(val, "color")] {
+				return fmt.Errorf("design token violation: color %q is not an allowed token (allowed: %s)", val, strings.Join(display, ", "))
+			}
 		}
 	}
+
+	// 2. FontSize tokens
+	if allowed, display := enforcedTokensByType(app, "fontSize"); len(allowed) > 0 {
+		for _, k := range keys {
+			if !fontStyleKeys[k] {
+				continue
+			}
+			val := fmt.Sprint(style[k])
+			if val == "" {
+				continue
+			}
+			if !allowed[normalizeTokenVal(val, "fontSize")] {
+				return fmt.Errorf("design token violation: fontSize %q is not an allowed token (allowed: %s)", val, strings.Join(display, ", "))
+			}
+		}
+	}
+
+	// 3. Spacing tokens
+	if allowed, display := enforcedTokensByType(app, "spacing"); len(allowed) > 0 {
+		for _, k := range keys {
+			if !spacingStyleKeys[k] {
+				continue
+			}
+			val := fmt.Sprint(style[k])
+			if val == "" {
+				continue
+			}
+			if !allowed[normalizeTokenVal(val, "spacing")] {
+				return fmt.Errorf("design token violation: spacing %q is not an allowed token (allowed: %s)", val, strings.Join(display, ", "))
+			}
+		}
+	}
+
 	return nil
 }
 
-// enforcedColorTokens returns the set of normalized enforced color-token values
-// (for matching) and the sorted list of their original values (for the error
-// message). Both are empty when the app declares no enforced color tokens.
-func enforcedColorTokens(app *model.App) (map[string]bool, []string) {
+func enforcedTokensByType(app *model.App, tokenType string) (map[string]bool, []string) {
 	if len(app.DesignTokens) == 0 {
 		return nil, nil
 	}
 	set := map[string]bool{}
 	var display []string
 	for _, tok := range app.DesignTokens {
-		if tok.Type != "color" || !tok.Enforce {
+		if !tok.Enforce {
 			continue
 		}
-		set[normalizeColor(tok.Value)] = true
+		match := false
+		if tokenType == "color" && tok.Type == "color" {
+			match = true
+		} else if tokenType == "fontSize" && (tok.Type == "fontSize" || tok.Type == "font") {
+			match = true
+		} else if tokenType == "spacing" && tok.Type == "spacing" {
+			match = true
+		}
+		if !match {
+			continue
+		}
+		norm := normalizeTokenVal(tok.Value, tokenType)
+		set[norm] = true
 		display = append(display, tok.Value)
 	}
 	sort.Strings(display)
 	return set, display
 }
 
-// normalizeColor canonicalises a color for comparison: trims whitespace,
-// lowercases, and drops a leading '#' so "#0A84FF", "0a84ff" and "#0a84ff" all
-// compare equal.
-func normalizeColor(s string) string {
+func enforcedColorTokens(app *model.App) (map[string]bool, []string) {
+	return enforcedTokensByType(app, "color")
+}
+
+func normalizeTokenVal(s string, tokenType string) string {
 	s = strings.ToLower(strings.TrimSpace(s))
-	return strings.TrimPrefix(s, "#")
+	if tokenType == "color" {
+		return strings.TrimPrefix(s, "#")
+	}
+	return s
+}
+
+func normalizeColor(s string) string {
+	return normalizeTokenVal(s, "color")
 }
 
 // ---- deep clone (for side-effect-free preview) ----

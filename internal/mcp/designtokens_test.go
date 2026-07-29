@@ -119,3 +119,33 @@ func TestDesignTokenEnforcedAtPreview(t *testing.T) {
 		t.Errorf("preview result should include validTokens list, got %v", res["validTokens"])
 	}
 }
+
+func TestDesignTokenEnforcesFontSizeAndSpacing(t *testing.T) {
+	app := tokenApp()
+	app.DesignTokens["font.heading"] = model.DesignToken{Type: "fontSize", Value: "18px", Enforce: true}
+	app.DesignTokens["spacing.lg"] = model.DesignToken{Type: "spacing", Value: "24px", Enforce: true}
+
+	// 1. Invalid fontSize should be rejected
+	opFont := []PatchOp{{Op: "setProp", Target: "title", Key: "style", Value: map[string]any{"fontSize": "99px"}}}
+	if err := applyPatch(app, opFont); err == nil {
+		t.Fatal("expected violation for unenforced fontSize")
+	}
+
+	// 2. Valid fontSize should pass
+	opFontValid := []PatchOp{{Op: "setProp", Target: "title", Key: "style", Value: map[string]any{"fontSize": "18px"}}}
+	if err := applyPatch(app, opFontValid); err != nil {
+		t.Fatalf("valid fontSize token should pass: %v", err)
+	}
+
+	// 3. Invalid spacing (padding) should be rejected
+	opSpacing := []PatchOp{{Op: "setProp", Target: "title", Key: "style", Value: map[string]any{"padding": "100px"}}}
+	if err := applyPatch(app, opSpacing); err == nil {
+		t.Fatal("expected violation for unenforced spacing")
+	}
+
+	// 4. Valid spacing (padding) should pass
+	opSpacingValid := []PatchOp{{Op: "setProp", Target: "title", Key: "style", Value: map[string]any{"padding": "24px"}}}
+	if err := applyPatch(app, opSpacingValid); err != nil {
+		t.Fatalf("valid spacing token should pass: %v", err)
+	}
+}

@@ -302,6 +302,11 @@ func (r *renderer) boxCSS(n *model.Node) string {
 	if v := colorStr(s, "transition"); v != "" {
 		fmt.Fprintf(&b, "transition:%s;", v)
 	}
+	if s != nil {
+		if c, ok := s["container"]; ok && asBool(c) {
+			b.WriteString("container-type:inline-size;")
+		}
+	}
 	writeEdges(&b, "padding", pick(s, "padding"))
 	writeEdges(&b, "margin", pick(s, "margin"))
 	pseudoStateCSS(&b, s)
@@ -551,7 +556,13 @@ func optionList(v any) []option {
 			out = append(out, option{t, t})
 		case map[string]any:
 			val := fmt.Sprint(t["value"])
+			if val == "" || val == "<nil>" {
+				val = fmt.Sprint(t["key"])
+			}
 			lbl, _ := t["label"].(string)
+			if lbl == "" {
+				lbl, _ = t["title"].(string)
+			}
 			if lbl == "" {
 				lbl = val
 			}
@@ -635,10 +646,30 @@ func writeNum(b *strings.Builder, prop string, m map[string]any, key string) {
 	}
 }
 
+func isCSSEdgeValue(s string) bool {
+	s = strings.TrimSpace(s)
+	if s == "auto" || s == "inherit" || s == "initial" || s == "unset" {
+		return true
+	}
+	if strings.HasPrefix(s, "var(") {
+		return true
+	}
+	if len(s) > 0 && ((s[0] >= '0' && s[0] <= '9') || s[0] == '-' || s[0] == '.') {
+		return true
+	}
+	return false
+}
+
 func writeEdges(b *strings.Builder, prop string, v any) {
 	switch t := v.(type) {
 	case float64:
 		fmt.Fprintf(b, "%s:%gpx;", prop, t)
+	case string:
+		if isCSSEdgeValue(t) {
+			if s := cssStyleValue(t); s != "" {
+				fmt.Fprintf(b, "%s:%s;", prop, s)
+			}
+		}
 	case map[string]any:
 		fmt.Fprintf(b, "%s:%gpx %gpx %gpx %gpx;", prop,
 			asFloat(t["top"]), asFloat(t["right"]), asFloat(t["bottom"]), asFloat(t["left"]))
@@ -721,13 +752,13 @@ func resolveResponsiveVal(v any) any {
 	}
 	switch m := v.(type) {
 	case map[string]any:
-		for _, bk := range []string{"sm", "md", "lg"} {
+		for _, bk := range []string{"sm", "md", "lg", "cq-sm", "cq-md", "cq-lg"} {
 			if val, ok := m[bk]; ok {
 				return val
 			}
 		}
 	case map[string]string:
-		for _, bk := range []string{"sm", "md", "lg"} {
+		for _, bk := range []string{"sm", "md", "lg", "cq-sm", "cq-md", "cq-lg"} {
 			if val, ok := m[bk]; ok {
 				return val
 			}

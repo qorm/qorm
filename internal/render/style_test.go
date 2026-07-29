@@ -779,3 +779,45 @@ func TestRenderSubtree(t *testing.T) {
 		t.Errorf("RenderSubtree for missing node should report node not found: got %q", missing.HTML)
 	}
 }
+
+func TestContainerQueriesDSL(t *testing.T) {
+	style := map[string]any{
+		"container": true,
+		"padding": map[string]any{
+			"cq-sm": "8px",
+			"cq-lg": "24px",
+		},
+	}
+	html := styleHTML(t, style, nil)
+	if !strings.Contains(html, "container-type:inline-size;") {
+		t.Errorf("container: true style should emit container-type:inline-size; got %q", html)
+	}
+	if !strings.Contains(html, "padding:8px;") {
+		t.Errorf("container query padding cq-sm fallback should emit padding:8px; got %q", html)
+	}
+}
+
+func TestDatatableWidget(t *testing.T) {
+	cols := []any{
+		map[string]any{"key": "id", "title": "ID"},
+		map[string]any{"key": "name", "title": "Name"},
+	}
+	data := []any{
+		map[string]any{"id": "1", "name": "Alice"},
+		map[string]any{"id": "2", "name": "Bob"},
+	}
+	n := &model.Node{
+		Type: "datatable",
+		ID:   "my_table",
+		Props: map[string]any{
+			"columns":      cols,
+			"data":         data,
+			"stickyHeader": true,
+			"virtual":      true,
+		},
+	}
+	res := renderWidget(t, n)
+	if !strings.Contains(res.HTML, "<table") || !strings.Contains(res.HTML, "Alice") || !strings.Contains(res.HTML, "position:sticky;") {
+		t.Errorf("datatable widget should render table with data and sticky header: got %q", res.HTML)
+	}
+}
