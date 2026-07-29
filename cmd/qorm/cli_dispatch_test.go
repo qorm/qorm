@@ -414,4 +414,3 @@ func TestCLIDispatch(t *testing.T) {
 		}
 	})
 }
-

@@ -743,4 +743,3 @@ func isDirEmpty(dir string) bool {
 	entries, err := os.ReadDir(dir)
 	return err == nil && len(entries) == 0
 }
-

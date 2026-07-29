@@ -779,4 +779,3 @@ func TestRenderSubtree(t *testing.T) {
 		t.Errorf("RenderSubtree for missing node should report node not found: got %q", missing.HTML)
 	}
 }
-
