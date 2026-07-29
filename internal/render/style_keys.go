@@ -36,7 +36,7 @@ var KnownStyleKeys = map[string]bool{
 	// shell's @supports-guarded rules, which carry a solid fallback.
 	"backdropBlur": true, "backdropTint": true,
 	// Widget-specific & layout extensions.
-	"size": true, // spacer
-	"container": true, // container query root
+	"size":      true,                                                 // spacer
+	"container": true,                                                 // container query root
 	"rowHeight": true, "headerBackground": true, "stickyHeader": true, // datatable
 }
