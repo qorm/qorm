@@ -6,6 +6,8 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+## [v0.5.2] - 2026-07-29
+
 ### Fixed
 - Respect `--no-open` in `-tags desktop` builds: avoid invoking `launchWindow` / WebKitGTK window initialization when `--no-open` is passed, enabling headless Linux/Ubuntu servers and CI runners to start cleanly.
 
@@ -984,6 +986,7 @@ Initial release: QORM, an agent-native declarative-UI runtime in pure Go.
 - Render performance: cached parsed expressions and reflection-free CSS
   numeric writes in the hot path.
 
+[v0.5.2]: https://github.com/qorm/qorm/compare/v0.5.1...v0.5.2
 [v0.5.1]: https://github.com/qorm/qorm/compare/v0.5.0...v0.5.1
 [v0.5.0]: https://github.com/qorm/qorm/compare/v0.4.0...v0.5.0
 [v0.4.0]: https://github.com/qorm/qorm/compare/v0.3.7...v0.4.0
