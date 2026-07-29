@@ -114,7 +114,8 @@ func BuildSite(docsDir, outDir, siteName string) (int, error) {
 			return 0, err
 		}
 		head := headMeta(p, siteName, pages)
-		if err := os.WriteFile(out, []byte(pageHTML(p.title, p.lang, siteName, head, langSwitchHTML(p, pages), nav, body)), 0o644); err != nil {
+		isHomepage := (p.htmlRel == "index.html" || p.htmlRel == "zh/index.html" || p.htmlRel == "README.html" || p.htmlRel == "zh/README.html") && siteName == "docs"
+		if err := os.WriteFile(out, []byte(pageHTML(p.title, p.lang, siteName, head, langSwitchHTML(p, pages), nav, body, isHomepage)), 0o644); err != nil {
 			return 0, err
 		}
 	}
@@ -148,7 +149,7 @@ func BuildSite(docsDir, outDir, siteName string) (int, error) {
 		nav := sidebarHTML(pages, "en", "index.html")
 		landing := "<h1>QORM Documentation</h1>\n<p>Select a page from the sidebar.</p>\n"
 		lp := page{htmlRel: "index.html", title: "QORM", lang: "en"}
-		if err := os.WriteFile(filepath.Join(outDir, "index.html"), []byte(pageHTML("QORM", "en", siteName, headMeta(lp, siteName, pages), "", nav, landing)), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(outDir, "index.html"), []byte(pageHTML("QORM", "en", siteName, headMeta(lp, siteName, pages), "", nav, landing, true)), 0o644); err != nil {
 			return 0, err
 		}
 	}
@@ -543,9 +544,13 @@ func sidebarHTML(all []page, lang, current string) string {
 // The docs command sets it from the built binary's version.
 var Version string
 
-func pageHTML(title, lang, siteName, head, langSwitch, nav, body string) string {
+func pageHTML(title, lang, siteName, head, langSwitch, nav, body string, isHomepage bool) string {
 	if lang == "" {
 		lang = "en"
+	}
+	verBadge := ""
+	if !isHomepage && Version != "" {
+		verBadge = fmt.Sprintf(`<a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v%s</a>`, html.EscapeString(Version))
 	}
 	homeLabel := "Home"
 	if lang == "zh" {
@@ -637,6 +642,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <body>
 <header class="top"><div class="tnav">
   <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
+  %s
   <span class="doc">%s</span>
   <span class="sp"></span>
   <a class="tl" href="/">%s</a>
@@ -672,7 +678,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- End Google Tag Manager (noscript) -->
 </body>
 </html>
-`, lang, html.EscapeString(title), head, html.EscapeString(siteName), homeLabel, navLinks, patronLabel, patronLabel, langSwitch, nav, body)
+`, lang, html.EscapeString(title), head, verBadge, html.EscapeString(siteName), homeLabel, navLinks, patronLabel, patronLabel, langSwitch, nav, body)
 }
 
 // docs & api top navigation tabs builder
