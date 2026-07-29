@@ -190,7 +190,7 @@ func cmdRun(args []string) int {
 	// In a `-tags desktop` build, host the app in a native WebView window
 	// (Wails-style). launchWindow serves and blocks; a false return means this
 	// is the pure-Go build with no native WebView, so fall back to a browser.
-	if appMode && launchWindow(srv, ln, url, name) {
+	if open && appMode && launchWindow(srv, ln, url, name) {
 		return 0
 	}
 	openURL := url

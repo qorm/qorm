@@ -6,6 +6,9 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+- Respect `--no-open` in `-tags desktop` builds: avoid invoking `launchWindow` / WebKitGTK window initialization when `--no-open` is passed, enabling headless Linux/Ubuntu servers and CI runners to start cleanly.
+
 ## [v0.5.1] - 2026-07-29
 
 ### Added
