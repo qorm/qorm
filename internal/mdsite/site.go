@@ -547,10 +547,6 @@ func pageHTML(title, lang, siteName, head, langSwitch, nav, body string) string 
 	if lang == "" {
 		lang = "en"
 	}
-	verBadge := ""
-	if Version != "" {
-		verBadge = fmt.Sprintf(`<a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v%s</a>`, html.EscapeString(Version))
-	}
 	homeLabel := "Home"
 	if lang == "zh" {
 		homeLabel = "首页"
@@ -641,7 +637,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <body>
 <header class="top"><div class="tnav">
   <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
-  %s
   <span class="doc">%s</span>
   <span class="sp"></span>
   <a class="tl" href="/">%s</a>
@@ -677,7 +672,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- End Google Tag Manager (noscript) -->
 </body>
 </html>
-`, lang, html.EscapeString(title), head, verBadge, html.EscapeString(siteName), homeLabel, navLinks, patronLabel, patronLabel, langSwitch, nav, body)
+`, lang, html.EscapeString(title), head, html.EscapeString(siteName), homeLabel, navLinks, patronLabel, patronLabel, langSwitch, nav, body)
 }
 
 // docs & api top navigation tabs builder
