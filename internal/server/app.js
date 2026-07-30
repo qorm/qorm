@@ -207,6 +207,11 @@ function morphKids(from, to){
   }
   while(fc){ var n=fc.nextSibling; from.removeChild(fc); fc=n; }
 }
+window.__qormIsComposing=false;
+if(typeof window!=='undefined'){
+  window.addEventListener('compositionstart', function(){ window.__qormIsComposing=true; });
+  window.addEventListener('compositionend', function(){ window.__qormIsComposing=false; });
+}
 function morphEl(from, to){
   // sync attributes
   var changed=false;
@@ -216,13 +221,14 @@ function morphEl(from, to){
   for(i=fa.length-1;i>=0;i--){ a=fa[i]; if(!to.hasAttribute(a.name)){ from.removeAttribute(a.name); changed=true; } }
   if(changed) qormFlash(from);
   var focused=(document.activeElement===from);
-  // form controls: keep the user's live value/checked unless they're not focused
+  var isComposing=window.__qormIsComposing;
+  // form controls: keep the user's live value/checked unless they're not focused/composing
   if(from.nodeName==='INPUT'){
-    if(!focused){ if(to.hasAttribute('checked')!==from.checked) from.checked=to.hasAttribute('checked');
+    if(!focused && !isComposing){ if(to.hasAttribute('checked')!==from.checked) from.checked=to.hasAttribute('checked');
       if(to.getAttribute('value')!=null && from.value!==to.getAttribute('value')) from.value=to.getAttribute('value'); }
     return;
   }
-  if(from.nodeName==='TEXTAREA'){ if(!focused) from.value=to.textContent; return; }
+  if(from.nodeName==='TEXTAREA'){ if(!focused && !isComposing) from.value=to.textContent; return; }
   morphKids(from, to);
 }
 function qorm(h){

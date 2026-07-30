@@ -92,3 +92,34 @@ func TestMCPSimulateIsSideEffectFree(t *testing.T) {
 		t.Errorf("simulate must not touch live state; count=%v", state["count"])
 	}
 }
+
+func TestMCPValidateTool(t *testing.T) {
+	in := bytes.NewBufferString(strings.Join([]string{
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"qorm_validate","arguments":{}}}`,
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"qorm_validate","arguments":{"node":{"type":"button","id":"b1","text":"{{ invalid_unclosed"}}}}`,
+		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"qorm_validate","arguments":{"node":{"type":"badwidget","id":"b2"}}}}`,
+	}, "\n") + "\n")
+	out := &bytes.Buffer{}
+	if err := newCounterServer(t, in, out).Serve(); err != nil {
+		t.Fatalf("serve: %v", err)
+	}
+	resp := decodeResponses(t, out)
+
+	v1Text := resp[1]["result"].(map[string]any)["content"].([]any)[0].(map[string]any)["text"].(string)
+	var v1 map[string]any
+	if err := json.Unmarshal([]byte(v1Text), &v1); err != nil || v1["valid"] != true {
+		t.Errorf("counter app validation should be valid, got: %s", v1Text)
+	}
+
+	v2Text := resp[2]["result"].(map[string]any)["content"].([]any)[0].(map[string]any)["text"].(string)
+	var v2 map[string]any
+	if err := json.Unmarshal([]byte(v2Text), &v2); err != nil || v2["valid"] == true {
+		t.Errorf("invalid unclosed binding should fail validation, got: %s", v2Text)
+	}
+
+	v3Text := resp[3]["result"].(map[string]any)["content"].([]any)[0].(map[string]any)["text"].(string)
+	var v3 map[string]any
+	if err := json.Unmarshal([]byte(v3Text), &v3); err != nil || v3["valid"] == true {
+		t.Errorf("bad widget validation should flag warning/error, got: %s", v3Text)
+	}
+}

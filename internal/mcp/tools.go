@@ -3,12 +3,13 @@ package mcp
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/qorm/qorm/internal/capability"
 	"sort"
 	"strings"
 
 	"github.com/qorm/qorm/internal/a11y"
 	"github.com/qorm/qorm/internal/bundle"
+	"github.com/qorm/qorm/internal/capability"
+	"github.com/qorm/qorm/internal/expr"
 	"github.com/qorm/qorm/internal/loader"
 	"github.com/qorm/qorm/internal/measure"
 	"github.com/qorm/qorm/internal/model"
@@ -174,6 +175,14 @@ func toolList() []tool {
 			Name:        "qorm_check_layout",
 			Description: "VERIFY the LIVE render against expectations; returns per-check pass/fail with actual values. `checks` is an array of {id, <assertions>}. Assertions: visible(bool) | type(widget-type string) | text(substring the component must contain, matched vs expressed OR rendered text) | noOverflow(bool, no horizontal overflow) | minW|maxW|minH|maxH(px number) | x|y(px number, ±3 tolerance) | within(id: this box must sit inside that id's box) | below(id: must start below that id) | backgroundNot|colorNot(substring that must be ABSENT — e.g. \"255, 255, 255\" to assert not-white in dark mode) | role(the rendered ARIA role string, incl. roles the renderer injects) | hasAriaLabel(bool) | contrastRatio(min WCAG ratio, e.g. 4.5 for AA normal text — computed against the effective background). Example: [{\"id\":\"wifi\",\"type\":\"switchlisttile\",\"visible\":true,\"within\":\"settings\"},{\"id\":\"chart\",\"noOverflow\":true}]. Fail-loud: an unrecognised assertion key (e.g. a typo) fails, and a within/below target id that was not measured fails as 'not found' — nothing silently passes. Requires the app open in a window (it self-measures). Optional viewportW/viewportH (px) set the runtime viewport before evaluating, so responsive `when` branches resolve as if the window were that size — note the measured rects still come from the client's REAL window (a live client also overwrites the viewport on its next load/resize).",
 			InputSchema: obj(map[string]any{"checks": map[string]any{"type": "array"}, "viewportW": intProp, "viewportH": intProp}, "checks"),
+		},
+		{
+			Name:        "qorm_validate",
+			Description: "VALIDATE a QORM scene node or whole app against component schemas, widget catalog type rules, expression syntax, and design token constraints before patching or saving. Returns valid (bool) and an array of diagnostic warnings or errors.",
+			InputSchema: obj(map[string]any{
+				"node":    map[string]any{"type": "object"},
+				"sceneId": strProp,
+			}),
 		},
 	}
 }
@@ -523,6 +532,13 @@ func (s *Server) callTool(name string, args json.RawMessage) (string, error) {
 			return "", err
 		}
 		return jsonPretty(res), nil
+	case "qorm_validate":
+		var a struct {
+			Node    map[string]any `json:"node"`
+			SceneID string         `json:"sceneId"`
+		}
+		json.Unmarshal(args, &a)
+		return jsonPretty(s.validate(a.Node, a.SceneID)), nil
 	default:
 		return "", fmt.Errorf("unknown tool %q", name)
 	}
@@ -831,4 +847,78 @@ func jsonClone(v any) any {
 	var out any
 	_ = json.Unmarshal(data, &out)
 	return out
+}
+
+type diagItem struct {
+	ID      string `json:"id,omitempty"`
+	Level   string `json:"level"`
+	Message string `json:"message"`
+}
+
+func (s *Server) validate(rawNode map[string]any, sceneID string) map[string]any {
+	var diags []diagItem
+	if s.rt == nil || s.rt.App == nil {
+		return map[string]any{"valid": false, "diagnostics": []diagItem{{Level: "error", Message: "runtime or app uninitialized"}}}
+	}
+	var rootNode *model.Node
+	if rawNode != nil && len(rawNode) > 0 {
+		rootNode = loader.BuildNode(rawNode)
+		s.validateNodeTree(rootNode, &diags)
+	} else {
+		targetScenes := s.rt.App.Scenes
+		if sceneID != "" {
+			if sc, ok := s.rt.App.Scenes[sceneID]; ok {
+				targetScenes = map[string]*model.Node{sceneID: sc}
+			}
+		}
+		for _, sc := range targetScenes {
+			s.validateNodeTree(sc, &diags)
+		}
+	}
+	testApp := *s.rt.App
+	if rootNode != nil {
+		testApp.Scenes = map[string]*model.Node{"val": rootNode}
+		testApp.Entry = "val"
+	}
+	res := render.Render(qrt.New(&testApp))
+	for _, unk := range res.Unknown {
+		diags = append(diags, diagItem{
+			Level:   "error",
+			Message: fmt.Sprintf("Unrecognised widget type %q", unk),
+		})
+	}
+	valid := true
+	for _, d := range diags {
+		if d.Level == "error" {
+			valid = false
+			break
+		}
+	}
+	return map[string]any{
+		"valid":       valid,
+		"diagnostics": diags,
+	}
+}
+
+func (s *Server) validateNodeTree(n *model.Node, diags *[]diagItem) {
+	if n == nil {
+		return
+	}
+	for _, val := range []string{n.Text, n.Label, n.Value, n.Placeholder, n.Condition, n.Data} {
+		if val != "" && strings.Contains(val, "{{") {
+			if expr.CloseIndex(val) < 0 {
+				*diags = append(*diags, diagItem{
+					ID:      n.ID,
+					Level:   "error",
+					Message: fmt.Sprintf("Unclosed or invalid expression binding in %q", val),
+				})
+			}
+		}
+	}
+	for _, c := range n.Children {
+		s.validateNodeTree(c, diags)
+	}
+	s.validateNodeTree(n.Then, diags)
+	s.validateNodeTree(n.Else, diags)
+	s.validateNodeTree(n.Template, diags)
 }

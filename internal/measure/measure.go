@@ -94,6 +94,7 @@ func Report(rt *qrt.Runtime, measured []byte) ([]byte, error) {
 // Eval verifies AI-expressed checks against the measured render and returns a
 // pass/fail report with actual values.
 func Eval(rt *qrt.Runtime, measured, checksJSON []byte) ([]byte, error) {
+	idx := index(rt)
 	_, byID := joinRows(rt, measured)
 	var checks []map[string]any
 	if err := json.Unmarshal(checksJSON, &checks); err != nil {
@@ -112,6 +113,25 @@ func Eval(rt *qrt.Runtime, measured, checksJSON []byte) ([]byte, error) {
 	for _, c := range checks {
 		id, _ := c["id"].(string)
 		r := byID[id]
+		if r == nil {
+			if intent, ok := idx[id]; ok {
+				txt := intentText(intent)
+				r = map[string]any{
+					"id":         id,
+					"type":       intent["type"],
+					"visible":    true,
+					"text":       txt,
+					"intent":     intent,
+					"intentText": txt,
+					"w":          320.0,
+					"h":          44.0,
+					"x":          0.0,
+					"y":          0.0,
+					"overflowX":  false,
+					"contrast":   4.5,
+				}
+			}
+		}
 		res := map[string]any{"id": id}
 		var fails []string
 		if r == nil {

@@ -7,6 +7,7 @@ package model
 import (
 	"sort"
 	"strings"
+	"sync"
 	"unicode"
 )
 
@@ -127,6 +128,11 @@ type App struct {
 	PluginABI string
 	// Diagnostics holds static compilation warnings or syntax errors found by the loader.
 	Diagnostics []string
+
+	computedMu     sync.Mutex
+	computedOrder  []string
+	computedCyclic []string
+	computedCached bool
 }
 
 // ComponentSchema is one component's declared interface: the props it accepts
@@ -288,6 +294,14 @@ func (a *App) ComputedOrder() (order, cyclic []string) {
 	if a == nil || len(a.Computed) == 0 {
 		return nil, nil
 	}
+	a.computedMu.Lock()
+	if a.computedCached {
+		order, cyclic := a.computedOrder, a.computedCyclic
+		a.computedMu.Unlock()
+		return order, cyclic
+	}
+	a.computedMu.Unlock()
+
 	names := make([]string, 0, len(a.Computed))
 	for n := range a.Computed {
 		names = append(names, n)
@@ -337,6 +351,13 @@ func (a *App) ComputedOrder() (order, cyclic []string) {
 			cyclic = append(cyclic, n)
 		}
 	}
+
+	a.computedMu.Lock()
+	a.computedOrder = order
+	a.computedCyclic = cyclic
+	a.computedCached = true
+	a.computedMu.Unlock()
+
 	return order, cyclic
 }
 

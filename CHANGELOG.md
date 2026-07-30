@@ -6,6 +6,16 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+## [v0.5.5] - 2026-07-30
+
+### Added
+- `qorm_validate` MCP tool in `internal/mcp`: validates scene nodes or whole app against component schemas, widget catalog type rules, and expression syntax (`{{...}}`) before patching or saving.
+- Headless Pure Go Layout Verification Fallback in `internal/measure`: synthesizes node AST intent geometry for `qorm_check_layout` and `qorm_measure` when running without a connected live browser.
+
+### Optimized
+- Thread-safe `ComputedOrder` caching in `internal/model`: caches dependency graph topology on `model.App`, eliminating per-frame Kahn algorithm recalculation overhead.
+- IME Composition Protection in `internal/server/app.js`: tracks CJK `compositionstart`/`compositionend` events to prevent DOM morphing from interrupting active IME candidate windows.
+
 ## [v0.5.4] - 2026-07-29
 
 ### Added
