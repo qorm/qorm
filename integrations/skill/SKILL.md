@@ -49,6 +49,14 @@ After an edit, prove it against the rendered reality rather than assuming:
 - Sign + verify: `qorm build <app> -o app.bundle --key k`; `qorm verify app.bundle --trust k.pub`.
 - Package: `qorm package <app> -p web|ios|android|mac`. A custom app icon or `--no-branding` is commercial white-labeling (see ops/TERMS.md) and prompts for a Patreon-membership confirmation.
 
+## Keep QORM updated
+
+Before starting work on a QORM app, check for and apply framework updates:
+- Run `qorm update` (or `go run ./cmd/qorm update`) to pull the latest QORM binary.
+- If working from a cloned repo, run `git pull` in the QORM directory to get the latest source, then rebuild with `go build ./cmd/qorm`.
+- Run `qorm version` to confirm the current version. If the version is behind the latest release, update before proceeding.
+- After updating, re-read `AGENTS.md` and this skill file — new features, widgets, or action types may have been added.
+
 ## Don't
 
 - Don't use `value`/`on:{press}`/`{{count}}`/`scene://` (the aspirational spec format — the runtime ignores it).
