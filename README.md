@@ -38,7 +38,7 @@ a static HTML snapshot, ed25519-signs it into a distributable bundle, serves it
 over-the-air with rollback, exposes it to agents over MCP, and packages it for
 web / iOS / Android / desktop / mini-program — cross-compiled from any machine.
 
-Developed in collaboration with Kimi (Moonshot AI), Claude (Anthropic), and Gemini (Google) — fitting, since human-AI
+Developed in collaboration with Kimi (Moonshot AI), Claude (Anthropic), and Gemini (Google) — human-AI
 collaboration is QORM's whole premise.
 
 ## Give your Agent 1 prompt to launch the QORM architecture

@@ -186,9 +186,9 @@ func langSwitchHTML(p page, pages []page) string {
 	}
 	if hasPage(pages, targetRel) {
 		link, _ := filepath.Rel(dir, targetRel)
-		return `<a class="iconlink lang" href="` + filepath.ToSlash(link) + `" data-lang="` + targetLang + `" aria-label="` + targetName + `" title="` + targetName + `">` + globe + `<span>` + targetLabel + `</span></a>`
+		return `<a class="iconlink lang" href="` + filepath.ToSlash(link) + `" data-lang="` + targetLang + `" aria-label="` + targetName + `" title="` + targetName + `"><span>` + targetLabel + `</span></a>`
 	}
-	return `<span class="iconlink lang off" aria-label="` + targetName + `">` + globe + `<span>` + targetLabel + `</span></span>`
+	return `<span class="iconlink lang off" aria-label="` + targetName + `"><span>` + targetLabel + `</span></span>`
 }
 
 // canonicalURL is the single permanent URL for a page: the site root plus the

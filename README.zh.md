@@ -35,7 +35,7 @@ Rendering Model,可查询对象渲染模型)是一个面向智能体的
 签名打包成可分发的 bundle,通过空中下发(OTA)带回滚地提供服务,经由 MCP 向智能体开放,
 并将其打包为 web / iOS / Android / 桌面 / 小程序——可从任意机器交叉编译。
 
-与 Kimi(Moonshot AI)、Claude(Anthropic) 和 Gemini(Google) 协作开发——这很贴切,毕竟人机协作正是 QORM 的全部前提。
+与 Kimi(Moonshot AI)、Claude(Anthropic) 和 Gemini(Google) 协作开发——人机协作正是 QORM 的全部前提。
 
 ## 给你的 Agent 一句话，直接用起 QORM 架构
 
