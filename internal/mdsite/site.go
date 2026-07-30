@@ -176,10 +176,8 @@ func langSwitchHTML(p page, pages []page) string {
 		zhRel = p.htmlRel
 	}
 	dir := filepath.Dir(p.htmlRel)
-	// A single icon toggle to the OTHER language's version of this page — the
-	// same globe-icon control the marketing landing uses. data-lang carries the
-	// target language so the client can remember the reader's choice.
-	globe := `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/></svg>`
+	// A text-only toggle to the OTHER language's version of this page.
+	// data-lang carries the target language so the client can remember the reader's choice.
 	targetLang, targetRel, targetLabel, targetName := "zh", zhRel, "中", "中文"
 	if p.lang == "zh" {
 		targetLang, targetRel, targetLabel, targetName = "en", enRel, "EN", "English"
