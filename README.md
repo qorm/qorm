@@ -6,10 +6,8 @@
 
 **Build UI apps with your AI assistant — together, live.** QORM
 (Queryable Object Rendering Model) is an
-agent-native declarative-UI runtime: describe a UI as small, language-neutral
-JSON, and your AI (Claude, Cursor, …) can **scaffold, edit, run, and verify** it
-while you collaborate on the same running app in real time — you click, it sees
-you; it edits, you watch it happen.
+agent-native declarative-UI runtime: describe a UI as standardized, language-neutral JSON, and your AI (Claude, Cursor, …) can **scaffold, edit, run, and verify** it
+while you collaborate on the same live runtime in real time — user actions are sensed live; AI modifications render instantly.
 
 <p align="center"><img src="assets/qorm-demo.gif" alt="A human and an AI editing a live QORM app together, with an 'AI edited' toast" width="580"></p>
 
@@ -50,7 +48,7 @@ QORM is built for AI agents: give your AI assistant **a single sentence**, and i
 > 1. *"Load QORM framework MCP configuration and Skill library (https://github.com/qorm/qorm), set up environment, keep DevTool active."*
 > 2. *"Use QORM to create a new app in `./my-app`, launch native window, and build the app for: <your app idea here>."*
 
-You click, the agent sees you (`qorm_activity`); the agent edits UI and logic, and changes appear instantly. Full guide: **[Build with your AI](docs/build-with-ai.md)** · [Human-AI collaboration](docs/collaboration.md).
+User interactions are streamed live to the agent (`qorm_activity`); agent modifications to UI and logic synchronize instantly across all clients. Full guide: **[Build with your AI](docs/build-with-ai.md)** · [Human-AI collaboration](docs/collaboration.md).
 
 ## Platform support
 
@@ -97,13 +95,12 @@ are generated from the code and kept in sync by tests.
 **QORM-exclusive features** — no other framework offers these today:
 
 - **Agent-native MCP**: 20+ tools to read, edit (review-gated), run and self-verify a
-  live app. Drops into Claude, Cursor, Windsurf, or any MCP-compatible agent.
-- **Human-AI shared session**: a human and an AI operate the same running app at the
-  same time — the reason QORM was built.
+  live app. Seamlessly integrates with Claude, Cursor, Windsurf, or any MCP-compatible agent.
+- **Human-AI live session**: A human and an AI operate the same running app at the same time —
+  the foundational premise of QORM's architecture.
 - **Signed bundles + OTA**: ed25519-signed, content-addressed artifacts with
   verify-before-activate delivery and one-command rollback.
-- **Design verification**: the agent proves its edits by measuring real rendered
-  geometry with `qorm measure` / `qorm check`, instead of assuming.
+- **Design verification**: The agent proves its edits by measuring real rendered geometry with `qorm measure` / `qorm check`, verifying layout geometry quantitatively.
 
 ## Run
 
