@@ -3,6 +3,8 @@ package canvas
 import (
 	"image"
 	"image/color"
+
+	"github.com/qorm/qorm/internal/op"
 )
 
 // Font5x7 is a simple built-in 5x7 ASCII bitmap font.
@@ -203,14 +205,19 @@ var font5x7 = [96][5]uint8{
 	{0x00, 0x00, 0x00, 0x00, 0x00},
 }
 
-// DrawText draws text at pos with the given color into img.
-func DrawText(img *image.RGBA, text string, pos image.Point, col color.RGBA, scale float64) {
+// DrawText draws text at pos with the given (already opacity-scaled) color
+// into img, honouring the active clip stack (nested clips intersect). Pixels
+// are alpha-composited so sub-full alpha text blends over whatever is below.
+func DrawText(img *image.RGBA, text string, pos image.Point, col color.RGBA, scale float64, clips []op.ClipOp) {
 	if scale <= 0 {
 		scale = 1.0
 	}
 	intScale := int(scale)
 	if intScale < 1 {
 		intScale = 1
+	}
+	if col.A == 0 {
+		return
 	}
 
 	x, y := pos.X, pos.Y
@@ -219,7 +226,7 @@ func DrawText(img *image.RGBA, text string, pos image.Point, col color.RGBA, sca
 		if c < 32 || c > 127 {
 			c = 63 // '?'
 		}
-		
+
 		glyph := font5x7[c-32]
 		for colIdx := 0; colIdx < 5; colIdx++ {
 			colBits := glyph[colIdx]
@@ -230,7 +237,11 @@ func DrawText(img *image.RGBA, text string, pos image.Point, col color.RGBA, sca
 					sy := y + rowIdx*intScale
 					for dx := 0; dx < intScale; dx++ {
 						for dy := 0; dy < intScale; dy++ {
-							img.SetRGBA(sx+dx, sy+dy, col)
+							px, py := sx+dx, sy+dy
+							if len(clips) > 0 && !inAllClips(px, py, clips) {
+								continue
+							}
+							blendOver(img, px, py, col)
 						}
 					}
 				}

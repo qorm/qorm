@@ -96,6 +96,10 @@ type Engine struct {
 
 	StatsEnabled bool
 
+	// dirty marks a pending frame: input handlers and MarkDirty set it,
+	// DrawFrame clears it. A clean engine skips the whole frame.
+	dirty bool
+
 	ops       op.Ops
 	graphRoot graph.Node
 	lastRoot  *model.Node
@@ -110,16 +114,24 @@ func NewEngine(rt *runtime.Runtime, r Renderer, s Surface) *Engine {
 		Renderer:     r,
 		Surface:      s,
 		StatsEnabled: os.Getenv("QORM_FRAME_STATS") == "1",
+		dirty:        true, // the first frame always renders
 	}
 }
 
+// MarkDirty flags the engine as needing a redraw (external state change).
+func (e *Engine) MarkDirty() { e.dirty = true }
+
 // DrawFrame runs one staged frame. Safe to call whenever a redraw is needed
-// (state change, input, animation tick).
+// (state change, input, animation tick); when nothing changed since the last
+// frame (clean) it is a no-op — no layout, render or present.
 func (e *Engine) DrawFrame() FrameStats {
 	var st FrameStats
 	rt := e.RT
 	if rt == nil || rt.App == nil {
 		return st
+	}
+	if !e.dirty {
+		return FrameStats{}
 	}
 	start := time.Now()
 
@@ -158,14 +170,21 @@ func (e *Engine) DrawFrame() FrameStats {
 			st.LayoutRecord, st.Render, st.Present, st.Total)
 	}
 
-	// Animation continuation: ~60fps ticker until tweens settle.
+	// This frame consumed the dirty state…
+	e.dirty = false
+
+	// Animation continuation: ~60fps ticker until tweens settle. The
+	// continuation re-marks dirty so its DrawFrame actually renders.
 	// (Vsync / dirty-tree scheduling is a later milestone.)
-	if needsRedraw && e.OnRedraw != nil {
-		cb := e.OnRedraw
-		go func() {
-			time.Sleep(16 * time.Millisecond)
-			cb()
-		}()
+	if needsRedraw {
+		e.dirty = true
+		if e.OnRedraw != nil {
+			cb := e.OnRedraw
+			go func() {
+				time.Sleep(16 * time.Millisecond)
+				cb()
+			}()
+		}
 	}
 	return st
 }
@@ -257,7 +276,11 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 		}
 	}
 
-	return redraw || dispatched
+	changed := redraw || dispatched
+	if changed {
+		e.dirty = true
+	}
+	return changed
 }
 
 // HandleKey processes one keyboard event: Tab traversal, Enter/Space
@@ -311,6 +334,7 @@ func (e *Engine) HandleKey(k KeyInput) bool {
 			}
 		}
 	}
+	e.dirty = true
 	return true
 }
 

@@ -156,8 +156,12 @@ func NewWindow(title string, width, height int) *Window {
 		argSPP := uintptr(4) // samplesPerPixel
 		argAlpha := uintptr(1) // hasAlpha: YES
 		argPlanar := uintptr(0) // isPlanar: NO
-		argFmt := uintptr(0) // bitmapFormat — BYTE-ORDER CONTROL POINT:
-		// if red/blue come out swapped on the blue-button canary, adjust here.
+		// bitmapFormat = NSAlphaNonpremultipliedBitmapFormat (1<<1): the buffer
+		// holds STRAIGHT (non-premultiplied) RGBA — the SoftwareRenderer blends
+		// in straight space and the opaque fast path is identical either way.
+		// Declaring non-premultiplied lets AppKit composite translucent pixels
+		// correctly. (The blue-button canary is opaque, so it is unaffected.)
+		argFmt := uintptr(2)
 		argRow := uintptr(impl.stride)
 		argBPP := uintptr(32)
 

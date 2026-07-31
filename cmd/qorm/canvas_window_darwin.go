@@ -46,7 +46,13 @@ func launchWindow(srv *server.Server, ln net.Listener, url, title string) bool {
 		}
 		eng.OnRedraw = redraw // animation continuation ticks
 
-		srv.OnStateChange = func(_ *runtime.Runtime) { redraw() }
+		// An action-driven state change is not preceded by an input handler,
+		// so mark the engine dirty before drawing — otherwise the frame that
+		// reflects the new state would be idle-skipped.
+		srv.OnStateChange = func(_ *runtime.Runtime) {
+			eng.MarkDirty()
+			redraw()
+		}
 
 		for e := range win.Events() {
 			switch e := e.(type) {

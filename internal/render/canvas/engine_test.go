@@ -46,9 +46,9 @@ func TestEnginePressFeedbackPixels(t *testing.T) {
 
 	cx, cy := buttonCenter(t, e, btn)
 	primary := color.RGBA{0x00, 0x7A, 0xFF, 255} // #007AFF
-	// #0062CC (theme pressedBackgroundColor) at the theme's pressedOpacity
-	// 0.9 → alpha 229: the press overlay covers color AND opacity.
-	pressed := color.RGBA{0x00, 0x62, 0xCC, 229}
+	// The press overlay sets #0062CC at pressedOpacity 0.9, which the rasterizer
+	// alpha-composites over the white scene background → (26,114,209,255).
+	pressed := color.RGBA{26, 114, 209, 255}
 
 	if got := surf.Frame().RGBAAt(cx, cy); got != primary {
 		t.Fatalf("normal button pixel = %v, want primary %v", got, primary)
@@ -177,10 +177,59 @@ func TestEngineDisplayListRebuiltEachFrame(t *testing.T) {
 	e.DrawFrame()
 	first := image.NewRGBA(surf.Frame().Rect)
 	copy(first.Pix, surf.Frame().Pix)
+	e.MarkDirty()
 	e.DrawFrame()
 	for i := range first.Pix {
 		if first.Pix[i] != surf.Frame().Pix[i] {
 			t.Fatalf("frame differs at byte %d — display list accumulation?", i)
 		}
+	}
+}
+
+// Idle frames (no input or state change) must be skipped: a second DrawFrame
+// without MarkDirty renders nothing, presents nothing and reports zero stats.
+func TestEngineSkipsIdleFrames(t *testing.T) {
+	e, surf, _ := engineFixture(t)
+	e.DrawFrame()
+	if surf.Presents != 1 {
+		t.Fatalf("first frame presents = %d, want 1", surf.Presents)
+	}
+
+	st := e.DrawFrame()
+	if surf.Presents != 1 {
+		t.Fatalf("idle frame presented (presents = %d), want skip", surf.Presents)
+	}
+	if st.Total != 0 {
+		t.Errorf("idle frame stats = %+v, want zero value", st)
+	}
+}
+
+// MarkDirty forces the next frame to render even without input.
+func TestEngineMarkDirtyRenders(t *testing.T) {
+	e, surf, _ := engineFixture(t)
+	e.DrawFrame()
+	e.DrawFrame() // idle → skipped
+	e.MarkDirty()
+	e.DrawFrame()
+	if surf.Presents != 2 {
+		t.Fatalf("presents = %d, want 2 (MarkDirty must drive a render)", surf.Presents)
+	}
+}
+
+// Input handlers dirty the engine themselves: the next DrawFrame renders
+// without the host ever calling MarkDirty.
+func TestEngineHandlerSetsDirty(t *testing.T) {
+	e, surf, btn := engineFixture(t)
+	e.DrawFrame()
+	if surf.Presents != 1 {
+		t.Fatalf("first frame presents = %d, want 1", surf.Presents)
+	}
+	cx, cy := buttonCenter(t, e, btn)
+	if !e.HandlePointer(PointerInput{Type: PointerPress, X: float64(cx), Y: float64(cy)}) {
+		t.Fatal("press must request a redraw")
+	}
+	e.DrawFrame()
+	if surf.Presents != 2 {
+		t.Fatalf("presents = %d, want 2 (the handler's dirty flag must drive the render)", surf.Presents)
 	}
 }

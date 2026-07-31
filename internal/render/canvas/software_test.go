@@ -99,3 +99,95 @@ func TestRenderDrawsIntoProvidedBuffer(t *testing.T) {
 		t.Errorf("provided buffer not drawn into: %v", c)
 	}
 }
+
+// A translucent fill must alpha-composite over what is already there (the old
+// rasterizer used draw.Src and replaced the destination — no blend).
+func TestAlphaBlendOver(t *testing.T) {
+	buf := image.NewRGBA(image.Rect(0, 0, 40, 40))
+	ops := &op.Ops{}
+	// Opaque blue base.
+	ops.Add(op.ColorOp{Color: color.RGBA{0, 0, 255, 255}})
+	ops.Add(op.ClipOp{Rect: image.Rect(0, 0, 40, 40)})
+	ops.Add(op.PaintOp{})
+	// Translucent red (alpha 128) over the inner quadrant — pushes a second
+	// clip onto the stack, so this also exercises clip nesting.
+	ops.Add(op.ColorOp{Color: color.RGBA{255, 0, 0, 128}})
+	ops.Add(op.ClipOp{Rect: image.Rect(10, 10, 30, 30)})
+	ops.Add(op.PaintOp{})
+	SoftwareRenderer{}.Render(ops, buf)
+
+	// Straight red(128) over straight blue(255) → (128,0,127,255).
+	if got := buf.RGBAAt(20, 20); got != (color.RGBA{128, 0, 127, 255}) {
+		t.Errorf("blended pixel = %v, want (128,0,127,255)", got)
+	}
+	// Outside the red clip the blue base is untouched.
+	if got := buf.RGBAAt(5, 5); got != (color.RGBA{0, 0, 255, 255}) {
+		t.Errorf("base pixel = %v, want blue", got)
+	}
+}
+
+// Nested clips must intersect: a paint issued under two clips may only land in
+// their intersection. (The old rasterizer replaced the clip, so the outer
+// clip was ignored and paint leaked outside it.)
+func TestNestedClipIntersection(t *testing.T) {
+	buf := image.NewRGBA(image.Rect(0, 0, 160, 160))
+	ops := &op.Ops{}
+	ops.Add(op.ColorOp{Color: color.RGBA{0, 255, 0, 255}})
+	ops.Add(op.ClipOp{Rect: image.Rect(0, 0, 100, 100)}) // outer
+	ops.Add(op.ClipOp{Rect: image.Rect(50, 50, 150, 150)}) // inner
+	ops.Add(op.PaintOp{})
+	SoftwareRenderer{}.Render(ops, buf)
+
+	green := color.RGBA{0, 255, 0, 255}
+	white := color.RGBA{255, 255, 255, 255}
+	if got := buf.RGBAAt(75, 75); got != green {
+		t.Errorf("intersection pixel = %v, want green", got)
+	}
+	if got := buf.RGBAAt(25, 25); got != white {
+		t.Errorf("outer-only pixel = %v, want white (excluded by inner clip)", got)
+	}
+	if got := buf.RGBAAt(120, 120); got != white {
+		t.Errorf("inner-only pixel = %v, want white (excluded by outer clip)", got)
+	}
+}
+
+// Text must honour the clip stack and the opacity carried in its color.
+func TestTextRespectsClipAndOpacity(t *testing.T) {
+	// render "A" twice: once fully opaque, once with zero alpha (the engine
+	// pre-multiplies opacity into the color before calling DrawText).
+	render := func(alpha uint8) *image.RGBA {
+		buf := image.NewRGBA(image.Rect(0, 0, 40, 20))
+		ops := &op.Ops{}
+		ops.Add(op.ColorOp{Color: color.RGBA{0, 0, 0, alpha}})
+		ops.Add(op.TextOp{Text: "A", Pos: image.Pt(4, 4), Scale: 2})
+		SoftwareRenderer{}.Render(ops, buf)
+		return buf
+	}
+	inked := func(buf *image.RGBA) bool {
+		for y := 0; y < 20; y++ {
+			for x := 0; x < 40; x++ {
+				if buf.RGBAAt(x, y) != (color.RGBA{255, 255, 255, 255}) {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	if !inked(render(255)) {
+		t.Fatal("opaque text should ink pixels")
+	}
+	if inked(render(0)) {
+		t.Error("zero-alpha text must not ink any pixel (opacity wired into text)")
+	}
+
+	// A clip that does not cover the text must erase it entirely.
+	buf := image.NewRGBA(image.Rect(0, 0, 40, 20))
+	ops := &op.Ops{}
+	ops.Add(op.ColorOp{Color: color.RGBA{0, 0, 0, 255}})
+	ops.Add(op.ClipOp{Rect: image.Rect(30, 0, 40, 20)}) // away from the glyph at x=4
+	ops.Add(op.TextOp{Text: "A", Pos: image.Pt(4, 4), Scale: 2})
+	SoftwareRenderer{}.Render(ops, buf)
+	if inked(buf) {
+		t.Error("text outside the active clip must be clipped away")
+	}
+}
