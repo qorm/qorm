@@ -46,7 +46,7 @@ The native canvas window implements real keyboard navigation:
   semantics — clicking a node moves focus without showing a ring).
 - `onKeyDown` / `onKeyUp` dispatch to the focused node first and bubble up to
   the scene root when unhandled; the pressed key is available to the action as
-  `{{ arg.key }}` (`tab`, `return`, `space`, `escape`, `up` / `down` / `left` /
+  `{{ key }}` (`tab`, `return`, `space`, `escape`, `up` / `down` / `left` /
   `right`, `delete`, `a`..`z`, `0`..`9`).
 
 On the HTML/WebView path, keyboard focus follows native browser behavior;

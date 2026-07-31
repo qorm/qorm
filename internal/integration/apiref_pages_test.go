@@ -60,7 +60,7 @@ var nodeSchema = [][4]string{
 	{"layout", "object", "layout hints: `width` `height` `align` `justify`", "布局提示:`width` `height` `align` `justify`"},
 	{"onPress", "action / string", "press handler — an action id, or inline steps", "按下处理器——动作 id 或内联 steps"},
 	{"onChange", "action / string", "change handler (inputs, toggles, sliders, selects)", "变化处理器(输入、开关、滑块、下拉)"},
-	{"onKeyDown", "action / string", "key-down handler — dispatched to the focused node first, then bubbling to the scene root; the pressed key lands in `{{ arg.key }}` (native canvas backend)", "按键按下处理器——先发给焦点节点,未处理再冒泡到场景根;按键名落在 `{{ arg.key }}`(原生 canvas 后端)"},
+	{"onKeyDown", "action / string", "key-down handler — dispatched to the focused node first, then bubbling to the scene root; the pressed key is seeded as the `key` arg, read as `{{ key }}` (native canvas backend)", "按键按下处理器——先发给焦点节点,未处理再冒泡到场景根;按键名作为 `key` 参数注入,以 `{{ key }}` 读取(原生 canvas 后端)"},
 	{"onKeyUp", "action / string", "key-up handler (same dispatch as `onKeyDown`)", "按键抬起处理器(分发同 `onKeyDown`)"},
 	{"renderItem", "node", "item template for a bound `list`", "绑定 `list` 的条目模板"},
 	{"data", "string", "list data-binding expression (e.g. `state.todos`)", "列表数据绑定表达式(如 `state.todos`)"},

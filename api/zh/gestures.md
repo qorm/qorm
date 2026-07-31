@@ -43,7 +43,7 @@ QORM 把触摸/指针手势作为组件属性提供——无需编写 JavaScript
 - **Escape** 清除焦点。
 - 焦点环仅在键盘导航时绘制(focus-visible 语义——点击节点会移走焦点但不显示环)。
 - `onKeyDown` / `onKeyUp` 先发给焦点节点,未处理则冒泡到场景根;按键名可通过
-  `{{ arg.key }}` 在动作中使用(`tab`、`return`、`space`、`escape`、`up` /
+  `{{ key }}` 在动作中使用(`tab`、`return`、`space`、`escape`、`up` /
   `down` / `left` / `right`、`delete`、`a`..`z`、`0`..`9`)。
 
 HTML/WebView 端的键盘焦点沿用浏览器原生行为;在节点样式中声明 `focusBorderColor`

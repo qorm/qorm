@@ -71,7 +71,7 @@ func (w *Window) Events() <-chan Event {
 	return w.events
 }
 
-// Size returns the window's content width and height in points.
-func (w *Window) Size() (int, int) {
-	return w.width, w.height
+// Size returns the window's content size in points.
+func (w *Window) Size() image.Point {
+	return image.Pt(w.width, w.height)
 }

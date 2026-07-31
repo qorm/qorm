@@ -3,30 +3,20 @@
 package app
 
 import (
-	"bytes"
 	"image"
-	"image/png"
 	"unsafe"
 
 	"github.com/qorm/qorm/internal/appkit"
 )
 
 var (
-	clsNSData        uintptr
-	selDataWithBytes uintptr
-	clsNSImage       uintptr
-	selInitWithData  uintptr
-	selInitWithFrame uintptr
-	selSetImage      uintptr
+	clsNSImage  uintptr
+	selSetImage uintptr
 )
 
 func lazyInitAppKit() {
-	if clsNSData == 0 {
-		clsNSData = appkit.ObjcGetClass("NSData")
-		selDataWithBytes = appkit.SelRegisterName("dataWithBytes:length:")
+	if clsNSImage == 0 {
 		clsNSImage = appkit.ObjcGetClass("NSImage")
-		selInitWithData = appkit.SelRegisterName("initWithData:")
-		selInitWithFrame = appkit.SelRegisterName("initWithFrame:")
 		selSetImage = appkit.SelRegisterName("setImage:")
 	}
 }
@@ -34,6 +24,17 @@ func lazyInitAppKit() {
 type windowImpl struct {
 	ptr  uintptr
 	view uintptr
+
+	// Zero-copy double-buffered presentation: two Go-owned pixel planes are
+	// shared with NSBitmapImageReps, which hold the raw plane pointers for
+	// the window's lifetime. Go's GC is non-moving and the pix slices stay
+	// referenced here, so the planes can never move or vanish under AppKit.
+	// The renderer draws into the back plane; Present swaps it to the front
+	// synchronously on the main thread.
+	pix    [2][]byte
+	img    [2]uintptr // NSImage wrapping pix[i]'s rep
+	stride int
+	front  int // index of the plane currently displayed
 }
 
 // darwinKeyCodes maps macOS ANSI virtual keycodes to normalized key names.
@@ -116,9 +117,89 @@ func NewWindow(title string, width, height int) *Window {
 	// Send initial frame event
 	events <- FrameEvent{Size: image.Pt(width, height)}
 
+	// --- Zero-copy presentation surfaces -------------------------------
+	// Two NSBitmapImageReps sharing Go-allocated planes, each wrapped in an
+	// NSImage. Present() flips which image the NSImageView shows; the
+	// renderer draws straight into the other plane — no encode/decode, no
+	// per-frame allocation.
+	impl := &windowImpl{ptr: winPtr, view: view, stride: width * 4}
+	clsBitmapRep := appkit.ObjcGetClass("NSBitmapImageRep")
+	selAlloc := appkit.SelRegisterName("alloc")
+	selInitRep := appkit.SelRegisterName("initWithBitmapDataPlanes:pixelsWide:pixelsHigh:bitsPerSample:samplesPerPixel:hasAlpha:isPlanar:colorSpaceName:bitmapFormat:bytesPerRow:bitsPerPixel:")
+	selAddRep := appkit.SelRegisterName("addRepresentation:")
+	selSetCacheMode := appkit.SelRegisterName("setCacheMode:")
+	selInvWithSig := appkit.SelRegisterName("invocationWithMethodSignature:")
+	selSetSel := appkit.SelRegisterName("setSelector:")
+	selSetTgt := appkit.SelRegisterName("setTarget:")
+	selSetArg := appkit.SelRegisterName("setArgument:atIndex:")
+	selInvoke := appkit.SelRegisterName("invoke")
+	selGetRet := appkit.SelRegisterName("getReturnValue:")
+	deviceRGB := appkit.NewNSString("NSDeviceRGBColorSpace")
+	// initWithSize: takes an NSSize (two CGFloats) — a struct argument, so
+	// it must go through NSInvocation on ARM64 (same pattern as the window
+	// initWithContentRect above).
+	sizeVal := struct{ W, H float64 }{float64(width), float64(height)}
+	sizePtr := uintptr(unsafe.Pointer(&sizeVal))
+	selInitSize := appkit.SelRegisterName("initWithSize:")
+	sigSize := appkit.MsgSend(clsNSImage, sigMsg, selInitSize)
+	// initWithBitmapDataPlanes:… takes 12 parameters — beyond the 9-arg
+	// SyscallN ceiling — so it goes through NSInvocation argument-by-argument.
+	sigRep := appkit.MsgSend(clsBitmapRep, sigMsg, selInitRep)
+	for i := 0; i < 2; i++ {
+		impl.pix[i] = make([]byte, impl.stride*height)
+		planes := [1]uintptr{uintptr(unsafe.Pointer(&impl.pix[i][0]))}
+
+		argPlanes := uintptr(unsafe.Pointer(&planes[0]))
+		argW := uintptr(width)
+		argH := uintptr(height)
+		argBPS := uintptr(8) // bitsPerSample
+		argSPP := uintptr(4) // samplesPerPixel
+		argAlpha := uintptr(1) // hasAlpha: YES
+		argPlanar := uintptr(0) // isPlanar: NO
+		argFmt := uintptr(0) // bitmapFormat — BYTE-ORDER CONTROL POINT:
+		// if red/blue come out swapped on the blue-button canary, adjust here.
+		argRow := uintptr(impl.stride)
+		argBPP := uintptr(32)
+
+		repAlloc := appkit.MsgSend(clsBitmapRep, selAlloc)
+		invRep := appkit.MsgSend(clsNSInvocation, selInvWithSig, sigRep)
+		appkit.MsgSend(invRep, selSetSel, selInitRep)
+		appkit.MsgSend(invRep, selSetTgt, repAlloc)
+		appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argPlanes)), 2)
+		appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argW)), 3)
+		appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argH)), 4)
+		appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argBPS)), 5)
+		appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argSPP)), 6)
+		appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argAlpha)), 7)
+		appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argPlanar)), 8)
+		appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&deviceRGB)), 9)
+		appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argFmt)), 10)
+		appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argRow)), 11)
+		appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argBPP)), 12)
+		appkit.MsgSend(invRep, selInvoke)
+		var rep uintptr
+		appkit.MsgSend(invRep, selGetRet, uintptr(unsafe.Pointer(&rep)))
+
+		imgAlloc := appkit.MsgSend(clsNSImage, selAlloc)
+		invImg := appkit.MsgSend(clsNSInvocation, selInvWithSig, sigSize)
+		appkit.MsgSend(invImg, selSetSel, selInitSize)
+		appkit.MsgSend(invImg, selSetTgt, imgAlloc)
+		appkit.MsgSend(invImg, selSetArg, sizePtr, 2)
+		appkit.MsgSend(invImg, selInvoke)
+		var img uintptr
+		appkit.MsgSend(invImg, selGetRet, uintptr(unsafe.Pointer(&img)))
+		appkit.MsgSend(img, selAddRep, rep)
+		appkit.MsgSend(img, selSetCacheMode, 3) // NSImageCacheNever: draw the rep's live pixels
+		impl.img[i] = img
+	}
+	// Direct call (not performSelectorOnMainThread): the main run loop is
+	// not pumping yet — same regime as makeKeyAndOrderFront above.
+	appkit.MsgSend(view, selSetImage, impl.img[0])
+	// -------------------------------------------------------------------
+
 	w := &Window{
 		events: events,
-		w:      &windowImpl{ptr: winPtr, view: view},
+		w:      impl,
 		width:  width,
 		height: height,
 	}
@@ -126,23 +207,28 @@ func NewWindow(title string, width, height int) *Window {
 	return w
 }
 
-func (w *Window) UpdateImage(img image.Image) error {
-	lazyInitAppKit()
-	var buf bytes.Buffer
-	if err := png.Encode(&buf, img); err != nil {
-		return err
+// Backbuffer returns the image backed by the back pixel plane — the buffer
+// the next frame must be drawn into. Valid until the next Present.
+func (w *Window) Backbuffer() *image.RGBA {
+	back := 1 - w.w.front
+	return &image.RGBA{
+		Pix:    w.w.pix[back],
+		Stride: w.w.stride,
+		Rect:   image.Rect(0, 0, w.width, w.height),
 	}
-	data := buf.Bytes()
-	nsData := appkit.MsgSend(clsNSData, selDataWithBytes, uintptr(unsafe.Pointer(&data[0])), uintptr(len(data)))
+}
 
-	imgAlloc := appkit.MsgSend(clsNSImage, appkit.SelRegisterName("alloc"))
-	nsImage := appkit.MsgSend(imgAlloc, selInitWithData, nsData)
-
-	// Update UI on main thread
+// Present publishes the drawn backbuffer: the image swap runs synchronously
+// on the main thread (waitUntilDone:YES), so when Present returns the other
+// plane is displayed and the caller may immediately start drawing the next
+// frame into the new back plane — no torn frames, no races. setImage: marks
+// the NSImageView dirty, so no extra setNeedsDisplay is needed.
+func (w *Window) Present() {
+	lazyInitAppKit()
+	next := 1 - w.w.front
 	selPerform := appkit.SelRegisterName("performSelectorOnMainThread:withObject:waitUntilDone:")
-	appkit.MsgSend(w.w.view, selPerform, selSetImage, nsImage, 0)
-	
-	return nil
+	appkit.MsgSend(w.w.view, selPerform, selSetImage, w.w.img[next], 1)
+	w.w.front = next
 }
 
 // Main starts the application event loop. It must be called on the main OS thread.
@@ -192,8 +278,7 @@ func Main() {
 					
 					// Convert AppKit coordinates (bottom-left origin) to top-left
 					// Use the real window content height (bottom-left origin flip).
-					_, wh := activeWindow.Size()
-					y := float64(wh) - point.Y
+					y := float64(activeWindow.Size().Y) - point.Y
 					
 					select {
 					case activeWindow.events <- PointerEvent{

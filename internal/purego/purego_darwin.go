@@ -49,6 +49,12 @@ func Dlsym(handle uintptr, name string) (uintptr, error) {
 }
 
 func SyscallN(fn uintptr, args ...uintptr) uintptr {
+	if len(args) > 9 {
+		// Silent truncation would pass a corrupted argument list to the
+		// callee (segfaults far from the cause). Methods needing more
+		// arguments must go through NSInvocation instead.
+		panic("purego: SyscallN supports at most 9 arguments; use NSInvocation for wider calls")
+	}
 	var a [9]uintptr
 	copy(a[:], args)
 	if len(args) <= 6 {
