@@ -35,18 +35,25 @@ type Surface interface {
 // single persistent buffer, no display. Frame() exposes the last rendered
 // pixels; Presents counts published frames.
 type HeadlessSurface struct {
-	buf      *image.RGBA
+	buf      *image.RGBA // physical pixels
 	Presents int
-	// ScaleFactor is the device-pixel ratio for tests (0/1 == 1). The buffer
-	// is expected to already be in physical pixels (size == logical * Scale).
+	// ScaleFactor is the device-pixel ratio for tests (0/1 == 1).
 	ScaleFactor int
+	// Logical is the layout size in points (Size()). Zero → use the buffer
+	// size (the scale-1 convenience: logical == physical).
+	Logical image.Point
 }
 
 func NewHeadlessSurface(size image.Point) *HeadlessSurface {
 	return &HeadlessSurface{buf: image.NewRGBA(image.Rect(0, 0, size.X, size.Y)), ScaleFactor: 1}
 }
 
-func (s *HeadlessSurface) Size() image.Point       { return s.buf.Rect.Size() }
+func (s *HeadlessSurface) Size() image.Point {
+	if s.Logical.X > 0 && s.Logical.Y > 0 {
+		return s.Logical
+	}
+	return s.buf.Rect.Size()
+}
 func (s *HeadlessSurface) Scale() int {
 	if s.ScaleFactor < 1 {
 		return 1
@@ -209,7 +216,10 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 	if rt == nil || e.graphRoot == nil {
 		return false
 	}
-	hit := e.graphRoot.HitTest(geom.Point{X: p.X, Y: p.Y})
+	// Input arrives in logical points (AppKit locationInWindow); the graph is
+	// in physical pixels, so scale the hit point.
+	s := float64(e.Surface.Scale())
+	hit := e.graphRoot.HitTest(geom.Point{X: p.X * s, Y: p.Y * s})
 	redraw := false
 
 	switch {

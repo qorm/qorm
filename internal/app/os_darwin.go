@@ -123,7 +123,20 @@ func NewWindow(title string, width, height int) *Window {
 	// NSImage. Present() flips which image the NSImageView shows; the
 	// renderer draws straight into the other plane — no encode/decode, no
 	// per-frame allocation.
-	impl := &windowImpl{ptr: winPtr, view: view, stride: width * 4}
+	// Device-pixel ratio (Retina == 2). Read via valueForKey to dodge the
+	// ARM64 float-return ABI issue (a CGFloat comes back in an FP register,
+	// which MsgSend's integer return would misread).
+	scale := 1
+	if v := appkit.MsgSend(winPtr, appkit.SelRegisterName("valueForKey:"), appkit.NewNSString("backingScaleFactor")); v != 0 {
+		var f float64
+		appkit.MsgSend(v, appkit.SelRegisterName("getValue:"), uintptr(unsafe.Pointer(&f)))
+		if int(f) >= 1 {
+			scale = int(f)
+		}
+	}
+	physW, physH := width*scale, height*scale
+
+	impl := &windowImpl{ptr: winPtr, view: view, stride: physW * 4, scale: scale}
 	clsBitmapRep := appkit.ObjcGetClass("NSBitmapImageRep")
 	selAlloc := appkit.SelRegisterName("alloc")
 	selInitRep := appkit.SelRegisterName("initWithBitmapDataPlanes:pixelsWide:pixelsHigh:bitsPerSample:samplesPerPixel:hasAlpha:isPlanar:colorSpaceName:bitmapFormat:bytesPerRow:bitsPerPixel:")
@@ -139,20 +152,23 @@ func NewWindow(title string, width, height int) *Window {
 	// initWithSize: takes an NSSize (two CGFloats) — a struct argument, so
 	// it must go through NSInvocation on ARM64 (same pattern as the window
 	// initWithContentRect above).
+	// NSImage size is in POINTS (logical): a hi-res rep mapped into a
+	// point-sized image is what makes the view render crisply on Retina.
 	sizeVal := struct{ W, H float64 }{float64(width), float64(height)}
 	sizePtr := uintptr(unsafe.Pointer(&sizeVal))
 	selInitSize := appkit.SelRegisterName("initWithSize:")
 	sigSize := appkit.MsgSend(clsNSImage, sigMsg, selInitSize)
 	// initWithBitmapDataPlanes:… takes 12 parameters — beyond the 9-arg
 	// SyscallN ceiling — so it goes through NSInvocation argument-by-argument.
+	// The rep is in PHYSICAL pixels (the plane the renderer draws into).
 	sigRep := appkit.MsgSend(clsBitmapRep, sigMsg, selInitRep)
 	for i := 0; i < 2; i++ {
-		impl.pix[i] = make([]byte, impl.stride*height)
+		impl.pix[i] = make([]byte, impl.stride*physH)
 		planes := [1]uintptr{uintptr(unsafe.Pointer(&impl.pix[i][0]))}
 
 		argPlanes := uintptr(unsafe.Pointer(&planes[0]))
-		argW := uintptr(width)
-		argH := uintptr(height)
+		argW := uintptr(physW)
+		argH := uintptr(physH)
 		argBPS := uintptr(8) // bitsPerSample
 		argSPP := uintptr(4) // samplesPerPixel
 		argAlpha := uintptr(1) // hasAlpha: YES

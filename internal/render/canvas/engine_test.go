@@ -174,6 +174,8 @@ func TestEngineKeyDownDispatch(t *testing.T) {
 // pixels: the layout DPI plumbing multiplies design pixels by Scale() while
 // the surface reports physical dimensions. (Scale 1 must stay bit-identical.)
 func TestEngineHiDPIScalesGeometry(t *testing.T) {
+	// build lays the SAME 200x200 logical design into a physical buffer of
+	// 200*scale, so scale 2 must produce 2x the geometry of scale 1.
 	build := func(scale int) (*Engine, *HeadlessSurface, *model.Node) {
 		btn := newButton("b")
 		root := &model.Node{Type: "column", ID: "root",
@@ -182,7 +184,9 @@ func TestEngineHiDPIScalesGeometry(t *testing.T) {
 		app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}}
 		rt := runtime.New(app)
 		rt.Theme = theme.GetDefault()
-		surf := NewHeadlessSurface(image.Pt(400, 400)) // physical buffer for both
+		phys := 200 * scale
+		surf := NewHeadlessSurface(image.Pt(phys, phys)) // physical buffer
+		surf.Logical = image.Pt(200, 200)                // logical layout size
 		surf.ScaleFactor = scale
 		return NewEngine(rt, SoftwareRenderer{}, surf), surf, btn
 	}
