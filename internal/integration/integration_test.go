@@ -55,9 +55,9 @@ func TestCounterRendersAndIncrements(t *testing.T) {
 
 	// Press "+" twice through the real onPress handler (args are re-evaluated
 	// against current state each time, exactly as the server does).
-	plus := findButton(app.EntryRoot(), "btn_plus")
+	plus := findButton(app.EntryRoot(), "btn_increment")
 	if plus == nil || plus.OnPress == nil {
-		t.Fatal("btn_plus with onPress not found")
+		t.Fatal("btn_increment with onPress not found")
 	}
 	for i := 0; i < 2; i++ {
 		rt.Dispatch(plus.OnPress.Name, rt.EvalArgs(plus.OnPress.Args))
@@ -66,7 +66,7 @@ func TestCounterRendersAndIncrements(t *testing.T) {
 		t.Fatalf("after 2 increments want count=2, got %v", got)
 	}
 
-	minus := findButton(app.EntryRoot(), "btn_minus")
+	minus := findButton(app.EntryRoot(), "btn_decrement")
 	rt.Dispatch(minus.OnPress.Name, rt.EvalArgs(minus.OnPress.Args))
 	if got := rt.State["count"]; got != float64(1) {
 		t.Fatalf("after decrement want count=1, got %v", got)

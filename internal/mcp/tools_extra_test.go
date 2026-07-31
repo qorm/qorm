@@ -231,8 +231,8 @@ func TestCapabilities(t *testing.T) {
 func TestListActions(t *testing.T) {
 	s := newCounterHandler(t)
 	actions := resultArr(t, toolCallRPC(t, s, "qorm_list_actions", map[string]any{}))
-	if len(actions) != 2 {
-		t.Fatalf("counter has 2 actions, got %d: %v", len(actions), actions)
+	if len(actions) != 4 {
+		t.Fatalf("counter has 4 actions, got %d: %v", len(actions), actions)
 	}
 	first := actions[0].(map[string]any)
 	if first["id"] != "decrement" {
@@ -345,23 +345,23 @@ func TestGetNode(t *testing.T) {
 	s := newCounterHandler(t)
 
 	// A button exposes label, onPress and style.
-	btn := resultObj(t, toolCallRPC(t, s, "qorm_get_node", map[string]any{"id": "btn_plus"}))
-	if btn["type"] != "button" || btn["label"] != "+" {
-		t.Errorf("btn_plus = type:%v label:%v", btn["type"], btn["label"])
+	btn := resultObj(t, toolCallRPC(t, s, "qorm_get_node", map[string]any{"id": "btn_increment"}))
+	if btn["type"] != "button" || btn["label"] != "Plus (+)" {
+		t.Errorf("btn_increment = type:%v label:%v", btn["type"], btn["label"])
 	}
 	onPress := btn["onPress"].(map[string]any)
 	if onPress["action"] != "increment" {
-		t.Errorf("btn_plus onPress = %v", onPress)
-	}
-	if bg := btn["style"].(map[string]any)["background"]; bg != "var(--accent)" {
-		t.Errorf("btn_plus style.background = %v", bg)
+		t.Errorf("btn_increment onPress = %v", onPress)
 	}
 
-	// A container lists its child ids.
+	// A container lists its child ids and exposes its style.
 	root := resultObj(t, toolCallRPC(t, s, "qorm_get_node", map[string]any{"id": "root"}))
 	kids := root["children"].([]any)
-	if len(kids) != 3 || kids[0] != "title" || kids[2] != "controls" {
+	if len(kids) != 4 || kids[0] != "title" || kids[2] != "controls" || kids[3] != "btn_theme" {
 		t.Errorf("root children = %v", kids)
+	}
+	if bg := root["style"].(map[string]any)["background"]; bg != "var(--background)" {
+		t.Errorf("root style.background = %v", bg)
 	}
 
 	// A text node exposes text and has no onPress.
@@ -426,17 +426,17 @@ func TestQueryTool(t *testing.T) {
 	s := newCounterHandler(t)
 
 	q := resultObj(t, toolCallRPC(t, s, "qorm_query", map[string]any{"type": "button"}))
-	if q["count"].(float64) != 2 {
-		t.Errorf("button query count = %v, want 2", q["count"])
+	if q["count"].(float64) != 3 {
+		t.Errorf("button query count = %v, want 3", q["count"])
 	}
-	var sawPlus bool
+	var sawIncrement bool
 	for _, m := range q["matches"].([]any) {
-		if m.(map[string]any)["id"] == "btn_plus" {
-			sawPlus = true
+		if m.(map[string]any)["id"] == "btn_increment" {
+			sawIncrement = true
 		}
 	}
-	if !sawPlus {
-		t.Errorf("button query should match btn_plus: %v", q["matches"])
+	if !sawIncrement {
+		t.Errorf("button query should match btn_increment: %v", q["matches"])
 	}
 
 	// textContains is case-insensitive against the title text.
@@ -445,10 +445,10 @@ func TestQueryTool(t *testing.T) {
 		t.Errorf("text query count = %v, want 1 (the title)", q["count"])
 	}
 
-	// idContains matches both buttons and rejects everything else.
+	// idContains matches all three buttons and rejects everything else.
 	q = resultObj(t, toolCallRPC(t, s, "qorm_query", map[string]any{"idContains": "btn"}))
-	if q["count"].(float64) != 2 {
-		t.Errorf("idContains query count = %v, want 2", q["count"])
+	if q["count"].(float64) != 3 {
+		t.Errorf("idContains query count = %v, want 3", q["count"])
 	}
 }
 
@@ -500,7 +500,7 @@ func TestAssertKinds(t *testing.T) {
 	passing := []any{
 		map[string]any{"kind": "stateEquals", "path": "count", "value": 0},
 		map[string]any{"kind": "htmlContains", "text": "COUNTER"},
-		map[string]any{"kind": "nodeExists", "id": "btn_plus"},
+		map[string]any{"kind": "nodeExists", "id": "btn_increment"},
 	}
 	res := resultObj(t, toolCallRPC(t, s, "qorm_assert", map[string]any{"checks": passing}))
 	if res["pass"] != true {
@@ -549,7 +549,7 @@ func TestMeasureAndCheckLayout(t *testing.T) {
 
 	// A real self-measurement payload.
 	payload, _ := json.Marshal([]map[string]any{
-		{"id": "btn_plus", "x": 100.0, "y": 200.0, "w": 60.0, "h": 60.0, "visible": true},
+		{"id": "btn_increment", "x": 100.0, "y": 200.0, "w": 60.0, "h": 60.0, "visible": true},
 	})
 	s.SetMeasureProvider(func() []byte { return payload })
 
@@ -563,7 +563,7 @@ func TestMeasureAndCheckLayout(t *testing.T) {
 	}
 
 	// check_layout: passing assertions, plus viewport simulation.
-	checks := []any{map[string]any{"id": "btn_plus", "visible": true, "minW": 50.0, "maxW": 100.0}}
+	checks := []any{map[string]any{"id": "btn_increment", "visible": true, "minW": 50.0, "maxW": 100.0}}
 	res := resultObj(t, toolCallRPC(t, s, "qorm_check_layout",
 		map[string]any{"checks": checks, "viewportW": 320, "viewportH": 568}))
 	if res["ok"] != true {
@@ -575,7 +575,7 @@ func TestMeasureAndCheckLayout(t *testing.T) {
 
 	// A violated bound fails.
 	res = resultObj(t, toolCallRPC(t, s, "qorm_check_layout",
-		map[string]any{"checks": []any{map[string]any{"id": "btn_plus", "maxW": 10.0}}}))
+		map[string]any{"checks": []any{map[string]any{"id": "btn_increment", "maxW": 10.0}}}))
 	if res["ok"] != false {
 		t.Errorf("violated maxW must fail: %v", res)
 	}

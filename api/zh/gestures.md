@@ -31,3 +31,20 @@ QORM 把触摸/指针手势作为组件属性提供——无需编写 JavaScript
 ```
 
 参见 `examples/reorder`。
+
+## 键盘焦点(原生 canvas 后端)
+
+原生 canvas 窗口实现了真正的键盘导航:
+
+- **Tab / Shift-Tab** 在可聚焦节点间移动焦点:按钮、带 `onPress` 的节点,或任意
+  声明 `"focusable": true` 的节点;`"focusable": false` 可退出;`"tabIndex": N`
+  (N > 0)按升序排在自然顺序之前。
+- **Enter / Space** 触发焦点节点的 `onPress`。
+- **Escape** 清除焦点。
+- 焦点环仅在键盘导航时绘制(focus-visible 语义——点击节点会移走焦点但不显示环)。
+- `onKeyDown` / `onKeyUp` 先发给焦点节点,未处理则冒泡到场景根;按键名可通过
+  `{{ arg.key }}` 在动作中使用(`tab`、`return`、`space`、`escape`、`up` /
+  `down` / `left` / `right`、`delete`、`a`..`z`、`0`..`9`)。
+
+HTML/WebView 端的键盘焦点沿用浏览器原生行为;在节点样式中声明 `focusBorderColor`
+即可获得与之配套的 `:focus-visible` 焦点环。

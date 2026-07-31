@@ -641,7 +641,9 @@ func (r *renderer) renderInner(n *model.Node) {
 		r.contextMenu(n)
 	case "refreshindicator":
 		r.refreshIndicator(n)
-	case "animatedcontainer", "animatedpadding", "animatedalign", "animatedpositioned":
+	// animated_container is the snake_case spelling used by the canvas backend
+	// and shared scene JSON; both spellings render identically.
+	case "animatedcontainer", "animated_container", "animatedpadding", "animatedalign", "animatedpositioned":
 		r.animatedContainer(n)
 	case "animatedopacity":
 		r.animatedOpacity(n)

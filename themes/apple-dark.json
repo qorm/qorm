@@ -1,0 +1,100 @@
+{
+  "name": "apple-dark",
+  "colors": {
+    "primary": "#0A84FF",
+    "secondary": "#5E5CE6",
+    "success": "#30D158",
+    "warning": "#FF9F0A",
+    "danger": "#FF453A",
+    "background": "#000000",
+    "surface": "#1C1C1ECC",
+    "text": "#FFFFFF",
+    "textSecondary": "#98989D",
+    "separator": "#38383A",
+    "shadow": "#00000066",
+    "shadowDeep": "#00000099",
+    "inputBg": "#2C2C2E",
+    "inputBorder": "#38383A",
+    "cardBg": "#1C1C1E",
+    "focus": "#0A84FF"
+  },
+  "components": {
+    "scene": {
+      "backgroundColor": "background",
+      "color": "text"
+    },
+    "column": {
+      "color": "text"
+    },
+    "row": {
+      "color": "text"
+    },
+    "button": {
+      "borderRadius": 12,
+      "padding": 14,
+      "backgroundColor": "primary",
+      "color": "#FFFFFF",
+      "fontSize": 16,
+      "fontWeight": 600,
+      "boxShadowColor": "shadow",
+      "boxShadowBlur": 8,
+      "boxShadowY": 3,
+      "pressedBackgroundColor": "#0A6FC7",
+      "hoveredBackgroundColor": "#2E96FF",
+      "pressedOpacity": 0.9
+    },
+    "text": {
+      "color": "text",
+      "fontSize": 16
+    },
+    "input": {
+      "borderRadius": 10,
+      "padding": 12,
+      "backgroundColor": "inputBg",
+      "color": "text",
+      "fontSize": 16,
+      "strokeColor": "inputBorder",
+      "strokeWidth": 1.0
+    },
+    "animated_container": {
+      "borderRadius": 16,
+      "backgroundColor": "cardBg",
+      "boxShadowColor": "shadowDeep",
+      "boxShadowBlur": 20,
+      "boxShadowY": 8
+    },
+    "card": {
+      "borderRadius": 16,
+      "padding": 16,
+      "backgroundColor": "cardBg",
+      "boxShadowColor": "shadow",
+      "boxShadowBlur": 12,
+      "boxShadowY": 4
+    },
+    "list": {
+      "backgroundColor": "cardBg",
+      "borderRadius": 12
+    },
+    "toggle": {
+      "borderRadius": 16,
+      "backgroundColor": "inputBg",
+      "pressedBackgroundColor": "#3A3A3C",
+      "hoveredBackgroundColor": "#464648",
+      "pressedOpacity": 0.9
+    },
+    "slider": {
+      "borderRadius": 4,
+      "backgroundColor": "inputBg"
+    },
+    "divider": {
+      "backgroundColor": "separator"
+    }
+  },
+  "motion": {
+    "durationFast": 120,
+    "durationNormal": 250,
+    "durationSlow": 400,
+    "easingStandard": "easeOutCubic",
+    "easingEmphasized": "easeInOutCubic"
+  }
+}

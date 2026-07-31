@@ -51,6 +51,11 @@ type Server struct {
 	rev         atomic.Int64 // bumped on every mutation; drives browser live-sync
 	agent       *mcp.Server  // MCP handler sharing rt + mu
 
+	// canvasHost marks the server as embedded in the native canvas window:
+	// the HTTP listener is never served in that mode, so frame() skips the
+	// HTML render/broadcast (zero subscribers) and only drives OnStateChange.
+	canvasHost bool
+
 	// mcpReadOnly forces the shared MCP session into read-only mode: mutating
 	// tools (dispatch/set_state/apply_patch/undo) are rejected. Set from
 	// `qorm run --mcp-read-only`; re-applied whenever the runtime is swapped.
@@ -96,6 +101,10 @@ type Server struct {
 	WindowOp    func(id, op string)             // focus/minimize/pin/unpin/close
 	WindowOpen  func(id, url string, w, h int)  // open a secondary window
 	WindowEval  func(id, js string)             // push JS to a window (window-to-window comms)
+
+	// OnStateChange is called whenever the runtime state updates, passing the live runtime.
+	// Used by the Canvas kernel to re-layout and re-render.
+	OnStateChange func(rt *runtime.Runtime)
 
 	// eventToken is a random secret generated at server start and embedded in the
 	// rendered HTML page. /event and /presence POST require this token, enforcing
@@ -237,6 +246,13 @@ func (s *Server) SetMCPReadOnly(v bool) {
 	s.agent.SetReadOnly(v)
 }
 
+// Runtime returns the server's current live runtime.
+func (s *Server) Runtime() *runtime.Runtime {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.rt
+}
+
 // bump increments the revision, re-renders, refreshes the handler table and
 // pushes the new UI to all SSE subscribers. Caller must hold s.mu.
 // It first drains a pending scene-entry hook: every mutation path (human
@@ -246,6 +262,17 @@ func (s *Server) SetMCPReadOnly(v bool) {
 func (s *Server) bump() (int64, string, string) {
 	s.rt.RunPendingEnter()
 	return s.frame()
+}
+
+// SetCanvasHost marks the server as embedded in the native canvas window.
+// In that mode the HTTP listener is never served (launchWindow blocks in
+// app.Main), so there are no SSE subscribers or browser clients: frame()
+// skips RenderScene/broadcast and only advances the revision and drives
+// OnStateChange.
+func (s *Server) SetCanvasHost(v bool) {
+	s.mu.Lock()
+	s.canvasHost = v
+	s.mu.Unlock()
 }
 
 // frame renders + publishes exactly one revision WITHOUT draining the pending
@@ -259,11 +286,21 @@ func (s *Server) bump() (int64, string, string) {
 // stacking callDepth and possibly tripping maxEnterChain — for no gain.
 // Caller must hold s.mu.
 func (s *Server) frame() (int64, string, string) {
+	if s.canvasHost {
+		rev := s.rev.Add(1)
+		if s.OnStateChange != nil {
+			s.OnStateChange(s.rt)
+		}
+		return rev, "", ""
+	}
 	rev := s.rev.Add(1)
 	res := render.RenderScene(s.rt, s.rt.CurrentScene())
 	s.setHandlers(rev, res.Handlers)
 	nav := s.rt.TakeNavDir()
 	s.broadcast(rev, res.HTML, nav, s.rt.RoutePath())
+	if s.OnStateChange != nil {
+		s.OnStateChange(s.rt)
+	}
 	return rev, res.HTML, nav
 }
 
@@ -1481,6 +1518,8 @@ func Page(rt *runtime.Runtime, body string, rev int64, eventToken ...string) str
   [style*="--qorm-prs-sc"]:active { transform:scale(var(--qorm-prs-sc)) !important; }
   [style*="--qorm-prs-op"]:active { opacity:var(--qorm-prs-op) !important; }
   [style*="--qorm-foc-bc"]:focus-within { border-color:var(--qorm-foc-bc) !important; outline:2px solid var(--qorm-foc-bc); outline-offset:2px; }
+  /* Keyboard focus indicator (:focus-visible semantics — no ring on pointer focus). */
+  [style*="--qorm-foc-bc"]:focus-visible { outline:2px solid var(--qorm-foc-bc) !important; outline-offset:2px; }
   [style*="--qorm-dis"] { opacity:var(--qorm-dop,.4) !important; pointer-events:none !important; cursor:not-allowed !important; }
   /* ---- Frosted glass (the backdropBlur / backdropTint style keys, emitted
      as custom properties by backdropCSS in internal/render/render_style.go).

@@ -1,0 +1,77 @@
+package app
+
+import (
+	"image"
+)
+
+// Event is the interface for all window events.
+type Event interface {
+	isEvent()
+}
+
+// FrameEvent is emitted when the window needs to be redrawn.
+type FrameEvent struct {
+	Size image.Point
+	// In the future, this will include metrics (dp, sp) and insets (safe area).
+}
+
+func (FrameEvent) isEvent() {}
+
+// PointerEvent represents a mouse or touch interaction.
+type PointerEvent struct {
+	Type     PointerType
+	Position image.Point
+	Buttons  int
+}
+
+func (PointerEvent) isEvent() {}
+
+type PointerType uint8
+
+const (
+	PointerPress PointerType = iota
+	PointerRelease
+	PointerMove
+)
+
+// KeyEvent represents a keyboard interaction.
+type KeyEvent struct {
+	Type KeyEventType
+	Code int    // Raw platform keycode (macOS virtual keycode).
+	Key  string // Normalized name: "tab", "return", "escape", "space", "up", "down", "left", "right", "delete", or "a".."z" / "0".."9".
+	Shift bool  // True when the shift modifier was held.
+}
+
+func (KeyEvent) isEvent() {}
+
+type KeyEventType uint8
+
+const (
+	KeyDown KeyEventType = iota
+	KeyUp
+)
+
+// ScrollEvent represents a mouse wheel or trackpad scroll interaction.
+type ScrollEvent struct {
+	DeltaX float64
+	DeltaY float64
+}
+
+func (ScrollEvent) isEvent() {}
+
+// Window represents an OS window.
+type Window struct {
+	events        chan Event
+	w             *windowImpl
+	width, height int // Content size in points as passed to NewWindow.
+}
+
+// Events returns the channel of window events.
+func (w *Window) Events() <-chan Event {
+	return w.events
+}
+
+// Size returns the window's content width and height in points.
+func (w *Window) Size() (int, int) {
+	return w.width, w.height
+}

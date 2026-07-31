@@ -1,0 +1,11 @@
+{
+  "type": "action",
+  "id": "set_status",
+  "steps": [
+    {
+      "op": "set",
+      "target": "status",
+      "value": "{{args.msg}}"
+    }
+  ]
+}

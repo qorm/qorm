@@ -43,6 +43,7 @@ func TestShellPseudoStateRules(t *testing.T) {
 		`[style*="--qorm-prs-sc"]:active { transform:scale(var(--qorm-prs-sc)) !important; }`,
 		`[style*="--qorm-prs-op"]:active { opacity:var(--qorm-prs-op) !important; }`,
 		`[style*="--qorm-foc-bc"]:focus-within {`,
+		`[style*="--qorm-foc-bc"]:focus-visible { outline:2px solid var(--qorm-foc-bc) !important; outline-offset:2px; }`,
 		`[style*="--qorm-dis"] { opacity:var(--qorm-dop,.4) !important;`,
 	} {
 		if !strings.Contains(css, want) {
@@ -76,6 +77,7 @@ func TestShellPseudoStateHoverIsPointerOnly(t *testing.T) {
 		`[style*="--qorm-prs-sc"]:active`,
 		`[style*="--qorm-prs-op"]:active`,
 		`[style*="--qorm-foc-bc"]:focus-within`,
+		`[style*="--qorm-foc-bc"]:focus-visible`,
 		`[style*="--qorm-dis"] {`,
 	} {
 		if !strings.Contains(css, rule) {
@@ -117,6 +119,25 @@ func hoverMediaBlock(t *testing.T, css, needle string) string {
 	}
 	t.Fatalf("unterminated @media (hover:hover) block")
 	return ""
+}
+
+// TestShellMotionTokens: every built-in palette must publish the shared motion
+// token vocabulary (--qorm-motion-*) so animatedContainer/animatedOpacity can
+// reference skin-level durations and easings, matching the themes/*.json
+// motion section the canvas backend consumes.
+func TestShellMotionTokens(t *testing.T) {
+	css := shellCSS(t)
+	for _, want := range []string{
+		"--qorm-motion-fast:120ms;",
+		"--qorm-motion-normal:250ms;",
+		"--qorm-motion-slow:400ms;",
+		"--qorm-motion-standard:cubic-bezier(.4,0,.2,1);",
+		"--qorm-motion-emphasized:cubic-bezier(.2,0,0,1);",
+	} {
+		if !strings.Contains(css, want) {
+			t.Errorf("shell theme tokens lack the motion variable %q", want)
+		}
+	}
 }
 
 // TestShellPseudoStateTransition: state changes should ease rather than snap,

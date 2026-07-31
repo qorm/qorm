@@ -48,3 +48,33 @@ For value-driven (not entrance) motion, use the Flutter-style widgets:
 
 The plain `transition` style prop (e.g. `"transition": "all .2s"`) also applies to
 any node for simple CSS transitions.
+
+## Theme motion tokens
+
+Skins carry the motion vocabulary alongside their colors. Each `themes/*.json`
+may declare a `motion` section; the native canvas backend consumes it directly,
+and the HTML/WebView backend exposes the same values as CSS custom properties:
+
+```json
+"motion": {
+  "durationFast": 120,
+  "durationNormal": 250,
+  "durationSlow": 400,
+  "easingStandard": "easeOutCubic",
+  "easingEmphasized": "easeInOutCubic"
+}
+```
+
+- `animatedcontainer` / `animatedopacity` default to `durationNormal` +
+  `easingStandard` when the node sets no `duration` / `curve` prop — explicit
+  props still win. On the HTML path this lands as `var(--qorm-motion-normal)` /
+  `var(--qorm-motion-standard)`, which hand-written `transition` styles can
+  reference too.
+- Easing names: `linear`, `easeIn`, `easeOut`, `easeInOut` (plus the explicit
+  `easeInCubic` / `easeOutCubic` / `easeInOutCubic` spellings and the token
+  aliases `standard` / `emphasized`).
+- The built-in skins deliberately differ: the Apple palettes move at ~250 ms,
+  the WinUI palettes at ~167 ms — switching skins changes the app's tempo.
+- Note: the HTML backend does not read `themes/*.json`; it ships matching
+  *defaults* for the `--qorm-motion-*` variables. Per-skin JSON values apply on
+  the native canvas backend.

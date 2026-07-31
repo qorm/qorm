@@ -11,7 +11,7 @@
 | `activityindicator` | cupertinoactivityindicator | `activityIndicator` |
 | `alert` | banner | `alert` |
 | `alertdialog` | cupertinoalertdialog | `alertDialog` |
-| `animatedcontainer` | animatedpadding, animatedalign, animatedpositioned | `animatedContainer` |
+| `animatedcontainer` | animated_container, animatedpadding, animatedalign, animatedpositioned | `animatedContainer` |
 | `animatedopacity` | — | `animatedOpacity` |
 | `appbar` | — | `appbar` |
 | `aspectratio` | — | `aspectRatio` |

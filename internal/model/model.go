@@ -539,7 +539,15 @@ type Node struct {
 	Layout      map[string]any // layout hints (width/height/align/justify)
 	Props       map[string]any // catch-all (src, min, max, checked, ...)
 	OnPress     *Invoke        // press handler
+	OnCollide   *Invoke        // collision handler
 	OnChange    *Invoke        // change handler (inputs, selects, toggles, sliders)
+	OnKeyDown   *Invoke        // keyboard key down
+	OnKeyUp     *Invoke        // keyboard key up
+	OnHoverIn   *Invoke        // mouse hover enter
+	OnHoverOut  *Invoke        // mouse hover leave
+	OnTouchStart *Invoke       // touch start (or mouse down)
+	OnTouchMove *Invoke        // touch move (or mouse drag)
+	OnTouchEnd  *Invoke        // touch end (or mouse up)
 	Children    []*Node
 	Template    *Node  // list renderItem template
 	Data        string // list data binding expression

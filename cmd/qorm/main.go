@@ -25,6 +25,7 @@ import (
 var version = "0.5.5"
 
 func main() {
+	runtime.LockOSThread()
 	if len(os.Args) < 2 {
 		if app := bundledApp(); app != "" {
 			os.Exit(cmdRun([]string{app, "--app"}))

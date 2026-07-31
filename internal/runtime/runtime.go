@@ -18,6 +18,7 @@ import (
 
 	"github.com/qorm/qorm/internal/expr"
 	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/qorm/internal/theme"
 )
 
 // Viewport is a client viewport size in CSS pixels. The zero value means
@@ -31,6 +32,7 @@ type Viewport struct{ W, H int }
 type Runtime struct {
 	App   *model.App
 	State map[string]any
+	Theme *theme.Theme
 	// Viewport is the size of the client viewport driving this runtime (pushed
 	// by the browser via POST /viewport, or read from the JS globals in the
 	// WASM build). Exposed to expressions as viewport.width / viewport.height /
@@ -491,7 +493,7 @@ func New(app *model.App) *Runtime {
 	if state == nil {
 		state = map[string]any{}
 	}
-	rt := &Runtime{App: app, State: state, RouteParams: map[string]any{}, pendingEnter: true}
+	rt := &Runtime{App: app, State: state, RouteParams: map[string]any{}, pendingEnter: true, Theme: theme.GetDefault()}
 	rt.refreshComputed() // derived values exist from the very first frame
 	return rt
 }

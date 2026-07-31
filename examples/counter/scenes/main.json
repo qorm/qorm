@@ -5,7 +5,7 @@
     "type": "column",
     "id": "root",
     "style": {
-      "background": "var(--bg)",
+      "background": "var(--background)",
       "padding": 32
     },
     "layout": {
@@ -20,17 +20,20 @@
         "id": "title",
         "text": "COUNTER",
         "style": {
-          "color": "var(--accent)",
+          "color": "var(--primary)",
           "fontSize": 14,
           "fontWeight": 700,
           "textAlign": "center"
         }
       },
       {
-        "type": "column",
+        "type": "animated_container",
         "id": "display",
         "style": {
-          "margin": { "top": 40, "bottom": 40 }
+          "margin": { "top": 40, "bottom": 40 },
+          "padding": 20,
+          "width": 300,
+          "height": 160
         },
         "layout": {
           "align": "center"
@@ -41,7 +44,6 @@
             "id": "number",
             "text": "{{state.count}}",
             "style": {
-              "color": "#F8FAFC",
               "fontSize": 80,
               "fontWeight": 900,
               "textAlign": "center"
@@ -52,7 +54,7 @@
             "id": "status_text",
             "text": "{{state.status}}",
             "style": {
-              "color": "var(--label2)",
+              "color": "var(--textSecondary)",
               "fontSize": 14,
               "margin": { "top": 8 }
             }
@@ -63,46 +65,42 @@
         "type": "row",
         "id": "controls",
         "style": {
-          "gap": 20
+          "margin": { "top": 20 },
+          "gap": 16
+        },
+        "layout": {
+          "align": "center",
+          "justify": "center"
         },
         "children": [
           {
             "type": "button",
-            "id": "btn_minus",
-            "label": "-",
-            "style": {
-              "background": "var(--surface)",
-              "color": "var(--label)",
-              "fontSize": 24,
-              "width": 60,
-              "height": 60,
-              "borderRadius": 30
-            },
+            "id": "btn_decrement",
+            "label": "Minus (-)",
             "onPress": {
-              "type": "invoke",
-              "name": "decrement",
-              "args": { "count": "{{state.count}}" }
+              "name": "decrement"
             }
           },
           {
             "type": "button",
-            "id": "btn_plus",
-            "label": "+",
-            "style": {
-              "background": "var(--accent)",
-              "color": "var(--on-accent)",
-              "fontSize": 24,
-              "width": 60,
-              "height": 60,
-              "borderRadius": 30
-            },
+            "id": "btn_increment",
+            "label": "Plus (+)",
             "onPress": {
-              "type": "invoke",
-              "name": "increment",
-              "args": { "count": "{{state.count}}" }
+              "name": "increment"
             }
           }
         ]
+      },
+      {
+        "type": "button",
+        "id": "btn_theme",
+        "label": "Toggle Theme ({{state.theme}})",
+        "style": {
+          "margin": { "top": 40 }
+        },
+        "onPress": {
+          "name": "toggle_theme"
+        }
       }
     ]
   }

@@ -32,3 +32,23 @@ persisted to state — so an agent sees it and it survives a reload.
 ```
 
 See `examples/reorder`.
+
+## Keyboard focus (native canvas backend)
+
+The native canvas window implements real keyboard navigation:
+
+- **Tab / Shift-Tab** moves focus between focusable nodes: buttons, nodes with
+  an `onPress`, or any node with `"focusable": true`; `"focusable": false`
+  opts out; `"tabIndex": N` (N > 0) sorts ahead of natural order, ascending.
+- **Enter / Space** activates the focused node's `onPress`.
+- **Escape** clears focus.
+- The focus ring is drawn only for keyboard-driven focus (focus-visible
+  semantics — clicking a node moves focus without showing a ring).
+- `onKeyDown` / `onKeyUp` dispatch to the focused node first and bubble up to
+  the scene root when unhandled; the pressed key is available to the action as
+  `{{ arg.key }}` (`tab`, `return`, `space`, `escape`, `up` / `down` / `left` /
+  `right`, `delete`, `a`..`z`, `0`..`9`).
+
+On the HTML/WebView path, keyboard focus follows native browser behavior;
+declare `focusBorderColor` in a node's style to get a matching `:focus-visible`
+outline.

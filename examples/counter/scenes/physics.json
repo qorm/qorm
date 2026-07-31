@@ -1,0 +1,62 @@
+{
+  "type": "scene",
+  "id": "physics",
+  "root": {
+    "type": "column",
+    "id": "root",
+    "style": {
+      "background": "#FFFFFF",
+      "width": "fill",
+      "height": "fill"
+    },
+    "children": [
+      {
+        "type": "text",
+        "text": "Physics Test (Target)",
+        "style": {
+          "color": "#000000"
+        }
+      },
+      {
+        "type": "button",
+        "id": "target_block",
+        "style": {
+          "background": "#FF0000",
+          "width": 100,
+          "height": 100,
+          "margin": { "top": 100, "left": 150 }
+        },
+        "onCollide": {
+          "name": "set_status",
+          "args": { "msg": "COLLISION DETECTED!" }
+        }
+      },
+      {
+        "type": "animated_container",
+        "id": "moving_block",
+        "style": {
+          "background": "#0000FF",
+          "width": 50,
+          "height": 50,
+          "margin": { "top": "{{ -state.count * 20 }}", "left": 150 }
+        }
+      },
+      {
+        "type": "text",
+        "text": "{{state.status}}",
+        "style": {
+          "color": "#000000",
+          "fontSize": 24,
+          "margin": { "top": 50 }
+        }
+      },
+      {
+        "type": "button",
+        "label": "Move Down",
+        "onPress": {
+          "name": "increment"
+        }
+      }
+    ]
+  }
+}

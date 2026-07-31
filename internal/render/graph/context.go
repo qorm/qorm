@@ -1,0 +1,79 @@
+package graph
+
+import (
+	"image"
+	"image/color"
+
+	"github.com/qorm/qorm/internal/op"
+)
+
+// Context provides a stateful Canvas-like API for drawing.
+type Context struct {
+	ops *op.Ops
+}
+
+// NewContext creates a new drawing context that writes to the given ops list.
+func NewContext(ops *op.Ops) *Context {
+	return &Context{
+		ops: ops,
+	}
+}
+
+// Save pushes the current state (transform, clip, color) onto the stack.
+func (c *Context) Save() {
+	c.ops.Add(op.SaveOp{})
+}
+
+// Restore pops the state stack.
+func (c *Context) Restore() {
+	c.ops.Add(op.RestoreOp{})
+}
+
+// Translate translates the coordinate system.
+func (c *Context) Translate(dx, dy int) {
+	c.ops.Add(op.TransformOp{Offset: image.Pt(dx, dy)})
+}
+
+// ClipRect sets the clipping region to a rectangle.
+func (c *Context) ClipRect(r image.Rectangle) {
+	c.ops.Add(op.ClipOp{Rect: r})
+}
+
+// ClipRRect sets the clipping region to a rounded rectangle.
+func (c *Context) ClipRRect(r image.Rectangle, radius float64) {
+	c.ops.Add(op.ClipOp{Rect: r, Radius: radius})
+}
+
+// Fill sets the current fill color.
+func (c *Context) Fill(color color.RGBA) {
+	c.ops.Add(op.ColorOp{Color: color})
+}
+
+// Paint fills the current clipping region with the current fill color.
+func (c *Context) Paint() {
+	c.ops.Add(op.PaintOp{})
+}
+
+// Opacity sets the current global alpha
+func (c *Context) Opacity(alpha float64) {
+	c.ops.Add(op.OpacityOp{Alpha: alpha})
+}
+
+// SetStrokeWidth sets the current stroke width
+func (c *Context) SetStrokeWidth(w float64) {
+	c.ops.Add(op.StrokeOp{Width: w})
+}
+
+// StrokePaint strokes the current clipping region
+func (c *Context) StrokePaint() {
+	c.ops.Add(op.StrokePaintOp{})
+}
+
+// DrawText draws text at the specified coordinates.
+func (c *Context) DrawText(text string, pos image.Point, scale float64) {
+	c.ops.Add(op.TextOp{
+		Text:  text,
+		Pos:   pos,
+		Scale: scale,
+	})
+}

@@ -1527,6 +1527,8 @@ func buildNode(m map[string]any, diags *[]string, sceneID string, vars map[strin
 	}
 	n.OnPress = parseInvoke(m["onPress"], diags, sceneID, nodeID, "onPress")
 	n.OnChange = parseInvoke(m["onChange"], diags, sceneID, nodeID, "onChange")
+	n.OnKeyDown = parseInvoke(m["onKeyDown"], diags, sceneID, nodeID, "onKeyDown")
+	n.OnKeyUp = parseInvoke(m["onKeyUp"], diags, sceneID, nodeID, "onKeyUp")
 	if ri, ok := m["renderItem"].(map[string]any); ok {
 		// A renderItem template runs with the item bound into the expression
 		// scope under `as` (default "item") plus index/first/last. Resolve the

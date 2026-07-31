@@ -267,7 +267,7 @@ func TestEscapingStylePropBreakout(t *testing.T) {
 		}, "animation:qa-fade 450ms cubic-bezier(.34,1.2,.64,1) 0ms 1 both;"},
 		{"animatedcontainer-curve", func(p string) *model.Node {
 			return &model.Node{Type: "animatedcontainer", ID: "ac", Props: map[string]any{"curve": p}, Children: textKids("c")}
-		}, "transition:all 300ms cubic-bezier(.4,0,.2,1);"},
+		}, "transition:all var(--qorm-motion-normal,250ms) cubic-bezier(.4,0,.2,1);"},
 		{"wrapanimation-curve-repeat", func(p string) *model.Node {
 			return &model.Node{Type: "text", ID: "wt", Text: "x", Props: map[string]any{"animation": "fadeup", "curve": p, "repeat": p}}
 		}, "animation:qa-fadeup 450ms cubic-bezier(.34,1.2,.64,1) 0ms 1 both;"},

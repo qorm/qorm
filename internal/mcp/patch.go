@@ -138,17 +138,30 @@ func applyOne(app *model.App, op PatchOp) error {
 	}
 }
 
+// orderedSceneIDs returns scene ids with the entry scene first and the rest
+// sorted, so every multi-scene lookup is deterministic across runs (two scenes
+// may legitimately contain same-named nodes — e.g. both roots id "root" — and
+// a random map iteration would pick between them at coin-flip).
+func orderedSceneIDs(app *model.App) []string {
+	ids := make([]string, 0, len(app.Scenes))
+	for id := range app.Scenes {
+		if id != app.Entry {
+			ids = append(ids, id)
+		}
+	}
+	sort.Strings(ids)
+	if _, ok := app.Scenes[app.Entry]; ok {
+		ids = append([]string{app.Entry}, ids...)
+	}
+	return ids
+}
+
 // scenesInOrder returns scene roots with the entry scene first, so lookups are
 // deterministic and prefer the scene the user is actually viewing.
 func scenesInOrder(app *model.App) []*model.Node {
 	roots := make([]*model.Node, 0, len(app.Scenes))
-	if r := app.Scenes[app.Entry]; r != nil {
-		roots = append(roots, r)
-	}
-	for id, r := range app.Scenes {
-		if id != app.Entry {
-			roots = append(roots, r)
-		}
+	for _, id := range orderedSceneIDs(app) {
+		roots = append(roots, app.Scenes[id])
 	}
 	return roots
 }
@@ -189,9 +202,11 @@ func insertAt(s []*model.Node, i int, n *model.Node) []*model.Node {
 }
 
 // replaceSceneRoot swaps a scene's root when its id matches, returning true.
+// Scenes are visited in orderedSceneIDs order so the entry scene wins when
+// multiple scenes have same-id roots.
 func replaceSceneRoot(app *model.App, id string, n *model.Node) bool {
-	for sid, root := range app.Scenes {
-		if root.ID == id {
+	for _, sid := range orderedSceneIDs(app) {
+		if app.Scenes[sid].ID == id {
 			app.Scenes[sid] = n
 			return true
 		}
