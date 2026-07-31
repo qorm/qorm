@@ -35,6 +35,7 @@ type windowImpl struct {
 	img    [2]uintptr // NSImage wrapping pix[i]'s rep
 	stride int
 	front  int // index of the plane currently displayed
+	scale  int // device-pixel ratio (set from backingScaleFactor; 0/1 == 1)
 }
 
 // darwinKeyCodes maps macOS ANSI virtual keycodes to normalized key names.

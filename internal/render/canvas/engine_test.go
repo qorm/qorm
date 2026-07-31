@@ -170,6 +170,41 @@ func TestEngineKeyDownDispatch(t *testing.T) {
 	}
 }
 
+// At device scale 2 the same logical design must occupy twice the physical
+// pixels: the layout DPI plumbing multiplies design pixels by Scale() while
+// the surface reports physical dimensions. (Scale 1 must stay bit-identical.)
+func TestEngineHiDPIScalesGeometry(t *testing.T) {
+	build := func(scale int) (*Engine, *HeadlessSurface, *model.Node) {
+		btn := newButton("b")
+		root := &model.Node{Type: "column", ID: "root",
+			Layout: map[string]any{"align": "center", "justify": "center"},
+			Children: []*model.Node{btn}}
+		app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}}
+		rt := runtime.New(app)
+		rt.Theme = theme.GetDefault()
+		surf := NewHeadlessSurface(image.Pt(400, 400)) // physical buffer for both
+		surf.ScaleFactor = scale
+		return NewEngine(rt, SoftwareRenderer{}, surf), surf, btn
+	}
+	widthOf := func(e *Engine, btn *model.Node) float64 {
+		e.DrawFrame()
+		bb := e.findGroupByModel(btn).GetBBox()
+		return bb.MaxX - bb.MinX
+	}
+
+	e1, _, btn1 := build(1)
+	w1 := widthOf(e1, btn1)
+	e2, _, btn2 := build(2)
+	w2 := widthOf(e2, btn2)
+
+	if w1 <= 0 {
+		t.Fatalf("scale-1 button width = %v", w1)
+	}
+	if got, want := w2, w1*2; got != want {
+		t.Errorf("scale-2 button width = %v, want %v (2× scale-1)", got, want)
+	}
+}
+
 // The display list must be rebuilt each frame — drawing the same scene twice
 // yields identical pixels (no accumulation of stale ops).
 func TestEngineDisplayListRebuiltEachFrame(t *testing.T) {

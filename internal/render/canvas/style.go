@@ -101,6 +101,31 @@ type NodeStyle struct {
 	StrokeWidth float64
 }
 
+// scaleBy multiplies every pixel-valued field by f (a device-pixel ratio), so
+// the layout produced from logical design values lands in physical pixels —
+// the basis of crisp HiDPI rendering. f<=1 is a no-op (scale 1 == current
+// behaviour, bit-for-bit). Unit-less fields (opacity, font weight, alignment)
+// and colours are intentionally untouched.
+func (s *NodeStyle) scaleBy(f int) {
+	if f <= 1 {
+		return
+	}
+	s.Padding *= f
+	s.MarginTop *= f
+	s.MarginBot *= f
+	s.MarginLeft *= f
+	s.MarginRight *= f
+	s.Gap *= f
+	s.BoxShadowBlur *= f
+	s.BoxShadowX *= f
+	s.BoxShadowY *= f
+	s.Width *= f
+	s.Height *= f
+	s.FontSize *= f
+	s.BorderRadius *= float64(f)
+	s.StrokeWidth *= float64(f)
+}
+
 func evalStyleProp(val any, rt *runtime.Runtime) any {
 	if s, ok := val.(string); ok && rt != nil {
 		return runtime.EvalBinding(s, map[string]any{"state": rt.State})

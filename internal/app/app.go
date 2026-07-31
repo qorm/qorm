@@ -75,3 +75,12 @@ func (w *Window) Events() <-chan Event {
 func (w *Window) Size() image.Point {
 	return image.Pt(w.width, w.height)
 }
+
+// Scale returns the device-pixel ratio (w.w.scale, set from the platform's
+// backing scale factor; 0/1 == 1).
+func (w *Window) Scale() int {
+	if w.w.scale < 1 {
+		return 1
+	}
+	return w.w.scale
+}

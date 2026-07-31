@@ -20,8 +20,11 @@ import (
 // HeadlessSurface. This is the platform seam of the engine — new platforms
 // plug in here without touching layout, recording or rendering.
 type Surface interface {
-	// Size returns the surface dimensions in pixels.
+	// Size returns the surface dimensions in physical pixels.
 	Size() image.Point
+	// Scale returns the device-pixel ratio (1 = standard, 2 = Retina). The
+	// engine lays out design pixels * Scale into the physical buffer.
+	Scale() int
 	// Backbuffer returns the buffer the next frame must be drawn into.
 	Backbuffer() *image.RGBA
 	// Present publishes the drawn backbuffer (swap + schedule display).
@@ -34,13 +37,22 @@ type Surface interface {
 type HeadlessSurface struct {
 	buf      *image.RGBA
 	Presents int
+	// ScaleFactor is the device-pixel ratio for tests (0/1 == 1). The buffer
+	// is expected to already be in physical pixels (size == logical * Scale).
+	ScaleFactor int
 }
 
 func NewHeadlessSurface(size image.Point) *HeadlessSurface {
-	return &HeadlessSurface{buf: image.NewRGBA(image.Rect(0, 0, size.X, size.Y))}
+	return &HeadlessSurface{buf: image.NewRGBA(image.Rect(0, 0, size.X, size.Y)), ScaleFactor: 1}
 }
 
 func (s *HeadlessSurface) Size() image.Point       { return s.buf.Rect.Size() }
+func (s *HeadlessSurface) Scale() int {
+	if s.ScaleFactor < 1 {
+		return 1
+	}
+	return s.ScaleFactor
+}
 func (s *HeadlessSurface) Backbuffer() *image.RGBA { return s.buf }
 func (s *HeadlessSurface) Present()                { s.Presents++ }
 func (s *HeadlessSurface) Frame() *image.RGBA      { return s.buf }
@@ -150,7 +162,7 @@ func (e *Engine) DrawFrame() FrameStats {
 	// nothing. (Before the Engine owned this, ops accumulated forever.)
 	t0 := time.Now()
 	e.ops.Reset()
-	rootNode, needsRedraw := Layout(&e.ops, root, e.Surface.Size(), rt, &e.Inter)
+	rootNode, needsRedraw := Layout(&e.ops, root, e.Surface.Size(), rt, &e.Inter, e.Surface.Scale())
 	e.graphRoot = rootNode
 	st.LayoutRecord = time.Since(t0)
 

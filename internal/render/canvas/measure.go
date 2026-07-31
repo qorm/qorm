@@ -25,14 +25,17 @@ type LayoutNode struct {
 	GraphNode   graph.Node
 }
 
-// Measure does a bottom-up pass to calculate minimum content sizes
-func Measure(n *model.Node, rt *runtime.Runtime, inter *Interaction) *LayoutNode {
+// Measure does a bottom-up pass to calculate minimum content sizes. scale is
+// the device-pixel ratio: design pixels are multiplied by it so the resulting
+// geometry is in physical pixels (HiDPI). Pass 1 for logical == physical.
+func Measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int) *LayoutNode {
 	if n == nil {
 		return nil
 	}
 
 	style := parseStyle(n, rt)
 	applyInteractiveOverlay(&style, n, rt, inter)
+	style.scaleBy(scale)
 	var needsRedraw bool
 	if n.Type == "animated_container" {
 		style, needsRedraw = UpdateAndGetAnimatedStyle(n.ID, style, rt)
@@ -57,7 +60,7 @@ func Measure(n *model.Node, rt *runtime.Runtime, inter *Interaction) *LayoutNode
 	}
 
 	for _, child := range n.Children {
-		if cln := Measure(child, rt, inter); cln != nil {
+		if cln := Measure(child, rt, inter, scale); cln != nil {
 			if cln.NeedsRedraw {
 				ln.NeedsRedraw = true
 			}
@@ -76,8 +79,8 @@ func Measure(n *model.Node, rt *runtime.Runtime, inter *Interaction) *LayoutNode
 		contentW = int(float64(len(ln.Text)) * float64(fs) * 0.6)
 		contentH = int(float64(fs) * 1.2)
 	} else if n.Type == "button" {
-		contentW = int(float64(len(ln.Text))*float64(fs)*0.6) + 40
-		contentH = int(float64(fs)*1.2) + 20
+		contentW = int(float64(len(ln.Text))*float64(fs)*0.6) + 40*scale
+		contentH = int(float64(fs)*1.2) + 20*scale
 	} else {
 		isRow := n.Type == "row"
 		for i, child := range ln.Children {
@@ -136,8 +139,10 @@ func evalPropStr(val any, rt *runtime.Runtime) string {
 }
 
 // PerformLayout does the top-down pass, building the scene graph. inter and
-// rt stamp interaction state and resolve theme-driven decorations.
-func PerformLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, rt *runtime.Runtime) graph.Node {
+// rt stamp interaction state and resolve theme-driven decorations; scale is
+// the device-pixel ratio (used for the focus-ring insets so its visual width
+// stays constant in physical pixels).
+func PerformLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, rt *runtime.Runtime, scale int) graph.Node {
 	if ln == nil {
 		return nil
 	}
@@ -316,7 +321,7 @@ func PerformLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, r
 			}
 		}
 		
-		childNode := PerformLayout(child, cbounds, inter, rt)
+		childNode := PerformLayout(child, cbounds, inter, rt, scale)
 		if childNode != nil {
 			group.AddChild(childNode)
 		}
@@ -332,15 +337,19 @@ func PerformLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, r
 	// established by the keyboard, offset 3px outside the node body.
 	// NoHit keeps the oversized ring from stealing pointer hits.
 	if inter != nil && inter.Focused == ln.Node && inter.FocusVisible {
+		s := scale
+		if s < 1 {
+			s = 1
+		}
 		ring := graph.NewRect()
 		ring.NoHit = true
-		ring.X = -3
-		ring.Y = -3
-		ring.Width = float64(ln.Width + 6)
-		ring.Height = float64(ln.Height + 6)
-		ring.BorderRadius = ln.Style.BorderRadius + 3
+		ring.X = -3 * float64(s)
+		ring.Y = -3 * float64(s)
+		ring.Width = float64(ln.Width + 6*s)
+		ring.Height = float64(ln.Height + 6*s)
+		ring.BorderRadius = ln.Style.BorderRadius + 3*float64(s)
 		ring.Stroke = resolveFocusColor(rt)
-		ring.StrokeWidth = 2
+		ring.StrokeWidth = 2 * float64(s)
 		group.AddChild(ring)
 	}
 

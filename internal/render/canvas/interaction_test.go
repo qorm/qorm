@@ -28,7 +28,7 @@ func TestPressedOverlayFromTheme(t *testing.T) {
 	rt := rtWithDefaultTheme(t)
 	btn := newButton("b")
 
-	ln := Measure(btn, rt, &Interaction{Pressed: btn})
+	ln := Measure(btn, rt, &Interaction{Pressed: btn}, 1)
 	if want := parseColor("#0062CC"); ln.Style.Background != want {
 		t.Errorf("pressed background = %v, want theme pressedBackgroundColor %v", ln.Style.Background, want)
 	}
@@ -41,7 +41,7 @@ func TestHoveredOverlayFromTheme(t *testing.T) {
 	rt := rtWithDefaultTheme(t)
 	btn := newButton("b")
 
-	ln := Measure(btn, rt, &Interaction{Hovered: btn})
+	ln := Measure(btn, rt, &Interaction{Hovered: btn}, 1)
 	if want := parseColor("#1A86FF"); ln.Style.Background != want {
 		t.Errorf("hovered background = %v, want theme hoveredBackgroundColor %v", ln.Style.Background, want)
 	}
@@ -54,7 +54,7 @@ func TestPressedWinsOverHovered(t *testing.T) {
 	rt := rtWithDefaultTheme(t)
 	btn := newButton("b")
 
-	ln := Measure(btn, rt, &Interaction{Pressed: btn, Hovered: btn})
+	ln := Measure(btn, rt, &Interaction{Pressed: btn, Hovered: btn}, 1)
 	if want := parseColor("#0062CC"); ln.Style.Background != want {
 		t.Errorf("pressed+hovered background = %v, want pressed to win (%v)", ln.Style.Background, want)
 	}
@@ -64,8 +64,8 @@ func TestNoInteractionLeavesStyleAlone(t *testing.T) {
 	rt := rtWithDefaultTheme(t)
 	btn := newButton("b")
 
-	plain := Measure(btn, rt, nil)
-	withEmpty := Measure(btn, rt, &Interaction{})
+	plain := Measure(btn, rt, nil, 1)
+	withEmpty := Measure(btn, rt, &Interaction{}, 1)
 	if plain.Style.Background != withEmpty.Style.Background || plain.Style.Opacity != withEmpty.Style.Opacity {
 		t.Error("empty interaction state must not alter the resolved style")
 	}
@@ -79,8 +79,8 @@ func TestPerformLayoutStampsInteractionState(t *testing.T) {
 	btn := newButton("b")
 	inter := &Interaction{Pressed: btn, Hovered: btn, Focused: btn}
 
-	ln := Measure(btn, rt, inter)
-	g, ok := PerformLayout(ln, image.Rect(0, 0, 200, 100), inter, rt).(*graph.Group)
+	ln := Measure(btn, rt, inter, 1)
+	g, ok := PerformLayout(ln, image.Rect(0, 0, 200, 100), inter, rt, 1).(*graph.Group)
 	if !ok {
 		t.Fatal("PerformLayout must return a group for a button")
 	}
@@ -97,8 +97,8 @@ func TestFocusRingOnlyWhenKeyboardVisible(t *testing.T) {
 	bounds := image.Rect(0, 0, 200, 100)
 
 	findRing := func(btn *model.Node, inter *Interaction) *graph.Rect {
-		ln := Measure(btn, rt, inter)
-		g := PerformLayout(ln, bounds, inter, rt).(*graph.Group)
+		ln := Measure(btn, rt, inter, 1)
+		g := PerformLayout(ln, bounds, inter, rt, 1).(*graph.Group)
 		for _, c := range g.Children {
 			if c.Base().NoHit {
 				r, ok := c.(*graph.Rect)
