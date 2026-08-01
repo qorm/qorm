@@ -493,6 +493,16 @@ func New(app *model.App) *Runtime {
 	if state == nil {
 		state = map[string]any{}
 	}
+	// Seed the active theme into state so expressions (e.g. a theme-toggle's
+	// `state.theme == …` ternary) and the native canvas backend — both of which
+	// read state.theme directly — see the manifest's initial theme instead of
+	// an empty value that only CurrentTheme() compensated for. Only when absent:
+	// an explicit initial/persisted theme wins.
+	if app != nil && app.Theme != "" {
+		if t, _ := state["theme"].(string); t == "" {
+			state["theme"] = app.Theme
+		}
+	}
 	rt := &Runtime{App: app, State: state, RouteParams: map[string]any{}, pendingEnter: true, Theme: theme.GetDefault()}
 	rt.refreshComputed() // derived values exist from the very first frame
 	return rt
@@ -504,6 +514,10 @@ func (r *Runtime) SwapAppPreservingState(newApp *model.App) {
 	if newApp == nil {
 		return
 	}
+	oldTheme := ""
+	if r.App != nil {
+		oldTheme = r.App.Theme
+	}
 	r.App = newApp
 	if r.State == nil {
 		r.State = map[string]any{}
@@ -513,6 +527,21 @@ func (r *Runtime) SwapAppPreservingState(newApp *model.App) {
 			if _, exists := r.State[k]; !exists {
 				r.State[k] = deepCopy(v)
 			}
+		}
+	}
+	// Re-seed the manifest theme the way New does. state.theme holding the OLD
+	// manifest's value is a seed the runtime wrote, not a user choice — without
+	// this a manifest theme edit (or removal) never took effect on hot reload,
+	// because the stale seed pinned CurrentTheme() to the old value. An
+	// explicit initial theme wins over the manifest theme (New's precedence);
+	// a theme the app/user set to something else is preserved.
+	if cur, _ := r.State["theme"].(string); cur == "" || (oldTheme != "" && cur == oldTheme) {
+		if t, _ := newApp.GlobalState.Initial["theme"].(string); t != "" {
+			r.State["theme"] = t
+		} else if newApp.Theme != "" {
+			r.State["theme"] = newApp.Theme
+		} else {
+			delete(r.State, "theme")
 		}
 	}
 	r.refreshComputed()

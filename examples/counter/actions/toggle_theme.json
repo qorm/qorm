@@ -3,8 +3,8 @@
   "id": "toggle_theme",
   "steps": [
     {
-      "op": "set",
-      "target": "theme",
+      "type": "state.set",
+      "path": "theme",
       "value": "{{state.theme == 'apple-light' ? 'apple-dark' : state.theme == 'apple-dark' ? 'win11-light' : state.theme == 'win11-light' ? 'win11-dark' : 'apple-light'}}"
     }
   ]
