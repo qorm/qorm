@@ -76,7 +76,7 @@ var (
 // measured through the engine's own canvas.Measure; the generic pass measures
 // the children again for Record, an accepted double measure (panels are
 // small, the pass is allocation-light).
-func (Tabs) Measure(n *model.Node, rt *runtime.Runtime, scale int) (w, h int) {
+func (Tabs) Measure(n *model.Node, rt *runtime.Runtime, vars map[string]any, scale int) (w, h int) {
 	if scale < 1 {
 		scale = 1
 	}
@@ -88,7 +88,7 @@ func (Tabs) Measure(n *model.Node, rt *runtime.Runtime, scale int) (w, h int) {
 	w = barW
 	h = tabsBarH(scale)
 	if active := tabsActiveIndex(n, rt, tabsCount(n)); active < len(n.Children) {
-		if pln := canvas.Measure(n.Children[active], rt, nil, scale); pln != nil {
+		if pln := canvas.MeasureScoped(n.Children[active], rt, nil, vars, scale); pln != nil {
 			if pln.Width > w {
 				w = pln.Width
 			}

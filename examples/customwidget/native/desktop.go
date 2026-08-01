@@ -30,7 +30,7 @@ func init() {
 // binding (evaluated per frame, like every other prop in the engine).
 type ratingWidget struct{}
 
-func (ratingWidget) Measure(n *model.Node, rt *runtime.Runtime, scale int) (w, h int) {
+func (ratingWidget) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
 	if scale < 1 {
 		scale = 1
 	}

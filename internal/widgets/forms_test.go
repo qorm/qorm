@@ -316,7 +316,7 @@ func TestRadioMeasureOnChangeDisabled(t *testing.T) {
 	if !ok {
 		t.Fatal("radio not registered")
 	}
-	if _, h := w.Measure(ra, e.RT, 1); h != 3*16+2*6 {
+	if _, h := w.Measure(ra, e.RT, nil, 1); h != 3*16+2*6 {
 		t.Errorf("radio height = %d, want 3 rows of 16 + 2 gaps of 6 = %d", h, 3*16+2*6)
 	}
 

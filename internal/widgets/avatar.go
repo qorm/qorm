@@ -25,7 +25,7 @@ type Avatar struct{}
 
 // Measure reports the square content size: the `size` prop (logical px,
 // default 40 like the HTML propNum(n, "size", 40)) times the device scale.
-func (Avatar) Measure(n *model.Node, rt *runtime.Runtime, scale int) (w, h int) {
+func (Avatar) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
 	if scale < 1 {
 		scale = 1
 	}

@@ -21,9 +21,14 @@ import (
 // disabled suppression, and onPress dispatch (canPress is type-agnostic).
 // Children of a widget node flow through the normal container layout but do
 // not count toward the widget's own content size.
+//
+// Measure's vars carry the list-instance scope ({{item.x}} etc.) when the
+// widget sits inside a repeat template — nil otherwise. A widget that
+// measures its own subtree (card, tabs) must thread it through
+// MeasureScoped or its children's bindings evaluate empty.
 type Widget interface {
 	// Measure reports the widget's content size in physical px at scale.
-	Measure(n *model.Node, rt *runtime.Runtime, scale int) (w, h int)
+	Measure(n *model.Node, rt *runtime.Runtime, vars map[string]any, scale int) (w, h int)
 	// Record builds the shape for the laid-out widget (ln carries the
 	// resolved box and style), or nil to draw nothing.
 	Record(ln *LayoutNode, rt *runtime.Runtime, scale int) graph.Node

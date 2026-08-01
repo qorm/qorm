@@ -32,6 +32,10 @@ type Interaction struct {
 	// FocusVisible is true when focus was established by the keyboard;
 	// the focus ring is only drawn in that case (:focus-visible semantics).
 	FocusVisible bool
+	// Entrance tracks per-node entrance animation clocks (the `animation`
+	// prop), keyed by (node, list index). Reset with the rest of Interaction
+	// on scene switch — exactly when entrances replay (entrance.go).
+	Entrance map[entranceKey]*entranceState
 	// Input is the live edit session of the focused input node, nil when no
 	// input is being edited. Same cross-frame home as the identities above:
 	// the buffer and cursor survive the per-frame graph rebuild here

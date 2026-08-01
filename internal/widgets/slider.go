@@ -63,7 +63,7 @@ const (
 
 // Measure reports a 160x24 default box (an explicit style width/height
 // overrides through the generic sizing, as with every widget).
-func (s *Slider) Measure(n *model.Node, rt *runtime.Runtime, scale int) (w, h int) {
+func (s *Slider) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
 	if scale < 1 {
 		scale = 1
 	}

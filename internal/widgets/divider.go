@@ -46,7 +46,7 @@ func dividerVertical(n *model.Node) bool {
 
 // Measure reports the 1px line plus the HTML default margins baked in:
 // 17px tall × 0 wide horizontal, 0 tall × 17px wide vertical (× scale).
-func (Divider) Measure(n *model.Node, rt *runtime.Runtime, scale int) (w, h int) {
+func (Divider) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
 	if scale < 1 {
 		scale = 1
 	}

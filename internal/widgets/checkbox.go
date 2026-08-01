@@ -52,7 +52,7 @@ type Checkbox struct {
 }
 
 // Measure reports the box plus label: 18px box, 8px gap, one text line tall.
-func (c *Checkbox) Measure(n *model.Node, rt *runtime.Runtime, scale int) (w, h int) {
+func (c *Checkbox) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
 	if scale < 1 {
 		scale = 1
 	}

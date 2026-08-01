@@ -54,7 +54,7 @@ const (
 
 // Measure sizes the box to the longest line (min 160px) and `rows` text
 // lines (default 4), plus padding.
-func (t *Textarea) Measure(n *model.Node, rt *runtime.Runtime, scale int) (w, h int) {
+func (t *Textarea) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
 	if scale < 1 {
 		scale = 1
 	}

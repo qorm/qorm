@@ -56,7 +56,7 @@ func linkFontSize(n *model.Node) int {
 
 // Measure reports exactly the engine's text-node sizing for the label
 // (measure.go:161: width = MeasureText, height = fs*1.2).
-func (Link) Measure(n *model.Node, rt *runtime.Runtime, scale int) (w, h int) {
+func (Link) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
 	if scale < 1 {
 		scale = 1
 	}

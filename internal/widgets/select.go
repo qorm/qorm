@@ -43,7 +43,7 @@ const (
 
 // Measure sizes the box to the widest option label plus padding and the
 // indicator column (min 120px wide, one text line plus padding tall).
-func (s *Select) Measure(n *model.Node, rt *runtime.Runtime, scale int) (w, h int) {
+func (s *Select) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
 	if scale < 1 {
 		scale = 1
 	}

@@ -18,7 +18,7 @@ import (
 // pressed it captures the stream (records every event it sees).
 type testToggle struct{ seen *[]PointerType }
 
-func (testToggle) Measure(n *model.Node, rt *runtime.Runtime, scale int) (int, int) {
+func (testToggle) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (int, int) {
 	return 40 * scale, 40 * scale
 }
 func (testToggle) Record(ln *LayoutNode, rt *runtime.Runtime, scale int) graph.Node {
@@ -76,7 +76,7 @@ func TestInteractiveWidgetRoutesAndCaptures(t *testing.T) {
 // testSpinner is an AnimatedWidget that never settles.
 type testSpinner struct{}
 
-func (testSpinner) Measure(n *model.Node, rt *runtime.Runtime, scale int) (int, int) {
+func (testSpinner) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (int, int) {
 	return 10 * scale, 10 * scale
 }
 func (testSpinner) Record(ln *LayoutNode, rt *runtime.Runtime, scale int) graph.Node {

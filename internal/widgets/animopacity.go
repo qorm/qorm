@@ -59,7 +59,7 @@ func (AnimOpacity) Animating() bool {
 // heights summed) measured through canvas.Measure. The inter-child style gap
 // is not counted — an author combining gap with no explicit size gets a box a
 // few px short; style width/height resolve that through the generic override.
-func (AnimOpacity) Measure(n *model.Node, rt *runtime.Runtime, scale int) (w, h int) {
+func (AnimOpacity) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
 	if scale < 1 {
 		scale = 1
 	}

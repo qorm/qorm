@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"time"
 
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/render/graph"
@@ -28,6 +29,14 @@ type LayoutNode struct {
 	Editing     bool
 	Cursor      int
 
+	// Entrance animation overlay (entrance.go): when EntranceActive, the
+	// node's group gets EntranceOpacity multiplied in and (EntranceDX,
+	// EntranceDY) added to its position this frame.
+	EntranceActive  bool
+	EntranceOpacity float64
+	EntranceDX      float64
+	EntranceDY      float64
+
 	// ItemIndex is the repeat instance this node belongs to: every node
 	// measured under one list item carries the item's index, so PerformLayout
 	// can stamp interaction flags onto the matching instance only (the model
@@ -51,6 +60,14 @@ type LayoutNode struct {
 // geometry is in physical pixels (HiDPI). Pass 1 for logical == physical.
 func Measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int) *LayoutNode {
 	return measure(n, rt, inter, scale, n, nil)
+}
+
+// MeasureScoped is Measure with a list-instance scope: widgets that measure
+// their own subtree (card, tabs panels) must use it with the vars the
+// registry passes them, or bindings like {{item.label}} evaluate empty
+// (the scope never reaches the plain entry).
+func MeasureScoped(n *model.Node, rt *runtime.Runtime, inter *Interaction, vars map[string]any, scale int) *LayoutNode {
+	return measure(n, rt, inter, scale, n, &listScope{vars: vars})
 }
 
 // measure is the recursive body of Measure; root identifies the scene tree
@@ -95,6 +112,14 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 	}
 	if sc != nil {
 		ln.ItemIndex = sc.index
+	}
+	// Entrance animation (the `animation` prop): a running entrance must keep
+	// frames coming, so it joins NeedsRedraw here and lands on the group in
+	// PerformLayout.
+	if ep := entranceFor(n, ln.ItemIndex, rt, inter, time.Now()); ep.running {
+		ln.NeedsRedraw = true
+		ln.EntranceActive = true
+		ln.EntranceOpacity, ln.EntranceDX, ln.EntranceDY = ep.opacity, ep.dx, ep.dy
 	}
 
 	if n.Type == "text" {
@@ -178,8 +203,14 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 	} else if w, ok := LookupWidget(n.Type); ok {
 		// A registered widget (built-in library or app-defined custom
 		// component): v1 leaf semantics — it measures itself; children flow
-		// through the generic layout but do not count toward its size.
-		contentW, contentH = w.Measure(n, rt, scale)
+		// through the generic layout but do not count toward its size. The
+		// list-instance scope (if any) threads through so its subtree
+		// bindings evaluate (MeasureScoped).
+		var vars map[string]any
+		if sc != nil {
+			vars = sc.vars
+		}
+		contentW, contentH = w.Measure(n, rt, vars, scale)
 	} else if isStackType(n.Type) {
 		// Stack: children share one origin, so the content size is the
 		// largest child on each axis (HTML sizes the position:relative
@@ -475,6 +506,11 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, r
 	group.Width = float64(ln.Width)
 	group.Height = float64(ln.Height)
 	group.Model = ln.Node
+	if ln.EntranceActive {
+		group.Opacity *= ln.EntranceOpacity
+		group.X += ln.EntranceDX
+		group.Y += ln.EntranceDY
+	}
 	if inter != nil {
 		// Repeat instances share the template's model pointer, so a flag
 		// lands only when the identity's companion index matches the instance

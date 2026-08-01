@@ -24,7 +24,7 @@ import (
 // exactly what the real textarea's HandlePointer does.
 type fakeTextarea struct{}
 
-func (fakeTextarea) Measure(n *model.Node, rt *runtime.Runtime, scale int) (int, int) {
+func (fakeTextarea) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (int, int) {
 	return 160 * scale, 80 * scale
 }
 

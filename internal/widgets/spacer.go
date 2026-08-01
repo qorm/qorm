@@ -26,7 +26,7 @@ type Spacer struct{}
 
 // Measure reports the fixed square for style.size (HTML numOK(n.Style,
 // "size")), else 0×0 — see the type doc for the flex degradation.
-func (Spacer) Measure(n *model.Node, rt *runtime.Runtime, scale int) (w, h int) {
+func (Spacer) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
 	if scale < 1 {
 		scale = 1
 	}

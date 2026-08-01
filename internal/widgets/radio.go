@@ -55,7 +55,7 @@ func radioRowH(scale int) int { return (radioCircleD + radioGap) * scale }
 
 // Measure stacks the option rows: max label width plus the circle column,
 // rows of 16px with 6px gaps (HTML: flex column, gap 6px).
-func (r *Radio) Measure(n *model.Node, rt *runtime.Runtime, scale int) (w, h int) {
+func (r *Radio) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
 	if scale < 1 {
 		scale = 1
 	}

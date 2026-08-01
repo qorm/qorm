@@ -206,7 +206,7 @@ func TestIconRendersThroughEngine(t *testing.T) {
 	if !ok {
 		t.Fatal("icon not registered")
 	}
-	if mw, mh := w.Measure(ic, e.RT, 1); mw != 24 || mh != 24 {
+	if mw, mh := w.Measure(ic, e.RT, nil, 1); mw != 24 || mh != 24 {
 		t.Fatalf("icon measure = %dx%d, want 24x24 (size prop)", mw, mh)
 	}
 
@@ -259,7 +259,7 @@ func TestLinkMeasuresLikeText(t *testing.T) {
 	if !ok {
 		t.Fatal("link not registered")
 	}
-	mw, mh := w.Measure(n, e.RT, 1)
+	mw, mh := w.Measure(n, e.RT, nil, 1)
 	if want := int(canvas.MeasureText("Docs", 14)); mw != want {
 		t.Errorf("link width = %d, want MeasureText(Docs,14) = %d", mw, want)
 	}

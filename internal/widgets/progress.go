@@ -30,7 +30,7 @@ const (
 )
 
 // Measure reports the nominal track size (physical px at scale).
-func (Progress) Measure(n *model.Node, rt *runtime.Runtime, scale int) (w, h int) {
+func (Progress) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
 	if scale < 1 {
 		scale = 1
 	}

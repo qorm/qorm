@@ -38,7 +38,7 @@ const (
 )
 
 // Measure reports the track plus label (HTML: label with gap:10px).
-func (s *Switch) Measure(n *model.Node, rt *runtime.Runtime, scale int) (w, h int) {
+func (s *Switch) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
 	if scale < 1 {
 		scale = 1
 	}

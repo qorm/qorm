@@ -51,7 +51,7 @@ func cardPaddingSet(n *model.Node, rt *runtime.Runtime) bool {
 // Measure reports the column-stacked children content plus padding, using
 // canvas.Measure per child (the exported engine entry). Conditional children
 // measure nil and drop out, matching the engine's container pass.
-func (Card) Measure(n *model.Node, rt *runtime.Runtime, scale int) (w, h int) {
+func (Card) Measure(n *model.Node, rt *runtime.Runtime, vars map[string]any, scale int) (w, h int) {
 	if scale < 1 {
 		scale = 1
 	}
@@ -75,7 +75,7 @@ func (Card) Measure(n *model.Node, rt *runtime.Runtime, scale int) (w, h int) {
 
 	contentW, contentH, count := 0, 0, 0
 	for _, c := range n.Children {
-		cln := canvas.Measure(c, rt, nil, scale)
+		cln := canvas.MeasureScoped(c, rt, nil, vars, scale) // scoped: {{item.*}} bindings must evaluate
 		if cln == nil {
 			continue
 		}
