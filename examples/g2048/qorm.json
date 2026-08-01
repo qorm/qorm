@@ -1,0 +1,11 @@
+{
+  "type": "app",
+  "id": "qorm_g2048",
+  "name": "QORM 2048",
+  "entry": "main",
+  "theme": "apple-light",
+  "globalState": {
+    "schema": {},
+    "initial": {}
+  }
+}

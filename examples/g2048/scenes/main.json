@@ -1,0 +1,53 @@
+{
+  "type": "scene",
+  "id": "main",
+  "root": {
+    "type": "column",
+    "id": "root",
+    "style": {
+      "background": "var(--background)",
+      "padding": 24,
+      "gap": 16
+    },
+    "layout": {
+      "width": "fill",
+      "height": "fill",
+      "align": "center",
+      "justify": "center"
+    },
+    "children": [
+      {
+        "type": "text",
+        "id": "title",
+        "text": "2048",
+        "style": {
+          "color": "var(--primary)",
+          "fontSize": 18,
+          "fontWeight": 700,
+          "textAlign": "center"
+        }
+      },
+      {
+        "type": "g2048",
+        "id": "game"
+      },
+      {
+        "type": "column",
+        "id": "help",
+        "style": { "gap": 2 },
+        "children": [
+          {
+            "type": "text",
+            "text": "Arrows: slide tiles   R: restart",
+            "style": { "color": "var(--textSecondary)", "fontSize": 12, "textAlign": "center" }
+          },
+          {
+            "type": "text",
+            "text": "Merge to reach 2048   Esc: unfocus",
+            "style": { "color": "var(--textSecondary)", "fontSize": 12, "textAlign": "center" }
+          }
+        ]
+      }
+    ]
+  }
+}
