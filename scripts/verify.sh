@@ -12,6 +12,8 @@ else
   echo "   ❌ FAIL"; grep -E 'FAIL|---' /tmp/verify-gotest.log | head; fail=1
 fi
 
+echo "== 1b. golden frames (canvas whole-frame hashes) =="; go test -run TestGolden ./internal/render/canvas/ >/tmp/verify-golden.log 2>&1 && echo "   ✅ golden frames match" || { echo "   ❌ golden frames FAIL"; grep -E 'FAIL|---' /tmp/verify-golden.log | head; fail=1; }
+
 echo "== 2. layout audit (qorm check --audit, WebView self-measure) =="
 go build -tags desktop -o dist/qorm-desktop ./cmd/qorm 2>/dev/null || { echo "   desktop build failed"; exit 1; }
 # timeout is GNU coreutils — absent on stock macOS; fall back to gtimeout or
