@@ -53,6 +53,18 @@ func launchWindow(srv *server.Server, ln net.Listener, url, title string) bool {
 	// SSE catch-up render — so those go through the same main-thread queue.
 	srv.SetMarshal(eng.EnqueueMutation)
 
+	// Native capability ops for hardware widgets (network, volume, …): the
+	// canvas build's pure-Go exec bridge (hardware_canvas_darwin.go — the
+	// webview cgo bridge can't be linked here), driving the engine's
+	// NativeInvoker seam on the render thread (fast ops only).
+	canvas.SetNativeInvoker(func(op string, data map[string]any, cb func(string, any)) {
+		canvasHardwareDarwin(op, data, func(js string) {
+			if name, arg, ok := canvas.ParseNativeCallback(js); ok {
+				cb(name, arg)
+			}
+		})
+	})
+
 	// An external (MCP) state change flags a redraw; the main loop renders it.
 	// Runs on the main thread inside a marshalled mutation (atomic store, so it
 	// would be safe from any goroutine regardless).
