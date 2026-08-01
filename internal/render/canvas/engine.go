@@ -140,6 +140,17 @@ type Engine struct {
 	graphRoot graph.Node
 	lastRoot  *model.Node
 
+	// lastPtr/hasPtr track the pointer's rest position from every
+	// HandlePointer call: ScrollInput carries no coordinates, so wheel and
+	// trackpad gestures hit-test where the cursor rests (scroll.go).
+	lastPtr geom.Point
+	hasPtr  bool
+
+	// itemInstances is the repeat-instance sidecar from the latest layout
+	// (list.go): instance-root graph node -> its index and item scope.
+	// Rebuilt every frame alongside the graph it annotates.
+	itemInstances map[graph.Node]itemInstance
+
 	themeFailed string // last theme name that failed to load (negative cache)
 	// themeLoaded is the last REQUESTED name that loaded successfully (positive
 	// cache). Tracked by requested name, not rt.Theme.Name: a skin file whose
@@ -494,10 +505,6 @@ func (e *Engine) resolveTheme() {
 	if e.themeLoaded == themeName {
 		return // already active (keyed by requested name, not the file's inner name)
 	}
-	if rt.Theme != nil && rt.Theme.Name == themeName {
-		e.themeLoaded = themeName // adopted a theme set elsewhere; stop probing
-		return
-	}
 	if e.themeFailed == themeName {
 		return // known-bad name; retried only when state.theme changes
 	}
@@ -514,6 +521,13 @@ func (e *Engine) resolveTheme() {
 			fmt.Fprintf(os.Stderr, "[qorm theme] loaded %q\n", themeName)
 			return
 		}
+	}
+	// No skin file by this name: adopt the current theme when it already
+	// matches (the built-in default with no themes/ dir on disk), else fail
+	// once and keep what we have.
+	if rt.Theme != nil && rt.Theme.Name == themeName {
+		e.themeLoaded = themeName
+		return
 	}
 	e.themeFailed = themeName
 	if rt.Theme == nil {

@@ -230,3 +230,39 @@ func TestCounterPhysicsCollisionEndToEnd(t *testing.T) {
 		t.Errorf("status = %v, want %q (physics demo must converge end to end)", got, "COLLISION DETECTED!")
 	}
 }
+
+// A skin file on disk is authoritative over the built-in default palette even
+// when the default already carries the same name — otherwise the first frame
+// renders the built-in apple-light while a re-toggle renders the JSON
+// apple-light (which ships extra component styles), and the two visibly
+// differ (user report).
+func TestThemeFileWinsOverBuiltinAdopt(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "themes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// A file named apple-light.json with a distinguishing component style the
+	// built-in default lacks (boxShadowBlur on button).
+	skin := `{"name":"apple-light","colors":{"background":"#F5F5F7"},` +
+		`"components":{"button":{"boxShadowBlur":99}}}`
+	if err := os.WriteFile(filepath.Join(dir, "themes", "apple-light.json"), []byte(skin), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	app := &model.App{Entry: "main", BaseDir: dir, Scenes: map[string]*model.Node{
+		"main": {Type: "column", ID: "root"},
+	}}
+	rt := runtime.New(app)
+	rt.Theme = theme.GetDefault() // name is already "apple-light"
+	rt.State["theme"] = "apple-light"
+	e := NewEngine(rt, SoftwareRenderer{})
+
+	e.resolveTheme()
+	btn, ok := rt.Theme.Components["button"]
+	if !ok || btn.BoxShadowBlur == nil || *btn.BoxShadowBlur != 99 {
+		t.Errorf("theme = builtin adopt (no button shadow), want the disk JSON to win: %+v", rt.Theme.Components["button"])
+	}
+	if e.themeLoaded != "apple-light" {
+		t.Errorf("themeLoaded = %q, want %q", e.themeLoaded, "apple-light")
+	}
+}
