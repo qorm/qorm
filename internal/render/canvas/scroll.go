@@ -105,6 +105,10 @@ func scrollOffset(ln *LayoutNode, inter *Interaction) float64 {
 // what the inner ones could not take, which is the web's scroll chaining: an
 // inner list scrolled to its end passes the rest of the gesture outward.
 func (e *Engine) scrollViewport(vp *graph.Group, m *model.Node, dy float64) float64 {
+	if dy != dy || dy > 1e308 || dy < -1e308 {
+		return 0 // NaN/Inf deltas sail through both clamps and poison the
+		// persisted offset (R6-C) — drop the gesture outright.
+	}
 	content := scrollContentOf(vp)
 	if content == nil {
 		return dy

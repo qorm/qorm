@@ -4,11 +4,20 @@ package canvas
 // corners and smooth (not stepped) shadow falloff.
 
 import (
+	"bytes"
+	"encoding/binary"
+	"hash/crc32"
 	"image"
 	"image/color"
+	"math"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/op"
+	"github.com/qorm/qorm/internal/runtime"
 )
 
 func renderRRect(t *testing.T, size image.Point, rr op.RRectOp) *image.RGBA {
@@ -121,5 +130,75 @@ func TestSDRoundBox(t *testing.T) {
 	// Radius clamped to 0 behaves as a sharp box.
 	if d := sdRoundBox(5.5, 5.5, 0, 0, 5, 5, 0); d <= 0 {
 		t.Errorf("sharp corner point d=%v, want > 0 (outside sharp corner)", d)
+	}
+}
+
+// R6-D: an agent-authored scene is untrusted input — image src must stay
+// inside the app directory (no ../ escape, no absolute paths).
+func TestImageSrcConfinedToBaseDir(t *testing.T) {
+	dir := t.TempDir()
+	app := &model.App{Entry: "main", BaseDir: dir, Scenes: map[string]*model.Node{
+		"main": {Type: "column", ID: "root"},
+	}}
+	rt := runtime.New(app)
+
+	if p, ok := resolveImageSrc("assets/pic.png", rt); !ok || !strings.HasPrefix(p, filepath.Clean(dir)) {
+		t.Errorf("inside-path src = %q, ok=%v; want resolvable inside BaseDir", p, ok)
+	}
+	if _, ok := resolveImageSrc("../../etc/passwd", rt); ok {
+		t.Error("../ escape src must be refused")
+	}
+	if _, ok := resolveImageSrc("/etc/passwd", rt); ok {
+		t.Error("absolute-path src must be refused")
+	}
+	if _, ok := resolveImageSrc("..", rt); ok {
+		t.Error("bare .. src must be refused")
+	}
+}
+
+// R6-E: check declared dimensions before decoding — a tiny PNG can legally
+// inflate to gigapixels (decompression bomb on the render thread).
+func TestImageDecodeRejectsHugeDimensions(t *testing.T) {
+	// Hand-build a minimal PNG whose IHDR declares 100000x100000 (config-only;
+	// no IDAT needed for DecodeConfig).
+	iw := image.NewRGBA(image.Rect(0, 0, 1, 1))
+	_ = iw
+	var hdr bytes.Buffer
+	w := func(b ...byte) { hdr.Write(b) }
+	w(137, 80, 78, 71, 13, 10, 26, 10) // signature
+	ihdr := []byte("IHDR")
+	data := make([]byte, 13)
+	binary.BigEndian.PutUint32(data[0:4], 100000)
+	binary.BigEndian.PutUint32(data[4:8], 100000)
+	data[8] = 8 // bit depth
+	data[9] = 6 // color type RGBA
+	chunk := append(append([]byte{}, ihdr...), data...)
+	binary.Write(&hdr, binary.BigEndian, uint32(len(data)))
+	hdr.Write(chunk)
+	binary.Write(&hdr, binary.BigEndian, crc32.ChecksumIEEE(chunk))
+
+	path := filepath.Join(t.TempDir(), "bomb.png")
+	if err := os.WriteFile(path, hdr.Bytes(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := decodeImageFile(path, "bomb.png"); got != nil {
+		t.Error("a PNG declaring 1e10 pixels must be refused before decoding")
+	}
+}
+
+// R6-C: a NaN scroll delta must not pass the clamps and poison the persisted
+// viewport offset.
+func TestScrollNaNDeltaDropped(t *testing.T) {
+	e, surf, sv := scrollFixture(t, tallChildren(10, 50))
+	e.DrawFrame(surf)
+
+	e.HandlePointer(PointerInput{Type: PointerMove, X: 100, Y: 50})
+	e.HandleScroll(ScrollInput{DY: math.NaN()})
+	if off := e.Inter.ScrollOffsets[sv]; off != 0 {
+		t.Errorf("NaN delta wrote offset %v", off)
+	}
+	e.HandleScroll(ScrollInput{DY: math.Inf(1)})
+	if off := e.Inter.ScrollOffsets[sv]; off != 0 {
+		t.Errorf("+Inf delta wrote offset %v", off)
 	}
 }

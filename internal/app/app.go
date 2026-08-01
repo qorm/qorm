@@ -31,10 +31,14 @@ const (
 
 // KeyEvent represents a keyboard interaction.
 type KeyEvent struct {
-	Type KeyEventType
-	Code int    // Raw platform keycode (macOS virtual keycode).
-	Key  string // Normalized name: "tab", "return", "escape", "space", "up", "down", "left", "right", "delete", or "a".."z" / "0".."9".
-	Shift bool  // True when the shift modifier was held.
+	Type  KeyEventType
+	Code  int    // Raw platform keycode (macOS virtual keycode).
+	Key   string // Normalized name: "tab", "return", "escape", "space", "up", "down", "left", "right", "delete", or "a".."z" / "0".."9".
+	Shift bool   // True when the shift modifier was held.
+	// Rune is the printable character the key produces (0 = none), from the
+	// platform text channel (macOS -characters — modifier-aware, so shift is
+	// already applied). Filled on KeyDown only; control keys leave it 0.
+	Rune rune
 }
 
 func (KeyEvent) isEvent() {}

@@ -4,6 +4,7 @@ package app
 
 import (
 	"image"
+	"unicode"
 	"unsafe"
 
 	"github.com/qorm/qorm/internal/appkit"
@@ -190,6 +191,9 @@ func (w *Window) LiveSize() image.Point {
 // referenced one generation (keepPix): a CGImage still sitting on the layer
 // may read from it, and Go must not free memory AppKit can touch.
 func (w *Window) Resize(wPts, hPts int) {
+	if wPts < 1 || hPts < 1 {
+		return // degenerate size (mid-minimize): keep the current plane (R6-A)
+	}
 	impl := w.w
 	if v := appkit.MsgSend(impl.ptr, appkit.SelRegisterName("valueForKey:"), appkit.NewNSString("backingScaleFactor")); v != 0 {
 		var f float64
@@ -426,7 +430,22 @@ func Run(onEvent func(Event), onTick func()) {
 				}
 
 				if activeWindow != nil && onEvent != nil {
-					onEvent(KeyEvent{Type: kt, Code: int(keyCode), Key: darwinKeyCodes[int(keyCode)], Shift: shift})
+					// Printable character for text input (KeyDown only):
+					// -characters is modifier-aware (shift is applied); control
+					// keys report private-use runes (U+F700–F8FF) or
+					// unprintables, which are dropped — Key carries those.
+					var r rune
+					if kt == KeyDown {
+						if chars := appkit.MsgSend(event, appkit.SelRegisterName("characters")); chars != 0 {
+							for _, rr := range objcString(chars, 16) {
+								if unicode.IsPrint(rr) && (rr < 0xF700 || rr > 0xF8FF) {
+									r = rr
+									break
+								}
+							}
+						}
+					}
+					onEvent(KeyEvent{Type: kt, Code: int(keyCode), Key: darwinKeyCodes[int(keyCode)], Shift: shift, Rune: r})
 				}
 			} else if eventType == 22 {
 				// NSScrollWheel
@@ -459,4 +478,24 @@ func Run(onEvent func(Event), onTick func()) {
 			onTick()
 		}
 	}
+}
+
+// objcString copies an NSString into a Go string via -getCString:maxLength:
+// encoding: (NSUTF8StringEncoding = 4), writing into a Go-owned buffer — the
+// only unsafe.Pointer conversion is Go→C, never a uintptr read-back.
+func objcString(ns uintptr, max int) string {
+	if ns == 0 {
+		return ""
+	}
+	buf := make([]byte, max)
+	ok := appkit.MsgSend(ns, appkit.SelRegisterName("getCString:maxLength:encoding:"),
+		uintptr(unsafe.Pointer(&buf[0])), uintptr(max), 4)
+	if ok == 0 {
+		return ""
+	}
+	n := 0
+	for n < max && buf[n] != 0 {
+		n++
+	}
+	return string(buf[:n])
 }

@@ -77,7 +77,7 @@ func launchWindow(srv *server.Server, ln net.Listener, url, title string) bool {
 				// state-changing input already dirtied the engine; nothing else
 			}
 		case app.KeyEvent:
-			eng.HandleKey(canvas.KeyInput{Key: e.Key, Shift: e.Shift, Down: e.Type == app.KeyDown})
+			eng.HandleKey(canvas.KeyInput{Key: e.Key, Shift: e.Shift, Down: e.Type == app.KeyDown, Rune: e.Rune})
 		case app.ScrollEvent:
 			eng.HandleScroll(canvas.ScrollInput{DX: e.DeltaX * s, DY: e.DeltaY * s})
 		}

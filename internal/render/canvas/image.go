@@ -54,11 +54,12 @@ func warnImageOnce(key, format string, args ...any) {
 	fmt.Fprintf(imageWarnOut, "[qorm canvas] "+format+"\n", args...)
 }
 
-// resolveImageSrc maps an author src to a local absolute path. Relative paths
-// resolve against the app's BaseDir (model.App.BaseDir is documented for
-// exactly this); absolute paths pass through. Anything else — http(s), data:
-// URIs, the qormapp bundle scheme — is not loadable by the native renderer
-// and reports ok=false.
+// resolveImageSrc maps an author src to a local absolute path INSIDE the app
+// directory. Relative paths resolve against the app's BaseDir and must not
+// escape it (an agent-authored scene is untrusted input: ../.. traversal or
+// an absolute path would turn the renderer into a local-file read primitive
+// whose pixels can leak back through screenshots). Remote/scheme sources are
+// not loadable by the native renderer and report ok=false.
 func resolveImageSrc(src string, rt *runtime.Runtime) (string, bool) {
 	src = strings.TrimSpace(src)
 	if src == "" {
@@ -69,7 +70,8 @@ func resolveImageSrc(src string, rt *runtime.Runtime) (string, bool) {
 		return "", false
 	}
 	if filepath.IsAbs(src) {
-		return filepath.Clean(src), true
+		warnImageOnce("abs:"+src, "image src %q is an absolute path; the native renderer only loads files inside the app directory", src)
+		return "", false
 	}
 	base := ""
 	if rt != nil && rt.App != nil {
@@ -80,7 +82,17 @@ func resolveImageSrc(src string, rt *runtime.Runtime) (string, bool) {
 		warnImageOnce("nobase:"+src, "image src %q is relative but the app has no BaseDir; cannot resolve it", src)
 		return "", false
 	}
-	return filepath.Join(base, src), true
+	baseAbs, err := filepath.Abs(base)
+	if err != nil {
+		warnImageOnce("base:"+base, "image src %q: cannot resolve app BaseDir %q: %v", src, base, err)
+		return "", false
+	}
+	clean := filepath.Clean(filepath.Join(baseAbs, src))
+	if clean != baseAbs && !strings.HasPrefix(clean, baseAbs+string(filepath.Separator)) {
+		warnImageOnce("escape:"+src, "image src %q escapes the app directory; refusing to load it", src)
+		return "", false
+	}
+	return clean, true
 }
 
 // loadImage returns the decoded, straight-pixel bitmap for src, or nil on any
@@ -116,6 +128,18 @@ func decodeImageFile(path, src string) *image.RGBA {
 		warnImageOnce("load:"+path, "image src %q (%s) failed to load: %v; drawing a placeholder", src, path, err)
 		return nil
 	}
+	// Decompression-bomb guard (R6-E): check the declared dimensions BEFORE
+	// decoding — a 70KB PNG can legally inflate to gigapixels, and the
+	// allocation happens on the render thread.
+	cfg, _, err := image.DecodeConfig(bytes.NewReader(b))
+	if err != nil {
+		warnImageOnce("decode:"+path, "image src %q (%s) is not a decodable PNG/JPEG: %v; drawing a placeholder", src, path, err)
+		return nil
+	}
+	if px := int64(cfg.Width) * int64(cfg.Height); cfg.Width <= 0 || cfg.Height <= 0 || px > maxImagePixels {
+		warnImageOnce("toobig:"+path, "image src %q (%s) declares %dx%d pixels — over the native cap (%d); drawing a placeholder", src, path, cfg.Width, cfg.Height, maxImagePixels)
+		return nil
+	}
 	decoded, _, err := image.Decode(bytes.NewReader(b))
 	if err != nil {
 		warnImageOnce("decode:"+path, "image src %q (%s) is not a decodable PNG/JPEG: %v; drawing a placeholder", src, path, err)
@@ -123,6 +147,10 @@ func decodeImageFile(path, src string) *image.RGBA {
 	}
 	return toStraightRGBA(decoded)
 }
+
+// maxImagePixels caps a decoded image (~64MB of RGBA) so a hostile or
+// accidental giant bitmap cannot OOM the render thread.
+const maxImagePixels = 16 << 20
 
 // toStraightRGBA converts any decoded image to *image.RGBA holding straight
 // (non-premultiplied) bytes. At().RGBA() yields alpha-premultiplied 16-bit
