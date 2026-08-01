@@ -175,6 +175,11 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 		// Intrinsic size (scaled); an explicit style width/height overrides
 		// via the generic sizing below, and RecordImage gets the resolved box.
 		contentW, contentH = MeasureImage(n, rt, scale)
+	} else if w, ok := LookupWidget(n.Type); ok {
+		// A registered widget (built-in library or app-defined custom
+		// component): v1 leaf semantics — it measures itself; children flow
+		// through the generic layout but do not count toward its size.
+		contentW, contentH = w.Measure(n, rt, scale)
 	} else if isStackType(n.Type) {
 		// Stack: children share one origin, so the content size is the
 		// largest child on each axis (HTML sizes the position:relative
@@ -553,6 +558,11 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, r
 		// handled by the rasterizer); a broken src records a placeholder box.
 		if im := RecordImage(ln.Node, rt, ln.Width, ln.Height, ln.Style.BorderRadius); im != nil {
 			group.AddChild(im)
+		}
+	} else if w, ok := LookupWidget(ln.Node.Type); ok {
+		// A registered widget mounts the shape it built (see Widget.Record).
+		if shape := w.Record(ln, rt, scale); shape != nil {
+			group.AddChild(shape)
 		}
 	} else if ln.Text != "" {
 		fs := ln.Style.FontSize
