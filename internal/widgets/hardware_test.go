@@ -1,6 +1,7 @@
 package widgets
 
 import (
+	"image"
 	"testing"
 
 	"github.com/qorm/qorm/internal/capability"
@@ -50,7 +51,7 @@ func TestHardwarePressInvokesAndSyncs(t *testing.T) {
 
 	n := &model.Node{Type: "network", ID: "net", Value: "{{state.net}}"}
 	hw := Hardware{findCap("network")}
-	if !hw.HandlePointer(n, rt, canvas.PointerInput{Type: canvas.PointerPress}, &canvas.Interaction{}) {
+	if !hw.HandlePointer(n, rt, canvas.PointerInput{Type: canvas.PointerPress, X: 10, Y: 40}, &canvas.Interaction{}, image.Rect(0, 0, 240, 62)) {
 		t.Fatal("press on a fast capability was not consumed")
 	}
 	if gotOp != "networkStatus" {
@@ -68,11 +69,11 @@ func TestHardwareSlowStemAndNoBridgeDegrade(t *testing.T) {
 	rt := hwRuntime()
 	canvas.SetNativeInvoker(nil)
 	n := &model.Node{Type: "bluetooth", ID: "bt"}
-	if (Hardware{findCap("bluetooth")}).HandlePointer(n, rt, canvas.PointerInput{Type: canvas.PointerPress}, &canvas.Interaction{}) {
+	if (Hardware{findCap("bluetooth")}).HandlePointer(n, rt, canvas.PointerInput{Type: canvas.PointerPress}, &canvas.Interaction{}, image.Rectangle{}) {
 		t.Error("slow stem must not invoke")
 	}
 	nn := &model.Node{Type: "network", ID: "net"}
-	if (Hardware{findCap("network")}).HandlePointer(nn, rt, canvas.PointerInput{Type: canvas.PointerPress}, &canvas.Interaction{}) {
+	if (Hardware{findCap("network")}).HandlePointer(nn, rt, canvas.PointerInput{Type: canvas.PointerPress}, &canvas.Interaction{}, image.Rectangle{}) {
 		t.Error("no bridge installed: must not invoke")
 	}
 	if out := (Hardware{findCap("network")}).outputText(nn, rt); out != "native bridge unavailable on this host" {
@@ -82,7 +83,13 @@ func TestHardwareSlowStemAndNoBridgeDegrade(t *testing.T) {
 
 func TestHardwareSpeakArgsFromProps(t *testing.T) {
 	n := &model.Node{Type: "tts", ID: "sp", Props: map[string]any{"text": "hello world"}}
-	args := (Hardware{findCap("tts")}).opArgs(n, hwRuntime(), "speak")
+	hw := Hardware{findCap("tts")}
+	var args map[string]any
+	for _, b := range hw.buttons() {
+		if b.op == "speak" {
+			args = b.args(n, hwRuntime())
+		}
+	}
 	if args["text"] != "hello world" {
 		t.Errorf("speak args = %v", args)
 	}
