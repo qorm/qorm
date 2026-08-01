@@ -490,3 +490,33 @@ func TestInputComputedNamespaceRefusesWriteBack(t *testing.T) {
 		t.Errorf("computed namespace overwritten: %#v, want name stayed \"derived\"", rt.State["computed"])
 	}
 }
+
+// Secure inputs mask their value with one bullet per rune (browser
+// type=password semantics); the placeholder shows as-is, and the id-based
+// fallback mirrors the HTML path.
+func TestSecureInputMasksValue(t *testing.T) {
+	cases := []struct {
+		name string
+		node *model.Node
+		want string
+		ph   bool
+	}{
+		{"secure prop", &model.Node{Type: "input", ID: "pwd", Value: "secret",
+			Props: map[string]any{"secure": true}}, "••••••", false},
+		{"password prop", &model.Node{Type: "input", ID: "x", Value: "ab",
+			Props: map[string]any{"password": "true"}}, "••", false},
+		{"id fallback", &model.Node{Type: "input", ID: "input_password", Value: "abc"},
+			"•••", false},
+		{"non-secure", &model.Node{Type: "input", ID: "email", Value: "ab"},
+			"ab", false},
+		{"placeholder unmasked", &model.Node{Type: "input", ID: "pwd", Placeholder: "••••",
+			Props: map[string]any{"secure": true}}, "••••", true},
+	}
+	rt := rtWithDefaultTheme(t)
+	for _, c := range cases {
+		got, ph := inputDisplayText(c.node, rt, &Interaction{})
+		if got != c.want || ph != c.ph {
+			t.Errorf("%s: inputDisplayText = %q, ph=%v; want %q, ph=%v", c.name, got, ph, c.want, c.ph)
+		}
+	}
+}

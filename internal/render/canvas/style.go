@@ -209,9 +209,32 @@ func resolveColor(c string, rt *runtime.Runtime) color.RGBA {
 		return color.RGBA{0, 0, 0, 0}
 	}
 
-	// 1. var(--name) — resolve against theme, then defaultVars
+	// 1. var(--name) — design tokens, HTML theme-var aliases, theme, then
+	// defaultVars; only then the debug magenta.
 	if strings.HasPrefix(c, "var(") && strings.HasSuffix(c, ")") {
 		varName := c[4 : len(c)-1]
+		// 1a. Manifest design tokens render as var(--qorm-token-<dotted.name>)
+		// with dots flattened to hyphens (color.bg → --qorm-token-color-bg).
+		// Match by forward-mapping each token key (exact for nested dots).
+		if rt != nil && rt.App != nil && strings.HasPrefix(varName, "--qorm-token-") {
+			for name, tok := range rt.App.DesignTokens {
+				if tok.Type == "color" && varName == "--qorm-token-"+strings.ReplaceAll(name, ".", "-") {
+					return parseColor(tok.Value)
+				}
+			}
+		}
+		// 1b. HTML theme-var aliases (render/theme.go palettes) → canvas theme
+		// tokens, so scenes written for the HTML shell keep their colors.
+		if alias, ok := themeVarAliases[varName]; ok {
+			if rt != nil && rt.Theme != nil {
+				if col, ok := rt.Theme.GetColor(alias); ok {
+					return col
+				}
+			}
+			if col, ok := defaultVars["--"+alias]; ok {
+				return col
+			}
+		}
 		// Check active theme first
 		if rt != nil && rt.Theme != nil {
 			// Strip leading -- for theme lookup (theme keys don't have --)
@@ -557,4 +580,16 @@ func styleDimPair(minV, maxV any, rt *runtime.Runtime) (min, max int) {
 		return 0
 	}
 	return num(minV), num(maxV)
+}
+
+// themeVarAliases maps the HTML shell's theme variable names
+// (render/theme.go palettes) onto canvas theme tokens, so scenes authored
+// for the HTML path keep their colors in the native renderer.
+var themeVarAliases = map[string]string{
+	"--label":  "text",
+	"--label2": "textSecondary",
+	"--bg":     "background",
+	"--sep":    "separator",
+	"--fill":   "inputBg",
+	"--accent": "primary",
 }

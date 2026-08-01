@@ -3,6 +3,7 @@ package canvas
 import (
 	"image/color"
 	"regexp"
+	"strings"
 	"unicode"
 
 	"github.com/qorm/qorm/internal/model"
@@ -74,17 +75,48 @@ func editSession(inter *Interaction, n *model.Node) *InputState {
 // session is live, else the evaluated value, else the placeholder (flagged so
 // PerformLayout can paint it in the secondary color). A live session with an
 // empty buffer still shows the placeholder — never the stale bound value.
+// A secure input masks its VALUE (never the placeholder) with one bullet per
+// rune, like the browser's type=password.
 func inputDisplayText(n *model.Node, rt *runtime.Runtime, inter *Interaction) (text string, placeholder bool) {
+	mask := func(s string) string {
+		return strings.Repeat("•", len([]rune(s)))
+	}
 	if s := editSession(inter, n); s != nil {
 		if len(s.Runes) > 0 {
+			if secureInput(n) {
+				return mask(string(s.Runes)), false
+			}
 			return string(s.Runes), false
 		}
 		return n.Placeholder, true
 	}
 	if v := evalPropStr(n.Value, rt); v != "" {
+		if secureInput(n) {
+			return mask(v), false
+		}
 		return v, false
 	}
 	return n.Placeholder, true
+}
+
+// secureInput reports whether the input masks its value (HTML: type=password
+// via the secure/password prop or a "password"-named id, render_input.go).
+func secureInput(n *model.Node) bool {
+	for _, k := range []string{"secure", "password"} {
+		if v, ok := n.Prop(k); ok {
+			switch t := v.(type) {
+			case bool:
+				if t {
+					return true
+				}
+			case string:
+				if t == "true" || t == "1" {
+					return true
+				}
+			}
+		}
+	}
+	return strings.Contains(strings.ToLower(n.ID), "password")
 }
 
 // keyText returns the text a key event contributes, if any. The host's Rune

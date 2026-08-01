@@ -5,6 +5,7 @@ package canvas
 
 import (
 	"image"
+	"image/color"
 	"math"
 	"os"
 	"path/filepath"
@@ -313,5 +314,39 @@ func TestThemeAliasesResolveThroughNormalProbe(t *testing.T) {
 	e.resolveTheme()
 	if rt.Theme.Name != "apple-light" {
 		t.Errorf(`theme:"auto" resolved to %q, want apple-light`, rt.Theme.Name)
+	}
+}
+
+// designTokens render as var(--qorm-token-<name>) and the HTML shell's theme
+// variables alias onto canvas theme tokens — scenes authored for either
+// source keep their colors (gallery's magenta background was the user-
+// visible symptom).
+func TestResolveColorDesignTokensAndAliases(t *testing.T) {
+	rt := rtWithDefaultTheme(t)
+	rt.App.DesignTokens = map[string]model.DesignToken{
+		"color.bg":      {Type: "color", Value: "#f2f2f7"},
+		"color.primary": {Type: "color", Value: "#0a84ff"},
+		"spacing.md":    {Type: "number", Value: "16"},
+	}
+
+	if got := resolveColor("var(--qorm-token-color-bg)", rt); got != (color.RGBA{0xf2, 0xf2, 0xf7, 255}) {
+		t.Errorf("designToken bg = %v", got)
+	}
+	if got := resolveColor("var(--qorm-token-color-primary)", rt); got != (color.RGBA{0x0a, 0x84, 0xff, 255}) {
+		t.Errorf("designToken primary = %v", got)
+	}
+	// Number tokens are not colors: they must NOT resolve as one.
+	if got := resolveColor("var(--qorm-token-spacing-md)", rt); got == (color.RGBA{0xf2, 0xf2, 0xf7, 255}) {
+		t.Error("a number token must not resolve as a color")
+	}
+	// HTML theme-var aliases (apple-light default theme values).
+	if got := resolveColor("var(--label)", rt); got != (color.RGBA{0x1d, 0x1d, 0x1f, 255}) {
+		t.Errorf("--label alias = %v, want text %v", got, color.RGBA{0x1d, 0x1d, 0x1f, 255})
+	}
+	if got := resolveColor("var(--label2)", rt); got != (color.RGBA{0x86, 0x86, 0x8b, 255}) {
+		t.Errorf("--label2 alias = %v, want textSecondary", got)
+	}
+	if got := resolveColor("var(--fill)", rt); got != (color.RGBA{0xe8, 0xe8, 0xed, 255}) {
+		t.Errorf("--fill alias = %v, want inputBg", got)
 	}
 }

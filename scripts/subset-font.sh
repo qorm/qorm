@@ -48,6 +48,18 @@ for hi in list(range(0xA1, 0xA4)) + list(range(0xB0, 0xF8)):
             continue
         chars.update(ord(c) for c in s)
 
+# Hand-picked extras: symbols the widgets/examples actually use — none of
+# them are in GB2312. (Missing from the source font they subset to nothing,
+# so keep this list to what Noto Sans SC really carries.)
+chars.update([
+    0x00B7,  # · middle dot
+    0x2013, 0x2014,  # – —
+    0x2022,  # • bullet (secure-input mask)
+    0x2026,  # … ellipsis
+    0x2190, 0x2191, 0x2192, 0x2193,  # ← ↑ → ↓
+    0x25B2, 0x25BC, 0x25CB, 0x25CF,  # ▲ ▼ ○ ●
+])
+
 with open(sys.argv[1], "w") as f:
     for cp in sorted(chars):
         f.write(f"U+{cp:04X}\n")

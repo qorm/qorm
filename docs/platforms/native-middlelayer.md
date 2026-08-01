@@ -204,7 +204,7 @@ Scenes then use the type directly: `{"type": "rating", "value": 4}`, with
 extensions: `canvas.InteractiveWidget` (pointer/drag, see
 `internal/widgets/slider.go`) and `canvas.AnimatedWidget` (continuous
 animation, see `internal/widgets/spinner.go`). The full working app is
-[`examples/customwidget`](../../examples/customwidget).
+`examples/customwidget`.
 
 Note: `qorm package` compiles the middle layer into the binary (so the
 widget ships in the app); a plain `qorm run` of a framework checkout does not
