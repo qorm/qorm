@@ -72,7 +72,7 @@ func TestBadgeLabelBindingEvaluates(t *testing.T) {
 	if !ok {
 		t.Fatal("badge not registered")
 	}
-	mw, _ := w.Measure(e.RT.App.Scenes["main"].Children[0], e.RT, 1)
+	mw, _ := w.Measure(e.RT.App.Scenes["main"].Children[0], e.RT, nil, 1)
 	if mw <= 16 { // 8px padding each side and nothing else
 		t.Errorf("bound badge width = %d, want label pixels + padding", mw)
 	}

@@ -28,7 +28,7 @@ type Badge struct{}
 
 // Measure reports the pill's content size: label width plus 8px horizontal
 // padding per side, one line tall plus 2px vertical padding (× scale).
-func (Badge) Measure(n *model.Node, rt *runtime.Runtime, scale int) (w, h int) {
+func (Badge) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
 	if scale < 1 {
 		scale = 1
 	}
@@ -49,7 +49,10 @@ func (Badge) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.
 	pill.Width = float64(ln.Width)
 	pill.Height = float64(ln.Height)
 	pill.BorderRadius = float64(ln.Height) / 2 // a full pill, like CSS 999px
-	pill.Fill = themeColor(rt, "surface", color.RGBA{238, 238, 240, 255})
+	// HTML spells the standalone badge background var(--fill) (a grey) —
+	// canvas resolves that alias to inputBg; surface would be translucent
+	// white and invisible on the white scene (R7-A).
+	pill.Fill = themeColor(rt, "inputBg", color.RGBA{238, 238, 240, 255})
 
 	label := badgeLabel(ln.Node, rt)
 	txtW := int(canvas.MeasureText(label, float64(fs)))

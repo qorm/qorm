@@ -293,14 +293,17 @@ func (e *Engine) RenderInto(size image.Point, scale int, target *image.RGBA) (bo
 	return true, st
 }
 
-// sceneAnimating reports whether any mounted node is a registered
+// sceneAnimating reports whether any VISIBLE mounted node is a registered
 // AnimatedWidget still asking for frames — the engine keeps ticking without
-// knowing the widget's type.
+// knowing the widget's type. Hidden nodes (if/visible/show flip or an
+// unselected when branch) don't count: a spinner on an inactive tab must
+// not spin the loop at full speed (R7).
 func (e *Engine) sceneAnimating() bool {
+	rt := e.RT
 	found := false
 	var walk func(n *model.Node)
 	walk = func(n *model.Node) {
-		if n == nil || found {
+		if n == nil || found || !nodeVisible(n, rt) {
 			return
 		}
 		if w, ok := LookupWidget(n.Type); ok {
@@ -308,6 +311,10 @@ func (e *Engine) sceneAnimating() bool {
 				found = true
 				return
 			}
+		}
+		if n.Type == "when" {
+			walk(whenBranch(n, rt))
+			return
 		}
 		for _, c := range n.Children {
 			walk(c)

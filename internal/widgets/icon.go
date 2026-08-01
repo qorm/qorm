@@ -55,31 +55,45 @@ func iconName(n *model.Node, rt *runtime.Runtime) string {
 	return strings.TrimSpace(fmt.Sprint(runtime.EvalBinding(n.Text, map[string]any{"state": rt.State})))
 }
 
+// maxIconSide bounds an icon's logical edge. The 4x-supersampled coverage
+// map and the final bitmap both grow with the square of the size, and scene
+// JSON feeds this directly — an unclamped size is an OOM/DoS on the render
+// thread (R7-C).
+const maxIconSide = 512
+
 // iconSide resolves the square edge in logical px: the HTML default is the
 // `size` prop (propNum 22, render_media.go:107); canvas additionally honors
 // style fontSize so the icon follows text sizing, then 22.
 func iconSide(n *model.Node, rt *runtime.Runtime) float64 {
+	side := 0.0
 	if raw, ok := n.Prop("size"); ok {
 		switch v := raw.(type) {
 		case float64:
 			if v > 0 {
-				return v
+				side = v
 			}
 		case int:
 			if v > 0 {
-				return float64(v)
+				side = float64(v)
 			}
 		case string:
 			r := runtime.EvalBinding(v, map[string]any{"state": rt.State})
 			if f, err := strconv.ParseFloat(fmt.Sprint(r), 64); err == nil && f > 0 {
-				return f
+				side = f
 			}
 		}
 	}
-	if s, ok := styleNumber(n, "fontSize"); ok && s > 0 {
-		return float64(s)
+	if side <= 0 {
+		if s, ok := styleNumber(n, "fontSize"); ok && s > 0 {
+			side = float64(s)
+		} else {
+			side = 22
+		}
 	}
-	return 22
+	if side > maxIconSide {
+		side = maxIconSide
+	}
+	return side
 }
 
 // iconInk resolves the glyph color: author style color (currentColor
@@ -94,7 +108,7 @@ func iconInk(n *model.Node, ln *canvas.LayoutNode, rt *runtime.Runtime) color.RG
 // Measure reports the square side × scale, regardless of whether the name
 // resolves (the box survives an unknown name, like a broken img keeps its
 // dimensions).
-func (Icon) Measure(n *model.Node, rt *runtime.Runtime, scale int) (w, h int) {
+func (Icon) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
 	if scale < 1 {
 		scale = 1
 	}
@@ -111,21 +125,27 @@ func (Icon) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.N
 	if ln.Width <= 0 || ln.Height <= 0 {
 		return nil
 	}
+	// An explicit style width/height bypasses Measure's clamp — re-clamp so
+	// the supersampled coverage map stays bounded (R7-C).
+	w, h := ln.Width, ln.Height
+	if max := maxIconSide * scale; w > max || h > max {
+		w, h = max, max
+	}
 	name := iconName(ln.Node, rt)
 	body, ok := iconSet[name]
 	if !ok {
 		warnIconOnce(name)
 		ph := draw.NewRect()
-		ph.Width = float64(ln.Width)
-		ph.Height = float64(ln.Height)
+		ph.Width = float64(w)
+		ph.Height = float64(h)
 		ph.BorderRadius = 4 * float64(scale)
 		ph.Fill = color.RGBA{229, 229, 234, 255}
 		return ph
 	}
 	node := draw.NewImage()
-	node.Width = float64(ln.Width)
-	node.Height = float64(ln.Height)
-	node.Bitmap = rasterIcon(body, ln.Width, ln.Height, iconInk(ln.Node, ln, rt))
+	node.Width = float64(w)
+	node.Height = float64(h)
+	node.Bitmap = rasterIcon(body, w, h, iconInk(ln.Node, ln, rt))
 	node.Fit = "fill" // bitmap is rendered at exactly the box size (1:1)
 	return node
 }

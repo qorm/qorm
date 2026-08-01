@@ -69,14 +69,23 @@ func spinStartFor(n *model.Node) time.Time {
 	return t
 }
 
+// maxSpinSize bounds the spinner bitmap edge: the per-pixel rasterization
+// grows with the square of the size and scene JSON feeds it directly — an
+// unclamped size is an OOM/DoS on the render thread (R7-C).
+const maxSpinSize = 512
+
 // Measure reports the square content size: the `size` prop (logical px,
 // default 24 like the HTML propNum(n, "size", 24)) times the device scale.
-func (Spinner) Measure(n *model.Node, rt *runtime.Runtime, scale int) (w, h int) {
+func (Spinner) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
 	if scale < 1 {
 		scale = 1
 	}
 	spinStartFor(n) // start the clock at mount, before the first Record
-	sz := int(propNumDefault(n, "size", 24)) * scale
+	raw := propNumDefault(n, "size", 24)
+	if raw > maxSpinSize {
+		raw = maxSpinSize
+	}
+	sz := int(raw) * scale
 	return sz, sz
 }
 
@@ -92,6 +101,11 @@ func (Spinner) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) dra
 	}
 	if sz <= 0 {
 		return nil
+	}
+	// An explicit style width/height bypasses Measure's clamp — re-clamp the
+	// resolved box so the per-pixel raster stays bounded (R7-C).
+	if max := maxSpinSize * scale; sz > max {
+		sz = max
 	}
 	if scale < 1 {
 		scale = 1
