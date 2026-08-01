@@ -9,18 +9,6 @@ import (
 	"github.com/qorm/qorm/internal/appkit"
 )
 
-var (
-	clsNSImage  uintptr
-	selSetImage uintptr
-)
-
-func lazyInitAppKit() {
-	if clsNSImage == 0 {
-		clsNSImage = appkit.ObjcGetClass("NSImage")
-		selSetImage = appkit.SelRegisterName("setImage:")
-	}
-}
-
 type windowImpl struct {
 	ptr  uintptr
 	view uintptr
@@ -31,12 +19,12 @@ type windowImpl struct {
 	// The MAIN thread both renders into pix (via the engine) and presents it,
 	// so there is no render/display data race and no multi-plane dance — the
 	// design that caused the old background-render flicker/blank bugs.
-	pix    []byte
-	img    uintptr // NSImage wrapping the rep over pix
-	rep    uintptr // NSBitmapImageRep over pix (CGImage source each frame)
-	layer  uintptr // view's CALayer; we push CGImages into its contents
-	stride int
-	scale  int // device-pixel ratio (set from backingScaleFactor; 0/1 == 1)
+	pix     []byte
+	keepPix []byte  // previous plane, retained one generation (see Resize)
+	rep     uintptr // NSBitmapImageRep over pix (CGImage source each frame)
+	layer   uintptr // view's CALayer; we push CGImages into its contents
+	stride  int
+	scale   int // device-pixel ratio (set from backingScaleFactor; 0/1 == 1)
 }
 
 // darwinKeyCodes maps macOS ANSI virtual keycodes to normalized key names.
@@ -55,7 +43,6 @@ var activeWindow *Window
 
 // NewWindow creates a new native window.
 func NewWindow(title string, width, height int) *Window {
-	lazyInitAppKit()
 	clsNSApp := appkit.ObjcGetClass("NSApplication")
 	app := appkit.MsgSend(clsNSApp, appkit.SelRegisterName("sharedApplication"))
 	appkit.MsgSend(app, appkit.SelRegisterName("setActivationPolicy:"), 0)
@@ -67,29 +54,29 @@ func NewWindow(title string, width, height int) *Window {
 	// We need to call: [alloc initWithContentRect:rect styleMask:15 backing:2 defer:0]
 	sigMsg := appkit.SelRegisterName("instanceMethodSignatureForSelector:")
 	sig := appkit.MsgSend(clsNSWindow, sigMsg, appkit.SelRegisterName("initWithContentRect:styleMask:backing:defer:"))
-	
+
 	clsNSInvocation := appkit.ObjcGetClass("NSInvocation")
 	inv := appkit.MsgSend(clsNSInvocation, appkit.SelRegisterName("invocationWithMethodSignature:"), sig)
-	
+
 	selInitWindow := appkit.SelRegisterName("initWithContentRect:styleMask:backing:defer:")
 	appkit.MsgSend(inv, appkit.SelRegisterName("setSelector:"), selInitWindow)
 	appkit.MsgSend(inv, appkit.SelRegisterName("setTarget:"), alloc)
-	
+
 	rect := struct{ X, Y, W, H float64 }{100, 100, float64(width), float64(height)}
 	rectPtr := uintptr(unsafe.Pointer(&rect))
 	appkit.MsgSend(inv, appkit.SelRegisterName("setArgument:atIndex:"), rectPtr, 2)
-	
+
 	styleMask := uintptr(15)
 	appkit.MsgSend(inv, appkit.SelRegisterName("setArgument:atIndex:"), uintptr(unsafe.Pointer(&styleMask)), 3)
-	
+
 	backing := uintptr(2)
 	appkit.MsgSend(inv, appkit.SelRegisterName("setArgument:atIndex:"), uintptr(unsafe.Pointer(&backing)), 4)
-	
+
 	deferFlag := uintptr(0)
 	appkit.MsgSend(inv, appkit.SelRegisterName("setArgument:atIndex:"), uintptr(unsafe.Pointer(&deferFlag)), 5)
-	
+
 	appkit.MsgSend(inv, appkit.SelRegisterName("invoke"))
-	
+
 	var winPtr uintptr
 	appkit.MsgSend(inv, appkit.SelRegisterName("getReturnValue:"), uintptr(unsafe.Pointer(&winPtr)))
 
@@ -98,17 +85,17 @@ func NewWindow(title string, width, height int) *Window {
 	// Now for NSImageView
 	clsNSImageView := appkit.ObjcGetClass("NSImageView")
 	viewAlloc := appkit.MsgSend(clsNSImageView, appkit.SelRegisterName("alloc"))
-	
+
 	sigView := appkit.MsgSend(clsNSImageView, sigMsg, appkit.SelRegisterName("initWithFrame:"))
 	invView := appkit.MsgSend(clsNSInvocation, appkit.SelRegisterName("invocationWithMethodSignature:"), sigView)
 	appkit.MsgSend(invView, appkit.SelRegisterName("setSelector:"), appkit.SelRegisterName("initWithFrame:"))
 	appkit.MsgSend(invView, appkit.SelRegisterName("setTarget:"), viewAlloc)
 	appkit.MsgSend(invView, appkit.SelRegisterName("setArgument:atIndex:"), rectPtr, 2)
 	appkit.MsgSend(invView, appkit.SelRegisterName("invoke"))
-	
+
 	var view uintptr
 	appkit.MsgSend(invView, appkit.SelRegisterName("getReturnValue:"), uintptr(unsafe.Pointer(&view)))
-	
+
 	appkit.MsgSend(winPtr, appkit.SelRegisterName("setContentView:"), view)
 
 	appkit.MsgSend(winPtr, appkit.SelRegisterName("makeKeyAndOrderFront:"), 0)
@@ -141,79 +128,12 @@ func NewWindow(title string, width, height int) *Window {
 	// One shared pixel plane; the NSBitmapImageRep wraps it (initWithBitmapData
 	// Planes takes a pointer to the plane pointer — it does NOT copy the data).
 	impl.pix = make([]byte, impl.stride*physH)
-	clsBitmapRep := appkit.ObjcGetClass("NSBitmapImageRep")
-	selAlloc := appkit.SelRegisterName("alloc")
-	selInitRep := appkit.SelRegisterName("initWithBitmapDataPlanes:pixelsWide:pixelsHigh:bitsPerSample:samplesPerPixel:hasAlpha:isPlanar:colorSpaceName:bitmapFormat:bytesPerRow:bitsPerPixel:")
-	selAddRep := appkit.SelRegisterName("addRepresentation:")
-	selSetCacheMode := appkit.SelRegisterName("setCacheMode:")
 	selInvWithSig := appkit.SelRegisterName("invocationWithMethodSignature:")
 	selSetSel := appkit.SelRegisterName("setSelector:")
 	selSetTgt := appkit.SelRegisterName("setTarget:")
 	selSetArg := appkit.SelRegisterName("setArgument:atIndex:")
 	selInvoke := appkit.SelRegisterName("invoke")
-	selGetRet := appkit.SelRegisterName("getReturnValue:")
-	deviceRGB := appkit.NewNSString("NSDeviceRGBColorSpace")
-	// initWithSize: takes an NSSize (two CGFloats) — a struct argument, so
-	// it must go through NSInvocation on ARM64 (same pattern as the window
-	// initWithContentRect above). NSImage size is in POINTS (logical): a hi-res
-	// rep mapped into a point-sized image renders crisply on Retina.
-	sizeVal := struct{ W, H float64 }{float64(width), float64(height)}
-	sizePtr := uintptr(unsafe.Pointer(&sizeVal))
-	selInitSize := appkit.SelRegisterName("initWithSize:")
-	sigSize := appkit.MsgSend(clsNSImage, sigMsg, selInitSize)
-	// initWithBitmapDataPlanes:… takes 12 parameters — beyond the 9-arg
-	// SyscallN ceiling — so it goes through NSInvocation argument-by-argument.
-	// The rep is in PHYSICAL pixels (the plane the renderer draws into).
-	sigRep := appkit.MsgSend(clsBitmapRep, sigMsg, selInitRep)
-	planePtr := uintptr(unsafe.Pointer(&impl.pix[0]))
-	planes := [1]uintptr{planePtr}
-	argPlanes := uintptr(unsafe.Pointer(&planes[0]))
-	argW := uintptr(physW)
-	argH := uintptr(physH)
-	argBPS := uintptr(8)     // bitsPerSample
-	argSPP := uintptr(4)     // samplesPerPixel
-	argAlpha := uintptr(1)   // hasAlpha: YES
-	argPlanar := uintptr(0)  // isPlanar: NO
-	// bitmapFormat = NSAlphaNonpremultipliedBitmapFormat (1<<1): the buffer
-	// holds STRAIGHT (non-premultiplied) RGBA — the SoftwareRenderer blends in
-	// straight space and the opaque fast path is identical either way.
-	argFmt := uintptr(2)
-	argRow := uintptr(impl.stride)
-	argBPP := uintptr(32)
-
-	repAlloc := appkit.MsgSend(clsBitmapRep, selAlloc)
-	invRep := appkit.MsgSend(clsNSInvocation, selInvWithSig, sigRep)
-	appkit.MsgSend(invRep, selSetSel, selInitRep)
-	appkit.MsgSend(invRep, selSetTgt, repAlloc)
-	appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argPlanes)), 2)
-	appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argW)), 3)
-	appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argH)), 4)
-	appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argBPS)), 5)
-	appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argSPP)), 6)
-	appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argAlpha)), 7)
-	appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argPlanar)), 8)
-	appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&deviceRGB)), 9)
-	appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argFmt)), 10)
-	appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argRow)), 11)
-	appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argBPP)), 12)
-	appkit.MsgSend(invRep, selInvoke)
-	appkit.MsgSend(invRep, selGetRet, uintptr(unsafe.Pointer(&impl.rep)))
-
-	imgAlloc := appkit.MsgSend(clsNSImage, selAlloc)
-	invImg := appkit.MsgSend(clsNSInvocation, selInvWithSig, sigSize)
-	appkit.MsgSend(invImg, selSetSel, selInitSize)
-	appkit.MsgSend(invImg, selSetTgt, imgAlloc)
-	appkit.MsgSend(invImg, selSetArg, sizePtr, 2)
-	appkit.MsgSend(invImg, selInvoke)
-	appkit.MsgSend(invImg, selGetRet, uintptr(unsafe.Pointer(&impl.img)))
-	appkit.MsgSend(impl.img, selAddRep, impl.rep)
-	appkit.MsgSend(impl.img, selSetCacheMode, 3) // NSImageCacheNever: draw the rep's live pixels
-	// Hand the image to the view ONCE. The rep wraps our live pixel plane and
-	// the cache mode is "never", so the view always draws the plane's current
-	// bytes; the per-frame -display (PresentImage) just forces it to repaint.
-	// Without this the view's image is nil and drawRect: paints nothing — the
-	// blank-white canvas we saw before.
-	appkit.MsgSend(view, selSetImage, impl.img)
+	impl.rep = newBitmapRep(impl)
 
 	// The initWithFrame: above reused the WINDOW's screen rect, whose X,Y is
 	// the window's origin (100,100) — wrong for a subview, whose frame is in
@@ -230,6 +150,9 @@ func NewWindow(title string, width, height int) *Window {
 	contentRect := struct{ X, Y, W, H float64 }{0, 0, float64(width), float64(height)}
 	appkit.MsgSend(invSetFrame, selSetArg, uintptr(unsafe.Pointer(&contentRect)), 2)
 	appkit.MsgSend(invSetFrame, selInvoke)
+	// Track window resizes: the view (and with it the layer we present into)
+	// follows the contentView — NSViewWidthSizable|NSViewHeightSizable.
+	appkit.MsgSend(view, appkit.SelRegisterName("setAutoresizingMask:"), 18)
 
 	// Make the view layer-backed and keep its layer: PresentImage pushes a
 	// CGImage (built from impl.rep's live pixels) into layer.contents — the
@@ -248,6 +171,43 @@ func NewWindow(title string, width, height int) *Window {
 	return w
 }
 
+// LiveSize returns the window's CURRENT content size in points, read from the
+// view's frame — the view is the contentView and tracks the window through
+// its autoresizing mask. (Size is only the creation-time size.)
+func (w *Window) LiveSize() image.Point {
+	if fv := appkit.MsgSend(w.w.view, appkit.SelRegisterName("valueForKey:"), appkit.NewNSString("frame")); fv != 0 {
+		var frame struct{ X, Y, W, H float64 }
+		appkit.MsgSend(fv, appkit.SelRegisterName("getValue:"), uintptr(unsafe.Pointer(&frame)))
+		return image.Pt(int(frame.W), int(frame.H))
+	}
+	return image.Pt(w.width, w.height)
+}
+
+// Resize rebuilds the pixel plane for a new content size, re-reading the
+// backing scale factor too (the window may have crossed displays). The engine
+// re-lays out and re-renders on its next frame (the caller marks it dirty);
+// the next PresentImage vends a rep over the new plane. The OLD plane stays
+// referenced one generation (keepPix): a CGImage still sitting on the layer
+// may read from it, and Go must not free memory AppKit can touch.
+func (w *Window) Resize(wPts, hPts int) {
+	impl := w.w
+	if v := appkit.MsgSend(impl.ptr, appkit.SelRegisterName("valueForKey:"), appkit.NewNSString("backingScaleFactor")); v != 0 {
+		var f float64
+		appkit.MsgSend(v, appkit.SelRegisterName("getValue:"), uintptr(unsafe.Pointer(&f)))
+		if int(f) >= 1 {
+			impl.scale = int(f)
+		}
+	}
+	w.width, w.height = wPts, hPts
+	physW, physH := wPts*impl.scale, hPts*impl.scale
+	if physW > 0 && physH > 0 && physW*4 == impl.stride && len(impl.pix) == impl.stride*physH {
+		return // nothing to rebuild (scale unchanged, same physical size)
+	}
+	impl.keepPix = impl.pix
+	impl.stride = physW * 4
+	impl.pix = make([]byte, impl.stride*physH)
+}
+
 // Backbuffer returns the single shared pixel plane the engine renders into.
 // Only the main thread ever touches it (render + present), so no sync needed.
 func (w *Window) Backbuffer() *image.RGBA {
@@ -258,27 +218,102 @@ func (w *Window) Backbuffer() *image.RGBA {
 	}
 }
 
+// newBitmapRep wraps the window's shared pixel plane in a FRESH
+// NSBitmapImageRep. initWithBitmapDataPlanes:… takes 12 parameters — beyond
+// the 9-arg SyscallN ceiling — so it goes through NSInvocation
+// argument-by-argument. The rep is in PHYSICAL pixels (the plane the renderer
+// draws into) and does NOT copy the data (planes holds the plane pointer).
+//
+// A fresh rep is needed per present because a rep caches the CGImage it
+// vends: rep.CGImage freezes whatever the plane held when THAT rep first
+// produced one, so a long-lived rep can only ever show a setup-time snapshot
+// (the blank window). The rep itself is a small object over the shared plane
+// — this is an object alloc, not a pixel copy.
+func newBitmapRep(impl *windowImpl) uintptr {
+	clsBitmapRep := appkit.ObjcGetClass("NSBitmapImageRep")
+	clsNSInvocation := appkit.ObjcGetClass("NSInvocation")
+	selAlloc := appkit.SelRegisterName("alloc")
+	selInitRep := appkit.SelRegisterName("initWithBitmapDataPlanes:pixelsWide:pixelsHigh:bitsPerSample:samplesPerPixel:hasAlpha:isPlanar:colorSpaceName:bitmapFormat:bytesPerRow:bitsPerPixel:")
+	selInvWithSig := appkit.SelRegisterName("invocationWithMethodSignature:")
+	selMsg := appkit.SelRegisterName("instanceMethodSignatureForSelector:")
+	selSetSel := appkit.SelRegisterName("setSelector:")
+	selSetTgt := appkit.SelRegisterName("setTarget:")
+	selSetArg := appkit.SelRegisterName("setArgument:atIndex:")
+	selInvoke := appkit.SelRegisterName("invoke")
+	selGetRet := appkit.SelRegisterName("getReturnValue:")
+	deviceRGB := appkit.NewNSString("NSDeviceRGBColorSpace")
+
+	physW := impl.stride / 4
+	physH := len(impl.pix) / impl.stride
+	planePtr := uintptr(unsafe.Pointer(&impl.pix[0]))
+	planes := [1]uintptr{planePtr}
+	argPlanes := uintptr(unsafe.Pointer(&planes[0]))
+	argW := uintptr(physW)
+	argH := uintptr(physH)
+	argBPS := uintptr(8)    // bitsPerSample
+	argSPP := uintptr(4)    // samplesPerPixel
+	argAlpha := uintptr(1)  // hasAlpha: YES
+	argPlanar := uintptr(0) // isPlanar: NO
+	// bitmapFormat = NSAlphaNonpremultipliedBitmapFormat (1<<1): the buffer
+	// holds STRAIGHT (non-premultiplied) RGBA — the SoftwareRenderer blends in
+	// straight space and the opaque fast path is identical either way.
+	argFmt := uintptr(2)
+	argRow := uintptr(impl.stride)
+	argBPP := uintptr(32)
+
+	sigRep := appkit.MsgSend(clsBitmapRep, selMsg, selInitRep)
+	repAlloc := appkit.MsgSend(clsBitmapRep, selAlloc)
+	invRep := appkit.MsgSend(clsNSInvocation, selInvWithSig, sigRep)
+	appkit.MsgSend(invRep, selSetSel, selInitRep)
+	appkit.MsgSend(invRep, selSetTgt, repAlloc)
+	appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argPlanes)), 2)
+	appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argW)), 3)
+	appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argH)), 4)
+	appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argBPS)), 5)
+	appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argSPP)), 6)
+	appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argAlpha)), 7)
+	appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argPlanar)), 8)
+	appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&deviceRGB)), 9)
+	appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argFmt)), 10)
+	appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argRow)), 11)
+	appkit.MsgSend(invRep, selSetArg, uintptr(unsafe.Pointer(&argBPP)), 12)
+	appkit.MsgSend(invRep, selInvoke)
+	var rep uintptr
+	appkit.MsgSend(invRep, selGetRet, uintptr(unsafe.Pointer(&rep)))
+	return rep
+}
+
 // PresentImage publishes the pixels the engine just wrote into Backbuffer. It
-// asks the rep (which wraps that buffer) for its CGImage — a CGImageRef over
-// the rep's live pixels, vended by AppKit so we need no CoreGraphics dlsym —
-// and sets it as the view layer's contents. That is the deterministic AppKit
-// path for pushing our own pixels to screen: NSImageView's drawRect never
-// reliably painted the rep, so we draw through the layer instead. Setting
-// layer.contents implicitly invalidates the layer, so the next display cycle
-// composites it; no explicit setNeedsDisplay/display is required. Must be
-// called from the main thread (the caller — the main loop — is it). The
-// returned CGImage is owned by the rep (we do NOT release it); the layer
-// retains it for the frame it is drawn.
+// vends a FRESH rep over the live plane (see newBitmapRep) and pushes its
+// CGImage — a snapshot of the plane's CURRENT bytes — as the view layer's
+// contents. Setting layer.contents implicitly invalidates the layer, so the
+// next display cycle composites it; no explicit setNeedsDisplay/display is
+// required. Must be called from the main thread (the caller — the main loop —
+// is it).
+//
+// Ownership: the layer retains the CGImage it is given; the previous rep is
+// released AFTER its CGImage has been replaced on the layer, so no frame ever
+// shows a stale or freed image. The per-frame autorelease traffic (the
+// NSInvocation dance) is bounded by an explicit pool.
 func (w *Window) PresentImage() {
 	impl := w.w
-	if impl.layer == 0 || impl.rep == 0 {
+	if impl.layer == 0 {
 		return
 	}
-	cg := appkit.MsgSend(impl.rep, appkit.SelRegisterName("CGImage"))
-	if cg == 0 {
-		return
+	pool := appkit.MsgSend(appkit.MsgSend(appkit.ObjcGetClass("NSAutoreleasePool"), appkit.SelRegisterName("alloc")), appkit.SelRegisterName("init"))
+	rep := newBitmapRep(impl)
+	if rep != 0 {
+		if cg := appkit.MsgSend(rep, appkit.SelRegisterName("CGImage")); cg != 0 {
+			appkit.MsgSend(impl.layer, appkit.SelRegisterName("setContents:"), cg)
+			if impl.rep != 0 {
+				appkit.MsgSend(impl.rep, appkit.SelRegisterName("release"))
+			}
+			impl.rep = rep
+		} else {
+			appkit.MsgSend(rep, appkit.SelRegisterName("release"))
+		}
 	}
-	appkit.MsgSend(impl.layer, appkit.SelRegisterName("setContents:"), cg)
+	appkit.MsgSend(pool, appkit.SelRegisterName("drain"))
 }
 
 // Run runs the AppKit event loop on the (already main-locked) thread. For each
@@ -355,14 +390,14 @@ func Run(onEvent func(Event), onTick func()) {
 				if locValue != 0 && activeWindow != nil {
 					var point struct{ X, Y float64 }
 					appkit.MsgSend(locValue, selGetValue, uintptr(unsafe.Pointer(&point)))
-					
+
 					ptType := PointerMove
 					if eventType == 1 {
 						ptType = PointerPress
 					} else if eventType == 2 {
 						ptType = PointerRelease
 					}
-					
+
 					// Convert AppKit coordinates (bottom-left origin) to top-left
 					// Use the real window content height (bottom-left origin flip).
 					y := float64(activeWindow.Size().Y) - point.Y
@@ -395,14 +430,14 @@ func Run(onEvent func(Event), onTick func()) {
 				}
 			} else if eventType == 22 {
 				// NSScrollWheel
-				
+
 				// scrollingDeltaX/Y return CGFloat. AppKit MsgSend needs fpret for floats?
-				// Actually, MsgSend returning struct/float on ARM64 is tricky, but we can try 
+				// Actually, MsgSend returning struct/float on ARM64 is tricky, but we can try
 				// valueForKey: for safety or just use deltaX/deltaY which might be doubles.
 				// Since we are pure go, let's use valueForKey: to be safe from ABI issues.
 				valX := appkit.MsgSend(event, selValueForKey, appkit.NewNSString("scrollingDeltaX"))
 				valY := appkit.MsgSend(event, selValueForKey, appkit.NewNSString("scrollingDeltaY"))
-				
+
 				var dx, dy float64
 				if valX != 0 {
 					appkit.MsgSend(valX, selGetValue, uintptr(unsafe.Pointer(&dx)))
@@ -410,7 +445,7 @@ func Run(onEvent func(Event), onTick func()) {
 				if valY != 0 {
 					appkit.MsgSend(valY, selGetValue, uintptr(unsafe.Pointer(&dy)))
 				}
-				
+
 				if activeWindow != nil && (dx != 0 || dy != 0) && onEvent != nil {
 					onEvent(ScrollEvent{DeltaX: dx, DeltaY: dy})
 				}

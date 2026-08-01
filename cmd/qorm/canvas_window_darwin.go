@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/qorm/qorm/internal/app"
 	"github.com/qorm/qorm/internal/render/canvas"
@@ -62,6 +63,7 @@ func launchWindow(srv *server.Server, ln net.Listener, url, title string) bool {
 	scale := win.Scale()
 	physW, physH := ww*scale, hh*scale
 	s := float64(scale)
+	lastResize := time.Now()
 
 	// app.Run's loop delivers events here AND, when idle, returns so we can
 	// render. We drive the engine from this same (main) thread.
@@ -80,6 +82,19 @@ func launchWindow(srv *server.Server, ln net.Listener, url, title string) bool {
 			eng.HandleScroll(canvas.ScrollInput{DX: e.DeltaX * s, DY: e.DeltaY * s})
 		}
 	}, func() {
+		// Live-resize: the view tracks the window (autoresizing mask). When the
+		// content size changes, rebuild the plane and re-layout at the new
+		// size — throttled to ~10 Hz so a drag does not churn plane allocs.
+		if sz := win.LiveSize(); sz.X >= 1 && sz.Y >= 1 && (sz.X != physW/scale || sz.Y != physH/scale) {
+			if time.Since(lastResize) > 100*time.Millisecond {
+				lastResize = time.Now()
+				win.Resize(sz.X, sz.Y)
+				scale = win.Scale()
+				s = float64(scale)
+				physW, physH = sz.X*scale, sz.Y*scale
+				eng.MarkDirty()
+			}
+		}
 		// Tick: render + present when there is work (input/state change, a
 		// queued external mutation, or an in-flight tween). Single buffer,
 		// single thread → no race, no flicker.
