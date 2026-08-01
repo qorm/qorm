@@ -13,8 +13,16 @@ import (
 // inter carries cross-frame interaction state (pressed/hovered/focused); it may be nil.
 // scale is the device-pixel ratio (1 = logical == physical; 2 = Retina).
 func Layout(ops *op.Ops, root *model.Node, size image.Point, rt *runtime.Runtime, inter *Interaction, scale int) (graph.Node, bool) {
+	g, needsRedraw, _ := layout(ops, root, size, rt, inter, scale)
+	return g, needsRedraw
+}
+
+// layout is Layout plus the repeat-instance sidecar (list.go) the engine
+// keeps for event dispatch: which item scope a hit belongs to. The public
+// wrapper keeps the two-result form for layout-only callers.
+func layout(ops *op.Ops, root *model.Node, size image.Point, rt *runtime.Runtime, inter *Interaction, scale int) (graph.Node, bool, map[graph.Node]itemInstance) {
 	if root == nil {
-		return nil, false
+		return nil, false, nil
 	}
 	if scale < 1 {
 		scale = 1
@@ -34,17 +42,18 @@ func Layout(ops *op.Ops, root *model.Node, size image.Point, rt *runtime.Runtime
 	// 1. Measure pass (bottom-up)
 	rootNode := Measure(root, rt, inter, scale)
 	if rootNode == nil {
-		return nil, false // the whole scene is conditionally hidden
+		return nil, false, nil // the whole scene is conditionally hidden
 	}
 
 	// 2. Layout pass (top-down) builds the scene graph
-	rootGraphNode := PerformLayout(rootNode, bounds, inter, rt, scale)
-	
+	items := map[graph.Node]itemInstance{}
+	rootGraphNode := performLayout(rootNode, bounds, inter, rt, scale, items)
+
 	// 3. Render pass (retained mode graph -> display list)
 	if rootGraphNode != nil {
 		ctx := graph.NewContext(ops)
 		rootGraphNode.Draw(ctx)
 	}
-	
-	return rootGraphNode, rootNode.NeedsRedraw
+
+	return rootGraphNode, rootNode.NeedsRedraw, items
 }

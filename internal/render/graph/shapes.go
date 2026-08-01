@@ -37,7 +37,7 @@ func (g *Group) HitTest(p geom.Point) Node {
 			return hit
 		}
 	}
-	
+
 	// If no child is hit, check if the point hits the Group itself
 	return g.BaseNode.HitTest(p)
 }
@@ -45,14 +45,14 @@ func (g *Group) HitTest(p geom.Point) Node {
 // Draw recursively updates transform and draws children
 func (g *Group) Draw(ctx *Context) {
 	g.UpdateGlobalTransform()
-	
+
 	ctx.Save()
 	ctx.Opacity(g.Opacity)
 	ctx.Translate(int(g.X), int(g.Y)) // Naive translate for now, ideally apply matrix
-	
+
 	// Can add Group-level clipping here if needed
 	g.DrawChildren(ctx)
-	
+
 	ctx.Restore()
 }
 
@@ -63,7 +63,7 @@ type Rect struct {
 	Stroke       color.RGBA
 	StrokeWidth  float64
 	BorderRadius float64
-	
+
 	ShadowColor color.RGBA
 	ShadowBlur  float64
 	ShadowY     float64
@@ -80,16 +80,16 @@ func (r *Rect) Base() *BaseNode { return &r.BaseNode }
 // Draw renders the rectangle
 func (r *Rect) Draw(ctx *Context) {
 	r.UpdateGlobalTransform()
-	
+
 	if r.Fill.A == 0 && r.Stroke.A == 0 {
 		return // nothing to draw
 	}
 
 	ctx.Save()
 	ctx.Translate(int(r.X), int(r.Y))
-	
+
 	rect := image.Rect(0, 0, int(r.Width), int(r.Height))
-	
+
 	// Draw Shadow (simulated with 3 concentric layers)
 	if r.ShadowColor.A > 0 {
 		steps := 3
@@ -117,14 +117,14 @@ func (r *Rect) Draw(ctx *Context) {
 			ctx.Restore()
 		}
 	}
-	
+
 	// Draw main body
 	if r.BorderRadius > 0 {
 		ctx.ClipRRect(rect, r.BorderRadius)
 	} else {
 		ctx.ClipRect(rect)
 	}
-	
+
 	if r.Fill.A > 0 {
 		ctx.Fill(r.Fill)
 		ctx.Paint()
@@ -135,7 +135,7 @@ func (r *Rect) Draw(ctx *Context) {
 		ctx.Fill(r.Stroke)
 		ctx.StrokePaint()
 	}
-	
+
 	ctx.Restore()
 }
 
@@ -157,7 +157,7 @@ func (t *Text) Base() *BaseNode { return &t.BaseNode }
 
 func (t *Text) Draw(ctx *Context) {
 	t.UpdateGlobalTransform()
-	
+
 	if t.Content == "" {
 		return
 	}
@@ -172,9 +172,9 @@ func (t *Text) Draw(ctx *Context) {
 // Circle represents a circular shape
 type Circle struct {
 	BaseNode
-	Radius float64
-	Fill   color.RGBA
-	Stroke color.RGBA
+	Radius      float64
+	Fill        color.RGBA
+	Stroke      color.RGBA
 	StrokeWidth float64
 }
 
@@ -196,23 +196,23 @@ func (c *Circle) Draw(ctx *Context) {
 	ctx.Save()
 	ctx.Opacity(c.Opacity)
 	ctx.Translate(int(c.X), int(c.Y))
-	
+
 	// QORM op.Ops does not natively have an arc/circle op yet.
 	// We'll emulate it by clipping a rect with a 100% border radius.
 	rect := image.Rect(0, 0, int(c.Radius*2), int(c.Radius*2))
 	ctx.ClipRRect(rect, c.Radius)
-	
+
 	if c.Fill.A > 0 {
 		ctx.Fill(c.Fill)
 		ctx.Paint()
 	}
-	
+
 	if c.Stroke.A > 0 && c.StrokeWidth > 0 {
 		ctx.SetStrokeWidth(c.StrokeWidth)
 		ctx.Fill(c.Stroke)
 		ctx.StrokePaint()
 	}
-	
+
 	ctx.Restore()
 }
 
@@ -226,23 +226,30 @@ func (c *Circle) HitTest(p geom.Point) Node {
 		return nil
 	}
 	localP := inv.TransformPoint(p)
-	
+
 	// Distance squared from center
 	cx := c.Radius
 	cy := c.Radius
 	dx := localP.X - cx
 	dy := localP.Y - cy
-	
-	if dx*dx + dy*dy <= c.Radius*c.Radius {
+
+	if dx*dx+dy*dy <= c.Radius*c.Radius {
 		return c.Self
 	}
 	return nil
 }
 
-// Image represents a bitmap image shape
+// Image represents a bitmap image shape. Bitmap holds STRAIGHT
+// (non-premultiplied) pixels (the renderer's buffer convention).
 type Image struct {
 	BaseNode
 	Bitmap *image.RGBA
+	// Fit is the object-fit mode: "fill", "contain", "cover" or "none"
+	// (empty/unknown behaves as "cover", the HTML default,
+	// render_media.go:19). The canvas widget layer validates author values.
+	Fit string
+	// BorderRadius clips the image to a rounded rect (style borderRadius).
+	BorderRadius float64
 }
 
 func NewImage() *Image {
@@ -259,12 +266,71 @@ func (i *Image) Draw(ctx *Context) {
 	if i.Bitmap == nil {
 		return
 	}
+	w, h := int(i.Width), int(i.Height)
+	if w <= 0 || h <= 0 {
+		return
+	}
 
 	ctx.Save()
 	ctx.Translate(int(i.X), int(i.Y))
-	
-	// Need an ImageOp in op.Ops to draw bitmaps
-	// For now we'll just clip
-	
+
+	dest := imageFitRect(i.Bitmap.Bounds().Dx(), i.Bitmap.Bounds().Dy(), w, h, i.Fit)
+	if dest.Empty() {
+		ctx.Restore()
+		return
+	}
+
+	// Clip to the node's own rect so "cover" overflow and the border radius
+	// are cut exactly like a Rect body is.
+	nodeRect := image.Rect(0, 0, w, h)
+	if i.BorderRadius > 0 {
+		ctx.ClipRRect(nodeRect, i.BorderRadius)
+	} else {
+		ctx.ClipRect(nodeRect)
+	}
+	ctx.DrawImage(i.Bitmap, dest)
+
 	ctx.Restore()
+}
+
+// imageFitRect returns the destination rect (local coords, box w×h) the
+// source image (iw×ih) is scaled into for the given object-fit mode.
+// contain/cover/none centre the image inside the box like CSS does.
+func imageFitRect(iw, ih, w, h int, fit string) image.Rectangle {
+	if iw <= 0 || ih <= 0 || w <= 0 || h <= 0 {
+		return image.Rectangle{}
+	}
+	switch fit {
+	case "fill":
+		return image.Rect(0, 0, w, h)
+	case "contain", "cover":
+		num, den := w*ih, h*iw // compare w/iw vs h/ih without floats
+		scaleW := true         // scale so width fits exactly
+		if fit == "contain" {
+			scaleW = num <= den // w/iw <= h/ih → width is the limiting axis
+		} else {
+			scaleW = num >= den
+		}
+		var dw, dh int
+		if scaleW {
+			dw = w
+			dh = ih * w / iw
+		} else {
+			dh = h
+			dw = iw * h / ih
+		}
+		if dw < 1 {
+			dw = 1
+		}
+		if dh < 1 {
+			dh = 1
+		}
+		return image.Rect((w-dw)/2, (h-dh)/2, (w-dw)/2+dw, (h-dh)/2+dh)
+	case "none":
+		return image.Rect((w-iw)/2, (h-ih)/2, (w-iw)/2+iw, (h-ih)/2+ih)
+	default:
+		// Unknown/empty: the canvas widget layer warns; here we degrade to
+		// the HTML default (cover).
+		return imageFitRect(iw, ih, w, h, "cover")
+	}
 }

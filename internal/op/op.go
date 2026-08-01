@@ -89,6 +89,17 @@ type StrokePaintOp struct{}
 
 func (StrokePaintOp) isOp() {}
 
+// ImageOp draws the source image scaled into Dest (in the current
+// transformed coordinate space). The source holds STRAIGHT (non-premultiplied)
+// pixels, matching the renderer's buffer convention. Only destination pixels
+// inside the active clip stack are written.
+type ImageOp struct {
+	Src  *image.RGBA
+	Dest image.Rectangle
+}
+
+func (ImageOp) isOp() {}
+
 // OpacityOp sets the current opacity.
 type OpacityOp struct {
 	Alpha float64

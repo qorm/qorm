@@ -8,9 +8,9 @@ import (
 )
 
 // Focusables returns the focusable model nodes under root in traversal order
-// (DFS over Children, matching canvas layout order): buttons, nodes with an
-// OnPress handler, or nodes with focusable:true; focusable:false always opts
-// out. Nodes with an explicit tabIndex > 0 sort first (ascending, stable);
+// (DFS over Children, matching canvas layout order): buttons, inputs, nodes
+// with an OnPress handler, or nodes with focusable:true; focusable:false
+// always opts out. Nodes with an explicit tabIndex > 0 sort first (ascending, stable);
 // tabIndex 0 or absent keeps natural tree order. Disabled nodes are never
 // focusable (web parity); rt resolves bound `disabled` keys and may be nil
 // (static keys still apply).
@@ -67,7 +67,7 @@ func isFocusable(n *model.Node, rt *runtime.Runtime) bool {
 			return b // explicit opt-in or opt-out wins
 		}
 	}
-	return n.Type == "button" || n.OnPress != nil
+	return n.Type == "button" || n.Type == "input" || n.OnPress != nil
 }
 
 func tabIndex(n *model.Node) int {

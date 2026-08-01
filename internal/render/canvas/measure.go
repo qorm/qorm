@@ -20,21 +20,43 @@ type LayoutNode struct {
 	Y           int
 	NeedsRedraw bool
 	Children    []*LayoutNode
-	
+
+	// Input widget overlay (type "input" only, input.go): Placeholder marks
+	// Text as the placeholder rather than a value; Editing/Cursor carry the
+	// live edit session so PerformLayout can paint the caret.
+	Placeholder bool
+	Editing     bool
+	Cursor      int
+
+	// ItemIndex is the repeat instance this node belongs to: every node
+	// measured under one list item carries the item's index, so PerformLayout
+	// can stamp interaction flags onto the matching instance only (the model
+	// pointer is the shared template). 0 outside a list.
+	ItemIndex int
+	// ItemScope is set on a repeat instance's ROOT only (the template node's
+	// LayoutNode): the item's evaluation scope, recorded into the engine's
+	// dispatch sidecar for handler argument evaluation.
+	ItemScope map[string]any
+	// ContentH is a scroll viewport's full content height before an explicit
+	// or fill height clamps the box (scroll nodes only): HandleScroll clamps
+	// the offset against exactly this.
+	ContentH int
+
 	// Retained mode scene graph node backing this layout
-	GraphNode   graph.Node
+	GraphNode graph.Node
 }
 
 // Measure does a bottom-up pass to calculate minimum content sizes. scale is
 // the device-pixel ratio: design pixels are multiplied by it so the resulting
 // geometry is in physical pixels (HiDPI). Pass 1 for logical == physical.
 func Measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int) *LayoutNode {
-	return measure(n, rt, inter, scale, n)
+	return measure(n, rt, inter, scale, n, nil)
 }
 
 // measure is the recursive body of Measure; root identifies the scene tree
-// for the one-shot unsupported-style-key warnings.
-func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, root *model.Node) *LayoutNode {
+// for the one-shot unsupported-style-key warnings, and sc carries the repeat
+// scope when measuring inside a list item (nil outside lists, list.go).
+func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, root *model.Node, sc *listScope) *LayoutNode {
 	if n == nil {
 		return nil
 	}
@@ -44,13 +66,13 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 	// hides the whole subtree; a `when` node swaps in its Then/Else branch —
 	// which may itself be conditional or another `when`, hence the loop.
 	for {
-		if !nodeVisible(n, rt) {
+		if !nodeVisibleScope(n, rt, sc) {
 			return nil
 		}
 		if n.Type != "when" {
 			break
 		}
-		n = whenBranch(n, rt)
+		n = whenBranchScope(n, rt, sc)
 		if n == nil {
 			return nil
 		}
@@ -59,7 +81,7 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 	warnUnsupportedStyleKeys(root, n)
 
 	style := parseStyle(n, rt)
-	applyInteractiveOverlay(&style, n, rt, inter)
+	applyInteractiveOverlay(&style, n, rt, interForInstance(inter, sc))
 	style.scaleBy(scale)
 	var needsRedraw bool
 	if n.Type == "animated_container" {
@@ -71,29 +93,60 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 		Style:       style,
 		NeedsRedraw: needsRedraw,
 	}
+	if sc != nil {
+		ln.ItemIndex = sc.index
+	}
 
 	if n.Type == "text" {
 		if t, ok := n.Props["text"]; ok {
-			ln.Text = evalPropStr(t, rt)
+			ln.Text = evalPropStrScope(t, rt, sc)
 		} else if v, ok := n.Props["value"]; ok {
-			ln.Text = evalPropStr(v, rt)
+			ln.Text = evalPropStrScope(v, rt, sc)
 		}
 	} else if n.Type == "button" {
 		// Evaluate bindings in the label too (e.g. "Toggle ({{state.theme}})"),
 		// matching text nodes — otherwise the raw template shows literally.
 		if t, ok := n.Props["label"]; ok {
-			ln.Text = evalPropStr(t, rt)
+			ln.Text = evalPropStrScope(t, rt, sc)
 		} else if t, ok := n.Props["text"]; ok {
-			ln.Text = evalPropStr(t, rt)
+			ln.Text = evalPropStrScope(t, rt, sc)
+		}
+	} else if n.Type == "input" {
+		ln.Text, ln.Placeholder = inputDisplayText(n, rt, inter)
+		if s := editSession(inter, n); s != nil {
+			if sc == nil || inter.FocusedItem == sc.index {
+				ln.Editing = true
+				ln.Cursor = s.Cursor
+			} else {
+				// The live edit session belongs to a SIBLING repeat instance
+				// (the session key is the shared template pointer, input.go):
+				// this instance shows the bound value, not the shared buffer.
+				if v := evalPropStrScope(n.Value, rt, sc); v != "" {
+					ln.Text, ln.Placeholder = v, false
+				} else {
+					ln.Text, ln.Placeholder = n.Placeholder, true
+				}
+			}
 		}
 	}
 
-	for _, child := range n.Children {
-		if cln := measure(child, rt, inter, scale, root); cln != nil {
+	if n.Type == "list" && n.Template != nil {
+		// Repeat: the template replaces the children (HTML render_data.go:113)
+		// — each item instantiates one measured subtree under its item scope.
+		for _, cln := range measureListItems(n, rt, inter, scale, root, sc) {
 			if cln.NeedsRedraw {
 				ln.NeedsRedraw = true
 			}
 			ln.Children = append(ln.Children, cln)
+		}
+	} else {
+		for _, child := range n.Children {
+			if cln := measure(child, rt, inter, scale, root, sc); cln != nil {
+				if cln.NeedsRedraw {
+					ln.NeedsRedraw = true
+				}
+				ln.Children = append(ln.Children, cln)
+			}
 		}
 	}
 
@@ -110,6 +163,18 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 	} else if n.Type == "button" {
 		contentW = int(MeasureText(ln.Text, float64(fs))) + 40*scale
 		contentH = int(float64(fs)*1.2) + 20*scale
+	} else if n.Type == "input" {
+		// Single-line field: one line of text tall; an empty value keeps a
+		// usable default width (browsers size an empty field to ~20 chars).
+		contentW = int(MeasureText(ln.Text, float64(fs)))
+		if min := minInputWidth * scale; contentW < min {
+			contentW = min
+		}
+		contentH = int(float64(fs) * 1.2)
+	} else if n.Type == "image" {
+		// Intrinsic size (scaled); an explicit style width/height overrides
+		// via the generic sizing below, and RecordImage gets the resolved box.
+		contentW, contentH = MeasureImage(n, rt, scale)
 	} else if isStackType(n.Type) {
 		// Stack: children share one origin, so the content size is the
 		// largest child on each axis (HTML sizes the position:relative
@@ -178,6 +243,13 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 	contentW += style.Padding * 2
 	contentH += style.Padding * 2
 
+	if isScrollType(n.Type) {
+		// A scroll viewport's height may be clamped below its content (that
+		// is the point of scrolling): keep the full content height for the
+		// offset clamp, before the explicit/fill height applies below.
+		ln.ContentH = contentH
+	}
+
 	ln.Width = contentW
 	if style.Width > 0 {
 		ln.Width = style.Width
@@ -191,8 +263,12 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 }
 
 func evalPropStr(val any, rt *runtime.Runtime) string {
+	return evalPropStrScope(val, rt, nil)
+}
+
+func evalPropStrScope(val any, rt *runtime.Runtime, sc *listScope) string {
 	if s, ok := val.(string); ok && rt != nil {
-		res := runtime.EvalBinding(s, evalCtx(rt))
+		res := runtime.EvalBinding(s, evalCtxScope(rt, sc))
 		if res == nil {
 			return ""
 		}
@@ -205,6 +281,18 @@ func evalPropStr(val any, rt *runtime.Runtime) string {
 		return s
 	}
 	return ""
+}
+
+// evalCtxScope overlays a repeat scope on evalCtx: inside a list item the
+// item/index/first/last keys join state and viewport, the innermost list
+// winning collisions (HTML itemScope parity, render_data.go:485). The scope's
+// vars were built this frame from this frame's outer context, so they are
+// returned as-is.
+func evalCtxScope(rt *runtime.Runtime, sc *listScope) map[string]any {
+	if sc != nil {
+		return sc.vars
+	}
+	return evalCtx(rt)
 }
 
 // evalCtx is the binding scope canvas evaluates node text, style values and
@@ -223,9 +311,15 @@ func evalCtx(rt *runtime.Runtime) map[string]any {
 // true) — the same keys, first-match order and truthiness as the HTML
 // renderer's visible() (render.go:782).
 func nodeVisible(n *model.Node, rt *runtime.Runtime) bool {
+	return nodeVisibleScope(n, rt, nil)
+}
+
+// nodeVisibleScope is nodeVisible inside a repeat scope: item conditions such
+// as `if: "{{item.done}}"` evaluate against the instance's scope.
+func nodeVisibleScope(n *model.Node, rt *runtime.Runtime, sc *listScope) bool {
 	for _, key := range []string{"if", "visible", "show"} {
 		if raw, ok := n.Prop(key); ok {
-			return truthy(runtime.EvalBinding(fmt.Sprint(raw), evalCtx(rt)))
+			return truthy(runtime.EvalBinding(fmt.Sprint(raw), evalCtxScope(rt, sc)))
 		}
 	}
 	return true
@@ -258,8 +352,13 @@ func nodeMounted(n, target *model.Node, rt *runtime.Runtime) bool {
 // selects the Then subtree, anything else — including a missed binding or an
 // unknown viewport — selects the Else subtree (possibly nil).
 func whenBranch(n *model.Node, rt *runtime.Runtime) *model.Node {
+	return whenBranchScope(n, rt, nil)
+}
+
+// whenBranchScope is whenBranch inside a repeat scope (list.go).
+func whenBranchScope(n *model.Node, rt *runtime.Runtime, sc *listScope) *model.Node {
 	branch := n.Else
-	if n.Condition != "" && truthy(runtime.EvalBinding(n.Condition, evalCtx(rt))) {
+	if n.Condition != "" && truthy(runtime.EvalBinding(n.Condition, evalCtxScope(rt, sc))) {
 		branch = n.Then
 	}
 	return branch
@@ -316,6 +415,13 @@ func gridColumns(n *model.Node) int {
 // the device-pixel ratio (used for the focus-ring insets so its visual width
 // stays constant in physical pixels).
 func PerformLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, rt *runtime.Runtime, scale int) graph.Node {
+	return performLayout(ln, bounds, inter, rt, scale, nil)
+}
+
+// performLayout is the recursive body of PerformLayout; items, when non-nil,
+// collects the repeat-instance sidecar (list.go) the engine uses at event
+// time — Layout allocates it, layout-only callers pass nil.
+func performLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, rt *runtime.Runtime, scale int, items map[graph.Node]itemInstance) graph.Node {
 	if ln == nil {
 		return nil
 	}
@@ -351,9 +457,18 @@ func PerformLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, r
 	group.Height = float64(ln.Height)
 	group.Model = ln.Node
 	if inter != nil {
-		group.Pressed = inter.Pressed == ln.Node
-		group.Hovered = inter.Hovered == ln.Node
-		group.Focused = inter.Focused == ln.Node
+		// Repeat instances share the template's model pointer, so a flag
+		// lands only when the identity's companion index matches the instance
+		// (list.go); outside lists both sides are 0 and this is the plain
+		// pointer comparison it always was.
+		group.Pressed = inter.Pressed == ln.Node && inter.PressedItem == ln.ItemIndex
+		group.Hovered = inter.Hovered == ln.Node && inter.HoveredItem == ln.ItemIndex
+		group.Focused = inter.Focused == ln.Node && inter.FocusedItem == ln.ItemIndex
+	}
+	if items != nil && ln.ItemScope != nil {
+		// Repeat instance root: record the dispatch sidecar (index for
+		// identity, vars for handler argument evaluation).
+		items[group] = itemInstance{index: ln.ItemIndex, vars: ln.ItemScope}
 	}
 	if ln.Style.Opacity < 1 {
 		// Node-level opacity (style key, theme pressedOpacity or an
@@ -392,10 +507,20 @@ func PerformLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, r
 		group.OnTouchEnd = ln.Node.OnTouchEnd
 	}
 
+	isScroll := isScrollType(ln.Node.Type)
+	if isScroll {
+		// Viewport: clip the descendants to the box — clipNode paints the
+		// ClipOp as the first child (the group's own Save/Restore pops it),
+		// and Clip makes graph.HitTest refuse the very pixels that got cut
+		// (scroll.go).
+		group.Clip = true
+		group.AddChild(newClipNode(float64(ln.Width), float64(ln.Height)))
+	}
+
 	hasBg := ln.Style.Background.A > 0
 	hasStroke := ln.Style.StrokeColor.A > 0 && ln.Style.StrokeWidth > 0
 	hasShadow := ln.Style.BoxShadowColor.A > 0
-	
+
 	if hasBg || hasStroke || hasShadow {
 		bg := graph.NewRect()
 		bg.X = 0
@@ -404,35 +529,45 @@ func PerformLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, r
 		bg.Height = float64(ln.Height)
 		bg.Fill = ln.Style.Background
 		bg.BorderRadius = float64(ln.Style.BorderRadius)
-		
+
 		if hasStroke {
 			bg.Stroke = ln.Style.StrokeColor
 			bg.StrokeWidth = ln.Style.StrokeWidth
 		}
-		
+
 		if hasShadow {
 			bg.ShadowColor = ln.Style.BoxShadowColor
 			bg.ShadowBlur = float64(ln.Style.BoxShadowBlur)
 			bg.ShadowY = float64(ln.Style.BoxShadowY)
 		}
-		
+
 		group.AddChild(bg)
 	}
 
-	if ln.Text != "" {
+	if ln.Node.Type == "input" {
+		// Inputs draw their own text block (left-aligned, placeholder color,
+		// caret overlay) — the generic block below centers button labels.
+		layoutInput(ln, group, rt, scale)
+	} else if ln.Node.Type == "image" {
+		// Images mount their own shape (fit-computed dest rect, clip/opacity
+		// handled by the rasterizer); a broken src records a placeholder box.
+		if im := RecordImage(ln.Node, rt, ln.Width, ln.Height, ln.Style.BorderRadius); im != nil {
+			group.AddChild(im)
+		}
+	} else if ln.Text != "" {
 		fs := ln.Style.FontSize
 		if fs == 0 {
 			fs = 14
 		}
 
-			txtW := int(MeasureText(ln.Text, float64(fs)))
+		txtW := int(MeasureText(ln.Text, float64(fs)))
 		txtH := int(float64(fs) * 1.2)
-		
+
 		tx := 0
 		if ln.Style.TextAlign == "center" || ln.Node.Type == "button" {
 			tx = (ln.Width - txtW) / 2
 		}
-		
+
 		ty := (ln.Height - txtH) / 2
 
 		c := ln.Style.Color
@@ -454,6 +589,18 @@ func PerformLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, r
 	isRow := ln.Node.Type == "row"
 	isStack := isStackType(ln.Node.Type)
 	isGrid := ln.Node.Type == "grid"
+
+	// A scroll viewport's children mount into one content group so the whole
+	// scrolled body shifts as a unit (its Y translation is the offset). It is
+	// the viewport's ONLY group child — scrollContentOf relies on that.
+	sink := group
+	var content *graph.Group
+	if isScroll {
+		content = graph.NewGroup()
+		content.Width = float64(ln.Width)
+		content.Height = float64(ln.ContentH)
+		sink = content
+	}
 
 	totalCW, totalCH := 0, 0
 	for i, child := range ln.Children {
@@ -550,9 +697,9 @@ func PerformLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, r
 			}
 		}
 
-		childNode := PerformLayout(child, cbounds, inter, rt, scale)
+		childNode := performLayout(child, cbounds, inter, rt, scale, items)
 		if childNode != nil {
-			group.AddChild(childNode)
+			sink.AddChild(childNode)
 		}
 
 		if isRow {
@@ -562,10 +709,17 @@ func PerformLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, r
 		}
 	}
 
+	if content != nil {
+		// Shift the scrolled body by the (clamped) offset; the clip mounted
+		// above cuts whatever leaves the viewport.
+		content.Y = -scrollOffset(ln, inter)
+		group.AddChild(content)
+	}
+
 	// Keyboard focus ring (focus-visible): only drawn when focus was
 	// established by the keyboard, offset 3px outside the node body.
 	// NoHit keeps the oversized ring from stealing pointer hits.
-	if inter != nil && inter.Focused == ln.Node && inter.FocusVisible {
+	if inter != nil && inter.Focused == ln.Node && inter.FocusVisible && inter.FocusedItem == ln.ItemIndex {
 		s := scale
 		if s < 1 {
 			s = 1

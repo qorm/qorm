@@ -77,3 +77,8 @@ func (c *Context) DrawText(text string, pos image.Point, scale float64) {
 		Scale: scale,
 	})
 }
+
+// DrawImage draws src scaled into dest (current coordinate space).
+func (c *Context) DrawImage(src *image.RGBA, dest image.Rectangle) {
+	c.ops.Add(op.ImageOp{Src: src, Dest: dest})
+}

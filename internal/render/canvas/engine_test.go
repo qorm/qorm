@@ -40,6 +40,20 @@ func buttonCenter(t *testing.T, e *Engine, btn *model.Node) (int, int) {
 	return int((bb.MinX + bb.MaxX) / 2), int((bb.MinY + bb.MaxY) / 2)
 }
 
+// buttonTextFreePoint returns a point inside the button clear of its label
+// glyphs (8px in from the left edge, mid-height). Pixel assertions must not
+// sample the label: under the default sfnt text engine, glyph antialiasing
+// makes those pixels neither the plain nor the pressed background.
+func buttonTextFreePoint(t *testing.T, e *Engine, btn *model.Node) (int, int) {
+	t.Helper()
+	g := e.findGroupByModel(btn)
+	if g == nil {
+		t.Fatal("button group not found in rendered graph")
+	}
+	bb := g.GetBBox()
+	return int(bb.MinX) + 8, int((bb.MinY + bb.MaxY) / 2)
+}
+
 // The default theme paints buttons with the primary color; pressing must
 // switch pixels to the theme's pressedBackgroundColor (#0062CC) and release
 // must restore — the whole feedback chain verified at the pixel level, no
@@ -49,12 +63,13 @@ func TestEnginePressFeedbackPixels(t *testing.T) {
 	e.DrawFrame(surf)
 
 	cx, cy := buttonCenter(t, e, btn)
+	px, py := buttonTextFreePoint(t, e, btn)
 	primary := color.RGBA{0x00, 0x7A, 0xFF, 255} // #007AFF
 	// The press overlay sets #0062CC at pressedOpacity 0.9, which the rasterizer
 	// alpha-composites over the white scene background → (26,114,209,255).
 	pressed := color.RGBA{26, 114, 209, 255}
 
-	if got := surf.Frame().RGBAAt(cx, cy); got != primary {
+	if got := surf.Frame().RGBAAt(px, py); got != primary {
 		t.Fatalf("normal button pixel = %v, want primary %v", got, primary)
 	}
 
@@ -65,13 +80,13 @@ func TestEnginePressFeedbackPixels(t *testing.T) {
 		t.Fatal("press must set the pressed identity")
 	}
 	e.DrawFrame(surf)
-	if got := surf.Frame().RGBAAt(cx, cy); got != pressed {
+	if got := surf.Frame().RGBAAt(px, py); got != pressed {
 		t.Fatalf("pressed button pixel = %v, want %v", got, pressed)
 	}
 
 	e.HandlePointer(PointerInput{Type: PointerRelease, X: float64(cx), Y: float64(cy)})
 	e.DrawFrame(surf)
-	if got := surf.Frame().RGBAAt(cx, cy); got != primary {
+	if got := surf.Frame().RGBAAt(px, py); got != primary {
 		t.Fatalf("released button pixel = %v, want primary again", got)
 	}
 	if surf.Presents != 3 {
@@ -84,17 +99,18 @@ func TestEngineHoverPixels(t *testing.T) {
 	e, surf, btn := engineFixture(t)
 	e.DrawFrame(surf)
 	cx, cy := buttonCenter(t, e, btn)
+	px, py := buttonTextFreePoint(t, e, btn)
 	hovered := color.RGBA{0x1A, 0x86, 0xFF, 255}
 
 	e.HandlePointer(PointerInput{Type: PointerMove, X: float64(cx), Y: float64(cy)})
 	e.DrawFrame(surf)
-	if got := surf.Frame().RGBAAt(cx, cy); got != hovered {
+	if got := surf.Frame().RGBAAt(px, py); got != hovered {
 		t.Fatalf("hovered pixel = %v, want %v", got, hovered)
 	}
 
 	e.HandlePointer(PointerInput{Type: PointerMove, X: 5, Y: 5})
 	e.DrawFrame(surf)
-	if got := surf.Frame().RGBAAt(cx, cy); got == hovered {
+	if got := surf.Frame().RGBAAt(px, py); got == hovered {
 		t.Fatal("hover must revert when the pointer leaves")
 	}
 }
@@ -183,7 +199,7 @@ func TestEngineHiDPIScalesGeometry(t *testing.T) {
 	build := func(scale int) (*Engine, *HeadlessSurface, *model.Node) {
 		btn := newButton("b")
 		root := &model.Node{Type: "column", ID: "root",
-			Layout: map[string]any{"align": "center", "justify": "center"},
+			Layout:   map[string]any{"align": "center", "justify": "center"},
 			Children: []*model.Node{btn}}
 		app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}}
 		rt := runtime.New(app)
@@ -476,8 +492,10 @@ func TestResolveThemeAppDirAndNegativeCache(t *testing.T) {
 }
 
 // ScrollInput is routed into the engine instead of being silently dropped by
-// the host. Until scroll containers land (third milestone) the handler is an
-// explicit no-op: it must not dirty the engine or change interaction state.
+// the host. With scroll containers landed (scroll.go), a gesture can only
+// take effect where the pointer rests over a scroll viewport — and this
+// fixture has neither a known pointer position nor a viewport, so the handler
+// must stay a no-op: no dirty flag, no interaction change.
 func TestEngineHandleScrollIsExplicitNoOp(t *testing.T) {
 	e, surf, _ := engineFixture(t)
 	e.DrawFrame(surf)

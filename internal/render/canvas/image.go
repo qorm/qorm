@@ -1,0 +1,235 @@
+package canvas
+
+import (
+	"bytes"
+	"fmt"
+	"image"
+	"image/color"
+	_ "image/jpeg" // JPEG decoding for image widget src
+	_ "image/png"  // PNG decoding for image widget src
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+
+	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/qorm/internal/render/graph"
+	"github.com/qorm/qorm/internal/runtime"
+)
+
+// imagePlaceholder is the grey box painted when an image src fails to load
+// (or names an unsupported source), matching the HTML side's silent broken
+// img instead of crashing the frame.
+var imagePlaceholder = color.RGBA{229, 229, 234, 255}
+
+// imageReadFile is the disk-read seam: tests replace it to count reads and
+// prove the cache serves repeat loads without touching the disk again.
+var imageReadFile = os.ReadFile
+
+// imageWarnOut mirrors the style-warning convention (style.go): one line per
+// problem, to stderr in production, captured by tests.
+var imageWarnOut io.Writer = os.Stderr
+
+// imageCache memoises decode results by resolved absolute path; a nil Img is
+// a NEGATIVE entry (known-bad src) so a failing image neither re-reads the
+// disk nor re-warns on every frame. Failed srcs stay failed for the process
+// lifetime — a file appearing later needs an app reload, the same trade the
+// theme loader makes (engine.go themeFailed).
+var (
+	imageCacheMu sync.Mutex
+	imageCache   = map[string]*image.RGBA{}
+	imageWarned  = map[string]bool{}
+)
+
+// warnImageOnce reports each distinct image problem exactly once (keyed), so
+// the per-frame measure/layout passes never spam the log.
+func warnImageOnce(key, format string, args ...any) {
+	imageCacheMu.Lock()
+	defer imageCacheMu.Unlock()
+	if imageWarned[key] {
+		return
+	}
+	imageWarned[key] = true
+	fmt.Fprintf(imageWarnOut, "[qorm canvas] "+format+"\n", args...)
+}
+
+// resolveImageSrc maps an author src to a local absolute path. Relative paths
+// resolve against the app's BaseDir (model.App.BaseDir is documented for
+// exactly this); absolute paths pass through. Anything else — http(s), data:
+// URIs, the qormapp bundle scheme — is not loadable by the native renderer
+// and reports ok=false.
+func resolveImageSrc(src string, rt *runtime.Runtime) (string, bool) {
+	src = strings.TrimSpace(src)
+	if src == "" {
+		return "", false
+	}
+	if strings.Contains(src, "://") || strings.HasPrefix(src, "data:") || strings.HasPrefix(src, "//") {
+		warnImageOnce("remote:"+src, "image src %q is not a local file; the native renderer loads app-relative files only", src)
+		return "", false
+	}
+	if filepath.IsAbs(src) {
+		return filepath.Clean(src), true
+	}
+	base := ""
+	if rt != nil && rt.App != nil {
+		base = rt.App.BaseDir
+	}
+	if base == "" {
+		// In-memory/bundle app with a relative src: unresolvable here.
+		warnImageOnce("nobase:"+src, "image src %q is relative but the app has no BaseDir; cannot resolve it", src)
+		return "", false
+	}
+	return filepath.Join(base, src), true
+}
+
+// loadImage returns the decoded, straight-pixel bitmap for src, or nil on any
+// failure (missing file, undecodable bytes, unsupported source). Results —
+// including failures — are cached, so this is cheap to call every frame.
+func loadImage(src string, rt *runtime.Runtime) *image.RGBA {
+	path, ok := resolveImageSrc(src, rt)
+	if !ok {
+		return nil
+	}
+
+	imageCacheMu.Lock()
+	if img, hit := imageCache[path]; hit {
+		imageCacheMu.Unlock()
+		return img
+	}
+	imageCacheMu.Unlock()
+
+	img := decodeImageFile(path, src)
+
+	imageCacheMu.Lock()
+	imageCache[path] = img
+	imageCacheMu.Unlock()
+	return img
+}
+
+// decodeImageFile reads and decodes one image file into a STRAIGHT
+// (non-premultiplied) RGBA — the renderer's buffer convention. Failures warn
+// once and return nil (the caller negative-caches).
+func decodeImageFile(path, src string) *image.RGBA {
+	b, err := imageReadFile(path)
+	if err != nil {
+		warnImageOnce("load:"+path, "image src %q (%s) failed to load: %v; drawing a placeholder", src, path, err)
+		return nil
+	}
+	decoded, _, err := image.Decode(bytes.NewReader(b))
+	if err != nil {
+		warnImageOnce("decode:"+path, "image src %q (%s) is not a decodable PNG/JPEG: %v; drawing a placeholder", src, path, err)
+		return nil
+	}
+	return toStraightRGBA(decoded)
+}
+
+// toStraightRGBA converts any decoded image to *image.RGBA holding straight
+// (non-premultiplied) bytes. At().RGBA() yields alpha-premultiplied 16-bit
+// channels, so the conversion un-premultiplies; an NRGBA source is already
+// straight and copies directly.
+func toStraightRGBA(src image.Image) *image.RGBA {
+	sb := src.Bounds()
+	dst := image.NewRGBA(image.Rect(0, 0, sb.Dx(), sb.Dy()))
+	if nrgba, ok := src.(*image.NRGBA); ok {
+		for y := 0; y < sb.Dy(); y++ {
+			for x := 0; x < sb.Dx(); x++ {
+				c := nrgba.NRGBAAt(sb.Min.X+x, sb.Min.Y+y)
+				dst.SetRGBA(x, y, color.RGBA{c.R, c.G, c.B, c.A})
+			}
+		}
+		return dst
+	}
+	for y := 0; y < sb.Dy(); y++ {
+		for x := 0; x < sb.Dx(); x++ {
+			r, g, b, a := src.At(sb.Min.X+x, sb.Min.Y+y).RGBA()
+			if a == 0 {
+				continue
+			}
+			if a != 0xffff {
+				// Un-premultiply: straight = premul * 0xffff / a.
+				r = r * 0xffff / a
+				g = g * 0xffff / a
+				b = b * 0xffff / a
+			}
+			dst.SetRGBA(x, y, color.RGBA{uint8(r >> 8), uint8(g >> 8), uint8(b >> 8), uint8(a >> 8)})
+		}
+	}
+	return dst
+}
+
+// imageFit normalises the author `fit` prop to a mode graph.Image
+// understands. HTML defaults to cover (render_media.go:19); fill/contain/
+// cover/none are supported, anything else warns once and degrades to cover.
+func imageFit(n *model.Node, rt *runtime.Runtime) string {
+	raw, ok := n.Prop("fit")
+	if !ok {
+		return "cover"
+	}
+	fit := strings.ToLower(strings.TrimSpace(evalPropStr(raw, rt)))
+	switch fit {
+	case "", "cover":
+		return "cover"
+	case "fill", "contain", "none":
+		return fit
+	default:
+		warnImageOnce("fit:"+fit, "image fit %q is not supported by the native renderer (fill/contain/cover/none); using cover", fit)
+		return "cover"
+	}
+}
+
+// imageSrc evaluates the node's interpolated `src` prop ({{state.x}} etc.
+// resolve, mirroring the HTML path's interp, render_media.go:15).
+func imageSrc(n *model.Node, rt *runtime.Runtime) string {
+	raw, ok := n.Prop("src")
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(evalPropStr(raw, rt))
+}
+
+// MeasureImage is the measure-pass entry point for the image widget: it
+// returns the node's content size in physical pixels. The intrinsic image
+// size (× scale, like style dims) is used; explicit style width/height still
+// win — the generic override in measure() applies them on top of this result.
+// Unloaded/failed images report 0×0 so the node collapses like an empty img.
+func MeasureImage(n *model.Node, rt *runtime.Runtime, scale int) (w, h int) {
+	if scale < 1 {
+		scale = 1
+	}
+	img := loadImage(imageSrc(n, rt), rt)
+	if img == nil {
+		return 0, 0
+	}
+	b := img.Bounds()
+	return b.Dx() * scale, b.Dy() * scale
+}
+
+// RecordImage is the layout-pass entry point for the image widget: it builds
+// the scene-graph shape for the node's content box (width×height physical
+// pixels, already resolved by PerformLayout). borderRadius comes from the
+// node's parsed style and clips the bitmap like a Rect body. A failed or
+// empty src yields the grey placeholder box (failed srcs also warned once at
+// load time); empty src adds nothing but the box, mirroring a broken img.
+func RecordImage(n *model.Node, rt *runtime.Runtime, width, height int, borderRadius float64) graph.Node {
+	if width <= 0 || height <= 0 {
+		return nil
+	}
+	src := imageSrc(n, rt)
+	img := loadImage(src, rt)
+	if img == nil || src == "" {
+		ph := graph.NewRect()
+		ph.Width = float64(width)
+		ph.Height = float64(height)
+		ph.Fill = imagePlaceholder
+		ph.BorderRadius = borderRadius
+		return ph
+	}
+	node := graph.NewImage()
+	node.Width = float64(width)
+	node.Height = float64(height)
+	node.Bitmap = img
+	node.Fit = imageFit(n, rt)
+	node.BorderRadius = borderRadius
+	return node
+}

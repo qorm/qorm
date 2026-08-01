@@ -1,0 +1,211 @@
+package canvas
+
+import (
+	"fmt"
+	"image"
+	"image/color"
+	"testing"
+
+	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/qorm/internal/runtime"
+)
+
+// scrollFixture builds a headless engine around one scroll viewport (200x100)
+// holding the given children, and returns the engine, surface and viewport.
+func scrollFixture(t *testing.T, children []*model.Node) (*Engine, *HeadlessSurface, *model.Node) {
+	t.Helper()
+	sv := &model.Node{
+		Type: "scroll", ID: "sv",
+		Style:    map[string]any{"width": 200.0, "height": 100.0},
+		Children: children,
+	}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{sv}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}}
+	rt := runtime.New(app)
+	surf := NewHeadlessSurface(image.Pt(400, 400))
+	return NewEngine(rt, SoftwareRenderer{}), surf, sv
+}
+
+// tallChildren returns n plain rows of the given height (scrollable filler).
+func tallChildren(n, h int) []*model.Node {
+	out := make([]*model.Node, n)
+	for i := range out {
+		out[i] = &model.Node{Type: "column", Style: map[string]any{"height": float64(h)}}
+	}
+	return out
+}
+
+// The offset clamps to [0, contentHeight-viewportHeight] in both directions,
+// and the clamped value is what the content actually shifts by.
+func TestScrollOffsetClamp(t *testing.T) {
+	e, surf, sv := scrollFixture(t, tallChildren(10, 50)) // content 500, viewport 100
+	e.DrawFrame(surf)
+
+	e.HandlePointer(PointerInput{Type: PointerMove, X: 100, Y: 50})
+	if !e.HandleScroll(ScrollInput{DY: 10000}) {
+		t.Fatal("scroll over the viewport must be consumed")
+	}
+	if off := e.Inter.ScrollOffsets[sv]; off != 400 {
+		t.Fatalf("offset after huge downward delta = %v, want 400 (500-100)", off)
+	}
+	if e.HandleScroll(ScrollInput{DY: 10000}) {
+		t.Fatal("already at the bottom: nothing left to consume")
+	}
+	if !e.HandleScroll(ScrollInput{DY: -10000}) {
+		t.Fatal("scrolling back up must be consumed")
+	}
+	if off := e.Inter.ScrollOffsets[sv]; off != 0 {
+		t.Fatalf("offset after huge upward delta = %v, want 0", off)
+	}
+
+	// The content shifts by exactly the offset.
+	first := sv.Children[0]
+	before := e.findGroupByModel(first).GetBBox().MinY
+	e.HandleScroll(ScrollInput{DY: 40})
+	e.DrawFrame(surf)
+	after := e.findGroupByModel(first).GetBBox().MinY
+	if before-after != 40 {
+		t.Fatalf("content shifted by %v, want 40 (the offset)", before-after)
+	}
+}
+
+// A wheel gesture only scrolls the viewport under the pointer: over empty
+// space nothing is consumed and the engine stays clean.
+func TestScrollWheelHitAndMiss(t *testing.T) {
+	e, surf, sv := scrollFixture(t, tallChildren(10, 50))
+	e.DrawFrame(surf)
+
+	e.HandlePointer(PointerInput{Type: PointerMove, X: 350, Y: 350}) // outside the 200x100 viewport
+	if e.HandleScroll(ScrollInput{DY: 30}) {
+		t.Fatal("scroll outside any viewport must not be consumed")
+	}
+	if e.Dirty() {
+		t.Fatal("an unconsumed scroll must not dirty the engine")
+	}
+	if len(e.Inter.ScrollOffsets) != 0 {
+		t.Fatal("an unconsumed scroll must not create offset state")
+	}
+
+	e.HandlePointer(PointerInput{Type: PointerMove, X: 100, Y: 50}) // inside
+	if !e.HandleScroll(ScrollInput{DY: 30}) {
+		t.Fatal("scroll over the viewport must be consumed")
+	}
+	if off := e.Inter.ScrollOffsets[sv]; off != 30 {
+		t.Fatalf("offset = %v, want 30", off)
+	}
+}
+
+// A child scrolled out of the viewport is clipped from hit testing exactly
+// like it is clipped from painting: pressing its off-viewport position does
+// nothing; after scrolling it into view the same press dispatches.
+func TestScrollClippedChildNotHittable(t *testing.T) {
+	mk := func(id string) *model.Node {
+		return &model.Node{
+			Type: "column", ID: id,
+			Style:   map[string]any{"width": 200.0, "height": 50.0},
+			OnPress: &model.Invoke{Name: "hit"},
+		}
+	}
+	children := []*model.Node{mk("b0"), mk("b1"), mk("b2"), mk("b3")}
+	e, surf, _ := scrollFixture(t, children)
+	e.RT.App.Actions = map[string]*model.Action{
+		"hit": {ID: "hit", Steps: []model.Step{{Type: "state.set", Path: "hits", Value: "{{1}}"}}},
+	}
+	e.DrawFrame(surf)
+
+	// b3 sits at content y 150..200 — entirely below the 100px viewport.
+	e.HandlePointer(PointerInput{Type: PointerPress, X: 100, Y: 175})
+	if e.RT.State["hits"] != nil {
+		t.Fatal("press on a clipped child must not dispatch")
+	}
+	if e.Inter.Pressed != nil {
+		t.Fatal("press on a clipped child must not set the pressed identity")
+	}
+
+	// Scroll it into view (offset 100: b3 now at viewport y 50..100) and the
+	// very same node becomes pressable.
+	e.HandlePointer(PointerInput{Type: PointerMove, X: 100, Y: 75})
+	e.HandleScroll(ScrollInput{DY: 100})
+	e.DrawFrame(surf)
+	e.HandlePointer(PointerInput{Type: PointerPress, X: 100, Y: 75})
+	if fmt.Sprint(e.RT.State["hits"]) != "1" {
+		t.Fatalf("hits = %v, want 1 after scrolling the child into view", e.RT.State["hits"])
+	}
+	if e.Inter.Pressed != children[3] {
+		t.Fatal("the scrolled-into-view child must take the pressed identity")
+	}
+}
+
+// Nested viewports chain the gesture: the inner consumes what it can, the
+// remainder bubbles to the outer (the web's scroll chaining).
+func TestScrollNestedBubbling(t *testing.T) {
+	inner := &model.Node{
+		Type: "scroll", ID: "inner",
+		Style:    map[string]any{"width": 200.0, "height": 100.0},
+		Children: tallChildren(6, 50), // content 300, range 200
+	}
+	outer := &model.Node{
+		Type: "scroll", ID: "outer",
+		Style: map[string]any{"width": 200.0, "height": 100.0},
+		Children: []*model.Node{
+			inner,
+			{Type: "column", Style: map[string]any{"height": 200.0}}, // outer content 300, range 200
+		},
+	}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{outer}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}}
+	rt := runtime.New(app)
+	surf := NewHeadlessSurface(image.Pt(400, 400))
+	e := NewEngine(rt, SoftwareRenderer{})
+	e.DrawFrame(surf)
+
+	e.HandlePointer(PointerInput{Type: PointerMove, X: 100, Y: 50}) // over the inner viewport
+	if !e.HandleScroll(ScrollInput{DY: 250}) {
+		t.Fatal("a 250 delta across two ranges must be consumed")
+	}
+	if off := e.Inter.ScrollOffsets[inner]; off != 200 {
+		t.Fatalf("inner offset = %v, want 200 (its full range)", off)
+	}
+	if off := e.Inter.ScrollOffsets[outer]; off != 50 {
+		t.Fatalf("outer offset = %v, want 50 (the bubbled remainder)", off)
+	}
+
+	// Inner exhausted: a further gesture lands entirely on the outer.
+	e.HandleScroll(ScrollInput{DY: 1000})
+	if off := e.Inter.ScrollOffsets[outer]; off != 200 {
+		t.Fatalf("outer offset = %v, want 200 (its full range)", off)
+	}
+	// Both at their ends: nothing left to consume anywhere.
+	if e.HandleScroll(ScrollInput{DY: 1000}) {
+		t.Fatal("fully exhausted nesting must report no change")
+	}
+}
+
+// The paint side of clipping: content past the viewport edge never reaches
+// the framebuffer, and scrolling reveals it.
+func TestScrollRenderClipPixels(t *testing.T) {
+	red := color.RGBA{255, 0, 0, 255}
+	body := &model.Node{
+		Type: "column", ID: "body",
+		Style: map[string]any{"width": 200.0, "height": 200.0, "background": "#FF0000"},
+	}
+	e, surf, _ := scrollFixture(t, []*model.Node{body})
+	e.DrawFrame(surf)
+
+	if got := surf.Frame().RGBAAt(50, 50); got != red {
+		t.Fatalf("in-viewport pixel = %v, want the red content", got)
+	}
+	if got := surf.Frame().RGBAAt(50, 150); got == red {
+		t.Fatal("content past the viewport edge must be clipped from the framebuffer")
+	}
+
+	e.HandlePointer(PointerInput{Type: PointerMove, X: 100, Y: 50})
+	e.HandleScroll(ScrollInput{DY: 100}) // body now spans viewport y -100..100
+	e.DrawFrame(surf)
+	if got := surf.Frame().RGBAAt(50, 99); got != red {
+		t.Fatalf("scrolled content pixel = %v, want red (offset reveals it)", got)
+	}
+	if got := surf.Frame().RGBAAt(50, 120); got == red {
+		t.Fatal("content below the viewport must stay clipped after scrolling")
+	}
+}

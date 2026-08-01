@@ -26,17 +26,17 @@ type BaseNode struct {
 	Opacity  float64
 	Width    float64
 	Height   float64
-	
+
 	// Global Transform Matrix (Computed during rendering)
 	GlobalTransform geom.Matrix
 
 	// Hierarchy
 	Parent   *Group
 	Children []Node
-	
+
 	// Ref to the actual implementing Node (for virtual dispatch)
 	Self Node
-	
+
 	// Custom interaction handler
 	OnPress      *model.Invoke
 	OnCollide    *model.Invoke
@@ -48,7 +48,7 @@ type BaseNode struct {
 	OnTouchStart *model.Invoke
 	OnTouchMove  *model.Invoke
 	OnTouchEnd   *model.Invoke
-	
+
 	// Interactive state (set by the event loop, read by the renderer)
 	Pressed bool
 	Hovered bool
@@ -57,6 +57,12 @@ type BaseNode struct {
 	// NoHit marks purely decorative nodes (e.g. the focus ring) that must
 	// never participate in hit testing.
 	NoHit bool
+
+	// Clip marks a container whose children are clipped to its own box when
+	// rendered (scroll viewports). HitTest honours it: a point outside the
+	// box can never resolve to a clipped descendant, matching the pixels the
+	// renderer actually cuts.
+	Clip bool
 
 	// Model is a back-reference to the model node this graph node was built
 	// from (canvas backend). Nil for leaf shapes. Used to map hit results
@@ -98,6 +104,24 @@ func (b *BaseNode) UpdateGlobalTransform() {
 func (b *BaseNode) HitTest(p geom.Point) Node {
 	if b.NoHit {
 		return nil
+	}
+	// Clipping ancestors (scroll viewports) cut off everything outside their
+	// own box: those pixels are never painted, so they must not be hittable
+	// either. The check walks the PARENT chain — the clip is a property of
+	// the container, not the child — which keeps this interface's signature
+	// unchanged for every shape.
+	for a := b.Parent; a != nil; a = a.Parent {
+		if !a.Clip {
+			continue
+		}
+		ainv, ok := a.GlobalTransform.Invert()
+		if !ok {
+			return nil
+		}
+		lp := ainv.TransformPoint(p)
+		if lp.X < 0 || lp.Y < 0 || lp.X > a.Width || lp.Y > a.Height {
+			return nil
+		}
 	}
 	// First convert p to local space
 	inv, ok := b.GlobalTransform.Invert()

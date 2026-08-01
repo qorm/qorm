@@ -152,6 +152,43 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 				scale = 1
 			}
 			DrawText(img, o.Text, pos, withOpacity(currentColor, currentOpacity), scale, clips)
+		case op.ImageOp:
+			if o.Src == nil {
+				break
+			}
+			dest := o.Dest.Add(currentOffset)
+			sb := o.Src.Bounds()
+			sw, sh := sb.Dx(), sb.Dy()
+			dw, dh := dest.Dx(), dest.Dy()
+			if sw <= 0 || sh <= 0 || dw <= 0 || dh <= 0 {
+				break
+			}
+			r := dest.Intersect(img.Bounds())
+			if len(clips) > 0 {
+				r = r.Intersect(clipBounds(clips, img))
+			}
+			if r.Empty() {
+				break
+			}
+			// Nearest-neighbour sampling: integer-only, deterministic and
+			// exact for the pixel-assertion tests. Bilinear would buy smooth
+			// downscales but needs premultiplied-space interpolation (the
+			// buffer is straight) and a fixed-point pipeline — deferred until
+			// a real use case demands it.
+			for y := r.Min.Y; y < r.Max.Y; y++ {
+				sy := sb.Min.Y + (y-dest.Min.Y)*sh/dh
+				for x := r.Min.X; x < r.Max.X; x++ {
+					if !inAllClips(x, y, clips) {
+						continue
+					}
+					sx := sb.Min.X + (x-dest.Min.X)*sw/dw
+					c := o.Src.RGBAAt(sx, sy)
+					if currentOpacity < 1.0 {
+						c = withOpacity(c, currentOpacity)
+					}
+					blendOver(img, x, y, c)
+				}
+			}
 		}
 	}
 }
