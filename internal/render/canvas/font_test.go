@@ -1,3 +1,8 @@
+//go:build qorm_nocjk
+
+// These cases pin the phase-1 bitmap font behaviour, which holds when no TTF
+// engine is active — i.e. exactly the builds with the qorm_nocjk tag (the
+// sfnt opt-out). The default-build equivalents live in font_sfnt_test.go.
 package canvas
 
 import (

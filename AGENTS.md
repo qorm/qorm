@@ -48,5 +48,12 @@ the acronym as verbs and you have the API surface: **Query** (HTTP/MCP reads),
 
 ## Build & test
 - Pure Go, no cgo in the default build: `go build ./... && go test ./...`.
+- CJK text: the default build embeds the OFL-1.1 subset font (Source Han
+  Sans SC == Noto Sans CJK SC; `fonts/assets/`, ~3.4MB) and renders real CJK
+  glyphs via `golang.org/x/image/font/sfnt`. `-tags qorm_nocjk` opts out
+  (bitmap font; non-ASCII renders as `?`; binary ~3.8MB smaller). Regenerate
+  the subset with `scripts/subset-font.sh <NotoSansSC/SourceHanSansSC OTF>`
+  (needs python3 + fonttools). Without the asset the build still compiles
+  and falls back to the bitmap font.
 - Run an example: `go run ./cmd/qorm run examples/counter`.
 - Native desktop window (opt-in, per-platform): `-tags desktop`.

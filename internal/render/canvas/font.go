@@ -243,25 +243,55 @@ type TextMeasurer interface {
 type bitmapMeasurer struct{}
 
 func (bitmapMeasurer) Measure(text string, fontSize float64) float64 {
-	return MeasureText(text, fontSize)
-}
-
-// DefaultTextMeasurer is the built-in TextMeasurer (bitmap font metrics).
-var DefaultTextMeasurer TextMeasurer = bitmapMeasurer{}
-
-// MeasureText returns the layout width of text at fontSize in pixels — the
-// single source of truth for text extents. Widths are per rune: ASCII and
-// other narrow runes are half-width (0.6*fontSize, matching the drawn
-// advance), East Asian wide runes are full-width (1.0*fontSize). DrawText
-// advances the pen by the same per-rune amounts, so measured and drawn
-// width cannot drift apart.
-func MeasureText(text string, fontSize float64) float64 {
 	fontSize = clampFontSize(fontSize)
 	w := 0.0
 	for _, r := range text {
 		w += runeAdvance(r, fontSize)
 	}
 	return w
+}
+
+// DefaultTextMeasurer is the built-in TextMeasurer (bitmap font metrics).
+// By default font_sfnt.go replaces it with an sfnt-backed measurer
+// (bitmap fallback when the embedded font is unusable); the qorm_nocjk
+// build tag opts out and keeps this bitmap measurer.
+var DefaultTextMeasurer TextMeasurer = bitmapMeasurer{}
+
+// ttfEngine is the phase-2 sfnt-backed text engine. font_sfnt.go installs a
+// provider by default; the qorm_nocjk build tag disables it (ttfProvider
+// stays nil) and everything keeps the phase-1 bitmap behaviour. Measure and drawText share
+// one implementation so measured and drawn widths cannot drift apart.
+type ttfEngine interface {
+	TextMeasurer
+	// drawText renders into img with the same contract as DrawText, but
+	// takes the already-clamped font size (not the scale factor).
+	drawText(img *image.RGBA, text string, pos image.Point, col color.RGBA, fontSize float64, clips []op.ClipOp)
+}
+
+// ttfProvider returns the shared engine, lazily parsing the embedded font on
+// first use (a sync.Once inside the provider). A nil provider or a nil
+// engine means "no usable TTF": callers fall back to the bitmap path.
+var ttfProvider func() ttfEngine
+
+func activeTTFEngine() ttfEngine {
+	if ttfProvider == nil {
+		return nil
+	}
+	return ttfProvider()
+}
+
+// MeasureText returns the layout width of text at fontSize in pixels — the
+// single source of truth for text extents. When a TTF engine is active
+// (the default) it answers with sfnt advances; otherwise widths are per
+// rune: ASCII and other narrow runes are half-width (0.6*fontSize, matching
+// the drawn advance), East Asian wide runes are full-width (1.0*fontSize).
+// DrawText advances the pen by the same per-rune amounts, so measured and
+// drawn width cannot drift apart.
+func MeasureText(text string, fontSize float64) float64 {
+	if e := activeTTFEngine(); e != nil {
+		return e.Measure(text, fontSize)
+	}
+	return bitmapMeasurer{}.Measure(text, fontSize)
 }
 
 // runeAdvance is the per-rune pen advance shared by MeasureText and DrawText.
@@ -304,17 +334,30 @@ var wideRanges = [][2]rune{
 // into img, honouring the active clip stack (nested clips intersect). Pixels
 // are alpha-composited so sub-full alpha text blends over whatever is below.
 //
-// scale is fontSize/10 (see graph.Text.Draw). Non-ASCII runes still render
-// as '?' (phase-1 fallback), but the pen advances per rune by the same
+// scale is fontSize/10 (see graph.Text.Draw). When a TTF engine is active
+// (the default) runes with real glyphs are rasterized from the embedded
+// subset font and runes missing from it fall back to the bitmap '?' at a
+// full-width advance. Without an engine, non-ASCII runes render as '?'
+// (phase-1 fallback); either way the pen advances per rune by the same
 // amounts MeasureText reports, so the layout width matches what is drawn.
 func DrawText(img *image.RGBA, text string, pos image.Point, col color.RGBA, scale float64, clips []op.ClipOp) {
 	fontSize := clampFontSize(scale * 10)
+	if col.A == 0 {
+		return
+	}
+	if e := activeTTFEngine(); e != nil {
+		e.drawText(img, text, pos, col, fontSize, clips)
+		return
+	}
+	drawTextBitmap(img, text, pos, col, fontSize, clips)
+}
+
+// drawTextBitmap is the phase-1 rasterizer: one 5x7 bitmap glyph per rune
+// ('?' for non-ASCII), advancing by the shared MeasureText metric.
+func drawTextBitmap(img *image.RGBA, text string, pos image.Point, col color.RGBA, fontSize float64, clips []op.ClipOp) {
 	intScale := int(fontSize / 10)
 	if intScale < 1 {
 		intScale = 1
-	}
-	if col.A == 0 {
-		return
 	}
 
 	y := pos.Y
@@ -324,29 +367,33 @@ func DrawText(img *image.RGBA, text string, pos image.Point, col color.RGBA, sca
 		if r < 32 || r > 127 {
 			c = 63 // '?'
 		}
+		drawBitmapGlyph(img, c, int(penX), y, intScale, col, clips)
+		// Advance per rune from the shared metric (MeasureText).
+		penX += runeAdvance(r, fontSize)
+	}
+}
 
-		x := int(penX)
-		glyph := font5x7[c-32]
-		for colIdx := 0; colIdx < 5; colIdx++ {
-			colBits := glyph[colIdx]
-			for rowIdx := 0; rowIdx < 7; rowIdx++ {
-				if (colBits & (1 << rowIdx)) != 0 {
-					// Draw pixel at (x + colIdx*scale, y + rowIdx*scale)
-					sx := x + colIdx*intScale
-					sy := y + rowIdx*intScale
-					for dx := 0; dx < intScale; dx++ {
-						for dy := 0; dy < intScale; dy++ {
-							px, py := sx+dx, sy+dy
-							if len(clips) > 0 && !inAllClips(px, py, clips) {
-								continue
-							}
-							blendOver(img, px, py, col)
+// drawBitmapGlyph paints the 5x7 bitmap glyph for byte c (32..127) with its
+// top-left corner at (x, y), scaled by intScale (>= 1), honouring clips.
+func drawBitmapGlyph(img *image.RGBA, c byte, x, y, intScale int, col color.RGBA, clips []op.ClipOp) {
+	glyph := font5x7[c-32]
+	for colIdx := 0; colIdx < 5; colIdx++ {
+		colBits := glyph[colIdx]
+		for rowIdx := 0; rowIdx < 7; rowIdx++ {
+			if (colBits & (1 << rowIdx)) != 0 {
+				// Draw pixel at (x + colIdx*scale, y + rowIdx*scale)
+				sx := x + colIdx*intScale
+				sy := y + rowIdx*intScale
+				for dx := 0; dx < intScale; dx++ {
+					for dy := 0; dy < intScale; dy++ {
+						px, py := sx+dx, sy+dy
+						if len(clips) > 0 && !inAllClips(px, py, clips) {
+							continue
 						}
+						blendOver(img, px, py, col)
 					}
 				}
 			}
 		}
-		// Advance per rune from the shared metric (MeasureText).
-		penX += runeAdvance(r, fontSize)
 	}
 }
