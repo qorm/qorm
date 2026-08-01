@@ -57,6 +57,7 @@
 | `field` | formfield | `field` |
 | `filepicker` | file | `hwList` |
 | `form` | — | `form` |
+| `g2048` | — | `tetris` |
 | `gesturedetector` | gesture, inkwell | `gestureDetector` |
 | `gridview` | — | `gridView` |
 | `haptics` | — | `hwList` |

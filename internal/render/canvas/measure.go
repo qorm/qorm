@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"time"
 
+	flexlayout "github.com/qorm/qorm/internal/layout"
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/render/graph"
 	"github.com/qorm/qorm/internal/runtime"
@@ -713,10 +714,18 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, r
 		}
 	}
 
-	for i, child := range ln.Children {
-		cw := child.Width + child.Style.MarginLeft + child.Style.MarginRight
-		ch := child.Height + child.Style.MarginTop + child.Style.MarginBot
+	// CSS flexbox (internal/layout kernel): computed once per container, then
+	// each default-case child takes its resolved box — align-items, the six
+	// justify values, wrap, and flex-grow all live in the engine now.
+	var flexRects []flexlayout.Rect
+	if !isStack && !isGrid && len(ln.Children) > 0 {
+		lines := flexlayout.Flex(float64(innerW), float64(innerH), flexStyle(ln, rt), flexChildren(ln, rt))
+		for _, line := range lines {
+			flexRects = append(flexRects, line.Rects...)
+		}
+	}
 
+	for i, child := range ln.Children {
 		// Set alignment for cross axis
 		if child.Style.Align == "" {
 			child.Style.Align = ln.Style.Align // inherit parent alignItems
@@ -745,43 +754,18 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, r
 			}
 			cbounds = image.Rect(gx, gy, gx+gridColW, gy+gridRowH[row])
 		default:
-			// Flexbox parity: align-items defaults to STRETCH, so a child
-			// with an auto cross size fills the parent's cross axis (HTML's
-			// buttons/inputs span their column with no width set). Explicit
-			// sizes, "fill", and an alignment keep their box.
-			if isRow {
-				if child.Style.Height == 0 && child.Style.HeightRaw != "fill" && child.Style.Align == "" {
-					ch = innerH - child.Style.MarginTop - child.Style.MarginBot
-					child.Height = ch
-				}
-			} else {
-				if child.Style.Width == 0 && child.Style.WidthRaw != "fill" && child.Style.Align == "" {
-					cw = innerW - child.Style.MarginLeft - child.Style.MarginRight
-					child.Width = cw
-				}
-			}
-			cbounds = image.Rect(cx, cy, cx+cw, cy+ch)
-
-			if isRow {
-				if child.Style.Align == "center" {
-					cbounds = image.Rect(cx, cy, cx+cw, cy+innerH)
-				}
-			} else {
-				if child.Style.Align == "center" {
-					cbounds = image.Rect(cx, cy, cx+innerW, cy+ch)
-				}
-			}
+			r := flexRects[i]
+			x0, y0, x1, y1 := flexRectToBounds(r, child, cx, cy)
+			cbounds = image.Rect(x0, y0, x1, y1)
+			// The flex box is resolved (stretch/grow applied): write it back
+			// (clamped) so the group box matches the engine's answer.
+			child.Width = clampInt(int(r.W), child.Style.MinWidth, child.Style.MaxWidth)
+			child.Height = clampInt(int(r.H), child.Style.MinHeight, child.Style.MaxHeight)
 		}
 
 		childNode := performLayout(child, cbounds, inter, rt, scale, items)
 		if childNode != nil {
 			sink.AddChild(childNode)
-		}
-
-		if isRow {
-			cx += cw + ln.Style.Gap
-		} else if !isStack && !isGrid {
-			cy += ch + ln.Style.Gap
 		}
 	}
 

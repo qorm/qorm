@@ -167,6 +167,11 @@ func (Tabs) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.N
 			if cln.Node != n.Children[active] {
 				continue
 			}
+			// align-items:stretch semantics for the tabs column: an auto-width
+			// panel grows to the tabs width (it never shrinks).
+			if cln.Width < ln.Width {
+				cln.Width = ln.Width
+			}
 			top := barH + tabPanelPad*scale
 			bounds := image.Rect(0, top, ln.Width, top+cln.Height+cln.Style.MarginTop+cln.Style.MarginBot)
 			if pn := canvas.PerformLayout(cln, bounds, nil, rt, scale); pn != nil {

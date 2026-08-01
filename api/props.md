@@ -98,6 +98,7 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `field` | `error` · `help` · `label` · `required` |
 | `filepicker` | `label` |
 | `form` | `novalidate` |
+| `g2048` | — |
 | `gesturedetector` | `onDoubleTap` · `onLongPress` |
 | `gridview` | `as` · `crossAxisCount` · `minItemWidth` · `page` · `pageSize` · `spacing` |
 | `haptics` | `label` |
