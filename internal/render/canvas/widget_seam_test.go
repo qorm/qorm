@@ -27,7 +27,7 @@ func (testToggle) Record(ln *LayoutNode, rt *runtime.Runtime, scale int) graph.N
 	r.Fill = color.RGBA{128, 128, 128, 255}
 	return r
 }
-func (t testToggle) HandlePointer(n *model.Node, rt *runtime.Runtime, p PointerInput, inter *Interaction) bool {
+func (t testToggle) HandlePointer(n *model.Node, rt *runtime.Runtime, p PointerInput, inter *Interaction, _ image.Rectangle) bool {
 	*t.seen = append(*t.seen, p.Type)
 	if p.Type == PointerPress {
 		inter.Pressed = n // take capture, like a drag-capable widget would

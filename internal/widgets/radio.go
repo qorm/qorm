@@ -122,7 +122,7 @@ func (r *Radio) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) dr
 }
 
 // HandlePointer maps the press to an option row and selects it.
-func (r *Radio) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.PointerInput, inter *canvas.Interaction) bool {
+func (r *Radio) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.PointerInput, inter *canvas.Interaction, _ image.Rectangle) bool {
 	if formDisabled(n, rt) {
 		return false
 	}

@@ -76,6 +76,7 @@ func launchWindow(srv *server.Server, ln net.Listener, url, title string) bool {
 	physW, physH := ww*scale, hh*scale
 	s := float64(scale)
 	lastResize := time.Now()
+	cursorHint := canvas.CursorArrow
 
 	// app.Run's loop delivers events here AND, when idle, returns so we can
 	// render. We drive the engine from this same (main) thread.
@@ -87,6 +88,13 @@ func launchWindow(srv *server.Server, ln net.Listener, url, title string) bool {
 				Type: canvas.PointerType(e.Type), X: float64(e.Position.X) * s, Y: float64(e.Position.Y) * s, Buttons: e.Buttons,
 			}) {
 				// state-changing input already dirtied the engine; nothing else
+			}
+			// Keep the OS cursor honest with the hovered widget (I-beam over
+			// text fields, pointing hand over pressables) — the browser does
+			// this for free on the HTML path; the native window needs it set.
+			if h := eng.CursorHint(); h != cursorHint {
+				cursorHint = h
+				win.SetCursor(int(h))
 			}
 		case app.KeyEvent:
 			eng.HandleKey(canvas.KeyInput{Key: e.Key, Shift: e.Shift, Down: e.Type == app.KeyDown, Rune: e.Rune})

@@ -152,7 +152,7 @@ func (t *Textarea) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int)
 // HandlePointer focuses the field on press (pointer-driven focus, no
 // keyboard ring); the engine's post-widget syncEditSession then opens the
 // edit session — the same funnel a pointer press on the built-in input uses.
-func (t *Textarea) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.PointerInput, inter *canvas.Interaction) bool {
+func (t *Textarea) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.PointerInput, inter *canvas.Interaction, _ image.Rectangle) bool {
 	t.mu.Lock()
 	t.inters[n] = inter
 	t.mu.Unlock()

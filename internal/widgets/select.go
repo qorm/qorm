@@ -10,6 +10,7 @@ package widgets
 // HTML select uses, with a degraded picker UI.
 
 import (
+	"image"
 	"fmt"
 	"image/color"
 	"sync"
@@ -119,7 +120,7 @@ func (s *Select) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) d
 // HandlePointer cycles to the option after the current one (wrapping at the
 // end) on every press — the no-overlay selection mechanism — writing the new
 // value back and dispatching onChange with {value}.
-func (s *Select) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.PointerInput, inter *canvas.Interaction) bool {
+func (s *Select) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.PointerInput, inter *canvas.Interaction, _ image.Rectangle) bool {
 	if formDisabled(n, rt) {
 		return false
 	}

@@ -499,3 +499,24 @@ func objcString(ns uintptr, max int) string {
 	}
 	return string(buf[:n])
 }
+
+// SetCursor sets the window's mouse cursor: 0 = arrow, 1 = I-beam (text),
+// 2 = pointing hand (mirroring canvas.CursorHint's ordinals, kept in cmd so
+// the app package stays engine-free). Called on the main thread from the
+// event loop's hover path.
+func (w *Window) SetCursor(which int) {
+	var sel uintptr
+	switch which {
+	case 1:
+		sel = appkit.SelRegisterName("IBeamCursor")
+	case 2:
+		sel = appkit.SelRegisterName("pointingHandCursor")
+	default:
+		sel = appkit.SelRegisterName("arrowCursor")
+	}
+	cls := appkit.ObjcGetClass("NSCursor")
+	cur := appkit.MsgSend(cls, sel)
+	if cur != 0 {
+		appkit.MsgSend(cur, appkit.SelRegisterName("set"))
+	}
+}

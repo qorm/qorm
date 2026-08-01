@@ -1,6 +1,7 @@
 package canvas
 
 import (
+	"image"
 	"sync"
 
 	"github.com/qorm/qorm/internal/model"
@@ -71,7 +72,10 @@ func LookupWidget(typ string) (Widget, bool) {
 // (v1: no keyboard routing yet).
 type InteractiveWidget interface {
 	Widget
-	HandlePointer(n *model.Node, rt *runtime.Runtime, p PointerInput, inter *Interaction) (redraw bool)
+	// frame is the widget node's rendered bounds in physical pixels — the
+	// widget maps event coordinates into its own layout (button regions,
+	// drag tracks) without stashing geometry in Record.
+	HandlePointer(n *model.Node, rt *runtime.Runtime, p PointerInput, inter *Interaction, frame image.Rectangle) (redraw bool)
 }
 
 // AnimatedWidget is an OPTIONAL extension for widgets that animate
@@ -82,4 +86,15 @@ type InteractiveWidget interface {
 type AnimatedWidget interface {
 	Widget
 	Animating() bool
+}
+
+// KeyWidget is an OPTIONAL extension for widgets that handle keyboard input
+// (games, rich editors). The engine routes key events to it while one of its
+// nodes holds focus — a press on the widget focuses it (pointer semantics:
+// no focus ring), Escape blurs back out to the generic path. Returning
+// consumed=true keeps the event from the generic handlers (tab/return/
+// escape); redraw=true requests a frame.
+type KeyWidget interface {
+	Widget
+	HandleKey(n *model.Node, rt *runtime.Runtime, k KeyInput, inter *Interaction) (consumed, redraw bool)
 }

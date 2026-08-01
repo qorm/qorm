@@ -35,7 +35,7 @@ func (fakeTextarea) Record(ln *LayoutNode, rt *runtime.Runtime, scale int) graph
 	return r
 }
 
-func (fakeTextarea) HandlePointer(n *model.Node, rt *runtime.Runtime, p PointerInput, inter *Interaction) bool {
+func (fakeTextarea) HandlePointer(n *model.Node, rt *runtime.Runtime, p PointerInput, inter *Interaction, _ image.Rectangle) bool {
 	if p.Type != PointerPress {
 		return false
 	}

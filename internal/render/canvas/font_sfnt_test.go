@@ -29,13 +29,15 @@ func requireEngine(t *testing.T) *sfntEngine {
 }
 
 // swapEngine replaces the lazy-load globals for one test and restores them
-// after. Tests using it must not run in parallel.
+// after. Tests using it must not run in parallel. The Once is replaced (not
+// copied back): its only state is "done", and restoring a fresh one plus the
+// old instance is equivalent.
 func swapEngine(t *testing.T, parse func() (*sfnt.Font, error)) {
 	t.Helper()
-	oldOnce, oldInst, oldParse := engineOnce, engineInst, parseFont
+	oldInst, oldParse := engineInst, parseFont
 	engineOnce, engineInst, parseFont = sync.Once{}, nil, parse
 	t.Cleanup(func() {
-		engineOnce, engineInst, parseFont = oldOnce, oldInst, oldParse
+		engineOnce, engineInst, parseFont = sync.Once{}, oldInst, oldParse
 	})
 }
 

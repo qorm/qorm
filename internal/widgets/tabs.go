@@ -186,7 +186,7 @@ func (Tabs) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.N
 // HandlePointer maps a press inside the tab bar to a tab switch. Taps outside
 // the bar (the panel) are ignored — see the type doc for the v1 input
 // limitation.
-func (Tabs) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.PointerInput, inter *canvas.Interaction) (redraw bool) {
+func (Tabs) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.PointerInput, inter *canvas.Interaction, _ image.Rectangle) (redraw bool) {
 	if p.Type != canvas.PointerPress {
 		return false
 	}

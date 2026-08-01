@@ -5,6 +5,7 @@ package widgets
 // checkbox).
 
 import (
+	"image"
 	"fmt"
 	"image/color"
 	"sync"
@@ -97,7 +98,7 @@ func (s *Switch) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) d
 
 // HandlePointer flips on press — the same write-back + onChange pair as
 // Checkbox (HTML renders both over a <input type=checkbox> core).
-func (s *Switch) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.PointerInput, inter *canvas.Interaction) bool {
+func (s *Switch) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.PointerInput, inter *canvas.Interaction, _ image.Rectangle) bool {
 	if formDisabled(n, rt) {
 		return false
 	}

@@ -122,7 +122,7 @@ func (s *Slider) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) d
 }
 
 // HandlePointer implements the press-drag-release gesture with capture.
-func (s *Slider) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.PointerInput, inter *canvas.Interaction) bool {
+func (s *Slider) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.PointerInput, inter *canvas.Interaction, _ image.Rectangle) bool {
 	if formDisabled(n, rt) {
 		return false
 	}

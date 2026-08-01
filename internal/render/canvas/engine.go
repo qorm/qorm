@@ -358,7 +358,12 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 	if e.Inter.Pressed != nil {
 		if w, ok := LookupWidget(e.Inter.Pressed.Type); ok {
 			if iw, yes := w.(InteractiveWidget); yes {
-				redraw := iw.HandlePointer(e.Inter.Pressed, rt, p, &e.Inter)
+				frame := image.Rectangle{}
+				if g := e.findGroupByModel(e.Inter.Pressed); g != nil {
+					b := g.GetBBox()
+					frame = image.Rect(int(b.MinX), int(b.MinY), int(b.MaxX), int(b.MaxY))
+				}
+				redraw := iw.HandlePointer(e.Inter.Pressed, rt, p, &e.Inter, frame)
 				if p.Type == PointerRelease {
 					e.Inter.Pressed = nil
 				}
@@ -372,8 +377,15 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 			}
 		}
 	}
-	if iw, m := interactiveWidgetAt(hit); iw != nil {
-		redraw := iw.HandlePointer(m, rt, p, &e.Inter)
+	if iw, m, frame := interactiveWidgetAt(hit); iw != nil {
+		// A press on an interactive widget focuses it (pointer semantics, no
+		// ring) — the keyboard seam (KeyWidget) and the edit-session funnel
+		// both hang off this identity. Disabled widgets take no focus.
+		if p.Type == PointerPress && !nodeDisabled(m, rt) {
+			e.Inter.Focused = m
+			e.Inter.FocusVisible = false
+		}
+		redraw := iw.HandlePointer(m, rt, p, &e.Inter, frame)
 		// The widget may have moved focus (a textarea focuses itself on
 		// press): open/close the edit session through the same funnel the
 		// generic press path uses (input.go).
@@ -546,6 +558,21 @@ func (e *Engine) HandleKey(k KeyInput) bool {
 	}
 	handled := false
 	if k.Down {
+		// A focused key widget (game, rich editor) owns the keyboard before
+		// anything else — escape passes through to the generic blur below.
+		if f := e.Inter.Focused; f != nil && k.Key != "escape" {
+			if w, ok := LookupWidget(f.Type); ok {
+				if kw, yes := w.(KeyWidget); yes {
+					consumed, redraw := kw.HandleKey(f, rt, k, &e.Inter)
+					if redraw {
+						e.dirty.Store(true)
+					}
+					if consumed {
+						return true
+					}
+				}
+			}
+		}
 		// A focused input owns the keyboard: text, cursor and delete keys edit
 		// its buffer (input.go handleEditKey); tab and escape keep their focus
 		// semantics below and close the session via syncEditSession.

@@ -24,6 +24,7 @@ package widgets
 // This file holds the checkbox plus the helpers the whole form family shares.
 
 import (
+	"image"
 	"fmt"
 	"image/color"
 	"math"
@@ -102,7 +103,7 @@ func (c *Checkbox) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int)
 // HandlePointer flips the checked state on press: the new value writes back
 // to the bound state path (or the local uncontrolled store) and onChange
 // dispatches with {value: bool} — the HTML change wiring pair.
-func (c *Checkbox) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.PointerInput, inter *canvas.Interaction) bool {
+func (c *Checkbox) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.PointerInput, inter *canvas.Interaction, _ image.Rectangle) bool {
 	if formDisabled(n, rt) {
 		return false
 	}

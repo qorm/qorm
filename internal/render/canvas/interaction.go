@@ -1,6 +1,8 @@
 package canvas
 
 import (
+	"image"
+
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/render/graph"
 	"github.com/qorm/qorm/internal/runtime"
@@ -153,21 +155,23 @@ func VisualTarget(hit graph.Node, rt *runtime.Runtime) *model.Node {
 
 // interactiveWidgetAt walks up from hit for the nearest model node whose
 // type is a registered InteractiveWidget (the widget that claims its own
-// pointer stream). Same typed-nil guard as the other parent walks.
-func interactiveWidgetAt(hit graph.Node) (InteractiveWidget, *model.Node) {
+// pointer stream), returning the widget and that ancestor group's rendered
+// bounds. Same typed-nil guard as the other parent walks.
+func interactiveWidgetAt(hit graph.Node) (InteractiveWidget, *model.Node, image.Rectangle) {
 	for hit != nil {
 		if m := hit.Base().Model; m != nil {
 			if w, ok := LookupWidget(m.Type); ok {
 				if iw, yes := w.(InteractiveWidget); yes {
-					return iw, m
+					b := hit.GetBBox()
+					return iw, m, image.Rect(int(b.MinX), int(b.MinY), int(b.MaxX), int(b.MaxY))
 				}
 			}
 		}
 		p := hit.Base().Parent
 		if p == nil {
-			return nil, nil
+			return nil, nil, image.Rectangle{}
 		}
 		hit = p
 	}
-	return nil, nil
+	return nil, nil, image.Rectangle{}
 }
