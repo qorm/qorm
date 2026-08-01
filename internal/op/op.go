@@ -100,6 +100,25 @@ type ImageOp struct {
 
 func (ImageOp) isOp() {}
 
+// RRectOp draws a rounded rectangle — fill, inner stroke, and an optional
+// drop shadow — with PER-PIXEL coverage (signed distance field): the rounded
+// corners get a ~1px antialiasing band and the shadow falls off smoothly,
+// unlike the ClipOp+PaintOp path whose clip edges are binary. Rect is in the
+// current transformed coordinate space; the shadow is the same shape offset
+// by ShadowY with a smoothstep falloff over ShadowBlur pixels.
+type RRectOp struct {
+	Rect        image.Rectangle
+	Radius      float64
+	Fill        color.RGBA
+	Stroke      color.RGBA
+	StrokeWidth float64
+	Shadow      color.RGBA
+	ShadowBlur  float64
+	ShadowY     float64
+}
+
+func (RRectOp) isOp() {}
+
 // OpacityOp sets the current opacity.
 type OpacityOp struct {
 	Alpha float64

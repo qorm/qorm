@@ -82,3 +82,14 @@ func (c *Context) DrawText(text string, pos image.Point, scale float64) {
 func (c *Context) DrawImage(src *image.RGBA, dest image.Rectangle) {
 	c.ops.Add(op.ImageOp{Src: src, Dest: dest})
 }
+
+// RRect records an antialiased rounded rectangle with optional inner stroke
+// and drop shadow (see op.RRectOp) — per-pixel SDF coverage instead of the
+// binary clip+paint path, so corners and shadow falloff render smoothly.
+func (c *Context) RRect(r image.Rectangle, radius float64, fill, stroke color.RGBA, strokeWidth float64, shadow color.RGBA, shadowBlur, shadowY float64) {
+	c.ops.Add(op.RRectOp{
+		Rect: r, Radius: radius,
+		Fill: fill, Stroke: stroke, StrokeWidth: strokeWidth,
+		Shadow: shadow, ShadowBlur: shadowBlur, ShadowY: shadowY,
+	})
+}

@@ -4,6 +4,7 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
+	"math"
 
 	"github.com/qorm/qorm/internal/op"
 )
@@ -19,8 +20,8 @@ import (
 // math unambiguous: blends are computed in straight space in Go and never rely
 // on draw.Over's premultiplied assumptions.
 //
-// Remaining limits (later milestones): shadows are stacked rects (no real blur);
-// the 5x7 bitmap font has no shaping/kerning/wrapping.
+// Remaining limits (later milestones): the 5x7 bitmap font has no
+// shaping/kerning/wrapping.
 type SoftwareRenderer struct{}
 
 // Render implements Renderer.
@@ -189,6 +190,73 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 					blendOver(img, x, y, c)
 				}
 			}
+		case op.RRectOp:
+			rect := o.Rect.Add(currentOffset)
+			hw, hh := float64(rect.Dx())/2, float64(rect.Dy())/2
+			if hw <= 0 || hh <= 0 {
+				break
+			}
+			radius := clamp01(o.Radius/math.Min(hw, hh)) * math.Min(hw, hh)
+			cx := float64(rect.Min.X) + hw
+			cy := float64(rect.Min.Y) + hh
+
+			// Iteration bounds: the fill's ~1px AA band lives just outside
+			// Rect; the shadow extends ShadowBlur px beyond its ShadowY offset.
+			minX, minY := float64(rect.Min.X)-1, float64(rect.Min.Y)-1
+			maxX, maxY := float64(rect.Max.X)+1, float64(rect.Max.Y)+1
+			if o.Shadow.A > 0 {
+				minX = math.Min(minX, float64(rect.Min.X)-o.ShadowBlur-1)
+				minY = math.Min(minY, float64(rect.Min.Y)+o.ShadowY-o.ShadowBlur-1)
+				maxX = math.Max(maxX, float64(rect.Max.X)+o.ShadowBlur+1)
+				maxY = math.Max(maxY, float64(rect.Max.Y)+o.ShadowY+o.ShadowBlur+1)
+			}
+			b := image.Rect(int(math.Floor(minX)), int(math.Floor(minY)), int(math.Ceil(maxX)), int(math.Ceil(maxY)))
+			b = b.Intersect(img.Bounds())
+			if len(clips) > 0 {
+				b = b.Intersect(clipBounds(clips, img))
+			}
+			if b.Empty() {
+				break
+			}
+
+			for y := b.Min.Y; y < b.Max.Y; y++ {
+				for x := b.Min.X; x < b.Max.X; x++ {
+					if !inAllClips(x, y, clips) {
+						continue
+					}
+					px, py := float64(x)+0.5, float64(y)+0.5
+					if o.Shadow.A > 0 {
+						d := sdRoundBox(px, py, cx, cy+o.ShadowY, hw, hh, radius)
+						var cov float64
+						if o.ShadowBlur > 0 {
+							// Smoothstep falloff over the blur width: zero slope
+							// at both ends, so the shadow melts out instead of
+							// stepping like the old concentric-rect fake.
+							t := clamp01(1 - d/o.ShadowBlur)
+							cov = t * t * (3 - 2*t)
+						} else {
+							cov = clamp01(0.5 - d)
+						}
+						if cov > 0 {
+							blendOver(img, x, y, withOpacity(o.Shadow, cov*currentOpacity))
+						}
+					}
+					d := sdRoundBox(px, py, cx, cy, hw, hh, radius)
+					if o.Fill.A > 0 {
+						// ~1px coverage band at the boundary = antialiased edge.
+						if cov := clamp01(0.5 - d); cov > 0 {
+							blendOver(img, x, y, withOpacity(o.Fill, cov*currentOpacity))
+						}
+					}
+					if o.Stroke.A > 0 && o.StrokeWidth > 0 {
+						// Stroke sits INSIDE the boundary (CSS border-box):
+						// outer AA at d≈0, inner AA at d≈-width.
+						if cov := clamp01(0.5-d) * clamp01(0.5+d+o.StrokeWidth); cov > 0 {
+							blendOver(img, x, y, withOpacity(o.Stroke, cov*currentOpacity))
+						}
+					}
+				}
+			}
 		}
 	}
 }
@@ -274,4 +342,15 @@ func blendOver(img *image.RGBA, x, y int, c color.RGBA) {
 	outG := (uint32(c.G)*sa + uint32(d.G)*da*(255-sa)/255) / outA
 	outB := (uint32(c.B)*sa + uint32(d.B)*da*(255-sa)/255) / outA
 	img.SetRGBA(x, y, color.RGBA{uint8(outR), uint8(outG), uint8(outB), uint8(outA)})
+}
+
+// sdRoundBox returns the signed distance from point (px,py) to the boundary
+// of a box centered at (cx,cy) with half extents (hw,hh) and corner radius r
+// — negative inside, positive outside (iq's rounded-box SDF).
+func sdRoundBox(px, py, cx, cy, hw, hh, r float64) float64 {
+	qx := math.Abs(px-cx) - (hw - r)
+	qy := math.Abs(py-cy) - (hh - r)
+	ox := math.Max(qx, 0)
+	oy := math.Max(qy, 0)
+	return math.Min(math.Max(qx, qy), 0) + math.Hypot(ox, oy) - r
 }

@@ -90,40 +90,17 @@ func (r *Rect) Draw(ctx *Context) {
 
 	rect := image.Rect(0, 0, int(r.Width), int(r.Height))
 
-	// Draw Shadow (simulated with 3 concentric layers)
-	if r.ShadowColor.A > 0 {
-		steps := 3
-		stepAlpha := float64(r.ShadowColor.A) / float64(steps) / 255.0
-		for i := steps; i > 0; i-- {
-			spread := float64(i) * (r.ShadowBlur / float64(steps))
-			shadowRect := image.Rect(
-				int(-spread),
-				int(r.ShadowY-spread),
-				int(r.Width+spread),
-				int(r.Height+r.ShadowY+spread),
-			)
-			ctx.Save()
-			ctx.Opacity(stepAlpha)
-			if r.BorderRadius > 0 {
-				ctx.ClipRRect(shadowRect, r.BorderRadius+spread)
-			} else {
-				ctx.ClipRect(shadowRect)
-			}
-			// Draw shadow color (ignoring its own alpha since we use Opacity)
-			sc := r.ShadowColor
-			sc.A = 255
-			ctx.Fill(sc)
-			ctx.Paint()
-			ctx.Restore()
-		}
+	// Rounded and/or shadowed: take the per-pixel SDF path — antialiased
+	// corners and a smooth shadow falloff (the old 3-concentric-rect shadow
+	// and binary clip edges looked stepped/jagged).
+	if r.BorderRadius > 0 || r.ShadowColor.A > 0 {
+		ctx.RRect(rect, r.BorderRadius, r.Fill, r.Stroke, r.StrokeWidth,
+			r.ShadowColor, r.ShadowBlur, r.ShadowY)
+		ctx.Restore()
+		return
 	}
 
-	// Draw main body
-	if r.BorderRadius > 0 {
-		ctx.ClipRRect(rect, r.BorderRadius)
-	} else {
-		ctx.ClipRect(rect)
-	}
+	ctx.ClipRect(rect)
 
 	if r.Fill.A > 0 {
 		ctx.Fill(r.Fill)
