@@ -55,3 +55,26 @@ func LookupWidget(typ string) (Widget, bool) {
 	w, ok := widgets[typ]
 	return w, ok
 }
+
+// InteractiveWidget is an OPTIONAL extension for widgets that handle their
+// own pointer events (toggle, drag, tab switching). The engine routes events
+// for the widget's nodes BEFORE its generic press/hover handling; while a
+// widget node is pressed it captures the whole stream until release (drag
+// semantics — the widget sets inter.Pressed itself on PointerPress to take
+// capture). Returning redraw=true requests a frame. A consumed event never
+// reaches generic hover/press dispatch: the widget owns its nodes' input
+// (v1: no keyboard routing yet).
+type InteractiveWidget interface {
+	Widget
+	HandlePointer(n *model.Node, rt *runtime.Runtime, p PointerInput, inter *Interaction) (redraw bool)
+}
+
+// AnimatedWidget is an OPTIONAL extension for widgets that animate
+// continuously (an indeterminate spinner never settles). While any of its
+// nodes is mounted in the current scene the engine keeps the frame loop
+// alive and calls Record every frame — the widget advances its own clock in
+// Measure/Record.
+type AnimatedWidget interface {
+	Widget
+	Animating() bool
+}

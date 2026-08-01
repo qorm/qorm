@@ -12,6 +12,10 @@ import (
 
 // This file is the canvas counterpart of the HTML path's <input>
 // (render_input.go:270): a single-line text field with two-way state binding.
+// The edit session it defines is SHARED with the registered textarea widget
+// (internal/widgets, W9): syncEditSession opens it for either editable type,
+// and handleEditKey grows the multi-line keys (newline, line-wise cursor)
+// only for textarea sessions — the multi-line rendering lives in the widget.
 //
 // Semantics mirrored from the HTML renderer:
 //   - value = interp(n.Value); when the value is empty the placeholder shows
@@ -122,13 +126,30 @@ func (e *Engine) activeEdit() *InputState {
 	return s
 }
 
+// editableType reports whether a focused node of this type owns the keyboard
+// as a text edit session: the engine's built-in input, or the registered
+// textarea widget (internal/widgets). The registry lookup keeps a plain
+// {"type":"textarea"} container inert when the widget library is not
+// imported — the loosening from "type == input" to "input or registered
+// textarea" (W9) cannot hijack an unregistered scene type.
+func editableType(typ string) bool {
+	if typ == "input" {
+		return true
+	}
+	if typ != "textarea" {
+		return false
+	}
+	_, ok := LookupWidget(typ)
+	return ok
+}
+
 // syncEditSession opens an edit session when focus rests on an enabled input
 // and closes it otherwise. Every focus change (pointer, tab, escape) funnels
 // here so the buffer never outlives the focus that owns it. (A scene switch
 // resets Interaction wholesale, engine.go RenderInto.)
 func (e *Engine) syncEditSession() {
 	f := e.Inter.Focused
-	if f != nil && f.Type == "input" && !nodeDisabled(f, e.RT) {
+	if f != nil && editableType(f.Type) && !nodeDisabled(f, e.RT) {
 		if s := e.Inter.Input; s == nil || s.Node != f {
 			// The buffer starts from the evaluated value with the cursor at
 			// the end, like clicking into an HTML field.
@@ -145,11 +166,18 @@ func (e *Engine) syncEditSession() {
 // left/right move it, delete (the macOS backspace name; "backspace" covers
 // other hosts) removes the rune before it. Every buffer mutation commits:
 // state write-back plus onChange dispatch (commitEdit).
+//
+// Multi-line sessions (a registered textarea) additionally consume: return /
+// enter inserting a newline, and up/down moving the cursor by visual line —
+// left/right already cross newlines rune by rune, matching HTML textarea
+// behavior. A single-line input sees exactly the keys it always did (return
+// falls through to the engine's activation dispatch).
 func (e *Engine) handleEditKey(k KeyInput) bool {
 	s := e.activeEdit()
 	if s == nil {
 		return false
 	}
+	multiline := s.Node.Type == "textarea"
 	switch k.Key {
 	case "left":
 		if s.Cursor > 0 {
@@ -160,6 +188,22 @@ func (e *Engine) handleEditKey(k KeyInput) bool {
 		if s.Cursor < len(s.Runes) {
 			s.Cursor++
 		}
+		return true
+	case "up", "down":
+		if !multiline {
+			return false
+		}
+		moveCursorLine(s, k.Key == "down")
+		return true
+	case "return", "enter":
+		if !multiline {
+			return false
+		}
+		s.Runes = append(s.Runes, 0)
+		copy(s.Runes[s.Cursor+1:], s.Runes[s.Cursor:])
+		s.Runes[s.Cursor] = '\n'
+		s.Cursor++
+		e.commitEdit(s)
 		return true
 	case "delete", "backspace":
 		if s.Cursor > 0 {
@@ -178,6 +222,60 @@ func (e *Engine) handleEditKey(k KeyInput) bool {
 		return true
 	}
 	return false
+}
+
+// moveCursorLine moves the insertion cursor one visual line up (down=false)
+// or down (down=true), keeping the column where the target line is long
+// enough (HTML textarea parity: up on the first line clamps to the buffer
+// start, down on the last line to the end).
+func moveCursorLine(s *InputState, down bool) {
+	start, col := lineStartCol(s.Runes, s.Cursor)
+	target := start
+	if !down {
+		if start == 0 {
+			s.Cursor = 0
+			return
+		}
+		// start-1 is the newline ending the PREVIOUS line; its line start is
+		// the target line's start.
+		target, _ = lineStartCol(s.Runes, start-1)
+	} else {
+		next := lineEnd(s.Runes, start) + 1 // skip the newline itself
+		if next > len(s.Runes) {
+			s.Cursor = len(s.Runes)
+			return
+		}
+		target = next
+	}
+	if tlen := lineEnd(s.Runes, target) - target; col > tlen {
+		col = tlen
+	}
+	s.Cursor = target + col
+}
+
+// lineStartCol returns the start offset of the line containing pos and the
+// column of pos within it (runes).
+func lineStartCol(r []rune, pos int) (start, col int) {
+	if pos > len(r) {
+		pos = len(r)
+	}
+	for i := 0; i < pos; i++ {
+		if r[i] == '\n' {
+			start = i + 1
+		}
+	}
+	return start, pos - start
+}
+
+// lineEnd returns the offset of the newline ending the line that starts at
+// lineStart, or len(r) on the last line.
+func lineEnd(r []rune, lineStart int) int {
+	for i := lineStart; i < len(r); i++ {
+		if r[i] == '\n' {
+			return i
+		}
+	}
+	return len(r)
 }
 
 // commitEdit publishes an edit: the two-way binding writes the buffer back to

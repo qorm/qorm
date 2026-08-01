@@ -287,9 +287,34 @@ func (e *Engine) RenderInto(size image.Point, scale int, target *image.RGBA) (bo
 
 	// dirty was consumed at the top of the frame; animation keeps the loop
 	// ticking until the tweens settle (no separate timer goroutine — the host
-	// polls).
-	e.animating.Store(needsRedraw)
+	// polls). Registered AnimatedWidgets (spinner) never settle on their own,
+	// so the scene scan keeps the loop alive for them too.
+	e.animating.Store(needsRedraw || e.sceneAnimating())
 	return true, st
+}
+
+// sceneAnimating reports whether any mounted node is a registered
+// AnimatedWidget still asking for frames — the engine keeps ticking without
+// knowing the widget's type.
+func (e *Engine) sceneAnimating() bool {
+	found := false
+	var walk func(n *model.Node)
+	walk = func(n *model.Node) {
+		if n == nil || found {
+			return
+		}
+		if w, ok := LookupWidget(n.Type); ok {
+			if aw, yes := w.(AnimatedWidget); yes && aw.Animating() {
+				found = true
+				return
+			}
+		}
+		for _, c := range n.Children {
+			walk(c)
+		}
+	}
+	walk(e.sceneRoot())
+	return found
 }
 
 // DrawFrame renders into the given surface's buffer and presents it — a thin
@@ -318,6 +343,42 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 	hit := e.graphRoot.HitTest(geom.Point{X: p.X, Y: p.Y})
 	e.lastPtr = geom.Point{X: p.X, Y: p.Y}
 	e.hasPtr = true
+
+	// Registered interactive widgets claim their own event stream first: a
+	// pressed widget node keeps capture until release (drag), and a fresh hit
+	// routes to the nearest registered-interactive ancestor. Consumed events
+	// never reach the generic press/hover path.
+	if e.Inter.Pressed != nil {
+		if w, ok := LookupWidget(e.Inter.Pressed.Type); ok {
+			if iw, yes := w.(InteractiveWidget); yes {
+				redraw := iw.HandlePointer(e.Inter.Pressed, rt, p, &e.Inter)
+				if p.Type == PointerRelease {
+					e.Inter.Pressed = nil
+				}
+				// A widget's redraw return must reach the dirty flag —
+				// RenderInto gates on it, so without this a widget-driven
+				// change (a drag's thumb move) never repaints.
+				if redraw {
+					e.dirty.Store(true)
+				}
+				return redraw
+			}
+		}
+	}
+	if iw, m := interactiveWidgetAt(hit); iw != nil {
+		redraw := iw.HandlePointer(m, rt, p, &e.Inter)
+		// The widget may have moved focus (a textarea focuses itself on
+		// press): open/close the edit session through the same funnel the
+		// generic press path uses (input.go).
+		e.syncEditSession()
+		// Same dirty propagation as the capture path above: a toggle's state
+		// flip is invisible until the next frame without it.
+		if redraw {
+			e.dirty.Store(true)
+		}
+		return redraw
+	}
+
 	redraw := false
 
 	switch {
