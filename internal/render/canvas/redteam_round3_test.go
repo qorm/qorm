@@ -266,3 +266,52 @@ func TestThemeFileWinsOverBuiltinAdopt(t *testing.T) {
 		t.Errorf("themeLoaded = %q, want %q", e.themeLoaded, "apple-light")
 	}
 }
+
+// Built-in theme aliases mirror the HTML shell (render/theme.go
+// ThemeVarsFor): "apple"/"auto" resolve as apple-light, "dark" as
+// apple-dark, "material" as win11-light — through the normal probe, with no
+// FAILED log noise (examples ship theme:"apple" widely; user report).
+func TestThemeAliasesResolveThroughNormalProbe(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "themes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "themes", "apple-dark.json"),
+		[]byte(`{"name":"apple-dark","colors":{"background":"#000000"}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	app := &model.App{Entry: "main", BaseDir: dir, Scenes: map[string]*model.Node{
+		"main": {Type: "column", ID: "root"},
+	}}
+	rt := runtime.New(app)
+	rt.Theme = theme.GetDefault()
+	e := NewEngine(rt, SoftwareRenderer{})
+
+	// "apple" resolves as apple-light: the built-in default is already active,
+	// and the adopt must be silent (no themeFailed, no FAILED log).
+	rt.State["theme"] = "apple"
+	e.resolveTheme()
+	if rt.Theme.Name != "apple-light" {
+		t.Errorf(`theme:"apple" resolved to %q, want apple-light`, rt.Theme.Name)
+	}
+	if e.themeFailed != "" {
+		t.Errorf(`theme:"apple" produced themeFailed %q — aliases must not fail`, e.themeFailed)
+	}
+
+	// "dark" resolves as apple-dark through the disk probe.
+	rt.State["theme"] = "dark"
+	e.resolveTheme()
+	if rt.Theme.Name != "apple-dark" {
+		t.Errorf(`theme:"dark" resolved to %q, want apple-dark`, rt.Theme.Name)
+	}
+	if e.themeFailed != "" {
+		t.Errorf(`theme:"dark" produced themeFailed %q`, e.themeFailed)
+	}
+
+	// "auto" resolves as apple-light (OS tracking is an HTML-shell feature).
+	rt.State["theme"] = "auto"
+	e.resolveTheme()
+	if rt.Theme.Name != "apple-light" {
+		t.Errorf(`theme:"auto" resolved to %q, want apple-light`, rt.Theme.Name)
+	}
+}

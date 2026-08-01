@@ -635,6 +635,21 @@ func (e *Engine) resolveTheme() {
 		}
 		return
 	}
+	// Built-in aliases, mirroring the HTML shell (render/theme.go
+	// ThemeVarsFor): "apple"/"auto" (and "" above) mean the default palette,
+	// "dark" the dark one, "material" the Material light one. Resolve them to
+	// the corresponding skin name and fall through the NORMAL probe — disk
+	// file when present, built-in adopt otherwise — so an alias lands exactly
+	// where an explicit skin name lands (no dual-source drift, and the widely
+	// used theme:"apple" never spams the FAILED log).
+	switch themeName {
+	case "apple", "auto":
+		themeName = "apple-light"
+	case "dark":
+		themeName = "apple-dark"
+	case "material":
+		themeName = "win11-light"
+	}
 	if e.themeLoaded == themeName {
 		return // already active (keyed by requested name, not the file's inner name)
 	}
@@ -659,6 +674,16 @@ func (e *Engine) resolveTheme() {
 			fmt.Fprintf(os.Stderr, "[qorm theme] loaded %q\n", themeName)
 			return
 		}
+	}
+	// No skin file by this name: the default palette always exists in code,
+	// so falling back to it is not a failure (HTML serves it unconditionally
+	// for ""/apple/auto) — and a round trip dark → apple-light must work
+	// without a themes/ directory.
+	if themeName == "apple-light" {
+		rt.Theme = theme.GetDefault()
+		e.themeLoaded = themeName
+		e.themeFailed = ""
+		return
 	}
 	// No skin file by this name: adopt the current theme when it already
 	// matches (the built-in default with no themes/ dir on disk), else fail
