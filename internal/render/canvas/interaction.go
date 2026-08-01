@@ -151,7 +151,6 @@ func VisualTarget(hit graph.Node, rt *runtime.Runtime) *model.Node {
 	return nil
 }
 
-
 // interactiveWidgetAt walks up from hit for the nearest model node whose
 // type is a registered InteractiveWidget (the widget that claims its own
 // pointer stream). Same typed-nil guard as the other parent walks.

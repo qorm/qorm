@@ -50,6 +50,10 @@ type TextOp struct {
 	Text  string
 	Pos   image.Point
 	Scale float64
+	// Weight is the CSS-style font weight (400 normal, 700 bold); 0 means
+	// normal. The sfnt engine emboldens synthetically (the embedded font
+	// has one weight).
+	Weight int
 }
 
 func (TextOp) isOp() {}

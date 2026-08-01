@@ -79,7 +79,14 @@ func (s *Select) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) d
 	chrome.Width = float64(ln.Width)
 	chrome.Height = float64(ln.Height)
 	chrome.BorderRadius = 10 * float64(scale)
-	chrome.Fill = themeColor(rt, "inputBg", color.RGBA{232, 232, 237, 255})
+	// Browser parity, same rule as style.go's input background: a bare
+	// select is white (the native picker chrome); the author's background
+	// (or the theme inputBg they set) wins when present.
+	if _, author := ln.Node.Style["background"]; author {
+		chrome.Fill = ln.Style.Background
+	} else {
+		chrome.Fill = color.RGBA{255, 255, 255, 255}
+	}
 	chrome.Stroke = themeColor(rt, "inputBorder", color.RGBA{198, 198, 200, 255})
 	chrome.StrokeWidth = float64(scale)
 	g.AddChild(chrome)

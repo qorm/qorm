@@ -16,18 +16,24 @@ const (
 	themeVarsApple = `--accent:#007aff; --on-accent:#fff; --success:#34c759; --danger:#ff3b30; --warning:#ff9500;
 	    --bg:#f2f2f7; --surface:#fff; --label:#000; --label2:#3c3c4399; --sep:#3c3c4949;
 	    --fill:#78788033; --radius:12px; --radius-lg:20px; --stage-radius:38px;
+	    --primary:#007aff; --secondary:#5856d6; --text:#1d1d1f; --textSecondary:#86868b;
+	    --shadow:#0000001a; --shadowDeep:#00000033; --cardBg:#fff; --inputBg:#e8e8ed; --inputBorder:#c6c6c8; --focus:#007aff;
 	    --font:-apple-system,BlinkMacSystemFont,'SF Pro Text','SF Pro Display','Helvetica Neue',Arial,sans-serif;
 	    --qorm-motion-fast:120ms; --qorm-motion-normal:250ms; --qorm-motion-slow:400ms;
 	    --qorm-motion-standard:cubic-bezier(.4,0,.2,1); --qorm-motion-emphasized:cubic-bezier(.2,0,0,1);`
 	themeVarsMaterial = `--accent:#2e7df6; --on-accent:#fff; --success:#16a34a; --danger:#dc2626; --warning:#f59e0b;
 	    --bg:#eef0f4; --surface:#fff; --label:#111827; --label2:#6b7280; --sep:#e5e7eb;
 	    --fill:#e5e7eb; --radius:8px; --radius-lg:12px; --stage-radius:14px;
+	    --primary:#005fb8; --secondary:#8764b8; --text:#1b1b1b; --textSecondary:#616161;
+	    --shadow:#0000001a; --shadowDeep:#00000026; --cardBg:#fff; --inputBg:#fff; --inputBorder:#d1d1d1; --focus:#0067c0;
 	    --font:'Segoe UI',Roboto,-apple-system,BlinkMacSystemFont,sans-serif;
 	    --qorm-motion-fast:120ms; --qorm-motion-normal:250ms; --qorm-motion-slow:400ms;
 	    --qorm-motion-standard:cubic-bezier(.4,0,.2,1); --qorm-motion-emphasized:cubic-bezier(.2,0,0,1);`
 	themeVarsDark = `--accent:#0a84ff; --on-accent:#fff; --success:#30d158; --danger:#ff453a; --warning:#ff9f0a;
 	    --bg:#000; --surface:#1c1c1e; --label:#fff; --label2:#ebebf599; --sep:#54545899;
 	    --fill:#7676803d; --radius:12px; --radius-lg:20px; --stage-radius:38px;
+	    --primary:#0a84ff; --secondary:#5e5ce6; --text:#fff; --textSecondary:#98989d;
+	    --shadow:#00000066; --shadowDeep:#00000099; --cardBg:#1c1c1e; --inputBg:#2c2c2e; --inputBorder:#38383a; --focus:#0a84ff;
 	    --font:-apple-system,BlinkMacSystemFont,'SF Pro Text','SF Pro Display','Helvetica Neue',Arial,sans-serif;
 	    --qorm-motion-fast:120ms; --qorm-motion-normal:250ms; --qorm-motion-slow:400ms;
 	    --qorm-motion-standard:cubic-bezier(.4,0,.2,1); --qorm-motion-emphasized:cubic-bezier(.2,0,0,1);`

@@ -152,7 +152,7 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 			if scale < 1 {
 				scale = 1
 			}
-			DrawText(img, o.Text, pos, withOpacity(currentColor, currentOpacity), scale, clips)
+			DrawTextWeighted(img, o.Text, pos, withOpacity(currentColor, currentOpacity), scale, o.Weight, clips)
 		case op.ImageOp:
 			if o.Src == nil {
 				break

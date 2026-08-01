@@ -641,6 +641,7 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, r
 		textNode.Content = ln.Text
 		textNode.Fill = c
 		textNode.FontSize = float64(fs)
+		textNode.FontWeight = ln.Style.FontWeight
 		group.AddChild(textNode)
 	}
 
@@ -744,6 +745,21 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, r
 			}
 			cbounds = image.Rect(gx, gy, gx+gridColW, gy+gridRowH[row])
 		default:
+			// Flexbox parity: align-items defaults to STRETCH, so a child
+			// with an auto cross size fills the parent's cross axis (HTML's
+			// buttons/inputs span their column with no width set). Explicit
+			// sizes, "fill", and an alignment keep their box.
+			if isRow {
+				if child.Style.Height == 0 && child.Style.HeightRaw != "fill" && child.Style.Align == "" {
+					ch = innerH - child.Style.MarginTop - child.Style.MarginBot
+					child.Height = ch
+				}
+			} else {
+				if child.Style.Width == 0 && child.Style.WidthRaw != "fill" && child.Style.Align == "" {
+					cw = innerW - child.Style.MarginLeft - child.Style.MarginRight
+					child.Width = cw
+				}
+			}
 			cbounds = image.Rect(cx, cy, cx+cw, cy+ch)
 
 			if isRow {

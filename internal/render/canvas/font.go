@@ -352,6 +352,18 @@ func DrawText(img *image.RGBA, text string, pos image.Point, col color.RGBA, sca
 	drawTextBitmap(img, text, pos, col, fontSize, clips)
 }
 
+// DrawTextWeighted is DrawText with a CSS font weight: 600+ emboldens
+// synthetically — the embedded font ships one weight, so a second pass at a
+// small x offset thickens the strokes (classic faux-bold, same advance).
+func DrawTextWeighted(img *image.RGBA, text string, pos image.Point, col color.RGBA, scale float64, weight int, clips []op.ClipOp) {
+	DrawText(img, text, pos, col, scale, clips)
+	if weight >= 600 {
+		fontSize := clampFontSize(scale * 10)
+		dx := int(fontSize)/24 + 1
+		DrawText(img, text, image.Pt(pos.X+dx, pos.Y), col, scale, clips)
+	}
+}
+
 // drawTextBitmap is the phase-1 rasterizer: one 5x7 bitmap glyph per rune
 // ('?' for non-ASCII), advancing by the shared MeasureText metric.
 func drawTextBitmap(img *image.RGBA, text string, pos image.Point, col color.RGBA, fontSize float64, clips []op.ClipOp) {

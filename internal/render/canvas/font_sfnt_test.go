@@ -256,3 +256,30 @@ func TestSFNTParsesArbitrarySystemFont(t *testing.T) {
 		t.Errorf("GlyphAdvance(A) = %v, %v; want positive", adv, ok)
 	}
 }
+
+// fontWeight >= 600 emboldens synthetically (faux-bold second pass): bold
+// text carries measurably more ink than the same string at 400.
+func TestDrawTextWeightedEmboldens(t *testing.T) {
+	ink := func(weight int) int {
+		img := image.NewRGBA(image.Rect(0, 0, 120, 40))
+		DrawTextWeighted(img, "Bold", image.Pt(2, 2), color.RGBA{0, 0, 0, 255}, 1.4, weight, nil)
+		n := 0
+		for y := 0; y < 40; y++ {
+			for x := 0; x < 120; x++ {
+				_, _, _, a := img.At(x, y).RGBA()
+				if a > 0 {
+					n++
+				}
+			}
+		}
+		return n
+	}
+	normal, bold := ink(400), ink(700)
+	if bold <= normal {
+		t.Errorf("bold ink %d <= normal %d — emboldening did nothing", bold, normal)
+	}
+	// 500 stays normal (CSS's semi-bold threshold starts at 600 here).
+	if ink(500) != normal {
+		t.Errorf("weight 500 should not embolden: %d vs %d", ink(500), normal)
+	}
+}

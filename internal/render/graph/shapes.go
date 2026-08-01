@@ -119,9 +119,10 @@ func (r *Rect) Draw(ctx *Context) {
 // Text represents a text shape
 type Text struct {
 	BaseNode
-	Content  string
-	FontSize float64
-	Fill     color.RGBA
+	Content    string
+	FontSize   float64
+	FontWeight int // CSS weight (0/400 normal, 600+ emboldened)
+	Fill       color.RGBA
 }
 
 func NewText() *Text {
@@ -142,7 +143,7 @@ func (t *Text) Draw(ctx *Context) {
 	ctx.Save()
 	ctx.Translate(int(t.X), int(t.Y))
 	ctx.Fill(t.Fill)
-	ctx.DrawText(t.Content, image.Point{0, 0}, t.FontSize/10.0)
+	ctx.DrawTextWeighted(t.Content, image.Point{0, 0}, t.FontSize/10.0, t.FontWeight)
 	ctx.Restore()
 }
 

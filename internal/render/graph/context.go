@@ -78,6 +78,17 @@ func (c *Context) DrawText(text string, pos image.Point, scale float64) {
 	})
 }
 
+// DrawTextWeighted is DrawText with a font weight (0/400 normal; 600+ is
+// emboldened synthetically by the rasterizer).
+func (c *Context) DrawTextWeighted(text string, pos image.Point, scale float64, weight int) {
+	c.ops.Add(op.TextOp{
+		Text:   text,
+		Pos:    pos,
+		Scale:  scale,
+		Weight: weight,
+	})
+}
+
 // DrawImage draws src scaled into dest (current coordinate space).
 func (c *Context) DrawImage(src *image.RGBA, dest image.Rectangle) {
 	c.ops.Add(op.ImageOp{Src: src, Dest: dest})

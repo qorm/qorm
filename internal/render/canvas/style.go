@@ -337,6 +337,15 @@ func parseStyle(n *model.Node, rt *runtime.Runtime) NodeStyle {
 		if bg, ok := evalStyleProp(n.Style["background"], rt).(string); ok {
 			s.Background = resolveColor(bg, rt)
 		}
+		// Browser parity for bare text fields: the HTML path emits a plain
+		// <input>/<textarea> with no background styling, so the user-agent
+		// chrome is WHITE (render_input.go). The theme's inputBg only shows
+		// when the author sets background explicitly.
+		if n.Type == "input" || n.Type == "textarea" {
+			if _, author := n.Style["background"]; !author {
+				s.Background = color.RGBA{255, 255, 255, 255}
+			}
+		}
 		if cStr, ok := evalStyleProp(n.Style["color"], rt).(string); ok {
 			s.Color = resolveColor(cStr, rt)
 		}

@@ -354,6 +354,7 @@ func layoutInput(ln *LayoutNode, group *graph.Group, rt *runtime.Runtime, scale 
 		textNode.Content = ln.Text
 		textNode.Fill = c
 		textNode.FontSize = float64(fs)
+		textNode.FontWeight = ln.Style.FontWeight
 		group.AddChild(textNode)
 	}
 
