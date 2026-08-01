@@ -211,6 +211,23 @@ func FromDocs(docs []map[string]any) *model.App {
 					}
 					app.SceneGuards[sceneID] = g
 				}
+				// Scene key bindings: "keys": {"left": "moveLeft", …} — the
+				// declarative control scheme for games/keyboard apps, engine-
+				// dispatched (canvas first; the HTML client gets it later).
+				if keys, ok := doc["keys"].(map[string]any); ok && len(keys) > 0 {
+					if app.SceneKeys == nil {
+						app.SceneKeys = map[string]map[string]string{}
+					}
+					m := map[string]string{}
+					for k, v := range keys {
+						if s := asString(v); s != "" {
+							m[strings.ToLower(k)] = s
+						}
+					}
+					if len(m) > 0 {
+						app.SceneKeys[sceneID] = m
+					}
+				}
 			}
 		case "action":
 			if actID := asString(doc["id"]); actID != "" {

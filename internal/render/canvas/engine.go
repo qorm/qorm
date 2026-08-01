@@ -158,6 +158,11 @@ type Engine struct {
 	// Rebuilt every frame alongside the graph it annotates.
 	itemInstances map[graph.Node]itemInstance
 
+	// timers is the live schedule of the scene's mounted timer nodes
+	// (timer.go): the native engine has no client JS to run them, so the
+	// frame loop itself dispatches their deadlines. Render-thread only.
+	timers map[*model.Node]*sceneTimer
+
 	themeFailed string // last theme name that failed to load (negative cache)
 	// themeLoaded is the last REQUESTED name that loaded successfully (positive
 	// cache). Tracked by requested name, not rt.Theme.Name: a skin file whose
@@ -257,11 +262,18 @@ func (e *Engine) RenderInto(size image.Point, scale int, target *image.RGBA) (bo
 
 	// Reset interaction identities when the scene tree changed (scene switch
 	// or hot reload): the model pointers in Inter could alias retired nodes.
+	// The timer schedule keys by the same pointers, so it resets with them.
 	root := e.sceneRoot()
 	if root != e.lastRoot {
 		e.Inter = Interaction{}
 		e.lastRoot = root
+		e.timers = nil
 	}
+
+	// Scene timers (the native scheduler for the declarative timer node):
+	// fire every deadline that passed since the last frame, BEFORE layout, so
+	// the state a tick writes is what this frame records.
+	e.tickTimers(root)
 
 	// Layout + record. The display list is rebuilt from scratch each frame;
 	// Reset keeps the backing array, so steady-state recording allocates
@@ -288,8 +300,9 @@ func (e *Engine) RenderInto(size image.Point, scale int, target *image.RGBA) (bo
 	// dirty was consumed at the top of the frame; animation keeps the loop
 	// ticking until the tweens settle (no separate timer goroutine — the host
 	// polls). Registered AnimatedWidgets (spinner) never settle on their own,
-	// so the scene scan keeps the loop alive for them too.
-	e.animating.Store(needsRedraw || e.sceneAnimating())
+	// so the scene scan keeps the loop alive for them too; a mounted scene
+	// timer (timer.go) keeps it alive until its last deadline.
+	e.animating.Store(needsRedraw || e.sceneAnimating() || e.timersPending())
 	return true, st
 }
 
@@ -605,6 +618,17 @@ func (e *Engine) HandleKey(k KeyInput) bool {
 					e.syncEditSession()
 					handled = true
 				}
+			}
+		}
+		// Scene-level key bindings (the scene's own `keys` map — games and
+		// keyboard-driven apps): key → action, no focus required. Generic
+		// handlers above win any conflict (tab/return/escape keep their
+		// meaning); the map fills the rest.
+		if !handled {
+			if action, ok := rt.KeyAction(k.Key); ok {
+				e.dispatch(&model.Invoke{Name: action}, nil)
+				e.dirty.Store(true)
+				handled = true
 			}
 		}
 	}

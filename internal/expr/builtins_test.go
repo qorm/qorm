@@ -54,3 +54,27 @@ func TestBuiltins(t *testing.T) {
 		}
 	}
 }
+
+func TestGameBuiltins(t *testing.T) {
+	if got, _ := Eval(`len(range(5))`, nil); got != 5.0 {
+		t.Errorf("len(range(5)) = %v", got)
+	}
+	r, _ := Eval(`range(3)`, nil)
+	if arr, ok := r.([]any); !ok || len(arr) != 3 || arr[2] != 2.0 {
+		t.Errorf("range(3) = %v", r)
+	}
+	f, _ := Eval(`fill(4, 7)`, nil)
+	if arr, ok := f.([]any); !ok || len(arr) != 4 || arr[3] != 7.0 {
+		t.Errorf("fill(4,7) = %v", f)
+	}
+	c, _ := Eval(`concat(range(2), fill(2, 9), 4)`, nil)
+	if arr, ok := c.([]any); !ok || len(arr) != 5 || arr[0] != 0.0 || arr[1] != 1.0 || arr[3] != 9.0 || arr[4] != 4.0 {
+		t.Errorf("concat(range(2),fill(2,9),4) = %v", c)
+	}
+	if got, _ := Eval(`len(range(-3))`, nil); got != 0.0 {
+		t.Errorf("range(-3) must clamp to empty: %v", got)
+	}
+	if got, _ := Eval(`len(concat(range(3), fill(2, 0)))`, nil); got != 5.0 {
+		t.Errorf("concat(range,fill) len = %v", got)
+	}
+}

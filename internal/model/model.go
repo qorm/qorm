@@ -104,6 +104,11 @@ type App struct {
 	// scene — including the initial load of the entry scene and a deep link
 	// straight into it. Empty/absent map = no scene lifecycle hooks.
 	SceneEnter map[string]*Invoke
+	// SceneKeys maps a scene id to its key bindings (scene JSON "keys": a
+	// key-name → action map — the declarative control scheme for games and
+	// keyboard-driven apps, dispatched by the engine without any focus
+	// requirement). Empty/absent = no key bindings.
+	SceneKeys map[string]map[string]string
 	// SceneGuards maps a scene id to its optional route guard (scene JSON
 	// "guard"): the condition every entry into that scene must satisfy, plus
 	// where to send the user when it does not. It runs BEFORE the scene's
@@ -126,6 +131,20 @@ type App struct {
 	// warns when its major differs from the runtime's qormext.ABIVersion.
 	// Empty = the app uses no versioned middle-layer.
 	PluginABI string
+	// Styles are the app's stylesheet rules (styles/*.qss), flattened in
+	// declaration order (file order, then rule order within a file). They are
+	// the third leg of the structure/logic/style separation: scenes/*.json
+	// carries the structure, actions/*.qs the logic, styles/*.qss the shared
+	// style. A rule applies when its selector matches a node — by widget type,
+	// by a name in the node's `class` prop, or by node id — and overrides in
+	// that order (type < class < id), beneath the node's own inline style.
+	Styles []StyleRule
+	// Stylesheets are the raw authored styles/*.qss files (id = filename minus
+	// the extension), kept so the serializer can write each sheet back to the
+	// spelling it came from — the same fixed-point property ComponentDocs gives
+	// components (bundle.Build and bundle.FromApp must content-address the same
+	// app identically).
+	Stylesheets []Stylesheet
 	// Diagnostics holds static compilation warnings or syntax errors found by the loader.
 	Diagnostics []string
 
@@ -167,6 +186,33 @@ type SlotSpec struct {
 	// Required makes an instance that fills no child with slot:"<name>" a
 	// load-time error diagnostic.
 	Required bool
+}
+
+// StyleRule kinds: the three selector shapes a styles/*.qss rule may carry.
+const (
+	StyleRuleType  = "type"  // `button { … }` — matches every node of that widget type
+	StyleRuleClass = "class" // `.accent { … }` — matches a node whose `class` prop lists the name
+	StyleRuleID    = "id"    // `#submit { … }` — matches the node with that id
+)
+
+// StyleRule is one parsed styles/*.qss rule: a selector plus the style keys it
+// sets. Style values mirror a node's inline "style" object — numbers stay
+// numbers, everything else stays a string (a var(--x) reference, a hex color,
+// "fill", or a {{binding}} evaluated at render time exactly like an inline
+// style value).
+type StyleRule struct {
+	Kind  string // StyleRuleType | StyleRuleClass | StyleRuleID
+	Name  string // type name, class name, or node id the selector matches
+	Style map[string]any
+}
+
+// Stylesheet is one authored styles/*.qss file: its id (the filename minus
+// .qss) and its full source text. The text rides the document the loader and
+// the bundle exchange — exactly like a script action's "script" field — so the
+// packaged app is byte-for-byte the reviewed app.
+type Stylesheet struct {
+	ID  string
+	QSS string
 }
 
 // DesignToken is one entry in an app's design-token system: a named, typed value
@@ -529,28 +575,28 @@ type Window struct {
 
 // Node is a single UI element in a scene tree.
 type Node struct {
-	Type        string
-	ID          string
-	Text        string         // text nodes
-	Label       string         // button label
-	Placeholder string         // input placeholder
-	Value       string         // input/bound value (may contain {{...}})
-	Style       map[string]any // visual style
-	Layout      map[string]any // layout hints (width/height/align/justify)
-	Props       map[string]any // catch-all (src, min, max, checked, ...)
-	OnPress     *Invoke        // press handler
-	OnCollide   *Invoke        // collision handler
-	OnChange    *Invoke        // change handler (inputs, selects, toggles, sliders)
-	OnKeyDown   *Invoke        // keyboard key down
-	OnKeyUp     *Invoke        // keyboard key up
-	OnHoverIn   *Invoke        // mouse hover enter
-	OnHoverOut  *Invoke        // mouse hover leave
-	OnTouchStart *Invoke       // touch start (or mouse down)
-	OnTouchMove *Invoke        // touch move (or mouse drag)
-	OnTouchEnd  *Invoke        // touch end (or mouse up)
-	Children    []*Node
-	Template    *Node  // list renderItem template
-	Data        string // list data binding expression
+	Type         string
+	ID           string
+	Text         string         // text nodes
+	Label        string         // button label
+	Placeholder  string         // input placeholder
+	Value        string         // input/bound value (may contain {{...}})
+	Style        map[string]any // visual style
+	Layout       map[string]any // layout hints (width/height/align/justify)
+	Props        map[string]any // catch-all (src, min, max, checked, ...)
+	OnPress      *Invoke        // press handler
+	OnCollide    *Invoke        // collision handler
+	OnChange     *Invoke        // change handler (inputs, selects, toggles, sliders)
+	OnKeyDown    *Invoke        // keyboard key down
+	OnKeyUp      *Invoke        // keyboard key up
+	OnHoverIn    *Invoke        // mouse hover enter
+	OnHoverOut   *Invoke        // mouse hover leave
+	OnTouchStart *Invoke        // touch start (or mouse down)
+	OnTouchMove  *Invoke        // touch move (or mouse drag)
+	OnTouchEnd   *Invoke        // touch end (or mouse up)
+	Children     []*Node
+	Template     *Node  // list renderItem template
+	Data         string // list data binding expression
 	// "when" nodes (responsive conditional rendering): Condition is a {{...}}
 	// expression — typically over viewport.width / viewport.height /
 	// viewport.orientation — that selects the Then subtree when truthy and the
@@ -583,10 +629,17 @@ type Invoke struct {
 	Args map[string]string // arg name -> expression string
 }
 
-// Action is a named sequence of steps that mutate state.
+// Action is a named sequence of steps that mutate state — or, when Script is
+// set, a qscript program that does.
 type Action struct {
 	ID    string
 	Steps []Step
+	// Script is qscript source (action JSON "script"). When non-empty the
+	// runtime executes it INSTEAD of Steps: JSON keeps declaring the scenes
+	// and the data, the script carries the logic. The loader compiles it at
+	// load time (parse errors surface as diagnostics with line numbers) and
+	// warns when Script and Steps are both declared; the script always wins.
+	Script string
 }
 
 // Step is one action operation. Type is e.g. "state.set", "state.append",
@@ -595,6 +648,9 @@ type Step struct {
 	Type  string
 	Path  string
 	Value string
+	// Index is used by state.setAt: the element position to write, as an
+	// {{expression}} evaluated at dispatch time (board-cell writes in games).
+	Index string
 	// Match is used by state.toggle / removal steps to select an array element
 	// (e.g. toggle the item whose "id" equals the evaluated Match expression).
 	MatchKey string
