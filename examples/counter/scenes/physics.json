@@ -39,6 +39,10 @@
           "width": 50,
           "height": 50,
           "margin": { "top": "{{ -state.count * 20 }}", "left": 150 }
+        },
+        "onCollide": {
+          "name": "set_status",
+          "args": { "msg": "COLLISION DETECTED!" }
         }
       },
       {

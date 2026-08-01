@@ -41,7 +41,7 @@ func focusTree() (*model.Node, map[string]*model.Node) {
 
 func TestFocusablesOrderAndMembership(t *testing.T) {
 	root, byID := focusTree()
-	got := Focusables(root)
+	got := Focusables(root, nil)
 
 	want := []string{"b1", "b2", "t1", "t2"} // DFS order; a and b3 excluded
 	if len(got) != len(want) {
@@ -61,7 +61,7 @@ func TestFocusablesTabIndexSortsFirst(t *testing.T) {
 	byID["t2"].Props["tabIndex"] = float64(1)
 	byID["b1"].Props = map[string]any{"tabIndex": float64(2)}
 
-	got := ids(Focusables(root))
+	got := ids(Focusables(root, nil))
 	want := []string{"t2", "b1", "b2", "t1"}
 	for i := range want {
 		if got[i] != want[i] {
@@ -72,7 +72,7 @@ func TestFocusablesTabIndexSortsFirst(t *testing.T) {
 
 func TestNextFocusWraps(t *testing.T) {
 	root, byID := focusTree()
-	list := Focusables(root)
+	list := Focusables(root, nil)
 
 	if n := NextFocus(list, nil, true); n != byID["b1"] {
 		t.Errorf("forward from nil = %v, want first (b1)", n)
@@ -109,4 +109,22 @@ func ids(ns []*model.Node) []string {
 		out[i] = n.ID
 	}
 	return out
+}
+
+func TestFocusablesSkipDisabled(t *testing.T) {
+	// A disabled button is transparent to pointer activation (interaction.go
+	// nodeDisabled); it must also leave the tab order (web parity: disabled
+	// controls are not focusable) — even with an explicit focusable:true.
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{
+		{Type: "button", ID: "b1"},
+		{Type: "button", ID: "bd", Style: map[string]any{"disabled": true}},
+		{Type: "button", ID: "bd2", Style: map[string]any{"disabled": "true"},
+			Props: map[string]any{"focusable": true}},
+		{Type: "button", ID: "b2"},
+	}}
+	got := ids(Focusables(root, nil))
+	want := []string{"b1", "b2"}
+	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Errorf("Focusables = %v, want %v", got, want)
+	}
 }

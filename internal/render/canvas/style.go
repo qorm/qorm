@@ -1,9 +1,14 @@
 package canvas
 
 import (
+	"fmt"
 	"image/color"
+	"io"
+	"os"
+	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/runtime"
@@ -127,8 +132,25 @@ func (s *NodeStyle) scaleBy(f int) {
 }
 
 func evalStyleProp(val any, rt *runtime.Runtime) any {
-	if s, ok := val.(string); ok && rt != nil {
-		return runtime.EvalBinding(s, map[string]any{"state": rt.State})
+	switch v := val.(type) {
+	case string:
+		if rt != nil {
+			return runtime.EvalBinding(v, evalCtx(rt))
+		}
+		return v
+	case map[string]any:
+		// Nested style objects (margin/padding) hold bindings in their INNER
+		// values — margin:{top:"{{…}}"} — and the web path resolves those;
+		// evaluate recursively (copying, never mutating the shared model) or a
+		// bound margin silently collapses to 0.
+		if rt == nil {
+			return v
+		}
+		out := make(map[string]any, len(v))
+		for k, item := range v {
+			out[k] = evalStyleProp(item, rt)
+		}
+		return out
 	}
 	return val
 }
@@ -395,7 +417,17 @@ func parseStyle(n *model.Node, rt *runtime.Runtime) NodeStyle {
 		} else if i, ok := bw.(int); ok {
 			s.StrokeWidth = float64(i)
 		}
-		
+
+		// opacity: element-level alpha, clamped to [0,1] like the browser
+		// (HTML emits it raw, render_style.go:285). Applies to the whole
+		// subtree at draw time (PerformLayout sets the group opacity).
+		op := evalStyleProp(n.Style["opacity"], rt)
+		if f, ok := op.(float64); ok {
+			s.Opacity = clamp01(f)
+		} else if i, ok := op.(int); ok {
+			s.Opacity = clamp01(float64(i))
+		}
+
 		// boxShadow numeric overrides
 		bsb := evalStyleProp(n.Style["boxShadowBlur"], rt)
 		if f, ok := bsb.(float64); ok {
@@ -427,4 +459,75 @@ func parseStyle(n *model.Node, rt *runtime.Runtime) NodeStyle {
 	}
 
 	return s
+}
+
+// clamp01 constrains an author opacity to [0,1] (CSS clamps likewise).
+func clamp01(v float64) float64 {
+	if v < 0 {
+		return 0
+	}
+	if v > 1 {
+		return 1
+	}
+	return v
+}
+
+// canvasStyleKeys is the set of node style keys the native canvas renderer
+// actually consumes (parseStyle above, plus `disabled` — read by interaction.go
+// for pointer/focus suppression). The loader already flags keys unknown
+// to the HTML renderer (render.KnownStyleKeys) at load time; what remains to
+// surface HERE is the canvas-specific gap — keys the HTML path implements but
+// the native engine does not yet (gradient, flexGrow, min/max sizes, position,
+// boxShadowX at node level, ...) — so an author or agent learns about the
+// silent degradation instead of guessing.
+var canvasStyleKeys = map[string]bool{
+	"background": true, "color": true,
+	"strokeColor": true, "borderColor": true,
+	"padding": true, "gap": true, "margin": true,
+	"width": true, "height": true,
+	"fontSize": true, "fontWeight": true, "textAlign": true,
+	"borderRadius": true, "strokeWidth": true, "borderWidth": true,
+	"opacity":        true,
+	"disabled":       true,
+	"boxShadowColor": true, "boxShadowBlur": true, "boxShadowY": true,
+}
+
+// styleWarn* implement one-shot unsupported-style-key warnings: each key is
+// reported once per scene tree (keyed by the scene root pointer — a scene
+// switch or hot reload re-arms the warnings), so the per-frame Measure pass
+// never spams. The writer is a var so tests can capture it.
+var (
+	styleWarnMu   sync.Mutex
+	styleWarnRoot *model.Node
+	styleWarnSeen           = map[string]bool{}
+	styleWarnOut  io.Writer = os.Stderr
+)
+
+// warnUnsupportedStyleKeys reports each style key on n that the canvas
+// renderer does not consume — once per key per scene, sorted for stable
+// output. Called from the measure pass; root identifies the scene tree.
+func warnUnsupportedStyleKeys(root, n *model.Node) {
+	if len(n.Style) == 0 {
+		return
+	}
+	styleWarnMu.Lock()
+	defer styleWarnMu.Unlock()
+	if root != styleWarnRoot {
+		styleWarnRoot = root
+		styleWarnSeen = map[string]bool{}
+	}
+	var keys []string
+	for k := range n.Style {
+		if !canvasStyleKeys[k] && !styleWarnSeen[k] {
+			keys = append(keys, k)
+		}
+	}
+	if len(keys) == 0 {
+		return
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		styleWarnSeen[k] = true
+		fmt.Fprintf(styleWarnOut, "[qorm canvas] style key %q (node id: %q, type: %q) is not supported by the native renderer; ignoring it\n", k, n.ID, n.Type)
+	}
 }

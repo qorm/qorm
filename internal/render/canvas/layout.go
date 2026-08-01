@@ -22,8 +22,20 @@ func Layout(ops *op.Ops, root *model.Node, size image.Point, rt *runtime.Runtime
 
 	bounds := image.Rect(0, 0, size.X, size.Y)
 
+	// Feed the live surface size to expressions (viewport.width / height /
+	// orientation) so responsive `when` nodes and {{ viewport.* }} bindings
+	// resolve against the real window — the canvas counterpart of the browser
+	// pushing its size over POST /viewport (runtime.Viewport). Logical pixels,
+	// matching the browser's CSS px.
+	if rt != nil {
+		rt.Viewport = runtime.Viewport{W: size.X, H: size.Y}
+	}
+
 	// 1. Measure pass (bottom-up)
 	rootNode := Measure(root, rt, inter, scale)
+	if rootNode == nil {
+		return nil, false // the whole scene is conditionally hidden
+	}
 
 	// 2. Layout pass (top-down) builds the scene graph
 	rootGraphNode := PerformLayout(rootNode, bounds, inter, rt, scale)

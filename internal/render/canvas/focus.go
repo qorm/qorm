@@ -4,14 +4,17 @@ import (
 	"sort"
 
 	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/qorm/internal/runtime"
 )
 
 // Focusables returns the focusable model nodes under root in traversal order
 // (DFS over Children, matching canvas layout order): buttons, nodes with an
 // OnPress handler, or nodes with focusable:true; focusable:false always opts
 // out. Nodes with an explicit tabIndex > 0 sort first (ascending, stable);
-// tabIndex 0 or absent keeps natural tree order.
-func Focusables(root *model.Node) []*model.Node {
+// tabIndex 0 or absent keeps natural tree order. Disabled nodes are never
+// focusable (web parity); rt resolves bound `disabled` keys and may be nil
+// (static keys still apply).
+func Focusables(root *model.Node, rt *runtime.Runtime) []*model.Node {
 	if root == nil {
 		return nil
 	}
@@ -27,7 +30,7 @@ func Focusables(root *model.Node) []*model.Node {
 		if n == nil {
 			return
 		}
-		if isFocusable(n) {
+		if isFocusable(n, rt) {
 			items = append(items, item{node: n, idx: idx, tab: tabIndex(n)})
 		}
 		idx++
@@ -55,7 +58,10 @@ func Focusables(root *model.Node) []*model.Node {
 	return out
 }
 
-func isFocusable(n *model.Node) bool {
+func isFocusable(n *model.Node, rt *runtime.Runtime) bool {
+	if nodeDisabled(n, rt) {
+		return false // a disabled node is not focusable (web parity)
+	}
 	if v, ok := n.Prop("focusable"); ok {
 		if b, ok := v.(bool); ok {
 			return b // explicit opt-in or opt-out wins

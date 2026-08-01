@@ -1529,6 +1529,15 @@ func buildNode(m map[string]any, diags *[]string, sceneID string, vars map[strin
 	n.OnChange = parseInvoke(m["onChange"], diags, sceneID, nodeID, "onChange")
 	n.OnKeyDown = parseInvoke(m["onKeyDown"], diags, sceneID, nodeID, "onKeyDown")
 	n.OnKeyUp = parseInvoke(m["onKeyUp"], diags, sceneID, nodeID, "onKeyUp")
+	// Native-canvas events (the HTML path does not read these): collision and
+	// raw pointer/hover handlers. Without these lines the typed fields stay
+	// nil for every JSON-loaded app and the canvas engine's copies are dead.
+	n.OnCollide = parseInvoke(m["onCollide"], diags, sceneID, nodeID, "onCollide")
+	n.OnHoverIn = parseInvoke(m["onHoverIn"], diags, sceneID, nodeID, "onHoverIn")
+	n.OnHoverOut = parseInvoke(m["onHoverOut"], diags, sceneID, nodeID, "onHoverOut")
+	n.OnTouchStart = parseInvoke(m["onTouchStart"], diags, sceneID, nodeID, "onTouchStart")
+	n.OnTouchMove = parseInvoke(m["onTouchMove"], diags, sceneID, nodeID, "onTouchMove")
+	n.OnTouchEnd = parseInvoke(m["onTouchEnd"], diags, sceneID, nodeID, "onTouchEnd")
 	if ri, ok := m["renderItem"].(map[string]any); ok {
 		// A renderItem template runs with the item bound into the expression
 		// scope under `as` (default "item") plus index/first/last. Resolve the
@@ -1759,6 +1768,17 @@ func buildStep(sm map[string]any, diags *[]string, actID string, vars map[string
 	if diags != nil && strings.HasPrefix(toVal, "scene://") {
 		*diags = append(*diags, fmt.Sprintf("[Action: %s] 导航目标使用了已弃用的 'scene://' 协议前缀: %q。请直接指定目标场景 ID (如 'main')。", actID, toVal))
 		toVal = strings.TrimPrefix(toVal, "scene://")
+	}
+	// The pre-`type` step format (`op: "set"` + `target`) parses to an empty
+	// Type, which the runtime's step switch silently no-ops — the worst kind
+	// of dead action. Name it, like the scene:// deprecation above.
+	if diags != nil {
+		if _, ok := sm["op"]; ok {
+			*diags = append(*diags, fmt.Sprintf("warning: [Action: %s] 步骤使用了已弃用的 \"op\" 键(旧格式),运行时不会执行它。请迁移为新格式,如 {\"type\": \"state.set\", \"path\": ..., \"value\": ...}。", actID))
+		}
+		if _, ok := sm["target"]; ok {
+			*diags = append(*diags, fmt.Sprintf("warning: [Action: %s] 步骤使用了已弃用的 \"target\" 键(旧格式),运行时不会执行它。新格式请使用 \"path\"。", actID))
+		}
 	}
 	step := model.Step{
 		Type:      asString(sm["type"]),

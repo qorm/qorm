@@ -3,6 +3,7 @@ package canvas
 import (
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/render/graph"
+	"github.com/qorm/qorm/internal/runtime"
 )
 
 // Interaction carries cross-frame interaction state for the canvas backend.
@@ -29,14 +30,21 @@ func ModelOf(hit graph.Node) *model.Node {
 		if m := hit.Base().Model; m != nil {
 			return m
 		}
-		hit = hit.Base().Parent
+		// Parent is a typed *Group: at the root it is nil, and a typed nil in
+		// the graph.Node interface is non-nil — assigning it back to hit would
+		// loop once more and dereference nil. Guard like the hover walks do.
+		p := hit.Base().Parent
+		if p == nil {
+			return nil
+		}
+		hit = p
 	}
 	return nil
 }
 
 // canPress reports whether m warrants pressed visual feedback.
-func canPress(m *model.Node) bool {
-	if m == nil {
+func canPress(m *model.Node, rt *runtime.Runtime) bool {
+	if m == nil || nodeDisabled(m, rt) {
 		return false
 	}
 	if m.OnPress != nil || m.Type == "button" {
@@ -50,14 +58,41 @@ func canPress(m *model.Node) bool {
 	return false
 }
 
+// nodeDisabled reads the `disabled` style key, mirroring the web renderer's
+// styleDisabled (same truthiness): it is a state, not just a look — a
+// disabled node is transparent to pointer activation and its handlers never
+// dispatch. A binding string ("{{state.x}}") is evaluated against rt, matching
+// the web path where style bindings resolve before styleDisabled reads them;
+// a nil rt leaves bindings unevaluated (static keys still apply).
+func nodeDisabled(m *model.Node, rt *runtime.Runtime) bool {
+	if m == nil {
+		return false
+	}
+	switch t := evalStyleProp(m.Style["disabled"], rt).(type) {
+	case bool:
+		return t
+	case float64:
+		return t != 0
+	case string:
+		return t == "true" || t == "1"
+	}
+	return false
+}
+
 // VisualTarget walks up from hit and returns the first model node that
 // warrants pressed feedback (has OnPress, is a button, or focusable:true).
-func VisualTarget(hit graph.Node) *model.Node {
+func VisualTarget(hit graph.Node, rt *runtime.Runtime) *model.Node {
 	for hit != nil {
-		if m := hit.Base().Model; m != nil && canPress(m) {
+		if m := hit.Base().Model; m != nil && canPress(m, rt) {
 			return m
 		}
-		hit = hit.Base().Parent
+		// Same typed-nil guard as ModelOf: the root's Parent is a nil *Group,
+		// which is non-nil once stored in the graph.Node interface.
+		p := hit.Base().Parent
+		if p == nil {
+			return nil
+		}
+		hit = p
 	}
 	return nil
 }

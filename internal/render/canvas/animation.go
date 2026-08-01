@@ -44,11 +44,19 @@ func UpdateAndGetAnimatedStyle(id string, target NodeStyle, rt *runtime.Runtime)
 		return target, false
 	}
 
-	// Did the target change?
+	// Did the target change? Compare every animatable field — a margin-only
+	// change (e.g. physics.json's moving_block) must re-target the tween, not
+	// pin the style to the first frame.
 	targetChanged := false
 	if state.TargetStyle.Background != target.Background ||
 		state.TargetStyle.Color != target.Color ||
 		state.TargetStyle.Padding != target.Padding ||
+		state.TargetStyle.MarginTop != target.MarginTop ||
+		state.TargetStyle.MarginBot != target.MarginBot ||
+		state.TargetStyle.MarginLeft != target.MarginLeft ||
+		state.TargetStyle.MarginRight != target.MarginRight ||
+		state.TargetStyle.Gap != target.Gap ||
+		state.TargetStyle.BorderRadius != target.BorderRadius ||
 		state.TargetStyle.Width != target.Width ||
 		state.TargetStyle.Height != target.Height ||
 		state.TargetStyle.Opacity != target.Opacity {

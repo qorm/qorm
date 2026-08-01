@@ -3,6 +3,7 @@ package canvas
 import (
 	"image"
 	"image/color"
+	"math"
 
 	"github.com/qorm/qorm/internal/op"
 )
@@ -205,14 +206,110 @@ var font5x7 = [96][5]uint8{
 	{0x00, 0x00, 0x00, 0x00, 0x00},
 }
 
+// Effective font sizes are clamped to [minFontSize, maxFontSize] at both
+// entry points (MeasureText for layout, DrawText for rasterization).
+// Lower bound 1 keeps degenerate input (0/negative from app JSON) bounded
+// and positive — callers already remap 0 to their default before we see it.
+// Upper bound 512 caps the intScale^2 pixel loop in DrawText: at 512 the
+// 5x7 bitmap scales by 51, so one glyph costs at most 35*51*51 ≈ 91k pixel
+// writes and a full line still rasterizes in milliseconds. Larger sizes add
+// no fidelity to a 5x7 bitmap and only widen the DoS surface (redteam R1
+// P1-1: fontSize=1e6 stalled a frame past the 5s watchdog).
+const (
+	minFontSize = 1.0
+	maxFontSize = 512.0
+)
+
+// clampFontSize bounds fontSize to [minFontSize, maxFontSize]; NaN and
+// non-positive input map to the lower bound.
+func clampFontSize(fontSize float64) float64 {
+	if fontSize < minFontSize || math.IsNaN(fontSize) {
+		return minFontSize
+	}
+	if fontSize > maxFontSize {
+		return maxFontSize
+	}
+	return fontSize
+}
+
+// TextMeasurer is the seam for the phase-2 text stack: layout and drawing
+// measure through the same implementation, so a TTF-backed measurer can be
+// swapped in without touching call sites.
+type TextMeasurer interface {
+	Measure(text string, fontSize float64) float64
+}
+
+// bitmapMeasurer measures with the built-in 5x7 bitmap font metrics.
+type bitmapMeasurer struct{}
+
+func (bitmapMeasurer) Measure(text string, fontSize float64) float64 {
+	return MeasureText(text, fontSize)
+}
+
+// DefaultTextMeasurer is the built-in TextMeasurer (bitmap font metrics).
+var DefaultTextMeasurer TextMeasurer = bitmapMeasurer{}
+
+// MeasureText returns the layout width of text at fontSize in pixels — the
+// single source of truth for text extents. Widths are per rune: ASCII and
+// other narrow runes are half-width (0.6*fontSize, matching the drawn
+// advance), East Asian wide runes are full-width (1.0*fontSize). DrawText
+// advances the pen by the same per-rune amounts, so measured and drawn
+// width cannot drift apart.
+func MeasureText(text string, fontSize float64) float64 {
+	fontSize = clampFontSize(fontSize)
+	w := 0.0
+	for _, r := range text {
+		w += runeAdvance(r, fontSize)
+	}
+	return w
+}
+
+// runeAdvance is the per-rune pen advance shared by MeasureText and DrawText.
+func runeAdvance(r rune, fontSize float64) float64 {
+	if isWideRune(r) {
+		return fontSize
+	}
+	return fontSize * 0.6
+}
+
+// isWideRune reports whether r is an East Asian wide (full-width) rune,
+// following the usual wcwidth ranges. Kept table-driven so the engine stays
+// dependency-free (no golang.org/x/text).
+func isWideRune(r rune) bool {
+	for _, wr := range wideRanges {
+		if r >= wr[0] && r <= wr[1] {
+			return true
+		}
+	}
+	return false
+}
+
+var wideRanges = [][2]rune{
+	{0x1100, 0x115F},   // Hangul Jamo
+	{0x2E80, 0x303E},   // CJK Radicals Supplement .. CJK Symbols and Punctuation
+	{0x3041, 0x33FF},   // Hiragana .. CJK Compatibility
+	{0x3400, 0x4DBF},   // CJK Unified Ideographs Extension A
+	{0x4E00, 0x9FFF},   // CJK Unified Ideographs
+	{0xA000, 0xA4CF},   // Yi Syllables, Yi Radicals
+	{0xAC00, 0xD7A3},   // Hangul Syllables
+	{0xF900, 0xFAFF},   // CJK Compatibility Ideographs
+	{0xFE30, 0xFE4F},   // CJK Compatibility Forms
+	{0xFF00, 0xFF60},   // Fullwidth Forms
+	{0xFFE0, 0xFFE6},   // Fullwidth symbol signs
+	{0x20000, 0x2FFFD}, // CJK Extension B and beyond
+	{0x30000, 0x3FFFD}, // CJK Extension G
+}
+
 // DrawText draws text at pos with the given (already opacity-scaled) color
 // into img, honouring the active clip stack (nested clips intersect). Pixels
 // are alpha-composited so sub-full alpha text blends over whatever is below.
+//
+// scale is fontSize/10 (see graph.Text.Draw). Non-ASCII runes still render
+// as '?' (phase-1 fallback), but the pen advances per rune by the same
+// amounts MeasureText reports, so the layout width matches what is drawn.
 func DrawText(img *image.RGBA, text string, pos image.Point, col color.RGBA, scale float64, clips []op.ClipOp) {
-	if scale <= 0 {
-		scale = 1.0
-	}
-	intScale := int(scale)
+	fontSize := clampFontSize(scale * 10)
+	intScale := int(fontSize / 10)
 	if intScale < 1 {
 		intScale = 1
 	}
@@ -220,13 +317,15 @@ func DrawText(img *image.RGBA, text string, pos image.Point, col color.RGBA, sca
 		return
 	}
 
-	x, y := pos.X, pos.Y
-	for i := 0; i < len(text); i++ {
-		c := text[i]
-		if c < 32 || c > 127 {
+	y := pos.Y
+	penX := float64(pos.X)
+	for _, r := range text {
+		c := byte(r)
+		if r < 32 || r > 127 {
 			c = 63 // '?'
 		}
 
+		x := int(penX)
 		glyph := font5x7[c-32]
 		for colIdx := 0; colIdx < 5; colIdx++ {
 			colBits := glyph[colIdx]
@@ -247,7 +346,7 @@ func DrawText(img *image.RGBA, text string, pos image.Point, col color.RGBA, sca
 				}
 			}
 		}
-		// Advance by 6 pixels (5 width + 1 spacing) * scale
-		x += 6 * intScale
+		// Advance per rune from the shared metric (MeasureText).
+		penX += runeAdvance(r, fontSize)
 	}
 }

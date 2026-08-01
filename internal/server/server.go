@@ -56,6 +56,13 @@ type Server struct {
 	// HTML render/broadcast (zero subscribers) and only drives OnStateChange.
 	canvasHost bool
 
+	// marshal, when non-nil (canvas host only), parks a state-touching closure
+	// onto the render thread (engine.EnqueueMutation) instead of running it on
+	// the caller's goroutine. Covers the two paths the HTTP middleware cannot
+	// reach: the internal async-http completion (spawn) and the SSE catch-up
+	// render (serveEvents).
+	marshal func(func())
+
 	// mcpReadOnly forces the shared MCP session into read-only mode: mutating
 	// tools (dispatch/set_state/apply_patch/undo) are rejected. Set from
 	// `qorm run --mcp-read-only`; re-applied whenever the runtime is swapped.
@@ -265,14 +272,38 @@ func (s *Server) bump() (int64, string, string) {
 }
 
 // SetCanvasHost marks the server as embedded in the native canvas window.
-// In that mode the HTTP listener is never served (launchWindow blocks in
-// app.Main), so there are no SSE subscribers or browser clients: frame()
-// skips RenderScene/broadcast and only advances the revision and drives
-// OnStateChange.
+// In that mode the HTTP listener IS served (the agent's MCP channel stays
+// available), but the canvas host marshals every request onto the main thread
+// and frame() skips RenderScene/broadcast (no browser clients) — it only
+// advances the revision and drives OnStateChange.
 func (s *Server) SetCanvasHost(v bool) {
 	s.mu.Lock()
 	s.canvasHost = v
 	s.mu.Unlock()
+}
+
+// SetMarshal installs the canvas host's render-thread serializer (typically
+// engine.EnqueueMutation). nil (the default) runs work inline on the caller's
+// goroutine — correct for the browser host, where s.mu alone serializes state.
+func (s *Server) SetMarshal(fn func(func())) {
+	s.mu.Lock()
+	s.marshal = fn
+	s.mu.Unlock()
+}
+
+// marshalWork runs fn inline, or parked on the canvas render thread when a
+// serializer is installed. The caller must NOT hold s.mu: the parked closure
+// takes s.mu on the render thread, and blocking on the render thread while
+// holding s.mu would deadlock against it.
+func (s *Server) marshalWork(fn func()) {
+	s.mu.Lock()
+	m := s.marshal
+	s.mu.Unlock()
+	if m != nil {
+		m(fn)
+		return
+	}
+	fn()
 }
 
 // frame renders + publishes exactly one revision WITHOUT draining the pending
@@ -337,6 +368,17 @@ func (s *Server) spawn(work func() any, resume func(any)) {
 	owner := s.rt // caller holds s.mu — this is the generation snapshot
 	go func() {
 		v := work()
+		s.settleAsync(owner, v, resume)
+	}()
+}
+
+// settleAsync applies a finished async round trip. The completion writes
+// rt.State, so under a canvas host it must be marshalled onto the render
+// thread like every other mutation — the HTTP middleware cannot reach this
+// internal goroutine. The goroutine deliberately does not hold s.mu across
+// the park (see marshalWork).
+func (s *Server) settleAsync(owner *runtime.Runtime, v any, resume func(any)) {
+	s.marshalWork(func() {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if s.rt != owner {
@@ -350,7 +392,7 @@ func (s *Server) spawn(work func() any, resume func(any)) {
 		}
 		resume(v)
 		s.bump()
-	}()
+	})
 }
 
 // handlerFrame is one revision's handler table, kept so a /event that names the
@@ -850,15 +892,27 @@ func (s *Server) serveEvents(w http.ResponseWriter, r *http.Request) {
 		last, haveLast = v, true
 	}
 	if haveLast {
-		s.mu.Lock()
-		if cur := s.rev.Load(); cur > last {
-			res := render.RenderScene(s.rt, s.rt.CurrentScene())
-			s.setHandlers(cur, res.Handlers)
-			snap, _ := json.Marshal(map[string]any{"rev": cur, "html": res.HTML, "theme": s.rt.CurrentTheme(), "route": s.rt.RoutePath()})
+		// The catch-up render reads rt.State, so under a canvas host it is
+		// marshalled onto the render thread (this handler is exempted from
+		// marshalToMain because the SSE stream is long-lived; the catch-up
+		// itself is a bounded snapshot and safe to park). The write/flush
+		// stays on this goroutine — only the state read is serialized.
+		var snap []byte
+		var cur int64
+		s.marshalWork(func() {
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			if c := s.rev.Load(); c > last {
+				res := render.RenderScene(s.rt, s.rt.CurrentScene())
+				s.setHandlers(c, res.Handlers)
+				snap, _ = json.Marshal(map[string]any{"rev": c, "html": res.HTML, "theme": s.rt.CurrentTheme(), "route": s.rt.RoutePath()})
+				cur = c
+			}
+		})
+		if snap != nil {
 			fmt.Fprintf(w, "id: %d\ndata: %s\n\n", cur, snap)
 			flusher.Flush()
 		}
-		s.mu.Unlock()
 	}
 
 	for {

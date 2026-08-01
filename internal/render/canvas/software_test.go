@@ -151,6 +151,39 @@ func TestNestedClipIntersection(t *testing.T) {
 	}
 }
 
+// A rounded-rect stroke must follow the rounded path on both its outer and
+// inner edges — the square-corner fast path (four edge rects) may only fire
+// for Radius <= 0.
+func TestRoundedStrokeFollowsCorner(t *testing.T) {
+	buf := image.NewRGBA(image.Rect(0, 0, 48, 48))
+	ops := &op.Ops{}
+	ops.Add(op.ColorOp{Color: color.RGBA{255, 0, 0, 255}})
+	ops.Add(op.StrokeOp{Width: 2})
+	ops.Add(op.ClipOp{Rect: image.Rect(4, 4, 44, 44), Radius: 8})
+	ops.Add(op.StrokePaintOp{})
+	SoftwareRenderer{}.Render(ops, buf)
+
+	red := color.RGBA{255, 0, 0, 255}
+	white := color.RGBA{255, 255, 255, 255}
+	// Square corner point outside the rounded path: a right-angle stroke
+	// would paint it (top/left edge bands); the rounded stroke must not.
+	if got := buf.RGBAAt(5, 5); got != white {
+		t.Errorf("square corner (5,5) = %v, want white — stroke must follow the rounded path", got)
+	}
+	// On the rounded ring (distance² = 50 ∈ [6²,8²] from the corner centre).
+	if got := buf.RGBAAt(7, 7); got != red {
+		t.Errorf("ring pixel (7,7) = %v, want red", got)
+	}
+	// Inside the ring's inner edge (distance² = 32 < 6²): hollow.
+	if got := buf.RGBAAt(8, 8); got != white {
+		t.Errorf("inner pixel (8,8) = %v, want white (ring is 2px wide)", got)
+	}
+	// Straight-edge midpoint still paints.
+	if got := buf.RGBAAt(24, 5); got != red {
+		t.Errorf("edge pixel (24,5) = %v, want red", got)
+	}
+}
+
 // Text must honour the clip stack and the opacity carried in its color.
 func TestTextRespectsClipAndOpacity(t *testing.T) {
 	// render "A" twice: once fully opaque, once with zero alpha (the engine

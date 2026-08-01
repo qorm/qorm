@@ -3,9 +3,9 @@
   "id": "set_status",
   "steps": [
     {
-      "op": "set",
-      "target": "status",
-      "value": "{{args.msg}}"
+      "type": "state.set",
+      "path": "status",
+      "value": "{{msg}}"
     }
   ]
 }

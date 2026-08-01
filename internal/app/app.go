@@ -9,13 +9,8 @@ type Event interface {
 	isEvent()
 }
 
-// FrameEvent is emitted when the window needs to be redrawn.
-type FrameEvent struct {
-	Size image.Point
-	// In the future, this will include metrics (dp, sp) and insets (safe area).
-}
-
-func (FrameEvent) isEvent() {}
+// Pt is a convenience re-export of image.Pt for hosts building events.
+func Pt(x, y int) image.Point { return image.Pt(x, y) }
 
 // PointerEvent represents a mouse or touch interaction.
 type PointerEvent struct {
@@ -61,14 +56,8 @@ func (ScrollEvent) isEvent() {}
 
 // Window represents an OS window.
 type Window struct {
-	events        chan Event
 	w             *windowImpl
 	width, height int // Content size in points as passed to NewWindow.
-}
-
-// Events returns the channel of window events.
-func (w *Window) Events() <-chan Event {
-	return w.events
 }
 
 // Size returns the window's content size in points.
