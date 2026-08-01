@@ -18,16 +18,16 @@ import (
 // Keys match the theme color names (prefixed with --) so var(--primary)
 // resolves correctly even without a theme file.
 var defaultVars = map[string]color.RGBA{
-	"--primary":       {0, 122, 255, 255},     // #007AFF
-	"--secondary":     {88, 86, 214, 255},      // #5856D6
-	"--background":    {245, 245, 247, 255},    // #F5F5F7
-	"--surface":       {255, 255, 255, 204},    // #FFFFFFCC
-	"--text":          {29, 29, 31, 255},        // #1D1D1F
-	"--textSecondary": {134, 134, 139, 255},    // #86868B
-	"--separator":     {198, 198, 200, 255},    // #C6C6C8
-	"--shadow":        {0, 0, 0, 26},            // #0000001A
-	"--cardBg":        {255, 255, 255, 255},    // #FFFFFF
-	"--inputBg":       {232, 232, 237, 255},    // #E8E8ED
+	"--primary":       {0, 122, 255, 255},   // #007AFF
+	"--secondary":     {88, 86, 214, 255},   // #5856D6
+	"--background":    {245, 245, 247, 255}, // #F5F5F7
+	"--surface":       {255, 255, 255, 204}, // #FFFFFFCC
+	"--text":          {29, 29, 31, 255},    // #1D1D1F
+	"--textSecondary": {134, 134, 139, 255}, // #86868B
+	"--separator":     {198, 198, 200, 255}, // #C6C6C8
+	"--shadow":        {0, 0, 0, 26},        // #0000001A
+	"--cardBg":        {255, 255, 255, 255}, // #FFFFFF
+	"--inputBg":       {232, 232, 237, 255}, // #E8E8ED
 	// Legacy aliases for backward compatibility
 	"--bg":        {245, 245, 247, 255},
 	"--accent":    {0, 122, 255, 255},
@@ -76,31 +76,36 @@ func parseColor(c string) color.RGBA {
 }
 
 type NodeStyle struct {
-	Background color.RGBA
-	Color      color.RGBA
-	Padding    int
-	MarginTop  int
-	MarginBot    int
-	MarginLeft   int
-	MarginRight  int
-	Gap          int
-	
+	Background  color.RGBA
+	Color       color.RGBA
+	Padding     int
+	MarginTop   int
+	MarginBot   int
+	MarginLeft  int
+	MarginRight int
+	Gap         int
+
 	BoxShadowColor color.RGBA
 	BoxShadowBlur  int
 	BoxShadowX     int
 	BoxShadowY     int
 
-	Width        int
-	Height       int
-	WidthRaw     string // "fill"
-	HeightRaw    string // "fill"
-	Align        string
-	Justify      string
-	FontSize     int
-	FontWeight   int
-	TextAlign    string
-	BorderRadius float64
-	Opacity      float64 // 1 = fully opaque; lowered by pressedOpacity theme state
+	Width     int
+	Height    int
+	WidthRaw  string // "fill"
+	HeightRaw string // "fill"
+	// Min/MaxWidth/Height clamp the resolved size in measure (0 = unset),
+	// mirroring the CSS box resolution order (content/explicit first, then
+	// clamp).
+	MinWidth, MaxWidth   int
+	MinHeight, MaxHeight int
+	Align                string
+	Justify              string
+	FontSize             int
+	FontWeight           int
+	TextAlign            string
+	BorderRadius         float64
+	Opacity              float64 // 1 = fully opaque; lowered by pressedOpacity theme state
 
 	StrokeColor color.RGBA
 	StrokeWidth float64
@@ -298,7 +303,7 @@ func parseStyle(n *model.Node, rt *runtime.Runtime) NodeStyle {
 			}
 		}
 	}
-	
+
 	// Default color if still empty
 	if s.Color.A == 0 {
 		s.Color = color.RGBA{255, 255, 255, 255}
@@ -330,14 +335,14 @@ func parseStyle(n *model.Node, rt *runtime.Runtime) NodeStyle {
 		} else if i, ok := pad.(int); ok {
 			s.Padding = i
 		}
-		
+
 		gap := evalStyleProp(n.Style["gap"], rt)
 		if f, ok := gap.(float64); ok {
 			s.Gap = int(f)
 		} else if i, ok := gap.(int); ok {
 			s.Gap = i
 		}
-		
+
 		width := evalStyleProp(n.Style["width"], rt)
 		if f, ok := width.(float64); ok {
 			s.Width = int(f)
@@ -346,7 +351,7 @@ func parseStyle(n *model.Node, rt *runtime.Runtime) NodeStyle {
 		} else if str, ok := width.(string); ok && str == "fill" {
 			s.WidthRaw = "fill"
 		}
-		
+
 		height := evalStyleProp(n.Style["height"], rt)
 		if f, ok := height.(float64); ok {
 			s.Height = int(f)
@@ -355,7 +360,13 @@ func parseStyle(n *model.Node, rt *runtime.Runtime) NodeStyle {
 		} else if str, ok := height.(string); ok && str == "fill" {
 			s.HeightRaw = "fill"
 		}
-		
+
+		// min/max size constraints (HTML: minWidth/maxWidth/minHeight/
+		// maxHeight): clamped in measure after content and explicit sizes
+		// resolve, matching the CSS box resolution order.
+		s.MinWidth, s.MaxWidth = styleDimPair(n.Style["minWidth"], n.Style["maxWidth"], rt)
+		s.MinHeight, s.MaxHeight = styleDimPair(n.Style["minHeight"], n.Style["maxHeight"], rt)
+
 		// margin: can be { "top": N, ... } object or a single number
 		mRaw := evalStyleProp(n.Style["margin"], rt)
 		if margin, ok := mRaw.(map[string]any); ok {
@@ -385,7 +396,7 @@ func parseStyle(n *model.Node, rt *runtime.Runtime) NodeStyle {
 		} else if i, ok := fs.(int); ok {
 			s.FontSize = i
 		}
-		
+
 		fw := evalStyleProp(n.Style["fontWeight"], rt)
 		if f, ok := fw.(float64); ok {
 			s.FontWeight = int(f)
@@ -403,14 +414,14 @@ func parseStyle(n *model.Node, rt *runtime.Runtime) NodeStyle {
 		} else if i, ok := br.(int); ok {
 			s.BorderRadius = float64(i)
 		}
-		
+
 		sw := evalStyleProp(n.Style["strokeWidth"], rt)
 		if f, ok := sw.(float64); ok {
 			s.StrokeWidth = f
 		} else if i, ok := sw.(int); ok {
 			s.StrokeWidth = float64(i)
 		}
-		
+
 		bw := evalStyleProp(n.Style["borderWidth"], rt)
 		if f, ok := bw.(float64); ok {
 			s.StrokeWidth = f
@@ -485,6 +496,7 @@ var canvasStyleKeys = map[string]bool{
 	"strokeColor": true, "borderColor": true,
 	"padding": true, "gap": true, "margin": true,
 	"width": true, "height": true,
+	"minWidth": true, "maxWidth": true, "minHeight": true, "maxHeight": true,
 	"fontSize": true, "fontWeight": true, "textAlign": true,
 	"borderRadius": true, "strokeWidth": true, "borderWidth": true,
 	"opacity":        true,
@@ -530,4 +542,19 @@ func warnUnsupportedStyleKeys(root, n *model.Node) {
 		styleWarnSeen[k] = true
 		fmt.Fprintf(styleWarnOut, "[qorm canvas] style key %q (node id: %q, type: %q) is not supported by the native renderer; ignoring it\n", k, n.ID, n.Type)
 	}
+}
+
+// styleDimPair parses one (min, max) dimension pair — plain numbers only
+// ("fill" is meaningless for a constraint).
+func styleDimPair(minV, maxV any, rt *runtime.Runtime) (min, max int) {
+	num := func(v any) int {
+		switch t := evalStyleProp(v, rt).(type) {
+		case float64:
+			return int(t)
+		case int:
+			return t
+		}
+		return 0
+	}
+	return num(minV), num(maxV)
 }

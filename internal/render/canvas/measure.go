@@ -263,6 +263,20 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 	if style.Height > 0 {
 		ln.Height = style.Height
 	}
+	// Min/max constraints clamp the resolved box last (CSS order: content and
+	// explicit sizes first, then clamp).
+	if style.MaxWidth > 0 && ln.Width > style.MaxWidth {
+		ln.Width = style.MaxWidth
+	}
+	if style.MinWidth > 0 && ln.Width < style.MinWidth {
+		ln.Width = style.MinWidth
+	}
+	if style.MaxHeight > 0 && ln.Height > style.MaxHeight {
+		ln.Height = style.MaxHeight
+	}
+	if style.MinHeight > 0 && ln.Height < style.MinHeight {
+		ln.Height = style.MinHeight
+	}
 
 	return ln
 }

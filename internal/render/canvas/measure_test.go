@@ -519,3 +519,46 @@ func TestExampleComponentsGrid(t *testing.T) {
 		}
 	}
 }
+
+// min/max size constraints clamp the resolved box after content and explicit
+// sizes (CSS resolution order) — and the keys no longer warn as unsupported.
+func TestMinMaxSizeConstraints(t *testing.T) {
+	rt := rtWithDefaultTheme(t)
+	mk := func(style map[string]any, text string) *model.Node {
+		return &model.Node{Type: "text", ID: "t", Props: map[string]any{"text": text}, Style: style}
+	}
+
+	// maxWidth clamps a wide content box.
+	ln := Measure(mk(map[string]any{"maxWidth": 40.0}, "a much much wider label"), rt, &Interaction{}, 1)
+	if ln.Width > 40 {
+		t.Errorf("maxWidth: width = %d, want clamped to 40", ln.Width)
+	}
+	// minWidth grows a narrow content box.
+	ln = Measure(mk(map[string]any{"minWidth": 200.0}, "hi"), rt, &Interaction{}, 1)
+	if ln.Width < 200 {
+		t.Errorf("minWidth: width = %d, want at least 200", ln.Width)
+	}
+	// Explicit width resolves first, then the constraint clamps it.
+	ln = Measure(mk(map[string]any{"width": 300.0, "maxWidth": 100.0}, "x"), rt, &Interaction{}, 1)
+	if ln.Width != 100 {
+		t.Errorf("width+maxWidth: width = %d, want 100", ln.Width)
+	}
+	// Height pair.
+	ln = Measure(mk(map[string]any{"minHeight": 60.0, "maxHeight": 60.0}, "x"), rt, &Interaction{}, 1)
+	if ln.Height != 60 {
+		t.Errorf("min+maxHeight: height = %d, want 60", ln.Height)
+	}
+	// Bound values evaluate.
+	rt.State["cap"] = float64(50)
+	ln = Measure(mk(map[string]any{"maxWidth": "{{state.cap}}"}, "a much much wider label"), rt, &Interaction{}, 1)
+	if ln.Width > 50 {
+		t.Errorf("bound maxWidth: width = %d, want clamped to 50", ln.Width)
+	}
+	// The four keys are consumed, so the one-shot warning must stay silent
+	// for them (style.go whitelist).
+	for _, k := range []string{"minWidth", "maxWidth", "minHeight", "maxHeight"} {
+		if !canvasStyleKeys[k] {
+			t.Errorf("style key %q missing from canvasStyleKeys", k)
+		}
+	}
+}
