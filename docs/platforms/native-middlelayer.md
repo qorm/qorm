@@ -163,3 +163,49 @@ may not work. Apps that use no versioned middle-layer omit `pluginABI` entirely
 (always compatible).
 
 Related: [Mobile](mobile.md) · [Desktop](desktop.md)
+
+## Custom canvas widgets (native renderer)
+
+The same middle-layer file (`native/desktop.go`) can also register **custom
+widgets** into the native canvas engine — the drawing-side counterpart of
+custom native ops. The engine ships a widget registry
+(`canvas.RegisterWidget`); the built-in library lives outside the engine in
+`internal/widgets/`, and your own types register exactly the same way:
+
+```go
+//go:build ignore
+
+package main
+
+import (
+    "github.com/qorm/qorm/internal/model"
+    "github.com/qorm/qorm/internal/render/canvas"
+    "github.com/qorm/qorm/internal/render/draw"
+    "github.com/qorm/qorm/internal/runtime"
+)
+
+func init() { canvas.RegisterWidget("rating", ratingWidget{}) }
+
+type ratingWidget struct{}
+
+func (ratingWidget) Measure(n *model.Node, rt *runtime.Runtime, scale int) (w, h int) {
+    return 5 * 24 * scale, 24 * scale
+}
+
+func (ratingWidget) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.Node {
+    // compose draw-layer shapes (Rect/Text/Image/Circle/Group) — never touch
+    // engine internals. Style parsing, conditional render, disabled and
+    // onPress come free from the engine.
+}
+```
+
+Scenes then use the type directly: `{"type": "rating", "value": 4}`, with
+`{{state.x}}` bindings evaluated per frame like any other prop. Optional
+extensions: `canvas.InteractiveWidget` (pointer/drag, see
+`internal/widgets/slider.go`) and `canvas.AnimatedWidget` (continuous
+animation, see `internal/widgets/spinner.go`). The full working app is
+[`examples/customwidget`](../../examples/customwidget).
+
+Note: `qorm package` compiles the middle layer into the binary (so the
+widget ships in the app); a plain `qorm run` of a framework checkout does not
+inject it, so unregistered custom types render as unknown (empty) nodes.

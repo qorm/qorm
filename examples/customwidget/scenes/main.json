@@ -1,0 +1,48 @@
+{
+  "type": "scene",
+  "id": "main",
+  "root": {
+    "type": "column",
+    "id": "root",
+    "style": {
+      "background": "var(--background)",
+      "padding": 32,
+      "width": "fill",
+      "height": "fill"
+    },
+    "children": [
+      {
+        "type": "text",
+        "id": "title",
+        "text": "CUSTOM WIDGET",
+        "style": { "color": "var(--primary)", "fontSize": 14, "fontWeight": 700 }
+      },
+      {
+        "type": "text",
+        "id": "desc",
+        "text": "The rating below is a Go widget registered by this app's own middle layer (native/desktop.go) — the engine had no idea it existed.",
+        "style": { "color": "var(--textSecondary)", "fontSize": 13, "margin": { "top": 12, "bottom": 24 } }
+      },
+      {
+        "type": "rating",
+        "id": "static_rating",
+        "value": 4,
+        "style": { "margin": { "bottom": 16 } }
+      },
+      {
+        "type": "rating",
+        "id": "bound_rating",
+        "value": "{{state.score}}"
+      },
+      {
+        "type": "row",
+        "id": "controls",
+        "style": { "gap": 12, "margin": { "top": 24 } },
+        "children": [
+          { "type": "button", "id": "minus", "label": "Score -", "onPress": { "name": "dec" } },
+          { "type": "button", "id": "plus", "label": "Score +", "onPress": { "name": "inc" } }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "type": "app",
+  "id": "customwidget",
+  "name": "Custom Widget",
+  "entry": "main",
+  "theme": "apple-light",
+  "globalState": {
+    "schema": { "score": "number" },
+    "initial": { "score": 3 }
+  }
+}
