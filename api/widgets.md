@@ -129,6 +129,7 @@ Each widget lists its **canonical name** first; the rest are equivalent aliases.
 | `table` | — | `table` |
 | `tabs` | — | `tabs` |
 | `tag` | — | `tag` |
+| `tetris` | — | `tetris` |
 | `text` | — | `text` |
 | `textarea` | — | `textarea` |
 | `textformfield` | — | `textFormField` |

@@ -1418,3 +1418,12 @@ func (r *renderer) selectableText(n *model.Node) {
 		r.boxCSS(n)+r.textCSS(n)+"user-select:text;-webkit-user-select:text;cursor:text;",
 		html.EscapeString(r.interp(n.Text)))
 }
+
+// tetris renders the native-only game widget's placeholder on the HTML path:
+// the game runs on the canvas engine's key seam and frame loop
+// (internal/widgets/tetris.go), so a WebView build shows a note instead of
+// silently degrading to an unknown container.
+func (r *renderer) tetris(n *model.Node) {
+	style := r.boxCSS(n) + "display:flex;align-items:center;justify-content:center;min-height:120px;border:1px dashed var(--sep);border-radius:12px;color:var(--label2);font-size:14px;"
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>Tetris runs in the QORM native window</div>`, attrID(n.ID), style, a11y(n))
+}

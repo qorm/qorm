@@ -1,0 +1,11 @@
+{
+  "type": "app",
+  "id": "qorm_tetris",
+  "name": "QORM Tetris",
+  "entry": "main",
+  "theme": "apple-light",
+  "globalState": {
+    "schema": {},
+    "initial": {}
+  }
+}

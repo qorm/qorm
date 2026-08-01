@@ -479,6 +479,8 @@ func (r *renderer) renderInner(n *model.Node) {
 		r.badge(n)
 	case "divider":
 		r.divider(n)
+	case "tetris":
+		r.tetris(n)
 	case "verticaldivider":
 		r.divider(n)
 	case "spacer":

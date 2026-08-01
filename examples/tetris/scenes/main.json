@@ -1,0 +1,53 @@
+{
+  "type": "scene",
+  "id": "main",
+  "root": {
+    "type": "column",
+    "id": "root",
+    "style": {
+      "background": "var(--background)",
+      "padding": 24,
+      "gap": 16
+    },
+    "layout": {
+      "width": "fill",
+      "height": "fill",
+      "align": "center",
+      "justify": "center"
+    },
+    "children": [
+      {
+        "type": "text",
+        "id": "title",
+        "text": "TETRIS",
+        "style": {
+          "color": "var(--primary)",
+          "fontSize": 18,
+          "fontWeight": 700,
+          "textAlign": "center"
+        }
+      },
+      {
+        "type": "tetris",
+        "id": "game"
+      },
+      {
+        "type": "column",
+        "id": "help",
+        "style": { "gap": 2 },
+        "children": [
+          {
+            "type": "text",
+            "text": "Left/Right/Down: move   Up/X: rotate   Z: rotate ccw",
+            "style": { "color": "var(--textSecondary)", "fontSize": 12, "textAlign": "center" }
+          },
+          {
+            "type": "text",
+            "text": "Space: hard drop   P: pause   R: restart",
+            "style": { "color": "var(--textSecondary)", "fontSize": 12, "textAlign": "center" }
+          }
+        ]
+      }
+    ]
+  }
+}
