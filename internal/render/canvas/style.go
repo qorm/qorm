@@ -136,11 +136,15 @@ func (s *NodeStyle) scaleBy(f int) {
 	s.StrokeWidth *= float64(f)
 }
 
-func evalStyleProp(val any, rt *runtime.Runtime) any {
+func evalStyleProp(val any, rt *runtime.Runtime, sc ...*listScope) any {
+	var scope *listScope
+	if len(sc) > 0 {
+		scope = sc[0]
+	}
 	switch v := val.(type) {
 	case string:
 		if rt != nil {
-			return runtime.EvalBinding(v, evalCtx(rt))
+			return runtime.EvalBinding(v, evalCtxScope(rt, scope))
 		}
 		return v
 	case map[string]any:
@@ -153,7 +157,7 @@ func evalStyleProp(val any, rt *runtime.Runtime) any {
 		}
 		out := make(map[string]any, len(v))
 		for k, item := range v {
-			out[k] = evalStyleProp(item, rt)
+			out[k] = evalStyleProp(item, rt, scope)
 		}
 		return out
 	}
@@ -261,7 +265,11 @@ func resolveColor(c string, rt *runtime.Runtime) color.RGBA {
 	return parseColor(c)
 }
 
-func parseStyle(n *model.Node, rt *runtime.Runtime) NodeStyle {
+func parseStyle(n *model.Node, rt *runtime.Runtime, sc ...*listScope) NodeStyle {
+	var scope *listScope
+	if len(sc) > 0 {
+		scope = sc[0]
+	}
 	s := NodeStyle{Opacity: 1}
 
 	// Apply Theme Defaults
@@ -340,14 +348,14 @@ func parseStyle(n *model.Node, rt *runtime.Runtime) NodeStyle {
 	matched := matchingStyleRules(n, rt)
 	authorBackground := false
 	for _, m := range matched {
-		applyStyleProps(&s, m, rt)
+		applyStyleProps(&s, m, rt, scope)
 		if _, ok := m["background"]; ok {
 			authorBackground = true
 		}
 	}
 
 	if n.Style != nil {
-		applyStyleProps(&s, n.Style, rt)
+		applyStyleProps(&s, n.Style, rt, scope)
 		if _, author := n.Style["background"]; author {
 			authorBackground = true
 		}
@@ -436,41 +444,46 @@ func matchingStyleRules(n *model.Node, rt *runtime.Runtime) []map[string]any {
 // stylesheet rule body — over s. It is the exact key set parseStyle has always
 // consumed; both callers share it so a rule and an inline style can never
 // drift into two interpretations of the same key.
-func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime) {
+func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc ...*listScope) {
+	var scope *listScope
+	if len(sc) > 0 {
+		scope = sc[0]
+	}
+	esp := func(val any) any { return evalStyleProp(val, rt, scope) }
 	// --- Colors (all go through resolveColor) ---
-	if bg, ok := evalStyleProp(style["background"], rt).(string); ok {
+	if bg, ok := esp(style["background"]).(string); ok {
 		s.Background = resolveColor(bg, rt)
 	}
-	if cStr, ok := evalStyleProp(style["color"], rt).(string); ok {
+	if cStr, ok := esp(style["color"]).(string); ok {
 		s.Color = resolveColor(cStr, rt)
 	}
-	if sc, ok := evalStyleProp(style["strokeColor"], rt).(string); ok {
+	if sc, ok := esp(style["strokeColor"]).(string); ok {
 		s.StrokeColor = resolveColor(sc, rt)
 	}
-	if sc, ok := evalStyleProp(style["borderColor"], rt).(string); ok {
+	if sc, ok := esp(style["borderColor"]).(string); ok {
 		// borderColor is an alias for strokeColor
 		s.StrokeColor = resolveColor(sc, rt)
 	}
-	if sc, ok := evalStyleProp(style["boxShadowColor"], rt).(string); ok {
+	if sc, ok := esp(style["boxShadowColor"]).(string); ok {
 		s.BoxShadowColor = resolveColor(sc, rt)
 	}
 
 	// --- Numeric properties (float64 or int from JSON) ---
-	pad := evalStyleProp(style["padding"], rt)
+	pad := esp(style["padding"])
 	if f, ok := pad.(float64); ok {
 		s.Padding = int(f)
 	} else if i, ok := pad.(int); ok {
 		s.Padding = i
 	}
 
-	gap := evalStyleProp(style["gap"], rt)
+	gap := esp(style["gap"])
 	if f, ok := gap.(float64); ok {
 		s.Gap = int(f)
 	} else if i, ok := gap.(int); ok {
 		s.Gap = i
 	}
 
-	width := evalStyleProp(style["width"], rt)
+	width := esp(style["width"])
 	if f, ok := width.(float64); ok {
 		s.Width = int(f)
 	} else if i, ok := width.(int); ok {
@@ -479,7 +492,7 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime) {
 		s.WidthRaw = "fill"
 	}
 
-	height := evalStyleProp(style["height"], rt)
+	height := esp(style["height"])
 	if f, ok := height.(float64); ok {
 		s.Height = int(f)
 	} else if i, ok := height.(int); ok {
@@ -495,7 +508,7 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime) {
 	s.MinHeight, s.MaxHeight = styleDimPair(style["minHeight"], style["maxHeight"], rt)
 
 	// margin: can be { "top": N, ... } object or a single number
-	mRaw := evalStyleProp(style["margin"], rt)
+	mRaw := esp(style["margin"])
 	if margin, ok := mRaw.(map[string]any); ok {
 		if top, ok := margin["top"].(float64); ok {
 			s.MarginTop = int(top)
@@ -517,39 +530,39 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime) {
 		s.MarginRight = m
 	}
 
-	fs := evalStyleProp(style["fontSize"], rt)
+	fs := esp(style["fontSize"])
 	if f, ok := fs.(float64); ok {
 		s.FontSize = int(f)
 	} else if i, ok := fs.(int); ok {
 		s.FontSize = i
 	}
 
-	fw := evalStyleProp(style["fontWeight"], rt)
+	fw := esp(style["fontWeight"])
 	if f, ok := fw.(float64); ok {
 		s.FontWeight = int(f)
 	} else if i, ok := fw.(int); ok {
 		s.FontWeight = i
 	}
 
-	if align, ok := evalStyleProp(style["textAlign"], rt).(string); ok {
+	if align, ok := esp(style["textAlign"]).(string); ok {
 		s.TextAlign = align
 	}
 
-	br := evalStyleProp(style["borderRadius"], rt)
+	br := esp(style["borderRadius"])
 	if f, ok := br.(float64); ok {
 		s.BorderRadius = f
 	} else if i, ok := br.(int); ok {
 		s.BorderRadius = float64(i)
 	}
 
-	sw := evalStyleProp(style["strokeWidth"], rt)
+	sw := esp(style["strokeWidth"])
 	if f, ok := sw.(float64); ok {
 		s.StrokeWidth = f
 	} else if i, ok := sw.(int); ok {
 		s.StrokeWidth = float64(i)
 	}
 
-	bw := evalStyleProp(style["borderWidth"], rt)
+	bw := esp(style["borderWidth"])
 	if f, ok := bw.(float64); ok {
 		s.StrokeWidth = f
 	} else if i, ok := bw.(int); ok {
@@ -559,7 +572,7 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime) {
 	// opacity: element-level alpha, clamped to [0,1] like the browser
 	// (HTML emits it raw, render_style.go:285). Applies to the whole
 	// subtree at draw time (PerformLayout sets the group opacity).
-	op := evalStyleProp(style["opacity"], rt)
+	op := esp(style["opacity"])
 	if f, ok := op.(float64); ok {
 		s.Opacity = clamp01(f)
 	} else if i, ok := op.(int); ok {
@@ -567,13 +580,13 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime) {
 	}
 
 	// boxShadow numeric overrides
-	bsb := evalStyleProp(style["boxShadowBlur"], rt)
+	bsb := esp(style["boxShadowBlur"])
 	if f, ok := bsb.(float64); ok {
 		s.BoxShadowBlur = int(f)
 	} else if i, ok := bsb.(int); ok {
 		s.BoxShadowBlur = i
 	}
-	bsy := evalStyleProp(style["boxShadowY"], rt)
+	bsy := esp(style["boxShadowY"])
 	if f, ok := bsy.(float64); ok {
 		s.BoxShadowY = int(f)
 	} else if i, ok := bsy.(int); ok {

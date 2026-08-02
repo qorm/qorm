@@ -98,7 +98,7 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 
 	warnUnsupportedStyleKeys(root, n)
 
-	style := parseStyle(n, rt)
+	style := parseStyle(n, rt, sc)
 	applyInteractiveOverlay(&style, n, rt, interForInstance(inter, sc))
 	style.scaleBy(scale)
 	var needsRedraw bool
@@ -156,9 +156,11 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 		}
 	}
 
-	if n.Type == "list" && n.Template != nil {
+	if (n.Type == "list" || n.Type == "gridview") && n.Template != nil {
 		// Repeat: the template replaces the children (HTML render_data.go:113)
 		// — each item instantiates one measured subtree under its item scope.
+		// gridview repeats the same way (render_widgets.go gridView); the grid
+		// branches below lay the items out in columns.
 		for _, cln := range measureListItems(n, rt, inter, scale, root, sc) {
 			if cln.NeedsRedraw {
 				ln.NeedsRedraw = true
@@ -224,10 +226,11 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 				contentH = ch
 			}
 		}
-	} else if n.Type == "grid" {
+	} else if n.Type == "grid" || n.Type == "gridview" {
 		// Grid: `columns` equal tracks (1fr in HTML, render_style.go:103) —
 		// every column is as wide as the widest child; each row as tall as
-		// its tallest child. Gap applies between tracks both ways.
+		// its tallest child. Gap applies between tracks both ways. A gridview
+		// takes its track count from crossAxisCount (see gridColumns).
 		cols := gridColumns(n)
 		colW := 0
 		for _, child := range ln.Children {
@@ -444,7 +447,13 @@ const maxGridColumns = 4096
 
 func gridColumns(n *model.Node) int {
 	cols := 2
-	if v, ok := n.Prop("columns"); ok {
+	// A grid declares `columns`; a gridview declares `crossAxisCount` (the
+	// HTML renderer's name for the same track count).
+	prop := "columns"
+	if n.Type == "gridview" {
+		prop = "crossAxisCount"
+	}
+	if v, ok := n.Prop(prop); ok {
 		switch c := v.(type) {
 		case float64:
 			cols = int(c)
@@ -650,7 +659,7 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, r
 	cy := ln.Style.Padding
 	isRow := ln.Node.Type == "row"
 	isStack := isStackType(ln.Node.Type)
-	isGrid := ln.Node.Type == "grid"
+	isGrid := ln.Node.Type == "grid" || ln.Node.Type == "gridview"
 
 	// A scroll viewport's children mount into one content group so the whole
 	// scrolled body shifts as a unit (its Y translation is the offset). It is
