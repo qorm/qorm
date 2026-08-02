@@ -1,0 +1,227 @@
+{
+  "type": "scene",
+  "id": "main",
+  "onEnter": "restart",
+  "keys": {
+    "left": "slideLeft",
+    "right": "slideRight",
+    "up": "slideUp",
+    "down": "slideDown",
+    "r": "restart"
+  },
+  "root": {
+    "type": "column",
+    "id": "root",
+    "style": {
+      "background": "var(--background)",
+      "padding": 24,
+      "gap": 12
+    },
+    "layout": {
+      "width": "fill",
+      "height": "fill",
+      "align": "center"
+    },
+    "children": [
+      {
+        "type": "text",
+        "id": "title",
+        "text": "2048",
+        "style": {
+          "color": "var(--primary)",
+          "fontSize": 28,
+          "fontWeight": 700,
+          "textAlign": "center"
+        }
+      },
+      {
+        "type": "row",
+        "id": "scores",
+        "style": {
+          "gap": 12
+        },
+        "children": [
+          {
+            "type": "column",
+            "id": "scorebox",
+            "class": "scoreBox",
+            "layout": {
+              "align": "center"
+            },
+            "style": {
+              "padding": 6
+            },
+            "children": [
+              {
+                "type": "text",
+                "text": "SCORE",
+                "class": "statLabel"
+              },
+              {
+                "type": "text",
+                "text": "{{ state.score }}",
+                "class": "statValue"
+              }
+            ]
+          },
+          {
+            "type": "column",
+            "id": "bestbox",
+            "class": "scoreBox",
+            "layout": {
+              "align": "center"
+            },
+            "style": {
+              "padding": 6
+            },
+            "children": [
+              {
+                "type": "text",
+                "text": "BEST",
+                "class": "statLabel"
+              },
+              {
+                "type": "text",
+                "text": "{{ state.best }}",
+                "class": "statValue"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "stack",
+        "id": "boardstack",
+        "children": [
+          {
+            "type": "column",
+            "id": "boardframe",
+            "style": {
+              "background": "#bbada0",
+              "borderRadius": 8,
+              "padding": 8
+            },
+            "children": [
+              {
+                "type": "gridview",
+                "id": "boardgrid",
+                "data": "{{ state.board }}",
+                "crossAxisCount": 4,
+                "spacing": 8,
+                "style": {
+                  "gap": 8
+                },
+                "renderItem": {
+                  "type": "box",
+                  "layout": {
+                    "align": "center",
+                    "justify": "center"
+                  },
+                  "style": {
+                    "width": 64,
+                    "height": 64,
+                    "borderRadius": 6,
+                    "background": "{{ at(state.colors, at(state.view, index)) }}"
+                  },
+                  "children": [
+                    {
+                      "type": "text",
+                      "text": "{{ at(state.labels, at(state.view, index)) }}",
+                      "style": {
+                        "fontSize": 22,
+                        "fontWeight": 700,
+                        "textAlign": "center",
+                        "color": "{{ item <= 4 ? '#776e65' : '#f9f6f2' }}"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          {
+            "type": "column",
+            "layout": {
+              "align": "center"
+            },
+            "if": "{{ state.status == 'won' }}",
+            "class": "overlayPanel",
+            "style": {
+              "padding": {
+                "top": 10,
+                "bottom": 10,
+                "left": 14,
+                "right": 14
+              },
+              "margin": {
+                "top": 130
+              }
+            },
+            "children": [
+              {
+                "type": "text",
+                "text": "YOU WIN",
+                "class": "overlayTitle"
+              },
+              {
+                "type": "text",
+                "text": "Keep sliding, or R: restart",
+                "class": "overlayHint"
+              }
+            ]
+          },
+          {
+            "type": "column",
+            "layout": {
+              "align": "center"
+            },
+            "if": "{{ state.status == 'over' }}",
+            "class": "overlayPanel",
+            "style": {
+              "padding": {
+                "top": 10,
+                "bottom": 10,
+                "left": 14,
+                "right": 14
+              },
+              "margin": {
+                "top": 130
+              }
+            },
+            "children": [
+              {
+                "type": "text",
+                "text": "GAME OVER",
+                "class": "overlayTitle"
+              },
+              {
+                "type": "text",
+                "text": "R: restart",
+                "class": "overlayHint"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "column",
+        "id": "help",
+        "style": {
+          "gap": 2
+        },
+        "children": [
+          {
+            "type": "text",
+            "text": "Arrows: slide the tiles   Same values merge once per move",
+            "class": "helpText"
+          },
+          {
+            "type": "text",
+            "text": "Reach 2048 to win   R: restart",
+            "class": "helpText"
+          }
+        ]
+      }
+    ]
+  }
+}
