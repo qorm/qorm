@@ -75,18 +75,21 @@ func canvasHardwareDarwin(op string, m map[string]interface{}, cb func(string)) 
 		osa("set volume output volume (output volume of (get volume settings) - 10)")
 		cb("qormOnVolume(" + q(osa("output volume of (get volume settings)")) + ")")
 	case "brightnessGet":
-		cb("qormOnBrightness(" + q(sh("brightness", "-l")) + ")")
+		cb("qormOnBrightness(" + q(brightnessLevel(sh)) + ")")
 	case "brightnessSet":
 		if v, ok := m["value"]; ok {
 			sh("brightness", "-v", fmt.Sprint(v))
 		}
-		cb("qormOnBrightness(" + q(sh("brightness", "-l")) + ")")
+		cb("qormOnBrightness(" + q(brightnessLevel(sh)) + ")")
 	case "brightnessUp":
-		sh("brightness", "-v", "+0.1")
-		cb("qormOnBrightness(" + q(sh("brightness", "-l")) + ")")
+		// No public pure-Go read API on macOS (the `brightness` CLI is a
+		// Homebrew extra): adjust through the system brightness key codes,
+		// then read back if the CLI happens to exist ("—" otherwise).
+		osa("tell application \"System Events\" to key code 144")
+		cb("qormOnBrightness(" + q(brightnessLevel(sh)) + ")")
 	case "brightnessDown":
-		sh("brightness", "-v", "-0.1")
-		cb("qormOnBrightness(" + q(sh("brightness", "-l")) + ")")
+		osa("tell application \"System Events\" to key code 145")
+		cb("qormOnBrightness(" + q(brightnessLevel(sh)) + ")")
 	case "clipboardGet":
 		cb("qormOnClipboard(" + q(sh("pbpaste")) + ")")
 	case "clipboardSet":
@@ -139,4 +142,14 @@ func canvasHardwareDarwin(op string, m map[string]interface{}, cb func(string)) 
 		// bluetooth, biometric, tray/dock, share sheet, screenshot, screens.
 		// Silence beats a fake: no callback, the widget shows its degradation.
 	}
+}
+
+// brightnessLevel reads the current level when the optional `brightness` CLI
+// (Homebrew) exists, else returns "—" — macOS has no pure-Go read API, and
+// faking a number would be worse than an honest dash.
+func brightnessLevel(sh func(string, ...string) string) string {
+	if v := sh("brightness", "-l"); v != "" {
+		return v
+	}
+	return "—"
 }

@@ -312,8 +312,11 @@ func (h Hardware) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.Poi
 	if len(btns) == 0 || !canvas.NativeAvailable() {
 		return false
 	}
-	// Recover the scale the geometry was built with (Measure pins w=240*scale).
-	sc := float64(frame.Dx()) / 240
+	// Recover the geometry scale: Measure pins height at 62*scale and flex
+	// stretch only widens the box, so the height — not the width — carries
+	// the true scale. (The old width/240 estimate mis-located the action row
+	// on any stretched card: buttons went partly or fully dead.)
+	sc := float64(frame.Dy()) / 62
 	if sc < 1 {
 		sc = 1
 	}

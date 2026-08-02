@@ -94,3 +94,33 @@ func TestHardwareSpeakArgsFromProps(t *testing.T) {
 		t.Errorf("speak args = %v", args)
 	}
 }
+
+// Stretched hardware cards keep their action row hittable: the row band is
+// derived from the (stretch-invariant) measured height, not the width.
+func TestHardwareStretchedCardButtonsHit(t *testing.T) {
+	rt := hwRuntime()
+	var ops []string
+	canvas.SetNativeInvoker(func(op string, data map[string]any, cb func(string, any)) {
+		ops = append(ops, op)
+		cb("qormOnVolume", "55")
+	})
+	defer canvas.SetNativeInvoker(nil)
+
+	hw := Hardware{findCap("volume")}
+	n := &model.Node{Type: "volume", ID: "vol"}
+	// A card stretched from 240 to 436 (flex full-width): the action row sits
+	// at y 28..62 (scale 1) — the whole row must hit, including its top edge.
+	frame := image.Rect(0, 0, 436, 62)
+	for _, y := range []float64{29, 45, 60} {
+		if !hw.HandlePointer(n, rt, canvas.PointerInput{Type: canvas.PointerPress, X: 100, Y: y}, &canvas.Interaction{}, frame) {
+			t.Errorf("stretched card: press at y=%v missed the action row", y)
+		}
+	}
+	if len(ops) == 0 {
+		t.Fatal("no op invoked on a stretched card")
+	}
+	// Above the row: not the widget's business (lets the card host it).
+	if hw.HandlePointer(n, rt, canvas.PointerInput{Type: canvas.PointerPress, X: 100, Y: 10}, &canvas.Interaction{}, frame) {
+		t.Error("press above the action row must not be consumed")
+	}
+}
