@@ -17,6 +17,7 @@ Extracted from the runtime dispatch (`internal/runtime`):
 | `invoke` | call another action by `name`, merging evaluated `args` into its scope |
 | `navigate` | go to another scene (or `back`) |
 | `state.set` | set a state path to a value |
+| `state.setAt` | — |
 | `state.append` | append a value to an array |
 | `state.appendObject` | append an object (built from `item` field expressions) |
 | `state.toggle` | flip a boolean, or a `field` on a matched array element; on a scalar array toggles membership of `match` |
@@ -80,6 +81,14 @@ Every step is one JSON object; which fields apply depends on its `type`:
   { "type": "state.set", "path": "draft", "value": "" }
 ] }
 ```
+
+## Script actions (`script`)
+
+An action may carry a qscript program instead of steps: `{ "type": "action", "id": "tick", "script": "…" }`. JSON keeps declaring the scenes and the data; the script carries the logic — `let`, assignments (`state.a =`, `state.arr[i] =`), `if`/`else`, `for x in …`, `while`, `fn` definitions and calls, the expression language's operators and builtins, `state` as the read/write handle and `args` for the dispatch arguments (see `internal/qscript`). The loader compiles the script at load time — a parse error is a diagnostic naming the line — and warns when `script` and `steps` are both declared; the script always wins. A runtime failure (a governance limit or a type error) is recorded on the runtime with the script line number. Scripts are deterministic by construction (no clock, no I/O, no `dispatch` to other actions) and bounded (200k operations per run, 100k iterations per loop, 64 nested calls). `examples/tetris` is a full game written this way.
+
+## Script file actions (`actions/*.qs`)
+
+A script action can live in a file of its own instead of a JSON string field: `actions/tick.qs` is the action `tick`, and the file's full text is its qscript source. The layout is the DOM+CSS+JS separation applied to an app — structure in `scenes/*.json`, logic in `actions/*.qs`, the two bound by action id (a scene's `onPress`/`keys`/timer names the action; the script reaches the structure through `state`). The loader collects each `*.qs` file directly under an `actions/` directory as the same `type:"action"` document the JSON spelling declares, so everything downstream is uniform: the scene references, the load-time compile (a parse error is a diagnostic naming the file AND the line), and the bundle hash (a `.qs` file is signed exactly like a JSON action — `qorm build` and `qorm run` always agree). The two spellings coexist; a `.json` and a `.qs` defining the same id is a duplicate definition — an error diagnostic on directory load (first definition wins, the `.json` sorts first) and a hard refusal from `qorm build`. `examples/tetris` keeps all ten of its actions this way.
 
 ## Derived values (`computed`)
 

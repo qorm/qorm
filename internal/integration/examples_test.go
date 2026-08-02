@@ -67,7 +67,9 @@ func isErrorDiag(d string) bool {
 // playgroundDocs assembles an example's documents exactly the way the live
 // playground's generated templates do (web_server/gen-templates.mjs):
 // qorm.json first with platforms.*.window.icon stripped, then scenes/*.json,
-// then actions/*.json (each dir in name order). locales/ is not included —
+// then actions/*.json plus actions/*.qs (a script-file action becomes the
+// same {type:"action", id, script} document the loader's collect() walk
+// synthesises), each dir in name order. locales/ is not included —
 // the playground has no docs-array representation for message catalogs.
 func playgroundDocs(t *testing.T, dir string) []map[string]any {
 	t.Helper()
@@ -100,12 +102,25 @@ func playgroundDocs(t *testing.T, dir string) []map[string]any {
 		}
 		var names []string
 		for _, f := range ents {
-			if !f.IsDir() && strings.HasSuffix(f.Name(), ".json") {
+			if f.IsDir() {
+				continue
+			}
+			if strings.HasSuffix(f.Name(), ".json") || (sub == "actions" && strings.HasSuffix(f.Name(), ".qs")) {
 				names = append(names, f.Name())
 			}
 		}
 		sort.Strings(names)
 		for _, name := range names {
+			if strings.HasSuffix(name, ".qs") {
+				b, err := os.ReadFile(filepath.Join(dir, sub, name))
+				if err != nil {
+					t.Fatalf("%s: %v", name, err)
+				}
+				docs = append(docs, map[string]any{
+					"type": "action", "id": strings.TrimSuffix(name, ".qs"), "script": string(b),
+				})
+				continue
+			}
 			docs = append(docs, readDoc(filepath.Join(dir, sub, name)))
 		}
 	}

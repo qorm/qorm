@@ -42,6 +42,10 @@ type Content struct {
 	// the canonical encoding — and therefore the content hash — of every
 	// bundle without cross-file components unchanged.
 	Components map[string]map[string]any `json:"components,omitempty"`
+	// Stylesheets are standalone type:"stylesheet" documents (styles/<id>.qss),
+	// by sheet id. omitempty keeps the canonical encoding — and therefore the
+	// content hash — of every bundle without stylesheets unchanged.
+	Stylesheets map[string]map[string]any `json:"stylesheets,omitempty"`
 	// RequiredCapabilities lists the hardware/native capabilities (by canonical
 	// capability name, e.g. "camera") the app needs at runtime. The runtime
 	// refuses to start the bundle on a platform missing any of them. omitempty
@@ -117,6 +121,14 @@ func fromDocs(docs []map[string]any, locales map[string]map[string]string) (*Bun
 				c.Components = map[string]map[string]any{}
 			}
 			c.Components[id] = doc
+		case "stylesheet":
+			if _, dup := c.Stylesheets[id]; dup {
+				return nil, duplicateDocError("stylesheet", id)
+			}
+			if c.Stylesheets == nil {
+				c.Stylesheets = map[string]map[string]any{}
+			}
+			c.Stylesheets[id] = doc
 		}
 	}
 	// A component document colliding with a manifest-INLINE component of the
@@ -354,6 +366,18 @@ func (b *Bundle) ToApp() *model.App {
 	}
 	for _, c := range b.Content.Components {
 		docs = append(docs, c)
+	}
+	// Stylesheet ORDER is semantic (same-class rules cascade in declaration
+	// order), and this map iterates nondeterministically — feed the documents
+	// in sorted-id order, the same order the collect walk and the serializer
+	// produce, so a bundle reconstructs the exact cascade the directory had.
+	sheetIDs := make([]string, 0, len(b.Content.Stylesheets))
+	for id := range b.Content.Stylesheets {
+		sheetIDs = append(sheetIDs, id)
+	}
+	sort.Strings(sheetIDs)
+	for _, id := range sheetIDs {
+		docs = append(docs, b.Content.Stylesheets[id])
 	}
 	app := loader.FromDocs(docs)
 	app.Locales = b.Content.Locales

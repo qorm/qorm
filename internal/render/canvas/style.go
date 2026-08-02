@@ -332,157 +332,36 @@ func parseStyle(n *model.Node, rt *runtime.Runtime) NodeStyle {
 		s.Color = color.RGBA{255, 255, 255, 255}
 	}
 
+	// Stylesheet cascade (styles/*.qss): type rules, then class rules, then id
+	// rules — each overrides the theme component defaults above and is in turn
+	// overridden by the node's inline style below. Rule values evaluate at the
+	// same moment inline values do (here, per measure), so a {{binding}} in a
+	// rule tracks state exactly like an inline one.
+	matched := matchingStyleRules(n, rt)
+	authorBackground := false
+	for _, m := range matched {
+		applyStyleProps(&s, m, rt)
+		if _, ok := m["background"]; ok {
+			authorBackground = true
+		}
+	}
+
 	if n.Style != nil {
-		// --- Colors (all go through resolveColor) ---
-		if bg, ok := evalStyleProp(n.Style["background"], rt).(string); ok {
-			s.Background = resolveColor(bg, rt)
+		applyStyleProps(&s, n.Style, rt)
+		if _, author := n.Style["background"]; author {
+			authorBackground = true
 		}
-		// Browser parity for bare text fields: the HTML path emits a plain
-		// <input>/<textarea> with no background styling, so the user-agent
-		// chrome is WHITE (render_input.go). The theme's inputBg only shows
-		// when the author sets background explicitly.
-		if n.Type == "input" || n.Type == "textarea" {
-			if _, author := n.Style["background"]; !author {
-				s.Background = color.RGBA{255, 255, 255, 255}
-			}
-		}
-		if cStr, ok := evalStyleProp(n.Style["color"], rt).(string); ok {
-			s.Color = resolveColor(cStr, rt)
-		}
-		if sc, ok := evalStyleProp(n.Style["strokeColor"], rt).(string); ok {
-			s.StrokeColor = resolveColor(sc, rt)
-		}
-		if sc, ok := evalStyleProp(n.Style["borderColor"], rt).(string); ok {
-			// borderColor is an alias for strokeColor
-			s.StrokeColor = resolveColor(sc, rt)
-		}
-		if sc, ok := evalStyleProp(n.Style["boxShadowColor"], rt).(string); ok {
-			s.BoxShadowColor = resolveColor(sc, rt)
-		}
-
-		// --- Numeric properties (float64 or int from JSON) ---
-		pad := evalStyleProp(n.Style["padding"], rt)
-		if f, ok := pad.(float64); ok {
-			s.Padding = int(f)
-		} else if i, ok := pad.(int); ok {
-			s.Padding = i
-		}
-
-		gap := evalStyleProp(n.Style["gap"], rt)
-		if f, ok := gap.(float64); ok {
-			s.Gap = int(f)
-		} else if i, ok := gap.(int); ok {
-			s.Gap = i
-		}
-
-		width := evalStyleProp(n.Style["width"], rt)
-		if f, ok := width.(float64); ok {
-			s.Width = int(f)
-		} else if i, ok := width.(int); ok {
-			s.Width = i
-		} else if str, ok := width.(string); ok && str == "fill" {
-			s.WidthRaw = "fill"
-		}
-
-		height := evalStyleProp(n.Style["height"], rt)
-		if f, ok := height.(float64); ok {
-			s.Height = int(f)
-		} else if i, ok := height.(int); ok {
-			s.Height = i
-		} else if str, ok := height.(string); ok && str == "fill" {
-			s.HeightRaw = "fill"
-		}
-
-		// min/max size constraints (HTML: minWidth/maxWidth/minHeight/
-		// maxHeight): clamped in measure after content and explicit sizes
-		// resolve, matching the CSS box resolution order.
-		s.MinWidth, s.MaxWidth = styleDimPair(n.Style["minWidth"], n.Style["maxWidth"], rt)
-		s.MinHeight, s.MaxHeight = styleDimPair(n.Style["minHeight"], n.Style["maxHeight"], rt)
-
-		// margin: can be { "top": N, ... } object or a single number
-		mRaw := evalStyleProp(n.Style["margin"], rt)
-		if margin, ok := mRaw.(map[string]any); ok {
-			if top, ok := margin["top"].(float64); ok {
-				s.MarginTop = int(top)
-			}
-			if bot, ok := margin["bottom"].(float64); ok {
-				s.MarginBot = int(bot)
-			}
-			if l, ok := margin["left"].(float64); ok {
-				s.MarginLeft = int(l)
-			}
-			if r, ok := margin["right"].(float64); ok {
-				s.MarginRight = int(r)
-			}
-		} else if mf, ok := mRaw.(float64); ok {
-			m := int(mf)
-			s.MarginTop = m
-			s.MarginBot = m
-			s.MarginLeft = m
-			s.MarginRight = m
-		}
-
-		fs := evalStyleProp(n.Style["fontSize"], rt)
-		if f, ok := fs.(float64); ok {
-			s.FontSize = int(f)
-		} else if i, ok := fs.(int); ok {
-			s.FontSize = i
-		}
-
-		fw := evalStyleProp(n.Style["fontWeight"], rt)
-		if f, ok := fw.(float64); ok {
-			s.FontWeight = int(f)
-		} else if i, ok := fw.(int); ok {
-			s.FontWeight = i
-		}
-
-		if align, ok := evalStyleProp(n.Style["textAlign"], rt).(string); ok {
-			s.TextAlign = align
-		}
-
-		br := evalStyleProp(n.Style["borderRadius"], rt)
-		if f, ok := br.(float64); ok {
-			s.BorderRadius = f
-		} else if i, ok := br.(int); ok {
-			s.BorderRadius = float64(i)
-		}
-
-		sw := evalStyleProp(n.Style["strokeWidth"], rt)
-		if f, ok := sw.(float64); ok {
-			s.StrokeWidth = f
-		} else if i, ok := sw.(int); ok {
-			s.StrokeWidth = float64(i)
-		}
-
-		bw := evalStyleProp(n.Style["borderWidth"], rt)
-		if f, ok := bw.(float64); ok {
-			s.StrokeWidth = f
-		} else if i, ok := bw.(int); ok {
-			s.StrokeWidth = float64(i)
-		}
-
-		// opacity: element-level alpha, clamped to [0,1] like the browser
-		// (HTML emits it raw, render_style.go:285). Applies to the whole
-		// subtree at draw time (PerformLayout sets the group opacity).
-		op := evalStyleProp(n.Style["opacity"], rt)
-		if f, ok := op.(float64); ok {
-			s.Opacity = clamp01(f)
-		} else if i, ok := op.(int); ok {
-			s.Opacity = clamp01(float64(i))
-		}
-
-		// boxShadow numeric overrides
-		bsb := evalStyleProp(n.Style["boxShadowBlur"], rt)
-		if f, ok := bsb.(float64); ok {
-			s.BoxShadowBlur = int(f)
-		} else if i, ok := bsb.(int); ok {
-			s.BoxShadowBlur = i
-		}
-		bsy := evalStyleProp(n.Style["boxShadowY"], rt)
-		if f, ok := bsy.(float64); ok {
-			s.BoxShadowY = int(f)
-		} else if i, ok := bsy.(int); ok {
-			s.BoxShadowY = i
+	}
+	// Browser parity for bare text fields: the HTML path emits a plain
+	// <input>/<textarea> with no background styling, so the user-agent
+	// chrome is WHITE (render_input.go). The theme's inputBg only shows
+	// when the author sets background explicitly — inline or via a matched
+	// stylesheet rule. (Like before, the default only engages once the author
+	// styled the field at all — inline or by rule — an untouched field keeps
+	// the theme background.)
+	if n.Type == "input" || n.Type == "textarea" {
+		if !authorBackground && (n.Style != nil || len(matched) > 0) {
+			s.Background = color.RGBA{255, 255, 255, 255}
 		}
 	}
 
@@ -502,6 +381,204 @@ func parseStyle(n *model.Node, rt *runtime.Runtime) NodeStyle {
 	}
 
 	return s
+}
+
+// matchingStyleRules returns the styles/*.qss rule bodies that apply to n, in
+// cascade order: every matching type rule first (declaration order), then
+// class rules, then id rules — so a later map in the slice overrides an
+// earlier one key by key. Class rules follow the node's own `class` list
+// order first (a class named later in the prop wins over an earlier one) and
+// declaration order within one class name. Zero matches (or no stylesheets)
+// costs one slice header and no map lookups.
+func matchingStyleRules(n *model.Node, rt *runtime.Runtime) []map[string]any {
+	if rt == nil || rt.App == nil || len(rt.App.Styles) == 0 {
+		return nil
+	}
+	var typeRules, idRules []map[string]any
+	classRules := map[string][]map[string]any{}
+	for _, r := range rt.App.Styles {
+		switch r.Kind {
+		case model.StyleRuleType:
+			if r.Name == n.Type {
+				typeRules = append(typeRules, r.Style)
+			}
+		case model.StyleRuleID:
+			if r.Name == n.ID {
+				idRules = append(idRules, r.Style)
+			}
+		case model.StyleRuleClass:
+			classRules[r.Name] = append(classRules[r.Name], r.Style)
+		}
+	}
+	var classes []string
+	if len(classRules) > 0 {
+		if cs, _ := n.Props["class"].(string); cs != "" {
+			classes = strings.Fields(cs)
+		}
+	}
+	total := len(typeRules) + len(idRules)
+	for _, c := range classes {
+		total += len(classRules[c])
+	}
+	if total == 0 {
+		return nil
+	}
+	out := make([]map[string]any, 0, total)
+	out = append(out, typeRules...)
+	for _, c := range classes {
+		out = append(out, classRules[c]...)
+	}
+	out = append(out, idRules...)
+	return out
+}
+
+// applyStyleProps layers one style map — a node's inline style or a matched
+// stylesheet rule body — over s. It is the exact key set parseStyle has always
+// consumed; both callers share it so a rule and an inline style can never
+// drift into two interpretations of the same key.
+func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime) {
+	// --- Colors (all go through resolveColor) ---
+	if bg, ok := evalStyleProp(style["background"], rt).(string); ok {
+		s.Background = resolveColor(bg, rt)
+	}
+	if cStr, ok := evalStyleProp(style["color"], rt).(string); ok {
+		s.Color = resolveColor(cStr, rt)
+	}
+	if sc, ok := evalStyleProp(style["strokeColor"], rt).(string); ok {
+		s.StrokeColor = resolveColor(sc, rt)
+	}
+	if sc, ok := evalStyleProp(style["borderColor"], rt).(string); ok {
+		// borderColor is an alias for strokeColor
+		s.StrokeColor = resolveColor(sc, rt)
+	}
+	if sc, ok := evalStyleProp(style["boxShadowColor"], rt).(string); ok {
+		s.BoxShadowColor = resolveColor(sc, rt)
+	}
+
+	// --- Numeric properties (float64 or int from JSON) ---
+	pad := evalStyleProp(style["padding"], rt)
+	if f, ok := pad.(float64); ok {
+		s.Padding = int(f)
+	} else if i, ok := pad.(int); ok {
+		s.Padding = i
+	}
+
+	gap := evalStyleProp(style["gap"], rt)
+	if f, ok := gap.(float64); ok {
+		s.Gap = int(f)
+	} else if i, ok := gap.(int); ok {
+		s.Gap = i
+	}
+
+	width := evalStyleProp(style["width"], rt)
+	if f, ok := width.(float64); ok {
+		s.Width = int(f)
+	} else if i, ok := width.(int); ok {
+		s.Width = i
+	} else if str, ok := width.(string); ok && str == "fill" {
+		s.WidthRaw = "fill"
+	}
+
+	height := evalStyleProp(style["height"], rt)
+	if f, ok := height.(float64); ok {
+		s.Height = int(f)
+	} else if i, ok := height.(int); ok {
+		s.Height = i
+	} else if str, ok := height.(string); ok && str == "fill" {
+		s.HeightRaw = "fill"
+	}
+
+	// min/max size constraints (HTML: minWidth/maxWidth/minHeight/
+	// maxHeight): clamped in measure after content and explicit sizes
+	// resolve, matching the CSS box resolution order.
+	s.MinWidth, s.MaxWidth = styleDimPair(style["minWidth"], style["maxWidth"], rt)
+	s.MinHeight, s.MaxHeight = styleDimPair(style["minHeight"], style["maxHeight"], rt)
+
+	// margin: can be { "top": N, ... } object or a single number
+	mRaw := evalStyleProp(style["margin"], rt)
+	if margin, ok := mRaw.(map[string]any); ok {
+		if top, ok := margin["top"].(float64); ok {
+			s.MarginTop = int(top)
+		}
+		if bot, ok := margin["bottom"].(float64); ok {
+			s.MarginBot = int(bot)
+		}
+		if l, ok := margin["left"].(float64); ok {
+			s.MarginLeft = int(l)
+		}
+		if r, ok := margin["right"].(float64); ok {
+			s.MarginRight = int(r)
+		}
+	} else if mf, ok := mRaw.(float64); ok {
+		m := int(mf)
+		s.MarginTop = m
+		s.MarginBot = m
+		s.MarginLeft = m
+		s.MarginRight = m
+	}
+
+	fs := evalStyleProp(style["fontSize"], rt)
+	if f, ok := fs.(float64); ok {
+		s.FontSize = int(f)
+	} else if i, ok := fs.(int); ok {
+		s.FontSize = i
+	}
+
+	fw := evalStyleProp(style["fontWeight"], rt)
+	if f, ok := fw.(float64); ok {
+		s.FontWeight = int(f)
+	} else if i, ok := fw.(int); ok {
+		s.FontWeight = i
+	}
+
+	if align, ok := evalStyleProp(style["textAlign"], rt).(string); ok {
+		s.TextAlign = align
+	}
+
+	br := evalStyleProp(style["borderRadius"], rt)
+	if f, ok := br.(float64); ok {
+		s.BorderRadius = f
+	} else if i, ok := br.(int); ok {
+		s.BorderRadius = float64(i)
+	}
+
+	sw := evalStyleProp(style["strokeWidth"], rt)
+	if f, ok := sw.(float64); ok {
+		s.StrokeWidth = f
+	} else if i, ok := sw.(int); ok {
+		s.StrokeWidth = float64(i)
+	}
+
+	bw := evalStyleProp(style["borderWidth"], rt)
+	if f, ok := bw.(float64); ok {
+		s.StrokeWidth = f
+	} else if i, ok := bw.(int); ok {
+		s.StrokeWidth = float64(i)
+	}
+
+	// opacity: element-level alpha, clamped to [0,1] like the browser
+	// (HTML emits it raw, render_style.go:285). Applies to the whole
+	// subtree at draw time (PerformLayout sets the group opacity).
+	op := evalStyleProp(style["opacity"], rt)
+	if f, ok := op.(float64); ok {
+		s.Opacity = clamp01(f)
+	} else if i, ok := op.(int); ok {
+		s.Opacity = clamp01(float64(i))
+	}
+
+	// boxShadow numeric overrides
+	bsb := evalStyleProp(style["boxShadowBlur"], rt)
+	if f, ok := bsb.(float64); ok {
+		s.BoxShadowBlur = int(f)
+	} else if i, ok := bsb.(int); ok {
+		s.BoxShadowBlur = i
+	}
+	bsy := evalStyleProp(style["boxShadowY"], rt)
+	if f, ok := bsy.(float64); ok {
+		s.BoxShadowY = int(f)
+	} else if i, ok := bsy.(int); ok {
+		s.BoxShadowY = i
+	}
 }
 
 // clamp01 constrains an author opacity to [0,1] (CSS clamps likewise).

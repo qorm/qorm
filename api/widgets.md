@@ -57,7 +57,6 @@ Each widget lists its **canonical name** first; the rest are equivalent aliases.
 | `field` | formfield | `field` |
 | `filepicker` | file | `hwList` |
 | `form` | — | `form` |
-| `g2048` | — | `tetris` |
 | `gesturedetector` | gesture, inkwell | `gestureDetector` |
 | `gridview` | — | `gridView` |
 | `haptics` | — | `hwList` |
@@ -130,7 +129,6 @@ Each widget lists its **canonical name** first; the rest are equivalent aliases.
 | `table` | — | `table` |
 | `tabs` | — | `tabs` |
 | `tag` | — | `tag` |
-| `tetris` | — | `tetris` |
 | `text` | — | `text` |
 | `textarea` | — | `textarea` |
 | `textformfield` | — | `textFormField` |

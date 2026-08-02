@@ -98,7 +98,6 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `field` | `error` · `help` · `label` · `required` |
 | `filepicker` | `label` |
 | `form` | `novalidate` |
-| `g2048` | — |
 | `gesturedetector` | `onDoubleTap` · `onLongPress` |
 | `gridview` | `as` · `crossAxisCount` · `minItemWidth` · `page` · `pageSize` · `spacing` |
 | `haptics` | `label` |
@@ -171,7 +170,6 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `table` | `as` · `column` · `columns` · `data` · `detail` · `maxHeight` · `minWidth` · `scrollX` · `sortData` · `sortDir` · `sortField` · `stickyHeader` · `stickyTop` |
 | `tabs` | `active` · `indicator` · `indicatorColor` · `lazy` · `scrollable` · `swipe` · `tabs` |
 | `tag` | — |
-| `tetris` | — |
 | `text` | — |
 | `textarea` | `autocomplete` · `autofocus` · `debounce` · `inputMode` · `maxLength` · `pattern` · `readonly` · `required` · `requiredMessage` · `rows` |
 | `textformfield` | `autocomplete` · `autofocus` · `debounce` · `error` · `helper` · `inputMode` · `inputType` · `label` · `maxLength` · `pattern` · `prefix` · `readonly` · `required` · `requiredMessage` · `suffix` |
