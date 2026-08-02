@@ -589,6 +589,8 @@ func (r *renderer) renderInner(n *model.Node) {
 		r.chart(n)
 	case "video":
 		r.video(n)
+	case "webview":
+		r.webview(n)
 	case "list":
 		r.list(n)
 	case "tabs":

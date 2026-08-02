@@ -160,3 +160,31 @@ func (r *renderer) video(n *model.Node) {
 	fmt.Fprintf(&r.sb, `<video id=%q src=%q controls style=%q></video>`,
 		attrID(n.ID), html.EscapeString(r.interp(propStr(n, "src"))), r.boxCSS(n))
 }
+
+// webview embeds live web content: an <iframe> on the HTML renderer (the
+// canvaswebview native build covers the same node with a real WKWebView
+// overlay; the pure-Go canvas draws a placeholder). url wins over src, and
+// inline `html` (srcdoc) is used only when neither is set. An author URL goes
+// through safeURL's scheme allowlist, like a link href — a "javascript:" src
+// would run in the iframe's origin-less context but still degrades to "#".
+func (r *renderer) webview(n *model.Node) {
+	src := r.interp(propStr(n, "url"))
+	if src == "" {
+		src = r.interp(propStr(n, "src"))
+	}
+	if src == "" {
+		if markup := r.interp(propStr(n, "html")); markup != "" {
+			fmt.Fprintf(&r.sb, `<iframe id=%q srcdoc=%q style=%q></iframe>`,
+				attrID(n.ID), html.EscapeString(markup), r.boxCSS(n))
+			return
+		}
+		// Our own constant, not author data — it must NOT go through safeURL
+		// (whose scheme allowlist would rewrite "about:" to "#", an iframe
+		// that reloads the parent page recursively).
+		src = "about:blank"
+	} else {
+		src = safeURL(src)
+	}
+	fmt.Fprintf(&r.sb, `<iframe id=%q src=%q style=%q></iframe>`,
+		attrID(n.ID), html.EscapeString(src), r.boxCSS(n))
+}

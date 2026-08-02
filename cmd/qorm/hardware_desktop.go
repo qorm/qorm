@@ -1,4 +1,4 @@
-//go:build desktop
+//go:build desktop || (darwin && canvaswebview)
 
 package main
 
@@ -15,6 +15,46 @@ import (
 
 	"github.com/qorm/qorm/pkg/qormext"
 )
+
+// The bridge's shared state. Declared here (not in window_desktop.go, which is
+// desktop-only) because the canvaswebview build also links this bridge: its
+// embedded WKWebViews post qormdesktop messages that route through
+// desktopHardware exactly like the desktop window's page does.
+//
+// bindDesktopHardware exposes a native hardware bridge to the web UI on desktop,
+// mirroring the mobile QORM Dev bridge. JS calls window.qormDesktop({op}); the
+// Go host runs the op (OS commands) and calls back qormOn<X>. Camera/mic/geo
+// already work via Web APIs (the desktop WebView loads localhost — a secure
+// context), so this covers the OS-level bits: volume, brightness, battery.
+var notifyClickHandler func(string)
+
+var biometricHandler func(bool, string)
+
+var btStateHandler func(bool)
+
+var btScanHandler func(string)
+
+// desktopBuiltins are the ops handled by the built-in bridge (so unknown ops
+// fall through to the user's plugin).
+var (
+	screenRecCmd  *exec.Cmd
+	screenRecFile string
+)
+
+var desktopBuiltins = map[string]bool{
+	"notify": true, "badge": true, "loginItem": true, "loginItemGet": true,
+	"screens": true, "biometric": true, "wifiInfo": true, "bluetoothScan": true,
+	"bluetoothState": true, "platform": true, "getModes": true, "winDragStart": true, "winDragMove": true, "screenshot": true, "screenRecordStart": true, "screenRecordStop": true, "clipboardSet": true, "clipboardGet": true, "share": true, "deviceInfo": true, "networkStatus": true, "keepAwake": true, "haptic": true, "storageSet": true, "storageGet": true, "openURL": true, "speak": true, "speakStop": true, "volumeSet": true, "brightnessSet": true, "secureSet": true, "secureGet": true, "volumeGet": true, "volumeUp": true,
+	"volumeDown": true, "brightnessGet": true, "battery": true, "torchGet": true,
+	"brightnessUp": true, "brightnessDown": true, "torchToggle": true, "vibrate": true,
+}
+
+// brightnessUnsupportedJS updates the brightness readout to a clear
+// desktop-unsupported state (used when no backlight/tool is available) so the
+// auto-fired brightnessGet never leaves the widget stuck.
+const brightnessUnsupportedJS = `(function(){document.querySelectorAll('.qorm-brightness-out').forEach(function(o){o.textContent='Brightness: n/a on desktop';});})()`
+
+var inhibitCmd *exec.Cmd
 
 // desktopHardware runs one hardware op off the UI thread and calls back via cb,
 // dispatching to per-OS implementations.

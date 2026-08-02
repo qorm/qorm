@@ -184,6 +184,12 @@ func (w *Window) LiveSize() image.Point {
 	return image.Pt(w.width, w.height)
 }
 
+// ContentView returns the window's content view (the NSImageView the canvas
+// presents into) as an opaque AppKit handle. Hosts that layer native platform
+// views over the canvas (the canvaswebview build's WKWebView overlays) add
+// their subviews to it; pure-Go hosts never need it.
+func (w *Window) ContentView() uintptr { return w.w.view }
+
 // Resize rebuilds the pixel plane for a new content size, re-reading the
 // backing scale factor too (the window may have crossed displays). The engine
 // re-lays out and re-renders on its next frame (the caller marks it dirty);

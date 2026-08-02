@@ -186,6 +186,7 @@
 | `video` | `src` |
 | `videocapture` | `label` |
 | `volume` | — |
+| `webview` | `html` · `src` · `url` |
 | `when` | — |
 | `wifi` | `label` |
 | `wrap` | `runSpacing` · `spacing` |

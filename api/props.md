@@ -186,6 +186,7 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `video` | `src` |
 | `videocapture` | `label` |
 | `volume` | — |
+| `webview` | `html` · `src` · `url` |
 | `when` | — |
 | `wifi` | `label` |
 | `wrap` | `runSpacing` · `spacing` |

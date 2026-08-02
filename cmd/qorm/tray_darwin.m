@@ -1,4 +1,4 @@
-//go:build darwin && desktop
+//go:build darwin && (desktop || canvaswebview)
 #import <Cocoa/Cocoa.h>
 #import <math.h>
 #import <WebKit/WebKit.h>

@@ -1,4 +1,4 @@
-//go:build darwin && desktop
+//go:build darwin && (desktop || canvaswebview)
 
 package main
 
