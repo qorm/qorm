@@ -590,6 +590,17 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 	return changed
 }
 
+// notifyWidgetFocused tells an interactive widget that keyboard focus landed
+// on it (the Tab path, which never routes through HandlePointer): the widget
+// caches the engine interaction so its Record can reach the live edit session.
+func (e *Engine) notifyWidgetFocused(m *model.Node) {
+	if w, ok := LookupWidget(m.Type); ok {
+		if fw, yes := w.(FocusHookWidget); yes {
+			fw.OnFocused(m, &e.Inter)
+		}
+	}
+}
+
 // updateHover moves the hovered identity to the node at hit, dispatching
 // hoverOut on the old chain and hoverIn on the new, and reports whether the
 // identity changed (the caller turns a change into a redraw). Extracted from
@@ -789,9 +800,13 @@ func (e *Engine) HandleKey(k KeyInput) bool {
 				// focus always lands outside lists and the item companion is 0.
 				e.Inter.Focused = NextFocus(Focusables(e.sceneRoot(), rt), e.Inter.Focused, !k.Shift)
 				e.Inter.FocusedItem = 0
-				// Scroll the newly focused node into view (a focus ring on a
-				// clipped node is invisible until the viewport scrolls it in).
 				if e.Inter.Focused != nil {
+					// Keyboard focus does not route through the widget's
+					// HandlePointer, so tell a FocusHookWidget it now owns the
+					// interaction (it caches the live edit session).
+					e.notifyWidgetFocused(e.Inter.Focused)
+					// Scroll the newly focused node into view (a focus ring on a
+					// clipped node is invisible until the viewport scrolls it in).
 					e.ensureFocusVisible(e.Inter.Focused)
 				}
 				e.syncEditSession()

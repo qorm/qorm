@@ -78,6 +78,17 @@ type InteractiveWidget interface {
 	HandlePointer(n *model.Node, rt *runtime.Runtime, p PointerInput, inter *Interaction, frame image.Rectangle) (redraw bool)
 }
 
+// FocusHookWidget is an optional interface an InteractiveWidget may implement
+// to learn when KEYBOARD focus lands on it — the Tab/Shift-Tab path, which
+// never routes through HandlePointer. A widget that caches the engine's
+// Interaction for its Record (the textarea's live edit session + scroll
+// offset) needs this hook or a Tab-focused instance renders without its
+// session. Pointer focus already reaches the widget via HandlePointer.
+type FocusHookWidget interface {
+	Widget
+	OnFocused(n *model.Node, inter *Interaction)
+}
+
 // OverlayWidget marks a widget whose popup should paint above its siblings
 // while it is open (for example, a select menu). The engine appends the
 // returned overlay node after normal layout, so the popup draws and hit-tests

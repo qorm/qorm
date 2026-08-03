@@ -101,12 +101,14 @@ func (t *Textarea) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int)
 	chrome.StrokeWidth = float64(scale)
 	g.AddChild(chrome)
 
-	// Clipped content: the clip leaf emits the ClipOp the scroll viewport
-	// gets from canvas's (unexported) clipNode — lines that leave the box
-	// vertically are cut instead of painting over the widgets below.
+	// The clip leaf emits the ClipOp the scroll viewport gets from canvas's
+	// (unexported) clipNode — lines that leave the box vertically are cut
+	// instead of painting over the widgets below. It mounts on the ROOT group,
+	// a SIBLING BEFORE the content, so it stays fixed while the content
+	// scrolls through it (a clip inside the content group would travel with
+	// the offset and clip nothing).
+	g.AddChild(newClipLeaf(ln.Width, ln.Height))
 	content := draw.NewGroup()
-	content.Clip = true
-	content.AddChild(newClipLeaf(ln.Width, ln.Height))
 
 	fs := formFontSizeLN(ln, scale)
 	pad := float64(textareaPad * scale)
@@ -122,6 +124,40 @@ func (t *Textarea) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int)
 	s := t.sessionFor(ln.Node)
 	sel := s != nil && s.SelStart < s.SelEnd
 	lineStart := 0
+
+	// Internal scrolling: when the caret leaves the visible box (content taller
+	// than the viewport), the content shifts so the caret stays in view — the
+	// same scroll-to-caret a browser's textarea does while typing/arrowing.
+	// The offset persists in Interaction.ScrollOffsets (the engine's scroll
+	// state, keyed by node) so re-measures keep it; content.Y is the scroll.
+	if inter := t.inters[ln.Node]; inter != nil && s != nil {
+		offset := inter.ScrollOffsets[ln.Node].Y
+		caretLine, _ := runeLineCol(s.Runes, s.Cursor)
+		boxH := float64(ln.Height) - 2*pad
+		// The content's total extent is pad + all lines (the trailing area
+		// below the last line), so the last line can scroll fully visible.
+		contentExtent := pad + float64(len(lines))*float64(lineH)
+		if contentExtent > boxH {
+			caretTop := pad + float64(caretLine)*float64(lineH)
+			if offset > caretTop {
+				offset = caretTop // caret above → scroll up so it sits at the top
+			}
+			if caretBottom := caretTop + float64(lineH); offset < caretBottom-boxH {
+				offset = caretBottom - boxH // caret below → scroll down to reveal it
+			}
+			if offset < 0 {
+				offset = 0
+			}
+			if offset > contentExtent-boxH {
+				offset = contentExtent - boxH
+			}
+			if inter.ScrollOffsets == nil {
+				inter.ScrollOffsets = map[*model.Node]canvas.ScrollPos{}
+			}
+			inter.ScrollOffsets[ln.Node] = canvas.ScrollPos{Y: offset}
+		}
+		content.Y = -offset
+	}
 	for i, line := range lines {
 		// Per-line selection highlight: the line's absolute buffer span
 		// [lineStart, lineEnd) — counted in RUNES, matching the session's
@@ -190,6 +226,16 @@ func (t *Textarea) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.Po
 	inter.Focused = n
 	inter.FocusVisible = false
 	return true
+}
+
+// OnFocused caches the engine interaction when KEYBOARD focus lands on this
+// textarea (the FocusHookWidget seam): the Tab path never routes through
+// HandlePointer, so without this a Tab-focused textarea would render without
+// its caret and scroll offset. Pointer focus caches via HandlePointer.
+func (t *Textarea) OnFocused(n *model.Node, inter *canvas.Interaction) {
+	t.mu.Lock()
+	t.inters[n] = inter
+	t.mu.Unlock()
 }
 
 // sessionFor returns the live edit session for n, re-validated against the

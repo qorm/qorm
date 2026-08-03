@@ -119,6 +119,71 @@ func TestTextareaSelectionNonASCIILines(t *testing.T) {
 	}
 }
 
+// A textarea taller than its box scrolls its content so the caret stays
+// visible: a caret on a line below the fold advances the persisted offset and
+// the content group shifts up by it.
+func TestTextareaCaretAutoScroll(t *testing.T) {
+	rt := runtime.New(&model.App{})
+	rt.Theme = theme.GetDefault()
+	ta := &model.Node{Type: "textarea", ID: "ta"}
+	w, _ := canvas.LookupWidget("textarea")
+	tw := w.(*Textarea)
+	inter := &canvas.Interaction{Input: &canvas.InputState{
+		Node: ta, Runes: []rune("l1\nl2\nl3\nl4\nl5\nl6"), Cursor: 21, // on the last line
+	}}
+	tw.mu.Lock()
+	tw.inters[ta] = inter
+	tw.mu.Unlock()
+	// A 2-row box over 6 lines of the default fs (14): lineH = lineHeight(14),
+	// boxH = Height - 2*pad, content extent = pad + 6*lineH.
+	lineH := lineHeight(14)
+	boxH := 62 - 2*textareaPad
+	wantOffset := textareaPad + 6*lineH - boxH // scroll so the last line's bottom sits at the box bottom
+	ln := &canvas.LayoutNode{Node: ta, Width: 200, Height: 62}
+	shape := tw.Record(ln, rt, 1)
+
+	// The content group (the root's last child) is scrolled so the caret line
+	// is fully visible.
+	root := shape.(*draw.Group)
+	var content *draw.Group
+	for _, c := range root.Children {
+		if gr, ok := c.(*draw.Group); ok {
+			content = gr
+		}
+	}
+	if content == nil {
+		t.Fatal("content group missing")
+	}
+	if content.Y != -float64(wantOffset) {
+		t.Errorf("content.Y = %v, want %v (scrolled so the last line is visible)", content.Y, -wantOffset)
+	}
+	// The offset is persisted for the next measure.
+	if pos := inter.ScrollOffsets[ta]; pos.Y != float64(wantOffset) {
+		t.Errorf("persisted offset = %v, want %v", pos.Y, wantOffset)
+	}
+}
+
+// Keyboard focus (Tab) reaches the textarea through the FocusHookWidget seam
+// — the Tab path never routes through HandlePointer — so a Tab-focused
+// textarea caches the interaction and its session is visible to Record.
+func TestTextareaTabFocusCachesSession(t *testing.T) {
+	ta := &model.Node{Type: "textarea", ID: "ta", Value: "{{state.note}}"}
+	e, surf := formEngine(t, ta)
+	e.DrawFrame(surf)
+	e.HandleKey(canvas.KeyInput{Key: "tab", Down: true})
+	if e.Inter.Focused != ta {
+		t.Fatal("tab must focus the textarea")
+	}
+	w, _ := canvas.LookupWidget("textarea")
+	tw := w.(*Textarea)
+	tw.mu.Lock()
+	cached := tw.inters[ta]
+	tw.mu.Unlock()
+	if cached == nil || cached.Input == nil {
+		t.Fatal("tab-focus must cache the interaction + session for the widget's Record")
+	}
+}
+
 // The shared session drives both the caret and the selection through the same
 // fields the engine writes: this pins that a collapsed selection draws the
 // caret again (the pre-selection behavior).
