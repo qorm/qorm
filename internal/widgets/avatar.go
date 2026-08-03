@@ -121,3 +121,6 @@ func avatarInitials(n *model.Node, ln *canvas.LayoutNode, rt *runtime.Runtime) s
 	}
 	return strings.ToUpper(s)
 }
+
+// Inline marks Avatar as inline-level (canvas.InlineWidget): flex containers keep its content size.
+func (Avatar) Inline() {}

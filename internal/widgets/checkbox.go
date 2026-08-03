@@ -403,3 +403,6 @@ func formOptions(v any) []formOption {
 	}
 	return out
 }
+
+// Inline marks Checkbox as inline-level (canvas.InlineWidget): flex containers keep its content size.
+func (Checkbox) Inline() {}

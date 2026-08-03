@@ -115,3 +115,6 @@ func (Link) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.N
 	g.AddChild(underline)
 	return g
 }
+
+// Inline marks Link as inline-level (canvas.InlineWidget): flex containers keep its content size.
+func (Link) Inline() {}

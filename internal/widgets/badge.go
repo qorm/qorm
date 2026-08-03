@@ -90,3 +90,6 @@ func themeColor(rt *runtime.Runtime, token string, fallback color.RGBA) color.RG
 	}
 	return fallback
 }
+
+// Inline marks Badge as inline-level (canvas.InlineWidget): flex containers keep its content size.
+func (Badge) Inline() {}

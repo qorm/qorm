@@ -172,6 +172,18 @@ func clampInt(v, min, max int) int {
 // on the cross axis — its own align wins, otherwise the container's
 // align-items (CSS align-self:auto follows align-items).
 func stretchable(ln, c *LayoutNode) bool {
+	// Inline-level widgets (avatar, badge, icon, …) keep their content size:
+	// HTML gives them inline-flex, so flex stretch never applies.
+	if w, ok := LookupWidget(c.Node.Type); ok {
+		if _, inline := w.(InlineWidget); inline {
+			return false
+		}
+	}
+	// A vertical divider never widens (HTML: width:1px + side margins); its
+	// horizontal sibling WANTS the stretch (width:100%).
+	if c.Node.Type == "verticaldivider" {
+		return false
+	}
 	// CSS: align-self:auto (the initial) COMPUTES to the container's
 	// align-items — a centred (or start/end) container does not stretch the
 	// child, so the measured cross size must be kept; only an explicit

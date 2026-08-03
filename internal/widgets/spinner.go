@@ -198,3 +198,6 @@ func propNumDefault(n *model.Node, key string, def float64) float64 {
 	}
 	return def
 }
+
+// Inline marks Spinner as inline-level (canvas.InlineWidget): flex containers keep its content size.
+func (Spinner) Inline() {}

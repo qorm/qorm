@@ -132,3 +132,6 @@ func (WebView) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) dra
 	g.AddChild(hintText)
 	return g
 }
+
+// Inline marks WebView as inline-level (canvas.InlineWidget): an iframe-like replaced element keeps its measured size.
+func (WebView) Inline() {}

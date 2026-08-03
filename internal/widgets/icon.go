@@ -798,3 +798,6 @@ var iconSet = map[string]string{
 	"download":      `<path d="M12 3v12M7 11l5 5 5-5M4 21h16"/>`,
 	"upload":        `<path d="M12 21V9M7 13l5-5 5 5M4 4h16"/>`,
 }
+
+// Inline marks Icon as inline-level (canvas.InlineWidget): flex containers keep its content size.
+func (Icon) Inline() {}

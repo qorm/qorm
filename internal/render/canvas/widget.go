@@ -110,6 +110,15 @@ type ChildLayoutWidget interface {
 	RecordWithSinks(ln *LayoutNode, rt *runtime.Runtime, scale int, sinks *LayoutSinks) graph.Node
 }
 
+// InlineWidget marks a widget that is inline-level in the CSS sense
+// (avatar, badge, icon, switch, …): a flex container must NOT cross-stretch
+// it (HTML renders those inline-flex, so they keep their content width even
+// when the parent stretches block-level siblings).
+type InlineWidget interface {
+	Widget
+	Inline()
+}
+
 // AnimatedWidget is an OPTIONAL extension for widgets that animate
 // continuously (an indeterminate spinner never settles). While any of its
 // nodes is mounted in the current scene the engine keeps the frame loop

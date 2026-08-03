@@ -254,9 +254,11 @@ func TestStackLayersAtSameOrigin(t *testing.T) {
 		}
 	}
 
-	// The stack sizes to the largest child plus padding.
-	if gs.Base().Width != 68 || gs.Base().Height != 48 {
-		t.Errorf("stack size = %vx%v, want 68x48 (largest child + 2×padding)", gs.Base().Width, gs.Base().Height)
+	// The stack is a block-level container: its width stretches to the
+	// container (the scene root spans the viewport, layout.go); its height
+	// still sizes to the largest child plus padding.
+	if gs.Base().Width != 200 || gs.Base().Height != 48 {
+		t.Errorf("stack size = %vx%v, want 200x48 (block width stretches; height = largest child + 2×padding)", gs.Base().Width, gs.Base().Height)
 	}
 
 	// z-order: the later sibling is on top — a point inside both must hit
@@ -319,8 +321,9 @@ func TestGridLayout(t *testing.T) {
 		}
 	}
 
-	// Default columns is 2 (HTML propNum(n, "columns", 2)); a content-sized
-	// grid uses the widest child as the column width.
+	// Default columns is 2 (HTML propNum(n, "columns", 2)); an auto-width grid
+	// spans the container (the scene root spans the viewport), so the tracks
+	// split it equally: colW = (400-10)/2 = 195, b at x = 195+10 = 205.
 	def := &model.Node{Type: "column", ID: "root", Children: []*model.Node{
 		{Type: "grid", ID: "g2",
 			Style:    map[string]any{"gap": 10.0},
@@ -331,8 +334,8 @@ func TestGridLayout(t *testing.T) {
 	if pa == nil || pb == nil || pc == nil {
 		t.Fatal("default-columns grid children must render")
 	}
-	if pa.Base().X != 0 || pa.Base().Y != 0 || pb.Base().X != 50 || pb.Base().Y != 0 || pc.Base().X != 0 || pc.Base().Y != 30 {
-		t.Errorf("default grid geometry a=%v b=%v c=%v, want (0,0) (50,0) (0,30)",
+	if pa.Base().X != 0 || pa.Base().Y != 0 || pb.Base().X != 205 || pb.Base().Y != 0 || pc.Base().X != 0 || pc.Base().Y != 30 {
+		t.Errorf("default grid geometry a=%v b=%v c=%v, want (0,0) (205,0) (0,30)",
 			[2]float64{pa.Base().X, pa.Base().Y}, [2]float64{pb.Base().X, pb.Base().Y}, [2]float64{pc.Base().X, pc.Base().Y})
 	}
 }

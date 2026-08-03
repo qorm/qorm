@@ -92,3 +92,6 @@ func statProp(n *model.Node, key string, rt *runtime.Runtime) string {
 	}
 	return fmt.Sprint(runtime.EvalBinding(fmt.Sprint(raw), map[string]any{"state": rt.State}))
 }
+
+// Inline marks Stat as inline-level (canvas.InlineWidget): flex containers keep its content size.
+func (Stat) Inline() {}

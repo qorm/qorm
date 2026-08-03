@@ -136,3 +136,6 @@ func (s *Switch) checked(n *model.Node, ln *canvas.LayoutNode, rt *runtime.Runti
 	}
 	return false
 }
+
+// Inline marks Switch as inline-level (canvas.InlineWidget): flex containers keep its content size.
+func (Switch) Inline() {}
