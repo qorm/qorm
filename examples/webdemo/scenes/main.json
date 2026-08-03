@@ -36,11 +36,21 @@
       {
         "type": "text",
         "id": "note",
-        "text": "The box above is a real WKWebView subview over the canvas window in a -tags canvaswebview build, a bordered placeholder in the pure-Go build, and an <iframe> on the HTML renderer. Its page talks to Go through the qormDesktop JS bridge (the probe + button log to stderr / update in place).",
+        "text": "Two-way bridge: the page's button calls networkStatus into Go (reply paints back), and the QORM button below pushes the counter into the page from actions/pushCount.qs via native(\"webviewEval\") — DOM text, style colour, and a probe posted back.",
         "style": {
           "color": "var(--secondary-label)",
           "fontSize": 12
         }
+      },
+      {
+        "type": "button",
+        "id": "push",
+        "label": "Push count to page (Go to page)",
+        "onPress": {
+          "type": "invoke",
+          "name": "pushCount"
+        },
+        "style": { "margin": { "top": 12 } }
       }
     ]
   }

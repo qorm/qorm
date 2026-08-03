@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"math"
 	"time"
 
 	flexlayout "github.com/qorm/qorm/internal/layout"
@@ -13,13 +14,17 @@ import (
 )
 
 type LayoutNode struct {
-	Node        *model.Node
-	Style       NodeStyle
-	Text        string
-	Width       int
-	Height      int
-	X           int
-	Y           int
+	Node   *model.Node
+	Style  NodeStyle
+	Text   string
+	Width  int
+	Height int
+	X      int
+	Y      int
+	// AbsX/AbsY are the node's absolute physical-px origin, after all
+	// ancestor transforms (including scroll offsets) have been applied.
+	AbsX        int
+	AbsY        int
 	NeedsRedraw bool
 	Children    []*LayoutNode
 
@@ -475,13 +480,29 @@ func gridColumns(n *model.Node) int {
 // the device-pixel ratio (used for the focus-ring insets so its visual width
 // stays constant in physical pixels).
 func PerformLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, rt *runtime.Runtime, scale int) graph.Node {
-	return performLayout(ln, bounds, inter, rt, scale, nil)
+	return performLayout(ln, bounds, image.Point{}, inter, rt, scale, nil, nil)
+}
+
+// PerformLayoutWithSinks is PerformLayout plus the frame's side channels: a
+// container widget that lays out children itself (ChildLayoutWidget) forwards
+// the sinks it was handed so nested widgets' overlays and repeat-item
+// identities keep flowing to the frame. absOrigin is the container's own
+// absolute scene position (its ln.AbsX/AbsY): the delegated subtree's
+// AbsX/AbsY accumulate from it, so an OverlayWidget nested inside positions
+// its popup in SCENE coordinates, not container-relative ones. sinks may be
+// nil (== PerformLayout).
+func PerformLayoutWithSinks(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point, inter *Interaction, rt *runtime.Runtime, scale int, sinks *LayoutSinks) graph.Node {
+	if sinks == nil {
+		return performLayout(ln, bounds, absOrigin, inter, rt, scale, nil, nil)
+	}
+	return performLayout(ln, bounds, absOrigin, inter, rt, scale, sinks.items, sinks.overlays)
 }
 
 // performLayout is the recursive body of PerformLayout; items, when non-nil,
 // collects the repeat-instance sidecar (list.go) the engine uses at event
-// time — Layout allocates it, layout-only callers pass nil.
-func performLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, rt *runtime.Runtime, scale int, items map[graph.Node]itemInstance) graph.Node {
+// time, and overlays collects any popup nodes to append after the normal
+// tree — Layout allocates both, layout-only callers pass nil.
+func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point, inter *Interaction, rt *runtime.Runtime, scale int, items map[graph.Node]itemInstance, overlays *[]graph.Node) graph.Node {
 	if ln == nil {
 		return nil
 	}
@@ -509,6 +530,8 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, r
 
 	ln.X = x
 	ln.Y = y
+	ln.AbsX = absOrigin.X + x
+	ln.AbsY = absOrigin.Y + y
 
 	group := graph.NewGroup()
 	group.X = float64(x)
@@ -516,10 +539,13 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, r
 	group.Width = float64(ln.Width)
 	group.Height = float64(ln.Height)
 	group.Model = ln.Node
+	ln.GraphNode = group
 	if ln.EntranceActive {
 		group.Opacity *= ln.EntranceOpacity
 		group.X += ln.EntranceDX
 		group.Y += ln.EntranceDY
+		ln.AbsX += int(math.Round(ln.EntranceDX))
+		ln.AbsY += int(math.Round(ln.EntranceDY))
 	}
 	if inter != nil {
 		// Repeat instances share the template's model pointer, so a flag
@@ -621,8 +647,26 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, r
 		}
 	} else if w, ok := LookupWidget(ln.Node.Type); ok {
 		// A registered widget mounts the shape it built (see Widget.Record).
-		if shape := w.Record(ln, rt, scale); shape != nil {
+		// A container that lays out children itself gets the frame's sinks so
+		// overlays and repeat identities nested in its panel keep flowing.
+		var shape graph.Node
+		if cw, yes := w.(ChildLayoutWidget); yes {
+			shape = cw.RecordWithSinks(ln, rt, scale, &LayoutSinks{items: items, overlays: overlays})
+		} else {
+			shape = w.Record(ln, rt, scale)
+		}
+		if shape != nil {
 			group.AddChild(shape)
+		}
+		if overlays != nil {
+			if ow, ok := w.(OverlayWidget); ok && ow.OverlayOpen(ln.Node, rt) {
+				if overlay := ow.OverlayRecord(ln, rt, scale, image.Pt(ln.AbsX, ln.AbsY)); overlay != nil {
+					if items != nil && (ln.ItemIndex != 0 || ln.ItemScope != nil) {
+						items[overlay] = itemInstance{index: ln.ItemIndex, vars: ln.ItemScope}
+					}
+					*overlays = append(*overlays, overlay)
+				}
+			}
 		}
 	} else if ln.Text != "" {
 		fs := ln.Style.FontSize
@@ -666,10 +710,12 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, r
 	// the viewport's ONLY group child — scrollContentOf relies on that.
 	sink := group
 	var content *graph.Group
+	scrollY := 0
 	if isScroll {
 		content = graph.NewGroup()
 		content.Width = float64(ln.Width)
 		content.Height = float64(ln.ContentH)
+		scrollY = -int(math.Round(scrollOffset(ln, inter)))
 		sink = content
 	}
 
@@ -761,6 +807,18 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, r
 			for r := 0; r < row; r++ {
 				gy += gridRowH[r] + ln.Style.Gap
 			}
+			// CSS grid items stretch across their auto-sized track. The grid
+			// track is already equal-width, but the measured child keeps its
+			// intrinsic content width unless we resolve that auto width here;
+			// leaving it untouched makes cards shrink to their labels (for
+			// example, the three stats cards in the gallery).
+			if child.Style.Width == 0 && (child.Style.WidthRaw == "fill" || stretchable(ln, child)) {
+				child.Width = gridColW - child.Style.MarginLeft - child.Style.MarginRight
+				if child.Width < 0 {
+					child.Width = 0
+				}
+				child.Width = clampInt(child.Width, child.Style.MinWidth, child.Style.MaxWidth)
+			}
 			cbounds = image.Rect(gx, gy, gx+gridColW, gy+gridRowH[row])
 		default:
 			r := flexRects[i]
@@ -772,7 +830,11 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, r
 			child.Height = clampInt(int(r.H), child.Style.MinHeight, child.Style.MaxHeight)
 		}
 
-		childNode := performLayout(child, cbounds, inter, rt, scale, items)
+		childAbsOrigin := image.Pt(ln.AbsX, ln.AbsY)
+		if isScroll {
+			childAbsOrigin.Y += scrollY
+		}
+		childNode := performLayout(child, cbounds, childAbsOrigin, inter, rt, scale, items, overlays)
 		if childNode != nil {
 			sink.AddChild(childNode)
 		}
@@ -781,7 +843,7 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, inter *Interaction, r
 	if content != nil {
 		// Shift the scrolled body by the (clamped) offset; the clip mounted
 		// above cuts whatever leaves the viewport.
-		content.Y = -scrollOffset(ln, inter)
+		content.Y = float64(scrollY)
 		group.AddChild(content)
 	}
 

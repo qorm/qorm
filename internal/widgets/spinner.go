@@ -137,30 +137,52 @@ func (Spinner) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) dra
 // clockwise from 12 o'clock) gets the accent colour. Pixels outside the band
 // stay transparent (the renderer alpha-blends the bitmap over the scene).
 func rasterSpin(sz, th int, centre float64, track, arc color.RGBA) *image.RGBA {
+	const ss = 4
 	bmp := image.NewRGBA(image.Rect(0, 0, sz, sz))
 	c := float64(sz) / 2
 	rOut := c
 	rIn := c - float64(th)
 	start := centre - spinSweep/2 // the arc is centred on `centre` (HTML border-top)
+	total := float64(ss * ss)
 	for y := 0; y < sz; y++ {
 		for x := 0; x < sz; x++ {
-			dx := float64(x) + 0.5 - c
-			dy := float64(y) + 0.5 - c
-			r := math.Hypot(dx, dy)
-			if r < rIn || r > rOut {
+			var cov float64
+			var ar, ag, ab float64
+			for sy := 0; sy < ss; sy++ {
+				py := float64(y) + (float64(sy)+0.5)/ss
+				dy := py - c
+				for sx := 0; sx < ss; sx++ {
+					px := float64(x) + (float64(sx)+0.5)/ss
+					dx := px - c
+					r := math.Hypot(dx, dy)
+					if r < rIn || r > rOut {
+						continue
+					}
+					// Pixel angle, clockwise from 12 o'clock, folded into [0, 2π).
+					a := math.Atan2(dx, -dy)
+					rel := math.Mod(a-start, 2*math.Pi)
+					if rel < 0 {
+						rel += 2 * math.Pi
+					}
+					col := track
+					if rel < spinSweep {
+						col = arc
+					}
+					ar += float64(col.R)
+					ag += float64(col.G)
+					ab += float64(col.B)
+					cov++
+				}
+			}
+			if cov == 0 {
 				continue
 			}
-			// Pixel angle, clockwise from 12 o'clock, folded into [0, 2π).
-			a := math.Atan2(dx, -dy)
-			rel := math.Mod(a-start, 2*math.Pi)
-			if rel < 0 {
-				rel += 2 * math.Pi
-			}
-			if rel < spinSweep {
-				bmp.SetRGBA(x, y, arc)
-			} else {
-				bmp.SetRGBA(x, y, track)
-			}
+			bmp.SetRGBA(x, y, color.RGBA{
+				R: uint8(math.Round(ar / cov)),
+				G: uint8(math.Round(ag / cov)),
+				B: uint8(math.Round(ab / cov)),
+				A: uint8(math.Round(cov * 255 / total)),
+			})
 		}
 	}
 	return bmp

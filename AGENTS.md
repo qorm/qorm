@@ -1,13 +1,13 @@
 # AGENTS.md — orienting an AI agent in the QORM repo
 
-**What this is.** QORM (Queryable Object Rendering Model) is a pure-Go,
-agent-native declarative-UI runtime. A QORM app is JSON — a manifest
+**What this is.** QORM (Query · Observe · Render · Mutate) is a pure-Go,
+agent-native cross-platform app platform. A QORM app is JSON — a manifest
 (`qorm.json`) + `scenes/*.json` + `actions/*.json`, plus an optional Go
 middle-layer — that one runtime renders to HTML/CSS, ed25519-signs into a
 verifiable bundle, delivers over-the-air, packages for web / iOS / Android /
 desktop, and exposes to agents over MCP. Dual-consumer by design: every artifact
-is meant to be read, written, and *verified* by both a person and an AI. Read
-the acronym as verbs and you have the API surface: **Query** (HTTP/MCP reads),
+is meant to be read, written, and *verified* by both a person and an AI. The
+acronym is the API surface: **Query** (HTTP/MCP reads),
 **Observe** (SSE), **Render** (the runtime), **Mutate** (actions + writes).
 
 **Full machine-readable map:** [llms.txt](llms.txt).
@@ -25,6 +25,24 @@ the acronym as verbs and you have the API surface: **Query** (HTTP/MCP reads),
   [widget catalog](api/widgets.md) (auto-generated from the code, canonical).
 - Do **not** use the old `value` / `on:{press}` / `{{count}}` / `scene://` forms —
   the runtime ignores them. When docs and a runnable example disagree, the example wins.
+- App logic too big for steps goes in a **script action**: an action JSON with a
+  `script` field holding qscript source (`internal/qscript` — `let`/`if`/`for in`/
+  `while`/`fn`, the expression language's operators and builtins, `state` read/write,
+  `args` in), or — the file-per-action spelling — an `actions/<id>.qs` file whose
+  filename is the action id and whose full text is the script. The loader compiles
+  it (parse errors name the line, and the file for `.qs`); `script` beats `steps`
+  when both are declared. Canonical example: [examples/tetris](examples/tetris).
+- Shared styles live in a **stylesheet**: `styles/<id>.qss` (QORM Style Sheet,
+  `internal/qss`) — rules like `button { borderRadius: 12 }`, `.accent { … }`,
+  `#submit { … }` (type / class / id selectors; `#` comments; numbers stay
+  numbers, strings and `{{bindings}}` evaluate like inline style values; nested
+  objects such as `margin: {top: …}` stay inline on the node). Scene nodes
+  reference them with a `class` prop (space-separated, later classes win).
+  Cascade: theme component default < type rule < class rule (declaration
+  order) < id rule < inline `style`. Parse errors are load-time diagnostics
+  naming file and line; unknown style keys warn. The canvas renderer applies
+  them; the HTML renderer does not yet (inline styles only there). Example:
+  [examples/tetris](examples/tetris) `styles/app.qss`.
 - **No emoji** in UI, code, or docs — use the built-in SVG icon set (icon *names*
   like `heart` / `star` / `zap`, listed in `internal/render/icons.go`).
 - Style against the theme variables (`var(--accent)`, `var(--label)`, …) so apps
@@ -57,3 +75,7 @@ the acronym as verbs and you have the API surface: **Query** (HTTP/MCP reads),
   and falls back to the bitmap font.
 - Run an example: `go run ./cmd/qorm run examples/counter`.
 - Native desktop window (opt-in, per-platform): `-tags desktop`.
+- Canvas window + real WKWebView overlays for `webview` widgets (macOS,
+  cgo): `-tags canvaswebview`; every other build draws the widget's
+  placeholder (HTML renderer uses an `<iframe>`). Demo: `go run -tags
+  canvaswebview ./cmd/qorm run examples/webdemo`.

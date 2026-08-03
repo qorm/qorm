@@ -337,6 +337,33 @@ func TestGridLayout(t *testing.T) {
 	}
 }
 
+// Auto-sized grid children stretch to their equal-width tracks. Without this
+// top-down resolution, cards shrink back to their intrinsic text width even
+// though the grid itself has already computed full-width columns.
+func TestGridAutoItemsStretchToTracks(t *testing.T) {
+	grid := &model.Node{Type: "grid", ID: "g",
+		Props: map[string]any{"columns": 3.0},
+		Style: map[string]any{"gap": 12.0, "width": 300.0},
+		Children: []*model.Node{
+			{Type: "text", ID: "a", Props: map[string]any{"text": "1.2k"}},
+			{Type: "text", ID: "b", Props: map[string]any{"text": "348"}},
+			{Type: "text", ID: "c", Props: map[string]any{"text": "27"}},
+		}}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{grid}}
+
+	g := layoutScene(root, testRuntime(nil), image.Pt(400, 200))
+	wantW := float64((300 - 2*12) / 3)
+	for _, id := range []string{"a", "b", "c"} {
+		child := walkModel(g, id)
+		if child == nil {
+			t.Fatalf("grid child %q must render", id)
+		}
+		if got := child.Base().Width; got != wantW {
+			t.Errorf("grid child %q width = %v, want track width %v", id, got, wantW)
+		}
+	}
+}
+
 // The `opacity` style key must multiply into the drawn pixels (it was
 // silently ignored before): 0.5 alpha-composites over the white frame, 0
 // hides, values clamp to [0,1] like CSS, a binding resolves, and a parent's

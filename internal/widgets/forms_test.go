@@ -75,8 +75,29 @@ func recordOf(t *testing.T, name string, n *model.Node, rt *runtime.Runtime, w, 
 	return shape
 }
 
+func overlayOf(t *testing.T, name string, n *model.Node, rt *runtime.Runtime, w, h int) draw.Node {
+	t.Helper()
+	wgt, ok := canvas.LookupWidget(name)
+	if !ok {
+		t.Fatalf("%s not registered", name)
+	}
+	ow, ok := wgt.(canvas.OverlayWidget)
+	if !ok {
+		t.Fatalf("%s does not implement canvas.OverlayWidget", name)
+	}
+	if !ow.OverlayOpen(n, rt) {
+		t.Fatalf("%s overlay is not open", name)
+	}
+	ln := &canvas.LayoutNode{Node: n, Width: w, Height: h}
+	shape := ow.OverlayRecord(ln, rt, 1, image.Point{})
+	if shape == nil {
+		t.Fatalf("%s OverlayRecord returned nil for a %dx%d box", name, w, h)
+	}
+	return shape
+}
+
 func TestFormWidgetsRegistered(t *testing.T) {
-	for _, name := range []string{"checkbox", "switch", "radio", "slider", "select", "textarea"} {
+	for _, name := range []string{"checkbox", "switch", "radio", "slider", "select", "dropdown", "textarea"} {
 		if _, ok := canvas.LookupWidget(name); !ok {
 			t.Errorf("%s must be registered via this package's init", name)
 		}
@@ -166,25 +187,29 @@ func TestCheckboxDisabledSuppresses(t *testing.T) {
 	}
 }
 
-// Record geometry: the checked box carries the staircase check mark (extra
-// NoHit rects), the unchecked one does not.
+// Record geometry: the checked box carries the rasterized check icon, the
+// unchecked one does not.
 func TestCheckboxRecordGeometry(t *testing.T) {
 	n := &model.Node{Type: "checkbox", ID: "cb", Props: map[string]any{"checked": true}}
 	rt := runtime.New(&model.App{})
 	rt.Theme = theme.GetDefault()
 	on := recordOf(t, "checkbox", n, rt, 18, 18)
 	var onRects int
+	var onImages int
 	walkRects(on, &onRects)
-	if onRects < 3 { // box + the check's staircase segments
-		t.Errorf("checked checkbox drew %d rects, want box + check segments", onRects)
+	walkImages(on, &onImages)
+	if onRects != 1 || onImages != 1 {
+		t.Errorf("checked checkbox drew %d rects and %d images, want box + check icon", onRects, onImages)
 	}
 
 	n2 := &model.Node{Type: "checkbox", ID: "cb2"}
 	off := recordOf(t, "checkbox", n2, rt, 18, 18)
 	var offRects int
+	var offImages int
 	walkRects(off, &offRects)
-	if offRects != 1 {
-		t.Errorf("unchecked checkbox drew %d rects, want just the box", offRects)
+	walkImages(off, &offImages)
+	if offRects != 1 || offImages != 0 {
+		t.Errorf("unchecked checkbox drew %d rects and %d images, want just the box", offRects, offImages)
 	}
 }
 
@@ -198,6 +223,20 @@ func walkRects(n draw.Node, count *int) {
 	if g, ok := n.(*draw.Group); ok {
 		for _, c := range g.Children {
 			walkRects(c, count)
+		}
+	}
+}
+
+func walkImages(n draw.Node, count *int) {
+	if n == nil {
+		return
+	}
+	if _, ok := n.(*draw.Image); ok {
+		*count++
+	}
+	if g, ok := n.(*draw.Group); ok {
+		for _, c := range g.Children {
+			walkImages(c, count)
 		}
 	}
 }
@@ -366,7 +405,7 @@ func TestSliderDragWritesState(t *testing.T) {
 		t.Fatalf("state.vol after press = %v, want 77", got)
 	}
 	// Drag follows the pointer.
-	e.HandlePointer(canvas.PointerInput{Type: canvas.PointerMove, X: 50, Y: 12, Buttons: 1})
+	e.HandlePointer(canvas.PointerInput{Type: canvas.PointerMove, X: 50, Y: 12})
 	if got := e.RT.State["vol"]; got != float64(23) {
 		t.Fatalf("state.vol after drag = %v, want 23", got)
 	}
@@ -387,6 +426,32 @@ func TestSliderDragWritesState(t *testing.T) {
 	}
 }
 
+// Pressing the thumb keeps its current value until movement begins, and the
+// pointer keeps the original grab offset instead of snapping the thumb center
+// under the cursor.
+func TestSliderThumbPressPreservesValueAndOffset(t *testing.T) {
+	sl := &model.Node{Type: "slider", ID: "sl", Value: "{{state.vol}}",
+		Style: map[string]any{"width": 200.0}}
+	e, surf := formEngine(t, sl)
+	e.RT.State["vol"] = float64(50)
+	e.DrawFrame(surf)
+
+	// At value 50 the thumb center is x=100 and its radius is 8. Grab four
+	// pixels to the right of center; a press must not change the value.
+	e.HandlePointer(canvas.PointerInput{Type: canvas.PointerPress, X: 104, Y: 12})
+	if got := e.RT.State["vol"]; got != float64(50) {
+		t.Fatalf("state.vol after thumb press = %v, want unchanged 50", got)
+	}
+
+	// Move ten pixels right. The preserved four-pixel grab offset means the
+	// thumb center moves to x=110, which maps to 55 (not the direct x=114 map).
+	e.HandlePointer(canvas.PointerInput{Type: canvas.PointerMove, X: 114, Y: 12})
+	if got := e.RT.State["vol"]; got != float64(55) {
+		t.Fatalf("state.vol after offset drag = %v, want 55", got)
+	}
+	e.HandlePointer(canvas.PointerInput{Type: canvas.PointerRelease, X: 114, Y: 12})
+}
+
 // Step snapping and [min,max] clamping apply before every write-back.
 func TestSliderStepAndClamp(t *testing.T) {
 	sl := &model.Node{Type: "slider", ID: "sl", Value: "{{state.v}}",
@@ -403,12 +468,12 @@ func TestSliderStepAndClamp(t *testing.T) {
 		t.Fatalf("step snap: state.v = %v, want 6", got)
 	}
 	// Drag beyond the right end clamps to max.
-	e.HandlePointer(canvas.PointerInput{Type: canvas.PointerMove, X: 500, Y: 12, Buttons: 1})
+	e.HandlePointer(canvas.PointerInput{Type: canvas.PointerMove, X: 500, Y: 12})
 	if got := e.RT.State["v"]; got != float64(10) {
 		t.Fatalf("clamp max: state.v = %v, want 10", got)
 	}
 	// And beyond the left end to min.
-	e.HandlePointer(canvas.PointerInput{Type: canvas.PointerMove, X: -50, Y: 12, Buttons: 1})
+	e.HandlePointer(canvas.PointerInput{Type: canvas.PointerMove, X: -50, Y: 12})
 	if got := e.RT.State["v"]; got != float64(0) {
 		t.Fatalf("clamp min: state.v = %v, want 0", got)
 	}
@@ -436,41 +501,93 @@ func TestSliderDisabledSuppresses(t *testing.T) {
 // select
 // ---------------------------------------------------------------------------
 
-// Clicking cycles the selection through the options (the no-overlay downgrade
-// for the dropdown), writing each value back and dispatching onChange.
-func TestSelectCyclesOptions(t *testing.T) {
+// Clicking opens the dropdown; the popup overlays later siblings, and
+// clicking an option selects it, writes the new value back and dispatches
+// onChange.
+func TestSelectExpandsAndChoosesOptions(t *testing.T) {
 	se := &model.Node{Type: "select", ID: "se", Value: "{{state.fruit}}",
 		Props: map[string]any{"options": []any{
 			map[string]any{"value": "a", "label": "Alpha"},
 			map[string]any{"value": "b", "label": "Beta"},
 		}},
 		OnChange: &model.Invoke{Name: "fruitChanged"}}
+	sibling := &model.Node{
+		Type:  "row",
+		ID:    "sibling",
+		Style: map[string]any{"width": 220.0, "height": 84.0, "background": "#FF0000"},
+	}
 	actions := map[string]*model.Action{
 		"fruitChanged": {ID: "fruitChanged", Steps: []model.Step{{Type: "state.set", Path: "seen", Value: "{{ value }}"}}},
 	}
-	e, surf := formEngineActions(t, actions, se)
+	e, surf := formEngineActions(t, actions, se, sibling)
 	e.RT.State["fruit"] = "a"
 	e.DrawFrame(surf)
 
+	w, ok := canvas.LookupWidget("select")
+	if !ok {
+		t.Fatal("select not registered")
+	}
+	baseW, baseH := w.Measure(se, e.RT, nil, 1)
+	if baseW <= 0 || baseH <= 0 {
+		t.Fatalf("select collapsed measure = %dx%d, want positive", baseW, baseH)
+	}
+
 	clickAt(e, 10, 10)
+	if got := e.RT.State["fruit"]; got != "a" {
+		t.Fatalf("state.fruit = %v, want %q after opening press", got, "a")
+	}
+	if got := e.RT.State["seen"]; got != nil {
+		t.Fatalf("onChange fired on open press: %v, want untouched", got)
+	}
+	if !e.Dirty() {
+		t.Fatal("opening the dropdown must request a redraw")
+	}
+
+	e.DrawFrame(surf)
+	openW, openH := w.Measure(se, e.RT, nil, 1)
+	if openW != baseW || openH != baseH {
+		t.Fatalf("open select measure = %dx%d, want collapsed %dx%d", openW, openH, baseW, baseH)
+	}
+	shape := recordOf(t, "select", se, e.RT, openW, openH)
+	overlay := overlayOf(t, "select", se, e.RT, openW, openH)
+	var texts []*draw.Text
+	walkTexts(shape, &texts)
+	walkTexts(overlay, &texts)
+	wantLabels := map[string]bool{"Alpha": false, "Beta": false}
+	for _, txt := range texts {
+		if _, ok := wantLabels[txt.Content]; ok {
+			wantLabels[txt.Content] = true
+		}
+	}
+	for label, seen := range wantLabels {
+		if !seen {
+			t.Fatalf("open select missing label %q: %+v", label, texts)
+		}
+	}
+
+	if got := px(surf, baseW-18, baseH+6); got == (color.RGBA{255, 0, 0, 255}) {
+		t.Fatalf("dropdown failed to overlay the sibling row: pixel = %v", got)
+	}
+
+	rowH := selectRowHeight(se, 1)
+	y := float64(baseH + selectMenuGap + selectMenuPad + rowH + rowH/2)
+	clickAt(e, 10, y)
 	if got := e.RT.State["fruit"]; got != "b" {
-		t.Fatalf("state.fruit = %v, want %q after first cycle", got, "b")
+		t.Fatalf("state.fruit = %v, want %q after picking the second row", got, "b")
 	}
 	if got := e.RT.State["seen"]; got != "b" {
 		t.Fatalf("onChange value = %v, want %q", got, "b")
 	}
-	clickAt(e, 10, 10) // wraps to the first option
-	if got := e.RT.State["fruit"]; got != "a" {
-		t.Fatalf("state.fruit = %v, want wrap to %q", got, "a")
-	}
-	if !e.Dirty() {
-		t.Fatal("the cycle must request a redraw")
+	e.DrawFrame(surf)
+	closedW, closedH := w.Measure(se, e.RT, nil, 1)
+	if closedW != baseW || closedH != baseH {
+		t.Fatalf("closed select measure = %dx%d, want original %dx%d", closedW, closedH, baseW, baseH)
 	}
 }
 
 // The box shows the selected option's label; with an empty value it shows the
 // first option (the browser's default display), and Record paints the chrome
-// plus the stepped-triangle indicator.
+// plus the rasterized chevron indicator.
 func TestSelectRecordDisplay(t *testing.T) {
 	rt := runtime.New(&model.App{})
 	rt.Theme = theme.GetDefault()
@@ -487,9 +604,11 @@ func TestSelectRecordDisplay(t *testing.T) {
 		t.Fatalf("select display = %+v, want the selected option's label %q", texts, "Beta")
 	}
 	var bars int
+	var images int
 	walkRects(shape, &bars)
-	if bars != 4 { // chrome + 3 indicator bars
-		t.Errorf("select drew %d rects, want chrome + 3 indicator bars", bars)
+	walkImages(shape, &images)
+	if bars != 1 || images != 1 {
+		t.Errorf("select drew %d rects and %d images, want chrome + chevron icon", bars, images)
 	}
 
 	// Empty value: the first option's label shows (browser default).

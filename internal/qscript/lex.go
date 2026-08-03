@@ -11,8 +11,8 @@ import (
 // Mirrors the expression language's lexer (internal/expr) so the two never
 // disagree on lexemes: identifiers absorb dots (state.piece.x is one token),
 // strings use single or double quotes with backslash escapes, numbers are
-// digit/dot runs validated at parse time. Adds '#'-to-end-of-line comments
-// and a per-token line number for diagnostics.
+// digit/dot runs validated at parse time. Adds '#'- and '//'-to-end-of-line
+// comments and a per-token line number for diagnostics.
 
 type tkind int
 
@@ -43,6 +43,10 @@ func lex(src string) ([]token, error) {
 		case unicode.IsSpace(c):
 			i++
 		case c == '#': // comment to end of line
+			for i < len(r) && r[i] != '\n' {
+				i++
+			}
+		case c == '/' && i+1 < len(r) && r[i+1] == '/': // //-style comment, same as '#'
 			for i < len(r) && r[i] != '\n' {
 				i++
 			}

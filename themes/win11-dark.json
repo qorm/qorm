@@ -94,6 +94,11 @@
     },
     "divider": {
       "backgroundColor": "separator"
+    },
+    "select": {
+      "borderRadius": 10,
+      "hoveredBackgroundColor": "inputBg",
+      "pressedBackgroundColor": "separator"
     }
   },
   "motion": {

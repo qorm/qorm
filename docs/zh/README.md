@@ -2,13 +2,13 @@
 
 # QORM 文档
 
-QORM(Queryable Object Rendering Model,可查询对象渲染模型)是一个纯 Go、面向智能体的
-声明式 UI 运行时:用 JSON 编写 UI,实时运行它,签名它,并将其打包为
+QORM(Query · Observe · Render · Mutate,查询 · 观察 · 渲染 · 变更)是一个纯 Go、
+智能体原生的跨平台应用平台:用 JSON 编写应用,实时运行它,签名它,并将其打包为
 web / iOS / Android / 桌面——人和 AI 智能体都能读写。
 
 这个名字同时也是你对一个活动应用所做的四件事:经由 HTTP/MCP **查询(Query)**
 节点树与状态,通过 SSE 实时**观察(Observe)**它,把它**渲染(Render)**到每个平台,
-再经由 actions 与写接口**修改(Mutate)**它。
+再经由 actions 与写接口**变更(Mutate)**它。
 
 > **2-Prompt Agent 快速开始提示词：**
 > 1. *“请加载 QORM 框架的 MCP 配置与 Skill 技能库（https://github.com/qorm/qorm），搭好环境，保持 DevTool 可见。”*

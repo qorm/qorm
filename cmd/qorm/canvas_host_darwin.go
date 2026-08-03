@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/qorm/qorm/internal/app"
+	"github.com/qorm/qorm/internal/qscript"
 	"github.com/qorm/qorm/internal/render/canvas"
 	"github.com/qorm/qorm/internal/runtime"
 	"github.com/qorm/qorm/internal/server"
@@ -36,6 +37,12 @@ type canvasWindowHooks struct {
 	// render+present, with the current physical size and scale — the overlay
 	// host syncs platform views to Engine.WidgetFrames there.
 	afterFrame func(eng *canvas.Engine, win *app.Window, scale, physW, physH int)
+	// nativeHook, when set, REPLACES canvas.InvokeNative as qscript's native()
+	// bridge — the overlay host intercepts its own ops (webviewEval into the
+	// WKWebView embeds) and delegates the rest to canvas.InvokeNative. It must
+	// be installed by runCanvasWindow (not by the caller beforehand): anything
+	// set earlier would be overwritten by the plain InvokeNative install below.
+	nativeHook func(op string, data map[string]any, cb func(string, any))
 }
 
 // runCanvasWindow hosts the app in the native canvas engine: a pure-Go AppKit
@@ -87,6 +94,14 @@ func runCanvasWindow(srv *server.Server, ln net.Listener, title string, hooks *c
 			}
 		})
 	})
+	// Scripts get the same bridge through native() (qscript's hook — no canvas
+	// import in the interpreter, so it stays a package var the host sets). A
+	// host with platform views overrides it to intercept its own ops first.
+	if hooks != nil && hooks.nativeHook != nil {
+		qscript.SetNativeHook(hooks.nativeHook)
+	} else {
+		qscript.SetNativeHook(canvas.InvokeNative)
+	}
 
 	// An external (MCP) state change flags a redraw; the main loop renders it.
 	// Runs on the main thread inside a marshalled mutation (atomic store, so it
@@ -134,17 +149,28 @@ func runCanvasWindow(srv *server.Server, ln net.Listener, title string, hooks *c
 			eng.HandleScroll(canvas.ScrollInput{DX: e.DeltaX * s, DY: e.DeltaY * s})
 		}
 	}, func() {
-		// Live-resize: the view tracks the window (autoresizing mask). When the
-		// content size changes, rebuild the plane and re-layout at the new
-		// size — throttled to ~10 Hz so a drag does not churn plane allocs.
-		if sz := win.LiveSize(); sz.X >= 1 && sz.Y >= 1 && (sz.X != physW/scale || sz.Y != physH/scale) {
-			if time.Since(lastResize) > 100*time.Millisecond {
-				lastResize = time.Now()
+		// Keep the plane in lockstep with the real window size and current
+		// backing scale factor. A size change is throttled to ~10 Hz so a drag
+		// does not churn plane allocs; an unchanged size still re-syncs the
+		// backing scale so moving between displays stays crisp.
+		if sz := win.LiveSize(); sz.X >= 1 && sz.Y >= 1 {
+			if sz.X != win.Size().X || sz.Y != win.Size().Y {
+				if time.Since(lastResize) > 100*time.Millisecond {
+					lastResize = time.Now()
+					win.Resize(sz.X, sz.Y)
+					scale = win.Scale()
+					s = float64(scale)
+					physW, physH = sz.X*scale, sz.Y*scale
+					eng.MarkDirty()
+				}
+			} else {
 				win.Resize(sz.X, sz.Y)
-				scale = win.Scale()
-				s = float64(scale)
-				physW, physH = sz.X*scale, sz.Y*scale
-				eng.MarkDirty()
+				if newScale := win.Scale(); newScale != scale {
+					scale = newScale
+					s = float64(scale)
+					physW, physH = sz.X*scale, sz.Y*scale
+					eng.MarkDirty()
+				}
 			}
 		}
 		// Tick: render + present when there is work (input/state change, a

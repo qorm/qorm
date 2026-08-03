@@ -47,7 +47,18 @@ func layout(ops *op.Ops, root *model.Node, size image.Point, rt *runtime.Runtime
 
 	// 2. Layout pass (top-down) builds the scene graph
 	items := map[graph.Node]itemInstance{}
-	rootGraphNode := performLayout(rootNode, bounds, inter, rt, scale, items)
+	overlays := []graph.Node{}
+	rootGraphNode := performLayout(rootNode, bounds, image.Point{}, inter, rt, scale, items, &overlays)
+
+	if rootGraphNode != nil {
+		if rootGroup, ok := rootGraphNode.(*graph.Group); ok {
+			for _, overlay := range overlays {
+				if overlay != nil {
+					rootGroup.AddChild(overlay)
+				}
+			}
+		}
+	}
 
 	// 3. Render pass (retained mode graph -> display list)
 	if rootGraphNode != nil {

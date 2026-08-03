@@ -56,6 +56,22 @@ func launchWindow(srv *server.Server, ln net.Listener, _, title string) bool {
 		pointerFilter: ov.pointerFilter,
 		scrollFilter:  ov.scrollFilter,
 		afterFrame:    ov.afterFrame,
+		// Scripts reach the embeds through native("webviewEval", {id, js}) —
+		// the Go→page direction of the bridge (page→Go is window.qormDesktop).
+		// Everything else falls through to the standard canvas bridge (which
+		// runCanvasWindow wires to canvasHardwareDarwin before this runs).
+		nativeHook: func(op string, data map[string]any, cb func(string, any)) {
+			if op == "webviewEval" {
+				id, _ := data["id"].(string)
+				js, _ := data["js"].(string)
+				if id != "" && js != "" {
+					dispatchMain(func() { nativeEval(id, js) })
+				}
+				cb("qormOnEval", true)
+				return
+			}
+			canvas.InvokeNative(op, data, cb)
+		},
 	})
 }
 

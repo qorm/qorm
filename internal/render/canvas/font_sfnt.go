@@ -199,12 +199,16 @@ func compositeMask(img *image.RGBA, dr image.Rectangle, mask image.Image, maskp 
 			if ma == 0 {
 				continue
 			}
-			if len(clips) > 0 && !inAllClips(x, y, clips) {
+			clipCov := clipCoverage(float64(x)+0.5, float64(y)+0.5, clips)
+			if clipCov <= 0 {
 				continue
 			}
 			c := col
 			if ma < 255 {
 				c.A = uint8(uint32(col.A) * ma / 255)
+			}
+			if clipCov < 1 {
+				c = withOpacity(c, clipCov)
 			}
 			blendOver(img, x, y, c)
 		}

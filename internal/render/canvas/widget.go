@@ -78,6 +78,38 @@ type InteractiveWidget interface {
 	HandlePointer(n *model.Node, rt *runtime.Runtime, p PointerInput, inter *Interaction, frame image.Rectangle) (redraw bool)
 }
 
+// OverlayWidget marks a widget whose popup should paint above its siblings
+// while it is open (for example, a select menu). The engine appends the
+// returned overlay node after normal layout, so the popup draws and hit-tests
+// on top without a global overlay manager.
+type OverlayWidget interface {
+	Widget
+	OverlayOpen(n *model.Node, rt *runtime.Runtime) bool
+	OverlayRecord(ln *LayoutNode, rt *runtime.Runtime, scale int, origin image.Point) graph.Node
+}
+
+// LayoutSinks carries the two side channels a frame-level layout allocates:
+// the repeat-instance sidecar (list.go) and the popup overlays (OverlayWidget).
+// Container widgets that lay out children themselves receive it and forward
+// it into PerformLayoutWithSinks, so widgets NESTED inside their panels (a
+// select inside a tab) still register overlays and item identities with the
+// frame. Widget code only forwards the pointer; the engine owns the contents.
+type LayoutSinks struct {
+	items    map[graph.Node]itemInstance
+	overlays *[]graph.Node
+}
+
+// ChildLayoutWidget is an OPTIONAL extension for container widgets that drive
+// their own child layout through PerformLayout (tabs' active panel,
+// animatedcontainer's opacity group). The engine calls RecordWithSinks instead
+// of Record, handing over the frame's sinks; a Record that calls the plain
+// PerformLayout drops them, which silently breaks overlays (and repeat-item
+// identity) for everything nested in the panel.
+type ChildLayoutWidget interface {
+	Widget
+	RecordWithSinks(ln *LayoutNode, rt *runtime.Runtime, scale int, sinks *LayoutSinks) graph.Node
+}
+
 // AnimatedWidget is an OPTIONAL extension for widgets that animate
 // continuously (an indeterminate spinner never settles). While any of its
 // nodes is mounted in the current scene the engine keeps the frame loop

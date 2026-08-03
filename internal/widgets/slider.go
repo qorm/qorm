@@ -5,11 +5,13 @@ package widgets
 //
 // Interaction mirrors the browser's gesture: press takes the pointer capture
 // (inter.Pressed = n, so the whole stream routes here until release), move
-// follows the pointer, release drops the capture; a plain click jumps the
-// value. The state write-back is CONTINUOUS (every update, like the browser's
-// input event feeding the binding) while onChange dispatches once per gesture
-// at release with the final value — the HTML change-event semantics
-// (render_input.go changeWiring is the native onchange).
+// follows the pointer while captured, release drops the capture; a click on
+// the track seeks immediately, while a click on the thumb preserves the
+// grab offset until movement begins. The state write-back is CONTINUOUS
+// (every update, like the browser's input event feeding the binding) while
+// onChange dispatches once per gesture at release with the final value — the
+// HTML change-event semantics (render_input.go changeWiring is the native
+// onchange).
 
 import (
 	"image"
@@ -25,9 +27,11 @@ import (
 
 func init() {
 	canvas.RegisterWidget("slider", &Slider{
-		local:   map[*model.Node]float64{},
-		geoms:   map[*model.Node]sliderGeom{},
-		dragged: map[*model.Node]bool{},
+		local:       map[*model.Node]float64{},
+		geoms:       map[*model.Node]sliderGeom{},
+		dragged:     map[*model.Node]bool{},
+		grabOffsets: map[*model.Node]float64{},
+		grabbed:     map[*model.Node]bool{},
 	})
 }
 
@@ -45,6 +49,13 @@ type Slider struct {
 	// changed the value — onChange fires at release only for those (the
 	// native range control fires change only when the value moved).
 	dragged map[*model.Node]bool
+	// grabOffsets preserves the point where the pointer grabbed the thumb. A
+	// press on the thumb must not jump its value to the pointer's exact X; the
+	// thumb follows subsequent movement while keeping that offset.
+	grabOffsets map[*model.Node]float64
+	// grabbed distinguishes a thumb drag from a track click. Track presses
+	// retain the browser behavior of jumping immediately to the clicked value.
+	grabbed map[*model.Node]bool
 }
 
 // sliderGeom is one slider's on-screen box plus its physical thumb radius
@@ -82,7 +93,7 @@ func (s *Slider) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) d
 	thumbR := float64(sliderThumbD * scale / 2)
 	s.mu.Lock()
 	s.geoms[ln.Node] = sliderGeom{
-		box:    image.Rect(ln.X, ln.Y, ln.X+ln.Width, ln.Y+ln.Height),
+		box:    image.Rect(ln.AbsX, ln.AbsY, ln.AbsX+ln.Width, ln.AbsY+ln.Height),
 		thumbR: thumbR,
 	}
 	s.mu.Unlock()
@@ -131,11 +142,25 @@ func (s *Slider) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.Poin
 		inter.Pressed = n // take the capture: the drag streams here until release
 		inter.Focused = n
 		inter.FocusVisible = false
+		// A fresh gesture starts with no stale capture metadata (for example,
+		// when a host drops a release while the window is being deactivated).
+		s.mu.Lock()
+		delete(s.grabOffsets, n)
+		delete(s.grabbed, n)
+		delete(s.dragged, n)
+		s.mu.Unlock()
+		if s.grabThumb(n, rt, p.X) {
+			// Keep the current value on thumb press. The first move applies the
+			// pointer delta, avoiding the visible jump caused by an off-center
+			// click on the thumb.
+			return true
+		}
+		// A press on the track is a direct seek, matching native range inputs.
 		s.updateFromX(n, rt, p.X)
 		return true
 	case canvas.PointerMove:
-		if p.Buttons > 0 && inter.Pressed == n {
-			s.updateFromX(n, rt, p.X)
+		if inter.Pressed == n {
+			s.updateFromPointer(n, rt, p.X)
 			return true
 		}
 		return false
@@ -143,10 +168,12 @@ func (s *Slider) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.Poin
 		if inter.Pressed != n {
 			return false
 		}
-		s.updateFromX(n, rt, p.X)
+		s.updateFromPointer(n, rt, p.X)
 		s.mu.Lock()
 		moved := s.dragged[n]
 		delete(s.dragged, n)
+		delete(s.grabOffsets, n)
+		delete(s.grabbed, n)
 		s.mu.Unlock()
 		if moved {
 			// Native range parity: change fires once per gesture, at release.
@@ -155,6 +182,39 @@ func (s *Slider) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.Poin
 		return true
 	}
 	return false
+}
+
+// grabThumb starts a thumb drag when the press lands on the thumb. It records
+// the pointer's signed offset from the thumb center so a click on the thumb's
+// edge does not snap the value before the pointer has moved.
+func (s *Slider) grabThumb(n *model.Node, rt *runtime.Runtime, x float64) bool {
+	s.mu.Lock()
+	geo, ok := s.geoms[n]
+	s.mu.Unlock()
+	if !ok {
+		return false
+	}
+	center := float64(geo.box.Min.X) + s.thumbCenter(n, rt, float64(geo.box.Dx()), geo.thumbR)
+	if math.Abs(x-center) > geo.thumbR {
+		return false
+	}
+	s.mu.Lock()
+	s.grabOffsets[n] = x - center
+	s.grabbed[n] = true
+	s.mu.Unlock()
+	return true
+}
+
+// updateFromPointer applies a captured pointer event. Thumb drags preserve the
+// original grab offset; track presses use the pointer X directly.
+func (s *Slider) updateFromPointer(n *model.Node, rt *runtime.Runtime, x float64) {
+	s.mu.Lock()
+	offset, grabbed := s.grabOffsets[n], s.grabbed[n]
+	s.mu.Unlock()
+	if grabbed {
+		x -= offset
+	}
+	s.updateFromX(n, rt, x)
 }
 
 // updateFromX maps an absolute pointer X onto the value range and commits the

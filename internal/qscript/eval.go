@@ -231,6 +231,16 @@ func (i *interp) eval(e exprNode, sc scope, depth int) (any, error) {
 		return nil, nil
 	case ident:
 		return i.lookup(t.name, sc), nil
+	case mapLit:
+		out := make(map[string]any, len(t.keys))
+		for k, key := range t.keys {
+			v, err := i.eval(t.vals[k], sc, depth)
+			if err != nil {
+				return nil, err
+			}
+			out[key] = v
+		}
+		return out, nil
 	case arrayLit:
 		out := make([]any, len(t.elems))
 		for k, el := range t.elems {
@@ -359,6 +369,29 @@ var builtinNames = map[string]bool{
 	"keys": true, "values": true, "map": true, "filter": true, "format": true,
 }
 
+// nativeHook is the optional bridge to host-native ops (hardware widgets,
+// the webview overlay, …). The host installs it once (canvas.SetNativeInvoker
+// shapes it); scripts call native(op, args). It stays a package var (no
+// canvas import — runtime → qscript → canvas would cycle).
+var nativeHook func(op string, data map[string]any, cb func(name string, arg any))
+
+// SetNativeHook installs the host's native-op bridge for the native()
+// builtin (nil = native() fails with an authoring error).
+func SetNativeHook(fn func(op string, data map[string]any, cb func(name string, arg any))) {
+	nativeHook = fn
+}
+
+// callNative runs one native op through the hook and returns the first
+// callback argument (true when the op calls back with nothing).
+func (i *interp) callNative(line int, op string, args map[string]any) (any, error) {
+	if nativeHook == nil {
+		return nil, &Error{line, "native(): no native bridge installed on this host"}
+	}
+	var ret any = true
+	nativeHook(op, args, func(name string, arg any) { ret = arg })
+	return ret, nil
+}
+
 func (i *interp) evalCall(c call, sc scope, depth int) (any, error) {
 	args := make([]any, len(c.args))
 	for k, a := range c.args {
@@ -388,6 +421,24 @@ func (i *interp) evalCall(c call, sc scope, depth int) (any, error) {
 			return nil, err
 		}
 		return v, nil
+	}
+	if c.name == "native" {
+		// native(op [, argsMap]): run one host-native op through the installed
+		// bridge — hardware widgets, webview eval, custom native ops.
+		if len(args) < 1 || len(args) > 2 {
+			return nil, &Error{c.line, "native(op [, args]) takes 1-2 arguments"}
+		}
+		op, _ := args[0].(string)
+		if op == "" {
+			return nil, &Error{c.line, "native(): op must be a non-empty string"}
+		}
+		m := map[string]any{}
+		if len(args) == 2 {
+			if mm, ok := args[1].(map[string]any); ok {
+				m = mm
+			}
+		}
+		return i.callNative(c.line, op, m)
 	}
 	if builtinNames[c.name] {
 		return expr.CallBuiltin(c.name, args), nil

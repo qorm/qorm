@@ -94,6 +94,11 @@ type arrayLit struct {
 	elems []exprNode
 	line  int
 }
+type mapLit struct {
+	keys []string
+	vals []exprNode
+	line int
+}
 type unary struct {
 	op   string
 	x    exprNode
@@ -124,6 +129,7 @@ func (e boolLit) exprLine() int  { return e.line }
 func (e nullLit) exprLine() int  { return e.line }
 func (e ident) exprLine() int    { return e.line }
 func (e arrayLit) exprLine() int { return e.line }
+func (e mapLit) exprLine() int   { return e.line }
 func (e unary) exprLine() int    { return e.line }
 func (e binary) exprLine() int   { return e.line }
 func (e ternary) exprLine() int  { return e.line }
@@ -598,6 +604,37 @@ func (p *parser) parsePrimary() (exprNode, error) {
 				return nil, &Error{p.peek().line, "expected ')'"}
 			}
 			return inner, nil
+		}
+		if t.text == "{" { // map literal: {key: expr, "quoted": expr, …}
+			p.next()
+			var keys []string
+			var vals []exprNode
+			if !(p.peek().kind == tOp && p.peek().text == "}") {
+				for {
+					kt := p.peek()
+					if kt.kind == tIdent || kt.kind == tString {
+						p.next()
+						keys = append(keys, kt.text)
+					} else {
+						return nil, &Error{kt.line, "map keys must be identifiers or strings"}
+					}
+					if !p.matchOp(":") {
+						return nil, &Error{p.peek().line, "expected ':' after a map key"}
+					}
+					v, err := p.parseExpr()
+					if err != nil {
+						return nil, err
+					}
+					vals = append(vals, v)
+					if !p.matchOp(",") {
+						break
+					}
+				}
+			}
+			if !p.matchOp("}") {
+				return nil, &Error{p.peek().line, "expected '}' after map literal"}
+			}
+			return mapLit{keys, vals, t.line}, nil
 		}
 		if t.text == "[" { // array literal — the one form bindings do not have
 			p.next()

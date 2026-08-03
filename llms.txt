@@ -1,12 +1,13 @@
 # QORM
 
-> QORM (Queryable Object Rendering Model) is an agent-native, declarative-UI
-> runtime. A QORM app is a small, language-neutral JSON bundle (manifest + scenes
-> + actions + an optional Go middle-layer) that one pure-Go runtime renders live
-> in a browser, snapshots to static HTML, compiles + ed25519-signs into a
-> verifiable bundle, delivers over-the-air with rollback, packages as
-> web / iOS / Android / desktop, and exposes to AI agents over MCP. No cgo — it
-> cross-compiles everywhere.
+> QORM (Query · Observe · Render · Mutate) is an agent-native, cross-platform
+> app platform. A QORM app
+> is a small, language-neutral JSON bundle (manifest + scenes + actions + an
+> optional Go middle-layer) that one pure-Go runtime renders live in a browser,
+> snapshots to static HTML, compiles + ed25519-signs into a verifiable bundle,
+> delivers over-the-air with rollback, packages as web / iOS / Android /
+> desktop, and exposes to AI agents over MCP. No cgo — it cross-compiles
+> everywhere.
 
 Dual-consumer by design: every artifact is readable, installable, and writable by
 a human developer, and discoverable, derivable, and self-verifiable by an AI

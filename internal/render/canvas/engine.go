@@ -398,6 +398,11 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 			e.Inter.Focused = m
 			e.Inter.FocusVisible = false
 		}
+		// Widget-routed events must not starve the hover bookkeeping: without
+		// this, Inter.Hovered never moves onto an InteractiveWidget, so its
+		// theme hover style (applyInteractiveOverlay) and cursor hint were
+		// dead over every widget (select, checkbox, slider, …).
+		hoverMoved := p.Type == PointerMove && p.Buttons == 0 && e.updateHover(hit)
 		redraw := iw.HandlePointer(m, rt, p, &e.Inter, frame)
 		// The widget may have moved focus (a textarea focuses itself on
 		// press): open/close the edit session through the same funnel the
@@ -405,10 +410,10 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 		e.syncEditSession()
 		// Same dirty propagation as the capture path above: a toggle's state
 		// flip is invisible until the next frame without it.
-		if redraw {
+		if redraw || hoverMoved {
 			e.dirty.Store(true)
 		}
-		return redraw
+		return redraw || hoverMoved
 	}
 
 	redraw := false
@@ -441,48 +446,11 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 			redraw = true
 		}
 	case p.Type == PointerMove && p.Buttons == 0:
-		hm := ModelOf(hit)
-		hi := e.itemIndexOf(hit)
-		// Two instances of one template share the model pointer, so the
-		// instance index is part of the hovered identity: sliding from item 2
-		// to item 3 of the same template IS a hover change.
-		if hm != e.Inter.Hovered || hi != e.Inter.HoveredItem {
-			// Hover actions resolve through the live graph — graph identities
-			// go stale as soon as a redraw rebuilds the tree. Parent walks
-			// must guard the typed *Group (a nil *Group in an interface is
-			// non-nil — walking past the root would panic).
-			if old := e.findGroupByModelIndex(e.Inter.Hovered, e.Inter.HoveredItem); old != nil {
-				for n := old; n != nil; {
-					if n.Base().OnHoverOut != nil {
-						e.dispatchScoped(n.Base().OnHoverOut, nil, e.itemScopeOf(n))
-						break
-					}
-					if p := n.Base().Parent; p != nil {
-						n = p
-					} else {
-						break
-					}
-				}
-			}
-			for n := hit; n != nil; {
-				if n.Base().OnHoverIn != nil {
-					e.dispatchScoped(n.Base().OnHoverIn, nil, e.itemScopeOf(n))
-					break
-				}
-				if p := n.Base().Parent; p != nil {
-					n = p
-				} else {
-					break
-				}
-			}
-			e.Inter.Hovered = hm
-			e.Inter.HoveredItem = hi
-			redraw = true
-		}
 		// A move that did NOT change the hovered node requests no redraw —
 		// otherwise setAcceptsMouseMovedEvents turns every pixel of cursor
 		// drift into a full frame, churning the loop and starving the main
 		// (event-loop) thread. Drag moves (Buttons>0) are handled below.
+		redraw = e.updateHover(hit)
 	}
 
 	// Bubble up the tree until a handler is found. A node whose style marks it
@@ -521,6 +489,53 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 		e.dirty.Store(true)
 	}
 	return changed
+}
+
+// updateHover moves the hovered identity to the node at hit, dispatching
+// hoverOut on the old chain and hoverIn on the new, and reports whether the
+// identity changed (the caller turns a change into a redraw). Extracted from
+// HandlePointer's generic move case so the interactive-widget branch can run
+// the same bookkeeping for widget-routed moves.
+func (e *Engine) updateHover(hit graph.Node) bool {
+	hm := ModelOf(hit)
+	hi := e.itemIndexOf(hit)
+	// Two instances of one template share the model pointer, so the
+	// instance index is part of the hovered identity: sliding from item 2
+	// to item 3 of the same template IS a hover change.
+	if hm == e.Inter.Hovered && hi == e.Inter.HoveredItem {
+		return false
+	}
+	// Hover actions resolve through the live graph — graph identities
+	// go stale as soon as a redraw rebuilds the tree. Parent walks
+	// must guard the typed *Group (a nil *Group in an interface is
+	// non-nil — walking past the root would panic).
+	if old := e.findGroupByModelIndex(e.Inter.Hovered, e.Inter.HoveredItem); old != nil {
+		for n := old; n != nil; {
+			if n.Base().OnHoverOut != nil {
+				e.dispatchScoped(n.Base().OnHoverOut, nil, e.itemScopeOf(n))
+				break
+			}
+			if p := n.Base().Parent; p != nil {
+				n = p
+			} else {
+				break
+			}
+		}
+	}
+	for n := hit; n != nil; {
+		if n.Base().OnHoverIn != nil {
+			e.dispatchScoped(n.Base().OnHoverIn, nil, e.itemScopeOf(n))
+			break
+		}
+		if p := n.Base().Parent; p != nil {
+			n = p
+		} else {
+			break
+		}
+	}
+	e.Inter.Hovered = hm
+	e.Inter.HoveredItem = hi
+	return true
 }
 
 // HandleScroll processes one scroll/wheel event against the last rendered
@@ -858,7 +873,7 @@ func (e *Engine) findGroupByModelIndex(m *model.Node, itemIndex int) graph.Node 
 		if n == nil {
 			return false
 		}
-		if n.Base().Model == m {
+		if n.Base().Model == m && !n.Base().Overlay {
 			if itemIndex <= 0 {
 				found = n
 				return true

@@ -424,3 +424,55 @@ func TestReturnAtTopLevelEndsScript(t *testing.T) {
 		t.Fatalf("state = %v, want a=1 and b never written", state)
 	}
 }
+
+func TestMapLiteralAndNative(t *testing.T) {
+	var gotOp string
+	var gotArgs map[string]any
+	SetNativeHook(func(op string, data map[string]any, cb func(name string, arg any)) {
+		gotOp, gotArgs = op, data
+		cb("qormOnX", "reply")
+	})
+	defer SetNativeHook(nil)
+	src := `let r = native("webviewEval", {"id": "page", "js": "x=1"})
+	        state.out = r`
+	state := map[string]any{}
+	if err := Run(src, state, nil); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if gotOp != "webviewEval" || gotArgs["id"] != "page" || gotArgs["js"] != "x=1" {
+		t.Errorf("native args = %v %v", gotOp, gotArgs)
+	}
+	if state["out"] != "reply" {
+		t.Errorf("native() return = %v, want the callback arg", state["out"])
+	}
+}
+
+// Regression: a //-comment holding an apostrophe used to open an unterminated
+// single-quote string (the lexer only knew '#'), and the real error surfaced
+// as a bogus "unterminated string literal" at EOF. Also covers multi-line map
+// literals and string-concat across a closing quote — the exact shape of
+// examples/webdemo/actions/pushCount.qs.
+func TestLineCommentWithApostropheAndMultilineMap(t *testing.T) {
+	src := "// Go -> page: push the counter into the embedded page's DOM.\n" +
+		"state.count = state.count + 1\n" +
+		"native(\"webviewEval\", {\n" +
+		"  \"id\": \"page\",\n" +
+		"  \"js\": \"document.getElementById('s').textContent = 'count = ' + \" + str(state.count)\n" +
+		"})\n"
+	state := map[string]any{"count": 0}
+	var calls []map[string]any
+	SetNativeHook(func(op string, data map[string]any, cb func(name string, arg any)) {
+		calls = append(calls, map[string]any{"op": op, "args": data})
+	})
+	defer SetNativeHook(nil)
+	if err := Run(src, state, nil); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if len(calls) != 1 || calls[0]["op"] != "webviewEval" {
+		t.Fatalf("native calls = %v", calls)
+	}
+	args := calls[0]["args"].(map[string]any)
+	if args["js"] != "document.getElementById('s').textContent = 'count = ' + 1" {
+		t.Errorf("js arg = %q", args["js"])
+	}
+}

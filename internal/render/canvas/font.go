@@ -399,10 +399,11 @@ func drawBitmapGlyph(img *image.RGBA, c byte, x, y, intScale int, col color.RGBA
 				for dx := 0; dx < intScale; dx++ {
 					for dy := 0; dy < intScale; dy++ {
 						px, py := sx+dx, sy+dy
-						if len(clips) > 0 && !inAllClips(px, py, clips) {
+						clipCov := clipCoverage(float64(px)+0.5, float64(py)+0.5, clips)
+						if clipCov <= 0 {
 							continue
 						}
-						blendOver(img, px, py, col)
+						blendOver(img, px, py, withOpacity(col, clipCov))
 					}
 				}
 			}

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/qorm/qorm/internal/op"
+	"github.com/qorm/qorm/internal/render/graph"
 )
 
 // SoftwareRenderer must satisfy the Renderer contract.
@@ -133,7 +134,7 @@ func TestNestedClipIntersection(t *testing.T) {
 	buf := image.NewRGBA(image.Rect(0, 0, 160, 160))
 	ops := &op.Ops{}
 	ops.Add(op.ColorOp{Color: color.RGBA{0, 255, 0, 255}})
-	ops.Add(op.ClipOp{Rect: image.Rect(0, 0, 100, 100)}) // outer
+	ops.Add(op.ClipOp{Rect: image.Rect(0, 0, 100, 100)})   // outer
 	ops.Add(op.ClipOp{Rect: image.Rect(50, 50, 150, 150)}) // inner
 	ops.Add(op.PaintOp{})
 	SoftwareRenderer{}.Render(ops, buf)
@@ -170,9 +171,11 @@ func TestRoundedStrokeFollowsCorner(t *testing.T) {
 	if got := buf.RGBAAt(5, 5); got != white {
 		t.Errorf("square corner (5,5) = %v, want white — stroke must follow the rounded path", got)
 	}
-	// On the rounded ring (distance² = 50 ∈ [6²,8²] from the corner centre).
-	if got := buf.RGBAAt(7, 7); got != red {
-		t.Errorf("ring pixel (7,7) = %v, want red", got)
+	// On the rounded ring (distance 6.36 from the corner centre) the pixel
+	// sits in the inner edge's 1px antialias band [5.5, 6.5]: it must be red
+	// at high but PARTIAL coverage — full red was the old binary ring.
+	if got := buf.RGBAAt(7, 7); got.R != 255 || got.G == 0 || got.G > 128 || got.B != got.G {
+		t.Errorf("ring pixel (7,7) = %v, want high-coverage red (antialiased inner edge)", got)
 	}
 	// Inside the ring's inner edge (distance² = 32 < 6²): hollow.
 	if got := buf.RGBAAt(8, 8); got != white {
@@ -222,5 +225,52 @@ func TestTextRespectsClipAndOpacity(t *testing.T) {
 	SoftwareRenderer{}.Render(ops, buf)
 	if inked(buf) {
 		t.Error("text outside the active clip must be clipped away")
+	}
+}
+
+func TestRoundedClipHasCoverageBand(t *testing.T) {
+	src := image.NewRGBA(image.Rect(0, 0, 2, 2))
+	for y := 0; y < 2; y++ {
+		for x := 0; x < 2; x++ {
+			src.SetRGBA(x, y, color.RGBA{220, 30, 40, 255})
+		}
+	}
+	ops := &op.Ops{}
+	ops.Add(op.ClipOp{Rect: image.Rect(2, 2, 14, 14), Radius: 4})
+	ops.Add(op.ImageOp{Src: src, Dest: image.Rect(2, 2, 14, 14)})
+	img := Rasterize(ops, image.Pt(16, 16))
+	if got := img.RGBAAt(8, 8); got != (color.RGBA{220, 30, 40, 255}) {
+		t.Fatalf("rounded image body = %v, want source colour", got)
+	}
+	// The corner is neither a hard red pixel nor untouched white: coverage
+	// must be represented in the edge pixel.
+	corner := img.RGBAAt(3, 3)
+	if corner == (color.RGBA{255, 255, 255, 255}) || corner == (color.RGBA{220, 30, 40, 255}) {
+		t.Fatalf("rounded corner = %v, want intermediate coverage", corner)
+	}
+}
+
+func TestImageFractionalResizeUsesBilinearSampling(t *testing.T) {
+	src := image.NewRGBA(image.Rect(0, 0, 2, 1))
+	src.SetRGBA(0, 0, color.RGBA{0, 0, 0, 255})
+	src.SetRGBA(1, 0, color.RGBA{255, 255, 255, 255})
+	ops := &op.Ops{}
+	ops.Add(op.ImageOp{Src: src, Dest: image.Rect(0, 0, 3, 1)})
+	img := Rasterize(ops, image.Pt(3, 1))
+	mid := img.RGBAAt(1, 0)
+	if mid.R < 80 || mid.R > 180 || mid.G != mid.R || mid.B != mid.R {
+		t.Fatalf("fractional resize midpoint = %v, want a blended grey", mid)
+	}
+}
+
+func TestCircleUsesAntialiasedRRectPath(t *testing.T) {
+	c := graph.NewCircle()
+	c.X, c.Y, c.Radius = 4, 4, 8
+	c.Fill = color.RGBA{20, 100, 220, 255}
+	ops := &op.Ops{}
+	c.Draw(graph.NewContext(ops))
+	img := Rasterize(ops, image.Pt(20, 20))
+	if got := img.RGBAAt(6, 6); got == (color.RGBA{255, 255, 255, 255}) || got == c.Fill {
+		t.Fatalf("circle corner = %v, want antialiased intermediate", got)
 	}
 }

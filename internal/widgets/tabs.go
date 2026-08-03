@@ -100,7 +100,19 @@ func (Tabs) Measure(n *model.Node, rt *runtime.Runtime, vars map[string]any, sca
 
 // Record builds the tab bar (labels, separator, active indicator) and mounts
 // the active panel below it.
-func (Tabs) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.Node {
+func (t Tabs) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.Node {
+	return t.record(ln, rt, scale, nil)
+}
+
+// RecordWithSinks implements canvas.ChildLayoutWidget: the active panel is
+// laid out by the widget itself, so the frame's sinks must flow into that
+// PerformLayout call — otherwise a popup widget nested in the panel (a select
+// inside a tab) never mounts its overlay.
+func (t Tabs) RecordWithSinks(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int, sinks *canvas.LayoutSinks) draw.Node {
+	return t.record(ln, rt, scale, sinks)
+}
+
+func (t Tabs) record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int, sinks *canvas.LayoutSinks) draw.Node {
 	if ln.Width <= 0 || ln.Height <= 0 {
 		return nil
 	}
@@ -174,7 +186,7 @@ func (Tabs) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.N
 			}
 			top := barH + tabPanelPad*scale
 			bounds := image.Rect(0, top, ln.Width, top+cln.Height+cln.Style.MarginTop+cln.Style.MarginBot)
-			if pn := canvas.PerformLayout(cln, bounds, nil, rt, scale); pn != nil {
+			if pn := canvas.PerformLayoutWithSinks(cln, bounds, image.Pt(ln.AbsX, ln.AbsY), nil, rt, scale, sinks); pn != nil {
 				g.AddChild(pn)
 			}
 			break

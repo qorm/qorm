@@ -77,7 +77,18 @@ func (AnimOpacity) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any,
 // Record advances the tween for the current opacity target and mounts the
 // children under a group carrying the interpolated opacity (group alpha
 // multiplies through the subtree in the rasterizer — CSS opacity semantics).
-func (AnimOpacity) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.Node {
+func (a AnimOpacity) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.Node {
+	return a.record(ln, rt, scale, nil)
+}
+
+// RecordWithSinks implements canvas.ChildLayoutWidget: the opacity group's
+// children are laid out by the widget itself, so the frame's sinks must flow
+// into that PerformLayout call (see Tabs for why).
+func (a AnimOpacity) RecordWithSinks(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int, sinks *canvas.LayoutSinks) draw.Node {
+	return a.record(ln, rt, scale, sinks)
+}
+
+func (a AnimOpacity) record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int, sinks *canvas.LayoutSinks) draw.Node {
 	if scale < 1 {
 		scale = 1
 	}
@@ -111,7 +122,7 @@ func (AnimOpacity) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int)
 		cw := child.Width + child.Style.MarginLeft + child.Style.MarginRight
 		ch := child.Height + child.Style.MarginTop + child.Style.MarginBot
 		bounds := image.Rect(ln.Style.Padding, cy, ln.Style.Padding+cw, cy+ch)
-		if cn := canvas.PerformLayout(child, bounds, nil, rt, scale); cn != nil {
+		if cn := canvas.PerformLayoutWithSinks(child, bounds, image.Pt(ln.AbsX, ln.AbsY), nil, rt, scale, sinks); cn != nil {
 			g.AddChild(cn)
 		}
 		cy += ch + ln.Style.Gap

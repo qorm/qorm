@@ -24,10 +24,9 @@ package widgets
 // This file holds the checkbox plus the helpers the whole form family shares.
 
 import (
-	"image"
 	"fmt"
+	"image"
 	"image/color"
-	"math"
 	"regexp"
 	"strings"
 	"sync"
@@ -85,7 +84,7 @@ func (c *Checkbox) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int)
 	box.BorderRadius = 4 * float64(scale)
 	if c.checked(ln.Node, rt) {
 		box.Fill = formAccent(rt)
-		checkMark(g, 0, boxY, boxS, scale, color.RGBA{255, 255, 255, 255})
+		checkMark(g, 0, boxY, boxS, color.RGBA{255, 255, 255, 255})
 	} else {
 		box.Fill = themeColor(rt, "cardBg", color.RGBA{255, 255, 255, 255})
 		box.Stroke = themeColor(rt, "separator", color.RGBA{198, 198, 200, 255})
@@ -147,33 +146,27 @@ func (c *Checkbox) checked(n *model.Node, rt *runtime.Runtime) bool {
 	return false
 }
 
-// checkMark paints a check inside the S×S box at (bx,by) as a staircase of
-// axis-aligned rects — the draw layer has no path or rotation primitive, so
-// the diagonal strokes are approximated pixel by pixel (at 18px the eye reads
-// it cleanly). Decorative: NoHit.
-func checkMark(g *draw.Group, bx, by, s float64, scale int, ink color.RGBA) {
-	thick := float64(max(2, 2*scale))
-	step := float64(max(1, scale))
-	pts := [][2]float64{{0.24, 0.55}, {0.43, 0.72}, {0.78, 0.30}}
-	for seg := 0; seg < len(pts)-1; seg++ {
-		x0, y0 := bx+pts[seg][0]*s, by+pts[seg][1]*s
-		x1, y1 := bx+pts[seg+1][0]*s, by+pts[seg+1][1]*s
-		steps := int(math.Abs(x1-x0) / step)
-		if steps < 1 {
-			steps = 1
-		}
-		for i := 0; i <= steps; i++ {
-			t := float64(i) / float64(steps)
-			r := draw.NewRect()
-			r.NoHit = true
-			r.X = x0 + (x1-x0)*t
-			r.Y = y0 + (y1-y0)*t - thick/2
-			r.Width = step
-			r.Height = thick
-			r.Fill = ink
-			g.AddChild(r)
-		}
+// checkMark paints a smooth check mark inside the box using the shared SVG
+// icon rasterizer, so the diagonal stroke does not fall back to a staircase
+// of rects.
+func checkMark(g *draw.Group, bx, by, s float64, ink color.RGBA) {
+	size := int(s + 0.5)
+	if size < 1 {
+		return
 	}
+	body, ok := iconSet["check"]
+	if !ok {
+		return
+	}
+	node := draw.NewImage()
+	node.NoHit = true
+	node.X = bx
+	node.Y = by
+	node.Width = float64(size)
+	node.Height = float64(size)
+	node.Bitmap = rasterIcon(body, size, size, ink)
+	node.Fit = "fill"
+	g.AddChild(node)
 }
 
 // ---------------------------------------------------------------------------

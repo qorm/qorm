@@ -4,8 +4,8 @@
   "name": "QORM WebView Demo",
   "entry": "main",
   "globalState": {
-    "schema": {},
-    "initial": {}
+    "schema": { "count": "number" },
+    "initial": { "count": 0 }
   },
   "platforms": {
     "desktop": {

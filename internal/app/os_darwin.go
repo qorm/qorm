@@ -28,6 +28,20 @@ type windowImpl struct {
 	scale   int // device-pixel ratio (set from backingScaleFactor; 0/1 == 1)
 }
 
+func setLayerContentsScale(layer uintptr, scale int) {
+	if layer == 0 {
+		return
+	}
+	if scale < 1 {
+		scale = 1
+	}
+	num := appkit.MsgSend(appkit.ObjcGetClass("NSNumber"), appkit.SelRegisterName("numberWithInt:"), uintptr(scale))
+	if num == 0 {
+		return
+	}
+	appkit.MsgSend(layer, appkit.SelRegisterName("setValue:forKey:"), num, appkit.NewNSString("contentsScale"))
+}
+
 // darwinKeyCodes maps macOS ANSI virtual keycodes to normalized key names.
 // The traversal keys (tab/return/escape/space/delete/arrows) are layout-invariant;
 // the alphanumerics follow the ANSI layout (JIS/ISO differ on a few letter keys).
@@ -135,6 +149,7 @@ func NewWindow(title string, width, height int) *Window {
 	selSetArg := appkit.SelRegisterName("setArgument:atIndex:")
 	selInvoke := appkit.SelRegisterName("invoke")
 	impl.rep = newBitmapRep(impl)
+	setLayerContentsScale(impl.layer, scale)
 
 	// The initWithFrame: above reused the WINDOW's screen rect, whose X,Y is
 	// the window's origin (100,100) — wrong for a subview, whose frame is in
@@ -208,6 +223,7 @@ func (w *Window) Resize(wPts, hPts int) {
 			impl.scale = int(f)
 		}
 	}
+	setLayerContentsScale(impl.layer, impl.scale)
 	w.width, w.height = wPts, hPts
 	physW, physH := wPts*impl.scale, hPts*impl.scale
 	if physW > 0 && physH > 0 && physW*4 == impl.stride && len(impl.pix) == impl.stride*physH {
@@ -310,6 +326,7 @@ func (w *Window) PresentImage() {
 	if impl.layer == 0 {
 		return
 	}
+	setLayerContentsScale(impl.layer, impl.scale)
 	pool := appkit.MsgSend(appkit.MsgSend(appkit.ObjcGetClass("NSAutoreleasePool"), appkit.SelRegisterName("alloc")), appkit.SelRegisterName("init"))
 	rep := newBitmapRep(impl)
 	if rep != 0 {

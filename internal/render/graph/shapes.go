@@ -175,21 +175,13 @@ func (c *Circle) Draw(ctx *Context) {
 	ctx.Opacity(c.Opacity)
 	ctx.Translate(int(c.X), int(c.Y))
 
-	// QORM op.Ops does not natively have an arc/circle op yet.
-	// We'll emulate it by clipping a rect with a 100% border radius.
+	// Use the SDF-backed rounded-rectangle path instead of a binary rounded
+	// clip.  A circle is simply a square whose corner radius is half its side;
+	// RRectOp gives its edge a real coverage band, which is especially visible
+	// on small controls and on 2x/3x displays.
 	rect := image.Rect(0, 0, int(c.Radius*2), int(c.Radius*2))
-	ctx.ClipRRect(rect, c.Radius)
-
-	if c.Fill.A > 0 {
-		ctx.Fill(c.Fill)
-		ctx.Paint()
-	}
-
-	if c.Stroke.A > 0 && c.StrokeWidth > 0 {
-		ctx.SetStrokeWidth(c.StrokeWidth)
-		ctx.Fill(c.Stroke)
-		ctx.StrokePaint()
-	}
+	ctx.RRect(rect, c.Radius, c.Fill, c.Stroke, c.StrokeWidth,
+		color.RGBA{}, 0, 0)
 
 	ctx.Restore()
 }

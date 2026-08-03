@@ -68,6 +68,10 @@ type BaseNode struct {
 	// from (canvas backend). Nil for leaf shapes. Used to map hit results
 	// back to a stable cross-frame identity.
 	Model *model.Node
+
+	// Overlay marks a popup/overlay node that should not participate in
+	// model-index counting for repeated templates. It is still hittable.
+	Overlay bool
 }
 
 // Init initialize the base node defaults

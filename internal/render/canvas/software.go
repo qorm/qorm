@@ -94,8 +94,9 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 			} else {
 				for y := r.Min.Y; y < r.Max.Y; y++ {
 					for x := r.Min.X; x < r.Max.X; x++ {
-						if inAllClips(x, y, clips) {
-							blendOver(img, x, y, paintColor)
+						cov := clipCoverage(float64(x)+0.5, float64(y)+0.5, clips)
+						if cov > 0 {
+							blendOver(img, x, y, withOpacity(paintColor, cov))
 						}
 					}
 				}
@@ -118,30 +119,33 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 				draw.Draw(img, image.Rect(r.Min.X, r.Min.Y+w, r.Min.X+w, r.Max.Y-w).Intersect(img.Bounds()), &image.Uniform{paintColor}, image.Point{}, draw.Src)
 				draw.Draw(img, image.Rect(r.Max.X-w, r.Min.Y+w, r.Max.X, r.Max.Y-w).Intersect(img.Bounds()), &image.Uniform{paintColor}, image.Point{}, draw.Src)
 			} else {
+				// SDF stroke: the same border-box coverage RRectOp's stroke
+				// uses — an antialiased band at the shape boundary, the inner
+				// edge one stroke-width in. This replaces the old binary
+				// in/on test, whose rounded corners and semi-transparent
+				// strokes stair-stepped. The innermost clip defines the
+				// shape; the outer (container) clips still gate each pixel.
 				ir := inner.Rect
-				rad := int(inner.Radius)
-				rad2 := rad * rad
-				innerRad := rad - w
-				innerRad2 := innerRad * innerRad
+				hw, hh := float64(ir.Dx())/2, float64(ir.Dy())/2
+				if hw <= 0 || hh <= 0 {
+					break
+				}
+				rad := math.Min(inner.Radius, math.Min(hw, hh))
+				cx := float64(ir.Min.X) + hw
+				cy := float64(ir.Min.Y) + hh
+				sw := currentStrokeWidth
+				outer := clips[:len(clips)-1]
 				for y := r.Min.Y; y < r.Max.Y; y++ {
 					for x := r.Min.X; x < r.Max.X; x++ {
-						if !inAllClips(x, y, clips) {
+						px, py := float64(x)+0.5, float64(y)+0.5
+						d := sdRoundBox(px, py, cx, cy, hw, hh, rad)
+						cov := clamp01(0.5-d) * clamp01(0.5+d+sw)
+						if cov <= 0 {
 							continue
 						}
-						onStroke := false
-						if rad <= 0 {
-							onStroke = x < ir.Min.X+w || x >= ir.Max.X-w || y < ir.Min.Y+w || y >= ir.Max.Y-w
-						} else {
-							cx, cy, corner := cornerCenter(x, y, ir, rad)
-							if corner {
-								d2 := (x-cx)*(x-cx) + (y-cy)*(y-cy)
-								onStroke = d2 <= rad2 && d2 >= innerRad2
-							} else {
-								onStroke = x < ir.Min.X+w || x >= ir.Max.X-w || y < ir.Min.Y+w || y >= ir.Max.Y-w
-							}
-						}
-						if onStroke {
-							blendOver(img, x, y, paintColor)
+						cov *= clipCoverage(px, py, outer)
+						if cov > 0 {
+							blendOver(img, x, y, withOpacity(paintColor, cov))
 						}
 					}
 				}
@@ -171,21 +175,32 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 			if r.Empty() {
 				break
 			}
-			// Nearest-neighbour sampling: integer-only, deterministic and
-			// exact for the pixel-assertion tests. Bilinear would buy smooth
-			// downscales but needs premultiplied-space interpolation (the
-			// buffer is straight) and a fixed-point pipeline — deferred until
-			// a real use case demands it.
+			// Keep exact nearest-neighbour sampling for integral scale factors
+			// (it is both faster and preserves crisp pixel art), and use
+			// premultiplied bilinear sampling for fractional resize ratios. The
+			// latter removes the stair-step edges that were most noticeable on
+			// thumbnails and object-fit images.
+			bilinear := sw != dw || sh != dh
 			for y := r.Min.Y; y < r.Max.Y; y++ {
-				sy := sb.Min.Y + (y-dest.Min.Y)*sh/dh
 				for x := r.Min.X; x < r.Max.X; x++ {
-					if !inAllClips(x, y, clips) {
+					cov := clipCoverage(float64(x)+0.5, float64(y)+0.5, clips)
+					if cov <= 0 {
 						continue
 					}
-					sx := sb.Min.X + (x-dest.Min.X)*sw/dw
-					c := o.Src.RGBAAt(sx, sy)
+					var c color.RGBA
+					if bilinear {
+						c = sampleBilinear(o.Src, float64(sb.Min.X)+(float64(x-dest.Min.X)+0.5)*float64(sw)/float64(dw)-0.5,
+							float64(sb.Min.Y)+(float64(y-dest.Min.Y)+0.5)*float64(sh)/float64(dh)-0.5)
+					} else {
+						sy := sb.Min.Y + (y-dest.Min.Y)*sh/dh
+						sx := sb.Min.X + (x-dest.Min.X)*sw/dw
+						c = o.Src.RGBAAt(sx, sy)
+					}
 					if currentOpacity < 1.0 {
 						c = withOpacity(c, currentOpacity)
+					}
+					if cov < 1 {
+						c = withOpacity(c, cov)
 					}
 					blendOver(img, x, y, c)
 				}
@@ -221,7 +236,8 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 
 			for y := b.Min.Y; y < b.Max.Y; y++ {
 				for x := b.Min.X; x < b.Max.X; x++ {
-					if !inAllClips(x, y, clips) {
+					clipCov := clipCoverage(float64(x)+0.5, float64(y)+0.5, clips)
+					if clipCov <= 0 {
 						continue
 					}
 					px, py := float64(x)+0.5, float64(y)+0.5
@@ -238,21 +254,21 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 							cov = clamp01(0.5 - d)
 						}
 						if cov > 0 {
-							blendOver(img, x, y, withOpacity(o.Shadow, cov*currentOpacity))
+							blendOver(img, x, y, withOpacity(o.Shadow, cov*clipCov*currentOpacity))
 						}
 					}
 					d := sdRoundBox(px, py, cx, cy, hw, hh, radius)
 					if o.Fill.A > 0 {
 						// ~1px coverage band at the boundary = antialiased edge.
 						if cov := clamp01(0.5 - d); cov > 0 {
-							blendOver(img, x, y, withOpacity(o.Fill, cov*currentOpacity))
+							blendOver(img, x, y, withOpacity(o.Fill, cov*clipCov*currentOpacity))
 						}
 					}
 					if o.Stroke.A > 0 && o.StrokeWidth > 0 {
 						// Stroke sits INSIDE the boundary (CSS border-box):
 						// outer AA at d≈0, inner AA at d≈-width.
 						if cov := clamp01(0.5-d) * clamp01(0.5+d+o.StrokeWidth); cov > 0 {
-							blendOver(img, x, y, withOpacity(o.Stroke, cov*currentOpacity))
+							blendOver(img, x, y, withOpacity(o.Stroke, cov*clipCov*currentOpacity))
 						}
 					}
 				}
@@ -284,41 +300,79 @@ func clipBounds(clips []op.ClipOp, img *image.RGBA) image.Rectangle {
 	return r.Intersect(img.Bounds())
 }
 
-// inAllClips reports whether (x,y) lies inside every clip, each clip's rounded
-// corners included — this is what makes nested clips intersect.
-func inAllClips(x, y int, clips []op.ClipOp) bool {
+// clipCoverage returns the combined coverage of the active clips at a pixel
+// centre. Rectangular clips remain exact; rounded clips use the same signed
+// distance field as RRectOp, giving image/text content a soft one-pixel edge
+// instead of the visibly jagged binary corner produced by inAllClips.
+func clipCoverage(px, py float64, clips []op.ClipOp) float64 {
+	coverage := 1.0
 	for _, c := range clips {
-		r := c.Rect
-		if x < r.Min.X || x >= r.Max.X || y < r.Min.Y || y >= r.Max.Y {
-			return false
+		if px < float64(c.Rect.Min.X) || px >= float64(c.Rect.Max.X) ||
+			py < float64(c.Rect.Min.Y) || py >= float64(c.Rect.Max.Y) {
+			return 0
 		}
-		if rad := int(c.Radius); rad > 0 {
-			if cx, cy, corner := cornerCenter(x, y, r, rad); corner {
-				dx, dy := x-cx, y-cy
-				if dx*dx+dy*dy > rad*rad {
-					return false
-				}
-			}
+		if c.Radius <= 0 {
+			continue
+		}
+		hw := float64(c.Rect.Dx()) / 2
+		hh := float64(c.Rect.Dy()) / 2
+		if hw <= 0 || hh <= 0 {
+			return 0
+		}
+		radius := math.Min(c.Radius, math.Min(hw, hh))
+		d := sdRoundBox(px, py, float64(c.Rect.Min.X)+hw, float64(c.Rect.Min.Y)+hh, hw, hh, radius)
+		coverage *= clamp01(0.5 - d)
+		if coverage <= 0 {
+			return 0
 		}
 	}
-	return true
+	return coverage
 }
 
-// cornerCenter returns the centre of the rounded corner that (x,y) falls into,
-// and whether (x,y) is in a corner quadrant at all (straight edges are not).
-func cornerCenter(x, y int, r image.Rectangle, rad int) (int, int, bool) {
-	switch {
-	case x < r.Min.X+rad && y < r.Min.Y+rad:
-		return r.Min.X + rad, r.Min.Y + rad, true
-	case x >= r.Max.X-rad && y < r.Min.Y+rad:
-		return r.Max.X - rad - 1, r.Min.Y + rad, true
-	case x < r.Min.X+rad && y >= r.Max.Y-rad:
-		return r.Min.X + rad, r.Max.Y - rad - 1, true
-	case x >= r.Max.X-rad && y >= r.Max.Y-rad:
-		return r.Max.X - rad - 1, r.Max.Y - rad - 1, true
+// sampleBilinear samples straight-alpha RGBA in premultiplied space. Doing
+// the interpolation this way avoids dark fringes when a transparent image is
+// resized and then composited over a non-white component background.
+func sampleBilinear(src *image.RGBA, fx, fy float64) color.RGBA {
+	b := src.Bounds()
+	if b.Empty() {
+		return color.RGBA{}
 	}
-	return 0, 0, false
+	fx = math.Max(float64(b.Min.X), math.Min(float64(b.Max.X-1), fx))
+	fy = math.Max(float64(b.Min.Y), math.Min(float64(b.Max.Y-1), fy))
+	x0, y0 := int(math.Floor(fx)), int(math.Floor(fy))
+	x1, y1 := x0+1, y0+1
+	if x1 >= b.Max.X {
+		x1 = b.Max.X - 1
+	}
+	if y1 >= b.Max.Y {
+		y1 = b.Max.Y - 1
+	}
+	tx, ty := fx-float64(x0), fy-float64(y0)
+	var pr, pg, pb, pa float64
+	for _, s := range []struct {
+		x, y int
+		w    float64
+	}{{x0, y0, (1 - tx) * (1 - ty)}, {x1, y0, tx * (1 - ty)}, {x0, y1, (1 - tx) * ty}, {x1, y1, tx * ty}} {
+		c := src.RGBAAt(s.x, s.y)
+		a := float64(c.A) / 255
+		pr += float64(c.R) * a * s.w
+		pg += float64(c.G) * a * s.w
+		pb += float64(c.B) * a * s.w
+		pa += a * s.w
+	}
+	if pa <= 0 {
+		return color.RGBA{}
+	}
+	return color.RGBA{
+		R: uint8(math.Round(pr / pa)),
+		G: uint8(math.Round(pg / pa)),
+		B: uint8(math.Round(pb / pa)),
+		A: uint8(math.Round(pa * 255)),
+	}
 }
+
+// inAllClips and cornerCenter were removed with the binary stroke path:
+// StrokePaintOp's slow branch now uses the same SDF coverage as RRectOp.
 
 // blendOver composites the straight source color c over the pixel at (x,y)
 // using Porter-Duff src-over in straight space. Opaque sources replace.

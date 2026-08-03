@@ -22,6 +22,12 @@ func TestSiteLinksResolve(t *testing.T) {
 	os.WriteFile(filepath.Join(root, "index.html"), []byte("<h1>QORM</h1>"), 0o644)
 	os.MkdirAll(filepath.Join(root, "assets"), 0o755)
 	os.WriteFile(filepath.Join(root, "assets", "logo.svg"), []byte("<svg/>"), 0o644)
+	// the marketing pages the shared header now links to (Compare · About)
+	os.MkdirAll(filepath.Join(root, "compare"), 0o755)
+	os.WriteFile(filepath.Join(root, "compare", "index.html"), []byte("<h1>Compare</h1>"), 0o644)
+	os.WriteFile(filepath.Join(root, "compare", "index.zh.html"), []byte("<h1>对比</h1>"), 0o644)
+	os.WriteFile(filepath.Join(root, "about.html"), []byte("<h1>About</h1>"), 0o644)
+	os.WriteFile(filepath.Join(root, "about.zh.html"), []byte("<h1>关于</h1>"), 0o644)
 
 	for _, s := range []struct{ src, out, name string }{
 		{"../../docs", filepath.Join(root, "docs"), "docs"},

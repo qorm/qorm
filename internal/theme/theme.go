@@ -209,6 +209,13 @@ func GetDefault() *Theme {
 				Padding:         ptrInt(16),
 				BackgroundColor: "cardBg",
 			},
+			// Select gets the interactive pair only: the picker chrome owns
+			// its base fill (white, or the author's background), the overlay
+			// supplies the hover/press feedback on top of it.
+			"select": {
+				HoveredBackgroundColor: "inputBg",
+				PressedBackgroundColor: "separator",
+			},
 		},
 		Motion: &Motion{
 			DurationFast:     ptrInt(DefaultDurationFast),
