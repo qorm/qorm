@@ -56,6 +56,38 @@ func TestContextMenuOpensAndDispatches(t *testing.T) {
 	}
 }
 
+// A BUTTON trigger stays clickable when the menu is closed: the widget owns
+// its subtree input, so it forwards a left press to the child's own handler.
+func TestContextMenuTriggerChildStaysClickable(t *testing.T) {
+	btn := &model.Node{Type: "button", ID: "trig",
+		Props:   map[string]any{"label": "Go"},
+		OnPress: &model.Invoke{Name: "go"}}
+	cm := &model.Node{Type: "contextmenu", ID: "cm",
+		Props:    map[string]any{"items": []any{map[string]any{"title": "Copy", "name": "copy"}}},
+		Children: []*model.Node{btn}}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{cm}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root},
+		Actions: map[string]*model.Action{
+			"go":   {ID: "go", Steps: []model.Step{{Type: "state.set", Path: "pressed", Value: "yes"}}},
+			"copy": {ID: "copy", Steps: []model.Step{{Type: "state.set", Path: "picked", Value: "copy"}}},
+		}}
+	rt := runtime.New(app)
+	rt.Theme = theme.GetDefault()
+	e := canvas.NewEngine(rt, canvas.SoftwareRenderer{})
+	surf := canvas.NewHeadlessSurface(image.Pt(400, 400))
+	e.DrawFrame(surf)
+
+	// Left-click the trigger button's centre: its onPress must fire.
+	e.HandlePointer(canvas.PointerInput{Type: canvas.PointerPress, X: 60, Y: 20})
+	e.HandlePointer(canvas.PointerInput{Type: canvas.PointerRelease, X: 60, Y: 20})
+	if rt.State["pressed"] != "yes" {
+		t.Error("a left click on the trigger button must dispatch its onPress")
+	}
+	if rt.State["picked"] != nil {
+		t.Error("the left click must not open or select from the menu")
+	}
+}
+
 // A press outside the panel closes the menu without dispatching.
 func TestContextMenuClickOutsideCloses(t *testing.T) {
 	child := &model.Node{Type: "box", ID: "trig", Style: map[string]any{"width": 120.0, "height": 40.0}}

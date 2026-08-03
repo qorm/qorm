@@ -154,7 +154,24 @@ func (c *ContextMenu) record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale i
 // dispatches the item under it and a press elsewhere closes it.
 func (c *ContextMenu) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.PointerInput, inter *canvas.Interaction, frame image.Rectangle) bool {
 	items := parseCtxItems(n)
+	// Closed and left-pressed: the widget owns its subtree's input, so it must
+	// forward the press to the trigger child's own handler — a button (or any
+	// onPress child) inside a contextmenu stays clickable.
+	if !c.isOpen(n) && p.Type == canvas.PointerPress && !p.Right {
+		if child := n.Children[0]; child != nil && child.OnPress != nil && !formDisabled(child, rt) {
+			argAny := make(map[string]any, len(child.OnPress.Args))
+			for k, v := range child.OnPress.Args {
+				argAny[k] = v
+			}
+			rt.Dispatch(child.OnPress.Name, argAny)
+			return true
+		}
+	}
 	if p.Type == canvas.PointerPress && p.Right {
+		if c.isOpen(n) {
+			c.setOpen(n, false) // a right-press elsewhere closes, like a native menu
+			return true
+		}
 		if len(items) == 0 {
 			return false
 		}
@@ -172,9 +189,12 @@ func (c *ContextMenu) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas
 			p.Y >= float64(g.panel.Min.Y) && p.Y < float64(g.panel.Max.Y) {
 			idx := (int(p.Y) - g.panel.Min.Y - g.padTop) / g.rowH
 			if idx >= 0 && idx < len(items) && !items[idx].separator && items[idx].name != "" {
+				// Item args evaluate like action args (the state root), so a
+				// {{state.x}} spelling resolves before dispatch.
+				ctx := map[string]any{"state": rt.State}
 				argAny := make(map[string]any, len(items[idx].args))
 				for k, v := range items[idx].args {
-					argAny[k] = v
+					argAny[k] = runtime.EvalBinding(v, ctx)
 				}
 				rt.Dispatch(items[idx].name, argAny)
 			}

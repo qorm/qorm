@@ -636,7 +636,7 @@ func propInvoke(raw any) *model.Invoke {
 // reporting whether any handler consumed the press.
 func (e *Engine) dispatchContextMenu(hit graph.Node, rt *runtime.Runtime) bool {
 	for n := hit; n != nil; {
-		if m := n.Base().Model; m != nil {
+		if m := n.Base().Model; m != nil && !nodeDisabled(m, rt) {
 			if raw, ok := m.Prop("onContextMenu"); ok {
 				if inv := propInvoke(raw); inv != nil {
 					e.dispatch(inv, nil)
