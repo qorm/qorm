@@ -12,11 +12,13 @@ type Event interface {
 // Pt is a convenience re-export of image.Pt for hosts building events.
 func Pt(x, y int) image.Point { return image.Pt(x, y) }
 
-// PointerEvent represents a mouse or touch interaction.
+// PointerEvent represents a mouse or touch interaction. Right marks a
+// right-button press/release (the engine's onContextMenu seam).
 type PointerEvent struct {
 	Type     PointerType
 	Position image.Point
 	Buttons  int
+	Right    bool
 }
 
 func (PointerEvent) isEvent() {}

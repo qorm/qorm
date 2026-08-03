@@ -129,7 +129,7 @@ func runCanvasWindow(srv *server.Server, ln net.Listener, title string, hooks *c
 			}
 			// AppKit gives logical points; the engine/graph are in physical px.
 			if eng.HandlePointer(canvas.PointerInput{
-				Type: canvas.PointerType(e.Type), X: float64(e.Position.X) * s, Y: float64(e.Position.Y) * s, Buttons: e.Buttons,
+				Type: canvas.PointerType(e.Type), X: float64(e.Position.X) * s, Y: float64(e.Position.Y) * s, Buttons: e.Buttons, Right: e.Right,
 			}) {
 				// state-changing input already dirtied the engine; nothing else
 			}

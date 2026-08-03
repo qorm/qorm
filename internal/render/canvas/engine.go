@@ -84,6 +84,9 @@ type PointerInput struct {
 	Type    PointerType
 	X, Y    float64
 	Buttons int
+	// Right marks a right-button press/release — the onContextMenu seam
+	// (engine.go dispatchContextMenu), set by the host for NSRightMouse*.
+	Right bool
 }
 
 type KeyInput struct {
@@ -387,6 +390,15 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 	e.lastPtr = geom.Point{X: p.X, Y: p.Y}
 	e.hasPtr = true
 
+	// A right-button press dispatches the nearest onContextMenu handler up the
+	// hit chain (the browser's contextmenu event) before anything else.
+	if p.Type == PointerPress && p.Right {
+		if e.dispatchContextMenu(hit, rt) {
+			e.dirty.Store(true)
+			return true
+		}
+	}
+
 	// An in-flight board pan owns the stream: the canvas follows the pointer
 	// before any widget sees the move, so dragging across a note doesn't fight
 	// the pan. Ends on release — or on a button-less move, which means the drag
@@ -593,6 +605,52 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 		e.dirty.Store(true)
 	}
 	return changed
+}
+
+// propInvoke converts a {name, args} prop object (the onContextMenu and
+// onDismissed spellings) into a dispatchable Invoke, or nil when the prop is
+// absent or nameless.
+func propInvoke(raw any) *model.Invoke {
+	m, ok := raw.(map[string]any)
+	if !ok {
+		return nil
+	}
+	inv := &model.Invoke{}
+	if s, ok := m["name"].(string); ok {
+		inv.Name = s
+	}
+	if args, ok := m["args"].(map[string]any); ok {
+		inv.Args = make(map[string]string, len(args))
+		for k, v := range args {
+			inv.Args[k] = fmt.Sprint(v)
+		}
+	}
+	if inv.Name == "" {
+		return nil
+	}
+	return inv
+}
+
+// dispatchContextMenu walks the hit chain for the first node with an
+// onContextMenu prop and dispatches it (the browser's contextmenu event),
+// reporting whether any handler consumed the press.
+func (e *Engine) dispatchContextMenu(hit graph.Node, rt *runtime.Runtime) bool {
+	for n := hit; n != nil; {
+		if m := n.Base().Model; m != nil {
+			if raw, ok := m.Prop("onContextMenu"); ok {
+				if inv := propInvoke(raw); inv != nil {
+					e.dispatch(inv, nil)
+					return true
+				}
+			}
+		}
+		p := n.Base().Parent
+		if p == nil {
+			break
+		}
+		n = p
+	}
+	return false
 }
 
 // notifyWidgetFocused tells an interactive widget that keyboard focus landed

@@ -412,18 +412,29 @@ func Run(onEvent func(Event), onTick func()) {
 		if event != 0 {
 			eventType := appkit.MsgSend(event, selType)
 
-			// NSLeftMouseDown = 1, NSLeftMouseUp = 2, NSMouseMoved = 5, NSLeftMouseDragged = 6
-			if eventType == 1 || eventType == 2 || eventType == 5 || eventType == 6 {
+			// NSLeftMouseDown = 1, NSLeftMouseUp = 2, NSMouseMoved = 5,
+			// NSLeftMouseDragged = 6, NSRightMouseDown = 3, NSRightMouseUp = 4.
+			// Right events carry the Right flag for the onContextMenu seam.
+			if eventType == 1 || eventType == 2 || eventType == 5 || eventType == 6 ||
+				eventType == 3 || eventType == 4 {
 				locValue := appkit.MsgSend(event, selValueForKey, locKey)
 				if locValue != 0 && activeWindow != nil {
 					var point struct{ X, Y float64 }
 					appkit.MsgSend(locValue, selGetValue, uintptr(unsafe.Pointer(&point)))
 
 					ptType := PointerMove
-					if eventType == 1 {
+					right := false
+					switch eventType {
+					case 1:
 						ptType = PointerPress
-					} else if eventType == 2 {
+					case 2:
 						ptType = PointerRelease
+					case 3: // NSRightMouseDown
+						ptType = PointerPress
+						right = true
+					case 4: // NSRightMouseUp
+						ptType = PointerRelease
+						right = true
 					}
 
 					// Buttons reports the pressed buttons while held: left-down
@@ -441,7 +452,7 @@ func Run(onEvent func(Event), onTick func()) {
 					y := float64(activeWindow.Size().Y) - point.Y
 
 					if onEvent != nil {
-						onEvent(PointerEvent{Type: ptType, Position: image.Pt(int(point.X), int(y)), Buttons: buttons})
+						onEvent(PointerEvent{Type: ptType, Position: image.Pt(int(point.X), int(y)), Buttons: buttons, Right: right})
 					}
 				}
 			} else if eventType == 10 || eventType == 11 {
