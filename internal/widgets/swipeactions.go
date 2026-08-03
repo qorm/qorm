@@ -102,7 +102,7 @@ func parseSwipeActions(n *model.Node) []swipeAction {
 }
 
 // Measure reports the wrapped row's own size (the children measure through).
-func (SwipeActions) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
+func (s *SwipeActions) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
 	return 0, 0 // content-sized from children (the generic pass measures them)
 }
 
@@ -207,14 +207,20 @@ func (s *SwipeActions) HandlePointer(n *model.Node, rt *runtime.Runtime, p canva
 	st := s.state(n)
 	switch p.Type {
 	case canvas.PointerPress:
+		// Take pointer capture so the whole drag stream (moves and the release,
+		// even off the row) stays with this widget — without it the engine only
+		// routes while the pointer is over the row's rendered bounds.
+		inter.Pressed = n
 		// While open, a press in the revealed strip taps an action; elsewhere
 		// it closes the row and arms a fresh drag.
-		if st.offset < 0 && p.X >= float64(frame.Max.X)+st.offset {
+		if st.offset < 0 && p.X >= float64(frame.Max.X)-st.maxReveal {
 			if acts := parseSwipeActions(n); len(acts) > 0 {
 				// Each action is maxReveal/len(acts) physical px wide (the
-				// recorded strip already accounts for the device scale).
+				// recorded strip already accounts for the device scale); the
+				// strip's true left edge is Max.X-maxReveal regardless of the
+				// current (partial) reveal.
 				perW := st.maxReveal / float64(len(acts))
-				idx := int(p.X-(float64(frame.Max.X)+st.offset)) / int(perW)
+				idx := int(p.X-(float64(frame.Max.X)-st.maxReveal)) / int(perW)
 				if idx >= 0 && idx < len(acts) && acts[idx].name != "" {
 					argAny := make(map[string]any, len(acts[idx].args))
 					for k, v := range acts[idx].args {

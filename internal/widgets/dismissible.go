@@ -30,6 +30,7 @@ type dismissState struct {
 	offset     float64 // content shift, [-(rowWidth), 0]
 	rowWidth   float64
 	dragStartX float64
+	dragStartOf float64
 	dragging   bool
 	dismissed  bool
 }
@@ -46,7 +47,7 @@ func (d *Dismissible) state(n *model.Node) *dismissState {
 }
 
 // Measure reports the wrapped row's own size (children measure through).
-func (Dismissible) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
+func (d *Dismissible) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
 	return 0, 0
 }
 
@@ -114,11 +115,18 @@ func (d *Dismissible) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas
 	st := d.state(n)
 	switch p.Type {
 	case canvas.PointerPress:
+		// Take pointer capture so the whole drag stream stays with this widget
+		// even when the finger leaves the row; a press on a dismissed row also
+		// clears the dismissal so a drag-back can recover it (a parent that
+		// did NOT remove the node leaves the row recoverable instead of stuck).
+		inter.Pressed = n
+		st.dismissed = false
 		st.dragging = true
 		st.dragStartX = p.X
+		st.dragStartOf = st.offset
 	case canvas.PointerMove:
 		if st.dragging && p.Buttons > 0 {
-			st.offset = p.X - st.dragStartX
+			st.offset = st.dragStartOf + (p.X - st.dragStartX)
 			if st.offset > 0 {
 				st.offset = 0
 			}
