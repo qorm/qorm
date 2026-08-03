@@ -158,7 +158,8 @@ func (s *Session) Animating() bool {
 	return s.Eng.Animating()
 }
 
-// CursorHint exposes the hovered cursor shape: 0 arrow, 1 text, 2 pointer.
+// CursorHint exposes the hovered cursor shape: 0 arrow, 1 text, 2 pointer,
+// 3 not-allowed (mirrors canvas.CursorHint's ordinals).
 func (s *Session) CursorHint() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()

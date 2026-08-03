@@ -165,7 +165,8 @@ func (e *Engine) activeEdit() *InputState {
 	if s == nil {
 		return nil
 	}
-	if e.Inter.Focused != s.Node || nodeDisabled(s.Node, e.RT) || !nodeMounted(e.sceneRoot(), s.Node, e.RT) {
+	if e.Inter.Focused != s.Node || nodeDisabled(s.Node, e.RT) ||
+		readonlyInput(s.Node, e.RT) || !nodeMounted(e.sceneRoot(), s.Node, e.RT) {
 		e.Inter.Input = nil
 		return nil
 	}
@@ -194,20 +195,23 @@ func editableType(typ string) bool {
 // here so the buffer never outlives the focus that owns it. (A scene switch
 // resets Interaction wholesale, engine.go RenderInto.)
 // readonlyInput reports whether an editable is read-only (the HTML
-// `readonly` prop, render_input.go): it stays focusable and selectable/copyable
-// but no edit session opens — syncEditSession's gate below.
-func readonlyInput(n *model.Node) bool {
+// `readonly` prop, render_input.go): it stays focusable and keyboard-visible
+// but no edit session opens — syncEditSession's gate below. The prop is
+// evaluated like `disabled` (nodeDisabled), so a bound readonly flips live.
+func readonlyInput(n *model.Node, rt *runtime.Runtime) bool {
 	for _, k := range []string{"readonly", "readOnly"} {
-		if v, ok := n.Prop(k); ok {
-			switch t := v.(type) {
-			case bool:
-				if t {
-					return true
-				}
-			case string:
-				if t == "true" || t == "1" {
-					return true
-				}
+		v, ok := n.Prop(k)
+		if !ok {
+			continue
+		}
+		switch t := evalStyleProp(v, rt).(type) {
+		case bool:
+			if t {
+				return true
+			}
+		case string:
+			if t == "true" || t == "1" {
+				return true
 			}
 		}
 	}
@@ -216,7 +220,7 @@ func readonlyInput(n *model.Node) bool {
 
 func (e *Engine) syncEditSession() {
 	f := e.Inter.Focused
-	if f != nil && editableType(f.Type) && !nodeDisabled(f, e.RT) && !readonlyInput(f) {
+	if f != nil && editableType(f.Type) && !nodeDisabled(f, e.RT) && !readonlyInput(f, e.RT) {
 		if s := e.Inter.Input; s == nil || s.Node != f {
 			// The buffer starts from the evaluated value with the cursor at
 			// the end and a collapsed selection, like clicking into an HTML
