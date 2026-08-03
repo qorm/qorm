@@ -110,6 +110,22 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 		}
 	}
 
+	// JSON components (components.go): an instance node measures its template
+	// in a scope carrying the evaluated props, the instance's children
+	// filling the template's slots — the HTML renderComponent contract.
+	if name := componentRef(rt, n); name != "" {
+		depth := 0
+		idx := 0
+		if sc != nil {
+			depth = sc.compDepth
+			idx = sc.index
+		}
+		if depth < maxCompDepth {
+			clone, vars := instantiateComponent(n, rt.App.Components[name], name, evalCtxScope(rt, sc), rt)
+			return measure(clone, rt, inter, scale, root, &listScope{vars: vars, index: idx, compDepth: depth + 1})
+		}
+	}
+
 	warnUnsupportedStyleKeys(root, n)
 
 	style := parseStyle(n, rt, sc)

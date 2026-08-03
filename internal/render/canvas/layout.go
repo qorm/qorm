@@ -45,6 +45,15 @@ func layout(ops *op.Ops, root *model.Node, size image.Point, rt *runtime.Runtime
 		return nil, false, nil // the whole scene is conditionally hidden
 	}
 
+	// The scene root is the page: it spans the viewport width (CSS's initial
+	// containing block). A bare column/scroll with no width:fill otherwise
+	// shrinks to its content and the whole page hugs the left edge — and
+	// flex-stretch children then have nothing to stretch into (uikit's
+	// panels rendered at content width).
+	if rootNode.Style.WidthRaw == "" && rootNode.Style.Width <= 0 && rootNode.Width < bounds.Dx() {
+		rootNode.Width = bounds.Dx()
+	}
+
 	// 1b. Fold text that overflows its column (wrap.go). This must run after
 	// measure (sizes known) and before layout (origins assigned); it repairs
 	// ancestor heights so pass 2 sees consistent boxes.

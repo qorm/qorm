@@ -72,6 +72,9 @@ const maxListItems = 10000
 type listScope struct {
 	vars  map[string]any
 	index int
+	// compDepth counts nested JSON-component instantiations on this scope
+	// chain (components.go) — self-referential templates are capped at 32.
+	compDepth int
 }
 
 // itemInstance is the per-frame sidecar entry Layout records for each repeat
