@@ -48,6 +48,7 @@ func setLayerContentsScale(layer uintptr, scale int) {
 var darwinKeyCodes = map[int]string{
 	48: "tab", 36: "return", 76: "return", 53: "escape", 49: "space", 51: "delete",
 	123: "left", 124: "right", 125: "down", 126: "up",
+	115: "home", 119: "end", 117: "deleteForward", // kVK_Home/End/ForwardDelete
 	0: "a", 1: "s", 2: "d", 3: "f", 4: "h", 5: "g", 6: "z", 7: "x", 8: "c", 9: "v",
 	11: "b", 12: "q", 13: "w", 14: "e", 15: "r", 16: "y", 17: "t",
 	31: "o", 32: "u", 34: "i", 35: "p", 37: "l", 38: "j", 40: "k", 45: "n", 46: "m",
@@ -453,13 +454,17 @@ func Run(onEvent func(Event), onTick func()) {
 					kt = KeyUp
 				}
 
-				// Read the shift modifier: [event valueForKey:@"modifierFlags"] → NSNumber.
-				shift := false
-				modVal := appkit.MsgSend(event, selValueForKey, appkit.NewNSString("modifierFlags"))
-				if modVal != 0 {
+				// Read the modifiers: [event valueForKey:@"modifierFlags"] →
+				// NSNumber, bitmask of NSEventModifierFlags (Shift=1<<17,
+				// Control=1<<18, Option=1<<19, Command=1<<20).
+				shift, ctrl, alt, meta := false, false, false, false
+				if modVal := appkit.MsgSend(event, selValueForKey, appkit.NewNSString("modifierFlags")); modVal != 0 {
 					var flags uintptr
 					appkit.MsgSend(modVal, selGetValue, uintptr(unsafe.Pointer(&flags)))
-					shift = flags&(1<<17) != 0 // NSEventModifierFlagShift
+					shift = flags&(1<<17) != 0
+					ctrl = flags&(1<<18) != 0
+					alt = flags&(1<<19) != 0
+					meta = flags&(1<<20) != 0
 				}
 
 				if activeWindow != nil && onEvent != nil {
@@ -478,7 +483,7 @@ func Run(onEvent func(Event), onTick func()) {
 							}
 						}
 					}
-					onEvent(KeyEvent{Type: kt, Code: int(keyCode), Key: darwinKeyCodes[int(keyCode)], Shift: shift, Rune: r})
+					onEvent(KeyEvent{Type: kt, Code: int(keyCode), Key: darwinKeyCodes[int(keyCode)], Shift: shift, Ctrl: ctrl, Alt: alt, Meta: meta, Rune: r})
 				}
 			} else if eventType == 22 {
 				// NSScrollWheel

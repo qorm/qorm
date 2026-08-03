@@ -94,7 +94,10 @@ type KeyInput struct {
 	// edit session (input.go). Hosts that send nothing fall back to named-key
 	// ASCII there.
 	Rune  rune
-	Shift bool
+	Shift bool // shift modifier held
+	Ctrl  bool // control modifier held
+	Alt   bool // option/alt modifier held
+	Meta  bool // command (macOS ⌘) / meta modifier held
 	Down  bool // false = key up
 }
 

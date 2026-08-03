@@ -141,7 +141,7 @@ func runCanvasWindow(srv *server.Server, ln net.Listener, title string, hooks *c
 				win.SetCursor(int(h))
 			}
 		case app.KeyEvent:
-			eng.HandleKey(canvas.KeyInput{Key: e.Key, Shift: e.Shift, Down: e.Type == app.KeyDown, Rune: e.Rune})
+			eng.HandleKey(canvas.KeyInput{Key: e.Key, Shift: e.Shift, Ctrl: e.Ctrl, Alt: e.Alt, Meta: e.Meta, Down: e.Type == app.KeyDown, Rune: e.Rune})
 		case app.ScrollEvent:
 			if hooks != nil && hooks.scrollFilter != nil && hooks.scrollFilter() {
 				break

@@ -35,6 +35,9 @@ type KeyEvent struct {
 	Code  int    // Raw platform keycode (macOS virtual keycode).
 	Key   string // Normalized name: "tab", "return", "escape", "space", "up", "down", "left", "right", "delete", or "a".."z" / "0".."9".
 	Shift bool   // True when the shift modifier was held.
+	Ctrl  bool   // Control modifier (Ctrl+wheel on macOS is the trackpad pinch).
+	Alt   bool   // Option/Alt modifier.
+	Meta  bool   // Command (macOS) / Meta modifier.
 	// Rune is the printable character the key produces (0 = none), from the
 	// platform text channel (macOS -characters — modifier-aware, so shift is
 	// already applied). Filled on KeyDown only; control keys leave it 0.
