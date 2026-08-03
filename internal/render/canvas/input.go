@@ -57,6 +57,19 @@ type InputState struct {
 	SelEnd    int // normalized selection end, [SelStart, len(Runes)]
 	Anchor    int // stationary endpoint while extending
 	Selecting bool
+	// BlinkStart anchors the caret-blink phase to the moment the session opens
+	// (the caret is visible for the first half period), so a just-focused field
+	// always shows its caret deterministically.
+	BlinkStart time.Time
+}
+
+// caretVisible reports whether the blinking caret should draw at this moment.
+// The engine keeps animating while an edit session is live (engine.go
+// animating store), so this flips every caretBlinkHalf.
+const caretBlinkHalf = 500 * time.Millisecond
+
+func caretVisible(s *InputState, now time.Time) bool {
+	return int(now.Sub(s.BlinkStart)/caretBlinkHalf)%2 == 0
 }
 
 // minInputWidth is the content-box width (logical px) an empty input keeps so
@@ -227,7 +240,7 @@ func (e *Engine) syncEditSession() {
 			// field (a pointer click repositions it, input.go caretIndexFromPointer).
 			runes := []rune(evalPropStr(f.Value, e.RT))
 			e.Inter.Input = &InputState{Node: f, Runes: runes, Cursor: len(runes),
-				SelStart: len(runes), SelEnd: len(runes), Anchor: len(runes)}
+				SelStart: len(runes), SelEnd: len(runes), Anchor: len(runes), BlinkStart: time.Now()}
 		}
 		return
 	}
@@ -791,12 +804,13 @@ func layoutInput(ln *LayoutNode, group *graph.Group, rt *runtime.Runtime, scale 
 		group.AddChild(textNode)
 	}
 
-	if ln.Editing && !sel {
-		// The caret: a static 1-device-px line at the insertion point (see the
-		// file header for why it does not blink), hidden while a selection is
-		// active. NoHit keeps it from ever stealing pointer hits; the x
-		// position uses the same per-rune advances DrawText paints with, so
-		// caret and text cannot drift apart.
+	if ln.Editing && !sel && ln.CaretVisible {
+		// The caret: a 1-device-px line at the insertion point, blinking at
+		// caretBlinkHalf (the engine keeps animating while a session is live,
+		// measure.go stamps the phase), hidden while a selection is active.
+		// NoHit keeps it from ever stealing pointer hits; the x position uses
+		// the same per-rune advances DrawText paints with, so caret and text
+		// cannot drift apart.
 		w := scale
 		if w < 1 {
 			w = 1

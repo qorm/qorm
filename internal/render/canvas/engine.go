@@ -320,7 +320,10 @@ func (e *Engine) RenderInto(size image.Point, scale int, target *image.RGBA) (bo
 	// polls). Registered AnimatedWidgets (spinner) never settle on their own,
 	// so the scene scan keeps the loop alive for them too; a mounted scene
 	// timer (timer.go) keeps it alive until its last deadline.
-	e.animating.Store(needsRedraw || e.sceneAnimating() || e.timersPending())
+	// A live edit session keeps the loop ticking so the caret can blink
+	// (input.go caretVisible) — the browser repaints its text cursor the same
+	// way. Settles as soon as the session closes.
+	e.animating.Store(needsRedraw || e.sceneAnimating() || e.timersPending() || e.Inter.Input != nil)
 	return true, st
 }
 

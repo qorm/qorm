@@ -37,6 +37,9 @@ type LayoutNode struct {
 	Cursor      int
 	SelStart    int
 	SelEnd      int
+	// CaretVisible is the blink phase for the editing caret (input.go): the
+	// engine keeps animating while a session is live, so this flips over time.
+	CaretVisible bool
 
 	// Entrance animation overlay (entrance.go): when EntranceActive, the
 	// node's group gets EntranceOpacity multiplied in and (EntranceDX,
@@ -187,6 +190,7 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 				ln.Editing = true
 				ln.Cursor = s.Cursor
 				ln.SelStart, ln.SelEnd = s.SelStart, s.SelEnd
+				ln.CaretVisible = caretVisible(s, time.Now())
 			} else {
 				// The live edit session belongs to a SIBLING repeat instance
 				// (the session key is the shared template pointer, input.go):

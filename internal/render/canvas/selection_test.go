@@ -358,6 +358,34 @@ func TestLongPressDetector(t *testing.T) {
 	}
 }
 
+// The caret blinks: visible for the first half period after the session
+// opens, hidden in the off half — and the engine keeps animating while an
+// edit session is live so the frame loop actually repaints the toggle.
+func TestCaretBlink(t *testing.T) {
+	e, surf, in := inputFixture(t)
+	e.DrawFrame(surf)
+	clickNode(t, e, in)
+	typeRunes(e, "hi")
+	e.DrawFrame(surf)
+
+	// A just-opened session (phase anchored at open) shows its caret.
+	g := inputGroup(t, e, in)
+	if findCaret(g) == nil {
+		t.Fatal("a just-opened session must show its caret")
+	}
+	if !e.Animating() {
+		t.Fatal("a live edit session must keep the engine animating (blink needs frames)")
+	}
+
+	// Advance the blink phase into the off half: the caret hides.
+	e.Inter.Input.BlinkStart = e.Inter.Input.BlinkStart.Add(-750 * time.Millisecond)
+	e.MarkDirty()
+	e.DrawFrame(surf)
+	if findCaret(inputGroup(t, e, in)) != nil {
+		t.Error("the caret must hide during the off half of its blink")
+	}
+}
+
 // A non-empty selection renders as a highlight rect spanning the selected
 // runes and hides the caret.
 func TestInputSelectionRendersHighlight(t *testing.T) {
