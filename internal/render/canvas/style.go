@@ -107,16 +107,16 @@ type NodeStyle struct {
 	// instead of flowing it — the coordinate model of an infinite-canvas
 	// board. Out of flow, so it neither consumes flex space nor reflows
 	// siblings.
-	PosX, PosY int
-	HasPos     bool
-	Align                string
-	AlignSelf            string // CSS align-self (style/layout alignSelf) — distinct from Align (align-items)
-	Justify              string
-	FontSize             int
-	FontWeight           int
-	TextAlign            string
-	BorderRadius         float64
-	Opacity              float64 // 1 = fully opaque; lowered by pressedOpacity theme state
+	PosX, PosY   int
+	HasPos       bool
+	Align        string
+	AlignSelf    string // CSS align-self (style/layout alignSelf) — distinct from Align (align-items)
+	Justify      string
+	FontSize     int
+	FontWeight   int
+	TextAlign    string
+	BorderRadius float64
+	Opacity      float64 // 1 = fully opaque; lowered by pressedOpacity theme state
 
 	StrokeColor color.RGBA
 	StrokeWidth float64
@@ -186,19 +186,28 @@ func applyInteractiveOverlay(s *NodeStyle, n *model.Node, rt *runtime.Runtime, i
 	if inter == nil || rt == nil || rt.Theme == nil || (inter.Pressed != n && inter.Hovered != n) {
 		return
 	}
-	comp, ok := rt.Theme.Components[n.Type]
-	if !ok {
-		return
-	}
-	if inter.Hovered == n && comp.HoveredBackgroundColor != "" {
-		s.Background = resolveColor(comp.HoveredBackgroundColor, rt)
-	}
-	if inter.Pressed == n {
-		if comp.PressedBackgroundColor != "" {
-			s.Background = resolveColor(comp.PressedBackgroundColor, rt)
+	if inter.Hovered == n {
+		// The theme component's hovered color is the baseline...
+		if comp, ok := rt.Theme.Components[n.Type]; ok && comp.HoveredBackgroundColor != "" {
+			s.Background = resolveColor(comp.HoveredBackgroundColor, rt)
 		}
-		if comp.PressedOpacity != nil {
-			s.Opacity = *comp.PressedOpacity
+		// ...and a per-node style hoverBackground wins over it — the author's
+		// explicit choice beats the skin, and works even with no theme component.
+		if v, ok := evalStyleProp(n.Style["hoverBackground"], rt).(string); ok {
+			if c := resolveColor(v, rt); c.A > 0 {
+				s.Background = c
+			}
+		}
+	}
+	// Pressed is applied LAST so it wins over hovered for the background.
+	if inter.Pressed == n {
+		if comp, ok := rt.Theme.Components[n.Type]; ok {
+			if comp.PressedBackgroundColor != "" {
+				s.Background = resolveColor(comp.PressedBackgroundColor, rt)
+			}
+			if comp.PressedOpacity != nil {
+				s.Opacity = *comp.PressedOpacity
+			}
 		}
 	}
 }
@@ -704,9 +713,10 @@ var canvasStyleKeys = map[string]bool{
 	"x": true, "y": true, "left": true, "top": true,
 	"fontSize": true, "fontWeight": true, "textAlign": true,
 	"borderRadius": true, "strokeWidth": true, "borderWidth": true,
-	"opacity":        true,
-	"disabled":       true,
-	"boxShadowColor": true, "boxShadowBlur": true, "boxShadowY": true,
+	"opacity":         true,
+	"disabled":        true,
+	"hoverBackground": true,
+	"boxShadowColor":  true, "boxShadowBlur": true, "boxShadowY": true,
 }
 
 // styleWarn* implement one-shot unsupported-style-key warnings: each key is

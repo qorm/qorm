@@ -193,9 +193,30 @@ func editableType(typ string) bool {
 // and closes it otherwise. Every focus change (pointer, tab, escape) funnels
 // here so the buffer never outlives the focus that owns it. (A scene switch
 // resets Interaction wholesale, engine.go RenderInto.)
+// readonlyInput reports whether an editable is read-only (the HTML
+// `readonly` prop, render_input.go): it stays focusable and selectable/copyable
+// but no edit session opens — syncEditSession's gate below.
+func readonlyInput(n *model.Node) bool {
+	for _, k := range []string{"readonly", "readOnly"} {
+		if v, ok := n.Prop(k); ok {
+			switch t := v.(type) {
+			case bool:
+				if t {
+					return true
+				}
+			case string:
+				if t == "true" || t == "1" {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 func (e *Engine) syncEditSession() {
 	f := e.Inter.Focused
-	if f != nil && editableType(f.Type) && !nodeDisabled(f, e.RT) {
+	if f != nil && editableType(f.Type) && !nodeDisabled(f, e.RT) && !readonlyInput(f) {
 		if s := e.Inter.Input; s == nil || s.Node != f {
 			// The buffer starts from the evaluated value with the cursor at
 			// the end and a collapsed selection, like clicking into an HTML
