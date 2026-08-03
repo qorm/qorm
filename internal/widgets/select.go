@@ -81,7 +81,7 @@ func (s *Select) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, s
 			lw = w
 		}
 	}
-	if w := int(canvas.MeasureText(s.display(n, rt), float64(fs))); w > lw {
+	if w := int(canvas.MeasureText(s.display(n, nil, rt), float64(fs))); w > lw {
 		lw = w
 	}
 	w = lw + (2*selectPadX+selectGlyph)*scale
@@ -144,7 +144,7 @@ func (s *Select) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) d
 	g.AddChild(chrome)
 
 	fs := formFontSizeLN(ln, scale)
-	g.AddChild(formText(s.display(ln.Node, rt), float64(selectPadX*scale),
+	g.AddChild(formText(s.display(ln.Node, ln, rt), float64(selectPadX*scale),
 		(float64(boxH)-float64(lineHeight(fs)))/2, fs, formInk(ln.Node, ln, rt)))
 
 	// The dropdown indicator uses the shared SVG chevron so it stays smooth
@@ -213,7 +213,7 @@ func (s *Select) OverlayRecord(ln *canvas.LayoutNode, rt *runtime.Runtime, scale
 	rowH := selectRowHeight(ln.Node, scale)
 	menuGap := selectMenuGap * scale
 	menuPad := selectMenuPad * scale
-	cur := s.value(ln.Node, rt)
+	cur := s.value(ln.Node, ln, rt)
 
 	boxX := ln.AbsX
 	boxY := ln.AbsY
@@ -337,7 +337,7 @@ func (s *Select) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.Poin
 		if geo, ok := s.geometry(n); ok {
 			if idx := s.optionIndexAt(geo, opts, p.X, p.Y); idx >= 0 && idx < len(opts) {
 				next := opts[idx].value
-				if next != s.value(n, rt) {
+				if next != s.value(n, nil, rt) {
 					s.setValue(n, rt, next)
 					commitFormChange(n, rt, next)
 				}
@@ -352,9 +352,9 @@ func (s *Select) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.Poin
 
 // value resolves the current value: the binding, else the uncontrolled store,
 // else the literal value (may be empty — the display falls back then).
-func (s *Select) value(n *model.Node, rt *runtime.Runtime) string {
+func (s *Select) value(n *model.Node, ln *canvas.LayoutNode, rt *runtime.Runtime) string {
 	if formBoundPath(n.Value) != "" {
-		return fmt.Sprint(runtime.EvalBinding(n.Value, formCtx(rt)))
+		return fmt.Sprint(runtime.EvalBinding(n.Value, formCtxLn(rt, ln)))
 	}
 	s.mu.Lock()
 	lv, ok := s.local[n]
@@ -368,8 +368,8 @@ func (s *Select) value(n *model.Node, rt *runtime.Runtime) string {
 // display resolves what the box shows: the selected option's label, the raw
 // value when it matches no option, or the first option while the value is
 // empty (the browser's default selection display).
-func (s *Select) display(n *model.Node, rt *runtime.Runtime) string {
-	cur := s.value(n, rt)
+func (s *Select) display(n *model.Node, ln *canvas.LayoutNode, rt *runtime.Runtime) string {
+	cur := s.value(n, ln, rt)
 	opts := formOptions(n.Props["options"])
 	for _, o := range opts {
 		if o.value == cur {

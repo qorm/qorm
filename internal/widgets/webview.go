@@ -38,8 +38,14 @@ type WebView struct{}
 // (cmd/qorm, canvaswebview build) resolves the same way so the WKWebView and
 // the placeholder never disagree. Bindings evaluate against state.
 func WebViewSource(n *model.Node, rt *runtime.Runtime) (url, markup string) {
+	return webViewSourceLn(n, nil, rt)
+}
+
+// webViewSourceLn is WebViewSource plus the repeat-instance scope (list rows
+// embedding a webview per item resolve {{item.x}} in url/src/html).
+func webViewSourceLn(n *model.Node, ln *canvas.LayoutNode, rt *runtime.Runtime) (url, markup string) {
 	eval := func(raw any) string {
-		return strings.TrimSpace(fmt.Sprint(runtime.EvalBinding(fmt.Sprint(raw), map[string]any{"state": rt.State})))
+		return strings.TrimSpace(fmt.Sprint(runtime.EvalBinding(fmt.Sprint(raw), formCtxLn(rt, ln))))
 	}
 	if raw, ok := n.Prop("url"); ok {
 		url = eval(raw)
@@ -84,7 +90,7 @@ func (WebView) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) dra
 	if scale < 1 {
 		scale = 1
 	}
-	url, markup := WebViewSource(ln.Node, rt)
+	url, markup := webViewSourceLn(ln.Node, ln, rt)
 	caption := url
 	if caption == "" {
 		caption = "about:blank"

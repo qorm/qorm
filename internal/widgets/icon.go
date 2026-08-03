@@ -44,15 +44,15 @@ type Icon struct{}
 
 // iconName mirrors the HTML resolution order (render_media.go:103): icon
 // prop, glyph prop, then the node text — bindings evaluated against state.
-func iconName(n *model.Node, rt *runtime.Runtime) string {
+func iconName(n *model.Node, ln *canvas.LayoutNode, rt *runtime.Runtime) string {
 	for _, k := range []string{"icon", "glyph"} {
 		if raw, ok := n.Prop(k); ok {
-			if s := strings.TrimSpace(fmt.Sprint(runtime.EvalBinding(fmt.Sprint(raw), map[string]any{"state": rt.State}))); s != "" {
+			if s := strings.TrimSpace(fmt.Sprint(runtime.EvalBinding(fmt.Sprint(raw), formCtxLn(rt, ln)))); s != "" {
 				return s
 			}
 		}
 	}
-	return strings.TrimSpace(fmt.Sprint(runtime.EvalBinding(n.Text, map[string]any{"state": rt.State})))
+	return strings.TrimSpace(fmt.Sprint(runtime.EvalBinding(n.Text, formCtxLn(rt, ln))))
 }
 
 // maxIconSide bounds an icon's logical edge. The 4x-supersampled coverage
@@ -64,7 +64,7 @@ const maxIconSide = 512
 // iconSide resolves the square edge in logical px: the HTML default is the
 // `size` prop (propNum 22, render_media.go:107); canvas additionally honors
 // style fontSize so the icon follows text sizing, then 22.
-func iconSide(n *model.Node, rt *runtime.Runtime) float64 {
+func iconSide(n *model.Node, ln *canvas.LayoutNode, rt *runtime.Runtime) float64 {
 	side := 0.0
 	if raw, ok := n.Prop("size"); ok {
 		switch v := raw.(type) {
@@ -77,7 +77,7 @@ func iconSide(n *model.Node, rt *runtime.Runtime) float64 {
 				side = float64(v)
 			}
 		case string:
-			r := runtime.EvalBinding(v, map[string]any{"state": rt.State})
+			r := runtime.EvalBinding(v, formCtxLn(rt, ln))
 			if f, err := strconv.ParseFloat(fmt.Sprint(r), 64); err == nil && f > 0 {
 				side = f
 			}
@@ -112,7 +112,7 @@ func (Icon) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale 
 	if scale < 1 {
 		scale = 1
 	}
-	side := int(iconSide(n, rt)) * scale
+	side := int(iconSide(n, nil, rt)) * scale
 	return side, side
 }
 
@@ -131,7 +131,7 @@ func (Icon) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.N
 	if max := maxIconSide * scale; w > max || h > max {
 		w, h = max, max
 	}
-	name := iconName(ln.Node, rt)
+	name := iconName(ln.Node, ln, rt)
 	body, ok := iconSet[name]
 	if !ok {
 		warnIconOnce(name)

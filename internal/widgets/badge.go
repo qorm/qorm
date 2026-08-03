@@ -33,7 +33,7 @@ func (Badge) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale
 		scale = 1
 	}
 	fs := 12 * scale
-	w = int(canvas.MeasureText(badgeLabel(n, rt), float64(fs))) + 16*scale
+	w = int(canvas.MeasureText(badgeLabel(n, nil, rt), float64(fs))) + 16*scale
 	h = int(float64(fs)*1.2) + 4*scale
 	return
 }
@@ -54,7 +54,7 @@ func (Badge) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.
 	// white and invisible on the white scene (R7-A).
 	pill.Fill = themeColor(rt, "inputBg", color.RGBA{238, 238, 240, 255})
 
-	label := badgeLabel(ln.Node, rt)
+	label := badgeLabel(ln.Node, ln, rt)
 	txtW := int(canvas.MeasureText(label, float64(fs)))
 	txtH := int(float64(fs) * 1.2)
 	text := draw.NewText()
@@ -72,10 +72,10 @@ func (Badge) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.
 
 // badgeLabel resolves the pill text from label/text/value props (HTML
 // labelOf order), evaluating {{...}} bindings against state.
-func badgeLabel(n *model.Node, rt *runtime.Runtime) string {
+func badgeLabel(n *model.Node, ln *canvas.LayoutNode, rt *runtime.Runtime) string {
 	for _, k := range []string{"label", "text", "value"} {
 		if raw, ok := n.Prop(k); ok {
-			return strings.TrimSpace(fmt.Sprint(runtime.EvalBinding(fmt.Sprint(raw), map[string]any{"state": rt.State})))
+			return strings.TrimSpace(fmt.Sprint(runtime.EvalBinding(fmt.Sprint(raw), formCtxLn(rt, ln))))
 		}
 	}
 	return ""

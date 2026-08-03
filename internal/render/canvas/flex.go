@@ -88,7 +88,7 @@ func flexChildren(ln *LayoutNode, rt *runtime.Runtime) []flexlayout.Child {
 			MarginR:   float64(c.Style.MarginRight),
 			MarginB:   float64(c.Style.MarginBot),
 			MarginL:   float64(c.Style.MarginLeft),
-			AlignSelf: flexAlignSelf(c.Style.Align),
+			AlignSelf: flexAlignSelf(c.Style.AlignSelf),
 		}
 		if row {
 			ch.W = float64(c.Width)
@@ -172,7 +172,11 @@ func clampInt(v, min, max int) int {
 // on the cross axis — its own align wins, otherwise the container's
 // align-items (CSS align-self:auto follows align-items).
 func stretchable(ln, c *LayoutNode) bool {
-	eff := c.Style.Align
+	// CSS: align-self:auto (the initial) COMPUTES to the container's
+	// align-items — a centred (or start/end) container does not stretch the
+	// child, so the measured cross size must be kept; only an explicit
+	// alignSelf overrides that.
+	eff := c.Style.AlignSelf
 	if eff == "" {
 		eff = ln.Style.Align
 	}

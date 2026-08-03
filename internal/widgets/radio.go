@@ -90,7 +90,7 @@ func (r *Radio) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) dr
 	}
 	r.mu.Unlock()
 
-	cur := r.selected(ln.Node, rt)
+	cur := r.selected(ln.Node, ln, rt)
 	fs := formFontSizeLN(ln, scale)
 	ink := formInk(ln.Node, ln, rt)
 	d := float64(radioCircleD * scale)
@@ -160,9 +160,9 @@ func (r *Radio) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.Point
 // selected resolves the current value: the binding, then — uncontrolled —
 // the user's local pick wins over the literal value prop (the initial
 // selection), empty meaning nothing selected (like HTML).
-func (r *Radio) selected(n *model.Node, rt *runtime.Runtime) string {
+func (r *Radio) selected(n *model.Node, ln *canvas.LayoutNode, rt *runtime.Runtime) string {
 	if formBoundPath(n.Value) != "" {
-		return fmt.Sprint(runtime.EvalBinding(n.Value, formCtx(rt)))
+		return fmt.Sprint(runtime.EvalBinding(n.Value, formCtxLn(rt, ln)))
 	}
 	r.mu.Lock()
 	lv, ok := r.local[n]

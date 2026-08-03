@@ -177,7 +177,7 @@ func (s *Slider) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.Poin
 		s.mu.Unlock()
 		if moved {
 			// Native range parity: change fires once per gesture, at release.
-			commitFormChange(n, rt, s.value(n, rt))
+			commitFormChange(n, rt, s.value(n, nil, rt))
 		}
 		return true
 	}
@@ -250,7 +250,7 @@ func (s *Slider) updateFromX(n *model.Node, rt *runtime.Runtime, x float64) {
 	if v > max {
 		v = max
 	}
-	if v == s.value(n, rt) {
+	if v == s.value(n, nil, rt) {
 		return
 	}
 	if path := formBoundPath(n.Value); path != "" {
@@ -271,7 +271,7 @@ func (s *Slider) thumbCenter(n *model.Node, rt *runtime.Runtime, w, thumbR float
 	min, max, _ := sliderRange(n)
 	frac := 0.0
 	if max > min {
-		frac = (s.value(n, rt) - min) / (max - min)
+		frac = (s.value(n, nil, rt) - min) / (max - min)
 	}
 	if frac < 0 {
 		frac = 0
@@ -289,11 +289,11 @@ func (s *Slider) thumbCenter(n *model.Node, rt *runtime.Runtime, w, thumbR float
 // value resolves the current value: the binding, else the uncontrolled store,
 // else the literal value prop (HTML evaluates the value unconditionally),
 // clamped into [min, max] for display like the browser does.
-func (s *Slider) value(n *model.Node, rt *runtime.Runtime) float64 {
+func (s *Slider) value(n *model.Node, ln *canvas.LayoutNode, rt *runtime.Runtime) float64 {
 	min, max, _ := sliderRange(n)
 	v := min
 	if formBoundPath(n.Value) != "" {
-		v = formFloat(runtime.EvalBinding(n.Value, formCtx(rt)))
+		v = formFloat(runtime.EvalBinding(n.Value, formCtxLn(rt, ln)))
 	} else {
 		s.mu.Lock()
 		lv, ok := s.local[n]
@@ -301,7 +301,7 @@ func (s *Slider) value(n *model.Node, rt *runtime.Runtime) float64 {
 		if ok {
 			v = lv
 		} else if n.Value != "" {
-			v = formFloat(runtime.EvalBinding(n.Value, formCtx(rt)))
+			v = formFloat(runtime.EvalBinding(n.Value, formCtxLn(rt, ln)))
 		}
 	}
 	if v < min {

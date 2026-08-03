@@ -94,7 +94,7 @@ func (a AnimOpacity) record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale in
 	}
 	target := 1.0
 	if raw, ok := ln.Node.Prop("opacity"); ok {
-		target = asFloat64(runtime.EvalBinding(fmt.Sprint(raw), map[string]any{"state": rt.State}))
+		target = asFloat64(runtime.EvalBinding(fmt.Sprint(raw), formCtxLn(rt, ln)))
 	}
 	if target < 0 {
 		target = 0

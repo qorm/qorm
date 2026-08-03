@@ -56,12 +56,12 @@ func (Progress) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) dr
 	g := draw.NewGroup()
 	g.AddChild(track)
 
-	if pct := progressPct(ln.Node, rt); pct > 0 {
+	if pct := progressPct(ln.Node, ln, rt); pct > 0 {
 		fill := draw.NewRect()
 		fill.Width = float64(ln.Width) * pct / 100
 		fill.Height = float64(ln.Height)
 		fill.BorderRadius = radius
-		fill.Fill = progressFillColor(ln.Node, rt)
+		fill.Fill = progressFillColor(ln.Node, ln, rt)
 		g.AddChild(fill)
 	}
 	return g
@@ -73,8 +73,8 @@ func (Progress) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) dr
 // reads value in max's units (the slider convention, render_input.go:365 —
 // the HTML progress itself declares no max). The result clamps to [0,100]
 // (HTML clampPct).
-func progressPct(n *model.Node, rt *runtime.Runtime) float64 {
-	v := asFloat64(runtime.EvalBinding(n.Value, map[string]any{"state": rt.State}))
+func progressPct(n *model.Node, ln *canvas.LayoutNode, rt *runtime.Runtime) float64 {
+	v := asFloat64(runtime.EvalBinding(n.Value, formCtxLn(rt, ln)))
 	if raw, ok := n.Prop("max"); ok {
 		if max := asFloat64(raw); max > 0 {
 			return clampPct(v / max * 100)
@@ -90,9 +90,9 @@ func progressPct(n *model.Node, rt *runtime.Runtime) float64 {
 // (bindable; a palette token or hex — theme.GetColor parses both) wins over
 // the accent default (HTML: cssValueOr(prop, "var(--accent)")); the canvas
 // palette names the accent "primary".
-func progressFillColor(n *model.Node, rt *runtime.Runtime) color.RGBA {
+func progressFillColor(n *model.Node, ln *canvas.LayoutNode, rt *runtime.Runtime) color.RGBA {
 	if raw, ok := n.Prop("color"); ok {
-		s := fmt.Sprint(runtime.EvalBinding(fmt.Sprint(raw), map[string]any{"state": rt.State}))
+		s := fmt.Sprint(runtime.EvalBinding(fmt.Sprint(raw), formCtxLn(rt, ln)))
 		if rt != nil && rt.Theme != nil {
 			if c, ok := rt.Theme.GetColor(s); ok {
 				return c

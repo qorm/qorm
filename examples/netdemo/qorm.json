@@ -3,7 +3,7 @@
   "id": "netdemo",
   "name": "Backend Demo",
   "entry": "main",
-  "theme": "apple",
+  "theme": "apple-light",
   "globalState": {
     "schema": {
       "resp": "object",

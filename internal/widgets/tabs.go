@@ -87,7 +87,7 @@ func (Tabs) Measure(n *model.Node, rt *runtime.Runtime, vars map[string]any, sca
 	}
 	w = barW
 	h = tabsBarH(scale)
-	if active := tabsActiveIndex(n, rt, tabsCount(n)); active < len(n.Children) {
+	if active := tabsActiveIndex(n, nil, rt, tabsCount(n)); active < len(n.Children) {
 		if pln := canvas.MeasureScoped(n.Children[active], rt, nil, vars, scale); pln != nil {
 			if pln.Width > w {
 				w = pln.Width
@@ -122,7 +122,7 @@ func (t Tabs) record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int, sink
 	n := ln.Node
 	labels := tabsLabels(n)
 	count := tabsCount(n)
-	active := tabsActiveIndex(n, rt, count)
+	active := tabsActiveIndex(n, ln, rt, count)
 	barH := tabsBarH(scale)
 	fs := float64(tabFontSize * scale)
 	txtH := int(fs * 1.2)
@@ -295,14 +295,14 @@ func tabsBoundPath(n *model.Node) string {
 // value for controlled tabs, else the widget's uncontrolled record, else the
 // literal `active` default, else 0 — clamped rather than selecting nothing
 // (HTML activeIndex, render_data.go:643).
-func tabsActiveIndex(n *model.Node, rt *runtime.Runtime, count int) int {
+func tabsActiveIndex(n *model.Node, ln *canvas.LayoutNode, rt *runtime.Runtime, count int) int {
 	if count <= 0 {
 		return 0
 	}
 	i := 0
 	if tabsBoundPath(n) != "" {
 		raw, _ := n.Prop("active")
-		i = int(asFloat64(runtime.EvalBinding(fmt.Sprint(raw), map[string]any{"state": rt.State})))
+		i = int(asFloat64(runtime.EvalBinding(fmt.Sprint(raw), formCtxLn(rt, ln))))
 	} else {
 		tabsMu.Lock()
 		v, ok := tabsActive[n]
@@ -312,7 +312,7 @@ func tabsActiveIndex(n *model.Node, rt *runtime.Runtime, count int) int {
 		} else if raw, has := n.Prop("active"); has {
 			// A literal `active` seeds the uncontrolled default (HTML: it
 			// renders client-side qormTab switching with that initial tab).
-			i = int(asFloat64(runtime.EvalBinding(fmt.Sprint(raw), map[string]any{"state": rt.State})))
+			i = int(asFloat64(runtime.EvalBinding(fmt.Sprint(raw), formCtxLn(rt, ln))))
 		}
 	}
 	if i < 0 {

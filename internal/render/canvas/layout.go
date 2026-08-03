@@ -45,6 +45,11 @@ func layout(ops *op.Ops, root *model.Node, size image.Point, rt *runtime.Runtime
 		return nil, false, nil // the whole scene is conditionally hidden
 	}
 
+	// 1b. Fold text that overflows its column (wrap.go). This must run after
+	// measure (sizes known) and before layout (origins assigned); it repairs
+	// ancestor heights so pass 2 sees consistent boxes.
+	wrapTree(rootNode, bounds.Dx())
+
 	// 2. Layout pass (top-down) builds the scene graph
 	items := map[graph.Node]itemInstance{}
 	overlays := []graph.Node{}

@@ -26,12 +26,12 @@ type Link struct{}
 
 // linkLabel resolves the link text like the HTML labelOf (render_style.go:587:
 // label, then text), evaluating {{...}} bindings against state.
-func linkLabel(n *model.Node, rt *runtime.Runtime) string {
+func linkLabel(n *model.Node, ln *canvas.LayoutNode, rt *runtime.Runtime) string {
 	raw := n.Label
 	if raw == "" {
 		raw = n.Text
 	}
-	return strings.TrimSpace(fmt.Sprint(runtime.EvalBinding(raw, map[string]any{"state": rt.State})))
+	return strings.TrimSpace(fmt.Sprint(runtime.EvalBinding(raw, formCtxLn(rt, ln))))
 }
 
 // accentColor resolves the link ink: palette "accent", then "primary", then
@@ -61,7 +61,7 @@ func (Link) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale 
 		scale = 1
 	}
 	fs := linkFontSize(n) * scale
-	w = int(canvas.MeasureText(linkLabel(n, rt), float64(fs)))
+	w = int(canvas.MeasureText(linkLabel(n, nil, rt), float64(fs)))
 	h = int(float64(fs) * 1.2)
 	return
 }
@@ -78,7 +78,7 @@ func (Link) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.N
 	if fs == 0 {
 		fs = 14 * scale
 	}
-	label := linkLabel(ln.Node, rt)
+	label := linkLabel(ln.Node, ln, rt)
 	if label == "" {
 		return nil
 	}

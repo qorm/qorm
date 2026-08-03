@@ -119,7 +119,7 @@ func (Spinner) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) dra
 	}
 
 	track := themeColor(rt, "separator", color.RGBA{198, 198, 200, 255})
-	arc := progressFillColor(ln.Node, rt) // color prop wins, accent default
+	arc := progressFillColor(ln.Node, ln, rt) // color prop wins, accent default
 
 	centre := spinAngle(spinNow().Sub(spinStartFor(ln.Node)))
 	bmp := rasterSpin(sz, th, centre, track, arc)

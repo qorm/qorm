@@ -246,6 +246,16 @@ func (e *Engine) RenderInto(size image.Point, scale int, target *image.RGBA) (bo
 	// before resolveTheme/layout read rt.State for the new frame.
 	e.drainMutations()
 
+	// Scene enter hooks drain here too — the runtime marks pendingEnter on
+	// creation/navigation and each host picks its drain point (the server
+	// drains before rendering); the canvas host had none, so onEnter data
+	// (seeded lists, loaded state) never reached the native window. Drain
+	// before the frame so the hook's writes are exactly what it lays out.
+	if rt.PendingEnter() {
+		rt.RunPendingEnter()
+		e.dirty.Store(true)
+	}
+
 	if !e.dirty.Load() && !e.animating.Load() {
 		return false, st
 	}

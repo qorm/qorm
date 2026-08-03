@@ -100,6 +100,7 @@ type NodeStyle struct {
 	MinWidth, MaxWidth   int
 	MinHeight, MaxHeight int
 	Align                string
+	AlignSelf            string // CSS align-self (style/layout alignSelf) — distinct from Align (align-items)
 	Justify              string
 	FontSize             int
 	FontWeight           int
@@ -380,6 +381,9 @@ func parseStyle(n *model.Node, rt *runtime.Runtime, sc ...*listScope) NodeStyle 
 		if justify, ok := n.Layout["justify"].(string); ok {
 			s.Justify = justify
 		}
+		if as, ok := n.Layout["alignSelf"].(string); ok {
+			s.AlignSelf = as
+		}
 		if width, ok := n.Layout["width"].(string); ok && width == "fill" {
 			s.WidthRaw = "fill"
 		}
@@ -453,6 +457,9 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 	// --- Colors (all go through resolveColor) ---
 	if bg, ok := esp(style["background"]).(string); ok {
 		s.Background = resolveColor(bg, rt)
+	}
+	if as, ok := esp(style["alignSelf"]).(string); ok {
+		s.AlignSelf = as
 	}
 	if cStr, ok := esp(style["color"]).(string); ok {
 		s.Color = resolveColor(cStr, rt)

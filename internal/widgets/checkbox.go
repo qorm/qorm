@@ -82,7 +82,7 @@ func (c *Checkbox) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int)
 	box.Y = boxY
 	box.Width, box.Height = boxS, boxS
 	box.BorderRadius = 4 * float64(scale)
-	if c.checked(ln.Node, rt) {
+	if c.checked(ln.Node, ln, rt) {
 		box.Fill = formAccent(rt)
 		checkMark(g, 0, boxY, boxS, color.RGBA{255, 255, 255, 255})
 	} else {
@@ -113,7 +113,7 @@ func (c *Checkbox) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.Po
 	// blurs any input edit session via the engine's syncEditSession.
 	inter.Focused = n
 	inter.FocusVisible = false
-	next := !c.checked(n, rt)
+	next := !c.checked(n, nil, rt)
 	if path := formBoundPath(n.Value); path != "" {
 		rt.SetStatePath(path, next)
 	} else {
@@ -130,9 +130,9 @@ func (c *Checkbox) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.Po
 // uncontrolled case — the user's local toggle wins over the `checked` prop,
 // which is only the INITIAL state (the HTML checked attribute vs the live
 // property).
-func (c *Checkbox) checked(n *model.Node, rt *runtime.Runtime) bool {
+func (c *Checkbox) checked(n *model.Node, ln *canvas.LayoutNode, rt *runtime.Runtime) bool {
 	if formBoundPath(n.Value) != "" {
-		return formTruthy(runtime.EvalBinding(n.Value, formCtx(rt)))
+		return formTruthy(runtime.EvalBinding(n.Value, formCtxLn(rt, ln)))
 	}
 	c.mu.Lock()
 	lv, ok := c.local[n]
@@ -141,7 +141,7 @@ func (c *Checkbox) checked(n *model.Node, rt *runtime.Runtime) bool {
 		return lv
 	}
 	if v, ok := n.Prop("checked"); ok {
-		return formTruthy(runtime.EvalBinding(fmt.Sprint(v), formCtx(rt)))
+		return formTruthy(runtime.EvalBinding(fmt.Sprint(v), formCtxLn(rt, ln)))
 	}
 	return false
 }
@@ -194,6 +194,20 @@ func formCtx(rt *runtime.Runtime) map[string]any {
 		return map[string]any{}
 	}
 	return map[string]any{"state": rt.State}
+}
+
+// formCtxLn is formCtx plus the repeat-instance scope riding the LayoutNode
+// (canvas.LayoutNode.EvalVars): inside a list item, {{item.x}} in a widget
+// prop (badge label, avatar initials, a bound form value) resolves instead
+// of expanding to nil.
+func formCtxLn(rt *runtime.Runtime, ln *canvas.LayoutNode) map[string]any {
+	ctx := formCtx(rt)
+	if ln != nil {
+		for k, v := range ln.EvalVars {
+			ctx[k] = v
+		}
+	}
+	return ctx
 }
 
 // formTruthy mirrors the HTML renderer's asBool (render_style.go:1042).

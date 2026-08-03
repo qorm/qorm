@@ -45,7 +45,7 @@ func (Avatar) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw
 	// resolves src against the app's BaseDir jail, decodes/caches and paints
 	// a grey placeholder box on failure; borderRadius = half the box clips
 	// the bitmap to the circle (cover fit, the HTML object-fit:cover).
-	if avatarSrc(ln.Node, rt) != "" {
+	if avatarSrc(ln.Node, ln, rt) != "" {
 		return canvas.RecordImage(ln.Node, rt, ln.Width, ln.Height, radius)
 	}
 
@@ -56,7 +56,7 @@ func (Avatar) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw
 
 	text := ""
 	ink := color.RGBA{255, 255, 255, 255}
-	if initials := avatarInitials(ln.Node, rt); initials != "" {
+	if initials := avatarInitials(ln.Node, ln, rt); initials != "" {
 		// HTML hardcodes #6366f1 behind initials; the canvas palette's nearest
 		// token is secondary, with the HTML colour as the theme-less fallback.
 		disc.Fill = themeColor(rt, "secondary", color.RGBA{0x63, 0x66, 0xf1, 255})
@@ -90,28 +90,32 @@ func (Avatar) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw
 
 // avatarSrc evaluates the interpolated `src` prop ({{state.x}} resolves, like
 // the HTML path's interp, render_media.go:89).
-func avatarSrc(n *model.Node, rt *runtime.Runtime) string {
+func avatarSrc(n *model.Node, ln *canvas.LayoutNode, rt *runtime.Runtime) string {
 	raw, ok := n.Prop("src")
 	if !ok {
 		return ""
 	}
-	return strings.TrimSpace(fmt.Sprint(runtime.EvalBinding(fmt.Sprint(raw), map[string]any{"state": rt.State})))
+	return strings.TrimSpace(fmt.Sprint(runtime.EvalBinding(fmt.Sprint(raw), formCtxLn(rt, ln))))
 }
 
 // avatarInitials resolves the initials text: the `initials` prop, falling
-// back to `name` (HTML propStrOr(n, "initials", propStr(n, "name"))),
+// back to `name` (HTML propStrOr(n, "initials", propStr(n, "name"))), then
+// the node text (the icon widget's third source — a plain-text avatar in a
+// list template is written {"type":"avatar","text":"{{item.name}}"}),
 // interpolated, rune-safely truncated to two glyphs and uppercased.
-func avatarInitials(n *model.Node, rt *runtime.Runtime) string {
+func avatarInitials(n *model.Node, ln *canvas.LayoutNode, rt *runtime.Runtime) string {
 	raw := ""
 	if v, ok := n.Prop("initials"); ok {
 		raw = fmt.Sprint(v)
 	} else if v, ok := n.Prop("name"); ok {
 		raw = fmt.Sprint(v)
+	} else if n.Text != "" {
+		raw = n.Text
 	}
 	if raw == "" {
 		return ""
 	}
-	s := fmt.Sprint(runtime.EvalBinding(raw, map[string]any{"state": rt.State}))
+	s := fmt.Sprint(runtime.EvalBinding(raw, formCtxLn(rt, ln)))
 	if rs := []rune(s); len(rs) > 2 {
 		s = string(rs[:2]) // rune-safe: don't split a multibyte glyph
 	}

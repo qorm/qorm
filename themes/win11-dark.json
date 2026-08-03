@@ -92,9 +92,6 @@
       "borderRadius": 2,
       "backgroundColor": "inputBg"
     },
-    "divider": {
-      "backgroundColor": "separator"
-    },
     "select": {
       "borderRadius": 10,
       "hoveredBackgroundColor": "inputBg",

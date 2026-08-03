@@ -59,7 +59,7 @@ func (s *Switch) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) d
 	if scale < 1 {
 		scale = 1
 	}
-	on := s.checked(ln.Node, rt)
+	on := s.checked(ln.Node, ln, rt)
 	trackW := float64(switchTrackW * scale)
 	trackH := float64(switchTrackH * scale)
 	trackY := (float64(ln.Height) - trackH) / 2
@@ -107,7 +107,7 @@ func (s *Switch) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.Poin
 	}
 	inter.Focused = n
 	inter.FocusVisible = false
-	next := !s.checked(n, rt)
+	next := !s.checked(n, nil, rt)
 	if path := formBoundPath(n.Value); path != "" {
 		rt.SetStatePath(path, next)
 	} else {
@@ -121,9 +121,9 @@ func (s *Switch) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.Poin
 
 // checked resolves exactly like Checkbox.checked (binding, then the local
 // toggle, then the `checked` prop as the initial state).
-func (s *Switch) checked(n *model.Node, rt *runtime.Runtime) bool {
+func (s *Switch) checked(n *model.Node, ln *canvas.LayoutNode, rt *runtime.Runtime) bool {
 	if formBoundPath(n.Value) != "" {
-		return formTruthy(runtime.EvalBinding(n.Value, formCtx(rt)))
+		return formTruthy(runtime.EvalBinding(n.Value, formCtxLn(rt, ln)))
 	}
 	s.mu.Lock()
 	lv, ok := s.local[n]
@@ -132,7 +132,7 @@ func (s *Switch) checked(n *model.Node, rt *runtime.Runtime) bool {
 		return lv
 	}
 	if v, ok := n.Prop("checked"); ok {
-		return formTruthy(runtime.EvalBinding(fmt.Sprint(v), formCtx(rt)))
+		return formTruthy(runtime.EvalBinding(fmt.Sprint(v), formCtxLn(rt, ln)))
 	}
 	return false
 }

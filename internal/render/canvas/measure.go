@@ -57,6 +57,15 @@ type LayoutNode struct {
 	// the offset against exactly this.
 	ContentH int
 
+	// EvalVars carries the repeat-instance evaluation scope (item/index/…) to
+	// every descendant of the instance — ItemScope stays root-only for the
+	// event sidecar, EvalVars is for prop evaluation (widgets' formCtx merge).
+	EvalVars map[string]any
+
+	// Wrapped holds a text node's folded lines when the single-line measure
+	// exceeded the container's available width (wrap.go). Nil = unwrapped.
+	Wrapped []string
+
 	// Retained mode scene graph node backing this layout
 	GraphNode graph.Node
 }
@@ -118,6 +127,12 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 	}
 	if sc != nil {
 		ln.ItemIndex = sc.index
+		// The evaluation scope rides EVERY descendant of the instance (the
+		// root-only ItemScope keys the event sidecar and must stay unique):
+		// a widget that evaluates its own props (badge label, avatar
+		// initials) reads EvalVars to see {{item.x}} — previously those
+		// bindings expanded to nil inside repeat templates.
+		ln.EvalVars = sc.vars
 	}
 	// Entrance animation (the `animation` prop): a running entrance must keep
 	// frames coming, so it joins NeedsRedraw here and lands on the group in
@@ -355,15 +370,23 @@ func evalCtxScope(rt *runtime.Runtime, sc *listScope) map[string]any {
 }
 
 // evalCtx is the binding scope canvas evaluates node text, style values and
-// conditions against: `state` plus `viewport` (Layout feeds the live surface
-// size into rt.Viewport). The HTML renderer additionally offers the
-// t/route/computed roots (render.go:345); those are not wired in the native
-// engine yet, so bindings over them miss and expand to "".
+// conditions against: `state`, `viewport` (Layout feeds the live surface
+// size into rt.Viewport), `t` (the i18n catalog) and `route` (route
+// params) — the same roots the HTML renderer offers (render.go:345), so a
+// scene written for the browser reads identically in the native engine.
 func evalCtx(rt *runtime.Runtime) map[string]any {
 	if rt == nil {
 		return map[string]any{}
 	}
-	return map[string]any{"state": rt.State, "viewport": rt.ViewportVars()}
+	ctx := map[string]any{
+		"state":    rt.State,
+		"viewport": rt.ViewportVars(),
+		"route":    rt.RouteParams,
+	}
+	if rt.App != nil {
+		ctx["t"] = rt.Catalog()
+	}
+	return ctx
 }
 
 // nodeVisible evaluates an `if` / `visible` / `show` condition (default
@@ -509,6 +532,17 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 
 	if ln.Style.WidthRaw == "fill" {
 		ln.Width = bounds.Dx() - ln.Style.MarginLeft - ln.Style.MarginRight
+	}
+	// Auto width never grows past the container's available width: a block
+	// box takes the available width and its content overflows INSIDE (CSS).
+	// Without this clamp one over-wide child (an unwrapped long text)
+	// balloons every ancestor and, through flex stretch, every sibling —
+	// netdemo's hint texts pushed the body column to 3702px and the buttons'
+	// centred labels off-screen with it.
+	if ln.Style.WidthRaw == "" && ln.Style.Width <= 0 {
+		if avail := bounds.Dx() - ln.Style.MarginLeft - ln.Style.MarginRight; avail >= 0 && ln.Width > avail {
+			ln.Width = avail
+		}
 	}
 	if ln.Style.HeightRaw == "fill" {
 		ln.Height = bounds.Dy() - ln.Style.MarginTop - ln.Style.MarginBot
@@ -674,29 +708,42 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 			fs = 14
 		}
 
-		txtW := int(MeasureText(ln.Text, float64(fs)))
-		txtH := int(float64(fs) * 1.2)
-
-		tx := 0
-		if ln.Style.TextAlign == "center" || ln.Node.Type == "button" {
-			tx = (ln.Width - txtW) / 2
-		}
-
-		ty := (ln.Height - txtH) / 2
-
+		txtH := textLineH(fs)
 		c := ln.Style.Color
 		if c.A == 0 {
 			c = color.RGBA{255, 255, 255, 255}
 		}
 
-		textNode := graph.NewText()
-		textNode.X = float64(tx)
-		textNode.Y = float64(ty)
-		textNode.Content = ln.Text
-		textNode.Fill = c
-		textNode.FontSize = float64(fs)
-		textNode.FontWeight = ln.Style.FontWeight
-		group.AddChild(textNode)
+		if len(ln.Wrapped) > 0 {
+			// Folded block text (wrap.go): one graph text per line, all
+			// left-aligned at the box origin — a wrapped paragraph has no
+			// centre alignment in v1.
+			for i, line := range ln.Wrapped {
+				textNode := graph.NewText()
+				textNode.X = 0
+				textNode.Y = float64(i * txtH)
+				textNode.Content = line
+				textNode.Fill = c
+				textNode.FontSize = float64(fs)
+				textNode.FontWeight = ln.Style.FontWeight
+				group.AddChild(textNode)
+			}
+		} else {
+			txtW := int(MeasureText(ln.Text, float64(fs)))
+			tx := 0
+			if ln.Style.TextAlign == "center" || ln.Node.Type == "button" {
+				tx = (ln.Width - txtW) / 2
+			}
+			ty := (ln.Height - txtH) / 2
+			textNode := graph.NewText()
+			textNode.X = float64(tx)
+			textNode.Y = float64(ty)
+			textNode.Content = ln.Text
+			textNode.Fill = c
+			textNode.FontSize = float64(fs)
+			textNode.FontWeight = ln.Style.FontWeight
+			group.AddChild(textNode)
+		}
 	}
 
 	cx := ln.Style.Padding
@@ -737,12 +784,10 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 	innerW := ln.Width - ln.Style.Padding*2
 	innerH := ln.Height - ln.Style.Padding*2
 
-	if isRow && ln.Style.Justify == "center" {
-		cx += (innerW - totalCW) / 2
-	}
-	if !isRow && !isStack && !isGrid && ln.Style.Justify == "center" {
-		cy += (innerH - totalCH) / 2
-	}
+	// Justify is the flex kernel's job (flexStyle forwards it; the kernel
+	// supports all six values, this hand loop only knew center). Applying it
+	// here too double-offsets every child (the form example's centred form
+	// landed one justify-height too low). cx/cy stay at the padding corner.
 
 	// Grid track geometry: columns share the inner width equally (1fr), never
 	// narrower than the widest child; row heights come from the tallest child
@@ -781,10 +826,11 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 	}
 
 	for i, child := range ln.Children {
-		// Set alignment for cross axis
-		if child.Style.Align == "" {
-			child.Style.Align = ln.Style.Align // inherit parent alignItems
-		}
+		// CSS align-items does NOT inherit into a child's align-self (that is
+		// what the removed "inherit parent alignItems" line did — a template
+		// row with layout.align:center, meaning center its own children, was
+		// also centred in the list instead of stretching full width). A child
+		// self-aligns only via its own alignSelf key.
 
 		var cbounds image.Rectangle
 		switch {
@@ -798,6 +844,12 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 			// unsupported instead of degrading silently.
 			if child.Style.Justify == "" {
 				child.Style.Justify = ln.Style.Justify
+			}
+			if child.Style.Align == "" {
+				// The stack is NOT a flex container: its align/justify ARE
+				// each child's positioning props (the flex-row conflation
+				// does not apply here).
+				child.Style.Align = ln.Style.Align
 			}
 			cbounds = image.Rect(cx, cy, cx+innerW, cy+innerH)
 		case isGrid:
