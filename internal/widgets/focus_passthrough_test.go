@@ -12,6 +12,23 @@ import (
 // isBlue (pure B) and from most tab-bar chrome.
 func isFocusBlue(c color.RGBA) bool { return c.R < 40 && c.B > 200 && c.G > 80 && c.G < 160 }
 
+// A Tab-focused interactive WIDGET (checkbox) renders its keyboard focus ring:
+// the ring is drawn by the engine's generic chrome path for any node, and
+// R2-1 made registered widgets reachable by Tab, so the two compose.
+func TestWidgetKeyboardFocusRing(t *testing.T) {
+	cb := &model.Node{Type: "checkbox", ID: "cb"}
+	e, surf := formEngine(t, cb)
+	e.DrawFrame(surf)
+	e.HandleKey(canvas.KeyInput{Key: "tab", Down: true})
+	if e.Inter.Focused != cb {
+		t.Fatal("tab must focus the checkbox widget")
+	}
+	e.DrawFrame(surf)
+	if n := countPixels(surf.Frame(), isFocusBlue); n == 0 {
+		t.Error("a Tab-focused widget must render its keyboard focus ring")
+	}
+}
+
 // A container widget (tabs) lays its panel children out with the frame's
 // interaction (LayoutSinks.Inter), so keyboard focus reaches into the panel
 // and the focus ring renders. Before the passthrough these were laid out with
