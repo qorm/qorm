@@ -154,20 +154,23 @@ func heightsFromChildren(ln *LayoutNode) {
 		}
 	}
 	// A scroll viewport's box stays as measured (explicit/fill height is the
-	// whole point); only its content height moves with the folded children.
+	// whole point); only its content height moves with the folded children —
+	// and it too only grows (same reason as autoH below).
 	if isScrollType(ln.Node.Type) {
-		ln.ContentH = contentH + ln.Style.Padding*2
+		if contentH+ln.Style.Padding*2 > ln.ContentH {
+			ln.ContentH = contentH + ln.Style.Padding*2
+		}
 		return
 	}
-	// Only AUTO heights track the (re-folded) children: an explicit or fill
-	// height is the author's box and must survive the wrap pass (a fill-height
-	// root shrunk to content height breaks justify:center — the form example
-	// glued to the window bottom).
+	// Only AUTO heights track the (re-folded) children, and they only GROW:
+	// folding adds lines, it never removes any — while a widget's own
+	// measured box (appbar 44px, select, switch) must never shrink to its
+	// children's smaller content height.
 	autoH := ln.Style.Height <= 0 && ln.Style.HeightRaw != "fill"
-	if autoH {
+	if autoH && contentH+ln.Style.Padding*2 > ln.Height {
 		ln.Height = contentH + ln.Style.Padding*2
 	}
-	if isRow && ln.Style.WidthRaw == "" && ln.Style.Width <= 0 {
+	if isRow && ln.Style.WidthRaw == "" && ln.Style.Width <= 0 && contentW+ln.Style.Padding*2 > ln.Width {
 		ln.Width = contentW + ln.Style.Padding*2
 	}
 }

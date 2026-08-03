@@ -72,7 +72,9 @@ func parseColor(c string) color.RGBA {
 			return color.RGBA{uint8(r), uint8(g), uint8(b), uint8(a)}
 		}
 	}
-	return color.RGBA{0, 0, 0, 255}
+	// An unparseable colour must not paint (the old opaque-black fallback
+	// turned any author typo — and every gradient — into a black box).
+	return color.RGBA{0, 0, 0, 0}
 }
 
 type NodeStyle struct {
@@ -208,6 +210,11 @@ func resolveFocusColor(rt *runtime.Runtime) color.RGBA {
 // resolveColor resolves a color string against the live Theme first, then
 // defaultVars, then literal hex. This is the single authoritative color
 // resolver for the canvas engine.
+// ResolveColor exports resolveColor for the widgets library: author props
+// carry var(--…) spellings (design tokens, HTML theme-var aliases) that the
+// widgets-side themeColor cannot unwrap.
+func ResolveColor(c string, rt *runtime.Runtime) color.RGBA { return resolveColor(c, rt) }
+
 func resolveColor(c string, rt *runtime.Runtime) color.RGBA {
 	c = strings.TrimSpace(c)
 	if c == "" {
@@ -253,6 +260,21 @@ func resolveColor(c string, rt *runtime.Runtime) color.RGBA {
 			return col
 		}
 		return color.RGBA{255, 0, 255, 255} // debug magenta
+	}
+
+	// 1c. Gradient: the software rasterizer has no gradient paint — degrade a
+	// linear-gradient(...) to its first #hex stop instead of nothing/black.
+	if strings.HasPrefix(c, "linear-gradient(") {
+		if i := strings.Index(c, "#"); i >= 0 {
+			rest := c[i+1:]
+			end := strings.IndexAny(rest, ",%) ")
+			if end > 0 {
+				rest = rest[:end]
+			}
+			if col := parseColor("#" + rest); col.A > 0 {
+				return col
+			}
+		}
 	}
 
 	// 2. Theme palette name (e.g. "primary", "surface")

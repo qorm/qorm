@@ -93,10 +93,8 @@ func progressPct(n *model.Node, ln *canvas.LayoutNode, rt *runtime.Runtime) floa
 func progressFillColor(n *model.Node, ln *canvas.LayoutNode, rt *runtime.Runtime) color.RGBA {
 	if raw, ok := n.Prop("color"); ok {
 		s := fmt.Sprint(runtime.EvalBinding(fmt.Sprint(raw), formCtxLn(rt, ln)))
-		if rt != nil && rt.Theme != nil {
-			if c, ok := rt.Theme.GetColor(s); ok {
-				return c
-			}
+		if c := canvas.ResolveColor(s, rt); c.A > 0 {
+			return c
 		}
 	}
 	return themeColor(rt, "primary", color.RGBA{0, 122, 255, 255})
