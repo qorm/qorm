@@ -143,6 +143,55 @@ func TestListItemsKeyboardFocusable(t *testing.T) {
 	}
 }
 
+// An EMPTY list's template focusable is skipped by Tab: focus must land on a
+// rendered instance (the template has none), so Tab moves on to the button.
+func TestListEmptyTemplateSkipped(t *testing.T) {
+	tpl := &model.Node{Type: "button", ID: "item", Props: map[string]any{"label": "x"}}
+	emptyList := &model.Node{Type: "list", ID: "l", Data: "{{state.items}}", Template: tpl}
+	btn := &model.Node{Type: "button", ID: "btn"}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{emptyList, btn}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}}
+	rt := runtime.New(app)
+	rt.State["items"] = []any{}
+	e := NewEngine(rt, SoftwareRenderer{})
+	surf := NewHeadlessSurface(image.Pt(400, 400))
+	e.DrawFrame(surf)
+
+	e.HandleKey(KeyInput{Key: "tab", Down: true})
+	if e.Inter.Focused != btn {
+		t.Fatalf("tab must skip the empty list's template and focus the button, got %v", e.Inter.Focused)
+	}
+}
+
+// Enter activates a focused list item: nodeMounted descends the renderItem
+// template, so the activation guard (which re-checks mounted) passes.
+func TestListItemEnterActivates(t *testing.T) {
+	tpl := &model.Node{Type: "button", ID: "item", OnPress: &model.Invoke{Name: "go"}}
+	list := &model.Node{Type: "list", ID: "l", Data: "{{state.items}}", Template: tpl}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{list}}
+	app := &model.App{
+		Entry:  "main",
+		Scenes: map[string]*model.Node{"main": root},
+		Actions: map[string]*model.Action{
+			"go": {ID: "go", Steps: []model.Step{{Type: "state.set", Path: "hit", Value: "yes"}}},
+		},
+	}
+	rt := runtime.New(app)
+	rt.State["items"] = names("a", "b", "c")
+	e := NewEngine(rt, SoftwareRenderer{})
+	surf := NewHeadlessSurface(image.Pt(400, 400))
+	e.DrawFrame(surf)
+
+	e.HandleKey(KeyInput{Key: "tab", Down: true})
+	if e.Inter.Focused != tpl {
+		t.Fatalf("tab must focus the list item template, got %v", e.Inter.Focused)
+	}
+	e.HandleKey(KeyInput{Key: "return", Down: true})
+	if rt.State["hit"] != "yes" {
+		t.Error("Enter must activate the focused list item (dispatch its onPress)")
+	}
+}
+
 // A state change re-expands the repeat on the next frame: items added and
 // removed show up without any identity bookkeeping going stale.
 func TestListDataChangeRerenders(t *testing.T) {

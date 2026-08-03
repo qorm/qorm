@@ -452,6 +452,12 @@ func nodeMounted(n, target *model.Node, rt *runtime.Runtime) bool {
 			return true
 		}
 	}
+	if n.Template != nil {
+		// A focused list item lives in the renderItem template; without this,
+		// Enter/Space activation (which re-checks nodeMounted) would always
+		// refuse a template-focused node even with live instances.
+		return nodeMounted(n.Template, target, rt)
+	}
 	return false
 }
 

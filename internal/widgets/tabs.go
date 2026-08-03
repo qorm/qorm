@@ -32,11 +32,10 @@ func init() {
 // active panel (canvas.PerformLayout) and drops ln.Children so the generic
 // pass does not re-mount every panel on top of the tab bar (the Widget
 // contract is leaf-shaped: children would flow at the box origin). The panel
-// subtree is laid out with a nil Interaction, so pressed/hovered/focus
-// visuals inside a panel do not light up and pointer events inside the panel
+// subtree is laid out with the frame's interaction (LayoutSinks.Inter), so
+// hover/focus visuals inside a panel light up; pointer events inside the panel
 // route to this widget (InteractiveWidget owns its subtree's input) which
-// ignores them — panel onPress handlers are inert in v1. Handlers and hit
-// testing stay wired, so the limitation is visual/dispatch-only.
+// forwards them to the child laid out there.
 type Tabs struct{}
 
 // Tab-bar geometry in logical px (× scale): 14px label, 14px horizontal
@@ -186,7 +185,7 @@ func (t Tabs) record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int, sink
 			}
 			top := barH + tabPanelPad*scale
 			bounds := image.Rect(0, top, ln.Width, top+cln.Height+cln.Style.MarginTop+cln.Style.MarginBot)
-			if pn := canvas.PerformLayoutWithSinks(cln, bounds, image.Pt(ln.AbsX, ln.AbsY), sinks.Inter, rt, scale, sinks); pn != nil {
+			if pn := canvas.PerformLayoutWithSinks(cln, bounds, image.Pt(ln.AbsX, ln.AbsY), canvas.SinksInter(sinks), rt, scale, sinks); pn != nil {
 				g.AddChild(pn)
 			}
 			break

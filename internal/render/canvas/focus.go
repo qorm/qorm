@@ -34,15 +34,16 @@ func Focusables(root *model.Node, rt *runtime.Runtime) []*model.Node {
 			items = append(items, item{node: n, idx: idx, tab: tabIndex(n)})
 		}
 		idx++
-		for _, c := range n.Children {
-			walk(c)
-		}
-		// A list/gridview's content is its renderItem TEMPLATE, not Children —
-		// walk it so items join the Tab order. The engine focuses the template's
-		// FIRST instance (FocusedItem 0); cycling through instances is a later
-		// milestone.
 		if n.Template != nil {
+			// A list/gridview's content is its renderItem TEMPLATE, rendered
+			// INSTEAD of Children (measure parity) — walk it so items join the
+			// Tab order. The engine focuses the template's FIRST instance
+			// (FocusedItem 0); cycling through instances is a later milestone.
 			walk(n.Template)
+		} else {
+			for _, c := range n.Children {
+				walk(c)
+			}
 		}
 	}
 	walk(root)

@@ -798,7 +798,21 @@ func (e *Engine) HandleKey(k KeyInput) bool {
 				// Focusables walks the model tree, which holds a list's
 				// template once — never the repeat instances — so keyboard
 				// focus always lands outside lists and the item companion is 0.
-				e.Inter.Focused = NextFocus(Focusables(e.sceneRoot(), rt), e.Inter.Focused, !k.Shift)
+				list := Focusables(e.sceneRoot(), rt)
+				// Advance past focusables with no rendered instance (an empty
+				// list's template, a conditionally-hidden node): focus must
+				// land somewhere visible, so the ring actually draws.
+				f := NextFocus(list, e.Inter.Focused, !k.Shift)
+				for range list {
+					if f == nil {
+						break
+					}
+					if e.findGroupByModelIndex(f, 0) != nil {
+						break
+					}
+					f = NextFocus(list, f, !k.Shift)
+				}
+				e.Inter.Focused = f
 				e.Inter.FocusedItem = 0
 				if e.Inter.Focused != nil {
 					// Keyboard focus does not route through the widget's

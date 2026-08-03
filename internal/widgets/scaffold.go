@@ -76,7 +76,7 @@ func (s Scaffold) record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int, 
 		case "appbar":
 			stretchW(cln)
 			bounds := image.Rect(0, top, ln.Width, top+cln.Height)
-			if cn := canvas.PerformLayoutWithSinks(cln, bounds, abs, sinks.Inter, rt, scale, sinks); cn != nil {
+			if cn := canvas.PerformLayoutWithSinks(cln, bounds, abs, canvas.SinksInter(sinks), rt, scale, sinks); cn != nil {
 				g.AddChild(cn)
 			}
 			top += cln.Height
@@ -109,7 +109,7 @@ func (s Scaffold) record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int, 
 			ch = bodyH
 		}
 		bounds := image.Rect(0, bodyY, ln.Width, bodyY+ch)
-		if cn := canvas.PerformLayoutWithSinks(cln, bounds, abs, sinks.Inter, rt, scale, sinks); cn != nil {
+		if cn := canvas.PerformLayoutWithSinks(cln, bounds, abs, canvas.SinksInter(sinks), rt, scale, sinks); cn != nil {
 			g.AddChild(cn)
 		}
 		bodyY += ch
@@ -120,7 +120,7 @@ func (s Scaffold) record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int, 
 		stretchW(cln)
 		by -= cln.Height
 		bounds := image.Rect(0, by, ln.Width, by+cln.Height)
-		if cn := canvas.PerformLayoutWithSinks(cln, bounds, abs, sinks.Inter, rt, scale, sinks); cn != nil {
+		if cn := canvas.PerformLayoutWithSinks(cln, bounds, abs, canvas.SinksInter(sinks), rt, scale, sinks); cn != nil {
 			g.AddChild(cn)
 		}
 	}

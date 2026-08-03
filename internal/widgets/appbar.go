@@ -107,7 +107,7 @@ func (a AppBar) record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int, si
 			if y < 0 {
 				y = 0
 			}
-			if cn := canvas.PerformLayoutWithSinks(cln, image.Rect(ax, y, ax+cw, y+ch), image.Pt(ln.AbsX, ln.AbsY), sinks.Inter, rt, scale, sinks); cn != nil {
+			if cn := canvas.PerformLayoutWithSinks(cln, image.Rect(ax, y, ax+cw, y+ch), image.Pt(ln.AbsX, ln.AbsY), canvas.SinksInter(sinks), rt, scale, sinks); cn != nil {
 				g.AddChild(cn)
 			}
 		}

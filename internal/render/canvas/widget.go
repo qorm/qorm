@@ -78,6 +78,17 @@ type InteractiveWidget interface {
 	HandlePointer(n *model.Node, rt *runtime.Runtime, p PointerInput, inter *Interaction, frame image.Rectangle) (redraw bool)
 }
 
+// SinksInter returns the interaction forwarded through the sinks, or nil when
+// sinks is nil — a ChildLayoutWidget's public Record path calls
+// PerformLayoutWithSinks with nil sinks (layout-only callers, widget tests),
+// so the panel layout must not dereference sinks blindly.
+func SinksInter(sinks *LayoutSinks) *Interaction {
+	if sinks == nil {
+		return nil
+	}
+	return sinks.Inter
+}
+
 // FocusHookWidget is an optional interface an InteractiveWidget may implement
 // to learn when KEYBOARD focus lands on it — the Tab/Shift-Tab path, which
 // never routes through HandlePointer. A widget that caches the engine's

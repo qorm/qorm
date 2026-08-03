@@ -27,10 +27,10 @@ func init() {
 // style opacity to the node's OWN group only, so the widget wraps the
 // children itself — Record mounts them (canvas.PerformLayout, the generic
 // column flow) inside a draw.Group carrying the animated Opacity and drops
-// ln.Children so the generic pass does not re-mount them opaque. Two honest
-// consequences: the subtree is laid out with a nil Interaction (pressed/
-// hovered/focus visuals and rings inside it do not light up; hit testing and
-// onPress dispatch stay wired), and a mid-flight tween cannot set
+// ln.Children so the generic pass does not re-mount them opaque. The subtree
+// is laid out with the frame's interaction (LayoutSinks.Inter), so hover and
+// focus visuals inside it light up. One honest consequence: a mid-flight
+// tween cannot set
 // LayoutNode.NeedsRedraw (the Widget interface has no redraw channel) — so
 // the widget is an AnimatedWidget instead, keeping the frame loop alive via
 // sceneAnimating until the tween settles.
@@ -122,7 +122,7 @@ func (a AnimOpacity) record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale in
 		cw := child.Width + child.Style.MarginLeft + child.Style.MarginRight
 		ch := child.Height + child.Style.MarginTop + child.Style.MarginBot
 		bounds := image.Rect(ln.Style.Padding, cy, ln.Style.Padding+cw, cy+ch)
-		if cn := canvas.PerformLayoutWithSinks(child, bounds, image.Pt(ln.AbsX, ln.AbsY), sinks.Inter, rt, scale, sinks); cn != nil {
+		if cn := canvas.PerformLayoutWithSinks(child, bounds, image.Pt(ln.AbsX, ln.AbsY), canvas.SinksInter(sinks), rt, scale, sinks); cn != nil {
 			g.AddChild(cn)
 		}
 		cy += ch + ln.Style.Gap
