@@ -67,7 +67,18 @@ func isFocusable(n *model.Node, rt *runtime.Runtime) bool {
 			return b // explicit opt-in or opt-out wins
 		}
 	}
-	return n.Type == "button" || n.Type == "input" || n.OnPress != nil
+	if n.Type == "button" || n.Type == "input" || n.OnPress != nil {
+		return true
+	}
+	// Registered interactive widgets (checkbox, switch, radio, slider, select,
+	// tabs, bottomnav, textarea, …) join the Tab order so the keyboard seam can
+	// reach them — they focus on pointer press today, Tab is the missing half.
+	if w, ok := LookupWidget(n.Type); ok {
+		if _, yes := w.(InteractiveWidget); yes {
+			return true
+		}
+	}
+	return false
 }
 
 func tabIndex(n *model.Node) int {

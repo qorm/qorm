@@ -1,10 +1,26 @@
 package canvas
 
 import (
+	"image"
 	"testing"
 
 	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/qorm/internal/render/graph"
+	"github.com/qorm/qorm/internal/runtime"
 )
+
+// mockInteractive is a registered InteractiveWidget so the widget-focus test
+// can assert that such types join the Tab order (the widgets package registers
+// the real ones, which canvas tests cannot import without a cycle).
+type mockInteractive struct{}
+
+func (mockInteractive) Measure(*model.Node, *runtime.Runtime, map[string]any, int) (int, int) {
+	return 40, 20
+}
+func (mockInteractive) Record(*LayoutNode, *runtime.Runtime, int) graph.Node { return nil }
+func (mockInteractive) HandlePointer(*model.Node, *runtime.Runtime, PointerInput, *Interaction, image.Rectangle) bool {
+	return false
+}
 
 // tree builds:
 //
@@ -51,6 +67,23 @@ func TestFocusablesOrderAndMembership(t *testing.T) {
 		if got[i] != byID[id] {
 			t.Errorf("position %d = %s, want %s (full: %v)", i, got[i].ID, id, ids(got))
 		}
+	}
+}
+
+// Registered interactive widgets (checkbox, slider, select, tabs, …) join the
+// Tab order so the keyboard seam can reach them — they focus on pointer press
+// today, Tab is the missing half.
+func TestFocusablesIncludeInteractiveWidgets(t *testing.T) {
+	RegisterWidget("mockcheck", mockInteractive{})
+
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{
+		{Type: "button", ID: "b"},
+		{Type: "mockcheck", ID: "c"},
+		{Type: "text", ID: "x"},
+	}}
+	got := ids(Focusables(root, nil))
+	if len(got) != 2 || got[0] != "b" || got[1] != "c" {
+		t.Fatalf("Focusables = %v, want [b c] (interactive widget joins Tab order)", got)
 	}
 }
 
