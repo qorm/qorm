@@ -50,10 +50,14 @@ const (
 	KeyUp
 )
 
-// ScrollEvent represents a mouse wheel or trackpad scroll interaction.
+// ScrollEvent represents a mouse wheel or trackpad scroll interaction. Ctrl is
+// true when the scroll carried the control modifier — macOS trackpad pinch is
+// delivered exactly this way (a precise scroll with the control flag set) — so
+// hosts can tell an infinite-canvas board's zoom gesture from a plain scroll.
 type ScrollEvent struct {
 	DeltaX float64
 	DeltaY float64
+	Ctrl   bool
 }
 
 func (ScrollEvent) isEvent() {}

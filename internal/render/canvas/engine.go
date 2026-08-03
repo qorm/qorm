@@ -3,6 +3,7 @@ package canvas
 import (
 	"fmt"
 	"image"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -99,8 +100,12 @@ type KeyInput struct {
 
 // ScrollInput is a mouse-wheel or trackpad scroll, in physical pixels per
 // notch/gesture tick (the host scales platform deltas like pointer coords).
+// Ctrl marks a control-modified scroll — macOS trackpad pinch (which AppKit
+// delivers as a precise scroll with the control flag) and Ctrl+wheel — which
+// an infinite-canvas board treats as zoom rather than scroll/pan.
 type ScrollInput struct {
 	DX, DY float64
+	Ctrl   bool
 }
 
 // FrameStats carries per-phase timings of one DrawFrame (Unity-style frame
@@ -374,6 +379,23 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 	e.lastPtr = geom.Point{X: p.X, Y: p.Y}
 	e.hasPtr = true
 
+	// An in-flight board pan owns the stream: the canvas follows the pointer
+	// before any widget sees the move, so dragging across a note doesn't fight
+	// the pan. Ends on release.
+	if e.Inter.Board.Active && e.Inter.Board.Panning {
+		if p.Type == PointerRelease {
+			e.Inter.Board.Panning = false
+			e.dirty.Store(true)
+			return true
+		}
+		if p.Type == PointerMove && p.Buttons > 0 {
+			e.Inter.Board.PanX = e.Inter.Board.PanOrigin.X + (p.X - e.Inter.Board.PanStart.X)
+			e.Inter.Board.PanY = e.Inter.Board.PanOrigin.Y + (p.Y - e.Inter.Board.PanStart.Y)
+			e.dirty.Store(true)
+			return true
+		}
+	}
+
 	// Registered interactive widgets claim their own event stream first: a
 	// pressed widget node keeps capture until release (drag), and a fresh hit
 	// routes to the nearest registered-interactive ancestor. Consumed events
@@ -424,6 +446,23 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 			e.dirty.Store(true)
 		}
 		return redraw || hoverMoved
+	}
+
+	// A blank-space press on an active board starts a pan (drag the empty
+	// canvas). A press on anything with a handler — a note's onTouchMove, a
+	// pressable, an interactive widget — falls through to the normal path so
+	// the note drags instead of the board.
+	if e.Inter.Board.Active && p.Type == PointerPress && boardBlank(hit, rt) {
+		e.Inter.Board.Panning = true
+		e.Inter.Board.PanStart = geom.Point{X: p.X, Y: p.Y}
+		e.Inter.Board.PanOrigin = geom.Point{X: e.Inter.Board.PanX, Y: e.Inter.Board.PanY}
+		// Blank-space press blurs focus (HTML parity), like the generic press
+		// path's empty hit does below.
+		e.Inter.Focused, e.Inter.FocusVisible = nil, false
+		e.Inter.FocusedItem = 0
+		e.syncEditSession()
+		e.dirty.Store(true)
+		return true
 	}
 
 	redraw := false
@@ -561,6 +600,11 @@ func (e *Engine) HandleScroll(s ScrollInput) bool {
 	if rt == nil || e.graphRoot == nil || !e.hasPtr {
 		return false
 	}
+	// A board's control-modified scroll (trackpad pinch, Ctrl+wheel) zooms at
+	// the cursor — never chained into viewport scrolling.
+	if e.Inter.Board.Active && s.Ctrl {
+		return e.boardZoom(e.lastPtr, s.DY)
+	}
 	hit := e.graphRoot.HitTest(e.lastPtr)
 	dy := s.DY
 	changed := false
@@ -578,10 +622,79 @@ func (e *Engine) HandleScroll(s ScrollInput) bool {
 		}
 		n = p
 	}
+	// An unconsumed wheel/trackpad scroll over a board pans the canvas — the
+	// board is the outer fallback consumer of scroll, so a wheel over empty
+	// whiteboard space drags the canvas instead of doing nothing. The sign
+	// mirrors scrollViewport (positive dy = toward content bottom → content
+	// shifts up, hence the subtract).
+	if dy != 0 && e.Inter.Board.Active {
+		e.Inter.Board.PanX -= s.DX
+		e.Inter.Board.PanY -= dy
+		changed = true
+	}
 	if changed {
 		e.dirty.Store(true)
 	}
 	return changed
+}
+
+// boardBlank reports whether the hit (and every ancestor) is bare board
+// background — no pressable, touch handler or interactive widget anywhere up
+// the chain — so the board may claim a blank-space press as a pan. Mirrors the
+// dispatch walk's conditions (disabled nodes are transparent).
+func boardBlank(hit graph.Node, rt *runtime.Runtime) bool {
+	for hit != nil {
+		b := hit.Base()
+		if m := b.Model; m != nil && !nodeDisabled(m, rt) {
+			if m.OnPress != nil || m.OnTouchStart != nil || m.OnTouchMove != nil || m.OnTouchEnd != nil {
+				return false
+			}
+			if w, ok := LookupWidget(m.Type); ok {
+				if _, yes := w.(InteractiveWidget); yes {
+					return false
+				}
+			}
+		}
+		p := b.Parent
+		if p == nil {
+			break
+		}
+		hit = p
+	}
+	return true
+}
+
+// boardZoom zooms the board around the pointer so the content under the cursor
+// stays fixed (zoom-to-cursor): pan' = C − (C − pan)·(z/old). dy is the scroll
+// delta in physical px — one wheel notch ≈ 120px and each notch scales ~1.1×,
+// positive dy zooming in. Returns whether the zoom actually changed (clamped
+// at the range ends → no redraw).
+func (e *Engine) boardZoom(cursor geom.Point, dy float64) bool {
+	b := &e.Inter.Board
+	if b.Zoom <= 0 {
+		b.Zoom = 1
+	}
+	z := clampFloat(b.Zoom*math.Pow(1.1, dy/120), minBoardZoom, maxBoardZoom)
+	if z == b.Zoom {
+		return false
+	}
+	ratio := z / b.Zoom
+	b.Zoom = z
+	b.PanX = cursor.X - (cursor.X-b.PanX)*ratio
+	b.PanY = cursor.Y - (cursor.Y-b.PanY)*ratio
+	e.dirty.Store(true)
+	return true
+}
+
+// clampFloat bounds v to [lo, hi].
+func clampFloat(v, lo, hi float64) float64 {
+	if v < lo {
+		return lo
+	}
+	if v > hi {
+		return hi
+	}
+	return v
 }
 
 // HandleKey processes one keyboard event: a focused input consumes text /

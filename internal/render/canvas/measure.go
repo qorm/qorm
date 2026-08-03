@@ -782,6 +782,22 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 		sink = content
 	}
 
+	// An infinite-canvas board is a fixed window-sized frame whose CONTENT
+	// mounts into one transformed group: pan/zoom live on that group's matrix
+	// (the graph layer folds it into GlobalTransform for hit testing; the
+	// rasterizer applies the same matrix), while the board's own background
+	// stays fixed in screen space.
+	isBoard := ln.Node.Type == "board"
+	var boardContent *graph.Group
+	if isBoard && inter != nil && inter.Board.Active {
+		boardContent = graph.NewGroup()
+		boardContent.X = inter.Board.PanX
+		boardContent.Y = inter.Board.PanY
+		boardContent.ScaleX = inter.Board.Zoom
+		boardContent.ScaleY = inter.Board.Zoom
+		sink = boardContent
+	}
+
 	totalCW, totalCH := 0, 0
 	for i, child := range ln.Children {
 		if isRow {
@@ -834,7 +850,7 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 	// each default-case child takes its resolved box — align-items, the six
 	// justify values, wrap, and flex-grow all live in the engine now.
 	var flexRects []flexlayout.Rect
-	if !isStack && !isGrid && len(ln.Children) > 0 {
+	if !isStack && !isGrid && !isBoard && len(ln.Children) > 0 {
 		lines := flexlayout.Flex(float64(innerW), float64(innerH), flexStyle(ln, rt), flexChildren(ln, rt))
 		for _, line := range lines {
 			flexRects = append(flexRects, line.Rects...)
@@ -877,6 +893,10 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 					child.Style.Align = ln.Style.Align
 				}
 				cbounds = image.Rect(cx, cy, cx+innerW, cy+innerH)
+			case isBoard:
+				// A non-positioned board child (rare — the board protocol is
+				// absolute x/y) sits at the content-box origin.
+				cbounds = image.Rect(cx, cy, cx+child.Width, cy+child.Height)
 			case isGrid:
 				col, row := i%gridCols, i/gridCols
 				gx := cx + col*(gridColW+ln.Style.Gap)
@@ -923,6 +943,11 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 		// above cuts whatever leaves the viewport.
 		content.Y = float64(scrollY)
 		group.AddChild(content)
+	}
+	if boardContent != nil {
+		// The transformed canvas (pan/zoom) mounts LAST so its notes paint —
+		// and hit-test — above the fixed background.
+		group.AddChild(boardContent)
 	}
 
 	// Keyboard focus ring (focus-visible): only drawn when focus was

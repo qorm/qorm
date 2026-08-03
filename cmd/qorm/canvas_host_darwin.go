@@ -146,7 +146,7 @@ func runCanvasWindow(srv *server.Server, ln net.Listener, title string, hooks *c
 			if hooks != nil && hooks.scrollFilter != nil && hooks.scrollFilter() {
 				break
 			}
-			eng.HandleScroll(canvas.ScrollInput{DX: e.DeltaX * s, DY: e.DeltaY * s})
+			eng.HandleScroll(canvas.ScrollInput{DX: e.DeltaX * s, DY: e.DeltaY * s, Ctrl: e.Ctrl})
 		}
 	}, func() {
 		// Keep the plane in lockstep with the real window size and current

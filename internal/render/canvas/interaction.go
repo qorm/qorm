@@ -3,6 +3,7 @@ package canvas
 import (
 	"image"
 
+	"github.com/qorm/qorm/internal/geom"
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/render/graph"
 	"github.com/qorm/qorm/internal/runtime"
@@ -49,7 +50,41 @@ type Interaction struct {
 	// frame, so offsets survive here. Lazily allocated by HandleScroll;
 	// reset with the rest of Interaction on a scene switch.
 	ScrollOffsets map[*model.Node]float64
+	// Board is the infinite-canvas viewport of a scene whose root is a
+	// "board": the pan/zoom applied to the board's content group every frame.
+	// Engine-owned (a viewport, not app state); reset with the rest of
+	// Interaction on a scene switch, so panning a board never bleeds into the
+	// next scene.
+	Board BoardState
 }
+
+// BoardState is the viewport of an infinite-canvas "board" root: a uniform
+// zoom about the screen origin plus a screen-space pan, folded into the
+// board's content-group transform each frame. Zoom is clamped to
+// [minBoardZoom, maxBoardZoom]; pan/zoom coordinates are physical pixels,
+// matching the pointer-input contract.
+type BoardState struct {
+	// Active is true when the current scene root is a board (set during
+	// layout; cleared by the Interaction reset on scene switch).
+	Active bool
+	// Zoom is the canvas scale factor in [minBoardZoom, maxBoardZoom].
+	Zoom float64
+	// PanX/PanY is the screen-space translate applied on top of Zoom.
+	PanX, PanY float64
+	// Panning is true while a blank-space drag is in flight; PanStart anchors
+	// the drag's pointer position and PanOrigin the pan at press, so the
+	// canvas follows 1:1 without a jump.
+	Panning bool
+	PanStart, PanOrigin geom.Point
+}
+
+// The board zoom range (0.25x–4x). The sub-1 floor is real only because the
+// rasterizer box-filters sub-1 text (font.go) — otherwise zoomed-out notes
+// would overflow their cards with full-size text.
+const (
+	minBoardZoom = 0.25
+	maxBoardZoom = 4.0
+)
 
 // interForInstance scopes the interaction identities to one repeat instance:
 // Pressed/Hovered/Focused name a TEMPLATE node every instance shares, so an

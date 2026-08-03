@@ -54,6 +54,22 @@ func layout(ops *op.Ops, root *model.Node, size image.Point, rt *runtime.Runtime
 		rootNode.Width = bounds.Dx()
 	}
 
+	// An infinite-canvas board is a window-sized plane: it spans the viewport
+	// in BOTH axes (its children are absolutely positioned and out of flow, so
+	// they contribute nothing to its size), and its interaction sidecar carries
+	// the live pan/zoom. The board flag is set here, per frame, so a scene
+	// switch to a non-board root clears it via the Interaction reset.
+	if root != nil && root.Type == "board" {
+		rootNode.Width = bounds.Dx()
+		rootNode.Height = bounds.Dy()
+		if inter != nil {
+			inter.Board.Active = true
+			if inter.Board.Zoom == 0 {
+				inter.Board.Zoom = 1
+			}
+		}
+	}
+
 	// 1b. Fold text that overflows its column (wrap.go). This must run after
 	// measure (sizes known) and before layout (origins assigned); it repairs
 	// ancestor heights so pass 2 sees consistent boxes.

@@ -488,8 +488,18 @@ func Run(onEvent func(Event), onTick func()) {
 					appkit.MsgSend(valY, selGetValue, uintptr(unsafe.Pointer(&dy)))
 				}
 
+				// Trackpad pinch arrives as a precise scroll with the control
+				// modifier set; surface it so the canvas engine can zoom instead
+				// of scroll. NSEventModifierFlagControl = 1 << 18.
+				ctrl := false
+				if modVal := appkit.MsgSend(event, selValueForKey, appkit.NewNSString("modifierFlags")); modVal != 0 {
+					var flags uint64
+					appkit.MsgSend(modVal, selGetValue, uintptr(unsafe.Pointer(&flags)))
+					ctrl = flags&(1<<18) != 0
+				}
+
 				if activeWindow != nil && (dx != 0 || dy != 0) && onEvent != nil {
-					onEvent(ScrollEvent{DeltaX: dx, DeltaY: dy})
+					onEvent(ScrollEvent{DeltaX: dx, DeltaY: dy, Ctrl: ctrl})
 				}
 			}
 
