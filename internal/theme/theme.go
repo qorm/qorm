@@ -153,6 +153,7 @@ func GetDefault() *Theme {
 		Name: "apple-light",
 		Colors: map[string]string{
 			"primary":       "#007AFF",
+			"selection":     "#007AFF99", // text-selection highlight (input/textarea)
 			"secondary":     "#5856D6",
 			"success":       "#34C759",
 			"warning":       "#FF9500",

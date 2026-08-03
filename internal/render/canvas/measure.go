@@ -30,10 +30,13 @@ type LayoutNode struct {
 
 	// Input widget overlay (type "input" only, input.go): Placeholder marks
 	// Text as the placeholder rather than a value; Editing/Cursor carry the
-	// live edit session so PerformLayout can paint the caret.
+	// live edit session so PerformLayout can paint the caret, and
+	// SelStart/SelEnd the selection so it can paint the highlight.
 	Placeholder bool
 	Editing     bool
 	Cursor      int
+	SelStart    int
+	SelEnd      int
 
 	// Entrance animation overlay (entrance.go): when EntranceActive, the
 	// node's group gets EntranceOpacity multiplied in and (EntranceDX,
@@ -179,6 +182,7 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 			if sc == nil || inter.FocusedItem == sc.index {
 				ln.Editing = true
 				ln.Cursor = s.Cursor
+				ln.SelStart, ln.SelEnd = s.SelStart, s.SelEnd
 			} else {
 				// The live edit session belongs to a SIBLING repeat instance
 				// (the session key is the shared template pointer, input.go):

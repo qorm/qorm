@@ -203,6 +203,24 @@ func applyInteractiveOverlay(s *NodeStyle, n *model.Node, rt *runtime.Runtime, i
 	}
 }
 
+// resolveSelectionColor returns the theme's text-selection highlight:
+// palette "selection" → palette "primary" → a translucent primary fallback.
+func resolveSelectionColor(rt *runtime.Runtime) color.RGBA {
+	if rt != nil && rt.Theme != nil {
+		if c, ok := rt.Theme.GetColor("selection"); ok {
+			return c
+		}
+		if c, ok := rt.Theme.GetColor("primary"); ok {
+			return c
+		}
+	}
+	return color.RGBA{0, 122, 255, 90}
+}
+
+// SelectionColor exports resolveSelectionColor for the widgets library (the
+// textarea widget paints its own per-line selection highlight).
+func SelectionColor(rt *runtime.Runtime) color.RGBA { return resolveSelectionColor(rt) }
+
 // resolveFocusColor returns the theme's focus ring color:
 // palette "focus" → palette "primary" → literal #007AFF.
 func resolveFocusColor(rt *runtime.Runtime) color.RGBA {

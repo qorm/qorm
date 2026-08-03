@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/qorm/internal/render/graph"
 )
 
 // setFakeClip installs an in-memory clipboard seam and returns a pointer to
@@ -300,6 +301,49 @@ func TestInputTripleClickSelectsAll(t *testing.T) {
 	}
 	if s := e.Inter.Input; s.SelStart != 0 || s.SelEnd != 11 {
 		t.Fatalf("triple-click selection = [%d,%d), want the whole field [0,11)", s.SelStart, s.SelEnd)
+	}
+}
+
+// A non-empty selection renders as a highlight rect spanning the selected
+// runes and hides the caret.
+func TestInputSelectionRendersHighlight(t *testing.T) {
+	e, surf, in := inputFixture(t)
+	e.DrawFrame(surf)
+	clickNode(t, e, in)
+	typeRunes(e, "hello")
+	s := e.Inter.Input
+	s.Cursor, s.Anchor = 4, 1
+	s.SelStart, s.SelEnd = 1, 4
+	e.MarkDirty()
+	e.DrawFrame(surf)
+
+	g := inputGroup(t, e, in)
+	var caret, hi *graph.Rect
+	for _, c := range g.Children {
+		r, ok := c.(*graph.Rect)
+		if !ok || !r.Base().NoHit || r.Fill.A == 0 || r.StrokeWidth != 0 {
+			continue
+		}
+		if r.Width <= 1 {
+			caret = r
+		} else {
+			hi = r
+		}
+	}
+	if caret != nil {
+		t.Error("caret must be hidden while a selection is active")
+	}
+	if hi == nil {
+		t.Fatal("selection highlight not rendered")
+	}
+	// The highlight starts at the selected runes' left edge (the text origin
+	// plus the pre-selection advance) and spans them.
+	text := firstText(g)
+	fs := text.FontSize
+	wantX := int(text.X) + int(MeasureText(prefixRunes("hello", 1), fs))
+	wantW := int(MeasureText(prefixRunes("hello", 4), fs)) - (wantX - int(text.X))
+	if int(hi.X) != wantX || int(hi.Width) != wantW {
+		t.Errorf("highlight = x%d w%d, want x%d w%d", int(hi.X), int(hi.Width), wantX, wantW)
 	}
 }
 

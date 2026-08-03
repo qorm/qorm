@@ -718,6 +718,25 @@ func layoutInput(ln *LayoutNode, group *graph.Group, rt *runtime.Runtime, scale 
 	if c.A == 0 {
 		c = color.RGBA{255, 255, 255, 255}
 	}
+	sel := ln.Editing && ln.SelStart < ln.SelEnd
+	if sel {
+		// Selection highlight BEHIND the text: a NoHit rect spanning the
+		// selected runes in the theme's selection color, painted before the
+		// text so glyphs draw over it. The indices map onto the DISPLAYED text
+		// — for a secure input that is one bullet per rune, so a password
+		// selection highlights exactly the bullets it masks.
+		x0 := tx + int(MeasureText(prefixRunes(ln.Text, ln.SelStart), float64(fs)))
+		x1 := tx + int(MeasureText(prefixRunes(ln.Text, ln.SelEnd), float64(fs)))
+		hi := graph.NewRect()
+		hi.NoHit = true
+		hi.X = float64(x0)
+		hi.Y = float64(ty)
+		hi.Width = float64(x1 - x0)
+		hi.Height = float64(txtH)
+		hi.Fill = resolveSelectionColor(rt)
+		group.AddChild(hi)
+	}
+
 	if ln.Text != "" {
 		textNode := graph.NewText()
 		textNode.X = float64(tx)
@@ -729,11 +748,12 @@ func layoutInput(ln *LayoutNode, group *graph.Group, rt *runtime.Runtime, scale 
 		group.AddChild(textNode)
 	}
 
-	if ln.Editing {
+	if ln.Editing && !sel {
 		// The caret: a static 1-device-px line at the insertion point (see the
-		// file header for why it does not blink). NoHit keeps it from ever
-		// stealing pointer hits; the x position uses the same per-rune
-		// advances DrawText paints with, so caret and text cannot drift apart.
+		// file header for why it does not blink), hidden while a selection is
+		// active. NoHit keeps it from ever stealing pointer hits; the x
+		// position uses the same per-rune advances DrawText paints with, so
+		// caret and text cannot drift apart.
 		w := scale
 		if w < 1 {
 			w = 1
