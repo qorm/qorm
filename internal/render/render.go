@@ -741,7 +741,8 @@ func (r *renderer) renderInner(n *model.Node) {
 		"scroll", "scrollview", "grid", "card", "component", "flex", "box",
 		"div", "container", "group", "view", "fragment", "wrapper", "panel",
 		"body", "content", "main", "section", "header", "footer", "aside", "nav",
-		"center", "start", "end", "between", "around", "evenly", "stretch":
+		"center", "start", "end", "between", "around", "evenly", "stretch",
+		"board":
 		r.container(n)
 	default:
 		r.unknown(n)

@@ -1,0 +1,10 @@
+{
+  "type": "action",
+  "id": "drag_start_3",
+  "steps": [
+    { "type": "state.set", "path": "drag3_sx", "value": "{{ x }}" },
+    { "type": "state.set", "path": "drag3_sy", "value": "{{ y }}" },
+    { "type": "state.set", "path": "drag3_ox", "value": "{{ state.n3x }}" },
+    { "type": "state.set", "path": "drag3_oy", "value": "{{ state.n3y }}" }
+  ]
+}

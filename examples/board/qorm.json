@@ -1,0 +1,34 @@
+{
+  "type": "app",
+  "id": "qorm_board",
+  "name": "Whiteboard",
+  "entry": "main",
+  "theme": "apple",
+  "globalState": {
+    "schema": {
+      "n1x": "number", "n1y": "number",
+      "n2x": "number", "n2y": "number",
+      "n3x": "number", "n3y": "number",
+      "drag1_sx": "number", "drag1_sy": "number",
+      "drag1_ox": "number", "drag1_oy": "number",
+      "drag2_sx": "number", "drag2_sy": "number",
+      "drag2_ox": "number", "drag2_oy": "number",
+      "drag3_sx": "number", "drag3_sy": "number",
+      "drag3_ox": "number", "drag3_oy": "number"
+    },
+    "initial": {
+      "n1x": 90, "n1y": 90,
+      "n2x": 460, "n2y": 180,
+      "n3x": 240, "n3y": 440
+    }
+  },
+  "platforms": {
+    "desktop": {
+      "window": {
+        "width": 900,
+        "height": 700,
+        "title": "QORM Whiteboard"
+      }
+    }
+  }
+}

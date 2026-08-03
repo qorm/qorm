@@ -509,20 +509,29 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 	dispatched := false
 	for hit != nil {
 		var evt *model.Invoke
+		var seeds map[string]any
 		if !nodeDisabled(hit.Base().Model, rt) {
-			if p.Type == PointerPress {
+			switch {
+			case p.Type == PointerPress:
 				evt = hit.Base().OnPress
 				if evt == nil {
 					evt = hit.Base().OnTouchStart
+					seeds = e.touchSeeds(p)
 				}
-			} else if p.Type == PointerRelease {
+			case p.Type == PointerRelease:
 				evt = hit.Base().OnTouchEnd
-			} else if p.Type == PointerMove && p.Buttons > 0 {
+				if evt != nil {
+					seeds = e.touchSeeds(p)
+				}
+			case p.Type == PointerMove && p.Buttons > 0:
 				evt = hit.Base().OnTouchMove
+				if evt != nil {
+					seeds = e.touchSeeds(p)
+				}
 			}
 		}
 		if evt != nil {
-			e.dispatchScoped(evt, nil, e.itemScopeOf(hit))
+			e.dispatchScoped(evt, seeds, e.itemScopeOf(hit))
 			dispatched = true
 			break
 		}
@@ -940,6 +949,22 @@ func (e *Engine) dispatchScoped(evt *model.Invoke, seeds, scope map[string]any) 
 		args[k] = runtime.EvalBinding(v, ctx)
 	}
 	e.RT.Dispatch(name, args)
+}
+
+// touchSeeds seeds a touch handler's args with the pointer position. On a
+// board the coordinates are mapped to BOARD space (inverse of the live pan/
+// zoom), so a note-drag action works in board units and zooms cancel out —
+// dragging the same screen distance moves the note the same board distance at
+// any zoom. Outside a board the raw physical px pass through.
+func (e *Engine) touchSeeds(p PointerInput) map[string]any {
+	x, y := p.X, p.Y
+	if e.Inter.Board.Active {
+		if z := e.Inter.Board.Zoom; z > 0 {
+			x = (x - e.Inter.Board.PanX) / z
+			y = (y - e.Inter.Board.PanY) / z
+		}
+	}
+	return map[string]any{"x": x, "y": y}
 }
 
 // itemInstanceOf resolves the repeat instance a graph node belongs to by
