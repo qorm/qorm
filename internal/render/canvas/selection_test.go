@@ -2,6 +2,7 @@ package canvas
 
 import (
 	"testing"
+	"time"
 
 	"github.com/qorm/qorm/internal/model"
 )
@@ -206,6 +207,99 @@ func TestInputPasteStripsNewlines(t *testing.T) {
 	e.HandleKey(KeyInput{Key: "v", Meta: true, Down: true})
 	if got := e.RT.State["name"]; got != "a b  c" {
 		t.Errorf("paste folds newlines: state.name = %v, want %q", got, "a b  c")
+	}
+}
+
+// resetClick ages out the double-click detector so the next press is a fresh
+// single click (the click that opens the session would otherwise merge into a
+// double-click with the very next press — both are microseconds apart).
+func resetClick(e *Engine) {
+	e.Inter.Click = &ClickDetector{lastTime: time.Now().Add(-time.Second)}
+}
+
+// A click positions the caret at the clicked character, not the buffer end.
+func TestInputClickPositionsCaret(t *testing.T) {
+	e, surf, in := inputFixture(t)
+	e.DrawFrame(surf)
+	clickNode(t, e, in)
+	typeRunes(e, "hello world")
+	m := e.inputMetricsFromGraph(in)
+	if m == nil {
+		t.Fatal("no input metrics")
+	}
+	resetClick(e)
+	target := float64(m.TextX) + MeasureText("hello", m.FontSize)
+	e.HandlePointer(PointerInput{Type: PointerPress, X: target, Y: float64(m.TextY)})
+	e.HandlePointer(PointerInput{Type: PointerRelease, X: target, Y: float64(m.TextY)})
+	if c := e.Inter.Input.Cursor; c != 5 {
+		t.Fatalf("caret after click at end of \"hello\" = %d, want 5", c)
+	}
+}
+
+// Press-drag selects the range from the press anchor to the pointer.
+func TestInputDragSelects(t *testing.T) {
+	e, surf, in := inputFixture(t)
+	e.DrawFrame(surf)
+	clickNode(t, e, in)
+	typeRunes(e, "hello world")
+	m := e.inputMetricsFromGraph(in)
+	if m == nil {
+		t.Fatal("no input metrics")
+	}
+	resetClick(e)
+	start := float64(m.TextX) + 1 // just right of the text origin → index 0
+	end := float64(m.TextX) + MeasureText("hello world", m.FontSize)
+	e.HandlePointer(PointerInput{Type: PointerPress, X: start, Y: float64(m.TextY), Buttons: 1})
+	e.HandlePointer(PointerInput{Type: PointerMove, X: end, Y: float64(m.TextY), Buttons: 1})
+	if s := e.Inter.Input; s.SelStart != 0 || s.SelEnd != 11 {
+		t.Fatalf("drag selection = [%d,%d), want [0,11)", s.SelStart, s.SelEnd)
+	}
+	e.HandlePointer(PointerInput{Type: PointerRelease, X: end, Y: float64(m.TextY)})
+	if e.Inter.Input.Selecting {
+		t.Fatal("release must end the drag selection")
+	}
+}
+
+// A double-click selects the word under the pointer.
+func TestInputDoubleClickSelectsWord(t *testing.T) {
+	e, surf, in := inputFixture(t)
+	e.DrawFrame(surf)
+	clickNode(t, e, in)
+	typeRunes(e, "hello world")
+	m := e.inputMetricsFromGraph(in)
+	if m == nil {
+		t.Fatal("no input metrics")
+	}
+	resetClick(e)
+	// Double-click in the middle of "hello": the word is [0,5).
+	spot := float64(m.TextX) + MeasureText("he", m.FontSize)
+	for i := 0; i < 2; i++ {
+		e.HandlePointer(PointerInput{Type: PointerPress, X: spot, Y: float64(m.TextY), Buttons: 1})
+		e.HandlePointer(PointerInput{Type: PointerRelease, X: spot, Y: float64(m.TextY)})
+	}
+	if s := e.Inter.Input; s.SelStart != 0 || s.SelEnd != 5 {
+		t.Fatalf("double-click selection = [%d,%d), want the word [0,5)", s.SelStart, s.SelEnd)
+	}
+}
+
+// A triple-click selects the whole single-line field.
+func TestInputTripleClickSelectsAll(t *testing.T) {
+	e, surf, in := inputFixture(t)
+	e.DrawFrame(surf)
+	clickNode(t, e, in)
+	typeRunes(e, "hello world")
+	m := e.inputMetricsFromGraph(in)
+	if m == nil {
+		t.Fatal("no input metrics")
+	}
+	resetClick(e)
+	spot := float64(m.TextX) + MeasureText("h", m.FontSize)
+	for i := 0; i < 3; i++ {
+		e.HandlePointer(PointerInput{Type: PointerPress, X: spot, Y: float64(m.TextY), Buttons: 1})
+		e.HandlePointer(PointerInput{Type: PointerRelease, X: spot, Y: float64(m.TextY)})
+	}
+	if s := e.Inter.Input; s.SelStart != 0 || s.SelEnd != 11 {
+		t.Fatalf("triple-click selection = [%d,%d), want the whole field [0,11)", s.SelStart, s.SelEnd)
 	}
 }
 

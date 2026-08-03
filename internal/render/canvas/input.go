@@ -4,8 +4,10 @@ import (
 	"image/color"
 	"regexp"
 	"strings"
+	"time"
 	"unicode"
 
+	"github.com/qorm/qorm/internal/geom"
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/render/graph"
 	"github.com/qorm/qorm/internal/runtime"
@@ -541,6 +543,155 @@ func (e *Engine) commitEdit(s *InputState) {
 	}
 	if evt := s.Node.OnChange; evt != nil {
 		e.dispatch(evt, map[string]any{"value": string(s.Runes)})
+	}
+}
+
+// InputMetrics is the rendered geometry the caret-from-pixel mapping needs:
+// the scene origin of the editable's first text run and its font metrics,
+// read on demand from the graph (a fresh click maps against the frame the
+// user is actually looking at).
+type InputMetrics struct {
+	TextX, TextY int      // scene origin of the first text run (physical px)
+	FontSize     float64  // physical px
+	LineH        int      // int(FontSize * 1.2), the per-line advance
+	Multiline    bool
+}
+
+// inputMetricsFromGraph locates the editable's graph node and its first text
+// run (value or placeholder — both are graph.Text children). It returns nil
+// when there is no text to position against, which the caller treats as "keep
+// the cursor at the end": an empty field or a widget with no text run keeps
+// the legacy session-open behavior.
+func (e *Engine) inputMetricsFromGraph(n *model.Node) *InputMetrics {
+	g := e.findGroupByModelIndex(n, e.Inter.FocusedItem)
+	if g == nil {
+		return nil
+	}
+	t := firstTextNode(g)
+	if t == nil {
+		return nil
+	}
+	bb := t.GetBBox()
+	fs := t.FontSize
+	if fs <= 0 {
+		fs = 14
+	}
+	return &InputMetrics{
+		TextX:     int(bb.MinX),
+		TextY:     int(bb.MinY),
+		FontSize:  fs,
+		LineH:     int(fs * 1.2),
+		Multiline: n.Type == "textarea",
+	}
+}
+
+// firstTextNode returns the first *graph.Text in the subtree (depth-first) —
+// the editable's value/placeholder run; the caret and focus ring are Rect
+// shapes, so the first text is the one the user reads.
+func firstTextNode(g graph.Node) *graph.Text {
+	if t, ok := g.(*graph.Text); ok {
+		return t
+	}
+	if gr, ok := g.(*graph.Group); ok {
+		for _, c := range gr.Children {
+			if t := firstTextNode(c); t != nil {
+				return t
+			}
+		}
+	}
+	return nil
+}
+
+// caretIndexFromPointer maps a pointer position to a buffer index. Single-line
+// maps the x offset through the displayed runes (the secure mask is one bullet
+// per rune, so indices align); multiline picks the line from y and maps the
+// column within it. The result is clamped to the BUFFER, not the display.
+func caretIndexFromPointer(m *InputMetrics, s *InputState, x, y float64) int {
+	if !m.Multiline {
+		disp := string(s.Runes)
+		if secureInput(s.Node) {
+			disp = strings.Repeat("•", len(s.Runes))
+		}
+		return clampInt(caretColFromX([]rune(disp), int(x)-m.TextX, m.FontSize), 0, len(s.Runes))
+	}
+	nLines := 1
+	for _, r := range s.Runes {
+		if r == '\n' {
+			nLines++
+		}
+	}
+	line := (int(y) - m.TextY) / m.LineH
+	if line < 0 {
+		return 0
+	}
+	if line >= nLines {
+		return len(s.Runes)
+	}
+	lineStart := 0
+	for i := 0; i < line; i++ {
+		lineStart = lineEnd(s.Runes, lineStart) + 1
+	}
+	lineEnd := lineEnd(s.Runes, lineStart)
+	col := caretColFromX(s.Runes[lineStart:lineEnd], int(x)-m.TextX, m.FontSize)
+	return clampInt(lineStart+col, 0, len(s.Runes))
+}
+
+// caretColFromX maps an x offset (physical px from the text origin) to a
+// column within a rune slice, using the same per-rune advances DrawText paints
+// with — a click lands on whichever rune's right edge it crossed. x <= 0 or an
+// empty line → 0; past the last rune → len.
+func caretColFromX(r []rune, x int, fs float64) int {
+	if x <= 0 || len(r) == 0 {
+		return 0
+	}
+	left := 0.0
+	for i := range r {
+		right := MeasureText(string(r[:i+1]), fs) // left edge of rune i+1
+		if float64(x) < right {
+			if float64(x) < left+(right-left)/2 {
+				return i
+			}
+			return i + 1
+		}
+		left = right
+	}
+	return len(r)
+}
+
+// placeCaretFromPointer repositions the active edit session's caret for a
+// press on the editable: single click places the caret and arms drag-select,
+// double click selects the word, triple click selects the line (textarea) or
+// the whole field (single-line). No-ops when the press did not open a session.
+func (e *Engine) placeCaretFromPointer() {
+	s := e.Inter.Input
+	if s == nil {
+		return
+	}
+	m := e.inputMetricsFromGraph(s.Node)
+	if m == nil {
+		return // no text run to position against: keep the session-open cursor
+	}
+	idx := caretIndexFromPointer(m, s, e.lastPtr.X, e.lastPtr.Y)
+	if e.Inter.Click == nil {
+		e.Inter.Click = &ClickDetector{}
+	}
+	switch e.Inter.Click.Register(geom.Point{X: e.lastPtr.X, Y: e.lastPtr.Y}, time.Now()) {
+	case 2:
+		a, b := wordRangeAt(s.Runes, idx)
+		s.SelStart, s.SelEnd, s.Anchor, s.Cursor = a, b, a, b
+		s.Selecting = false
+	case 3:
+		if m.Multiline {
+			a, b := lineRangeAt(s.Runes, idx)
+			s.SelStart, s.SelEnd, s.Anchor, s.Cursor = a, b, a, b
+		} else {
+			s.SelStart, s.SelEnd, s.Anchor, s.Cursor = 0, len(s.Runes), 0, len(s.Runes)
+		}
+		s.Selecting = false
+	default:
+		s.Cursor = idx
+		s.SelStart, s.SelEnd, s.Anchor = idx, idx, idx
+		s.Selecting = true
 	}
 }
 

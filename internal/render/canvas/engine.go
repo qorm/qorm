@@ -405,6 +405,27 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 		}
 	}
 
+	// A press-drag text selection owns the stream while it is in flight: the
+	// caret follows the pointer (clamped at the buffer ends), extending the
+	// selection from the press anchor. A button-less move or release ends it.
+	if s := e.Inter.Input; s != nil && s.Selecting {
+		switch {
+		case p.Type == PointerMove && p.Buttons > 0:
+			if m := e.inputMetricsFromGraph(s.Node); m != nil {
+				s.Cursor = caretIndexFromPointer(m, s, p.X, p.Y)
+				if s.Cursor < s.Anchor {
+					s.SelStart, s.SelEnd = s.Cursor, s.Anchor
+				} else {
+					s.SelStart, s.SelEnd = s.Anchor, s.Cursor
+				}
+				e.dirty.Store(true)
+				return true
+			}
+		case p.Type == PointerRelease || (p.Type == PointerMove && p.Buttons == 0):
+			s.Selecting = false
+		}
+	}
+
 	// Registered interactive widgets claim their own event stream first: a
 	// pressed widget node keeps capture until release (drag), and a fresh hit
 	// routes to the nearest registered-interactive ancestor. Consumed events
@@ -449,6 +470,12 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 		// press): open/close the edit session through the same funnel the
 		// generic press path uses (input.go).
 		e.syncEditSession()
+		// A press on the editable positions the caret at the click and arms
+		// drag-select (single click), selects the word (double) or the line
+		// (triple).
+		if p.Type == PointerPress {
+			e.placeCaretFromPointer()
+		}
 		// Same dirty propagation as the capture path above: a toggle's state
 		// flip is invisible until the next frame without it.
 		if redraw || hoverMoved {
@@ -496,6 +523,11 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 			e.Inter.FocusedItem = 0
 		}
 		e.syncEditSession()
+		// A press on the editable positions the caret at the click and arms
+		// drag-select / double-click word / triple-click line.
+		if e.Inter.Input != nil {
+			e.placeCaretFromPointer()
+		}
 		redraw = true
 	case p.Type == PointerRelease:
 		if e.Inter.Pressed != nil {

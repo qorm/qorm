@@ -50,6 +50,10 @@ type Interaction struct {
 	// frame, so offsets survive here. Lazily allocated by HandleScroll;
 	// reset with the rest of Interaction on a scene switch.
 	ScrollOffsets map[*model.Node]float64
+	// Click is the double/triple-click detector for the focused editable
+	// (input.go placeCaretFromPointer). Lazily allocated; reset with the rest
+	// of Interaction on a scene switch.
+	Click *ClickDetector
 	// Board is the infinite-canvas viewport of a scene whose root is a
 	// "board": the pan/zoom applied to the board's content group every frame.
 	// Engine-owned (a viewport, not app state); reset with the rest of
