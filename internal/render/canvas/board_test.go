@@ -107,6 +107,32 @@ func TestBoardBlankDragPans(t *testing.T) {
 	}
 }
 
+// A cancelled drag must not leave the board panning: a button-less move mid-pan
+// clears the drag state, so the next note press+move drags the NOTE instead of
+// resuming a stale pan from a dead PanStart.
+func TestBoardCancelledDragReleasesPan(t *testing.T) {
+	e, s, _ := boardFixture(t)
+	e.DrawFrame(s)
+	e.HandlePointer(PointerInput{Type: PointerPress, X: 300, Y: 300, Buttons: 1})
+	if !e.Inter.Board.Panning {
+		t.Fatal("blank press must start a pan")
+	}
+	// A button-less move mid-pan (drag cancelled/lost): must drop Panning.
+	e.HandlePointer(PointerInput{Type: PointerMove, X: 310, Y: 310})
+	if e.Inter.Board.Panning {
+		t.Fatal("button-less move must cancel the pan")
+	}
+	// A subsequent note press+move drags the note, not the board.
+	e.HandlePointer(PointerInput{Type: PointerPress, X: 130, Y: 70, Buttons: 1})
+	e.HandlePointer(PointerInput{Type: PointerMove, X: 150, Y: 80, Buttons: 1})
+	if e.Inter.Board.Panning {
+		t.Fatal("note press must not start a pan")
+	}
+	if e.Inter.Board.PanX != 0 || e.Inter.Board.PanY != 0 {
+		t.Errorf("stale pan resumed: board pan = (%v,%v), want (0,0)", e.Inter.Board.PanX, e.Inter.Board.PanY)
+	}
+}
+
 // A press on a note must NOT pan the board — the note's own touch handler
 // fires instead (its onTouchStart drags the note, not the canvas).
 func TestBoardNotePressDoesNotPan(t *testing.T) {

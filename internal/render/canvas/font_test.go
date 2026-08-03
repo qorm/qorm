@@ -108,6 +108,22 @@ func TestDrawTextSubPixelScale(t *testing.T) {
 	}
 }
 
+// bitmapCellCoverage is a box filter: a destination pixel whose footprint
+// covers exactly one lit cell is opaque, but one covering two lit cells of a
+// 2x2 footprint (four cells) is half — the raw overlap area must be
+// normalized by the footprint, or sub-1 glyphs render as solid blobs.
+func TestBitmapCellCoverageNormalized(t *testing.T) {
+	exclam := font5x7['!'-32] // column 2 = 0x5f (rows 0-4, 6 lit), others empty
+	if c := bitmapCellCoverage(exclam, 2, 3, 0, 1); c != 1 {
+		t.Errorf("single lit cell coverage = %v, want 1", c)
+	}
+	// Footprint [2,4)x[0,2) covers four cells; only (col2,row0) and
+	// (col2,row1) are lit → 2/4 = 0.5, not the clamped 1 the old code gave.
+	if c := bitmapCellCoverage(exclam, 2, 4, 0, 2); c != 0.5 {
+		t.Errorf("2-of-4 footprint coverage = %v, want 0.5", c)
+	}
+}
+
 // Phase 1 still renders non-ASCII as '?', but a CJK rune is ONE '?' at a
 // full-width advance — not three '?' glyphs at byte offsets.
 func TestDrawTextCJKRuneAdvance(t *testing.T) {

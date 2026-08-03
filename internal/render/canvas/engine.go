@@ -381,18 +381,24 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 
 	// An in-flight board pan owns the stream: the canvas follows the pointer
 	// before any widget sees the move, so dragging across a note doesn't fight
-	// the pan. Ends on release.
+	// the pan. Ends on release — or on a button-less move, which means the drag
+	// was cancelled/lost mid-flight (a stale Panning would otherwise hijack the
+	// NEXT note drag into a pan from a dead PanStart).
 	if e.Inter.Board.Active && e.Inter.Board.Panning {
-		if p.Type == PointerRelease {
+		switch {
+		case p.Type == PointerRelease:
 			e.Inter.Board.Panning = false
 			e.dirty.Store(true)
 			return true
-		}
-		if p.Type == PointerMove && p.Buttons > 0 {
+		case p.Type == PointerMove && p.Buttons > 0:
 			e.Inter.Board.PanX = e.Inter.Board.PanOrigin.X + (p.X - e.Inter.Board.PanStart.X)
 			e.Inter.Board.PanY = e.Inter.Board.PanOrigin.Y + (p.Y - e.Inter.Board.PanStart.Y)
 			e.dirty.Store(true)
 			return true
+		default:
+			// A hover move or a fresh press during a pan: drop the drag state
+			// without consuming the event, so normal dispatch resumes.
+			e.Inter.Board.Panning = false
 		}
 	}
 

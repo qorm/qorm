@@ -439,7 +439,10 @@ func drawTextBitmapFrac(img *image.RGBA, text string, pos image.Point, col color
 // bitmapCellCoverage returns how much of a destination pixel's source-cell
 // range ([u0,u1)×[v0,v1)) overlaps the glyph's set bits, in [0,1] — a box
 // filter, so a shrunk glyph keeps its shape with antialiased edges instead of
-// dropping or doubling rows.
+// dropping or doubling rows. The overlap AREA is normalized by the footprint
+// ([u0,u1)×[v0,v1) is 1/scale² cells), so a pixel covering one lit cell of a
+// large footprint gets ~0 alpha rather than snapping to fully opaque — the
+// old raw-area sum clamped to 1 rendered zoomed-out glyphs as solid blobs.
 func bitmapCellCoverage(glyph [5]byte, u0, u1, v0, v1 float64) float64 {
 	var cov float64
 	for col := 0; col < 5; col++ {
@@ -458,10 +461,15 @@ func bitmapCellCoverage(glyph [5]byte, u0, u1, v0, v1 float64) float64 {
 			}
 		}
 	}
-	if cov > 1 {
-		return 1
+	area := (u1 - u0) * (v1 - v0)
+	if area <= 0 {
+		return 0
 	}
-	return cov
+	if c := cov / area; c > 1 {
+		return 1
+	} else {
+		return c
+	}
 }
 
 // drawBitmapGlyph paints the 5x7 bitmap glyph for byte c (32..127) with its

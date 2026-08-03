@@ -425,12 +425,22 @@ func Run(onEvent func(Event), onTick func()) {
 						ptType = PointerRelease
 					}
 
+					// Buttons reports the pressed buttons while held: left-down
+					// and left-dragged events carry 1, everything else 0. The
+					// engine's drag semantics (board pan, note onTouchMove) gate
+					// on Buttons > 0, so omitting this made every drag read as a
+					// hover in the native window.
+					buttons := 0
+					if eventType == 1 || eventType == 6 { // NSLeftMouseDown / NSLeftMouseDragged
+						buttons = 1
+					}
+
 					// Convert AppKit coordinates (bottom-left origin) to top-left
 					// Use the real window content height (bottom-left origin flip).
 					y := float64(activeWindow.Size().Y) - point.Y
 
 					if onEvent != nil {
-						onEvent(PointerEvent{Type: ptType, Position: image.Pt(int(point.X), int(y))})
+						onEvent(PointerEvent{Type: ptType, Position: image.Pt(int(point.X), int(y)), Buttons: buttons})
 					}
 				}
 			} else if eventType == 10 || eventType == 11 {
