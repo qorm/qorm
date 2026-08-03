@@ -4,6 +4,7 @@ import (
 	"image"
 	"image/color"
 
+	"github.com/qorm/qorm/internal/geom"
 	"github.com/qorm/qorm/internal/op"
 )
 
@@ -29,9 +30,17 @@ func (c *Context) Restore() {
 	c.ops.Add(op.RestoreOp{})
 }
 
-// Translate translates the coordinate system.
+// Translate translates the coordinate system. Kept as a thin helper over
+// Transform: the op layer carries a full matrix, so a node's Draw can hand the
+// same local matrix (position × scale) it baked into its GlobalTransform —
+// the rasterizer applies it, keeping hit testing and pixels in lockstep.
 func (c *Context) Translate(dx, dy int) {
-	c.ops.Add(op.TransformOp{Offset: image.Pt(dx, dy)})
+	c.ops.Add(op.TransformOp{M: geom.Identity().Translate(float64(dx), float64(dy))})
+}
+
+// Transform post-multiplies the current transform by the affine matrix m.
+func (c *Context) Transform(m geom.Matrix) {
+	c.ops.Add(op.TransformOp{M: m})
 }
 
 // ClipRect sets the clipping region to a rectangle.

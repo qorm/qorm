@@ -6,6 +6,7 @@ import (
 	"image/draw"
 	"math"
 
+	"github.com/qorm/qorm/internal/geom"
 	"github.com/qorm/qorm/internal/op"
 )
 
@@ -30,16 +31,20 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 	draw.Draw(img, img.Bounds(), &image.Uniform{color.RGBA{255, 255, 255, 255}}, image.Point{}, draw.Src)
 
 	// Pipeline state. Clips form a stack so nested containers intersect
-	// (Save/Restore snapshot the stack; a ClipOp pushes on top).
+	// (Save/Restore snapshot the stack; a ClipOp pushes on top). The transform
+	// is a full affine matrix: geometry ops post-multiply it and transform
+	// their integer coordinates into screen space (matrixScale reads the
+	// uniform scale so stroke widths, text font scale and corner radii follow
+	// a zoomed board).
 	currentColor := color.RGBA{0, 0, 0, 255}
-	currentOffset := image.Point{0, 0}
+	currentMatrix := geom.Identity()
 	var clips []op.ClipOp
 	currentOpacity := 1.0
 	currentStrokeWidth := 0.0
 
 	type state struct {
 		color       color.RGBA
-		offset      image.Point
+		matrix      geom.Matrix
 		clips       []op.ClipOp
 		opacity     float64
 		strokeWidth float64
@@ -55,15 +60,16 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 		case op.StrokeOp:
 			currentStrokeWidth = o.Width
 		case op.TransformOp:
-			currentOffset = currentOffset.Add(o.Offset)
+			currentMatrix = currentMatrix.Multiply(o.M)
 		case op.ClipOp:
 			pushed := o
-			pushed.Rect = pushed.Rect.Add(currentOffset)
+			pushed.Rect = transformRect(currentMatrix, o.Rect)
+			pushed.Radius = o.Radius * matrixScale(currentMatrix)
 			clips = append(clips, pushed)
 		case op.SaveOp:
 			stack = append(stack, state{
 				color:       currentColor,
-				offset:      currentOffset,
+				matrix:      currentMatrix,
 				clips:       append([]op.ClipOp(nil), clips...),
 				opacity:     currentOpacity,
 				strokeWidth: currentStrokeWidth,
@@ -72,7 +78,7 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 			if len(stack) > 0 {
 				last := stack[len(stack)-1]
 				currentColor = last.color
-				currentOffset = last.offset
+				currentMatrix = last.matrix
 				clips = last.clips
 				currentOpacity = last.opacity
 				currentStrokeWidth = last.strokeWidth
@@ -110,7 +116,10 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 			if r.Empty() {
 				break
 			}
-			w := int(currentStrokeWidth)
+			// The stroke width is authored in local units; under a scaled
+			// matrix (a zoomed board) it must scale with the geometry, the way
+			// a CSS border does under transform.
+			w := int(currentStrokeWidth * matrixScale(currentMatrix))
 			inner := clips[len(clips)-1] // the shape's own clip defines the stroke geometry
 			if paintColor.A == 255 && len(clips) == 1 && inner.Radius <= 0 {
 				// Opaque rectangular outline: four edges.
@@ -133,7 +142,9 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 				rad := math.Min(inner.Radius, math.Min(hw, hh))
 				cx := float64(ir.Min.X) + hw
 				cy := float64(ir.Min.Y) + hh
-				sw := currentStrokeWidth
+				// Stroke width authored in local units: scale it with the
+				// matrix (a zoomed board) so the band stays proportional.
+				sw := currentStrokeWidth * matrixScale(currentMatrix)
 				outer := clips[:len(clips)-1]
 				for y := r.Min.Y; y < r.Max.Y; y++ {
 					for x := r.Min.X; x < r.Max.X; x++ {
@@ -151,8 +162,10 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 				}
 			}
 		case op.TextOp:
-			pos := o.Pos.Add(currentOffset)
-			scale := o.Scale
+			pos := transformPoint(currentMatrix, o.Pos)
+			// Font scale multiplies by the matrix's uniform scale so text
+			// zooms with the board (scale 1 everywhere else → no change).
+			scale := o.Scale * matrixScale(currentMatrix)
 			if scale < 1 {
 				scale = 1
 			}
@@ -161,7 +174,7 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 			if o.Src == nil {
 				break
 			}
-			dest := o.Dest.Add(currentOffset)
+			dest := transformRect(currentMatrix, o.Dest)
 			sb := o.Src.Bounds()
 			sw, sh := sb.Dx(), sb.Dy()
 			dw, dh := dest.Dx(), dest.Dy()
@@ -206,12 +219,19 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 				}
 			}
 		case op.RRectOp:
-			rect := o.Rect.Add(currentOffset)
+			rect := transformRect(currentMatrix, o.Rect)
 			hw, hh := float64(rect.Dx())/2, float64(rect.Dy())/2
 			if hw <= 0 || hh <= 0 {
 				break
 			}
-			radius := clamp01(o.Radius/math.Min(hw, hh)) * math.Min(hw, hh)
+			// Radius, stroke and shadow are authored in local units: scale them
+			// with the matrix (a zoomed board) so proportions survive, the way
+			// a CSS border/radius does under transform.
+			s := matrixScale(currentMatrix)
+			radius := clamp01(o.Radius*s/math.Min(hw, hh)) * math.Min(hw, hh)
+			shadowBlur := o.ShadowBlur * s
+			shadowY := o.ShadowY * s
+			strokeWidth := o.StrokeWidth * s
 			cx := float64(rect.Min.X) + hw
 			cy := float64(rect.Min.Y) + hh
 
@@ -220,10 +240,10 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 			minX, minY := float64(rect.Min.X)-1, float64(rect.Min.Y)-1
 			maxX, maxY := float64(rect.Max.X)+1, float64(rect.Max.Y)+1
 			if o.Shadow.A > 0 {
-				minX = math.Min(minX, float64(rect.Min.X)-o.ShadowBlur-1)
-				minY = math.Min(minY, float64(rect.Min.Y)+o.ShadowY-o.ShadowBlur-1)
-				maxX = math.Max(maxX, float64(rect.Max.X)+o.ShadowBlur+1)
-				maxY = math.Max(maxY, float64(rect.Max.Y)+o.ShadowY+o.ShadowBlur+1)
+				minX = math.Min(minX, float64(rect.Min.X)-shadowBlur-1)
+				minY = math.Min(minY, float64(rect.Min.Y)+shadowY-shadowBlur-1)
+				maxX = math.Max(maxX, float64(rect.Max.X)+shadowBlur+1)
+				maxY = math.Max(maxY, float64(rect.Max.Y)+shadowY+shadowBlur+1)
 			}
 			b := image.Rect(int(math.Floor(minX)), int(math.Floor(minY)), int(math.Ceil(maxX)), int(math.Ceil(maxY)))
 			b = b.Intersect(img.Bounds())
@@ -242,13 +262,13 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 					}
 					px, py := float64(x)+0.5, float64(y)+0.5
 					if o.Shadow.A > 0 {
-						d := sdRoundBox(px, py, cx, cy+o.ShadowY, hw, hh, radius)
+						d := sdRoundBox(px, py, cx, cy+shadowY, hw, hh, radius)
 						var cov float64
-						if o.ShadowBlur > 0 {
+						if shadowBlur > 0 {
 							// Smoothstep falloff over the blur width: zero slope
 							// at both ends, so the shadow melts out instead of
 							// stepping like the old concentric-rect fake.
-							t := clamp01(1 - d/o.ShadowBlur)
+							t := clamp01(1 - d/shadowBlur)
 							cov = t * t * (3 - 2*t)
 						} else {
 							cov = clamp01(0.5 - d)
@@ -264,10 +284,10 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 							blendOver(img, x, y, withOpacity(o.Fill, cov*clipCov*currentOpacity))
 						}
 					}
-					if o.Stroke.A > 0 && o.StrokeWidth > 0 {
+					if o.Stroke.A > 0 && strokeWidth > 0 {
 						// Stroke sits INSIDE the boundary (CSS border-box):
 						// outer AA at d≈0, inner AA at d≈-width.
-						if cov := clamp01(0.5-d) * clamp01(0.5+d+o.StrokeWidth); cov > 0 {
+						if cov := clamp01(0.5-d) * clamp01(0.5+d+strokeWidth); cov > 0 {
 							blendOver(img, x, y, withOpacity(o.Stroke, cov*clipCov*currentOpacity))
 						}
 					}
@@ -275,6 +295,29 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 			}
 		}
 	}
+}
+
+// transformPoint maps an integer op coordinate through the current matrix,
+// rounding to the nearest pixel (the graph layer already truncated to ints, so
+// this is not a regression — fractional pan/zoom positions land within 1px).
+func transformPoint(m geom.Matrix, p image.Point) image.Point {
+	q := m.TransformPoint(geom.Point{X: float64(p.X), Y: float64(p.Y)})
+	return image.Pt(int(math.Round(q.X)), int(math.Round(q.Y)))
+}
+
+// transformRect maps an integer rect through the current matrix. translate×
+// uniform-scale (all the graph layer emits) keeps it axis-aligned; TransformBBox
+// covers the general case too.
+func transformRect(m geom.Matrix, r image.Rectangle) image.Rectangle {
+	b := m.TransformBBox(geom.NewBBox(float64(r.Min.X), float64(r.Min.Y), float64(r.Dx()), float64(r.Dy())))
+	return image.Rect(int(math.Round(b.MinX)), int(math.Round(b.MinY)), int(math.Round(b.MaxX)), int(math.Round(b.MaxY)))
+}
+
+// matrixScale returns the matrix's uniform scale — the length of its image of
+// the unit x-axis. Identity and pure translations yield 1; a board zoom of z
+// yields z (rotation is never emitted, so A is the scale itself).
+func matrixScale(m geom.Matrix) float64 {
+	return math.Hypot(m.A, m.B)
 }
 
 // withOpacity returns c with its alpha multiplied by op (straight color).

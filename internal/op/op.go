@@ -3,6 +3,8 @@ package op
 import (
 	"image"
 	"image/color"
+
+	"github.com/qorm/qorm/internal/geom"
 )
 
 // Ops is a list of rendering and state operations.
@@ -58,11 +60,15 @@ type TextOp struct {
 
 func (TextOp) isOp() {}
 
-// TransformOp applies an affine transformation matrix.
+// TransformOp applies an affine transformation matrix: every subsequent op's
+// geometry (clip rects, text positions, image dests, rounded-rect corners,
+// stroke widths) is transformed by it before rasterization, and text font
+// scale and stroke widths multiply by the matrix's uniform scale. The graph
+// layer emits the same local matrix it bakes into GlobalTransform, so hit
+// testing (which inverts GlobalTransform) and pixels stay consistent even
+// under scale (an infinite-canvas board's zoom).
 type TransformOp struct {
-	// A 2D affine transform matrix [a, b, tx; c, d, ty]
-	// Using a simple Offset for now, but ready for matrix.
-	Offset image.Point
+	M geom.Matrix
 }
 
 func (TransformOp) isOp() {}

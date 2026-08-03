@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"testing"
 
+	"github.com/qorm/qorm/internal/geom"
 	"github.com/qorm/qorm/internal/op"
 	"github.com/qorm/qorm/internal/render/graph"
 )
@@ -98,6 +99,66 @@ func TestRenderDrawsIntoProvidedBuffer(t *testing.T) {
 	SoftwareRenderer{}.Render(ops, buf)
 	if c := buf.RGBAAt(0, 0); c != (color.RGBA{1, 2, 3, 255}) {
 		t.Errorf("provided buffer not drawn into: %v", c)
+	}
+}
+
+// A matrix transform must map op geometry into screen space: a translate ×
+// scale(2) applied to a 5×5 clip lands at (12,7)-(22,17), doubling the size.
+// This is the raster half of the infinite-canvas board's zoom — the graph
+// layer already baked the same matrix into GlobalTransform for hit testing.
+func TestTransformScalesGeometry(t *testing.T) {
+	ops := &op.Ops{}
+	ops.Add(op.SaveOp{})
+	ops.Add(op.ColorOp{Color: color.RGBA{0, 0, 255, 255}})
+	ops.Add(op.TransformOp{M: geom.Identity().Translate(10, 5).Scale(2, 2)})
+	ops.Add(op.ClipOp{Rect: image.Rect(1, 1, 6, 6)})
+	ops.Add(op.PaintOp{})
+	ops.Add(op.RestoreOp{})
+	img := Rasterize(ops, image.Pt(40, 40))
+
+	blue := color.RGBA{0, 0, 255, 255}
+	for _, p := range []image.Point{{12, 7}, {21, 16}, {16, 12}} {
+		if c := img.RGBAAt(p.X, p.Y); c != blue {
+			t.Errorf("scaled fill missing at %v: got %v, want %v", p, c, blue)
+		}
+	}
+	for _, p := range []image.Point{{11, 6}, {22, 17}, {10, 5}} {
+		if c := img.RGBAAt(p.X, p.Y); c == blue {
+			t.Errorf("scaled fill overflows at %v (got %v)", p, c)
+		}
+	}
+}
+
+// The graph layer must hand the rasterizer the same matrix it uses for hit
+// testing: a Group with ScaleX/ScaleY set (the board's zoom) paints its child
+// rect at the scaled screen position. Without this, graph.Draw's old integer
+// translate dropped scale at the pixels while HitTest honoured it.
+func TestGraphScaleReachesRaster(t *testing.T) {
+	ops := &op.Ops{}
+	g := graph.NewGroup()
+	g.X, g.Y = 10, 5
+	g.ScaleX, g.ScaleY = 2, 2
+	g.AddChild(func() graph.Node {
+		r := graph.NewRect()
+		r.Fill = color.RGBA{0, 255, 0, 255}
+		r.Width, r.Height = 5, 5
+		return r
+	}())
+	g.Draw(graph.NewContext(ops))
+	img := Rasterize(ops, image.Pt(40, 40))
+
+	// The group's local matrix is Translate(10,5)·Scale(2), so the child rect
+	// (0,0,5,5) maps to (10,5)-(20,15).
+	green := color.RGBA{0, 255, 0, 255}
+	for _, p := range []image.Point{{10, 5}, {19, 14}, {15, 10}} {
+		if c := img.RGBAAt(p.X, p.Y); c != green {
+			t.Errorf("graph-scaled rect missing at %v: got %v, want %v", p, c, green)
+		}
+	}
+	for _, p := range []image.Point{{9, 4}, {20, 15}, {21, 16}} {
+		if c := img.RGBAAt(p.X, p.Y); c == green {
+			t.Errorf("graph-scaled rect overflows at %v: got %v", p, c)
+		}
 	}
 }
 

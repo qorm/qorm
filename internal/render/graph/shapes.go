@@ -21,6 +21,16 @@ func NewGroup() *Group {
 
 func (g *Group) Base() *BaseNode { return &g.BaseNode }
 
+// localTransform returns a node's local affine matrix (position × rotation ×
+// scale) — the same matrix UpdateGlobalTransform multiplies into the global
+// one, so the rasterizer applies exactly what hit testing inverts. Emitting it
+// (instead of the old integer translate) is what makes a node's ScaleX/ScaleY
+// reach the pixels: the board viewport sets them on its root group and pan +
+// zoom follow for free.
+func localTransform(b *BaseNode) geom.Matrix {
+	return geom.Identity().Translate(b.X, b.Y).Rotate(b.Rotation).Scale(b.ScaleX, b.ScaleY)
+}
+
 // HitTest for Group checks children in reverse order (top-most first)
 func (g *Group) HitTest(p geom.Point) Node {
 	if g.NoHit {
@@ -48,7 +58,7 @@ func (g *Group) Draw(ctx *Context) {
 
 	ctx.Save()
 	ctx.Opacity(g.Opacity)
-	ctx.Translate(int(g.X), int(g.Y)) // Naive translate for now, ideally apply matrix
+	ctx.Transform(localTransform(&g.BaseNode))
 
 	// Can add Group-level clipping here if needed
 	g.DrawChildren(ctx)
@@ -86,7 +96,7 @@ func (r *Rect) Draw(ctx *Context) {
 	}
 
 	ctx.Save()
-	ctx.Translate(int(r.X), int(r.Y))
+	ctx.Transform(localTransform(&r.BaseNode))
 
 	rect := image.Rect(0, 0, int(r.Width), int(r.Height))
 
@@ -141,7 +151,7 @@ func (t *Text) Draw(ctx *Context) {
 	}
 
 	ctx.Save()
-	ctx.Translate(int(t.X), int(t.Y))
+	ctx.Transform(localTransform(&t.BaseNode))
 	ctx.Fill(t.Fill)
 	ctx.DrawTextWeighted(t.Content, image.Point{0, 0}, t.FontSize/10.0, t.FontWeight)
 	ctx.Restore()
@@ -173,7 +183,7 @@ func (c *Circle) Draw(ctx *Context) {
 
 	ctx.Save()
 	ctx.Opacity(c.Opacity)
-	ctx.Translate(int(c.X), int(c.Y))
+	ctx.Transform(localTransform(&c.BaseNode))
 
 	// Use the SDF-backed rounded-rectangle path instead of a binary rounded
 	// clip.  A circle is simply a square whose corner radius is half its side;
@@ -242,7 +252,7 @@ func (i *Image) Draw(ctx *Context) {
 	}
 
 	ctx.Save()
-	ctx.Translate(int(i.X), int(i.Y))
+	ctx.Transform(localTransform(&i.BaseNode))
 
 	dest := imageFitRect(i.Bitmap.Bounds().Dx(), i.Bitmap.Bounds().Dy(), w, h, i.Fit)
 	if dest.Empty() {
