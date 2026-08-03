@@ -11,6 +11,7 @@ import (
 	"image"
 	"image/color"
 	"testing"
+	"time"
 
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/render/canvas"
@@ -265,12 +266,35 @@ func TestSwitchToggleWritesState(t *testing.T) {
 	if got := e.RT.State["on"]; got != true {
 		t.Fatalf("state.on = %v, want true after click", got)
 	}
+	// The thumb SLIDES between ends on toggle; let the tween settle before
+	// asserting the on-state pixels.
+	time.Sleep(switchSlideDuration + 20*time.Millisecond)
 	e.DrawFrame(surf)
 	if got := px(surf, 5, 13); got != pxAccent {
 		t.Fatalf("on track = %v, want accent %v", got, pxAccent)
 	}
 	if got := px(surf, 31, 13); got != pxCardBg {
 		t.Fatalf("on thumb must ride the right end, pixel = %v, want white %v", got, pxCardBg)
+	}
+}
+
+// The thumb SLIDES between ends: right after a toggle the switch reports
+// Animating (tween in flight) and the thumb is NOT yet at the target end.
+func TestSwitchThumbSlides(t *testing.T) {
+	sw := &model.Node{Type: "switch", ID: "sw", Value: "{{state.on}}"}
+	e, surf := formEngine(t, sw)
+	e.DrawFrame(surf)
+	w, _ := canvas.LookupWidget("switch")
+	swW := w.(*Switch)
+
+	clickAt(e, 22, 13)
+	if !swW.Animating() {
+		t.Error("a just-toggled switch must report Animating (thumb slide in flight)")
+	}
+	// One frame later the thumb is still travelling, not snapped to the on-end.
+	e.DrawFrame(surf)
+	if got := px(surf, 31, 13); got == pxCardBg {
+		t.Error("the thumb must not be at the on-end on the first post-toggle frame")
 	}
 }
 

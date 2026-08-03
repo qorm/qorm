@@ -5,11 +5,13 @@ package widgets
 // checkbox).
 
 import (
-	"image"
 	"fmt"
+	"image"
 	"image/color"
 	"sync"
+	"time"
 
+	"github.com/qorm/qorm/internal/anim"
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/render/canvas"
 	"github.com/qorm/qorm/internal/render/draw"
@@ -17,19 +19,57 @@ import (
 )
 
 func init() {
-	canvas.RegisterWidget("switch", &Switch{local: map[*model.Node]bool{}})
+	canvas.RegisterWidget("switch", &Switch{local: map[*model.Node]bool{}, slides: map[*model.Node]*switchSlide{}})
 }
 
 // Switch is the pill-track toggle: a 44x26 rounded track (accent while on,
 // input gray while off) with a white circular thumb at the on/off end, plus
-// an optional label to the right. The thumb SNAPS between ends: a slide tween
-// needs a time-driven frame source per toggle (AnimatedWidget only drives
-// never-settling animations), which wave-1 deliberately skips — documented
-// downgrade.
+// an optional label to the right. The thumb SLIDES between ends on toggle (a
+// 150ms ease-out tween); the switch is an AnimatedWidget so the engine keeps
+// ticking until the slide settles.
 type Switch struct {
 	mu sync.Mutex
 	// local holds UNBOUND switches (see Checkbox.local).
 	local map[*model.Node]bool
+	// slides is the per-node thumb tween (progress 0..1 along the track).
+	slides map[*model.Node]*switchSlide
+}
+
+// switchSlide is one switch's thumb tween: progress is the CURRENT position in
+// [0,1], target the destination, and ctrl the running controller (nil when
+// settled — the thumb is pinned to the state).
+type switchSlide struct {
+	progress float64
+	target   float64
+	running  bool
+	ctrl     *anim.Controller
+}
+
+// switchSlideDuration is how long the thumb takes to travel between ends.
+const switchSlideDuration = 150 * time.Millisecond
+
+func (s *Switch) slide(n *model.Node) *switchSlide {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	sl := s.slides[n]
+	if sl == nil {
+		sl = &switchSlide{}
+		s.slides[n] = sl
+	}
+	return sl
+}
+
+// Animating reports true while any switch's thumb tween is mid-flight — the
+// AnimatedWidget seam that keeps the engine's frame loop ticking.
+func (s *Switch) Animating() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, sl := range s.slides {
+		if sl.running {
+			return true
+		}
+	}
+	return false
 }
 
 const (
@@ -64,6 +104,27 @@ func (s *Switch) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) d
 	trackH := float64(switchTrackH * scale)
 	trackY := (float64(ln.Height) - trackH) / 2
 
+	// Advance the thumb tween: on first sight the thumb pins to the state (no
+	// slide-in on mount); a toggle armed a controller in HandlePointer, whose
+	// progress is eased toward its target each frame until it settles.
+	sl := s.slide(ln.Node)
+	if sl.ctrl == nil {
+		if on {
+			sl.progress = 1
+		} else {
+			sl.progress = 0
+		}
+	} else {
+		if v, running := sl.ctrl.Value(); running {
+			sl.progress = sl.progress + (sl.target-sl.progress)*v
+			sl.running = true
+		} else {
+			sl.progress = sl.target
+			sl.running = false
+			sl.ctrl = nil
+		}
+	}
+
 	g := draw.NewGroup()
 	track := draw.NewRect()
 	track.Y = trackY
@@ -82,11 +143,8 @@ func (s *Switch) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) d
 	thumb.Radius = thumbD / 2
 	thumb.Fill = color.RGBA{255, 255, 255, 255}
 	thumb.Y = trackY + inset
-	if on {
-		thumb.X = trackW - thumbD - inset
-	} else {
-		thumb.X = inset
-	}
+	// The thumb travels between inset and the on-end across the slide progress.
+	thumb.X = inset + (trackW-thumbD-2*inset)*sl.progress
 	g.AddChild(thumb)
 
 	if label := formLabel(ln.Node, rt); label != "" {
@@ -108,6 +166,15 @@ func (s *Switch) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.Poin
 	inter.Focused = n
 	inter.FocusVisible = false
 	next := !s.checked(n, nil, rt)
+	// Arm the thumb slide from the current position toward the new state.
+	target := 0.0
+	if next {
+		target = 1
+	}
+	sl := s.slide(n)
+	sl.target = target
+	sl.ctrl = anim.NewController(switchSlideDuration, anim.EaseOutCubic)
+	sl.running = true
 	if path := formBoundPath(n.Value); path != "" {
 		rt.SetStatePath(path, next)
 	} else {
