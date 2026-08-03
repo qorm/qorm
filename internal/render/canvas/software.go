@@ -165,10 +165,10 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 			pos := transformPoint(currentMatrix, o.Pos)
 			// Font scale multiplies by the matrix's uniform scale so text
 			// zooms with the board (scale 1 everywhere else → no change).
+			// Sub-1 scale is legal — the rasterizer box-filters the bitmap
+			// glyphs down instead of clamping (which overflowed a zoomed-out
+			// board's cards with full-size text).
 			scale := o.Scale * matrixScale(currentMatrix)
-			if scale < 1 {
-				scale = 1
-			}
 			DrawTextWeighted(img, o.Text, pos, withOpacity(currentColor, currentOpacity), scale, o.Weight, clips)
 		case op.ImageOp:
 			if o.Src == nil {

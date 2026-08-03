@@ -365,8 +365,15 @@ func DrawTextWeighted(img *image.RGBA, text string, pos image.Point, col color.R
 }
 
 // drawTextBitmap is the phase-1 rasterizer: one 5x7 bitmap glyph per rune
-// ('?' for non-ASCII), advancing by the shared MeasureText metric.
+// ('?' for non-ASCII), advancing by the shared MeasureText metric. A sub-1
+// font scale (a zoomed-out board) takes the box-filtering path instead of the
+// old integer clamp, which drew full-size text that overflowed its box.
 func drawTextBitmap(img *image.RGBA, text string, pos image.Point, col color.RGBA, fontSize float64, clips []op.ClipOp) {
+	if scale := fontSize / 10; scale < 1 {
+		drawTextBitmapFrac(img, text, pos, col, scale, clips)
+		return
+	}
+
 	intScale := int(fontSize / 10)
 	if intScale < 1 {
 		intScale = 1
@@ -383,6 +390,78 @@ func drawTextBitmap(img *image.RGBA, text string, pos image.Point, col color.RGB
 		// Advance per rune from the shared metric (MeasureText).
 		penX += runeAdvance(r, fontSize)
 	}
+}
+
+// drawTextBitmapFrac renders text whose 5x7 glyphs land at a fractional
+// (sub-1) font scale: each destination pixel is box-filtered over the source
+// bitmap cells it covers, so a glyph shrinks to its true screen size instead
+// of being clamped to 1x. The pen advances by the same fractional metrics
+// MeasureText reports, so drawn and measured widths stay in lockstep (the
+// original text of a zoomed-out note keeps its box).
+func drawTextBitmapFrac(img *image.RGBA, text string, pos image.Point, col color.RGBA, scale float64, clips []op.ClipOp) {
+	gw, gh := 5*scale, 7*scale
+	y0 := float64(pos.Y)
+	penX := float64(pos.X)
+	for _, r := range text {
+		c := byte(r)
+		if r < 32 || r > 127 {
+			c = 63 // '?'
+		}
+		glyph := font5x7[c-32]
+
+		x0 := int(math.Floor(penX))
+		x1 := int(math.Ceil(penX + gw))
+		yy0 := int(math.Floor(y0))
+		yy1 := int(math.Ceil(y0 + gh))
+		for y := yy0; y < yy1; y++ {
+			// The destination pixel's source-cell row range, then columns.
+			v0 := (float64(y) - y0) / scale
+			v1 := (float64(y) + 1 - y0) / scale
+			for x := x0; x < x1; x++ {
+				u0 := (float64(x) - penX) / scale
+				u1 := (float64(x) + 1 - penX) / scale
+				cov := bitmapCellCoverage(glyph, u0, u1, v0, v1)
+				if cov <= 0 {
+					continue
+				}
+				clipCov := clipCoverage(float64(x)+0.5, float64(y)+0.5, clips)
+				if clipCov <= 0 {
+					continue
+				}
+				blendOver(img, x, y, withOpacity(col, cov*clipCov))
+			}
+		}
+		// Advance per rune from the shared metric (MeasureText).
+		penX += runeAdvance(r, scale*10)
+	}
+}
+
+// bitmapCellCoverage returns how much of a destination pixel's source-cell
+// range ([u0,u1)×[v0,v1)) overlaps the glyph's set bits, in [0,1] — a box
+// filter, so a shrunk glyph keeps its shape with antialiased edges instead of
+// dropping or doubling rows.
+func bitmapCellCoverage(glyph [5]byte, u0, u1, v0, v1 float64) float64 {
+	var cov float64
+	for col := 0; col < 5; col++ {
+		ow := math.Min(float64(col+1), u1) - math.Max(float64(col), u0)
+		if ow <= 0 {
+			continue
+		}
+		bits := glyph[col]
+		for row := 0; row < 7; row++ {
+			if (bits & (1 << row)) == 0 {
+				continue
+			}
+			oh := math.Min(float64(row+1), v1) - math.Max(float64(row), v0)
+			if oh > 0 {
+				cov += ow * oh
+			}
+		}
+	}
+	if cov > 1 {
+		return 1
+	}
+	return cov
 }
 
 // drawBitmapGlyph paints the 5x7 bitmap glyph for byte c (32..127) with its

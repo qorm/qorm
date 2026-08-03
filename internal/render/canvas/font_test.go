@@ -85,6 +85,29 @@ func TestDrawTextAdvanceMatchesMeasure(t *testing.T) {
 	}
 }
 
+// A sub-1 font scale (a zoomed-out board) must actually shrink the glyphs
+// instead of clamping to 1x and overflowing its box. MeasureText is already
+// fractional, so drawn and measured extents stay in lockstep.
+func TestDrawTextSubPixelScale(t *testing.T) {
+	black := color.RGBA{0, 0, 0, 255}
+
+	// 'B' glyph column 0 is 0x7f (all 7 rows lit). At scale 0.5 its top-left
+	// cell lands at x∈[0,0.5): only the destination pixel x=0 is inked.
+	img := image.NewRGBA(image.Rect(0, 0, 12, 8))
+	DrawText(img, "B", image.Pt(0, 0), black, 0.5, nil) // fontSize 5
+	if !inked(img, 0, 0) {
+		t.Error("sub-1 glyph must ink x=0")
+	}
+	// The glyph's 5 source columns at scale 0.5 span 2.5px; x=3 must be past
+	// its right edge (the old clamp inked x=0..4 at full size).
+	if inked(img, 3, 0) {
+		t.Error("sub-1 glyph must not overflow its 2.5px box")
+	}
+	if got := MeasureText("B", 5); got >= 5 {
+		t.Errorf("MeasureText at fontSize 5 = %v, must stay < one source pixel", got)
+	}
+}
+
 // Phase 1 still renders non-ASCII as '?', but a CJK rune is ONE '?' at a
 // full-width advance — not three '?' glyphs at byte offsets.
 func TestDrawTextCJKRuneAdvance(t *testing.T) {
