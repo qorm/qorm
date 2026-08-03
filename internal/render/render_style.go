@@ -112,7 +112,7 @@ func (r *renderer) containerCSS(n *model.Node) string {
 	switch n.Type {
 	case "row":
 		b.WriteString("flex-direction:row;")
-	case "stack", "absolute":
+	case "stack", "absolute", "board":
 		b.WriteString("position:relative;flex-direction:column;")
 	case "grid":
 		// handled above (display:grid set before the switch)

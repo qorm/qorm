@@ -160,6 +160,14 @@ func TestBoardPlainScrollPans(t *testing.T) {
 	if e.Inter.Board.Zoom != 1 {
 		t.Errorf("plain scroll must not zoom; zoom = %v", e.Inter.Board.Zoom)
 	}
+	// A horizontal-only swipe pans X even though the scroll-viewport walk only
+	// consumes vertical deltas.
+	if !e.HandleScroll(ScrollInput{DX: 30}) {
+		t.Fatal("horizontal scroll over a board must pan")
+	}
+	if e.Inter.Board.PanX != -30 {
+		t.Errorf("panX after horizontal scroll = %v, want -30", e.Inter.Board.PanX)
+	}
 }
 
 // Off-screen board children are culled at record time: no graph subtree, no

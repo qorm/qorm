@@ -121,7 +121,10 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 			// a CSS border does under transform.
 			w := int(currentStrokeWidth * matrixScale(currentMatrix))
 			inner := clips[len(clips)-1] // the shape's own clip defines the stroke geometry
-			if paintColor.A == 255 && len(clips) == 1 && inner.Radius <= 0 {
+			// A sub-pixel stroke (zoom < 1x) falls through to the SDF branch,
+			// whose float coverage renders it as a faint band — the integer
+			// edge path below would draw a zero-width (invisible) border.
+			if w >= 1 && paintColor.A == 255 && len(clips) == 1 && inner.Radius <= 0 {
 				// Opaque rectangular outline: four edges.
 				draw.Draw(img, image.Rect(r.Min.X, r.Min.Y, r.Max.X, r.Min.Y+w).Intersect(img.Bounds()), &image.Uniform{paintColor}, image.Point{}, draw.Src)
 				draw.Draw(img, image.Rect(r.Min.X, r.Max.Y-w, r.Max.X, r.Max.Y).Intersect(img.Bounds()), &image.Uniform{paintColor}, image.Point{}, draw.Src)
