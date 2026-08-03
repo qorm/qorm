@@ -25,6 +25,7 @@ import (
 	"image/color"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/render/canvas"
@@ -123,10 +124,10 @@ func (t *Textarea) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int)
 	lineStart := 0
 	for i, line := range lines {
 		// Per-line selection highlight: the line's absolute buffer span
-		// [lineStart, lineEnd) is intersected with [SelStart, SelEnd) and the
-		// overlap painted as a rect behind the line's glyphs (which formText
-		// draws over it).
-		lineEnd := lineStart + len(line)
+		// [lineStart, lineEnd) — counted in RUNES, matching the session's
+		// SelStart/SelEnd — is intersected with the selection and the overlap
+		// painted as a rect behind the line's glyphs (formText draws over it).
+		lineEnd := lineStart + utf8.RuneCountInString(line)
 		if sel {
 			lo := max(s.SelStart, lineStart)
 			hi := min(s.SelEnd, lineEnd)

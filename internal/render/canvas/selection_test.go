@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/qorm/qorm/internal/geom"
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/render/graph"
 )
@@ -301,6 +302,40 @@ func TestInputTripleClickSelectsAll(t *testing.T) {
 	}
 	if s := e.Inter.Input; s.SelStart != 0 || s.SelEnd != 11 {
 		t.Fatalf("triple-click selection = [%d,%d), want the whole field [0,11)", s.SelStart, s.SelEnd)
+	}
+}
+
+// Caret-from-pixel on a textarea whose buffer starts with an empty line: the
+// first text run sits one line down, so the y→line mapping must anchor at the
+// first line's true top, not the first run's.
+func TestCaretIndexLeadingEmptyLine(t *testing.T) {
+	s := &InputState{Runes: []rune("\nab")}
+	lineH := 16 // int(14 * 1.2)
+	m := &InputMetrics{TextX: 0, TextY: lineH, FontSize: 14, LineH: lineH, Multiline: true}
+	// Click the top of the visible "ab" row → caret at buffer index 1 (the
+	// line's first rune), not 0 (before the newline).
+	if idx := caretIndexFromPointer(m, s, 0, float64(lineH)); idx != 1 {
+		t.Fatalf("caret at the visible row = %d, want 1", idx)
+	}
+}
+
+// Two rapid presses on DIFFERENT fields must never merge into a double-click:
+// the detector is keyed by the editable.
+func TestClickDetectorFieldIsolation(t *testing.T) {
+	now := time.Now()
+	d := &ClickDetector{}
+	a, b := &model.Node{ID: "a"}, &model.Node{ID: "b"}
+	if c := d.Register(a, geom.Point{X: 10, Y: 10}, now); c != 1 {
+		t.Fatalf("first press = %d, want 1", c)
+	}
+	if c := d.Register(b, geom.Point{X: 10, Y: 10}, now); c != 1 {
+		t.Fatalf("press on a different field must be a fresh single click, got %d", c)
+	}
+	if c := d.Register(a, geom.Point{X: 11, Y: 10}, now.Add(10*time.Millisecond)); c != 1 {
+		t.Fatalf("returning to field a is also fresh, got %d", c)
+	}
+	if c := d.Register(a, geom.Point{X: 11, Y: 10}, now.Add(20*time.Millisecond)); c != 2 {
+		t.Fatalf("same-field fast second click must be a double-click, got %d", c)
 	}
 }
 

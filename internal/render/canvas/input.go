@@ -415,6 +415,9 @@ func deleteSel(s *InputState) bool {
 }
 
 // insertRunes inserts ins at the cursor and advances past them (no commit).
+// The anchor follows the cursor so the normalized-selection invariant
+// (SelStart = min(Anchor, Cursor)) holds after every insert — the caller has
+// already collapsed (deleteSel) before inserting.
 func insertRunes(s *InputState, ins []rune) {
 	if len(ins) == 0 {
 		return
@@ -423,6 +426,7 @@ func insertRunes(s *InputState, ins []rune) {
 	copy(s.Runes[s.Cursor+len(ins):], s.Runes[s.Cursor:])
 	copy(s.Runes[s.Cursor:], ins)
 	s.Cursor += len(ins)
+	s.Anchor = s.Cursor
 }
 
 // isWordRune is the word-selection alphabet: letters, digits and underscore —
@@ -576,6 +580,13 @@ func (e *Engine) inputMetricsFromGraph(n *model.Node) *InputMetrics {
 	if fs <= 0 {
 		fs = 14
 	}
+	// On a zoomed board the glyphs render at Zoom×fs and the pointer is in
+	// screen space, so the mapping must measure at the on-screen font size.
+	// (The board transform is exactly Translate(Pan)·Scale(Zoom) — see
+	// measure.go boardContent.)
+	if e.Inter.Board.Active && e.Inter.Board.Zoom > 0 {
+		fs *= e.Inter.Board.Zoom
+	}
 	return &InputMetrics{
 		TextX:     int(bb.MinX),
 		TextY:     int(bb.MinY),
@@ -620,7 +631,14 @@ func caretIndexFromPointer(m *InputMetrics, s *InputState, x, y float64) int {
 			nLines++
 		}
 	}
-	line := (int(y) - m.TextY) / m.LineH
+	// m.TextY is the first NON-EMPTY line's top; a buffer starting with
+	// newlines (leading empty lines) shifts the first text run down, so the
+	// y→line mapping anchors at the first line's true top.
+	firstLine := 0
+	for firstLine < len(s.Runes) && s.Runes[firstLine] == '\n' {
+		firstLine++
+	}
+	line := (int(y) - (m.TextY - firstLine*m.LineH)) / m.LineH
 	if line < 0 {
 		return 0
 	}
@@ -675,7 +693,7 @@ func (e *Engine) placeCaretFromPointer() {
 	if e.Inter.Click == nil {
 		e.Inter.Click = &ClickDetector{}
 	}
-	switch e.Inter.Click.Register(geom.Point{X: e.lastPtr.X, Y: e.lastPtr.Y}, time.Now()) {
+	switch e.Inter.Click.Register(s.Node, geom.Point{X: e.lastPtr.X, Y: e.lastPtr.Y}, time.Now()) {
 	case 2:
 		a, b := wordRangeAt(s.Runes, idx)
 		s.SelStart, s.SelEnd, s.Anchor, s.Cursor = a, b, a, b
