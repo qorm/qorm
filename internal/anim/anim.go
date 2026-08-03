@@ -2,6 +2,7 @@ package anim
 
 import (
 	"image/color"
+	"math"
 	"time"
 )
 
@@ -15,6 +16,24 @@ var Linear Curve = func(t float64) float64 { return t }
 var EaseOutCubic Curve = func(t float64) float64 {
 	t--
 	return t*t*t + 1
+}
+
+// Spring is an underdamped spring easing: it starts at 0, overshoots past 1
+// (a ~12% bounce around t≈0.25) and oscillates while decaying, settling at 1
+// by the end of the interval. Good for entrance bounces and pop physics where
+// a gentle overshoot reads as life.
+var Spring Curve = func(t float64) float64 {
+	if t <= 0 {
+		return 0
+	}
+	if t >= 1 {
+		return 1
+	}
+	v := 1 - math.Exp(-6*t)*math.Cos(10*t)
+	if v < 0 {
+		return 0
+	}
+	return v
 }
 
 // EaseInCubic is a curve that accelerates from rest.
@@ -41,6 +60,7 @@ var namedCurves = map[string]Curve{
 	"easeOutCubic":  EaseOutCubic,
 	"easeInOut":     EaseInOutCubic,
 	"easeInOutCubic": EaseInOutCubic,
+	"spring":        Spring,
 	// Token aliases used by theme motion sections.
 	"standard":   EaseOutCubic,
 	"emphasized": EaseInOutCubic,

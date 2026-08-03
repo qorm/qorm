@@ -1,6 +1,9 @@
 package anim
 
-import "testing"
+import (
+	"math"
+	"testing"
+)
 
 func TestCurveByNameRegistry(t *testing.T) {
 	names := []string{
@@ -45,6 +48,7 @@ func TestCurveEndpoints(t *testing.T) {
 		"EaseOutCubic":   EaseOutCubic,
 		"EaseInCubic":    EaseInCubic,
 		"EaseInOutCubic": EaseInOutCubic,
+		"Spring":         Spring,
 	} {
 		if got := c(0); got != 0 {
 			t.Errorf("%s(0) = %v, want 0", name, got)
@@ -55,6 +59,32 @@ func TestCurveEndpoints(t *testing.T) {
 	}
 	if got := EaseInOutCubic(0.5); got != 0.5 {
 		t.Errorf("EaseInOutCubic(0.5) = %v, want 0.5 (symmetry)", got)
+	}
+}
+
+// Spring is underdamped: it overshoots past 1 (the bounce) then settles back —
+// unlike the monotone easings, it must NOT be added to the monotone test.
+func TestSpringOvershootsAndSettles(t *testing.T) {
+	overshot := false
+	prev := 0.0
+	for i := 1; i <= 100; i++ {
+		x := float64(i) / 100
+		v := Spring(x)
+		if v > 1.05 {
+			overshot = true
+		}
+		// It must decay back toward 1 by the end.
+		if x > 0.7 && math.Abs(v-1) > 0.05 {
+			t.Errorf("Spring(%v) = %v, want to settle near 1 after x=0.7", x, v)
+		}
+		prev = v
+	}
+	_ = prev
+	if !overshot {
+		t.Error("Spring must overshoot past 1 (a spring bounces, it does not ease)")
+	}
+	if _, got := CurveByName("spring"); !got {
+		t.Error("spring must be registered in the named-curve map")
 	}
 }
 
