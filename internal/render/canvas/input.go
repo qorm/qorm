@@ -35,14 +35,26 @@ import (
 // so a blinking caret would require the host to tick on a clock. Deliberate
 // wave-1 trade-off.
 
-// InputState is one live edit session: the text buffer and the insertion
-// cursor, both in runes. It is interaction state (Interaction.Input) for the
-// same reason Pressed/Focused are — the scene graph is rebuilt every frame,
-// so the session survives here, keyed by the stable model pointer.
+// InputState is one live edit session: the text buffer, the insertion cursor
+// and the selection, all in runes. It is interaction state (Interaction.Input)
+// for the same reason Pressed/Focused are — the scene graph is rebuilt every
+// frame, so the session survives here, keyed by the stable model pointer.
+//
+// Selection invariants: SelStart <= SelEnd, both in [0, len(Runes)]; the
+// selection is collapsed iff SelStart == SelEnd; Cursor is the ACTIVE (moving)
+// endpoint and Anchor the stationary one, so a normalized selection is always
+// SelStart = min(Anchor, Cursor), SelEnd = max(Anchor, Cursor). Selecting is
+// pointer-lifetime only — true from a press on the field until the release (or
+// a button-less move) that ends a press-drag selection; it does not survive
+// blur (the session dies).
 type InputState struct {
-	Node   *model.Node
-	Runes  []rune
-	Cursor int // insertion point in runes, [0, len(Runes)]
+	Node      *model.Node
+	Runes     []rune
+	Cursor    int // active caret, [0, len(Runes)]
+	SelStart  int // normalized selection start, [0, len(Runes)]
+	SelEnd    int // normalized selection end, [SelStart, len(Runes)]
+	Anchor    int // stationary endpoint while extending
+	Selecting bool
 }
 
 // minInputWidth is the content-box width (logical px) an empty input keeps so
@@ -184,9 +196,11 @@ func (e *Engine) syncEditSession() {
 	if f != nil && editableType(f.Type) && !nodeDisabled(f, e.RT) {
 		if s := e.Inter.Input; s == nil || s.Node != f {
 			// The buffer starts from the evaluated value with the cursor at
-			// the end, like clicking into an HTML field.
+			// the end and a collapsed selection, like clicking into an HTML
+			// field (a pointer click repositions it, input.go caretIndexFromPointer).
 			runes := []rune(evalPropStr(f.Value, e.RT))
-			e.Inter.Input = &InputState{Node: f, Runes: runes, Cursor: len(runes)}
+			e.Inter.Input = &InputState{Node: f, Runes: runes, Cursor: len(runes),
+				SelStart: len(runes), SelEnd: len(runes), Anchor: len(runes)}
 		}
 		return
 	}
@@ -194,10 +208,11 @@ func (e *Engine) syncEditSession() {
 }
 
 // handleEditKey applies one key-down to the live edit session and reports
-// whether the key was consumed. Printable text inserts at the cursor,
-// left/right move it, delete (the macOS backspace name; "backspace" covers
-// other hosts) removes the rune before it. Every buffer mutation commits:
-// state write-back plus onChange dispatch (commitEdit).
+// whether the key was consumed. Modifier shortcuts (Cmd/Ctrl+A/C/X/V, word and
+// line jumps) are checked BEFORE any text insertion — Cmd+A must select all,
+// not type "a" — and every buffer mutation (insert, delete, paste) replaces
+// the selection first. Each mutation commits once: state write-back plus
+// onChange dispatch (commitEdit); pure cursor/selection keys never commit.
 //
 // Multi-line sessions (a registered textarea) additionally consume: return /
 // enter inserting a newline, and up/down moving the cursor by visual line —
@@ -210,35 +225,101 @@ func (e *Engine) handleEditKey(k KeyInput) bool {
 		return false
 	}
 	multiline := s.Node.Type == "textarea"
+
+	// Modifier shortcuts. Alt (Option)+printable is NOT gated here: the Rune
+	// channel already carries the option-modified character, which should type.
+	if k.Meta || k.Ctrl {
+		switch k.Key {
+		case "a":
+			s.SelStart, s.SelEnd, s.Anchor, s.Cursor = 0, len(s.Runes), 0, len(s.Runes)
+			return true
+		case "c":
+			if s.SelStart < s.SelEnd {
+				ClipboardSet(string(s.Runes[s.SelStart:s.SelEnd]))
+			}
+			return true
+		case "x":
+			if s.SelStart < s.SelEnd {
+				ClipboardSet(string(s.Runes[s.SelStart:s.SelEnd]))
+				deleteSel(s)
+				e.commitEdit(s)
+			}
+			return true
+		case "v":
+			text := ClipboardGet()
+			if !multiline {
+				// Single-line fields strip newlines (HTML parity: pasting a
+				// multi-line value into <input> folds it to spaces).
+				text = strings.NewReplacer("\r", " ", "\n", " ").Replace(text)
+			}
+			deleteSel(s)
+			insertRunes(s, []rune(text))
+			e.commitEdit(s)
+			return true
+		case "left":
+			moveCursorTo(s, wordStartAt(s.Runes, s.Cursor), k.Shift)
+			return true
+		case "right":
+			moveCursorTo(s, wordEndAt(s.Runes, s.Cursor), k.Shift)
+			return true
+		case "up":
+			moveCursorTo(s, 0, k.Shift) // Cmd+Up = start
+			return true
+		case "down":
+			moveCursorTo(s, len(s.Runes), k.Shift) // Cmd+Down = end
+			return true
+		}
+		return false // an unknown Cmd/Ctrl chord never types its letter
+	}
+
 	switch k.Key {
 	case "left":
 		if s.Cursor > 0 {
-			s.Cursor--
+			moveCursorTo(s, s.Cursor-1, k.Shift)
 		}
 		return true
 	case "right":
 		if s.Cursor < len(s.Runes) {
-			s.Cursor++
+			moveCursorTo(s, s.Cursor+1, k.Shift)
 		}
 		return true
 	case "up", "down":
 		if !multiline {
 			return false
 		}
-		moveCursorLine(s, k.Key == "down")
+		moveCursorTo(s, moveCursorLineTarget(s, k.Key == "down"), k.Shift)
+		return true
+	case "home":
+		moveCursorTo(s, homeFor(s), k.Shift)
+		return true
+	case "end":
+		moveCursorTo(s, endFor(s), k.Shift)
 		return true
 	case "return", "enter":
 		if !multiline {
 			return false
 		}
+		deleteSel(s)
 		s.Runes = append(s.Runes, 0)
 		copy(s.Runes[s.Cursor+1:], s.Runes[s.Cursor:])
 		s.Runes[s.Cursor] = '\n'
 		s.Cursor++
+		collapseSel(s)
 		e.commitEdit(s)
 		return true
+	case "deleteForward":
+		if deleteSel(s) {
+			e.commitEdit(s)
+		} else if s.Cursor < len(s.Runes) {
+			// The rune AFTER the caret (HTML delete key / fn+delete).
+			s.Runes = append(s.Runes[:s.Cursor], s.Runes[s.Cursor+1:]...)
+			e.commitEdit(s)
+		}
+		return true
 	case "delete", "backspace":
-		if s.Cursor > 0 {
+		if deleteSel(s) {
+			e.commitEdit(s)
+		} else if s.Cursor > 0 {
 			s.Runes = append(s.Runes[:s.Cursor-1], s.Runes[s.Cursor:]...)
 			s.Cursor--
 			e.commitEdit(s)
@@ -246,43 +327,182 @@ func (e *Engine) handleEditKey(k KeyInput) bool {
 		return true
 	}
 	if r, ok := keyText(k); ok {
-		s.Runes = append(s.Runes, 0)
-		copy(s.Runes[s.Cursor+1:], s.Runes[s.Cursor:])
-		s.Runes[s.Cursor] = r
-		s.Cursor++
+		deleteSel(s)
+		insertRunes(s, []rune{r})
 		e.commitEdit(s)
 		return true
 	}
 	return false
 }
 
-// moveCursorLine moves the insertion cursor one visual line up (down=false)
-// or down (down=true), keeping the column where the target line is long
-// enough (HTML textarea parity: up on the first line clamps to the buffer
-// start, down on the last line to the end).
-func moveCursorLine(s *InputState, down bool) {
+// moveCursorLineTarget returns the buffer index one visual line up (down=false)
+// or down (down=true) from the current cursor, keeping the column where the
+// target line is long enough (HTML textarea parity: up on the first line clamps
+// to the buffer start, down on the last line to the end). The caller applies it
+// via moveCursorTo so shift extends the selection by whole lines.
+func moveCursorLineTarget(s *InputState, down bool) int {
 	start, col := lineStartCol(s.Runes, s.Cursor)
-	target := start
 	if !down {
 		if start == 0 {
-			s.Cursor = 0
-			return
+			return 0
 		}
 		// start-1 is the newline ending the PREVIOUS line; its line start is
 		// the target line's start.
-		target, _ = lineStartCol(s.Runes, start-1)
-	} else {
-		next := lineEnd(s.Runes, start) + 1 // skip the newline itself
-		if next > len(s.Runes) {
-			s.Cursor = len(s.Runes)
-			return
+		target, _ := lineStartCol(s.Runes, start-1)
+		if tlen := lineEnd(s.Runes, target) - target; col > tlen {
+			col = tlen
 		}
-		target = next
+		return target + col
 	}
+	next := lineEnd(s.Runes, start) + 1 // skip the newline itself
+	if next > len(s.Runes) {
+		return len(s.Runes)
+	}
+	target := next
 	if tlen := lineEnd(s.Runes, target) - target; col > tlen {
 		col = tlen
 	}
-	s.Cursor = target + col
+	return target + col
+}
+
+// collapseSel collapses the selection onto the cursor.
+func collapseSel(s *InputState) {
+	s.SelStart, s.SelEnd, s.Anchor = s.Cursor, s.Cursor, s.Cursor
+}
+
+// moveCursorTo moves the cursor to a clamped index. With shift the selection
+// extends from the anchor (fixed on the first shift-move); without, it
+// collapses. The normalized [SelStart, SelEnd] is always recomputed from
+// (Anchor, Cursor), so a selection that folds back over its anchor flips
+// without losing it.
+func moveCursorTo(s *InputState, to int, shift bool) {
+	if to < 0 {
+		to = 0
+	}
+	if to > len(s.Runes) {
+		to = len(s.Runes)
+	}
+	if shift {
+		if s.SelStart == s.SelEnd {
+			s.Anchor = s.Cursor // first shift-move: anchor at the old caret
+		}
+		s.Cursor = to
+	} else {
+		s.Cursor = to
+		collapseSel(s)
+		return
+	}
+	if s.Anchor < s.Cursor {
+		s.SelStart, s.SelEnd = s.Anchor, s.Cursor
+	} else {
+		s.SelStart, s.SelEnd = s.Cursor, s.Anchor
+	}
+}
+
+// deleteSel removes the selection (if any), collapsing the cursor to its
+// start; it does NOT commit — the caller does, exactly once per mutation.
+// Returns whether anything was deleted.
+func deleteSel(s *InputState) bool {
+	if s.SelStart >= s.SelEnd {
+		return false
+	}
+	s.Runes = append(s.Runes[:s.SelStart], s.Runes[s.SelEnd:]...)
+	s.Cursor = s.SelStart
+	collapseSel(s)
+	return true
+}
+
+// insertRunes inserts ins at the cursor and advances past them (no commit).
+func insertRunes(s *InputState, ins []rune) {
+	if len(ins) == 0 {
+		return
+	}
+	s.Runes = append(s.Runes, make([]rune, len(ins))...)
+	copy(s.Runes[s.Cursor+len(ins):], s.Runes[s.Cursor:])
+	copy(s.Runes[s.Cursor:], ins)
+	s.Cursor += len(ins)
+}
+
+// isWordRune is the word-selection alphabet: letters, digits and underscore —
+// the browser's word-break for plain text.
+func isWordRune(r rune) bool {
+	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
+}
+
+// wordStartAt returns the start of the word that starts at or before pos:
+// skipping back over any separators, then over the word itself (Cmd/Ctrl+Left).
+func wordStartAt(r []rune, pos int) int {
+	i := pos
+	for i > 0 && !isWordRune(r[i-1]) {
+		i--
+	}
+	for i > 0 && isWordRune(r[i-1]) {
+		i--
+	}
+	return i
+}
+
+// wordEndAt returns the end of the word that starts at or after pos: forward
+// over the word, then over the following separators (Cmd/Ctrl+Right).
+func wordEndAt(r []rune, pos int) int {
+	i := pos
+	for i < len(r) && isWordRune(r[i]) {
+		i++
+	}
+	for i < len(r) && !isWordRune(r[i]) {
+		i++
+	}
+	return i
+}
+
+// wordRangeAt returns the whitespace-delimited word containing pos (the
+// double-click selection). A pos on whitespace advances to the next word
+// right; trailing whitespace with no word collapses to pos (nothing selected).
+func wordRangeAt(r []rune, pos int) (int, int) {
+	if pos > len(r) {
+		pos = len(r)
+	}
+	i := pos
+	for i < len(r) && !isWordRune(r[i]) {
+		i++
+	}
+	if i >= len(r) {
+		return pos, pos
+	}
+	start := i
+	for start > 0 && isWordRune(r[start-1]) {
+		start--
+	}
+	end := i
+	for end < len(r) && isWordRune(r[end]) {
+		end++
+	}
+	return start, end
+}
+
+// lineRangeAt returns the whole line containing pos (the triple-click
+// selection in a textarea).
+func lineRangeAt(r []rune, pos int) (int, int) {
+	start, _ := lineStartCol(r, pos)
+	return start, lineEnd(r, start)
+}
+
+// homeFor / endFor are the Home/End targets: the line start/end for a
+// multiline session, the buffer start/end for a single-line one.
+func homeFor(s *InputState) int {
+	if s.Node.Type != "textarea" {
+		return 0
+	}
+	start, _ := lineStartCol(s.Runes, s.Cursor)
+	return start
+}
+
+func endFor(s *InputState) int {
+	if s.Node.Type != "textarea" {
+		return len(s.Runes)
+	}
+	start, _ := lineStartCol(s.Runes, s.Cursor)
+	return lineEnd(s.Runes, start)
 }
 
 // lineStartCol returns the start offset of the line containing pos and the
