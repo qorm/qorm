@@ -789,6 +789,11 @@ func (e *Engine) HandleKey(k KeyInput) bool {
 				// focus always lands outside lists and the item companion is 0.
 				e.Inter.Focused = NextFocus(Focusables(e.sceneRoot(), rt), e.Inter.Focused, !k.Shift)
 				e.Inter.FocusedItem = 0
+				// Scroll the newly focused node into view (a focus ring on a
+				// clipped node is invisible until the viewport scrolls it in).
+				if e.Inter.Focused != nil {
+					e.ensureFocusVisible(e.Inter.Focused)
+				}
 				e.syncEditSession()
 				handled = true
 			case "return", "space":

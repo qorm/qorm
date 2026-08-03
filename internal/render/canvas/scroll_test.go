@@ -137,6 +137,49 @@ func TestScrollScrollbarPainted(t *testing.T) {
 	}
 }
 
+// Keyboard focus that lands on a clipped node scrolls the viewport so the
+// node becomes visible: tabbing past the fold advances the offset.
+func TestScrollFocusIntoView(t *testing.T) {
+	btns := make([]*model.Node, 10)
+	for i := range btns {
+		btns[i] = &model.Node{Type: "button", ID: fmt.Sprintf("b%d", i)}
+	}
+	col := &model.Node{Type: "column", Children: btns}
+	sv := &model.Node{Type: "scroll", ID: "sv",
+		Style:    map[string]any{"width": 200.0, "height": 100.0},
+		Children: []*model.Node{col}}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{sv}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}}
+	rt := runtime.New(app)
+	e := NewEngine(rt, SoftwareRenderer{})
+	surf := NewHeadlessSurface(image.Pt(400, 400))
+	e.DrawFrame(surf)
+
+	svBBox := func() float64 { return e.findGroupByModel(sv).GetBBox().MaxY }
+	scrolled := false
+	for i := 0; i < 10; i++ {
+		e.HandleKey(KeyInput{Key: "tab", Down: true})
+		e.DrawFrame(surf)
+		f := e.Inter.Focused
+		if f == nil {
+			break
+		}
+		gb := e.findGroupByModel(f)
+		if gb == nil {
+			continue
+		}
+		if bb := gb.GetBBox(); bb.MaxY > svBBox() {
+			t.Fatalf("button %s still below the viewport fold after tab %d (maxY %v)", f.ID, i, bb.MaxY)
+		}
+		if off := e.Inter.ScrollOffsets[sv]; off.Y > 0 {
+			scrolled = true
+		}
+	}
+	if !scrolled {
+		t.Error("focusing below the fold must scroll the viewport, but the offset never advanced")
+	}
+}
+
 // A wheel gesture only scrolls the viewport under the pointer: over empty
 // space nothing is consumed and the engine stays clean.
 func TestScrollWheelHitAndMiss(t *testing.T) {
