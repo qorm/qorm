@@ -120,6 +120,29 @@ func TestListRendersItemsWithItemScope(t *testing.T) {
 	}
 }
 
+// A focusable inside a list's renderItem template joins the Tab order (the
+// template is walked, not just Children), and Tab lands on the FIRST instance
+// whose graph node carries the focus flag. Cycling through instances is a
+// later milestone.
+func TestListItemsKeyboardFocusable(t *testing.T) {
+	tpl := &model.Node{Type: "button", ID: "item", Props: map[string]any{"label": "x"}}
+	e, surf, _ := listFixture(t, names("a", "b", "c"), tpl, nil)
+	e.DrawFrame(surf)
+
+	e.HandleKey(KeyInput{Key: "tab", Down: true})
+	if e.Inter.Focused != tpl {
+		t.Fatal("tab must reach the list item template's button")
+	}
+	if e.Inter.FocusedItem != 0 {
+		t.Fatalf("focus must land on the first instance, got item %d", e.Inter.FocusedItem)
+	}
+	e.DrawFrame(surf) // re-layout stamps the focused instance's graph node
+	g := e.findGroupByModelIndex(tpl, 0)
+	if g == nil || !g.Base().Focused {
+		t.Error("the first instance's graph node must carry the focus flag")
+	}
+}
+
 // A state change re-expands the repeat on the next frame: items added and
 // removed show up without any identity bookkeeping going stale.
 func TestListDataChangeRerenders(t *testing.T) {
