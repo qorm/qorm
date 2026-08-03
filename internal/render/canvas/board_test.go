@@ -162,6 +162,40 @@ func TestBoardPlainScrollPans(t *testing.T) {
 	}
 }
 
+// Off-screen board children are culled at record time: no graph subtree, no
+// raster. A note beyond the viewport edge (and its pan/zoom) simply isn't in
+// the graph; panning it into view builds it again.
+func TestBoardCullsOffscreenChildren(t *testing.T) {
+	e, s, root := boardFixture(t)
+	e.DrawFrame(s)
+
+	// n1 at board (100,50) is visible; n2 at (300,200) too. Add an implicit
+	// check that a note far outside the viewport is absent from the graph.
+	if g := e.findGroupByModel(root.Children[0]); g == nil {
+		t.Fatal("on-screen note must be in the graph")
+	}
+	if g := e.findGroupByModel(root.Children[1]); g == nil {
+		t.Fatal("second on-screen note must be in the graph")
+	}
+
+	// Pan far enough that n1 (at board 100,50, 60x40) leaves the 400x400
+	// viewport; its group must vanish from the graph.
+	e.Inter.Board.PanX, e.Inter.Board.PanY = -500, -500
+	e.MarkDirty()
+	e.DrawFrame(s)
+	if g := e.findGroupByModel(root.Children[0]); g != nil {
+		t.Fatalf("off-screen note must be culled, but a group exists at (%v,%v)", g.Base().X, g.Base().Y)
+	}
+
+	// Pan it back: the note reappears.
+	e.Inter.Board.PanX, e.Inter.Board.PanY = 0, 0
+	e.MarkDirty()
+	e.DrawFrame(s)
+	if g := e.findGroupByModel(root.Children[0]); g == nil {
+		t.Fatal("note must reappear after panning it back into view")
+	}
+}
+
 // The board zoom clamps to the [0.25, 4] range regardless of gesture size.
 func TestBoardZoomClamped(t *testing.T) {
 	e, s, _ := boardFixture(t)

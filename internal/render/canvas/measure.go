@@ -514,6 +514,23 @@ func gridColumns(n *model.Node) int {
 	return cols
 }
 
+// boardChildVisible reports whether a board child's screen box (its board-space
+// cbounds under the live pan/zoom) can reach the viewport. The child's box is
+// mapped through the same content matrix the rasterizer applies, with a margin
+// sized to a note's drop shadow so an edge-hugging note doesn't pop.
+func boardChildVisible(cb image.Rectangle, inter *Interaction, viewport image.Rectangle) bool {
+	z := inter.Board.Zoom
+	if z <= 0 {
+		z = 1
+	}
+	margin := 24 * z
+	sx := inter.Board.PanX + float64(cb.Min.X)*z - margin
+	sy := inter.Board.PanY + float64(cb.Min.Y)*z - margin
+	ex := inter.Board.PanX + float64(cb.Max.X)*z + margin
+	ey := inter.Board.PanY + float64(cb.Max.Y)*z + margin
+	return ex >= 0 && ey >= 0 && sx <= float64(viewport.Dx()) && sy <= float64(viewport.Dy())
+}
+
 // PerformLayout does the top-down pass, building the scene graph. inter and
 // rt stamp interaction state and resolve theme-driven decorations; scale is
 // the device-pixel ratio (used for the focus-ring insets so its visual width
@@ -926,6 +943,15 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 				child.Width = clampInt(int(r.W), child.Style.MinWidth, child.Style.MaxWidth)
 				child.Height = clampInt(int(r.H), child.Style.MinHeight, child.Style.MaxHeight)
 			}
+		}
+
+		// Viewport cull (infinite canvas): an off-screen board child builds no
+		// subtree and draws nothing — the plane is unbounded, so without this
+		// every frame records + rasterizes notes the window can't see. The
+		// margin keeps a note whose shadow/ring reaches into the viewport from
+		// popping in/out at the edge.
+		if isBoard && inter != nil && inter.Board.Active && !boardChildVisible(cbounds, inter, bounds) {
+			continue
 		}
 
 		childAbsOrigin := image.Pt(ln.AbsX, ln.AbsY)
