@@ -59,6 +59,10 @@ type LayoutNode struct {
 	// or fill height clamps the box (scroll nodes only): HandleScroll clamps
 	// the offset against exactly this.
 	ContentH int
+	// ContentW is a scroll viewport's full content width before an explicit or
+	// fill width clamps the box (scroll nodes only): the horizontal axis of
+	// the same clamp.
+	ContentW int
 
 	// EvalVars carries the repeat-instance evaluation scope (item/index/…) to
 	// every descendant of the instance — ItemScope stays root-only for the
@@ -324,10 +328,11 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 	contentH += style.Padding * 2
 
 	if isScrollType(n.Type) {
-		// A scroll viewport's height may be clamped below its content (that
-		// is the point of scrolling): keep the full content height for the
-		// offset clamp, before the explicit/fill height applies below.
+		// A scroll viewport's box may be clamped below its content (that is
+		// the point of scrolling): keep the full content size for the offset
+		// clamp, before the explicit/fill size applies below.
 		ln.ContentH = contentH
+		ln.ContentW = contentW
 	}
 
 	ln.Width = contentW
@@ -516,6 +521,16 @@ func gridColumns(n *model.Node) int {
 		cols = maxGridColumns
 	}
 	return cols
+}
+
+// contentW returns a scroll viewport's content box width: the natural content
+// width, but at least the viewport itself — a vertical scroll whose children
+// stretch to the box still lays them out at the box width.
+func contentW(ln *LayoutNode) int {
+	if cw := ln.ContentW; cw > ln.Width {
+		return cw
+	}
+	return ln.Width
 }
 
 // boardChildVisible reports whether a board child's screen box (its board-space
@@ -790,16 +805,19 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 	isGrid := ln.Node.Type == "grid" || ln.Node.Type == "gridview"
 
 	// A scroll viewport's children mount into one content group so the whole
-	// scrolled body shifts as a unit (its Y translation is the offset). It is
-	// the viewport's ONLY group child — scrollContentOf relies on that.
+	// scrolled body shifts as a unit (its X/Y translations are the offsets). It
+	// is the viewport's ONLY group child — scrollContentOf relies on that. The
+	// content box is the NATURAL content size, so children wider than the
+	// viewport overflow and scroll horizontally.
 	sink := group
 	var content *graph.Group
-	scrollY := 0
 	if isScroll {
 		content = graph.NewGroup()
-		content.Width = float64(ln.Width)
+		content.Width = float64(contentW(ln))
 		content.Height = float64(ln.ContentH)
-		scrollY = -int(math.Round(scrollOffset(ln, inter)))
+		pos := scrollOffsetPos(ln, inter)
+		content.X = -math.Round(pos.X)
+		content.Y = -math.Round(pos.Y)
 		sink = content
 	}
 
@@ -835,6 +853,12 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 	}
 
 	innerW := ln.Width - ln.Style.Padding*2
+	if isScroll {
+		// Scroll content lays out at its NATURAL width, so a child wider than
+		// the viewport overflows (and scrolls horizontally) instead of being
+		// shrunk to fit.
+		innerW = contentW(ln) - ln.Style.Padding*2
+	}
 	innerH := ln.Height - ln.Style.Padding*2
 
 	// Justify is the flex kernel's job (flexStyle forwards it; the kernel
@@ -960,7 +984,12 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 
 		childAbsOrigin := image.Pt(ln.AbsX, ln.AbsY)
 		if isScroll {
-			childAbsOrigin.Y += scrollY
+			// The content is shifted by the offsets, so a child's SCENE
+			// position is its box position minus the scroll (overlays and
+			// absolute-positioned children stay glued to their content).
+			pos := scrollOffsetPos(ln, inter)
+			childAbsOrigin.X -= int(math.Round(pos.X))
+			childAbsOrigin.Y -= int(math.Round(pos.Y))
 		}
 		childNode := performLayout(child, cbounds, childAbsOrigin, inter, rt, scale, items, overlays)
 		if childNode != nil {
@@ -969,9 +998,8 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 	}
 
 	if content != nil {
-		// Shift the scrolled body by the (clamped) offset; the clip mounted
-		// above cuts whatever leaves the viewport.
-		content.Y = float64(scrollY)
+		// The offset translations were set at creation; the clip mounted above
+		// cuts whatever leaves the viewport.
 		group.AddChild(content)
 	}
 	if boardContent != nil {

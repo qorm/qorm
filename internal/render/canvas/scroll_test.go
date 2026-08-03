@@ -45,8 +45,8 @@ func TestScrollOffsetClamp(t *testing.T) {
 	if !e.HandleScroll(ScrollInput{DY: 10000}) {
 		t.Fatal("scroll over the viewport must be consumed")
 	}
-	if off := e.Inter.ScrollOffsets[sv]; off != 400 {
-		t.Fatalf("offset after huge downward delta = %v, want 400 (500-100)", off)
+	if off := e.Inter.ScrollOffsets[sv]; off.Y != 400 {
+		t.Fatalf("offset after huge downward delta = %v, want 400 (500-100)", off.Y)
 	}
 	if e.HandleScroll(ScrollInput{DY: 10000}) {
 		t.Fatal("already at the bottom: nothing left to consume")
@@ -54,8 +54,8 @@ func TestScrollOffsetClamp(t *testing.T) {
 	if !e.HandleScroll(ScrollInput{DY: -10000}) {
 		t.Fatal("scrolling back up must be consumed")
 	}
-	if off := e.Inter.ScrollOffsets[sv]; off != 0 {
-		t.Fatalf("offset after huge upward delta = %v, want 0", off)
+	if off := e.Inter.ScrollOffsets[sv]; off.Y != 0 {
+		t.Fatalf("offset after huge upward delta = %v, want 0", off.Y)
 	}
 
 	// The content shifts by exactly the offset.
@@ -66,6 +66,42 @@ func TestScrollOffsetClamp(t *testing.T) {
 	after := e.findGroupByModel(first).GetBBox().MinY
 	if before-after != 40 {
 		t.Fatalf("content shifted by %v, want 40 (the offset)", before-after)
+	}
+}
+
+// A scroll viewport whose content is wider than the box scrolls horizontally:
+// a row of fixed-width cards overflows the 200px viewport and DX drives the x
+// offset, clamped to contentW-viewportW, shifting the content left.
+func TestScrollHorizontal(t *testing.T) {
+	cards := make([]*model.Node, 5)
+	for i := range cards {
+		cards[i] = &model.Node{Type: "column", Style: map[string]any{"width": 100.0, "height": 60.0}}
+	}
+	row := &model.Node{Type: "row", Children: cards}
+	e, surf, sv := scrollFixture(t, []*model.Node{row})
+	e.DrawFrame(surf)
+
+	e.HandlePointer(PointerInput{Type: PointerMove, X: 100, Y: 50})
+	if !e.HandleScroll(ScrollInput{DX: 100}) {
+		t.Fatal("horizontal scroll over the viewport must be consumed")
+	}
+	if off := e.Inter.ScrollOffsets[sv]; off.X != 100 {
+		t.Fatalf("x offset = %v, want 100", off.X)
+	}
+	// Content is 5×100=500 wide, viewport 200 → max x offset 300.
+	e.HandleScroll(ScrollInput{DX: 10000})
+	if off := e.Inter.ScrollOffsets[sv]; off.X != 300 {
+		t.Fatalf("x offset clamped = %v, want 300 (500-200)", off.X)
+	}
+	// The content shifts horizontally by the offset.
+	e.DrawFrame(surf) // render the clamped frame before measuring `before`
+	first := row.Children[0]
+	before := e.findGroupByModel(first).GetBBox().MinX
+	e.HandleScroll(ScrollInput{DX: -100})
+	e.DrawFrame(surf)
+	after := e.findGroupByModel(first).GetBBox().MinX
+	if after-before != 100 {
+		t.Fatalf("content shifted horizontally by %v, want 100 right (scrolling back)", after-before)
 	}
 }
 
@@ -90,8 +126,8 @@ func TestScrollWheelHitAndMiss(t *testing.T) {
 	if !e.HandleScroll(ScrollInput{DY: 30}) {
 		t.Fatal("scroll over the viewport must be consumed")
 	}
-	if off := e.Inter.ScrollOffsets[sv]; off != 30 {
-		t.Fatalf("offset = %v, want 30", off)
+	if off := e.Inter.ScrollOffsets[sv]; off.Y != 30 {
+		t.Fatalf("offset = %v, want 30", off.Y)
 	}
 }
 
@@ -163,17 +199,17 @@ func TestScrollNestedBubbling(t *testing.T) {
 	if !e.HandleScroll(ScrollInput{DY: 250}) {
 		t.Fatal("a 250 delta across two ranges must be consumed")
 	}
-	if off := e.Inter.ScrollOffsets[inner]; off != 200 {
-		t.Fatalf("inner offset = %v, want 200 (its full range)", off)
+	if off := e.Inter.ScrollOffsets[inner]; off.Y != 200 {
+		t.Fatalf("inner offset = %v, want 200 (its full range)", off.Y)
 	}
-	if off := e.Inter.ScrollOffsets[outer]; off != 50 {
-		t.Fatalf("outer offset = %v, want 50 (the bubbled remainder)", off)
+	if off := e.Inter.ScrollOffsets[outer]; off.Y != 50 {
+		t.Fatalf("outer offset = %v, want 50 (the bubbled remainder)", off.Y)
 	}
 
 	// Inner exhausted: a further gesture lands entirely on the outer.
 	e.HandleScroll(ScrollInput{DY: 1000})
-	if off := e.Inter.ScrollOffsets[outer]; off != 200 {
-		t.Fatalf("outer offset = %v, want 200 (its full range)", off)
+	if off := e.Inter.ScrollOffsets[outer]; off.Y != 200 {
+		t.Fatalf("outer offset = %v, want 200 (its full range)", off.Y)
 	}
 	// Both at their ends: nothing left to consume anywhere.
 	if e.HandleScroll(ScrollInput{DY: 1000}) {

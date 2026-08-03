@@ -23,14 +23,13 @@ import (
 //     sides of the same rule, since pixels that were cut must not be
 //     clickable either.
 //   - the offset: cross-frame state in Interaction.ScrollOffsets (keyed by
-//     the stable model pointer), applied as the content group's Y translation
-//     in PerformLayout and clamped to [0, contentHeight-viewportHeight] both
-//     on input (HandleScroll) and on layout (scrollOffset — a data shrink
-//     repairs a held offset).
+//     the stable model pointer), applied as the content group's X/Y
+//     translation in PerformLayout and clamped on each axis both on input
+//     (HandleScroll) and on layout (scrollOffsetPos — a data shrink repairs a
+//     held offset).
 //
-// Wave-2 scope, deliberately: vertical only (DX is ignored; the HTML path's
-// `horizontal` is a later wave), no touch-drag scrolling, no scrollbar
-// affordance.
+// Wave-2 scope, deliberately: wheel/trackpad only (no touch-drag scrolling),
+// no scrollbar affordance (a later wave).
 
 // isScrollType reports the viewport container spellings (the HTML names).
 func isScrollType(t string) bool { return t == "scroll" || t == "scrollview" }
@@ -73,65 +72,98 @@ func scrollContentOf(vp *graph.Group) *graph.Group {
 	return nil
 }
 
-// scrollOffset returns the viewport's content offset in physical px, clamped
-// to [0, contentHeight-viewportHeight]. The clamp doubles as a repair: when
-// the content shrank under a held offset (items removed, window grown), the
+// ScrollPos is a scroll viewport's content offset in physical px, both axes.
+type ScrollPos struct {
+	X, Y float64
+}
+
+// scrollOffsetPos returns the viewport's content offset, clamped on each axis
+// to [0, contentSize-viewportSize]. The clamp doubles as a repair: when the
+// content shrank under a held offset (items removed, window grown), the
 // cross-frame state is pulled back into range here.
-func scrollOffset(ln *LayoutNode, inter *Interaction) float64 {
+func scrollOffsetPos(ln *LayoutNode, inter *Interaction) ScrollPos {
 	if inter == nil {
-		return 0
+		return ScrollPos{}
 	}
-	off := inter.ScrollOffsets[ln.Node]
-	max := float64(ln.ContentH - ln.Height)
-	if max < 0 {
-		max = 0
+	pos := inter.ScrollOffsets[ln.Node]
+	maxX := float64(ln.ContentW - ln.Width)
+	maxY := float64(ln.ContentH - ln.Height)
+	if maxX < 0 {
+		maxX = 0
 	}
-	clamped := off
-	if clamped < 0 {
-		clamped = 0
+	if maxY < 0 {
+		maxY = 0
 	}
-	if clamped > max {
-		clamped = max
+	clamped := pos
+	if clamped.X < 0 {
+		clamped.X = 0
 	}
-	if clamped != off && inter.ScrollOffsets != nil {
+	if clamped.X > maxX {
+		clamped.X = maxX
+	}
+	if clamped.Y < 0 {
+		clamped.Y = 0
+	}
+	if clamped.Y > maxY {
+		clamped.Y = maxY
+	}
+	if clamped != pos && inter.ScrollOffsets != nil {
 		inter.ScrollOffsets[ln.Node] = clamped
 	}
 	return clamped
 }
 
-// scrollViewport applies dy to one viewport's offset, clamped to its scroll
-// range, and returns the UNCONSUMED remainder — 0 when the gesture was fully
-// absorbed. HandleScroll walks the hit's ancestor chain feeding each viewport
-// what the inner ones could not take, which is the web's scroll chaining: an
-// inner list scrolled to its end passes the rest of the gesture outward.
-func (e *Engine) scrollViewport(vp *graph.Group, m *model.Node, dy float64) float64 {
-	if dy != dy || dy > 1e308 || dy < -1e308 {
-		return 0 // NaN/Inf deltas sail through both clamps and poison the
+// scrollViewport applies dx/dy to one viewport's offsets, clamped to its
+// scroll range on each axis, and returns the UNCONSUMED remainder per axis —
+// (0,0) when the gesture was fully absorbed. HandleScroll walks the hit's
+// ancestor chain feeding each viewport what the inner ones could not take,
+// which is the web's scroll chaining: an inner list scrolled to its end passes
+// the rest of the gesture outward. A viewport whose content fits on an axis
+// consumes nothing on it (the whole delta bubbles out).
+func (e *Engine) scrollViewport(vp *graph.Group, m *model.Node, dx, dy float64) (float64, float64) {
+	if (dx != dx || dx > 1e308 || dx < -1e308) || (dy != dy || dy > 1e308 || dy < -1e308) {
+		return 0, 0 // NaN/Inf deltas sail through both clamps and poison the
 		// persisted offset (R6-C) — drop the gesture outright.
 	}
 	content := scrollContentOf(vp)
 	if content == nil {
-		return dy
+		return dx, dy
 	}
-	max := content.Base().Height - vp.Base().Height
-	if max <= 0 {
-		return dy // content fits: nothing to scroll, bubble the whole gesture
+	maxX := content.Base().Width - vp.Base().Width
+	maxY := content.Base().Height - vp.Base().Height
+	if maxX <= 0 && maxY <= 0 {
+		return dx, dy // content fits both ways: bubble the whole gesture
 	}
-	off := e.Inter.ScrollOffsets[m]
-	next := off + dy
-	if next < 0 {
-		next = 0
-	}
-	if next > max {
-		next = max
-	}
-	consumed := next - off
-	if consumed == 0 {
-		return dy // already at the edge in this direction
-	}
+	pos := e.Inter.ScrollOffsets[m]
 	if e.Inter.ScrollOffsets == nil {
-		e.Inter.ScrollOffsets = map[*model.Node]float64{}
+		e.Inter.ScrollOffsets = map[*model.Node]ScrollPos{}
 	}
-	e.Inter.ScrollOffsets[m] = next
-	return dy - consumed
+	// X axis.
+	var consumedX float64
+	if maxX > 0 && dx != 0 {
+		next := pos.X + dx
+		if next < 0 {
+			next = 0
+		}
+		if next > maxX {
+			next = maxX
+		}
+		consumedX = next - pos.X
+		pos.X = next
+	}
+	// Y axis.
+	var consumedY float64
+	if maxY > 0 && dy != 0 {
+		next := pos.Y + dy
+		if next < 0 {
+			next = 0
+		}
+		if next > maxY {
+			next = maxY
+		}
+		consumedY = next - pos.Y
+		pos.Y = next
+	}
+	e.Inter.ScrollOffsets[m] = pos
+	return dx - consumedX, dy - consumedY
 }

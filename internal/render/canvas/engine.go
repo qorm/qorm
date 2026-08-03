@@ -656,14 +656,14 @@ func (e *Engine) HandleScroll(s ScrollInput) bool {
 		return e.boardZoom(e.lastPtr, s.DY)
 	}
 	hit := e.graphRoot.HitTest(e.lastPtr)
-	dy := s.DY
+	dx, dy := s.DX, s.DY
 	changed := false
-	for n := hit; n != nil && dy != 0; {
+	for n := hit; n != nil && (dx != 0 || dy != 0); {
 		if g, ok := n.(*graph.Group); ok {
 			if m := g.Base().Model; m != nil && isScrollType(m.Type) {
-				before := dy
-				dy = e.scrollViewport(g, m, dy)
-				changed = changed || dy != before
+				beforeX, beforeY := dx, dy
+				dx, dy = e.scrollViewport(g, m, dx, dy)
+				changed = changed || dx != beforeX || dy != beforeY
 			}
 		}
 		p := n.Base().Parent
@@ -674,12 +674,11 @@ func (e *Engine) HandleScroll(s ScrollInput) bool {
 	}
 	// An unconsumed wheel/trackpad scroll over a board pans the canvas — the
 	// board is the outer fallback consumer of scroll, so a wheel over empty
-	// whiteboard space drags the canvas instead of doing nothing. Both axes
-	// count (a horizontal-only swipe pans X even though viewport scrolling
-	// only consumes dy). The sign mirrors scrollViewport (positive dy = toward
-	// content bottom → content shifts up, hence the subtract).
-	if (dy != 0 || s.DX != 0) && e.Inter.Board.Active {
-		e.Inter.Board.PanX -= s.DX
+	// whiteboard space drags the canvas instead of doing nothing. The sign
+	// mirrors scrollViewport (positive dy = toward content bottom → content
+	// shifts up, hence the subtract).
+	if (dx != 0 || dy != 0) && e.Inter.Board.Active {
+		e.Inter.Board.PanX -= dx
 		e.Inter.Board.PanY -= dy
 		changed = true
 	}

@@ -194,11 +194,11 @@ func TestScrollNaNDeltaDropped(t *testing.T) {
 
 	e.HandlePointer(PointerInput{Type: PointerMove, X: 100, Y: 50})
 	e.HandleScroll(ScrollInput{DY: math.NaN()})
-	if off := e.Inter.ScrollOffsets[sv]; off != 0 {
-		t.Errorf("NaN delta wrote offset %v", off)
+	if off := e.Inter.ScrollOffsets[sv]; off.Y != 0 {
+		t.Errorf("NaN delta wrote offset %v", off.Y)
 	}
 	e.HandleScroll(ScrollInput{DY: math.Inf(1)})
-	if off := e.Inter.ScrollOffsets[sv]; off != 0 {
-		t.Errorf("+Inf delta wrote offset %v", off)
+	if off := e.Inter.ScrollOffsets[sv]; off.Y != 0 {
+		t.Errorf("+Inf delta wrote offset %v", off.Y)
 	}
 }

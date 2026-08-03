@@ -45,11 +45,11 @@ type Interaction struct {
 	// (input.go).
 	Input *InputState
 	// ScrollOffsets holds each scroll viewport's content offset (physical
-	// px, vertical), keyed by the stable model pointer — the same
+	// px, horizontal + vertical), keyed by the stable model pointer — the same
 	// cross-frame home as the identities above: the graph is rebuilt every
 	// frame, so offsets survive here. Lazily allocated by HandleScroll;
 	// reset with the rest of Interaction on a scene switch.
-	ScrollOffsets map[*model.Node]float64
+	ScrollOffsets map[*model.Node]ScrollPos
 	// Click is the double/triple-click detector for the focused editable
 	// (input.go placeCaretFromPointer). Lazily allocated; reset with the rest
 	// of Interaction on a scene switch.
