@@ -177,6 +177,13 @@ func scrollOffsetPos(ln *LayoutNode, inter *Interaction) ScrollPos {
 // it into view, like the browser's focus scrolling. It adjusts each viewport's
 // offset by the node's overshoot relative to the viewport box, clamped to the
 // scroll range, and marks the engine dirty for the re-layout.
+//
+// The ancestors are walked innermost-first, and scrolling an inner viewport
+// SHIFTS the node's global position (its content moves by -offset), so each
+// outer viewport must compute its overshoot against the node's position AFTER
+// the inner scrolls — shiftX/shiftY accumulate those deltas, or the outer
+// viewport would over-scroll by the whole inner adjustment and push the node
+// back out of view on the other side.
 func (e *Engine) ensureFocusVisible(m *model.Node) {
 	g := e.findGroupByModelIndex(m, e.Inter.FocusedItem)
 	if g == nil {
@@ -185,40 +192,50 @@ func (e *Engine) ensureFocusVisible(m *model.Node) {
 	if e.Inter.ScrollOffsets == nil {
 		e.Inter.ScrollOffsets = map[*model.Node]ScrollPos{}
 	}
+	// Collect the scroll ancestors innermost-first.
+	var vps []*graph.Group
 	for p := g.Base().Parent; p != nil; p = p.Base().Parent {
-		mm := p.Base().Model
-		if mm == nil || !p.Clip || !isScrollType(mm.Type) {
-			continue
+		if mm := p.Base().Model; mm != nil && p.Clip && isScrollType(mm.Type) {
+			vps = append(vps, p)
 		}
-		nb := g.GetBBox()
-		vb := p.GetBBox()
-		pos := e.Inter.ScrollOffsets[mm]
-		if nb.MinY < vb.MinY {
-			pos.Y += nb.MinY - vb.MinY // node above → scroll up (decrease)
-		} else if nb.MaxY > vb.MaxY {
-			pos.Y += nb.MaxY - vb.MaxY // node below → scroll down (increase)
+	}
+	nb := g.GetBBox()
+	shiftX, shiftY := 0.0, 0.0
+	for _, vp := range vps {
+		mm := vp.Base().Model
+		vb := vp.GetBBox()
+		old := e.Inter.ScrollOffsets[mm]
+		pos := old
+		if nb.MinY+shiftY < vb.MinY {
+			pos.Y += nb.MinY + shiftY - vb.MinY // node above → scroll up
+		} else if nb.MaxY+shiftY > vb.MaxY {
+			pos.Y += nb.MaxY + shiftY - vb.MaxY // node below → scroll down
 		}
-		if nb.MinX < vb.MinX {
-			pos.X += nb.MinX - vb.MinX
-		} else if nb.MaxX > vb.MaxX {
-			pos.X += nb.MaxX - vb.MaxX
+		if nb.MinX+shiftX < vb.MinX {
+			pos.X += nb.MinX + shiftX - vb.MinX
+		} else if nb.MaxX+shiftX > vb.MaxX {
+			pos.X += nb.MaxX + shiftX - vb.MaxX
 		}
-		if content := scrollContentOf(p); content != nil {
+		if content := scrollContentOf(vp); content != nil {
 			if pos.X < 0 {
 				pos.X = 0
 			}
 			if pos.Y < 0 {
 				pos.Y = 0
 			}
-			if pos.X > content.Base().Width-p.Base().Width {
-				pos.X = content.Base().Width - p.Base().Width
+			if pos.X > content.Base().Width-vp.Base().Width {
+				pos.X = content.Base().Width - vp.Base().Width
 			}
-			if pos.Y > content.Base().Height-p.Base().Height {
-				pos.Y = content.Base().Height - p.Base().Height
+			if pos.Y > content.Base().Height-vp.Base().Height {
+				pos.Y = content.Base().Height - vp.Base().Height
 			}
 		}
 		e.Inter.ScrollOffsets[mm] = pos
 		e.dirty.Store(true)
+		// The offset delta shifts the node the opposite way in global space,
+		// so outer viewports compute against the post-inner-scroll position.
+		shiftX -= pos.X - old.X
+		shiftY -= pos.Y - old.Y
 	}
 }
 

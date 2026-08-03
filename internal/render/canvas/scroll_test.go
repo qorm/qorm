@@ -180,6 +180,53 @@ func TestScrollFocusIntoView(t *testing.T) {
 	}
 }
 
+// Focus scrolling through NESTED scroll viewports must keep the node visible
+// in BOTH: scrolling the inner shifts the node's outer position, so the outer's
+// overshoot is computed against the post-inner-scroll position — otherwise it
+// over-scrolls by the whole inner delta and pushes the node back out of view.
+func TestScrollFocusIntoViewNested(t *testing.T) {
+	btns := make([]*model.Node, 10)
+	for i := range btns {
+		btns[i] = &model.Node{Type: "button", ID: fmt.Sprintf("b%d", i)}
+	}
+	col := &model.Node{Type: "column", Children: btns}
+	inner := &model.Node{Type: "scroll", ID: "inner",
+		Style:    map[string]any{"width": 200.0, "height": 100.0},
+		Children: []*model.Node{col}}
+	below := &model.Node{Type: "column", ID: "below", Style: map[string]any{"height": 300.0}}
+	outer := &model.Node{Type: "scroll", ID: "outer",
+		Style:    map[string]any{"width": 200.0, "height": 100.0},
+		Children: []*model.Node{inner, below}}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{outer}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}}
+	rt := runtime.New(app)
+	e := NewEngine(rt, SoftwareRenderer{})
+	surf := NewHeadlessSurface(image.Pt(400, 400))
+	e.DrawFrame(surf)
+
+	for i := 0; i < 10; i++ {
+		e.HandleKey(KeyInput{Key: "tab", Down: true})
+		e.DrawFrame(surf)
+		f := e.Inter.Focused
+		if f == nil {
+			break
+		}
+		gb := e.findGroupByModel(f)
+		if gb == nil {
+			continue
+		}
+		bb := gb.GetBBox()
+		ib := e.findGroupByModel(inner).GetBBox()
+		ob := e.findGroupByModel(outer).GetBBox()
+		if bb.MinY < ib.MinY-1 || bb.MaxY > ib.MaxY+1 {
+			t.Fatalf("button %s outside the inner viewport after tab %d: [%v,%v] vs [%v,%v]", f.ID, i, bb.MinY, bb.MaxY, ib.MinY, ib.MaxY)
+		}
+		if bb.MinY < ob.MinY-1 || bb.MaxY > ob.MaxY+1 {
+			t.Fatalf("button %s outside the outer viewport after tab %d: [%v,%v] vs [%v,%v]", f.ID, i, bb.MinY, bb.MaxY, ob.MinY, ob.MaxY)
+		}
+	}
+}
+
 // A wheel gesture only scrolls the viewport under the pointer: over empty
 // space nothing is consumed and the engine stays clean.
 func TestScrollWheelHitAndMiss(t *testing.T) {

@@ -184,6 +184,46 @@ func TestTextareaTabFocusCachesSession(t *testing.T) {
 	}
 }
 
+// Shrinking the buffer below the box height resets a stale scroll offset:
+// after a tall buffer scrolled, a short buffer must render at offset 0 — the
+// old offset would leave the content scrolled out of view (a blank field that
+// still holds text).
+func TestTextareaScrollResetsOnShrink(t *testing.T) {
+	rt := runtime.New(&model.App{})
+	rt.Theme = theme.GetDefault()
+	ta := &model.Node{Type: "textarea", ID: "ta"}
+	w, _ := canvas.LookupWidget("textarea")
+	tw := w.(*Textarea)
+	inter := &canvas.Interaction{Input: &canvas.InputState{
+		Node: ta, Runes: []rune("l1\nl2\nl3\nl4\nl5\nl6"), Cursor: 21,
+	}}
+	tw.mu.Lock()
+	tw.inters[ta] = inter
+	tw.mu.Unlock()
+	ln := &canvas.LayoutNode{Node: ta, Width: 200, Height: 62}
+	tw.Record(ln, rt, 1)
+	if pos := inter.ScrollOffsets[ta]; pos.Y == 0 {
+		t.Fatal("tall content must have scrolled")
+	}
+	// Shrink to one line while the session is still live.
+	inter.Input.Runes = []rune("only")
+	inter.Input.Cursor = 4
+	shape := tw.Record(ln, rt, 1)
+	if pos := inter.ScrollOffsets[ta]; pos.Y != 0 {
+		t.Errorf("shrunk content must reset the offset to 0, got %v", pos.Y)
+	}
+	root := shape.(*draw.Group)
+	var content *draw.Group
+	for _, c := range root.Children {
+		if gr, ok := c.(*draw.Group); ok {
+			content = gr
+		}
+	}
+	if content != nil && content.Y != 0 {
+		t.Errorf("content.Y after shrink = %v, want 0 (not scrolled out of view)", content.Y)
+	}
+}
+
 // The shared session drives both the caret and the selection through the same
 // fields the engine writes: this pins that a collapsed selection draws the
 // caret again (the pre-selection behavior).

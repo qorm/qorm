@@ -137,6 +137,13 @@ func (t *Textarea) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int)
 		// The content's total extent is pad + all lines (the trailing area
 		// below the last line), so the last line can scroll fully visible.
 		contentExtent := pad + float64(len(lines))*float64(lineH)
+		// Clamp the offset unconditionally: when the content shrank to fit,
+		// maxOffset is 0 and the stale offset is reset — otherwise a shrunk
+		// field would keep its old scroll and render blank while holding text.
+		maxOffset := contentExtent - boxH
+		if maxOffset < 0 {
+			maxOffset = 0
+		}
 		if contentExtent > boxH {
 			caretTop := pad + float64(caretLine)*float64(lineH)
 			if offset > caretTop {
@@ -148,12 +155,16 @@ func (t *Textarea) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int)
 			if offset < 0 {
 				offset = 0
 			}
-			if offset > contentExtent-boxH {
-				offset = contentExtent - boxH
+			if offset > maxOffset {
+				offset = maxOffset
 			}
-			if inter.ScrollOffsets == nil {
-				inter.ScrollOffsets = map[*model.Node]canvas.ScrollPos{}
-			}
+		} else {
+			offset = 0
+		}
+		if inter.ScrollOffsets == nil {
+			inter.ScrollOffsets = map[*model.Node]canvas.ScrollPos{}
+		}
+		if inter.ScrollOffsets[ln.Node].Y != offset {
 			inter.ScrollOffsets[ln.Node] = canvas.ScrollPos{Y: offset}
 		}
 		content.Y = -offset
