@@ -737,7 +737,7 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 		// overlays and repeat identities nested in its panel keep flowing.
 		var shape graph.Node
 		if cw, yes := w.(ChildLayoutWidget); yes {
-			shape = cw.RecordWithSinks(ln, rt, scale, &LayoutSinks{items: items, overlays: overlays})
+			shape = cw.RecordWithSinks(ln, rt, scale, &LayoutSinks{items: items, overlays: overlays, Inter: inter})
 		} else {
 			shape = w.Record(ln, rt, scale)
 		}

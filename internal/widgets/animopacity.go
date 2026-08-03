@@ -122,7 +122,7 @@ func (a AnimOpacity) record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale in
 		cw := child.Width + child.Style.MarginLeft + child.Style.MarginRight
 		ch := child.Height + child.Style.MarginTop + child.Style.MarginBot
 		bounds := image.Rect(ln.Style.Padding, cy, ln.Style.Padding+cw, cy+ch)
-		if cn := canvas.PerformLayoutWithSinks(child, bounds, image.Pt(ln.AbsX, ln.AbsY), nil, rt, scale, sinks); cn != nil {
+		if cn := canvas.PerformLayoutWithSinks(child, bounds, image.Pt(ln.AbsX, ln.AbsY), sinks.Inter, rt, scale, sinks); cn != nil {
 			g.AddChild(cn)
 		}
 		cy += ch + ln.Style.Gap

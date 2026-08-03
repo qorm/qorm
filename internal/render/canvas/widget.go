@@ -108,6 +108,11 @@ type OverlayWidget interface {
 type LayoutSinks struct {
 	items    map[graph.Node]itemInstance
 	overlays *[]graph.Node
+	// Inter is the frame's interaction state, forwarded to a ChildLayoutWidget
+	// that lays out panel children itself (tabs, scaffold, animatedopacity,
+	// …) so hover/focus reach those children — they would otherwise be laid
+	// out with nil interaction and their rings/hover styles would never show.
+	Inter *Interaction
 }
 
 // ChildLayoutWidget is an OPTIONAL extension for container widgets that drive

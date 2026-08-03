@@ -186,7 +186,7 @@ func (t Tabs) record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int, sink
 			}
 			top := barH + tabPanelPad*scale
 			bounds := image.Rect(0, top, ln.Width, top+cln.Height+cln.Style.MarginTop+cln.Style.MarginBot)
-			if pn := canvas.PerformLayoutWithSinks(cln, bounds, image.Pt(ln.AbsX, ln.AbsY), nil, rt, scale, sinks); pn != nil {
+			if pn := canvas.PerformLayoutWithSinks(cln, bounds, image.Pt(ln.AbsX, ln.AbsY), sinks.Inter, rt, scale, sinks); pn != nil {
 				g.AddChild(pn)
 			}
 			break

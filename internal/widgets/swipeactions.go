@@ -59,7 +59,7 @@ func (s SwipeActions) record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale i
 	for _, cln := range ln.Children {
 		ch := cln.Height + cln.Style.MarginTop + cln.Style.MarginBot
 		bounds := image.Rect(0, y, ln.Width, y+ch)
-		if cn := canvas.PerformLayoutWithSinks(cln, bounds, image.Pt(ln.AbsX, ln.AbsY), nil, rt, scale, sinks); cn != nil {
+		if cn := canvas.PerformLayoutWithSinks(cln, bounds, image.Pt(ln.AbsX, ln.AbsY), sinks.Inter, rt, scale, sinks); cn != nil {
 			g.AddChild(cn)
 		}
 		y += ch
