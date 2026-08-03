@@ -287,6 +287,43 @@ func TestStackLayersAtSameOrigin(t *testing.T) {
 	}
 }
 
+// An x/y style key places a child out of flow at the container origin +
+// (x, y) — the infinite-canvas board's coordinate model. Coordinates may be
+// negative or past the container edge (an unbounded plane has no default
+// clip); left/top are the HTML aliases.
+func TestAbsolutePositionXY(t *testing.T) {
+	mkNote := func(id string, x, y float64) *model.Node {
+		return &model.Node{Type: "box", ID: id, Style: map[string]any{
+			"width": 60.0, "height": 40.0, "background": "#FFCC00", "x": x, "y": y,
+		}}
+	}
+	root := &model.Node{Type: "column", ID: "root",
+		Style:    map[string]any{"width": 200.0, "height": 200.0},
+		Children: []*model.Node{mkNote("a", 10, 20), mkNote("b", 150, -30)}}
+
+	g := layoutScene(root, testRuntime(nil), image.Pt(200, 200))
+	ga, gb := walkModel(g, "a"), walkModel(g, "b")
+	if ga == nil || gb == nil {
+		t.Fatal("absolute children must render")
+	}
+	if ga.Base().X != 10 || ga.Base().Y != 20 {
+		t.Errorf("note a at (%v,%v), want (10,20)", ga.Base().X, ga.Base().Y)
+	}
+	if gb.Base().X != 150 || gb.Base().Y != -30 {
+		t.Errorf("note b at (%v,%v), want (150,-30)", gb.Base().X, gb.Base().Y)
+	}
+
+	// left/top are HTML aliases for x/y.
+	root2 := &model.Node{Type: "column", ID: "root2",
+		Style:    map[string]any{"width": 200.0, "height": 200.0},
+		Children: []*model.Node{{Type: "box", ID: "c", Style: map[string]any{"width": 30.0, "height": 20.0, "left": 5.0, "top": 6.0}}}}
+	g2 := layoutScene(root2, testRuntime(nil), image.Pt(200, 200))
+	gc := walkModel(g2, "c")
+	if gc == nil || gc.Base().X != 5 || gc.Base().Y != 6 {
+		t.Errorf("left/top alias: c at (%v,%v), want (5,6)", gc.Base().X, gc.Base().Y)
+	}
+}
+
 // A grid lays children out in N equal columns (HTML repeat(N,1fr) with the
 // `columns` prop, render_style.go:103), gap between tracks, row height from
 // the tallest child in the row.

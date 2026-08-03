@@ -849,53 +849,63 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 		// self-aligns only via its own alignSelf key.
 
 		var cbounds image.Rectangle
-		switch {
-		case isStack:
-			// Layered: every child gets the full content box at the same
-			// origin; declaration order is the z-order (later siblings paint
-			// — and hit-test — on top). The child's own align/justify (the
-			// stack's, inherited) positions it inside the box. HTML places
-			// such children with position+top/left (render_style.go:293),
-			// which canvas does not implement — those keys warn as
-			// unsupported instead of degrading silently.
-			if child.Style.Justify == "" {
-				child.Style.Justify = ln.Style.Justify
-			}
-			if child.Style.Align == "" {
-				// The stack is NOT a flex container: its align/justify ARE
-				// each child's positioning props (the flex-row conflation
-				// does not apply here).
-				child.Style.Align = ln.Style.Align
-			}
-			cbounds = image.Rect(cx, cy, cx+innerW, cy+innerH)
-		case isGrid:
-			col, row := i%gridCols, i/gridCols
-			gx := cx + col*(gridColW+ln.Style.Gap)
-			gy := cy
-			for r := 0; r < row; r++ {
-				gy += gridRowH[r] + ln.Style.Gap
-			}
-			// CSS grid items stretch across their auto-sized track. The grid
-			// track is already equal-width, but the measured child keeps its
-			// intrinsic content width unless we resolve that auto width here;
-			// leaving it untouched makes cards shrink to their labels (for
-			// example, the three stats cards in the gallery).
-			if child.Style.Width == 0 && (child.Style.WidthRaw == "fill" || stretchable(ln, child)) {
-				child.Width = gridColW - child.Style.MarginLeft - child.Style.MarginRight
-				if child.Width < 0 {
-					child.Width = 0
+		if child.Style.HasPos {
+			// Out of flow — absolute position at the content-box origin (an
+			// infinite-canvas board's coordinate model): the child neither
+			// consumes flex space nor reflows siblings, and its size is its
+			// own (content measure or explicit width/height). Works inside any
+			// container type, not just a board.
+			cbounds = image.Rect(cx+child.Style.PosX, cy+child.Style.PosY,
+				cx+child.Style.PosX+child.Width, cy+child.Style.PosY+child.Height)
+		} else {
+			switch {
+			case isStack:
+				// Layered: every child gets the full content box at the same
+				// origin; declaration order is the z-order (later siblings paint
+				// — and hit-test — on top). The child's own align/justify (the
+				// stack's, inherited) positions it inside the box. HTML places
+				// such children with position+top/left (render_style.go:293),
+				// which canvas does not implement — those keys warn as
+				// unsupported instead of degrading silently.
+				if child.Style.Justify == "" {
+					child.Style.Justify = ln.Style.Justify
 				}
-				child.Width = clampInt(child.Width, child.Style.MinWidth, child.Style.MaxWidth)
+				if child.Style.Align == "" {
+					// The stack is NOT a flex container: its align/justify ARE
+					// each child's positioning props (the flex-row conflation
+					// does not apply here).
+					child.Style.Align = ln.Style.Align
+				}
+				cbounds = image.Rect(cx, cy, cx+innerW, cy+innerH)
+			case isGrid:
+				col, row := i%gridCols, i/gridCols
+				gx := cx + col*(gridColW+ln.Style.Gap)
+				gy := cy
+				for r := 0; r < row; r++ {
+					gy += gridRowH[r] + ln.Style.Gap
+				}
+				// CSS grid items stretch across their auto-sized track. The grid
+				// track is already equal-width, but the measured child keeps its
+				// intrinsic content width unless we resolve that auto width here;
+				// leaving it untouched makes cards shrink to their labels (for
+				// example, the three stats cards in the gallery).
+				if child.Style.Width == 0 && (child.Style.WidthRaw == "fill" || stretchable(ln, child)) {
+					child.Width = gridColW - child.Style.MarginLeft - child.Style.MarginRight
+					if child.Width < 0 {
+						child.Width = 0
+					}
+					child.Width = clampInt(child.Width, child.Style.MinWidth, child.Style.MaxWidth)
+				}
+				cbounds = image.Rect(gx, gy, gx+gridColW, gy+gridRowH[row])
+			default:
+				r := flexRects[i]
+				x0, y0, x1, y1 := flexRectToBounds(r, child, cx, cy)
+				cbounds = image.Rect(x0, y0, x1, y1)
+				// The flex box is resolved (stretch/grow applied): write it back
+				// (clamped) so the group box matches the engine's answer.
+				child.Width = clampInt(int(r.W), child.Style.MinWidth, child.Style.MaxWidth)
+				child.Height = clampInt(int(r.H), child.Style.MinHeight, child.Style.MaxHeight)
 			}
-			cbounds = image.Rect(gx, gy, gx+gridColW, gy+gridRowH[row])
-		default:
-			r := flexRects[i]
-			x0, y0, x1, y1 := flexRectToBounds(r, child, cx, cy)
-			cbounds = image.Rect(x0, y0, x1, y1)
-			// The flex box is resolved (stretch/grow applied): write it back
-			// (clamped) so the group box matches the engine's answer.
-			child.Width = clampInt(int(r.W), child.Style.MinWidth, child.Style.MaxWidth)
-			child.Height = clampInt(int(r.H), child.Style.MinHeight, child.Style.MaxHeight)
 		}
 
 		childAbsOrigin := image.Pt(ln.AbsX, ln.AbsY)

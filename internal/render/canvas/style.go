@@ -101,6 +101,14 @@ type NodeStyle struct {
 	// clamp).
 	MinWidth, MaxWidth   int
 	MinHeight, MaxHeight int
+	// PosX/PosY hold an explicit absolute position (style keys x/y, or the
+	// HTML aliases left/top): when either is authored (HasPos), performLayout
+	// places the child at the container content-box origin + (PosX, PosY)
+	// instead of flowing it — the coordinate model of an infinite-canvas
+	// board. Out of flow, so it neither consumes flex space nor reflows
+	// siblings.
+	PosX, PosY int
+	HasPos     bool
 	Align                string
 	AlignSelf            string // CSS align-self (style/layout alignSelf) — distinct from Align (align-items)
 	Justify              string
@@ -134,6 +142,8 @@ func (s *NodeStyle) scaleBy(f int) {
 	s.BoxShadowY *= f
 	s.Width *= f
 	s.Height *= f
+	s.PosX *= f
+	s.PosY *= f
 	s.FontSize *= f
 	s.BorderRadius *= float64(f)
 	s.StrokeWidth *= float64(f)
@@ -530,6 +540,29 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 		s.HeightRaw = "fill"
 	}
 
+	// Absolute position: x/y (native) or left/top (HTML alias). Either key
+	// present marks the node positioned; the missing axis reads 0.
+	for _, key := range []string{"x", "left"} {
+		v := esp(style[key])
+		if f, ok := v.(float64); ok {
+			s.PosX = int(f)
+			s.HasPos = true
+		} else if i, ok := v.(int); ok {
+			s.PosX = i
+			s.HasPos = true
+		}
+	}
+	for _, key := range []string{"y", "top"} {
+		v := esp(style[key])
+		if f, ok := v.(float64); ok {
+			s.PosY = int(f)
+			s.HasPos = true
+		} else if i, ok := v.(int); ok {
+			s.PosY = i
+			s.HasPos = true
+		}
+	}
+
 	// min/max size constraints (HTML: minWidth/maxWidth/minHeight/
 	// maxHeight): clamped in measure after content and explicit sizes
 	// resolve, matching the CSS box resolution order.
@@ -648,6 +681,9 @@ var canvasStyleKeys = map[string]bool{
 	"padding": true, "gap": true, "margin": true,
 	"width": true, "height": true,
 	"minWidth": true, "maxWidth": true, "minHeight": true, "maxHeight": true,
+	// Absolute positioning (the infinite-canvas board's coordinate model):
+	// x/y are native, left/top the HTML aliases.
+	"x": true, "y": true, "left": true, "top": true,
 	"fontSize": true, "fontWeight": true, "textAlign": true,
 	"borderRadius": true, "strokeWidth": true, "borderWidth": true,
 	"opacity":        true,
