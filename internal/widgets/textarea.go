@@ -118,17 +118,41 @@ func (t *Textarea) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int)
 	if placeholder {
 		ink = themeColor(rt, "textSecondary", color.RGBA{134, 134, 139, 255})
 	}
+	s := t.sessionFor(ln.Node)
+	sel := s != nil && s.SelStart < s.SelEnd
+	lineStart := 0
 	for i, line := range lines {
-		if line == "" {
-			continue // an empty line paints nothing but still holds its line slot
+		// Per-line selection highlight: the line's absolute buffer span
+		// [lineStart, lineEnd) is intersected with [SelStart, SelEnd) and the
+		// overlap painted as a rect behind the line's glyphs (which formText
+		// draws over it).
+		lineEnd := lineStart + len(line)
+		if sel {
+			lo := max(s.SelStart, lineStart)
+			hi := min(s.SelEnd, lineEnd)
+			if lo < hi {
+				x0 := int(canvas.MeasureText(prefixRunesOf([]rune(line), lo-lineStart), float64(fs)))
+				x1 := int(canvas.MeasureText(prefixRunesOf([]rune(line), hi-lineStart), float64(fs)))
+				hiRect := draw.NewRect()
+				hiRect.NoHit = true
+				hiRect.X = pad + float64(x0)
+				hiRect.Y = pad + float64(i*lineH)
+				hiRect.Width = float64(x1 - x0)
+				hiRect.Height = float64(lineH)
+				hiRect.Fill = canvas.SelectionColor(rt)
+				content.AddChild(hiRect)
+			}
 		}
-		content.AddChild(formText(line, pad, pad+float64(i*lineH), fs, ink))
+		if line != "" {
+			content.AddChild(formText(line, pad, pad+float64(i*lineH), fs, ink))
+		}
+		lineStart = lineEnd + 1 // skip the line's newline
 	}
 
-	// The caret while the edit session is live: a static 1-device-px line at
-	// the insertion (line, column) — non-blinking like the input's
-	// (canvas/input.go), NoHit, clipped with the content.
-	if s := t.sessionFor(ln.Node); s != nil {
+	// The caret while the edit session is live (and the selection collapsed):
+	// a static 1-device-px line at the insertion (line, column) — non-blinking
+	// like the input's (canvas/input.go), NoHit, clipped with the content.
+	if s != nil && !sel {
 		lineIdx, col := runeLineCol(s.Runes, s.Cursor)
 		prefix := prefixRunesOf(lineAt(s.Runes, lineIdx), col)
 		cw := scale
