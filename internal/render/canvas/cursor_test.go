@@ -31,4 +31,16 @@ func TestCursorHintMapping(t *testing.T) {
 	if got := e.CursorHint(); got != CursorArrow {
 		t.Errorf("hover plain text: hint = %v, want Arrow", got)
 	}
+
+	// A link (no OnPress) still gets the pointing hand.
+	link := &model.Node{Type: "link", ID: "l"}
+	e.Inter.Hovered = link
+	if got := e.CursorHint(); got != CursorPointer {
+		t.Errorf("hover link: hint = %v, want Pointer", got)
+	}
+	// A disabled node gets the not-allowed cursor.
+	e.Inter.Hovered = &model.Node{Type: "button", ID: "db", Style: map[string]any{"disabled": true}}
+	if got := e.CursorHint(); got != CursorNotAllowed {
+		t.Errorf("hover disabled button: hint = %v, want NotAllowed", got)
+	}
 }

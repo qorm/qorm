@@ -51,3 +51,36 @@ func (d *ClickDetector) Register(n *model.Node, p geom.Point, now time.Time) int
 	d.lastTime, d.lastPos = now, p
 	return d.count
 }
+
+// LongPressDetector distinguishes a press held beyond LongPressMinDuration
+// (without drifting past LongPressSlop) from a plain tap. It is the long-press
+// building block for a later gestureDetector round: call Press on pointer-down,
+// Release on pointer-up. (Firing mid-hold needs a timer source; release-time
+// detection is the primitive every consumer can build on.)
+type LongPressDetector struct {
+	startTime time.Time
+	startPos  geom.Point
+	down      bool
+}
+
+const (
+	// LongPressMinDuration is how long a hold must last to count as a
+	// long-press (the platform convention for context-menu long-press).
+	LongPressMinDuration = 500 * time.Millisecond
+	// LongPressSlop is how far the pointer may drift before the press stops
+	// counting as a long-press (a drag is not a long-press).
+	LongPressSlop = 10.0
+)
+
+// Press arms the detector at p now.
+func (d *LongPressDetector) Press(p geom.Point, now time.Time) {
+	d.startTime, d.startPos, d.down = now, p, true
+}
+
+// Release reports whether the press qualified as a long-press and disarms.
+func (d *LongPressDetector) Release(p geom.Point, now time.Time) bool {
+	ok := d.down && now.Sub(d.startTime) >= LongPressMinDuration &&
+		math.Hypot(p.X-d.startPos.X, p.Y-d.startPos.Y) <= LongPressSlop
+	d.down = false
+	return ok
+}

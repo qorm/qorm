@@ -9,17 +9,21 @@ const (
 	CursorArrow CursorHint = iota
 	CursorText
 	CursorPointer
+	CursorNotAllowed
 )
 
 // CursorHint computes the hint from the hovered node: text fields
 // (input/textarea, including registered widgets of those types) get the text
 // cursor, anything pressable (button/link, OnPress, focusable, or a
-// registered InteractiveWidget) gets the pointing hand, everything else the
-// arrow.
+// registered InteractiveWidget) gets the pointing hand, a disabled node gets
+// the not-allowed cursor, everything else the arrow.
 func (e *Engine) CursorHint() CursorHint {
 	m := e.Inter.Hovered
 	if m == nil {
 		return CursorArrow
+	}
+	if nodeDisabled(m, e.RT) {
+		return CursorNotAllowed
 	}
 	switch m.Type {
 	case "input", "textarea", "searchfield":
@@ -30,7 +34,7 @@ func (e *Engine) CursorHint() CursorHint {
 			return CursorPointer
 		}
 	}
-	if canPress(m, e.RT) {
+	if canPress(m, e.RT) || m.Type == "link" {
 		return CursorPointer
 	}
 	return CursorArrow

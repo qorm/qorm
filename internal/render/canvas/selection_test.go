@@ -339,6 +339,25 @@ func TestClickDetectorFieldIsolation(t *testing.T) {
 	}
 }
 
+// A press held beyond the duration without drifting is a long-press; a quick
+// tap or a drag past the slop is not.
+func TestLongPressDetector(t *testing.T) {
+	now := time.Now()
+	d := &LongPressDetector{}
+	d.Press(geom.Point{X: 10, Y: 10}, now)
+	if d.Release(geom.Point{X: 10, Y: 10}, now.Add(50*time.Millisecond)) {
+		t.Error("a 50ms tap must not be a long-press")
+	}
+	d.Press(geom.Point{X: 10, Y: 10}, now)
+	if !d.Release(geom.Point{X: 10, Y: 10}, now.Add(LongPressMinDuration+10*time.Millisecond)) {
+		t.Error("a 500ms+ hold must be a long-press")
+	}
+	d.Press(geom.Point{X: 10, Y: 10}, now)
+	if d.Release(geom.Point{X: 30, Y: 10}, now.Add(LongPressMinDuration+10*time.Millisecond)) {
+		t.Error("a long hold that drifted past the slop is a drag, not a long-press")
+	}
+}
+
 // A non-empty selection renders as a highlight rect spanning the selected
 // runes and hides the caret.
 func TestInputSelectionRendersHighlight(t *testing.T) {
