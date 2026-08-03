@@ -19,8 +19,8 @@ var EaseOutCubic Curve = func(t float64) float64 {
 }
 
 // Spring is an underdamped spring easing: it starts at 0, overshoots past 1
-// (a ~12% bounce around t≈0.25) and oscillates while decaying, settling at 1
-// by the end of the interval. Good for entrance bounces and pop physics where
+// (a ~18% peak bounce around t≈0.26) and oscillates while decaying, settling
+// within ~1% of 1 by t≈0.7. Good for entrance bounces and pop physics where
 // a gentle overshoot reads as life.
 var Spring Curve = func(t float64) float64 {
 	if t <= 0 {

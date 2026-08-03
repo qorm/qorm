@@ -66,7 +66,6 @@ func TestCurveEndpoints(t *testing.T) {
 // unlike the monotone easings, it must NOT be added to the monotone test.
 func TestSpringOvershootsAndSettles(t *testing.T) {
 	overshot := false
-	prev := 0.0
 	for i := 1; i <= 100; i++ {
 		x := float64(i) / 100
 		v := Spring(x)
@@ -77,9 +76,7 @@ func TestSpringOvershootsAndSettles(t *testing.T) {
 		if x > 0.7 && math.Abs(v-1) > 0.05 {
 			t.Errorf("Spring(%v) = %v, want to settle near 1 after x=0.7", x, v)
 		}
-		prev = v
 	}
-	_ = prev
 	if !overshot {
 		t.Error("Spring must overshoot past 1 (a spring bounces, it does not ease)")
 	}

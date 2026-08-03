@@ -377,8 +377,10 @@ func TestCaretBlink(t *testing.T) {
 		t.Fatal("a live edit session must keep the engine animating (blink needs frames)")
 	}
 
-	// Advance the blink phase into the off half: the caret hides.
-	e.Inter.Input.BlinkStart = e.Inter.Input.BlinkStart.Add(-750 * time.Millisecond)
+	// Advance the blink phase into the off half (just past the half-period
+	// boundary, leaving ~490ms of margin before it flips visible again, so a
+	// slow CI run cannot land the render back in the on half): the caret hides.
+	e.Inter.Input.BlinkStart = e.Inter.Input.BlinkStart.Add(-(caretBlinkHalf + 10*time.Millisecond))
 	e.MarkDirty()
 	e.DrawFrame(surf)
 	if findCaret(inputGroup(t, e, in)) != nil {
