@@ -101,8 +101,11 @@ func (s Scaffold) record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int, 
 	for _, cln := range bodies {
 		stretchW(cln)
 		ch := cln.Height
-		if (cln.Style.HeightRaw == "fill" || cln.Style.Height <= 0) && ch < bodyH {
-			// A body child fills the region (HTML gives the body flex:1).
+		// Only an explicit fill-height body child takes the region height
+		// (HTML puts flex:1 on the body WRAPPER, not on each child — filling
+		// every auto-height child made the first one, a largetitle, consume
+		// the entire body and push the rest off-window).
+		if cln.Style.HeightRaw == "fill" && ch < bodyH {
 			ch = bodyH
 		}
 		bounds := image.Rect(0, bodyY, ln.Width, bodyY+ch)
