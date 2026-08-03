@@ -999,8 +999,12 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 
 	if content != nil {
 		// The offset translations were set at creation; the clip mounted above
-		// cuts whatever leaves the viewport.
+		// cuts whatever leaves the viewport. Scrollbars paint after the content
+		// so they sit on top.
 		group.AddChild(content)
+		if inter != nil {
+			addScrollbars(ln, group, scrollOffsetPos(ln, inter), scale)
+		}
 	}
 	if boardContent != nil {
 		// The transformed canvas (pan/zoom) mounts LAST so its notes paint —

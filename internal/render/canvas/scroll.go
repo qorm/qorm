@@ -2,6 +2,7 @@ package canvas
 
 import (
 	"image"
+	"image/color"
 
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/render/graph"
@@ -75,6 +76,63 @@ func scrollContentOf(vp *graph.Group) *graph.Group {
 // ScrollPos is a scroll viewport's content offset in physical px, both axes.
 type ScrollPos struct {
 	X, Y float64
+}
+
+// addScrollbars paints a track-free thumb on each axis that overflows: a
+// translucent rect at the viewport's right (vertical) / bottom (horizontal)
+// edge, sized to the visible fraction and positioned by the offset. NoHit so
+// it never intercepts pointer input. Painted after the content so it sits on
+// top, inside the viewport clip.
+func addScrollbars(ln *LayoutNode, group *graph.Group, pos ScrollPos, scale int) {
+	if scale < 1 {
+		scale = 1
+	}
+	thumb := color.RGBA{120, 120, 128, 150}
+	barW, barH := 6*scale, 6*scale
+	// Vertical: content taller than the box.
+	if ln.ContentH > ln.Height {
+		thumbH := ln.Height * ln.Height / ln.ContentH
+		if thumbH < 8*scale {
+			thumbH = 8 * scale
+		}
+		if thumbH > ln.Height {
+			thumbH = ln.Height
+		}
+		thumbY := 0
+		if max := ln.Height - thumbH; max > 0 {
+			thumbY = int(float64(pos.Y) / float64(ln.ContentH-ln.Height) * float64(max))
+		}
+		bar := graph.NewRect()
+		bar.NoHit = true
+		bar.X = float64(ln.Width - barW)
+		bar.Y = float64(thumbY)
+		bar.Width = float64(barW)
+		bar.Height = float64(thumbH)
+		bar.Fill = thumb
+		group.AddChild(bar)
+	}
+	// Horizontal: content wider than the box.
+	if ln.ContentW > ln.Width {
+		thumbW := ln.Width * ln.Width / ln.ContentW
+		if thumbW < 8*scale {
+			thumbW = 8 * scale
+		}
+		if thumbW > ln.Width {
+			thumbW = ln.Width
+		}
+		thumbX := 0
+		if max := ln.Width - thumbW; max > 0 {
+			thumbX = int(float64(pos.X) / float64(ln.ContentW-ln.Width) * float64(max))
+		}
+		bar := graph.NewRect()
+		bar.NoHit = true
+		bar.X = float64(thumbX)
+		bar.Y = float64(ln.Height - barH)
+		bar.Width = float64(thumbW)
+		bar.Height = float64(barH)
+		bar.Fill = thumb
+		group.AddChild(bar)
+	}
 }
 
 // scrollOffsetPos returns the viewport's content offset, clamped on each axis

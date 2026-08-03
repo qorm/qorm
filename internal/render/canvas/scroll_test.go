@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/qorm/internal/render/graph"
 	"github.com/qorm/qorm/internal/runtime"
 )
 
@@ -102,6 +103,37 @@ func TestScrollHorizontal(t *testing.T) {
 	after := e.findGroupByModel(first).GetBBox().MinX
 	if after-before != 100 {
 		t.Fatalf("content shifted horizontally by %v, want 100 right (scrolling back)", after-before)
+	}
+}
+
+// A scrollable viewport paints a scrollbar thumb at its right edge, sized to
+// the visible fraction and sliding with the offset.
+func TestScrollScrollbarPainted(t *testing.T) {
+	e, surf, sv := scrollFixture(t, tallChildren(10, 50)) // content 500, viewport 100
+	e.DrawFrame(surf)
+	thumb := func() *graph.Rect {
+		g := e.findGroupByModel(sv).(*graph.Group)
+		for _, c := range g.Children {
+			if r, ok := c.(*graph.Rect); ok && r.NoHit && r.X == float64(200-6) {
+				return r
+			}
+		}
+		return nil
+	}
+
+	if tb := thumb(); tb == nil {
+		t.Fatal("scrollable viewport must paint a scrollbar thumb")
+	} else if tb.Height != 20 {
+		t.Errorf("thumb height = %v, want 20 (viewport × visible fraction 100×100/500)", tb.Height)
+	} else if tb.Y != 0 {
+		t.Errorf("thumb y at top = %v, want 0", tb.Y)
+	}
+
+	e.HandlePointer(PointerInput{Type: PointerMove, X: 100, Y: 50})
+	e.HandleScroll(ScrollInput{DY: 400}) // offset 400 → thumb at max (100-20)
+	e.DrawFrame(surf)
+	if tb := thumb(); tb == nil || tb.Y != 80 {
+		t.Errorf("thumb y at bottom = %v, want 80 (100-thumbH)", tb.Y)
 	}
 }
 
