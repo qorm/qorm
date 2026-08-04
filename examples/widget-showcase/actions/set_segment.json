@@ -1,0 +1,5 @@
+{
+  "type": "action",
+  "id": "set_segment",
+  "steps": [{ "type": "state.set", "path": "selectedSegment", "value": "{{ value }}" }]
+}

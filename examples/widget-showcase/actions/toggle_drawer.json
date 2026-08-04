@@ -1,0 +1,5 @@
+{
+  "type": "action",
+  "id": "toggle_drawer",
+  "steps": [{ "type": "state.set", "path": "drawerOpen", "value": "{{ not }}" }]
+}
