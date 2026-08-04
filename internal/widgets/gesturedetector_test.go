@@ -88,3 +88,67 @@ func TestGestureDetectorDragCancels(t *testing.T) {
 		t.Fatalf("a drag must cancel the gesture, seen = %v", rt.State["seen"])
 	}
 }
+
+// Pointer capture keeps the stream with the detector even when the finger
+// leaves its bounds: a drag that exits and returns is still a drag (the slop
+// is not bypassable by stepping outside).
+func TestGestureDetectorCaptureSurvivesExit(t *testing.T) {
+	e, _, rt := gestureEngine(t, map[string]any{
+		"onPress": map[string]any{"name": "tap"},
+	})
+	e.HandlePointer(canvas.PointerInput{Type: canvas.PointerPress, X: 60, Y: 20, Buttons: 1})
+	e.HandlePointer(canvas.PointerInput{Type: canvas.PointerMove, X: 300, Y: 20, Buttons: 1}) // far outside
+	e.HandlePointer(canvas.PointerInput{Type: canvas.PointerMove, X: 60, Y: 20, Buttons: 1}) // back inside
+	e.HandlePointer(canvas.PointerInput{Type: canvas.PointerRelease, X: 60, Y: 20})
+	if rt.State["seen"] != nil {
+		t.Fatalf("an out-of-bounds excursion must still count as a drag, seen = %v", rt.State["seen"])
+	}
+}
+
+// A wrapped child with its own OnPress wins the tap (Flutter's innermost
+// recognizer wins the arena) — a button inside a gestureDetector stays
+// clickable.
+func TestGestureDetectorChildOnPressWins(t *testing.T) {
+	btn := &model.Node{Type: "button", ID: "kid",
+		Props:   map[string]any{"label": "Go"},
+		OnPress: &model.Invoke{Name: "press"}}
+	gd := &model.Node{Type: "gesturedetector", ID: "gd",
+		OnPress:  &model.Invoke{Name: "tap"},
+		Children: []*model.Node{btn}}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{gd}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root},
+		Actions: map[string]*model.Action{
+			"tap":   {ID: "tap", Steps: []model.Step{{Type: "state.set", Path: "seen", Value: "tap"}}},
+			"press": {ID: "press", Steps: []model.Step{{Type: "state.set", Path: "seen", Value: "press"}}},
+		}}
+	rt := runtime.New(app)
+	rt.Theme = theme.GetDefault()
+	e := canvas.NewEngine(rt, canvas.SoftwareRenderer{})
+	surf := canvas.NewHeadlessSurface(image.Pt(400, 400))
+	e.DrawFrame(surf)
+
+	tap(e, 60, 20)
+	if rt.State["seen"] != "press" {
+		t.Fatalf("the wrapped child's onPress must win the tap, seen = %v", rt.State["seen"])
+	}
+}
+
+// A drag between two taps ends the double-tap sequence: the tap after a
+// cancelled drag is a fresh single tap, not a double.
+func TestGestureDetectorDragResetsDoubleTap(t *testing.T) {
+	e, _, rt := gestureEngine(t, map[string]any{
+		"onPress":     map[string]any{"name": "tap"},
+		"onDoubleTap": map[string]any{"name": "dbl"},
+	})
+	tap(e, 60, 20)
+	if rt.State["seen"] != "tap" {
+		t.Fatalf("first tap must fire onPress, seen = %v", rt.State["seen"])
+	}
+	e.HandlePointer(canvas.PointerInput{Type: canvas.PointerPress, X: 60, Y: 20, Buttons: 1})
+	e.HandlePointer(canvas.PointerInput{Type: canvas.PointerMove, X: 100, Y: 20, Buttons: 1})
+	e.HandlePointer(canvas.PointerInput{Type: canvas.PointerRelease, X: 100, Y: 20})
+	tap(e, 60, 20) // a fresh tap, not a double
+	if rt.State["seen"] != "tap" {
+		t.Fatalf("the tap after a cancelled drag must NOT fire onDoubleTap, seen = %v", rt.State["seen"])
+	}
+}

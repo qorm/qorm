@@ -105,6 +105,10 @@ func (g *GestureDetector) HandlePointer(n *model.Node, rt *runtime.Runtime, p ca
 	fired := false
 	switch p.Type {
 	case canvas.PointerPress:
+		// Take pointer capture so the whole gesture stream (moves and the
+		// release, even off the detector) stays with it — otherwise the slop
+		// and hold checks are bypassable by stepping outside the bounds.
+		inter.Pressed = n
 		st.down = true
 		st.moved = false
 		st.pressPt = geom.Point{X: p.X, Y: p.Y}
@@ -113,6 +117,7 @@ func (g *GestureDetector) HandlePointer(n *model.Node, rt *runtime.Runtime, p ca
 		if st.down && p.Buttons > 0 && !st.moved &&
 			math.Hypot(p.X-st.pressPt.X, p.Y-st.pressPt.Y) > gestureTapSlop {
 			st.moved = true // a drag cancels the tap/long-press
+			st.lastTap = time.Time{} // ...and ends the double-tap sequence
 		}
 	case canvas.PointerRelease:
 		if !st.down {
@@ -126,9 +131,14 @@ func (g *GestureDetector) HandlePointer(n *model.Node, rt *runtime.Runtime, p ca
 			fired = dispatchGesture(n, rt, "onLongPress") || fired
 			break
 		}
-		// A tap: onPress always fires; a second tap within the window also
-		// fires onDoubleTap (the browser's onclick + ondblclick both fire).
-		if n.OnPress != nil {
+		// A tap. The innermost handler wins (Flutter's gesture arena awards
+		// the tap to the deepest recognizer): a wrapped child with its own
+		// OnPress fires it, else the detector's. A second tap within the
+		// window also fires onDoubleTap (browser onclick + ondblclick parity).
+		if child := n.Children[0]; child != nil && child.OnPress != nil && !formDisabled(child, rt) {
+			dispatchInvoke(child.OnPress, rt)
+			fired = true
+		} else if n.OnPress != nil {
 			dispatchInvoke(n.OnPress, rt)
 			fired = true
 		}
