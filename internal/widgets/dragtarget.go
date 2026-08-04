@@ -21,9 +21,14 @@ func init() {
 // engine's in-flight drag.
 type DragTarget struct{}
 
+// DropTarget marks the widget as a drop zone for the engine's drag-release
+// routing (canvas.DropTargetWidget): a release over it lands here even when an
+// inner interactive widget is closer.
+func (*DragTarget) DropTarget() {}
+
 // Measure reports the wrapped child's size (children measure through).
-func (*DragTarget) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
-	return contentMeasure(n, rt, scale)
+func (*DragTarget) Measure(n *model.Node, rt *runtime.Runtime, vars map[string]any, scale int) (w, h int) {
+	return contentMeasure(n, rt, vars, scale)
 }
 
 func (t *DragTarget) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.Node {
@@ -65,8 +70,11 @@ func (t *DragTarget) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.
 	if p.Type != canvas.PointerRelease || !inter.Drag.Active {
 		return false
 	}
-	inside := p.X >= float64(frame.Min.X) && p.X < float64(frame.Max.X) &&
-		p.Y >= float64(frame.Min.Y) && p.Y < float64(frame.Max.Y)
+	// Inclusive right/bottom edge: graph HitTest is inclusive (<=), so a
+	// release exactly on the target's edge must still drop, not fall into the
+	// 1px dead band where the drag is consumed without dispatching.
+	inside := p.X >= float64(frame.Min.X) && p.X <= float64(frame.Max.X) &&
+		p.Y >= float64(frame.Min.Y) && p.Y <= float64(frame.Max.Y)
 	data := inter.Drag.Data
 	inter.Drag = canvas.DragState{} // consume the drag regardless of the point
 	if !inside {

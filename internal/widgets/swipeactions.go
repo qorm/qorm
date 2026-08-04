@@ -102,8 +102,8 @@ func parseSwipeActions(n *model.Node) []swipeAction {
 }
 
 // Measure reports the wrapped row's own size (the children measure through).
-func (s *SwipeActions) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
-	return contentMeasure(n, rt, scale)
+func (s *SwipeActions) Measure(n *model.Node, rt *runtime.Runtime, vars map[string]any, scale int) (w, h int) {
+	return contentMeasure(n, rt, vars, scale)
 }
 
 func (s *SwipeActions) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.Node {

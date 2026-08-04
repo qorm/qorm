@@ -115,9 +115,9 @@ func parseCtxItems(n *model.Node) []ctxItem {
 // pass does NOT count children toward a widget's size (v1 leaf semantics), so
 // without this a content-sized wrapper collapses to 0 in a ROW (flex stretch
 // only rescues it in a column). Column layout is unchanged — the same size.
-func contentMeasure(n *model.Node, rt *runtime.Runtime, scale int) (w, h int) {
+func contentMeasure(n *model.Node, rt *runtime.Runtime, vars map[string]any, scale int) (w, h int) {
 	for _, c := range n.Children {
-		if cln := canvas.Measure(c, rt, nil, scale); cln != nil {
+		if cln := canvas.MeasureScoped(c, rt, nil, vars, scale); cln != nil {
 			if cln.Width > w {
 				w = cln.Width
 			}
@@ -128,8 +128,8 @@ func contentMeasure(n *model.Node, rt *runtime.Runtime, scale int) (w, h int) {
 }
 
 // Measure reports the wrapped child's size (children measure through).
-func (*ContextMenu) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
-	return contentMeasure(n, rt, scale)
+func (*ContextMenu) Measure(n *model.Node, rt *runtime.Runtime, vars map[string]any, scale int) (w, h int) {
+	return contentMeasure(n, rt, vars, scale)
 }
 
 func (c *ContextMenu) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.Node {

@@ -51,8 +51,8 @@ func (d *Draggable) state(n *model.Node) *dragState {
 }
 
 // Measure reports the wrapped child's size (children measure through).
-func (*Draggable) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
-	return contentMeasure(n, rt, scale)
+func (*Draggable) Measure(n *model.Node, rt *runtime.Runtime, vars map[string]any, scale int) (w, h int) {
+	return contentMeasure(n, rt, vars, scale)
 }
 
 func (d *Draggable) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.Node {
@@ -112,25 +112,39 @@ func (d *Draggable) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.P
 			if drift > dragStartSlop || hold {
 				st.published = true
 				inter.Pressed = nil // hand the stream back to the drop targets
-				inter.Drag = canvas.DragState{Active: true, Data: dragData(n, rt)}
+				inter.Drag = canvas.DragState{Active: true, Data: dragData(n, rt, inter.PressedScope)}
 			}
 		}
 	case canvas.PointerRelease:
+		// A perfectly still longpressdraggable hold produced no move event, so
+		// the release itself publishes the drag (the user can then move and
+		// drop on the next release).
+		if st.down && !st.published && n.Type == "longpressdraggable" &&
+			time.Since(st.pressAt) >= gestureLongPressMs {
+			st.published = true
+			inter.Drag = canvas.DragState{Active: true, Data: dragData(n, rt, inter.PressedScope)}
+		}
 		st.down = false
 	}
 	return false
 }
 
-// dragData evaluates the draggable's `data` prop (a binding is resolved
-// against state) — the payload a dragtarget's onDrop receives.
-func dragData(n *model.Node, rt *runtime.Runtime) string {
+// dragData evaluates the draggable's `data` prop (a binding resolves against
+// state plus the pressed node's repeat scope, so a list item's
+// `data: "{{item.id}}"` carries the item's id, not the literal template) —
+// the payload a dragtarget's onDrop receives.
+func dragData(n *model.Node, rt *runtime.Runtime, scope map[string]any) string {
 	raw, ok := n.Prop("data")
 	if !ok {
 		return ""
 	}
 	if s, ok := raw.(string); ok {
 		if rt != nil {
-			if v := runtime.EvalBinding(s, map[string]any{"state": rt.State}); v != nil {
+			ctx := map[string]any{"state": rt.State}
+			for k, v := range scope {
+				ctx[k] = v
+			}
+			if v := runtime.EvalBinding(s, ctx); v != nil {
 				if str, ok := v.(string); ok {
 					return str
 				}

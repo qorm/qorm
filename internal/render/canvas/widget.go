@@ -89,6 +89,16 @@ func SinksInter(sinks *LayoutSinks) *Interaction {
 	return sinks.Inter
 }
 
+// DropTargetWidget is an optional interface an InteractiveWidget implements
+// to declare itself a drag-and-drop drop zone (dragtarget/droptarget): while a
+// cross-panel drag is in flight, the engine routes a release to the nearest
+// drop-target ancestor even when an inner interactive widget is closer — a
+// drop zone must not be swallowed by its own children.
+type DropTargetWidget interface {
+	Widget
+	DropTarget()
+}
+
 // FocusHookWidget is an optional interface an InteractiveWidget may implement
 // to learn when KEYBOARD focus lands on it — the Tab/Shift-Tab path, which
 // never routes through HandlePointer. A widget that caches the engine's

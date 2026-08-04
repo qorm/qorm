@@ -59,8 +59,8 @@ func (g *GestureDetector) state(n *model.Node) *gestureState {
 }
 
 // Measure reports the wrapped child's size (children measure through).
-func (*GestureDetector) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
-	return contentMeasure(n, rt, scale)
+func (*GestureDetector) Measure(n *model.Node, rt *runtime.Runtime, vars map[string]any, scale int) (w, h int) {
+	return contentMeasure(n, rt, vars, scale)
 }
 
 func (g *GestureDetector) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.Node {

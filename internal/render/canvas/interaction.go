@@ -32,6 +32,11 @@ type Interaction struct {
 	PressedItem int
 	HoveredItem int
 	FocusedItem int
+	// PressedScope is the repeat-instance scope of the pressed node (nil
+	// outside lists) — the item/index bindings a widget's press handler can
+	// evaluate (draggable's `data` payload), the companion of PressedItem.
+	// Set by the engine's press paths alongside PressedItem.
+	PressedScope map[string]any
 	// FocusVisible is true when focus was established by the keyboard;
 	// the focus ring is only drawn in that case (:focus-visible semantics).
 	FocusVisible bool

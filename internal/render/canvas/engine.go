@@ -481,12 +481,24 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 		}
 	}
 	if iw, m, frame := interactiveWidgetAt(hit); iw != nil {
+		// A drag release prefers the nearest drop target over any inner
+		// interactive widget: a drop zone must not be swallowed by its own
+		// children (a dragtarget wrapping an interactive child still drops).
+		if p.Type == PointerRelease && e.Inter.Drag.Active {
+			if dt, dm, df := dropTargetAt(hit); dt != nil {
+				iw, m, frame = dt, dm, df
+			}
+		}
 		// A press on an interactive widget focuses it (pointer semantics, no
 		// ring) — the keyboard seam (KeyWidget) and the edit-session funnel
 		// both hang off this identity. Disabled widgets take no focus.
 		if p.Type == PointerPress && !nodeDisabled(m, rt) {
 			e.Inter.Focused = m
 			e.Inter.FocusVisible = false
+			// The repeat-instance scope (for a widget press inside a list):
+			// the item bindings a handler like draggable's data payload needs.
+			e.Inter.PressedItem = e.itemIndexOf(hit)
+			e.Inter.PressedScope = e.itemScopeOf(hit)
 		}
 		// Widget-routed events must not starve the hover bookkeeping: without
 		// this, Inter.Hovered never moves onto an InteractiveWidget, so its
@@ -544,6 +556,7 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 			idx := e.itemIndexOf(hit)
 			e.Inter.PressedItem = idx
 			e.Inter.FocusedItem = idx
+			e.Inter.PressedScope = e.itemScopeOf(hit)
 		} else {
 			// Pressing blank space blurs the focused node (HTML parity: focus
 			// returns to the body) and ends any input edit session.
@@ -561,6 +574,7 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 		if e.Inter.Pressed != nil {
 			e.Inter.Pressed = nil
 			e.Inter.PressedItem = 0
+			e.Inter.PressedScope = nil
 			redraw = true
 		}
 	case p.Type == PointerMove && p.Buttons == 0:
@@ -662,6 +676,28 @@ func (e *Engine) dispatchContextMenu(hit graph.Node, rt *runtime.Runtime) bool {
 		n = p
 	}
 	return false
+}
+
+// dropTargetAt walks up from hit for the nearest node whose registered widget
+// is a DropTargetWidget, so a drag release can be routed there even when an
+// inner interactive widget is closer.
+func dropTargetAt(hit graph.Node) (InteractiveWidget, *model.Node, image.Rectangle) {
+	for hit != nil {
+		if m := hit.Base().Model; m != nil {
+			if w, ok := LookupWidget(m.Type); ok {
+				if _, yes := w.(DropTargetWidget); yes {
+					b := hit.GetBBox()
+					return w.(InteractiveWidget), m, image.Rect(int(b.MinX), int(b.MinY), int(b.MaxX), int(b.MaxY))
+				}
+			}
+		}
+		p := hit.Base().Parent
+		if p == nil {
+			break
+		}
+		hit = p
+	}
+	return nil, nil, image.Rectangle{}
 }
 
 // notifyWidgetFocused tells an interactive widget that keyboard focus landed
