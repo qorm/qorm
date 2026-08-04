@@ -212,3 +212,98 @@ func stringifyAny(v any) string {
 	if s, ok := v.(string); ok { return s }
 	return runtime.Stringify(v)
 }
+
+// ---------------------------------------------------------------------------
+// navigationrail
+// ---------------------------------------------------------------------------
+type NavigationRail struct{ geoms map[*model.Node][]image.Rectangle }
+
+func init() {
+	canvas.RegisterWidget("navigationrail", &NavigationRail{geoms: map[*model.Node][]image.Rectangle{}})
+}
+
+func (*NavigationRail) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
+	if scale < 1 { scale = 1 }
+	items := boundArray(n, rt, "items"); fs := 11 * scale
+	w = 72 * scale
+	for _, it := range items {
+		obj, _ := it.(map[string]any)
+		if obj == nil { continue }
+		lbl := stringifyAny(obj["label"])
+		if lw := int(canvas.MeasureText(lbl, float64(fs))) + 16*scale; lw > w { w = lw }
+		h += 12*scale + 20*scale + lineHeight(fs) + 4*scale + 12*scale
+	}
+	return w, h + 12*scale
+}
+
+func (r *NavigationRail) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.Node {
+	if scale < 1 { scale = 1 }
+	if ln.Width <= 0 || ln.Height <= 0 { return nil }
+	items := boundArray(ln.Node, rt, "items")
+	cur := ln.Node.Value
+	fs := 11 * scale; iconFS := 20 * scale
+	accent := formAccent(rt)
+	ink2 := themeColor(rt, "textSecondary", color.RGBA{134, 134, 139, 255})
+	surface := themeColor(rt, "surface", color.RGBA{255, 255, 255, 255})
+
+	g := draw.NewGroup(); g.Width, g.Height = float64(ln.Width), float64(ln.Height)
+	bg := draw.NewRect(); bg.Width, bg.Height = float64(ln.Width), float64(ln.Height)
+	bg.Fill = surface; g.AddChild(bg)
+
+	geo := &[]image.Rectangle{}
+	r.geoms[ln.Node] = *geo
+	y := 12 * scale
+	for _, it := range items {
+		obj, _ := it.(map[string]any)
+		if obj == nil { continue }
+		val := stringifyAny(obj["value"]); active := val == cur
+		lbl := stringifyAny(obj["label"])
+		icon := stringifyAny(obj["icon"])
+
+		bgC := surface
+		if active {
+			bgC = accent; c := bgC; c.A = 30; bgC = c
+		}
+		btn := draw.NewRect()
+		btn.X = float64(8 * scale); btn.Y = float64(y)
+		btn.Width = float64(ln.Width - 16*scale); btn.Height = float64(lineHeight(fs) + 20*scale + 16*scale)
+		btn.BorderRadius = 10 * float64(scale); btn.Fill = bgC; g.AddChild(btn)
+
+		ic := ink2; if active { ic = accent }
+		if icon != "" {
+			tw := int(canvas.MeasureText(icon, float64(iconFS)))
+			g.AddChild(formText(icon, float64((ln.Width-tw)/2), float64(y+12*scale), iconFS, ic))
+		}
+		lw := int(canvas.MeasureText(lbl, float64(fs)))
+		tc := ink2; if active { tc = accent }
+		g.AddChild(formText(lbl, float64((ln.Width-lw)/2), float64(y+12*scale+20*scale+4*scale), fs, tc))
+
+		rowH := 12*scale + 20*scale + 4*scale + lineHeight(fs) + 12*scale
+		r.geoms[ln.Node] = append(r.geoms[ln.Node], image.Rect(ln.AbsX, ln.AbsY+y, ln.AbsX+ln.Width, ln.AbsY+y+rowH))
+		y += rowH
+	}
+	return g
+}
+
+func (r *NavigationRail) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.PointerInput, inter *canvas.Interaction, frame image.Rectangle) bool {
+	if p.Type != canvas.PointerPress || n.OnChange == nil { return false }
+	items := boundArray(n, rt, "items")
+	rects := r.geoms[n]
+	var vi int
+	for i, rect := range rects {
+		if p.X >= float64(rect.Min.X) && p.X <= float64(rect.Max.X) && p.Y >= float64(rect.Min.Y) && p.Y <= float64(rect.Max.Y) {
+			vi = i; break
+		}
+	}
+	if vi < len(items) {
+		obj, _ := items[vi].(map[string]any)
+		if obj != nil {
+			val := stringifyAny(obj["value"])
+			if path := formBoundPath(n.Value); path != "" { rt.SetStatePath(path, val) }
+			args := map[string]any{"value": val}
+			for k, v := range n.OnChange.Args { args[k] = v }
+			rt.Dispatch(n.OnChange.Name, args); return true
+		}
+	}
+	return false
+}
