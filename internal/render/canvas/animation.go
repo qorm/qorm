@@ -16,16 +16,24 @@ type AnimState struct {
 
 var globalAnimStates = make(map[string]*AnimState)
 
-// UpdateAndGetAnimatedStyle handles the lifecycle of an animated style.
-// Duration and easing come from the active theme's motion tokens
-// ("normal" duration, "standard" easing); the accessors are nil-safe and
-// fall back to 250ms / easeOutCubic when no theme is loaded.
+// UpdateAndGetAnimatedStyle is the classic form, keyed by the node ID with
+// the theme's standard duration.
 func UpdateAndGetAnimatedStyle(id string, target NodeStyle, rt *runtime.Runtime) (NodeStyle, bool) {
-	if id == "" {
+	return UpdateAndGetAnimatedStyleD(id, target, rt, 0)
+}
+
+// UpdateAndGetAnimatedStyleD is the animated-style resolver with a per-node
+// duration override (a declarative `transition` — the interaction-effect
+// resolver's transition half) and a caller-chosen key: disambiguate repeat
+// instances that share a template ID, or their tweens would fight. duration
+// <= 0 falls back to the theme's "normal" motion token (250ms / easeOutCubic).
+// Returns the interpolated style and whether a redraw is still needed.
+func UpdateAndGetAnimatedStyleD(key string, target NodeStyle, rt *runtime.Runtime, duration time.Duration) (NodeStyle, bool) {
+	if key == "" {
 		return target, false
 	}
 
-	state, ok := globalAnimStates[id]
+	state, ok := globalAnimStates[key]
 	if !ok {
 		// First time seeing this node. Theme accessors are nil-safe: with no
 		// theme loaded they yield the default motion tokens (250ms/easeOutCubic).
@@ -33,14 +41,18 @@ func UpdateAndGetAnimatedStyle(id string, target NodeStyle, rt *runtime.Runtime)
 		if rt != nil {
 			th = rt.Theme
 		}
+		d := duration
+		if d <= 0 {
+			d = time.Duration(th.DurationMs("normal")) * time.Millisecond
+		}
 		state = &AnimState{
 			TargetStyle:  target,
 			CurrentStyle: target,
-			Controller:   anim.NewController(time.Duration(th.DurationMs("normal"))*time.Millisecond, th.Easing("standard")),
+			Controller:   anim.NewController(d, th.Easing("standard")),
 		}
 		// Push it immediately to finished
 		state.Controller.StartTime = time.Now().Add(-1 * time.Second)
-		globalAnimStates[id] = state
+		globalAnimStates[key] = state
 		return target, false
 	}
 

@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/runtime"
@@ -127,6 +128,11 @@ type NodeStyle struct {
 	// means "no effect" (a pressed/hovered scale of 0 is meaningless).
 	PressedScale float64 // scale the node to this factor while pressed
 	HoverScale   float64 // scale while hovered (pressed wins)
+	// Transition is the declarative CSS-style transition duration ("0.2s",
+	// "200ms" or plain ms) that animates hover/press effect changes instead of
+	// snapping them (the interaction resolver routes the style through the
+	// tween engine while it is non-zero).
+	Transition time.Duration
 }
 
 // scaleBy multiplies every pixel-valued field by f (a device-pixel ratio), so
@@ -189,6 +195,31 @@ func evalStyleProp(val any, rt *runtime.Runtime, sc ...*listScope) any {
 // over the resolved style when the node is Pressed/Hovered. Pressed wins over
 // hovered for the background; opacity applies in either state. This is what
 // makes the theme's interactive keys live — previously they were dead fields.
+// parseCSSDuration parses a CSS-style duration ("0.2s", "200ms") or plain
+// milliseconds.
+func parseCSSDuration(s string) (time.Duration, error) {
+	s = strings.TrimSpace(s)
+	if strings.HasSuffix(s, "ms") {
+		f, err := strconv.ParseFloat(strings.TrimSpace(strings.TrimSuffix(s, "ms")), 64)
+		if err != nil {
+			return 0, err
+		}
+		return time.Duration(f * float64(time.Millisecond)), nil
+	}
+	if strings.HasSuffix(s, "s") {
+		f, err := strconv.ParseFloat(strings.TrimSpace(strings.TrimSuffix(s, "s")), 64)
+		if err != nil {
+			return 0, err
+		}
+		return time.Duration(f * float64(time.Second)), nil
+	}
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0, err
+	}
+	return time.Duration(f * float64(time.Millisecond)), nil
+}
+
 // evalColorStyle reads a node's declarative interaction color key (hover/
 // pressedBackground), evaluating bindings.
 func evalColorStyle(n *model.Node, key string, rt *runtime.Runtime) (color.RGBA, bool) {
@@ -692,6 +723,21 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 		s.HoverScale = f
 	}
 
+	// The declarative transition duration: CSS spellings ("0.2s", "200ms")
+	// or a plain number of milliseconds.
+	if v := esp(style["transition"]); v != nil {
+		switch t := v.(type) {
+		case float64:
+			if t > 0 {
+				s.Transition = time.Duration(t) * time.Millisecond
+			}
+		case string:
+			if d, err := parseCSSDuration(t); err == nil && d > 0 {
+				s.Transition = d
+			}
+		}
+	}
+
 	sw := esp(style["strokeWidth"])
 	if f, ok := sw.(float64); ok {
 		s.StrokeWidth = f
@@ -768,6 +814,7 @@ var canvasStyleKeys = map[string]bool{
 	"hoverBackground": true, "pressedBackground": true,
 	"hoverOpacity": true, "pressedOpacity": true,
 	"pressedScale": true, "hoverScale": true,
+	"transition": true, // animates interaction effect changes ("0.2s")
 	"boxShadowColor":  true, "boxShadowBlur": true, "boxShadowY": true,
 }
 

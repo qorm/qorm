@@ -147,6 +147,16 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 	var needsRedraw bool
 	if n.Type == "animated_container" {
 		style, needsRedraw = UpdateAndGetAnimatedStyle(n.ID, style, rt)
+	} else if style.Transition > 0 {
+		// A declarative transition animates interaction-effect changes
+		// (hover/press background + opacity) instead of snapping them. The key
+		// disambiguates repeat instances that share the template ID; the
+		// needsRedraw return keeps the engine animating until the tween lands.
+		key := n.ID
+		if sc != nil {
+			key += fmt.Sprintf("@%d", sc.index)
+		}
+		style, needsRedraw = UpdateAndGetAnimatedStyleD(key, style, rt, style.Transition)
 	}
 
 	ln := &LayoutNode{

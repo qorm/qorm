@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"math"
 	"testing"
+	"time"
 
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/runtime"
@@ -113,6 +114,40 @@ func TestDeclarativeInteractionEffects(t *testing.T) {
 	}
 	if math.Abs(g.Base().X-5) > 1e-9 {
 		t.Errorf("scale must be center-anchored, group.X = %v, want 5", g.Base().X)
+	}
+}
+
+// A declarative transition animates interaction-effect changes: with
+// transition "0.1s" the hover background tweens from the base toward the
+// hover color (the engine keeps animating), then lands.
+func TestDeclarativeInteractionTransition(t *testing.T) {
+	box := &model.Node{Type: "box", ID: "b1",
+		Style: map[string]any{"width": 100.0, "height": 50.0, "background": "#ff0000",
+			"hoverBackground": "#00ff00", "transition": "0.1s"}}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{box}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}}
+	rt := runtime.New(app)
+	rt.Theme = theme.GetDefault()
+	e := NewEngine(rt, SoftwareRenderer{})
+	surf := NewHeadlessSurface(image.Pt(400, 400))
+	e.DrawFrame(surf)
+
+	e.Inter.Hovered = box
+	e.MarkDirty()
+	e.DrawFrame(surf)
+	// Mid-tween: the fill is still red-ish, not yet fully green.
+	if c := surf.Frame().RGBAAt(50, 25); c.G > 200 {
+		t.Errorf("mid-transition must not be fully green yet, got %v", c)
+	}
+	if !e.Animating() {
+		t.Error("a transition in flight must keep the engine animating")
+	}
+	// Past the transition: the hover color lands.
+	time.Sleep(150 * time.Millisecond)
+	e.MarkDirty()
+	e.DrawFrame(surf)
+	if c := surf.Frame().RGBAAt(50, 25); c.G < 200 {
+		t.Errorf("after the transition the hover color must land, got %v", c)
 	}
 }
 
