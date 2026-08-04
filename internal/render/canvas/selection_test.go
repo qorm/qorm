@@ -388,6 +388,34 @@ func TestCaretBlink(t *testing.T) {
 	}
 }
 
+// Cmd+Z undoes the last edit, Cmd+Shift+Z redoes it; a fresh edit clears the
+// redo history.
+func TestInputUndoRedo(t *testing.T) {
+	e, surf, _ := inputFixture(t)
+	e.DrawFrame(surf)
+	clickNode(t, e, e.findModelByID("in1"))
+	typeRunes(e, "abc")
+	typeRunes(e, "X") // "abcX"
+	e.HandleKey(KeyInput{Key: "z", Meta: true, Down: true})
+	if got := e.RT.State["name"]; got != "abc" {
+		t.Fatalf("after undo state.name = %v, want %q", got, "abc")
+	}
+	e.HandleKey(KeyInput{Key: "z", Meta: true, Down: true})
+	if got := e.RT.State["name"]; got != "ab" {
+		t.Fatalf("second undo state.name = %v, want %q", got, "ab")
+	}
+	e.HandleKey(KeyInput{Key: "z", Meta: true, Shift: true, Down: true})
+	if got := e.RT.State["name"]; got != "abc" {
+		t.Fatalf("redo state.name = %v, want %q", got, "abc")
+	}
+	// A fresh edit clears the redo history.
+	typeRunes(e, "Y")
+	e.HandleKey(KeyInput{Key: "z", Meta: true, Shift: true, Down: true})
+	if got := e.RT.State["name"]; got != "abcY" {
+		t.Fatalf("redo after a fresh edit must be a no-op, state.name = %v", got)
+	}
+}
+
 // A non-empty selection renders as a highlight rect spanning the selected
 // runes and hides the caret.
 func TestInputSelectionRendersHighlight(t *testing.T) {

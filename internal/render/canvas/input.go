@@ -61,7 +61,16 @@ type InputState struct {
 	// (the caret is visible for the first half period), so a just-focused field
 	// always shows its caret deterministically.
 	BlinkStart time.Time
+	// Undo/redo are the edit-history stacks (buffer snapshots, newest last).
+	// Every mutating commit pushes the pre-edit buffer onto Undo and clears
+	// Redo; Cmd+Z pops Undo onto Redo and restores, Cmd+Shift+Z / Cmd+Y the
+	// reverse. Capped at maxUndoEntries so a long typing session stays bounded.
+	Undo, Redo [][]rune
 }
+
+// maxUndoEntries caps the undo history per session (the browser keeps ~100;
+// 50 is a sane bounded default).
+const maxUndoEntries = 50
 
 // caretVisible reports whether the blinking caret should draw at this moment.
 // The engine keeps animating while an edit session is live (engine.go
@@ -70,6 +79,46 @@ const caretBlinkHalf = 500 * time.Millisecond
 
 func caretVisible(s *InputState, now time.Time) bool {
 	return int(now.Sub(s.BlinkStart)/caretBlinkHalf)%2 == 0
+}
+
+// pushUndo records a pre-edit buffer snapshot and clears the redo stack (a
+// fresh edit invalidates the redo history, like every text editor).
+func pushUndo(s *InputState, snap []rune) {
+	s.Undo = append(s.Undo, snap)
+	if len(s.Undo) > maxUndoEntries {
+		s.Undo = s.Undo[len(s.Undo)-maxUndoEntries:]
+	}
+	s.Redo = nil
+}
+
+// undoEdit restores the most recent undo snapshot (pushing the current buffer
+// onto Redo) and reports whether anything was undone.
+func undoEdit(s *InputState) bool {
+	if len(s.Undo) == 0 {
+		return false
+	}
+	last := s.Undo[len(s.Undo)-1]
+	s.Undo = s.Undo[:len(s.Undo)-1]
+	s.Redo = append(s.Redo, append([]rune(nil), s.Runes...))
+	s.Runes = last
+	s.Cursor = len(s.Runes)
+	collapseSel(s)
+	return true
+}
+
+// redoEdit restores the most recent redo snapshot (pushing the current buffer
+// back onto Undo) and reports whether anything was redone.
+func redoEdit(s *InputState) bool {
+	if len(s.Redo) == 0 {
+		return false
+	}
+	last := s.Redo[len(s.Redo)-1]
+	s.Redo = s.Redo[:len(s.Redo)-1]
+	s.Undo = append(s.Undo, append([]rune(nil), s.Runes...))
+	s.Runes = last
+	s.Cursor = len(s.Runes)
+	collapseSel(s)
+	return true
 }
 
 // minInputWidth is the content-box width (logical px) an empty input keeps so
@@ -265,6 +314,9 @@ func (e *Engine) handleEditKey(k KeyInput) bool {
 		return false
 	}
 	multiline := s.Node.Type == "textarea"
+	// Snapshot the buffer before any mutation: every commit below records it
+	// on the undo stack, so Cmd+Z walks the edits back one at a time.
+	before := append([]rune(nil), s.Runes...)
 
 	// Modifier shortcuts. Alt (Option)+printable is NOT gated here: the Rune
 	// channel already carries the option-modified character, which should type.
@@ -282,7 +334,7 @@ func (e *Engine) handleEditKey(k KeyInput) bool {
 			if s.SelStart < s.SelEnd {
 				ClipboardSet(string(s.Runes[s.SelStart:s.SelEnd]))
 				deleteSel(s)
-				e.commitEdit(s)
+				e.commit(s, before)
 			}
 			return true
 		case "v":
@@ -294,7 +346,21 @@ func (e *Engine) handleEditKey(k KeyInput) bool {
 			}
 			deleteSel(s)
 			insertRunes(s, []rune(text))
-			e.commitEdit(s)
+			e.commit(s, before)
+			return true
+		case "z":
+			if k.Shift {
+				if redoEdit(s) {
+					e.commitEdit(s)
+				}
+			} else if undoEdit(s) {
+				e.commitEdit(s)
+			}
+			return true
+		case "y": // Ctrl+Y (Windows) / Cmd+Shift+Z redo
+			if redoEdit(s) {
+				e.commitEdit(s)
+			}
 			return true
 		case "left":
 			moveCursorTo(s, wordStartAt(s.Runes, s.Cursor), k.Shift)
@@ -345,31 +411,31 @@ func (e *Engine) handleEditKey(k KeyInput) bool {
 		s.Runes[s.Cursor] = '\n'
 		s.Cursor++
 		collapseSel(s)
-		e.commitEdit(s)
+		e.commit(s, before)
 		return true
 	case "deleteForward":
 		if deleteSel(s) {
-			e.commitEdit(s)
+			e.commit(s, before)
 		} else if s.Cursor < len(s.Runes) {
 			// The rune AFTER the caret (HTML delete key / fn+delete).
 			s.Runes = append(s.Runes[:s.Cursor], s.Runes[s.Cursor+1:]...)
-			e.commitEdit(s)
+			e.commit(s, before)
 		}
 		return true
 	case "delete", "backspace":
 		if deleteSel(s) {
-			e.commitEdit(s)
+			e.commit(s, before)
 		} else if s.Cursor > 0 {
 			s.Runes = append(s.Runes[:s.Cursor-1], s.Runes[s.Cursor:]...)
 			s.Cursor--
-			e.commitEdit(s)
+			e.commit(s, before)
 		}
 		return true
 	}
 	if r, ok := keyText(k); ok {
 		deleteSel(s)
 		insertRunes(s, []rune{r})
-		e.commitEdit(s)
+		e.commit(s, before)
 		return true
 	}
 	return false
@@ -572,6 +638,15 @@ func lineEnd(r []rune, lineStart int) int {
 		}
 	}
 	return len(r)
+}
+
+// commit is the mutating-edit funnel: record the pre-edit snapshot on the
+// undo stack (unless nil — undo/redo restores commit directly) and publish.
+func (e *Engine) commit(s *InputState, before []rune) {
+	if before != nil {
+		pushUndo(s, before)
+	}
+	e.commitEdit(s)
 }
 
 // commitEdit publishes an edit: the two-way binding writes the buffer back to
