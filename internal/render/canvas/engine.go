@@ -411,28 +411,50 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 	}
 
 	// A drag-to-reorder gesture owns the stream while in flight: the dragged
-	// item's target slot follows the pointer in item-height steps, and the
-	// release dispatches onReorder {from, to}.
+	// item's target slot follows the pointer in item-height steps (one grid
+	// row per crossAxisCount for gridviews), and the release dispatches
+	// onReorder {from, to} only when the slot actually moved.
 	if e.Inter.Reorder.Active {
 		switch {
 		case p.Type == PointerMove && p.Buttons > 0:
-			dy := p.Y - e.Inter.Reorder.PressY
-			e.Inter.Reorder.To = clampInt(e.Inter.Reorder.From+int(math.Round(dy/e.Inter.Reorder.ItemH)),
-				0, e.Inter.Reorder.Count-1)
+			e.Inter.Reorder.To = reorderTarget(&e.Inter.Reorder, p.Y)
 			e.dirty.Store(true)
 			return true
 		case p.Type == PointerRelease:
-			e.dispatchReorder()
+			if e.Inter.Reorder.To != e.Inter.Reorder.From {
+				e.dispatchReorder()
+			}
 			e.Inter.Reorder = ReorderState{}
 			e.dirty.Store(true)
 			return true
+		default:
+			// A button-less move mid-drag (capture lost, cancelled) drops the
+			// gesture — a stale flag would hijack the NEXT drag (the same
+			// hazard the board pan defends against).
+			if p.Type == PointerMove && p.Buttons == 0 {
+				e.Inter.Reorder = ReorderState{}
+			}
 		}
 	}
-	// A press on an item of a reorderable list claims the stream to arm the
-	// gesture above.
-	if p.Type == PointerPress && e.armReorder(hit, rt) {
-		e.dirty.Store(true)
-		return true
+	// A press on an item of a reorderable list arms a PENDING reorder without
+	// claiming the press — the item's own tap and handlers still work, and the
+	// gesture activates only once the drag passes the start slop.
+	if p.Type == PointerPress {
+		e.armReorder(hit, rt)
+	}
+	if e.Inter.Reorder.Pending {
+		if p.Type == PointerMove && p.Buttons > 0 {
+			if math.Hypot(p.X-e.Inter.Reorder.PressX, p.Y-e.Inter.Reorder.PressY) > reorderStartSlop {
+				e.Inter.Reorder.Active = true
+				e.Inter.Reorder.Pending = false
+				e.Inter.Pressed = nil // steal any capture the press opened
+				e.Inter.Reorder.To = reorderTarget(&e.Inter.Reorder, p.Y)
+				e.dirty.Store(true)
+				return true
+			}
+		} else if p.Type == PointerRelease || (p.Type == PointerMove && p.Buttons == 0) {
+			e.Inter.Reorder = ReorderState{} // a tap, or the press was cancelled
+		}
 	}
 
 	// An in-flight board pan owns the stream: the canvas follows the pointer
@@ -703,33 +725,97 @@ func (e *Engine) dispatchContextMenu(hit graph.Node, rt *runtime.Runtime) bool {
 	return false
 }
 
-// armReorder claims a press that lands on an item of a reorderable list
-// (reorderable prop + an onReorder handler), recording the drag anchors: the
-// pressed item's index and height, the list's data length, and the press Y.
-// Returns whether the press was claimed. The list data is evaluated top-level
-// (a nested list inside a repeat cannot resolve its scope here).
-func (e *Engine) armReorder(hit graph.Node, rt *runtime.Runtime) bool {
+// reorderStartSlop is how far a press must drag before a pending reorder
+// activates (the HTML path's 5px threshold — taps and small nudges are taps).
+const reorderStartSlop = 5.0
+
+// reorderTarget maps a pointer Y to the target slot: whole row steps of the
+// dragged item's height (grid rows counting crossAxisCount columns), clamped
+// to the data length.
+func reorderTarget(r *ReorderState, y float64) int {
+	rows := int(math.Round((y - r.PressY) / r.ItemH))
+	to := r.From + rows*r.Cols
+	if to < 0 {
+		to = 0
+	}
+	if to > r.Count-1 {
+		to = r.Count - 1
+	}
+	return to
+}
+
+// armReorder arms a PENDING reorder when the press lands on an item of the
+// FIRST list up the hit chain (a nested list stops the walk — the outer list
+// must never reorder with an inner item's index) whose reorderable + onReorder
+// props are set. It does NOT claim the press: the gesture activates only after
+// the drag passes reorderStartSlop, so taps and the item's own handlers keep
+// working (an item with a press/touch handler or an interactive child is left
+// alone entirely). The list data is evaluated top-level.
+func (e *Engine) armReorder(hit graph.Node, rt *runtime.Runtime) {
 	for n := hit; n != nil; {
 		b := n.Base()
 		if m := b.Model; m != nil && (m.Type == "list" || m.Type == "gridview") {
+			// The hit's own list is the first one on the chain — check it and
+			// STOP: a nested list (or a non-reorderable inner list) must not
+			// fall through to an outer list with the wrong item index.
 			if raw, ok := m.Prop("reorderable"); ok && truthy(evalStyleProp(raw, rt)) {
 				if _, has := m.Prop("onReorder"); has {
-					idx := e.itemIndexOf(hit)
-					count := len(listData(m, rt, nil))
-					if count > 1 && m.Template != nil {
-						var itemH float64
-						if g := e.findGroupByModelIndex(m.Template, idx); g != nil {
-							bb := g.GetBBox()
-							itemH = bb.MaxY - bb.MinY
-						}
-						if itemH > 0 {
-							e.Inter.Reorder = ReorderState{
-								Active: true, List: m, From: idx, To: idx,
-								PressY: e.lastPtr.Y, ItemH: itemH, Count: count,
+					// Only a hit inside an actual item instance arms the
+					// gesture (a press in the list's padding/gap hits the list
+					// container itself, which is not a drag).
+					if inst, ok := e.itemInstanceOf(hit); ok {
+						idx := inst.index
+						count := len(listData(m, rt, nil))
+						if count > 1 && m.Template != nil && !reorderableItemInteractive(hit, m, rt) {
+							var itemH float64
+							if g := e.findGroupByModelIndex(m.Template, idx); g != nil {
+								bb := g.GetBBox()
+								itemH = bb.MaxY - bb.MinY
 							}
-							return true
+							if itemH > 0 {
+								cols := 1
+								if m.Type == "gridview" {
+									if c := gridColumns(m); c > 1 {
+										cols = c
+									}
+								}
+								e.Inter.Reorder = ReorderState{
+									Pending: true, List: m, From: idx, To: idx,
+									PressX: e.lastPtr.X, PressY: e.lastPtr.Y,
+									ItemH: itemH, Count: count, Cols: cols,
+								}
+							}
 						}
 					}
+				}
+			}
+			return // the first list up the chain is the item's own: stop here
+		}
+		p := b.Parent
+		if p == nil {
+			break
+		}
+		n = p
+	}
+}
+
+// reorderableItemInteractive reports whether the hit chain up to (but
+// excluding) the list carries a press/touch handler or an interactive widget —
+// such an item keeps its own taps and is not reorderable (the drag would
+// double-fire the handler).
+func reorderableItemInteractive(hit graph.Node, list *model.Node, rt *runtime.Runtime) bool {
+	for n := hit; n != nil; {
+		b := n.Base()
+		if b.Model == list {
+			break
+		}
+		if m := b.Model; m != nil && !nodeDisabled(m, rt) {
+			if m.OnPress != nil || m.OnTouchStart != nil || m.OnTouchMove != nil || m.OnTouchEnd != nil {
+				return true
+			}
+			if w, ok := LookupWidget(m.Type); ok {
+				if _, yes := w.(InteractiveWidget); yes {
+					return true
 				}
 			}
 		}

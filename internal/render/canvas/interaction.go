@@ -82,18 +82,23 @@ type DragState struct {
 	Data   string // the draggable's payload, evaluated at drag start
 }
 
-// ReorderState is one in-flight drag-to-reorder gesture: List is the
-// reorderable list, From the pressed item's index, To the slot the drag has
-// moved it to, PressY the drag anchor, ItemH the dragged item's height and
-// Count the data length bounding the target index.
+// ReorderState is a drag-to-reorder gesture on a reorderable list. Pending
+// arms on a press without claiming it (the item's own tap still works); the
+// gesture Activates once the drag passes reorderStartSlop. From is the pressed
+// item's index, To the slot the drag has moved it to, PressX/Y the press
+// anchor, ItemH the dragged item's height, Count the data length bounding the
+// target index, and Cols the gridview cross-axis count (1 for lists).
 type ReorderState struct {
-	Active bool
-	List   *model.Node
-	From   int
-	To     int
-	PressY float64
-	ItemH  float64
-	Count  int
+	Active  bool
+	Pending bool
+	List    *model.Node
+	From    int
+	To      int
+	PressX  float64
+	PressY  float64
+	ItemH   float64
+	Count   int
+	Cols    int
 }
 
 // BoardState is the viewport of an infinite-canvas "board" root: a uniform

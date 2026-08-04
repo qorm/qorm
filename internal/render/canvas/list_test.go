@@ -213,12 +213,17 @@ func TestListReorderDrag(t *testing.T) {
 	surf := NewHeadlessSurface(image.Pt(400, 400))
 	e.DrawFrame(surf)
 
-	// Item 0 spans y 0..40; drag it down 60px (1.5 item heights) → To=2.
+	// Item 0 spans y 0..40; drag it down 60px (1.5 item heights) → To=2. The
+	// press only arms a PENDING gesture (taps stay taps); the drag past the
+	// 5px slop activates it.
 	e.HandlePointer(PointerInput{Type: PointerPress, X: 20, Y: 20, Buttons: 1})
-	if !e.Inter.Reorder.Active {
-		t.Fatal("a press on a reorderable list item must arm the gesture")
+	if !e.Inter.Reorder.Pending || e.Inter.Reorder.Active {
+		t.Fatal("a press on a reorderable list item must arm a pending (not active) gesture")
 	}
 	e.HandlePointer(PointerInput{Type: PointerMove, X: 20, Y: 80, Buttons: 1})
+	if !e.Inter.Reorder.Active {
+		t.Fatal("the drag must activate the pending gesture")
+	}
 	if e.Inter.Reorder.To != 2 {
 		t.Fatalf("target slot = %d, want 2 (60px / 40px item)", e.Inter.Reorder.To)
 	}
@@ -228,6 +233,119 @@ func TestListReorderDrag(t *testing.T) {
 	}
 	if e.Inter.Reorder.Active {
 		t.Error("the release must clear the reorder gesture")
+	}
+}
+
+// Dragging UP clamps the target slot at 0 — the engine's contract is clamped
+// indices, never negative (the layout clampInt treats 0 as unset).
+func TestListReorderDragUpClamped(t *testing.T) {
+	tpl := &model.Node{Type: "box", ID: "item", Style: map[string]any{"height": 40.0}}
+	list := &model.Node{Type: "list", ID: "l1", Data: "{{state.items}}", Template: tpl,
+		Props: map[string]any{"reorderable": true, "onReorder": map[string]any{"name": "reorder"}}}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{list}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root},
+		Actions: map[string]*model.Action{
+			"reorder": {ID: "reorder", Steps: []model.Step{{Type: "state.set", Path: "lastTo", Value: "{{to}}"}}},
+		}}
+	rt := runtime.New(app)
+	rt.State["items"] = names("a", "b", "c")
+	e := NewEngine(rt, SoftwareRenderer{})
+	surf := NewHeadlessSurface(image.Pt(400, 400))
+	e.DrawFrame(surf)
+
+	// Item 2 spans y 80..120; drag it up 100px → 2 - 3 = -1, clamped to 0.
+	e.HandlePointer(PointerInput{Type: PointerPress, X: 20, Y: 100, Buttons: 1})
+	e.HandlePointer(PointerInput{Type: PointerMove, X: 20, Y: 0, Buttons: 1})
+	if e.Inter.Reorder.To != 0 {
+		t.Fatalf("target slot = %d, want 0 (clamped, never negative)", e.Inter.Reorder.To)
+	}
+	e.HandlePointer(PointerInput{Type: PointerRelease, X: 20, Y: 0})
+	if rt.State["lastTo"] != 0 {
+		t.Errorf("reorder dispatch to = %v, want 0", rt.State["lastTo"])
+	}
+}
+
+// A bare tap on a reorderable item dispatches nothing — the gesture needs a
+// real drag past the slop.
+func TestListReorderTapDispatchesNothing(t *testing.T) {
+	tpl := &model.Node{Type: "box", ID: "item", Style: map[string]any{"height": 40.0}}
+	list := &model.Node{Type: "list", ID: "l1", Data: "{{state.items}}", Template: tpl,
+		Props: map[string]any{"reorderable": true, "onReorder": map[string]any{"name": "reorder"}}}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{list}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root},
+		Actions: map[string]*model.Action{
+			"reorder": {ID: "reorder", Steps: []model.Step{{Type: "state.set", Path: "lastFrom", Value: "{{from}}"}}},
+		}}
+	rt := runtime.New(app)
+	rt.State["items"] = names("a", "b", "c")
+	e := NewEngine(rt, SoftwareRenderer{})
+	surf := NewHeadlessSurface(image.Pt(400, 400))
+	e.DrawFrame(surf)
+
+	e.HandlePointer(PointerInput{Type: PointerPress, X: 20, Y: 20})
+	e.HandlePointer(PointerInput{Type: PointerRelease, X: 20, Y: 20})
+	if rt.State["lastFrom"] != nil {
+		t.Error("a tap must not dispatch onReorder")
+	}
+	if e.Inter.Reorder.Pending || e.Inter.Reorder.Active {
+		t.Error("a tap must clear the pending gesture")
+	}
+}
+
+// A button inside a reorderable item keeps its tap: an interactive item does
+// not arm the reorder at all (the drag would double-fire the handler).
+func TestListReorderInteractiveItemKeepsTap(t *testing.T) {
+	tpl := &model.Node{Type: "button", ID: "item", Props: map[string]any{"label": "x"},
+		OnPress: &model.Invoke{Name: "hit"}}
+	list := &model.Node{Type: "list", ID: "l1", Data: "{{state.items}}", Template: tpl,
+		Props: map[string]any{"reorderable": true, "onReorder": map[string]any{"name": "reorder"}}}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{list}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root},
+		Actions: map[string]*model.Action{
+			"hit":      {ID: "hit", Steps: []model.Step{{Type: "state.set", Path: "pressed", Value: "yes"}}},
+			"reorder":  {ID: "reorder", Steps: []model.Step{{Type: "state.set", Path: "lastFrom", Value: "{{from}}"}}},
+		}}
+	rt := runtime.New(app)
+	rt.State["items"] = names("a", "b", "c")
+	e := NewEngine(rt, SoftwareRenderer{})
+	surf := NewHeadlessSurface(image.Pt(400, 400))
+	e.DrawFrame(surf)
+
+	e.HandlePointer(PointerInput{Type: PointerPress, X: 20, Y: 20})
+	e.HandlePointer(PointerInput{Type: PointerRelease, X: 20, Y: 20})
+	if rt.State["pressed"] != "yes" {
+		t.Error("the item's button must still fire on a tap")
+	}
+	if e.Inter.Reorder.Pending {
+		t.Error("an interactive item must not arm the reorder")
+	}
+}
+
+// A cancelled drag (button-less move) drops the gesture, so a stale flag can't
+// hijack the next drag.
+func TestListReorderCancelledDragClears(t *testing.T) {
+	tpl := &model.Node{Type: "box", ID: "item", Style: map[string]any{"height": 40.0}}
+	list := &model.Node{Type: "list", ID: "l1", Data: "{{state.items}}", Template: tpl,
+		Props: map[string]any{"reorderable": true, "onReorder": map[string]any{"name": "reorder"}}}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{list}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root},
+		Actions: map[string]*model.Action{
+			"reorder": {ID: "reorder", Steps: []model.Step{{Type: "state.set", Path: "lastFrom", Value: "{{from}}"}}},
+		}}
+	rt := runtime.New(app)
+	rt.State["items"] = names("a", "b", "c")
+	e := NewEngine(rt, SoftwareRenderer{})
+	surf := NewHeadlessSurface(image.Pt(400, 400))
+	e.DrawFrame(surf)
+
+	e.HandlePointer(PointerInput{Type: PointerPress, X: 20, Y: 20, Buttons: 1})
+	e.HandlePointer(PointerInput{Type: PointerMove, X: 20, Y: 80, Buttons: 1})
+	if !e.Inter.Reorder.Active {
+		t.Fatal("precondition: the drag must be active")
+	}
+	e.HandlePointer(PointerInput{Type: PointerMove, X: 20, Y: 80}) // button-less: cancelled
+	if e.Inter.Reorder.Active || e.Inter.Reorder.Pending {
+		t.Error("a button-less move must drop the reorder gesture")
 	}
 }
 
