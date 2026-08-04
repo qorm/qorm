@@ -12,7 +12,14 @@ import (
 )
 
 func init() {
-	canvas.RegisterWidget("accordion", &Accordion{actives: map[*model.Node]int{}, headers: map[*model.Node][]image.Rectangle{}})
+	canvas.RegisterWidget("accordion", &Accordion{actives: map[*model.Node]int{}, headers: map[*model.Node][]image.Rectangle{}, contents: map[*model.Node][]contentHit{}})
+}
+
+// contentHit pairs a laid-out content child's screen rect with its model node
+// so a press inside an open panel can be forwarded to the child's own handler.
+type contentHit struct {
+	rect image.Rectangle
+	node *model.Node
 }
 
 // Accordion is a stacked expand/collapse (HTML render_data.go accordion): each
@@ -21,9 +28,10 @@ func init() {
 // header. Clicking a header expands that panel (and collapses it again when it
 // is already the active one — a single-open accordion, the common form).
 type Accordion struct {
-	mu      sync.Mutex
-	actives map[*model.Node]int
-	headers map[*model.Node][]image.Rectangle // header rects (screen px), for press mapping
+	mu       sync.Mutex
+	actives  map[*model.Node]int
+	headers  map[*model.Node][]image.Rectangle // header rects (screen px), for press mapping
+	contents map[*model.Node][]contentHit      // open panel content rects, for handler forwarding
 }
 
 const accordionHeaderH = 44
@@ -36,7 +44,9 @@ func (a *Accordion) active(n *model.Node, rt *runtime.Runtime, count int) int {
 	if raw, ok := n.Prop("active"); ok {
 		if s, ok := raw.(string); ok {
 			if path := formBoundPath(s); path != "" {
-				if v := rt.State[path]; v != nil {
+				// StatePath resolves dotted paths the same way SetStatePath
+				// writes them ({{state.ui.open}} nests).
+				if v := rt.StatePath(path); v != nil {
 					idx = int(asFloat64(v))
 				}
 			}
@@ -88,7 +98,7 @@ func (a *Accordion) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any
 				w = cln.Width
 			}
 			if i == active {
-				h += cln.Height
+				h += 16*scale + cln.Height // record pads the panel 8px top + 8px bottom
 			}
 		}
 		h += accordionHeaderH * scale
@@ -133,6 +143,7 @@ func (a *Accordion) record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int
 	g.AddChild(chrome)
 
 	headers := make([]image.Rectangle, 0, len(ln.Children))
+	contents := make([]contentHit, 0, len(ln.Children))
 	y := 0
 	for i, cln := range ln.Children {
 		title := "Item"
@@ -141,7 +152,8 @@ func (a *Accordion) record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int
 				title = s
 			}
 		}
-		// Header: a full-width row with the title.
+		// Header: a full-width row with the title. Header rects are recorded
+		// in SCREEN coordinates — HandlePointer maps presses in the same space.
 		header := draw.NewRect()
 		header.X = float64(scale)
 		header.Y = float64(y)
@@ -164,16 +176,21 @@ func (a *Accordion) record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int
 		}
 		g.AddChild(formText(title, float64(14*scale), float64(y)+(float64(headerH)-float64(lineHeight(fs)))/2, fs, ink))
 		g.AddChild(formText(chevron, float64(ln.Width-24*scale), float64(y)+(float64(headerH)-float64(lineHeight(fs)))/2, fs, ink))
-		headers = append(headers, image.Rect(0, y, ln.Width, y+headerH))
+		headers = append(headers, image.Rect(ln.AbsX, ln.AbsY+y, ln.AbsX+ln.Width, ln.AbsY+y+headerH))
 		y += headerH
 
-		// The active panel's content below its header.
+		// The active panel's content below its header; its rect is recorded
+		// so a press inside can be forwarded to the child's own handler.
 		if i == active && cln.Node != nil {
 			ch := cln.Height + cln.Style.MarginTop + cln.Style.MarginBot
 			bounds := image.Rect(14*scale, y+8*scale, ln.Width-14*scale, y+8*scale+ch)
 			if cn := canvas.PerformLayoutWithSinks(cln, bounds, image.Pt(ln.AbsX+14*scale, ln.AbsY+y+8*scale), canvas.SinksInter(sinks), rt, scale, sinks); cn != nil {
 				g.AddChild(cn)
 			}
+			contents = append(contents, contentHit{
+				rect: image.Rect(ln.AbsX+14*scale, ln.AbsY+y+8*scale, ln.AbsX+ln.Width-14*scale, ln.AbsY+y+8*scale+ch),
+				node: cln.Node,
+			})
 			y += 16*scale + ch
 		}
 	}
@@ -181,6 +198,7 @@ func (a *Accordion) record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int
 
 	a.mu.Lock()
 	a.headers[ln.Node] = headers
+	a.contents[ln.Node] = contents
 	a.mu.Unlock()
 	return g
 }
@@ -194,6 +212,7 @@ func (a *Accordion) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.P
 	}
 	a.mu.Lock()
 	headers := a.headers[n]
+	contents := a.contents[n]
 	a.mu.Unlock()
 	active := a.active(n, rt, len(n.Children))
 	for i, h := range headers {
@@ -205,6 +224,18 @@ func (a *Accordion) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.P
 				a.setActive(n, rt, i)
 			}
 			return true
+		}
+	}
+	// A press on an open panel's content forwards to the content child's own
+	// handler (the widget owns its subtree's input, so it passes the press
+	// along rather than eating it).
+	for _, ch := range contents {
+		if p.X >= float64(ch.rect.Min.X) && p.X <= float64(ch.rect.Max.X) &&
+			p.Y >= float64(ch.rect.Min.Y) && p.Y <= float64(ch.rect.Max.Y) {
+			if ch.node.OnPress != nil && !formDisabled(ch.node, rt) {
+				dispatchInvoke(ch.node.OnPress, rt)
+				return true
+			}
 		}
 	}
 	return false

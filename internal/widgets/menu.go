@@ -195,13 +195,20 @@ func (m *Menu) OverlayRecord(ln *canvas.LayoutNode, rt *runtime.Runtime, scale i
 	g := m.geo(ln.Node)
 	rowH := menuRowH * scale
 	panelH := len(items)*rowH + 8*scale
-	trigger := g.trigger
-	panel := image.Rect(trigger.Min.X, trigger.Max.Y+4*scale, trigger.Min.X+160*scale, trigger.Max.Y+4*scale+panelH)
+	// The panel is positioned from the CURRENT trigger box (the layout's
+	// AbsX/AbsY), not the open-press frame — a scroll or state-driven move
+	// while open must keep the panel glued to the trigger.
+	panelW := 160 * scale
+	panelX := ln.AbsX
+	panelY := ln.AbsY + ln.Height + 4*scale
+	stageW, stageH := overlayStageSize(rt, scale, panelX+panelW, panelY+panelH)
+	if panelY+panelH > stageH && ln.AbsY-4*scale-panelH >= 0 {
+		panelY = ln.AbsY - 4*scale - panelH // flip above when it would leave the viewport
+	}
+	panel := image.Rect(panelX, panelY, panelX+panelW, panelY+panelH)
 	g.panel = panel
 	g.rowH = rowH
 	g.padTop = 4 * scale
-
-	stageW, stageH := overlayStageSize(rt, scale, panel.Max.X, panel.Max.Y)
 	root := draw.NewGroup()
 	root.Width = float64(stageW)
 	root.Height = float64(stageH)

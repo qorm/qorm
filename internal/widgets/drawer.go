@@ -12,8 +12,8 @@ import (
 )
 
 func init() {
-	canvas.RegisterWidget("drawer", &Drawer{opens: map[*model.Node]bool{}, geom: map[*model.Node]image.Rectangle{}})
-	canvas.RegisterWidget("navigationdrawer", &Drawer{opens: map[*model.Node]bool{}, geom: map[*model.Node]image.Rectangle{}})
+	canvas.RegisterWidget("drawer", &Drawer{opens: map[*model.Node]bool{}, geom: map[*model.Node]image.Rectangle{}, contents: map[*model.Node][]contentHit{}})
+	canvas.RegisterWidget("navigationdrawer", &Drawer{opens: map[*model.Node]bool{}, geom: map[*model.Node]image.Rectangle{}, contents: map[*model.Node][]contentHit{}})
 }
 
 // Drawer is a side panel that overlays the scene when `open` is truthy (the
@@ -23,9 +23,10 @@ func init() {
 // writing the bound `open` state back to false when the prop is a binding —
 // and a press on the panel passes through to the panel's own content.
 type Drawer struct {
-	mu    sync.Mutex
-	opens map[*model.Node]bool
-	geom  map[*model.Node]image.Rectangle // last-drawn panel bounds (screen px)
+	mu       sync.Mutex
+	opens    map[*model.Node]bool
+	geom     map[*model.Node]image.Rectangle // last-drawn panel bounds (screen px)
+	contents map[*model.Node][]contentHit    // panel content rects, for handler forwarding
 }
 
 // Measure reports nothing (the panel is the overlay).
@@ -44,18 +45,25 @@ func (*Drawer) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) dra
 	return nil
 }
 
-// OverlayOpen reports whether the bound `open` prop is truthy (the drawer is
-// mounted as an overlay above the scene). A string prop is evaluated (a
-// binding like {{state.open}}); a bool prop is used directly.
+// OverlayOpen reports whether the drawer is mounted. A binding `open` prop is
+// evaluated per frame (a state flip re-mounts/unmounts); a static prop (bool
+// or plain string) shows as its initial value and the backdrop press closes it
+// via the local state.
 func (d *Drawer) OverlayOpen(n *model.Node, rt *runtime.Runtime) bool {
 	raw, ok := n.Prop("open")
 	if !ok {
 		return d.isOpen(n)
 	}
-	if s, ok := raw.(string); ok {
+	if s, ok := raw.(string); ok && formBoundPath(s) != "" {
 		return formTruthy(runtime.EvalBinding(s, formCtxLn(rt, nil)))
 	}
-	return formTruthy(raw)
+	d.mu.Lock()
+	v, has := d.opens[n]
+	d.mu.Unlock()
+	if has {
+		return v
+	}
+	return formTruthy(raw) // the static prop's initial value
 }
 
 // OverlayRecord draws the backdrop + side panel with the children flowing
@@ -104,7 +112,9 @@ func (d *Drawer) OverlayRecord(ln *canvas.LayoutNode, rt *runtime.Runtime, scale
 	panelRect.Fill = themeColor(rt, "surface", color.RGBA{255, 255, 255, 255})
 	panel.AddChild(panelRect)
 
-	// The children flow vertically inside the panel (padding 20).
+	// The children flow vertically inside the panel (padding 20). Their screen
+	// rects are recorded so a press on one forwards to its own handler.
+	contents := make([]contentHit, 0, len(ln.Children))
 	y := 20 * scale
 	for _, cln := range ln.Children {
 		ch := cln.Height + cln.Style.MarginTop + cln.Style.MarginBot
@@ -112,6 +122,10 @@ func (d *Drawer) OverlayRecord(ln *canvas.LayoutNode, rt *runtime.Runtime, scale
 		if cn := canvas.PerformLayoutWithSinks(cln, bounds, image.Pt(ln.AbsX+panelX+20*scale, ln.AbsY+y), canvas.SinksInter(nil), rt, scale, nil); cn != nil {
 			panel.AddChild(cn)
 		}
+		contents = append(contents, contentHit{
+			rect: image.Rect(ln.AbsX+panelX+20*scale, ln.AbsY+y, ln.AbsX+panelX+panelW-20*scale, ln.AbsY+y+ch),
+			node: cln.Node,
+		})
 		y += ch + 12*scale
 	}
 	ln.Children = nil
@@ -120,23 +134,35 @@ func (d *Drawer) OverlayRecord(ln *canvas.LayoutNode, rt *runtime.Runtime, scale
 	// Record the panel bounds for backdrop/panel press disambiguation.
 	d.mu.Lock()
 	d.geom[ln.Node] = image.Rect(panelX, 0, panelX+panelW, stageH)
+	d.contents[ln.Node] = contents
 	d.mu.Unlock()
 	return root
 }
 
 // HandlePointer implements canvas.InteractiveWidget: a press on the backdrop
-// (outside the panel) closes the drawer, writing the bound `open` prop back to
-// false when it is a binding; a press on the panel is left to the panel's own
-// content (the widget does not consume it).
+// (outside the panel) closes the drawer — writing the bound `open` prop back
+// to false, or the local state for a static prop; a press on the panel
+// content forwards to the pressed child's own handler (the widget owns its
+// subtree's input, so it passes the press along rather than eating it).
 func (d *Drawer) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.PointerInput, inter *canvas.Interaction, frame image.Rectangle) bool {
 	if p.Type != canvas.PointerPress {
 		return false
 	}
 	d.mu.Lock()
 	panel := d.geom[n]
+	contents := d.contents[n]
 	d.mu.Unlock()
 	if p.X >= float64(panel.Min.X) && p.X <= float64(panel.Max.X) {
-		return false // a press on the panel passes through to its content
+		for _, ch := range contents {
+			if p.X >= float64(ch.rect.Min.X) && p.X <= float64(ch.rect.Max.X) &&
+				p.Y >= float64(ch.rect.Min.Y) && p.Y <= float64(ch.rect.Max.Y) {
+				if ch.node.OnPress != nil && !formDisabled(ch.node, rt) {
+					dispatchInvoke(ch.node.OnPress, rt)
+					return true
+				}
+			}
+		}
+		return false // a press on the panel's empty area does nothing
 	}
 	// Backdrop: close (write the bound state back to false).
 	if raw, ok := n.Prop("open"); ok {
