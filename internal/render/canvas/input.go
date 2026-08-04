@@ -69,6 +69,13 @@ type InputState struct {
 	// Redo; Cmd+Z pops Undo onto Redo and restores, Cmd+Shift+Z / Cmd+Y the
 	// reverse. Capped at maxUndoEntries so a long typing session stays bounded.
 	Undo, Redo [][]rune
+	// MarkedText is the IME composition preview — the uncommitted characters
+	// an input method is still composing, drawn after the buffer with an
+	// underline. The host's NSTextInputClient seam fills it during composition
+	// and commits it (merging into Runes) when the IME confirms; hosts without
+	// the input-client protocol leave it empty and committed text arrives via
+	// the Rune channel.
+	MarkedText []rune
 }
 
 // maxUndoEntries caps the undo history per session (the browser keeps ~100;
@@ -991,6 +998,27 @@ func layoutInput(ln *LayoutNode, group *graph.Group, rt *runtime.Runtime, scale 
 		group.AddChild(textNode)
 	}
 
+	if ln.Editing && ln.MarkedText != "" {
+		// The IME composition preview: the uncommitted characters drawn right
+		// after the value, underlined (the browser's composition highlight).
+		mx := tx + int(MeasureText(ln.Text, float64(fs)))
+		mt := graph.NewText()
+		mt.X = float64(mx)
+		mt.Y = float64(ty)
+		mt.Content = ln.MarkedText
+		mt.Fill = c
+		mt.FontSize = float64(fs)
+		group.AddChild(mt)
+		ul := graph.NewRect()
+		ul.NoHit = true
+		ul.X = float64(mx)
+		ul.Y = float64(ty + txtH - scale)
+		ul.Width = float64(int(MeasureText(ln.MarkedText, float64(fs))))
+		ul.Height = float64(scale)
+		ul.Fill = c
+		group.AddChild(ul)
+	}
+
 	if ln.Editing && !sel && ln.CaretVisible {
 		// The caret: a 1-device-px line at the insertion point, blinking at
 		// caretBlinkHalf (the engine keeps animating while a session is live,
@@ -1004,7 +1032,11 @@ func layoutInput(ln *LayoutNode, group *graph.Group, rt *runtime.Runtime, scale 
 		}
 		caret := graph.NewRect()
 		caret.NoHit = true
-		caret.X = float64(tx + int(MeasureText(prefixRunes(ln.Text, ln.Cursor), float64(fs))))
+		caretX := tx + int(MeasureText(prefixRunes(ln.Text, ln.Cursor), float64(fs)))
+		if ln.MarkedText != "" {
+			caretX += int(MeasureText(ln.MarkedText, float64(fs))) // composing: caret after the preview
+		}
+		caret.X = float64(caretX)
 		caret.Y = float64(ty)
 		caret.Width = float64(w)
 		caret.Height = float64(txtH)

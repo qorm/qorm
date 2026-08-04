@@ -487,6 +487,61 @@ func TestInputNumberPasteFilters(t *testing.T) {
 	}
 }
 
+// The engine inserts multi-byte (CJK) runes from the host's character channel
+// — an IME's committed text lands in the buffer and writes back.
+func TestInputCJKInsertion(t *testing.T) {
+	e, surf, _ := inputFixture(t)
+	e.DrawFrame(surf)
+	clickNode(t, e, e.findModelByID("in1"))
+	typeRunes(e, "你好")
+	if got := e.RT.State["name"]; got != "你好" {
+		t.Fatalf("CJK input must land in the buffer: state.name = %v", got)
+	}
+}
+
+// The IME composition preview draws after the value with an underline, and the
+// caret sits past it while composing.
+func TestInputCompositionPreview(t *testing.T) {
+	e, surf, in := inputFixture(t)
+	e.DrawFrame(surf)
+	clickNode(t, e, in)
+	typeRunes(e, "ab")
+	s := e.Inter.Input
+	s.MarkedText = []rune("你好")
+	e.MarkDirty()
+	e.DrawFrame(surf)
+
+	// The caret is past the marked text: text origin + width("ab") +
+	// width("你好"). findCaret returns the FIRST NoHit fill rect — with a
+	// composition preview that is the underline — so pick the 1px-wide one.
+	g := inputGroup(t, e, in)
+	var caret *graph.Rect
+	for _, c := range g.Children {
+		if r, ok := c.(*graph.Rect); ok && r.NoHit && r.Fill.A > 0 && r.StrokeWidth == 0 && r.Width <= 1 {
+			caret = r
+		}
+	}
+	if caret == nil {
+		t.Fatal("composing input must show its caret")
+	}
+	fs := firstText(g).FontSize
+	wantX := 12 + int(MeasureText("ab", fs)) + int(MeasureText("你好", fs))
+	if int(caret.X) != wantX {
+		t.Errorf("caret during composition x = %v, want %v", int(caret.X), wantX)
+	}
+	// The underline rect spans the marked text (a NoHit fill rect after the
+	// text nodes).
+	found := false
+	for _, c := range g.Children {
+		if r, ok := c.(*graph.Rect); ok && r.NoHit && r.Width == float64(int(MeasureText("你好", fs))) {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("the composition preview must draw an underline spanning the marked text")
+	}
+}
+
 // A non-empty selection renders as a highlight rect spanning the selected
 // runes and hides the caret.
 func TestInputSelectionRendersHighlight(t *testing.T) {
