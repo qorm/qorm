@@ -1,8 +1,11 @@
 package canvas
 
 import (
+	"fmt"
 	"image/color"
+	"math"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -175,6 +178,80 @@ func inputDisplayText(n *model.Node, rt *runtime.Runtime, inter *Interaction) (t
 	return n.Placeholder, true
 }
 
+// numberInput reports whether the input restricts entry to numeric values
+// (the HTML inputType=number spelling — the browser's native number field).
+func numberInput(n *model.Node) bool {
+	if v, ok := n.Prop("inputType"); ok {
+		return fmt.Sprint(v) == "number"
+	}
+	return false
+}
+
+// numberRuneOK reports whether inserting r into the current buffer is valid
+// for a numeric field: digits always, "-" only as the first character, "."
+// only once (the browser's type=number keyboard restriction).
+func numberRuneOK(s *InputState, r rune) bool {
+	switch {
+	case r >= '0' && r <= '9':
+		return true
+	case r == '-':
+		return len(s.Runes) == 0
+	case r == '.':
+		for _, c := range s.Runes {
+			if c == '.' {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}
+
+// propFloat reads a numeric prop (min/max/step), evaluating bindings like the
+// style keys.
+func propFloat(n *model.Node, key string, rt *runtime.Runtime) (float64, bool) {
+	v, ok := n.Prop(key)
+	if !ok {
+		return 0, false
+	}
+	switch t := evalStyleProp(v, rt).(type) {
+	case float64:
+		return t, true
+	case int:
+		return float64(t), true
+	}
+	return 0, false
+}
+
+// clampNumber clamps the buffer to the min/max/step props when it parses as a
+// COMPLETE number. Partials ("-", "1.") are left alone so typing is never
+// fought; the result is the clamped spelling, or "" when nothing applies.
+func clampNumber(s *InputState, n *model.Node, rt *runtime.Runtime) string {
+	text := string(s.Runes)
+	val, err := strconv.ParseFloat(text, 64)
+	if err != nil {
+		return ""
+	}
+	if mn, ok := propFloat(n, "min", rt); ok && val < mn {
+		val = mn
+	}
+	if mx, ok := propFloat(n, "max", rt); ok && val > mx {
+		val = mx
+	}
+	if st, ok := propFloat(n, "step", rt); ok && st > 0 {
+		base := 0.0
+		if mn, ok2 := propFloat(n, "min", rt); ok2 {
+			base = mn
+		}
+		val = base + math.Round((val-base)/st)*st
+	}
+	out := strconv.FormatFloat(val, 'f', -1, 64)
+	if out == text {
+		return ""
+	}
+	return out
+}
+
 // secureInput reports whether the input masks its value (HTML: type=password
 // via the secure/password prop or a "password"-named id, render_input.go).
 func secureInput(n *model.Node) bool {
@@ -344,6 +421,9 @@ func (e *Engine) handleEditKey(k KeyInput) bool {
 				// multi-line value into <input> folds it to spaces).
 				text = strings.NewReplacer("\r", " ", "\n", " ").Replace(text)
 			}
+			if numberInput(s.Node) {
+				text = numberFilter(text) // keep only numeric characters
+			}
 			deleteSel(s)
 			insertRunes(s, []rune(text))
 			e.commit(s, before)
@@ -433,12 +513,35 @@ func (e *Engine) handleEditKey(k KeyInput) bool {
 		return true
 	}
 	if r, ok := keyText(k); ok {
+		if numberInput(s.Node) && !numberRuneOK(s, r) {
+			return true // a numeric field rejects non-numeric characters
+		}
 		deleteSel(s)
 		insertRunes(s, []rune{r})
 		e.commit(s, before)
 		return true
 	}
 	return false
+}
+
+// numberFilter keeps only the characters a numeric field accepts — digits,
+// one leading "-" and one "." — applied to pasted text (the browser's
+// type=number rejects the rest at the input edge).
+func numberFilter(text string) string {
+	var out []rune
+	dash := false
+	for i, r := range text {
+		switch {
+		case r >= '0' && r <= '9':
+			out = append(out, r)
+		case r == '-' && i == 0:
+			out = append(out, r)
+			dash = true
+		case r == '.' && !dash && !strings.ContainsRune(string(out), '.'):
+			out = append(out, r)
+		}
+	}
+	return string(out)
 }
 
 // moveCursorLineTarget returns the buffer index one visual line up (down=false)
@@ -655,11 +758,20 @@ func (e *Engine) commit(s *InputState, before []rune) {
 // enforces — and a declared onChange dispatches with the new {value}. The
 // redraw comes from the caller: HandleKey always flags the engine dirty.
 func (e *Engine) commitEdit(s *InputState) {
+	// A numeric field clamps COMPLETE values to min/max/step on the written
+	// value (the buffer keeps what was typed so typing is never fought; the
+	// next focus re-reads the clamped state, like a validated form field).
+	value := string(s.Runes)
+	if numberInput(s.Node) {
+		if clamped := clampNumber(s, s.Node, e.RT); clamped != "" {
+			value = clamped
+		}
+	}
 	if path := boundStatePath(s.Node.Value); path != "" {
-		e.RT.SetStatePath(path, string(s.Runes))
+		e.RT.SetStatePath(path, value)
 	}
 	if evt := s.Node.OnChange; evt != nil {
-		e.dispatch(evt, map[string]any{"value": string(s.Runes)})
+		e.dispatch(evt, map[string]any{"value": value})
 	}
 }
 

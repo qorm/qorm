@@ -1,12 +1,15 @@
 package canvas
 
 import (
+	"image"
 	"testing"
 	"time"
 
 	"github.com/qorm/qorm/internal/geom"
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/render/graph"
+	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/qorm/internal/theme"
 )
 
 // setFakeClip installs an in-memory clipboard seam and returns a pointer to
@@ -413,6 +416,74 @@ func TestInputUndoRedo(t *testing.T) {
 	e.HandleKey(KeyInput{Key: "z", Meta: true, Shift: true, Down: true})
 	if got := e.RT.State["name"]; got != "abcY" {
 		t.Fatalf("redo after a fresh edit must be a no-op, state.name = %v", got)
+	}
+}
+
+// A numeric input (inputType: number) rejects non-numeric characters, allows
+// one leading minus and one decimal point, and clamps complete values to
+// min/max on the state write-back (the buffer keeps what was typed).
+func TestInputNumberType(t *testing.T) {
+	in := &model.Node{Type: "input", ID: "num", Value: "{{state.n}}",
+		Props: map[string]any{"inputType": "number", "min": 0.0, "max": 1000.0}}
+	root := &model.Node{Type: "column", ID: "root",
+		Layout:   map[string]any{"align": "center", "justify": "center"},
+		Children: []*model.Node{in}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}}
+	rt := runtime.New(app)
+	rt.Theme = theme.GetDefault()
+	e := NewEngine(rt, SoftwareRenderer{})
+	surf := NewHeadlessSurface(image.Pt(400, 400))
+	e.DrawFrame(surf)
+
+	clickNode(t, e, in)
+	typeRunes(e, "12a3") // "a" rejected
+	if got := rt.State["n"]; got != "123" {
+		t.Fatalf("non-numeric characters must be rejected: state.n = %v", got)
+	}
+	typeRunes(e, "-") // a minus mid-string is rejected
+	if got := rt.State["n"]; got != "123" {
+		t.Fatalf("a minus mid-string must be rejected: state.n = %v", got)
+	}
+	typeRunes(e, ".5") // one decimal point allowed
+	if got := rt.State["n"]; got != "123.5" {
+		t.Fatalf("a decimal point must be allowed: state.n = %v", got)
+	}
+	typeRunes(e, ".") // a second decimal point is rejected
+	if got := string(e.Inter.Input.Runes); got != "123.5" {
+		t.Fatalf("a second decimal point must be rejected: %q", got)
+	}
+	// A complete value above max clamps on the write-back; the buffer keeps
+	// what was typed.
+	e.HandleKey(KeyInput{Key: "a", Meta: true, Down: true})
+	typeRunes(e, "9999")
+	if got := rt.State["n"]; got != "1000" {
+		t.Fatalf("an out-of-range value must clamp to max: state.n = %v", got)
+	}
+	if got := string(e.Inter.Input.Runes); got != "9999" {
+		t.Fatalf("the buffer must keep what was typed: %q", got)
+	}
+}
+
+// Pasting into a numeric field filters the text to its numeric characters.
+func TestInputNumberPasteFilters(t *testing.T) {
+	SetClipboard(ClipboardFunc{GetFn: func() string { return "1a2.5x" }})
+	t.Cleanup(func() { SetClipboard(nil) })
+	in := &model.Node{Type: "input", ID: "num", Value: "{{state.n}}",
+		Props: map[string]any{"inputType": "number"}}
+	root := &model.Node{Type: "column", ID: "root",
+		Layout:   map[string]any{"align": "center", "justify": "center"},
+		Children: []*model.Node{in}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}}
+	rt := runtime.New(app)
+	rt.Theme = theme.GetDefault()
+	e := NewEngine(rt, SoftwareRenderer{})
+	surf := NewHeadlessSurface(image.Pt(400, 400))
+	e.DrawFrame(surf)
+
+	clickNode(t, e, in)
+	e.HandleKey(KeyInput{Key: "v", Meta: true, Down: true})
+	if got := rt.State["n"]; got != "12.5" {
+		t.Fatalf("pasted text must be filtered to numeric characters: state.n = %v", got)
 	}
 }
 
