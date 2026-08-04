@@ -192,6 +192,72 @@ func TestListItemEnterActivates(t *testing.T) {
 	}
 }
 
+// A reorderable list claims a press on one of its items and tracks the drag
+// to a new slot: dragging item 0 down 1.5 item-heights lands at To=2, and the
+// release dispatches onReorder {from, to}.
+func TestListReorderDrag(t *testing.T) {
+	tpl := &model.Node{Type: "box", ID: "item", Style: map[string]any{"height": 40.0}}
+	list := &model.Node{Type: "list", ID: "l1", Data: "{{state.items}}", Template: tpl,
+		Props: map[string]any{"reorderable": true, "onReorder": map[string]any{"name": "reorder"}}}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{list}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root},
+		Actions: map[string]*model.Action{
+			"reorder": {ID: "reorder", Steps: []model.Step{
+				{Type: "state.set", Path: "lastFrom", Value: "{{from}}"},
+				{Type: "state.set", Path: "lastTo", Value: "{{to}}"},
+			}},
+		}}
+	rt := runtime.New(app)
+	rt.State["items"] = names("a", "b", "c")
+	e := NewEngine(rt, SoftwareRenderer{})
+	surf := NewHeadlessSurface(image.Pt(400, 400))
+	e.DrawFrame(surf)
+
+	// Item 0 spans y 0..40; drag it down 60px (1.5 item heights) → To=2.
+	e.HandlePointer(PointerInput{Type: PointerPress, X: 20, Y: 20, Buttons: 1})
+	if !e.Inter.Reorder.Active {
+		t.Fatal("a press on a reorderable list item must arm the gesture")
+	}
+	e.HandlePointer(PointerInput{Type: PointerMove, X: 20, Y: 80, Buttons: 1})
+	if e.Inter.Reorder.To != 2 {
+		t.Fatalf("target slot = %d, want 2 (60px / 40px item)", e.Inter.Reorder.To)
+	}
+	e.HandlePointer(PointerInput{Type: PointerRelease, X: 20, Y: 80})
+	if rt.State["lastFrom"] != 0 || rt.State["lastTo"] != 2 {
+		t.Errorf("reorder dispatch = from %v to %v, want 0→2", rt.State["lastFrom"], rt.State["lastTo"])
+	}
+	if e.Inter.Reorder.Active {
+		t.Error("the release must clear the reorder gesture")
+	}
+}
+
+// A list WITHOUT reorderable leaves item presses alone (the normal press path
+// still works — the reorder claim is opt-in).
+func TestListNotReorderablePassesPress(t *testing.T) {
+	tpl := &model.Node{Type: "button", ID: "item", Props: map[string]any{"label": "x"},
+		OnPress: &model.Invoke{Name: "hit"}}
+	list := &model.Node{Type: "list", ID: "l1", Data: "{{state.items}}", Template: tpl}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{list}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root},
+		Actions: map[string]*model.Action{
+			"hit": {ID: "hit", Steps: []model.Step{{Type: "state.set", Path: "pressed", Value: "yes"}}},
+		}}
+	rt := runtime.New(app)
+	rt.State["items"] = names("a", "b", "c")
+	e := NewEngine(rt, SoftwareRenderer{})
+	surf := NewHeadlessSurface(image.Pt(400, 400))
+	e.DrawFrame(surf)
+
+	e.HandlePointer(PointerInput{Type: PointerPress, X: 20, Y: 20})
+	e.HandlePointer(PointerInput{Type: PointerRelease, X: 20, Y: 20})
+	if rt.State["pressed"] != "yes" {
+		t.Error("a non-reorderable list must leave item presses to the item's handler")
+	}
+	if e.Inter.Reorder.Active {
+		t.Error("a non-reorderable list must not arm the reorder gesture")
+	}
+}
+
 // A state change re-expands the repeat on the next frame: items added and
 // removed show up without any identity bookkeeping going stale.
 func TestListDataChangeRerenders(t *testing.T) {

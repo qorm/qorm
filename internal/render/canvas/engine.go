@@ -410,6 +410,31 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 		}
 	}
 
+	// A drag-to-reorder gesture owns the stream while in flight: the dragged
+	// item's target slot follows the pointer in item-height steps, and the
+	// release dispatches onReorder {from, to}.
+	if e.Inter.Reorder.Active {
+		switch {
+		case p.Type == PointerMove && p.Buttons > 0:
+			dy := p.Y - e.Inter.Reorder.PressY
+			e.Inter.Reorder.To = clampInt(e.Inter.Reorder.From+int(math.Round(dy/e.Inter.Reorder.ItemH)),
+				0, e.Inter.Reorder.Count-1)
+			e.dirty.Store(true)
+			return true
+		case p.Type == PointerRelease:
+			e.dispatchReorder()
+			e.Inter.Reorder = ReorderState{}
+			e.dirty.Store(true)
+			return true
+		}
+	}
+	// A press on an item of a reorderable list claims the stream to arm the
+	// gesture above.
+	if p.Type == PointerPress && e.armReorder(hit, rt) {
+		e.dirty.Store(true)
+		return true
+	}
+
 	// An in-flight board pan owns the stream: the canvas follows the pointer
 	// before any widget sees the move, so dragging across a note doesn't fight
 	// the pan. Ends on release — or on a button-less move, which means the drag
@@ -676,6 +701,63 @@ func (e *Engine) dispatchContextMenu(hit graph.Node, rt *runtime.Runtime) bool {
 		n = p
 	}
 	return false
+}
+
+// armReorder claims a press that lands on an item of a reorderable list
+// (reorderable prop + an onReorder handler), recording the drag anchors: the
+// pressed item's index and height, the list's data length, and the press Y.
+// Returns whether the press was claimed. The list data is evaluated top-level
+// (a nested list inside a repeat cannot resolve its scope here).
+func (e *Engine) armReorder(hit graph.Node, rt *runtime.Runtime) bool {
+	for n := hit; n != nil; {
+		b := n.Base()
+		if m := b.Model; m != nil && (m.Type == "list" || m.Type == "gridview") {
+			if raw, ok := m.Prop("reorderable"); ok && truthy(evalStyleProp(raw, rt)) {
+				if _, has := m.Prop("onReorder"); has {
+					idx := e.itemIndexOf(hit)
+					count := len(listData(m, rt, nil))
+					if count > 1 && m.Template != nil {
+						var itemH float64
+						if g := e.findGroupByModelIndex(m.Template, idx); g != nil {
+							bb := g.GetBBox()
+							itemH = bb.MaxY - bb.MinY
+						}
+						if itemH > 0 {
+							e.Inter.Reorder = ReorderState{
+								Active: true, List: m, From: idx, To: idx,
+								PressY: e.lastPtr.Y, ItemH: itemH, Count: count,
+							}
+							return true
+						}
+					}
+				}
+			}
+		}
+		p := b.Parent
+		if p == nil {
+			break
+		}
+		n = p
+	}
+	return false
+}
+
+// dispatchReorder fires the reorderable list's onReorder handler with
+// {from, to} (the author re-sorts their data; the list re-renders).
+func (e *Engine) dispatchReorder() {
+	r := e.Inter.Reorder
+	if r.List == nil {
+		return
+	}
+	if raw, ok := r.List.Prop("onReorder"); ok {
+		if inv := propInvoke(raw); inv != nil {
+			args := map[string]any{"from": r.From, "to": r.To}
+			for k, v := range inv.Args {
+				args[k] = v
+			}
+			e.RT.Dispatch(inv.Name, args)
+		}
+	}
 }
 
 // dropTargetAt walks up from hit for the nearest node whose registered widget

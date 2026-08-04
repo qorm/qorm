@@ -70,12 +70,30 @@ type Interaction struct {
 	// drop. Engine-owned; cleared by the drop and by any new press (an
 	// abandoned drag never sticks).
 	Drag DragState
+	// Reorder is the in-flight drag-to-reorder gesture of a reorderable list:
+	// which item is being dragged and where it has moved to. Dispatched on
+	// release as onReorder {from, to} and cleared.
+	Reorder ReorderState
 }
 
 // DragState is one in-flight draggable→dragtarget drag.
 type DragState struct {
 	Active bool
 	Data   string // the draggable's payload, evaluated at drag start
+}
+
+// ReorderState is one in-flight drag-to-reorder gesture: List is the
+// reorderable list, From the pressed item's index, To the slot the drag has
+// moved it to, PressY the drag anchor, ItemH the dragged item's height and
+// Count the data length bounding the target index.
+type ReorderState struct {
+	Active bool
+	List   *model.Node
+	From   int
+	To     int
+	PressY float64
+	ItemH  float64
+	Count  int
 }
 
 // BoardState is the viewport of an infinite-canvas "board" root: a uniform
