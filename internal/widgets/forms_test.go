@@ -363,6 +363,26 @@ func TestRadioSelectWritesStateExclusive(t *testing.T) {
 	}
 }
 
+// A radio nested under a container (scene Y differs from its local Y) must
+// still map a press to the correct row: the hit geometry is stored in
+// ABSOLUTE scene px, or every press lands on a wrong row (the gallery bug).
+func TestRadioNestedRowMapping(t *testing.T) {
+	ra := &model.Node{Type: "radio", ID: "ra", Value: "{{state.pick}}",
+		Props: map[string]any{"options": []any{"a", "b", "c"}}}
+	spacer := &model.Node{Type: "box", ID: "sp", Style: map[string]any{"height": 80.0}}
+	inner := &model.Node{Type: "column", ID: "inner", Children: []*model.Node{ra}}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{spacer, inner}}
+	e, surf := formEngine(t, root)
+	e.RT.State["pick"] = "a"
+	e.DrawFrame(surf)
+
+	// Row 1 ("b") circle center is at scene (8, 80+30=110).
+	clickAt(e, 8, 110)
+	if got := e.RT.State["pick"]; got != "b" {
+		t.Fatalf("state.pick = %v, want %q (a nested radio must map rows in scene px)", got, "b")
+	}
+}
+
 // Radio measures its option stack; onChange carries the selected value; a
 // disabled radio ignores presses.
 func TestRadioMeasureOnChangeDisabled(t *testing.T) {

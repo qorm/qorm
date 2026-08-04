@@ -83,9 +83,12 @@ func (r *Radio) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) dr
 	if scale < 1 {
 		scale = 1
 	}
+	// The geo box is in ABSOLUTE scene px (the press is screen-space), not the
+	// local layout box — a radio nested under containers (or scrolled) would
+	// map every press to the wrong row otherwise.
 	r.mu.Lock()
 	r.geoms[ln.Node] = radioGeom{
-		box:    image.Rect(ln.X, ln.Y, ln.X+ln.Width, ln.Y+ln.Height),
+		box:    image.Rect(ln.AbsX, ln.AbsY, ln.AbsX+ln.Width, ln.AbsY+ln.Height),
 		stride: float64(radioRowH(scale)),
 	}
 	r.mu.Unlock()
