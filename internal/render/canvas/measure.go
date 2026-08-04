@@ -655,6 +655,21 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 		group.Pressed = inter.Pressed == ln.Node && inter.PressedItem == ln.ItemIndex
 		group.Hovered = inter.Hovered == ln.Node && inter.HoveredItem == ln.ItemIndex
 		group.Focused = inter.Focused == ln.Node && inter.FocusedItem == ln.ItemIndex
+		// The declarative pressed/hover SCALE (the style resolver's transform
+		// half): scale the node about its center while pressed (or hovered).
+		// Pressed wins; 0 = undeclared = no effect.
+		scaleF := 1.0
+		if group.Pressed && ln.Style.PressedScale > 0 {
+			scaleF = ln.Style.PressedScale
+		} else if group.Hovered && ln.Style.HoverScale > 0 {
+			scaleF = ln.Style.HoverScale
+		}
+		if scaleF != 1 {
+			group.ScaleX = scaleF
+			group.ScaleY = scaleF
+			group.X += float64(ln.Width) * (1 - scaleF) / 2
+			group.Y += float64(ln.Height) * (1 - scaleF) / 2
+		}
 	}
 	if items != nil && ln.ItemScope != nil {
 		// Repeat instance root: record the dispatch sidecar (index for

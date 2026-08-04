@@ -120,6 +120,13 @@ type NodeStyle struct {
 
 	StrokeColor color.RGBA
 	StrokeWidth float64
+
+	// Declarative interaction effects (the interaction-effect resolver in
+	// applyInteractiveOverlay + performLayout): any node can declare them, so
+	// hover/press feedback is DATA, not per-widget hardcoded logic. 0/absent
+	// means "no effect" (a pressed/hovered scale of 0 is meaningless).
+	PressedScale float64 // scale the node to this factor while pressed
+	HoverScale   float64 // scale while hovered (pressed wins)
 }
 
 // scaleBy multiplies every pixel-valued field by f (a device-pixel ratio), so
@@ -182,6 +189,36 @@ func evalStyleProp(val any, rt *runtime.Runtime, sc ...*listScope) any {
 // over the resolved style when the node is Pressed/Hovered. Pressed wins over
 // hovered for the background; opacity applies in either state. This is what
 // makes the theme's interactive keys live — previously they were dead fields.
+// evalColorStyle reads a node's declarative interaction color key (hover/
+// pressedBackground), evaluating bindings.
+func evalColorStyle(n *model.Node, key string, rt *runtime.Runtime) (color.RGBA, bool) {
+	v, ok := evalStyleProp(n.Style[key], rt).(string)
+	if !ok {
+		return color.RGBA{}, false
+	}
+	c := resolveColor(v, rt)
+	return c, c.A > 0
+}
+
+// evalFloatStyle reads a node's declarative interaction float key (hover/
+// pressedOpacity), evaluating bindings.
+func evalFloatStyle(n *model.Node, key string, rt *runtime.Runtime) (float64, bool) {
+	switch v := evalStyleProp(n.Style[key], rt).(type) {
+	case float64:
+		return v, true
+	case int:
+		return float64(v), true
+	}
+	return 0, false
+}
+
+// applyInteractiveOverlay is the declarative interaction-effect resolver: any
+// node can declare hover/press feedback (hoverBackground, pressedBackground,
+// hoverOpacity, pressedOpacity) and the engine layers it over the base style
+// here — effects are DATA, not per-widget hardcoded logic. The theme's
+// component styles are the baseline; per-node declarations win; pressed is
+// applied last so it beats hovered. The pressed/hover SCALE lands in
+// performLayout (it is a graph transform, not a style field).
 func applyInteractiveOverlay(s *NodeStyle, n *model.Node, rt *runtime.Runtime, inter *Interaction) {
 	if inter == nil || rt == nil || rt.Theme == nil || (inter.Pressed != n && inter.Hovered != n) {
 		return
@@ -191,23 +228,25 @@ func applyInteractiveOverlay(s *NodeStyle, n *model.Node, rt *runtime.Runtime, i
 		if comp, ok := rt.Theme.Components[n.Type]; ok && comp.HoveredBackgroundColor != "" {
 			s.Background = resolveColor(comp.HoveredBackgroundColor, rt)
 		}
-		// ...and a per-node style hoverBackground wins over it — the author's
-		// explicit choice beats the skin, and works even with no theme component.
-		if v, ok := evalStyleProp(n.Style["hoverBackground"], rt).(string); ok {
-			if c := resolveColor(v, rt); c.A > 0 {
-				s.Background = c
-			}
+		// ...and a per-node declaration wins over it.
+		if c, ok := evalColorStyle(n, "hoverBackground", rt); ok {
+			s.Background = c
+		}
+		if o, ok := evalFloatStyle(n, "hoverOpacity", rt); ok && o >= 0 && o <= 1 {
+			s.Opacity = o
 		}
 	}
-	// Pressed is applied LAST so it wins over hovered for the background.
+	// Pressed is applied LAST so it wins over hovered.
 	if inter.Pressed == n {
-		if comp, ok := rt.Theme.Components[n.Type]; ok {
-			if comp.PressedBackgroundColor != "" {
-				s.Background = resolveColor(comp.PressedBackgroundColor, rt)
-			}
-			if comp.PressedOpacity != nil {
-				s.Opacity = *comp.PressedOpacity
-			}
+		if c, ok := evalColorStyle(n, "pressedBackground", rt); ok {
+			s.Background = c
+		} else if comp, ok := rt.Theme.Components[n.Type]; ok && comp.PressedBackgroundColor != "" {
+			s.Background = resolveColor(comp.PressedBackgroundColor, rt)
+		}
+		if o, ok := evalFloatStyle(n, "pressedOpacity", rt); ok && o >= 0 && o <= 1 {
+			s.Opacity = o
+		} else if comp, ok := rt.Theme.Components[n.Type]; ok && comp.PressedOpacity != nil {
+			s.Opacity = *comp.PressedOpacity
 		}
 	}
 }
@@ -644,6 +683,15 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 		s.BorderRadius = float64(i)
 	}
 
+	// Declarative interaction effects: hover/pressed scale (the interaction
+	// resolver applies them; 0 = unset).
+	if f, ok := esp(style["pressedScale"]).(float64); ok && f > 0 {
+		s.PressedScale = f
+	}
+	if f, ok := esp(style["hoverScale"]).(float64); ok && f > 0 {
+		s.HoverScale = f
+	}
+
 	sw := esp(style["strokeWidth"])
 	if f, ok := sw.(float64); ok {
 		s.StrokeWidth = f
@@ -715,7 +763,11 @@ var canvasStyleKeys = map[string]bool{
 	"borderRadius": true, "strokeWidth": true, "borderWidth": true,
 	"opacity":         true,
 	"disabled":        true,
-	"hoverBackground": true,
+	// Declarative interaction effects (any node; resolved generically by
+	// applyInteractiveOverlay + performLayout).
+	"hoverBackground": true, "pressedBackground": true,
+	"hoverOpacity": true, "pressedOpacity": true,
+	"pressedScale": true, "hoverScale": true,
 	"boxShadowColor":  true, "boxShadowBlur": true, "boxShadowY": true,
 }
 

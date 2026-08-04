@@ -3,6 +3,7 @@ package canvas
 import (
 	"image"
 	"image/color"
+	"math"
 	"testing"
 
 	"github.com/qorm/qorm/internal/model"
@@ -74,6 +75,44 @@ func TestInputReadonlyBoundAndLive(t *testing.T) {
 	typeRunes(e, "x")
 	if got := rt.State["name"]; got != "hello!" {
 		t.Fatalf("readonly mid-session must block edits: state.name = %v", got)
+	}
+}
+
+// Any node can declare interaction effects declaratively — hoverOpacity dims
+// it on hover, pressedScale shrinks it (about its center) while pressed. No
+// widget or hardcoded per-type logic involved: the effects are style data
+// resolved generically by the engine.
+func TestDeclarativeInteractionEffects(t *testing.T) {
+	box := &model.Node{Type: "box", ID: "b1",
+		Style: map[string]any{"width": 100.0, "height": 50.0, "background": "#ff0000",
+			"pressedScale": 0.9, "hoverOpacity": 0.5}}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{box}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}}
+	rt := runtime.New(app)
+	rt.Theme = theme.GetDefault()
+	e := NewEngine(rt, SoftwareRenderer{})
+	surf := NewHeadlessSurface(image.Pt(400, 400))
+	e.DrawFrame(surf)
+
+	// Hover: the red box dims to 50% (over white → pinkish, G jumps from 0).
+	e.Inter.Hovered = box
+	e.MarkDirty()
+	e.DrawFrame(surf)
+	if g := surf.Frame().RGBAAt(50, 25); g.G < 100 {
+		t.Errorf("hoverOpacity 0.5 must lighten the red fill, got %v", g)
+	}
+
+	// Press: the group scales to 0.9 about its center (X shifts by
+	// width*(1-0.9)/2 = 5).
+	e.Inter.Hovered, e.Inter.Pressed = nil, box
+	e.MarkDirty()
+	e.DrawFrame(surf)
+	g := e.findGroupByModel(box)
+	if g.Base().ScaleX != 0.9 || g.Base().ScaleY != 0.9 {
+		t.Errorf("pressedScale must scale the group, got (%v,%v)", g.Base().ScaleX, g.Base().ScaleY)
+	}
+	if math.Abs(g.Base().X-5) > 1e-9 {
+		t.Errorf("scale must be center-anchored, group.X = %v, want 5", g.Base().X)
 	}
 }
 
