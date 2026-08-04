@@ -87,6 +87,11 @@ type PointerInput struct {
 	// Right marks a right-button press/release — the onContextMenu seam
 	// (engine.go dispatchContextMenu), set by the host for NSRightMouse*.
 	Right bool
+	// ID identifies the pointer/finger (0 = the mouse, 1+ = touch fingers on a
+	// multi-touch host). The engine's single-pointer gestures ignore it; the
+	// host's touch delivery (NSTouch) is the seam that fills it for two-finger
+	// pinch and touch-drag gestures.
+	ID int
 }
 
 type KeyInput struct {

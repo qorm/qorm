@@ -542,6 +542,24 @@ func TestInputCompositionPreview(t *testing.T) {
 	}
 }
 
+// A two-finger pinch reports the distance ratio: spreading fingers yields > 1,
+// a fresh gesture baselines instead of jumping.
+func TestPinchDetector(t *testing.T) {
+	d := &PinchDetector{}
+	if s := d.Update(geom.Point{X: 100, Y: 100}, geom.Point{X: 120, Y: 100}); s != 1 {
+		t.Fatalf("first update must baseline, got %v", s)
+	}
+	// Fingers spread from 20px to 30px apart: scale 1.5.
+	if s := d.Update(geom.Point{X: 95, Y: 100}, geom.Point{X: 125, Y: 100}); s < 1.49 || s > 1.51 {
+		t.Fatalf("spread scale = %v, want ~1.5", s)
+	}
+	// A reset baselines again instead of comparing against the old distance.
+	d.Reset()
+	if s := d.Update(geom.Point{X: 0, Y: 0}, geom.Point{X: 100, Y: 0}); s != 1 {
+		t.Fatalf("post-reset update must baseline, got %v", s)
+	}
+}
+
 // A non-empty selection renders as a highlight rect spanning the selected
 // runes and hides the caret.
 func TestInputSelectionRendersHighlight(t *testing.T) {
