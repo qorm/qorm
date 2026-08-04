@@ -395,6 +395,12 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 	e.lastPtr = geom.Point{X: p.X, Y: p.Y}
 	e.hasPtr = true
 
+	// A new press abandons any in-flight cross-panel drag: either the release
+	// already dropped it on a dragtarget, or it was released over nothing.
+	if p.Type == PointerPress && e.Inter.Drag.Active {
+		e.Inter.Drag = DragState{}
+	}
+
 	// A right-button press dispatches the nearest onContextMenu handler up the
 	// hit chain (the browser's contextmenu event) before anything else.
 	if p.Type == PointerPress && p.Right {

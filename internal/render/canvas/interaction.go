@@ -60,6 +60,17 @@ type Interaction struct {
 	// Interaction on a scene switch, so panning a board never bleeds into the
 	// next scene.
 	Board BoardState
+	// Drag is the in-flight cross-panel drag (draggable → dragtarget): the
+	// payload a draggable publishes on drag-start, consumed by a dragtarget's
+	// drop. Engine-owned; cleared by the drop and by any new press (an
+	// abandoned drag never sticks).
+	Drag DragState
+}
+
+// DragState is one in-flight draggable→dragtarget drag.
+type DragState struct {
+	Active bool
+	Data   string // the draggable's payload, evaluated at drag start
 }
 
 // BoardState is the viewport of an infinite-canvas "board" root: a uniform

@@ -48,7 +48,7 @@ func (d *Dismissible) state(n *model.Node) *dismissState {
 
 // Measure reports the wrapped row's own size (children measure through).
 func (d *Dismissible) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
-	return 0, 0
+	return contentMeasure(n, rt, scale)
 }
 
 func (d *Dismissible) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.Node {
