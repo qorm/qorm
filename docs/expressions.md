@@ -154,6 +154,7 @@ never blows up on a state key that has not loaded yet.
 | `min(a, b, …)` · `max(a, b, …)` | over the arguments |
 | `not(x)` · `empty(x)` | logical negation of truthiness |
 | `default(x, fallback)` (alias `coalesce`) | `x` when truthy, otherwise `fallback` |
+| `now()` | Unix time in milliseconds (the one non-deterministic builtin) |
 
 An unknown function name evaluates to `null` at runtime — but the loader
 statically checks arity and argument types for the collection and `format`

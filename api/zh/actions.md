@@ -84,7 +84,7 @@
 
 ## 脚本动作(`script`)
 
-动作可以携带一段 qscript 程序来代替 steps:`{ "type": "action", "id": "tick", "script": "…" }`。JSON 继续声明场景与数据,逻辑由脚本承担——`let`、赋值(`state.a =`、`state.arr[i] =`)、`if`/`else`、`for x in …`、`while`、`fn` 函数定义与调用、表达式语言的运算符与内建函数、可读写的 `state` 句柄以及注入派发参数的 `args`(见 `internal/qscript`)。加载器在加载期编译脚本——解析错误会以带行号的诊断报出——`script` 与 `steps` 同时声明时给出警告,且一律执行 script。运行期失败(治理超限或类型错误)会带着脚本行号记录在运行时上。脚本天然确定(无时钟、无 IO、不能 `dispatch` 其他动作)且有界(单次运行 20 万操作、单循环 10 万次迭代、64 层嵌套调用)。完整示例见 `examples/tetris`。
+动作可以携带一段 qscript 程序来代替 steps:`{ "type": "action", "id": "tick", "script": "…" }`。JSON 继续声明场景与数据,逻辑由脚本承担——`let`、赋值(`state.a =`、`state.arr[i] =`)、`if`/`else`、`for x in …`、`while`、`fn` 函数定义与调用、表达式语言的运算符与内建函数、可读写的 `state` 句柄以及注入派发参数的 `args`(见 `internal/qscript`)。加载器在加载期编译脚本——解析错误会以带行号的诊断报出——`script` 与 `steps` 同时声明时给出警告,且一律执行 script。运行期失败(治理超限或类型错误)会带着脚本行号记录在运行时上。脚本天然确定——无 IO、不能 `dispatch` 其他动作,唯一的时钟是显式的 `now()` 内建(Unix 毫秒;调用它的脚本仅在那一值内可复现)——且有界(单次运行 20 万操作、单循环 10 万次迭代、64 层嵌套调用)。完整示例见 `examples/tetris`。
 
 ## 脚本文件动作(`actions/*.qs`)
 
