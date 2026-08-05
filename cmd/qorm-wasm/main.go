@@ -42,6 +42,7 @@ func main() {
 	js.Global().Set("qormOTARollback", js.FuncOf(qormOTARollback))
 	js.Global().Set("qormCompile", js.FuncOf(qormCompile))
 	js.Global().Set("qormSetViewport", js.FuncOf(qormSetViewport))
+	js.Global().Set("qormKeyDown", js.FuncOf(qormKeyDown))
 	select {} // keep the Go runtime alive for the JS callbacks
 }
 
@@ -226,6 +227,22 @@ func qormSetState(_ js.Value, args []js.Value) any {
 // renderNow, the returned object also carries the loader diagnostics and the
 // render's unknown-widget list — the self-verify surface the playground shows
 // the author. Malformed JSON yields a diagnostic instead of throwing into JS.
+// qormKeyDown(key) dispatches a keyboard event to the runtime's scene-level
+// key bindings (scene JSON "keys"): the WASM playground's keyboard handler
+// calls this so games and keyboard-driven apps work in the browser.
+func qormKeyDown(_ js.Value, args []js.Value) any {
+	if rt == nil || len(args) < 1 {
+		return errResult(nil)
+	}
+	key := strings.ToLower(args[0].String())
+	action, ok := rt.KeyAction(key)
+	if !ok {
+		return errResult(nil)
+	}
+	rt.Dispatch(action, nil)
+	return drainAndRender()
+}
+
 func qormCompile(_ js.Value, args []js.Value) any {
 	if len(args) < 1 || args[0].Type() != js.TypeString {
 		return compileResult(playcore.Result{Diagnostics: []string{"error: invalid JSON: missing docsJSON string argument"}})
