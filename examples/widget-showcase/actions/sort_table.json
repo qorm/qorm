@@ -1,0 +1,5 @@
+{
+  "type": "action",
+  "id": "sort_table",
+  "steps": [{ "type": "state.set", "path": "tableCol", "value": "{{ column }}" }]
+}

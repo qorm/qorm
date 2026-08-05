@@ -1,0 +1,49 @@
+{
+  "type": "app",
+  "id": "widget_showcase",
+  "name": "Widget Showcase",
+  "entry": "main",
+  "theme": "apple",
+  "globalState": {
+    "schema": {
+      "drawerOpen": "boolean",
+      "accordionActive": "number",
+      "selectedSegment": "string",
+      "currentPage": "number",
+      "tableCol": "string",
+      "tableRows": "array",
+      "railSelected": "string",
+      "menuPicked": "string",
+      "timelineItems": "array",
+      "crumbs": "array"
+    },
+    "initial": {
+      "drawerOpen": false,
+      "accordionActive": 0,
+      "selectedSegment": "day",
+      "currentPage": 1,
+      "tableCol": "name",
+      "tableRows": [
+        {"name":"Alice","score":"42","role":"Admin"},
+        {"name":"Bob","score":"37","role":"Editor"},
+        {"name":"Carol","score":"55","role":"Admin"}
+      ],
+      "railSelected": "dashboard",
+      "menuPicked": "",
+      "timelineItems": [
+        {"title":"Deploy v2.1","text":"Staged to production","color":"#34C759","time":"10:30"},
+        {"title":"Incident #142","text":"Resolved — DNS propagation","color":"#FF9500","time":"09:15"},
+        {"title":"Pipeline failed","text":"Lint step timed out","color":"#FF3B30","time":"08:00"}
+      ],
+      "crumbs": ["Home","Settings","Profile"]
+    }
+  },
+  "platforms": {
+    "desktop": {
+      "window": {
+        "width": 800,
+        "height": 900
+      }
+    }
+  }
+}

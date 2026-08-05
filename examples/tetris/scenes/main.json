@@ -1,0 +1,246 @@
+{
+  "type": "scene",
+  "id": "main",
+  "keys": {
+    "left": "moveLeft",
+    "right": "moveRight",
+    "down": "moveDown",
+    "up": "rotate",
+    "x": "rotate",
+    "z": "rotateCCW",
+    "space": "hardDrop",
+    "p": "togglePause",
+    "r": "restart"
+  },
+  "root": {
+    "type": "column",
+    "id": "root",
+    "style": {
+      "background": "var(--background)",
+      "padding": 24,
+      "gap": 12
+    },
+    "layout": {
+      "width": "fill",
+      "height": "fill",
+      "align": "center"
+    },
+    "children": [
+      {
+        "type": "timer",
+        "id": "gravity",
+        "every": "{{ 800 - (state.level - 1) * 70 < 250 ? 250 : 800 - (state.level - 1) * 70 }}",
+        "onTick": "tick",
+        "if": "{{ state.status == 'playing' }}"
+      },
+      {
+        "type": "text",
+        "id": "title",
+        "text": "TETRIS",
+        "style": {
+          "color": "var(--primary)",
+          "fontSize": 18,
+          "fontWeight": 700,
+          "textAlign": "center"
+        }
+      },
+      {
+        "type": "row",
+        "id": "playarea",
+        "style": {
+          "gap": 16
+        },
+        "children": [
+          {
+            "type": "stack",
+            "id": "boardstack",
+            "style": {
+              "background": "#2c2c34",
+              "borderRadius": 6
+            },
+            "children": [
+              {
+                "type": "gridview",
+                "id": "boardgrid",
+                "data": "{{ state.view }}",
+                "crossAxisCount": 10,
+                "spacing": 1,
+                "style": {
+                  "gap": 1
+                },
+                "renderItem": {
+                  "type": "box",
+                  "style": {
+                    "width": 14,
+                    "height": 14,
+                    "background": "{{ at(state.colors, item) }}"
+                  }
+                }
+              },
+              {
+                "type": "column",
+                "layout": {
+                  "align": "center"
+                },
+                "if": "{{ state.status == 'paused' }}",
+                "class": "overlayPanel",
+                "style": {
+                  "padding": {
+                    "top": 10,
+                    "bottom": 10,
+                    "left": 14,
+                    "right": 14
+                  },
+                  "margin": {
+                    "top": 130
+                  }
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "PAUSED",
+                    "class": "overlayTitle"
+                  },
+                  {
+                    "type": "text",
+                    "text": "P: resume",
+                    "class": "overlayHint"
+                  }
+                ]
+              },
+              {
+                "type": "column",
+                "layout": {
+                  "align": "center"
+                },
+                "if": "{{ state.status == 'over' }}",
+                "class": "overlayPanel",
+                "style": {
+                  "padding": {
+                    "top": 10,
+                    "bottom": 10,
+                    "left": 14,
+                    "right": 14
+                  },
+                  "margin": {
+                    "top": 130
+                  }
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "GAME OVER",
+                    "class": "overlayTitle"
+                  },
+                  {
+                    "type": "text",
+                    "text": "R: restart",
+                    "class": "overlayHint"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "column",
+            "id": "sidebar",
+            "style": {
+              "gap": 6,
+              "width": 100
+            },
+            "children": [
+              {
+                "type": "text",
+                "text": "NEXT",
+                "class": "statLabel"
+              },
+              {
+                "type": "gridview",
+                "id": "nextgrid",
+                "data": "{{ state.nextView }}",
+                "crossAxisCount": 4,
+                "spacing": 1,
+                "style": {
+                  "gap": 1,
+                  "background": "#2c2c34"
+                },
+                "renderItem": {
+                  "type": "box",
+                  "style": {
+                    "width": 12,
+                    "height": 12,
+                    "background": "{{ at(state.colors, item) }}"
+                  }
+                }
+              },
+              {
+                "type": "text",
+                "text": "SCORE",
+                "class": "statLabel",
+                "style": {
+                  "margin": {
+                    "top": 8
+                  }
+                }
+              },
+              {
+                "type": "text",
+                "text": "{{ state.score }}",
+                "class": "statValue"
+              },
+              {
+                "type": "text",
+                "text": "LINES",
+                "class": "statLabel",
+                "style": {
+                  "margin": {
+                    "top": 8
+                  }
+                }
+              },
+              {
+                "type": "text",
+                "text": "{{ state.lines }}",
+                "class": "statValue"
+              },
+              {
+                "type": "text",
+                "text": "LEVEL",
+                "class": "statLabel",
+                "style": {
+                  "margin": {
+                    "top": 8
+                  }
+                }
+              },
+              {
+                "type": "text",
+                "text": "{{ state.level }}",
+                "class": "statValue"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "column",
+        "id": "help",
+        "style": {
+          "gap": 2
+        },
+        "children": [
+          {
+            "type": "text",
+            "text": "Left/Right/Down: move   Up/X: rotate   Z: rotate ccw",
+            "class": "helpText"
+          },
+          {
+            "type": "text",
+            "text": "Space: hard drop   P: pause   R: restart",
+            "class": "helpText"
+          }
+        ]
+      }
+    ]
+  }
+}

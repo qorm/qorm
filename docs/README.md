@@ -7,11 +7,12 @@ description: Pure-Go, agent-native declarative UI runtime: write UI as JSON, run
 
 # QORM documentation
 
-QORM (Queryable Object Rendering Model) is a pure-Go, agent-native declarative-UI
-runtime: write a UI as JSON, run it live, sign it, and package it for
+QORM (Query · Observe · Render · Mutate) is a pure-Go, agent-native
+cross-platform app
+platform: write an app as JSON, run it live, sign it, and package it for
 web / iOS / Android / desktop — readable and writable by both people and AI agents.
 
-The name is also what you do with a live app: **Query** the node tree and state
+The name is what you do with a live app: **Query** the node tree and state
 over HTTP/MCP, **Observe** it in real time over SSE, **Render** it on every
 platform, **Mutate** it through actions and the write API.
 

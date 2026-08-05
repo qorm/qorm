@@ -46,3 +46,28 @@ QORM 的动画是声明式且横切的:任意节点——内置组件**或组件
 
 普通的 `transition` 样式属性(如 `"transition": "all .2s"`)也适用于任意节点,
 用于简单的 CSS 过渡。
+
+## 主题动效 token
+
+皮肤除颜色外还携带动效词汇。每个 `themes/*.json` 可声明 `motion` 段;原生 canvas
+后端直接消费它,HTML/WebView 后端则以同名 CSS 自定义属性暴露同一套数值:
+
+```json
+"motion": {
+  "durationFast": 120,
+  "durationNormal": 250,
+  "durationSlow": 400,
+  "easingStandard": "easeOutCubic",
+  "easingEmphasized": "easeInOutCubic"
+}
+```
+
+- 节点未给 `duration` / `curve` 属性时,`animatedcontainer` / `animatedopacity`
+  默认采用 `durationNormal` + `easingStandard`——显式属性仍然优先。HTML 端落地为
+  `var(--qorm-motion-normal)` / `var(--qorm-motion-standard)`,手写 `transition`
+  样式同样可以引用。
+- 缓动名:`linear`、`easeIn`、`easeOut`、`easeInOut`(另有显式的 `easeInCubic` /
+  `easeOutCubic` / `easeInOutCubic` 写法,以及 token 别名 `standard` / `emphasized`)。
+- 内建皮肤有意不同:Apple 系约 250ms,WinUI 系约 167ms——切换皮肤会改变应用的节奏感。
+- 注意:HTML 端不读取 `themes/*.json`,而是为 `--qorm-motion-*` 变量提供同值的
+  *默认值*;逐皮肤的 JSON 数值在原生 canvas 后端生效。

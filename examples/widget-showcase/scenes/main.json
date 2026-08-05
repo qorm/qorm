@@ -1,0 +1,192 @@
+{
+  "type": "scene",
+  "id": "main",
+  "root": {
+    "type": "column",
+    "id": "root",
+    "style": { "background": "#F2F2F7", "padding": 20 },
+    "children": [
+
+      { "type": "text", "text": "Widget Showcase", "style": { "fontSize": 28, "fontWeight": 800, "padding": { "bottom": 2 } } },
+      { "type": "text", "text": "Canvas native data & structure widgets", "style": { "fontSize": 14, "color": "#8E8E93", "padding": { "bottom": 24 } } },
+
+      {
+        "type": "box", "style": { "background": "#FFFFFF", "borderRadius": 12, "padding": 20, "margin": { "bottom": 16 } },
+        "children": [
+          { "type": "text", "text": "Menu", "style": { "fontSize": 12, "fontWeight": 700, "color": "#8E8E93", "padding": { "bottom": 12 } } },
+          { "type": "menu", "id": "mn", "style": {"width":140},
+            "props": { "label": "Actions", "items": [
+              {"label":"Copy","onPress":{"name":"menu_pick","args":{"value":"copied"}}},
+              {"label":"Delete","onPress":{"name":"menu_pick","args":{"value":"deleted"}}}
+            ]}
+          },
+          { "type": "text", "text": "Picked: {{state.menuPicked}}", "if": "{{state.menuPicked}}", "style": { "fontSize": 12, "color": "#34C759", "padding": { "top": 8 } } }
+        ]
+      },
+
+      {
+        "type": "box", "style": { "background": "#FFFFFF", "borderRadius": 12, "padding": 20, "margin": { "bottom": 16 } },
+        "children": [
+          { "type": "text", "text": "Segmented Control", "style": { "fontSize": 12, "fontWeight": 700, "color": "#8E8E93", "padding": { "bottom": 12 } } },
+          { "type": "segmented", "id": "seg", "value": "{{state.selectedSegment}}", "onChange": {"name":"set_segment"},
+            "props": { "options": [
+              {"value":"day","label":"Day"},{"value":"week","label":"Week"},{"value":"month","label":"Month"}
+            ]}
+          }
+        ]
+      },
+
+      {
+        "type": "box", "style": { "background": "#FFFFFF", "borderRadius": 12, "padding": 20, "margin": { "bottom": 16 } },
+        "children": [
+          { "type": "text", "text": "Accordion", "style": { "fontSize": 12, "fontWeight": 700, "color": "#8E8E93", "padding": { "bottom": 12 } } },
+          { "type": "accordion", "id": "ac", "props": { "active": "{{state.accordionActive}}" },
+            "children": [
+              { "type": "box", "props": {"title":"General"}, "style": {"height":60}, "children": [
+                {"type":"text","text":"App version 2.1.0 (build 142)","style":{"fontSize":13}},
+                {"type":"text","text":"Production environment","style":{"fontSize":13,"color":"#8E8E93","padding":{"top":4}}}
+              ]},
+              { "type": "box", "props": {"title":"Advanced"}, "style": {"height":40}, "children": [
+                {"type":"text","text":"Cache: 24 MB / 128 MB","style":{"fontSize":13,"color":"#8E8E93"}}
+              ]}
+            ]
+          }
+        ]
+      },
+
+      {
+        "type": "box", "style": { "background": "#FFFFFF", "borderRadius": 12, "padding": 20, "margin": { "bottom": 16 } },
+        "children": [
+          { "type": "text", "text": "ListSection + ExpansionTile", "style": { "fontSize": 12, "fontWeight": 700, "color": "#8E8E93", "padding": { "bottom": 12 } } },
+          { "type": "listsection", "id": "ls", "props": { "header": "Recent Items" },
+            "children": [
+              { "type": "listtile", "props": {"title":"Project Alpha","subtitle":"Last edited 2h ago","leading":">"} },
+              { "type": "listtile", "props": {"title":"Meeting notes","subtitle":"Shared by Carol","leading":"*"} },
+              { "type": "listtile", "props": {"title":"Draft report","subtitle":"Saved locally","leading":"#"} }
+            ]
+          },
+          { "type": "expansiontile", "id": "et",
+            "props": { "title": "More details", "initiallyExpanded": false },
+            "style": { "margin": { "top": 8 } },
+            "children": [
+              { "type": "text", "text": "Hidden content revealed on expand.", "style": {"fontSize":13,"color":"#8E8E93"} }
+            ]
+          }
+        ]
+      },
+
+      {
+        "type": "box", "style": { "background": "#FFFFFF", "borderRadius": 12, "padding": 20, "margin": { "bottom": 16 } },
+        "children": [
+          { "type": "text", "text": "Table", "style": { "fontSize": 12, "fontWeight": 700, "color": "#8E8E93", "padding": { "bottom": 12 } } },
+          { "type": "table", "id": "tbl", "data": "{{state.tableRows}}", "onChange": {"name":"sort_table"},
+            "props": { "columns": [
+              {"title":"Name","field":"name","width":120},
+              {"title":"Score","field":"score","width":80},
+              {"title":"Role","field":"role","width":100}
+            ]}
+          }
+        ]
+      },
+
+      {
+        "type": "box", "style": { "background": "#FFFFFF", "borderRadius": 12, "padding": 20, "margin": { "bottom": 16 } },
+        "children": [
+          { "type": "text", "text": "Breadcrumb", "style": { "fontSize": 12, "fontWeight": 700, "color": "#8E8E93", "padding": { "bottom": 12 } } },
+          { "type": "breadcrumb", "id": "bc", "props": { "items": ["Home","Settings","Profile"] } }
+        ]
+      },
+
+      {
+        "type": "box", "style": { "background": "#FFFFFF", "borderRadius": 12, "padding": 20, "margin": { "bottom": 16 } },
+        "children": [
+          { "type": "text", "text": "Steps", "style": { "fontSize": 12, "fontWeight": 700, "color": "#8E8E93", "padding": { "bottom": 12 } } },
+          { "type": "steps", "id": "st", "props": { "steps": ["Ordered","Shipped","Delivered"], "active": 1 } }
+        ]
+      },
+
+      {
+        "type": "box", "style": { "background": "#FFFFFF", "borderRadius": 12, "padding": 20, "margin": { "bottom": 16 } },
+        "children": [
+          { "type": "text", "text": "Pagination", "style": { "fontSize": 12, "fontWeight": 700, "color": "#8E8E93", "padding": { "bottom": 12 } } },
+          { "type": "pagination", "id": "pg", "onPress": {"name":"nav_page"}, "props": { "page": "{{state.currentPage}}", "total": 3 } }
+        ]
+      },
+
+      {
+        "type": "box", "style": { "background": "#FFFFFF", "borderRadius": 12, "padding": 20, "margin": { "bottom": 16 } },
+        "children": [
+          { "type": "text", "text": "Timeline", "style": { "fontSize": 12, "fontWeight": 700, "color": "#8E8E93", "padding": { "bottom": 12 } } },
+          { "type": "timeline", "id": "tl", "props": { "items": "{{state.timelineItems}}" } }
+        ]
+      },
+
+      {
+        "type": "box", "style": { "background": "#FFFFFF", "borderRadius": 12, "padding": 20, "margin": { "bottom": 16 } },
+        "children": [
+          { "type": "text", "text": "Navigation Buttons", "style": { "fontSize": 12, "fontWeight": 700, "color": "#8E8E93", "padding": { "bottom": 12 } } },
+          { "type": "row", "style": { "gap": 16 }, "children": [
+            { "type": "backbutton"},
+            { "type": "closebutton"}
+          ]}
+        ]
+      },
+
+      {
+        "type": "box", "style": { "background": "#FFFFFF", "borderRadius": 12, "padding": 20, "margin": { "bottom": 16 } },
+        "children": [
+          { "type": "text", "text": "Empty State", "style": { "fontSize": 12, "fontWeight": 700, "color": "#8E8E93", "padding": { "bottom": 12 } } },
+          { "type": "empty", "id": "emp", "props": { "title": "No items yet", "text": "Add your first item to get started" } }
+        ]
+      },
+
+      {
+        "type": "box", "style": { "background": "#FFFFFF", "borderRadius": 12, "padding": 20, "margin": { "bottom": 16 } },
+        "children": [
+          { "type": "text", "text": "Icons (vector glyphs)", "style": { "fontSize": 12, "fontWeight": 700, "color": "#8E8E93", "padding": { "bottom": 12 } } },
+          { "type": "row", "style": { "gap": 16 }, "children": [
+            { "type": "icon", "props": {"icon":"home"}, "style":{"width":28,"height":28,"color":"#007AFF"} },
+            { "type": "icon", "props": {"icon":"folder"}, "style":{"width":28,"height":28,"color":"#FF9500"} },
+            { "type": "icon", "props": {"icon":"star"}, "style":{"width":28,"height":28,"color":"#FFCC00"} },
+            { "type": "icon", "props": {"icon":"heart"}, "style":{"width":28,"height":28,"color":"#FF3B30"} },
+            { "type": "icon", "props": {"icon":"settings"}, "style":{"width":28,"height":28,"color":"#8E8E93"} },
+            { "type": "icon", "props": {"icon":"user"}, "style":{"width":28,"height":28,"color":"#34C759"} },
+            { "type": "icon", "props": {"icon":"mail"}, "style":{"width":28,"height":28,"color":"#5856D6"} },
+            { "type": "icon", "props": {"icon":"bell"}, "style":{"width":28,"height":28,"color":"#FF9500"} }
+          ]}
+        ]
+      },
+
+      {
+        "type": "box", "style": { "background": "#FFFFFF", "borderRadius": 12, "padding": 20, "margin": { "bottom": 16 } },
+        "children": [
+          { "type": "text", "text": "Navigation Rail", "style": { "fontSize": 12, "fontWeight": 700, "color": "#8E8E93", "padding": { "bottom": 12 } } },
+          { "type": "navigationrail", "id": "nr", "value": "{{state.railSelected}}", "onChange": {"name":"rail_select"},
+            "props": { "items": [
+              {"value":"dashboard","label":"Home","icon":">"},
+              {"value":"search","label":"Search","icon":"@"},
+              {"value":"settings","label":"Settings","icon":"+"}
+            ]}
+          }
+        ]
+      },
+
+      {
+        "type": "box", "style": { "background": "#FFFFFF", "borderRadius": 12, "padding": 20 },
+        "children": [
+          { "type": "text", "text": "Drawer", "style": { "fontSize": 12, "fontWeight": 700, "color": "#8E8E93", "padding": { "bottom": 12 } } },
+          { "type": "button", "label": "Open Drawer", "onPress": {"name":"toggle_drawer","args":{"not":true}} },
+          { "type": "drawer", "id": "dr", "props": { "open": "{{state.drawerOpen}}", "side": "right" },
+            "children": [
+              { "type": "text", "text": "Drawer Panel", "style": {"fontSize":18,"fontWeight":700,"padding":{"bottom":12}} },
+              { "type": "text", "text": "Tap backdrop to close.", "style": {"fontSize":14,"color":"#8E8E93","padding":{"bottom":16}} },
+              { "type": "button", "label": "Close", "onPress": {"name":"toggle_drawer","args":{"not":false}} }
+            ]
+          }
+        ]
+      },
+
+      { "type": "text", "text": "End of showcase", "style": { "fontSize": 12, "color": "#C7C7CC", "padding": { "top": 32, "bottom": 40 }, "textAlign": "center" } }
+    ]
+  }
+}

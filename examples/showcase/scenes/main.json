@@ -127,7 +127,7 @@
                 "id": "actch",
                 "chartType": "area",
                 "color": "#007aff",
-                "data": "[3,6,4,8,7,10,9,12,11,14]",
+                "data": [3,6,4,8,7,10,9,12,11,14],
                 "style": {
                   "width": 320,
                   "height": 70

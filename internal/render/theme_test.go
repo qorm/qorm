@@ -44,6 +44,24 @@ func TestThemeVarsFor(t *testing.T) {
 	if v := ThemeVarsFor("dark"); v != themeVarsDark {
 		t.Error("ThemeVarsFor(dark) should be the dark palette")
 	}
+	// themes/*.json skin names map onto their nearest built-in palette so an
+	// in-app theme switcher is visible on the HTML path too.
+	for name, want := range map[string]string{
+		"apple-light": themeVarsApple,
+		"win11-light": themeVarsMaterial,
+		"apple-dark":  themeVarsDark,
+		"win11-dark":  themeVarsDark,
+	} {
+		if v := ThemeVarsFor(name); v != want {
+			t.Errorf("ThemeVarsFor(%q) should map to its nearest built-in palette", name)
+		}
+	}
+	// The shell CSS must carry matching class aliases for the skin names.
+	for _, class := range []string{".qorm-theme-apple-light", ".qorm-theme-win11-light", ".qorm-theme-apple-dark", ".qorm-theme-win11-dark"} {
+		if !strings.Contains(ThemeCSS, class) {
+			t.Errorf("ThemeCSS lacks the skin-name class alias %s", class)
+		}
+	}
 }
 
 // A designToken value is emitted into the shell's <style> block, so it is a

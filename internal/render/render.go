@@ -589,6 +589,8 @@ func (r *renderer) renderInner(n *model.Node) {
 		r.chart(n)
 	case "video":
 		r.video(n)
+	case "webview":
+		r.webview(n)
 	case "list":
 		r.list(n)
 	case "tabs":
@@ -641,7 +643,9 @@ func (r *renderer) renderInner(n *model.Node) {
 		r.contextMenu(n)
 	case "refreshindicator":
 		r.refreshIndicator(n)
-	case "animatedcontainer", "animatedpadding", "animatedalign", "animatedpositioned":
+	// animated_container is the snake_case spelling used by the canvas backend
+	// and shared scene JSON; both spellings render identically.
+	case "animatedcontainer", "animated_container", "animatedpadding", "animatedalign", "animatedpositioned":
 		r.animatedContainer(n)
 	case "animatedopacity":
 		r.animatedOpacity(n)
@@ -737,7 +741,8 @@ func (r *renderer) renderInner(n *model.Node) {
 		"scroll", "scrollview", "grid", "card", "component", "flex", "box",
 		"div", "container", "group", "view", "fragment", "wrapper", "panel",
 		"body", "content", "main", "section", "header", "footer", "aside", "nav",
-		"center", "start", "end", "between", "around", "evenly", "stretch":
+		"center", "start", "end", "between", "around", "evenly", "stretch",
+		"board":
 		r.container(n)
 	default:
 		r.unknown(n)

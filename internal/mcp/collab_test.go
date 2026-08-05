@@ -27,7 +27,7 @@ func TestMCPOperateAndTest(t *testing.T) {
 	in := bytes.NewBufferString(strings.Join([]string{
 		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"qorm_dispatch","arguments":{"action":"increment","args":{"count":0}}}}`,
 		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"qorm_set_state","arguments":{"path":"status","value":"live"}}}`,
-		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"qorm_assert","arguments":{"checks":[{"kind":"stateEquals","path":"count","value":1},{"kind":"stateEquals","path":"status","value":"live"},{"kind":"nodeExists","id":"btn_plus"}]}}}`,
+		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"qorm_assert","arguments":{"checks":[{"kind":"stateEquals","path":"count","value":1},{"kind":"stateEquals","path":"status","value":"live"},{"kind":"nodeExists","id":"btn_increment"}]}}}`,
 	}, "\n") + "\n")
 	out := &bytes.Buffer{}
 	if err := newCounterServer(t, in, out).Serve(); err != nil {

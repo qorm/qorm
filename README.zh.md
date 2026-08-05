@@ -2,12 +2,12 @@
 
 # QORM
 
-<p align="center"><b>查询 · 观察 · 渲染 · 修改&nbsp;&nbsp;Query · Observe · Render · Mutate</b></p>
+<p align="center"><b>查询 · 观察 · 渲染 · 变更&nbsp;&nbsp;Query · Observe · Render · Mutate</b></p>
 
-**与你的 AI 助手一起构建 UI 应用——实时协作。** QORM(Queryable Object
-Rendering Model,可查询对象渲染模型)是一个面向智能体的
-声明式 UI 运行时:用标准化、与语言无关的 JSON 描述 UI,你的 AI(Claude、Cursor……)
-就能在你与它协作同一个运行中的应用时,**构建、编辑、运行并校验**它——用户操作即时感知，AI 变更实时呈现。
+**与你的 AI 助手一起构建应用——实时协作。** QORM(Query · Observe ·
+Render · Mutate,查询 · 观察 · 渲染 · 变更)是一个智能体原生的跨平台应用平台:
+用标准化、与语言无关的 JSON 描述应用,你的 AI(Claude、Cursor……)
+就能在你与它协作同一个运行中的应用时,**构建、编辑、运行并校验**它——用户操作即时感知,AI 变更实时呈现。
 
 <p align="center"><img src="assets/qorm-demo.gif" alt="人与 AI 一起实时编辑同一个 QORM 应用" width="580"></p>
 
@@ -34,7 +34,7 @@ Rendering Model,可查询对象渲染模型)是一个面向智能体的
 签名打包成可分发的 bundle,通过空中下发(OTA)带回滚地提供服务,经由 MCP 向智能体开放,
 并将其打包为 web / iOS / Android / 桌面 / 小程序——可从任意机器交叉编译。
 
-与 Kimi(Moonshot AI)、Claude(Anthropic) 和 Gemini(Google) 协作开发——人机协作正是 QORM 的全部前提。
+与 Kimi(Moonshot AI)、ChatGPT(OpenAI)、Claude(Anthropic) 和 Gemini(Google) 协作开发——人机协作正是 QORM 的全部前提。
 
 ## 给你的 Agent 一句话，直接用起 QORM 架构
 
@@ -43,7 +43,7 @@ QORM 为 AI 智能体而生：只需**给你的 Agent 一句话**，就能自动
 > **两句提示词投递给你的 AI 助手（ChatGPT / Claude Code / Cursor / Windsurf / Antigravity / DeepSeek / Kimi）：**
 >
 > 1. *“请加载 QORM 框架的 MCP 配置与 Skill 技能库（https://github.com/qorm/qorm），搭好环境，保持 DevTool 可见。”*
-> 2. *“使用 QORM 在 `./my-app` 创建应用，启动原生窗口，然后根据以下需求构建应用：<在这里输入你的应用想法，例如：带连续打卡天数的习惯追踪器>。”*
+> 2. *“使用 QORM 在 `./myapp` 创建应用，启动原生窗口，然后根据以下需求构建应用：<在此输入你的应用想法，例如：带连续打卡天数的习惯追踪器>。”*
 
 用户在界面中交互，Agent 实时感知；Agent 实时调整 UI 与逻辑，改动即刻呈现。完整指南：**[与你的 AI 一起构建](docs/zh/build-with-ai.md)** · [人机协作](docs/zh/collaboration.md)。
 

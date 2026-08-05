@@ -194,7 +194,7 @@ func widgetPropTable(t *testing.T) [][2]string {
 		t.Fatal("could not locate the node() switch")
 	}
 	body := s[start : start+end]
-	labelRe := regexp.MustCompile(`"([a-z0-9]+)"`)
+	labelRe := regexp.MustCompile(`"([a-z0-9_]+)"`)
 	callRe := regexp.MustCompile(`r\.(\w+)\(`)
 	lines := strings.Split(body, "\n")
 

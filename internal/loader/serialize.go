@@ -273,9 +273,14 @@ func componentDocToJSON(name string, tmpl *model.Node, sc *model.ComponentSchema
 	return doc
 }
 
-// ActionToJSON serialises an action document.
+// ActionToJSON serialises an action document — the inverse of buildAction. The
+// script (when the action is one) must ride along: bundle.FromApp compiles an
+// app through these documents, and dropping the script there would ship an
+// export whose script actions silently do nothing.
 func ActionToJSON(a *model.Action) map[string]any {
-	return map[string]any{"type": "action", "id": a.ID, "steps": stepsToJSON(a.Steps)}
+	m := map[string]any{"type": "action", "id": a.ID, "steps": stepsToJSON(a.Steps)}
+	putIf(m, "script", a.Script)
+	return m
 }
 
 // stepsToJSON serialises a step list (recursively — `if` then/else and http
@@ -361,6 +366,21 @@ func stepToJSON(st model.Step) map[string]any {
 	return s
 }
 
+// StylesheetToJSON serialises a stylesheet back to its type:"stylesheet"
+// document — the inverse of buildStylesheet. The raw QSS source rides the
+// document verbatim (like a script action's "script" field), and "source" is
+// the canonical styles/<id>.qss path collect() synthesised (it is the only
+// spelling the walk accepts, so it is exactly reconstructible) — together they
+// make bundle.FromApp content-address the sheet exactly as bundle.Build does.
+func StylesheetToJSON(sh model.Stylesheet) map[string]any {
+	return map[string]any{
+		"type":   "stylesheet",
+		"id":     sh.ID,
+		"qss":    sh.QSS,
+		"source": "styles/" + sh.ID + ".qss",
+	}
+}
+
 // AppToDocs serialises a whole app (manifest + scenes + actions) back to the
 // raw document list, the inverse of FromDocs. Each component comes back in the
 // spelling it was authored in: inline in the manifest's "components" map, or —
@@ -376,6 +396,9 @@ func AppToDocs(app *model.App) []map[string]any {
 	docs := []map[string]any{ManifestToJSON(app)}
 	for _, name := range sortedComponentDocNames(app) {
 		docs = append(docs, componentDocToJSON(name, app.Components[name], app.ComponentSchemas[name]))
+	}
+	for _, sheet := range sortedStylesheets(app) {
+		docs = append(docs, StylesheetToJSON(sheet))
 	}
 	for id, root := range app.Scenes {
 		doc := SceneToJSON(id, root)
@@ -410,6 +433,20 @@ func sortedComponentDocNames(app *model.App) []string {
 		}
 	}
 	sort.Strings(out)
+	return out
+}
+
+// sortedStylesheets returns the app's stylesheets sorted by id — the document
+// list is content-addressed, so its order must not depend on the order the
+// sheets happened to load in. (The collect walk is lexicographic, so a
+// directory load is already in this order; sorting makes it a guarantee.)
+func sortedStylesheets(app *model.App) []model.Stylesheet {
+	if len(app.Stylesheets) == 0 {
+		return nil
+	}
+	out := make([]model.Stylesheet, len(app.Stylesheets))
+	copy(out, app.Stylesheets)
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	return out
 }
 

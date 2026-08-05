@@ -17,6 +17,7 @@
 | `invoke` | 按 `name` 调用另一个动作,求值后的 `args` 并入其作用域 |
 | `navigate` | 跳转到另一个场景(或 `back`) |
 | `state.set` | 把状态路径设为某值 |
+| `state.setAt` | — |
 | `state.append` | 向数组追加一个值 |
 | `state.appendObject` | 追加一个对象(由 `item` 字段表达式构建) |
 | `state.toggle` | 翻转布尔值,或匹配数组元素上的某个 `field`;对标量数组则切换 `match` 的成员资格 |
@@ -80,6 +81,14 @@
   { "type": "state.set", "path": "draft", "value": "" }
 ] }
 ```
+
+## 脚本动作(`script`)
+
+动作可以携带一段 qscript 程序来代替 steps:`{ "type": "action", "id": "tick", "script": "…" }`。JSON 继续声明场景与数据,逻辑由脚本承担——`let`、赋值(`state.a =`、`state.arr[i] =`)、`if`/`else`、`for x in …`、`while`、`fn` 函数定义与调用、表达式语言的运算符与内建函数、可读写的 `state` 句柄以及注入派发参数的 `args`(见 `internal/qscript`)。加载器在加载期编译脚本——解析错误会以带行号的诊断报出——`script` 与 `steps` 同时声明时给出警告,且一律执行 script。运行期失败(治理超限或类型错误)会带着脚本行号记录在运行时上。脚本天然确定(无时钟、无 IO、不能 `dispatch` 其他动作)且有界(单次运行 20 万操作、单循环 10 万次迭代、64 层嵌套调用)。完整示例见 `examples/tetris`。
+
+## 脚本文件动作(`actions/*.qs`)
+
+脚本动作可以住在独立文件里,而不必塞进 JSON 字符串字段:`actions/tick.qs` 即动作 `tick`,文件全文就是它的 qscript 源码。这套布局就是把 DOM+CSS+JS 三层分离搬进应用——结构在 `scenes/*.json`,逻辑在 `actions/*.qs`,两者按动作 id 相互绑定(场景的 `onPress`/`keys`/定时器点名动作,脚本经 `state` 触达结构)。加载器把 `actions/` 目录下的每个 `*.qs` 文件收集为与 JSON 写法相同的 `type:"action"` 文档,因此下游一切划一:场景引用、加载期编译(解析错误是同时带文件名和行号的诊断)、打包哈希(`.qs` 与 JSON 动作一样被签名——`qorm build` 与 `qorm run` 永远一致)。两种写法可以并存;同 id 的 `.json` 与 `.qs` 属于重复定义——目录加载报错并保留最先出现的定义(`.json` 排序在前),`qorm build` 则直接拒绝构建。`examples/tetris` 的全部十个动作都采用这种写法。
 
 ## 派生值(`computed`)
 

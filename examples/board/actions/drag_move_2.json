@@ -1,0 +1,8 @@
+{
+  "type": "action",
+  "id": "drag_move_2",
+  "steps": [
+    { "type": "state.set", "path": "n2x", "value": "{{ state.drag2_ox + (x - state.drag2_sx) }}" },
+    { "type": "state.set", "path": "n2y", "value": "{{ state.drag2_oy + (y - state.drag2_sy) }}" }
+  ]
+}

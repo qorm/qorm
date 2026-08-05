@@ -1196,7 +1196,7 @@ func TestAnimationWidgets(t *testing.T) {
 	}{
 		{"motion-pop", &model.Node{Type: "motion", ID: "mo", Props: map[string]any{"animation": "pop"}, Children: textKids("x")}, []string{"animation:qa-pop"}},
 		{"motion-default-type", &model.Node{Type: "fadetransition", ID: "ft", Children: textKids("x")}, []string{"animation:qa-fade"}},
-		{"animatedcontainer", &model.Node{Type: "animatedcontainer", ID: "anc", Children: textKids("x")}, []string{"transition:all 300ms"}},
+		{"animatedcontainer", &model.Node{Type: "animatedcontainer", ID: "anc", Children: textKids("x")}, []string{"transition:all var(--qorm-motion-normal"}},
 		{"animatedopacity", &model.Node{Type: "animatedopacity", ID: "ano", Props: map[string]any{"opacity": "0.5"}, Children: textKids("x")}, []string{"opacity:0.5", "transition:opacity"}},
 		{"transform", &model.Node{Type: "transform", ID: "tfm", Props: map[string]any{"rotate": float64(45), "scale": float64(2)}, Children: textKids("x")}, []string{"transform:rotate(45deg) scale(2)"}},
 	}

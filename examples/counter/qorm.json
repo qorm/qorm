@@ -7,11 +7,13 @@
   "globalState": {
     "schema": {
       "count": "number",
-      "status": "string"
+      "status": "string",
+      "theme": "string"
     },
     "initial": {
       "count": 0,
-      "status": "Ready"
+      "status": "Ready",
+      "theme": "apple-light"
     }
   },
   "platforms": {

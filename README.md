@@ -4,9 +4,9 @@
 
 <p align="center"><b>Query · Observe · Render · Mutate</b></p>
 
-**Build UI apps with your AI assistant — together, live.** QORM
-(Queryable Object Rendering Model) is an
-agent-native declarative-UI runtime: describe a UI as standardized, language-neutral JSON, and your AI (Claude, Cursor, …) can **scaffold, edit, run, and verify** it
+**Build apps with your AI assistant — together, live.** QORM
+(Query · Observe · Render · Mutate) is an agent-native, cross-platform app platform:
+describe an app as standardized, language-neutral JSON, and your AI (Claude, Cursor, …) can **scaffold, edit, run, and verify** it
 while you collaborate on the same live runtime in real time — user actions are sensed live; AI modifications render instantly.
 
 <p align="center"><img src="assets/qorm-demo.gif" alt="A human and an AI editing a live QORM app together, with an 'AI edited' toast" width="580"></p>
@@ -36,7 +36,7 @@ a static HTML snapshot, ed25519-signs it into a distributable bundle, serves it
 over-the-air with rollback, exposes it to agents over MCP, and packages it for
 web / iOS / Android / desktop / mini-program — cross-compiled from any machine.
 
-Developed in collaboration with Kimi (Moonshot AI), Claude (Anthropic), and Gemini (Google) — human-AI
+Developed in collaboration with Kimi (Moonshot AI), ChatGPT (OpenAI), Claude (Anthropic), and Gemini (Google) — human-AI
 collaboration is QORM's whole premise.
 
 ## Give your Agent 1 prompt to launch the QORM architecture
@@ -46,7 +46,7 @@ QORM is built for AI agents: give your AI assistant **a single sentence**, and i
 > **Copy & paste these 2 sequential prompts to your AI assistant (ChatGPT / Claude Code / Cursor / Windsurf / Antigravity / DeepSeek / Kimi):**
 >
 > 1. *"Load QORM framework MCP configuration and Skill library (https://github.com/qorm/qorm), set up environment, keep DevTool active."*
-> 2. *"Use QORM to create a new app in `./my-app`, launch native window, and build the app for: <your app idea here>."*
+> 2. *"Use QORM to create a new app in `./myapp`, launch the native window, then build the app for: <your app idea, e.g. a habit tracker with streak days>."*
 
 User interactions are streamed live to the agent (`qorm_activity`); agent modifications to UI and logic synchronize instantly across all clients. Full guide: **[Build with your AI](docs/build-with-ai.md)** · [Human-AI collaboration](docs/collaboration.md).
 

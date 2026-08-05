@@ -41,12 +41,21 @@ func (r *renderer) wrapAnimation(n *model.Node, effect string) {
 // Positioned): a container whose style transitions smoothly whenever a bound
 // style value changes — so an agent flipping state animates in the live session.
 func (r *renderer) animatedContainer(n *model.Node) {
-	dur := propNum(n, "duration", 300)
-	// curve is an author prop landing mid-declaration ("transition:all %gms %s;"):
+	// Default pace comes from the theme motion tokens (--qorm-motion-*, the
+	// CSS mirror of the themes/*.json motion section the canvas backend
+	// consumes); explicit duration/curve author props win verbatim.
+	dur := "var(--qorm-motion-normal,250ms)"
+	if _, ok := n.Props["duration"]; ok {
+		dur = fmt.Sprintf("%gms", propNum(n, "duration", 250))
+	}
+	// curve is an author prop landing mid-declaration ("transition:all … %s;"):
 	// CSS-value allowlist first (a `;` would open a new declaration), then the
 	// attribute encoding.
-	curve := styleAttr(cssValueOr(propStr(n, "curve"), "cubic-bezier(.4,0,.2,1)"))
-	trans := fmt.Sprintf("transition:all %gms %s;", dur, curve)
+	curve := "var(--qorm-motion-standard,cubic-bezier(.4,0,.2,1))"
+	if c := propStr(n, "curve"); c != "" {
+		curve = styleAttr(cssValueOr(c, "cubic-bezier(.4,0,.2,1)"))
+	}
+	trans := fmt.Sprintf("transition:all %s %s;", dur, curve)
 	// containerCSS (not boxCSS) so an AnimatedContainer honours layout align/justify
 	// like any other container — e.g. centring an icon inside an animated circle.
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), r.containerCSS(n)+trans, a11y(n))
@@ -59,13 +68,17 @@ func (r *renderer) animatedContainer(n *model.Node) {
 // animatedOpacity is Flutter's AnimatedOpacity: fades children to the bound
 // `opacity` (0..1) over `duration`.
 func (r *renderer) animatedOpacity(n *model.Node) {
-	dur := propNum(n, "duration", 300)
+	// Default duration from the theme motion tokens; explicit prop wins.
+	dur := "var(--qorm-motion-normal,250ms)"
+	if _, ok := n.Props["duration"]; ok {
+		dur = fmt.Sprintf("%gms", propNum(n, "duration", 250))
+	}
 	op := 1.0
 	if v := propStr(n, "opacity"); v != "" {
 		op = asFloat(runtime.EvalBinding(v, r.ctx()))
 	}
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID),
-		r.boxCSS(n)+fmt.Sprintf("opacity:%g;transition:opacity %gms cubic-bezier(.4,0,.2,1);", op, dur))
+		r.boxCSS(n)+fmt.Sprintf("opacity:%g;transition:opacity %s cubic-bezier(.4,0,.2,1);", op, dur))
 	for _, c := range n.Children {
 		r.node(c)
 	}

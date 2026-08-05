@@ -14,6 +14,8 @@ import (
 
 	"github.com/qorm/qorm/internal/expr"
 	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/qorm/internal/qscript"
+	"github.com/qorm/qorm/internal/qss"
 	"github.com/qorm/qorm/internal/render"
 	"github.com/qorm/qorm/pkg/qormext"
 )
@@ -178,6 +180,7 @@ func FromDocs(docs []map[string]any) *model.App {
 	}
 	sceneVars := stateVars(app.GlobalState.Schema, false)
 	actionVars := stateVars(app.GlobalState.Schema, true)
+	seenStylesheets := map[string]bool{}
 	for i, doc := range docs {
 		switch asString(doc["type"]) {
 		case "app":
@@ -211,6 +214,23 @@ func FromDocs(docs []map[string]any) *model.App {
 					}
 					app.SceneGuards[sceneID] = g
 				}
+				// Scene key bindings: "keys": {"left": "moveLeft", …} — the
+				// declarative control scheme for games/keyboard apps, engine-
+				// dispatched (canvas first; the HTML client gets it later).
+				if keys, ok := doc["keys"].(map[string]any); ok && len(keys) > 0 {
+					if app.SceneKeys == nil {
+						app.SceneKeys = map[string]map[string]string{}
+					}
+					m := map[string]string{}
+					for k, v := range keys {
+						if s := asString(v); s != "" {
+							m[strings.ToLower(k)] = s
+						}
+					}
+					if len(m) > 0 {
+						app.SceneKeys[sceneID] = m
+					}
+				}
 			}
 		case "action":
 			if actID := asString(doc["id"]); actID != "" {
@@ -223,6 +243,17 @@ func FromDocs(docs []map[string]any) *model.App {
 			if act.ID != "" {
 				app.Actions[act.ID] = act
 			}
+		case "stylesheet":
+			// A styles/<id>.qss file collected by the walk. Duplicate ids are
+			// diagnosed and first-wins, exactly like scenes/actions; packaging
+			// refuses them outright.
+			sheetID := asString(doc["id"])
+			if seenStylesheets[sheetID] {
+				diags = append(diags, fmt.Sprintf("error: 样式表 %q 被重复定义(多个 type:\"stylesheet\" 文档使用了同一个 id)。仅保留最先出现的定义,打包(qorm build)会直接拒绝构建。", sheetID))
+				continue
+			}
+			seenStylesheets[sheetID] = true
+			buildStylesheet(app, doc, &diags)
 		case "component":
 			// A standalone component definition document (conventionally
 			// components/<name>.json), equivalent to one entry of qorm.json's
@@ -1183,6 +1214,11 @@ func LoadFile(path string) (*model.App, error) {
 //     is now true.)
 //   - a .json file symlinked OUT of the app tree. See symlinkStaysInside: this
 //     is the trust boundary, and it fails loudly here because collect can.
+//
+// Script-file actions: an actions/<id>.qs file (qscript source in a file of its
+// own) is collected as the type:"action" document {id, script, source} — see
+// the walk below. Stylesheets: a styles/<id>.qss file (QSS source in a file of
+// its own) is collected as the type:"stylesheet" document {id, qss, source}.
 func collect(dir string) ([]map[string]any, error) {
 	root, err := resolvedRoot(dir)
 	if err != nil {
@@ -1203,7 +1239,82 @@ func collect(dir string) ([]map[string]any, error) {
 			}
 			return nil
 		}
-		if filepath.Ext(path) != ".json" {
+		ext := filepath.Ext(path)
+		if ext != ".json" && ext != ".qs" && ext != ".qss" {
+			return nil
+		}
+		// A .qss file is a STYLESHEET: it lives in a styles/ directory, its
+		// filename (minus the extension) is the sheet id, and its full text is
+		// the QSS source. collect() synthesises a type:"stylesheet" document —
+		// the same uniform treatment a .qs script-file action gets, so FromDocs,
+		// the duplicate rules and the bundle builder see one document shape.
+		if ext == ".qss" {
+			if filepath.Base(filepath.Dir(path)) != "styles" {
+				return nil // .qss is only meaningful inside a styles/ directory
+			}
+			if !symlinkStaysInside(root, path) {
+				return fmt.Errorf("%s is a symlink resolving outside the app directory %s — refusing to read it into the app (a bundle must contain only files from the app tree)", path, dir)
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			id := strings.TrimSuffix(filepath.Base(path), ".qss")
+			if id == "" {
+				return nil
+			}
+			rel, rerr := filepath.Rel(dir, path)
+			if rerr != nil {
+				rel = path
+			}
+			out = append(out, map[string]any{
+				"type": "stylesheet",
+				"id":   id,
+				"qss":  string(data),
+				// Provenance, so a parse diagnostic can name the file (and a
+				// signed bundle records where the sheet came from). Slashed,
+				// never OS-separated: the path rides the content hash.
+				"source": filepath.ToSlash(rel),
+			})
+			return nil
+		}
+		// A .qs file is a SCRIPT-FILE ACTION: it lives in an actions/ directory,
+		// its filename (minus the extension) is the action id, and its full text
+		// is the action's qscript source. collect() synthesises the same
+		// type:"action" document an actions/<id>.json with a "script" field
+		// would declare, so every consumer downstream — FromDocs, the duplicate
+		// rules, the bundle builder — treats the two spellings uniformly. The
+		// lexicographic walk sorts <id>.json before <id>.qs, so a same-id
+		// conflict resolves exactly like two JSON documents: first wins here,
+		// refused outright by qorm build.
+		if ext == ".qs" {
+			if filepath.Base(filepath.Dir(path)) != "actions" {
+				return nil // .qs is only meaningful inside an actions/ directory
+			}
+			if !symlinkStaysInside(root, path) {
+				return fmt.Errorf("%s is a symlink resolving outside the app directory %s — refusing to read it into the app (a bundle must contain only files from the app tree)", path, dir)
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			id := strings.TrimSuffix(filepath.Base(path), ".qs")
+			if id == "" {
+				return nil
+			}
+			rel, rerr := filepath.Rel(dir, path)
+			if rerr != nil {
+				rel = path
+			}
+			out = append(out, map[string]any{
+				"type":   "action",
+				"id":     id,
+				"script": string(data),
+				// Provenance, so a compile diagnostic can name the file (and a
+				// signed bundle records where the script came from). Slashed,
+				// never OS-separated: the path rides the content hash.
+				"source": filepath.ToSlash(rel),
+			})
 			return nil
 		}
 		if !symlinkStaysInside(root, path) {
@@ -1527,6 +1638,17 @@ func buildNode(m map[string]any, diags *[]string, sceneID string, vars map[strin
 	}
 	n.OnPress = parseInvoke(m["onPress"], diags, sceneID, nodeID, "onPress")
 	n.OnChange = parseInvoke(m["onChange"], diags, sceneID, nodeID, "onChange")
+	n.OnKeyDown = parseInvoke(m["onKeyDown"], diags, sceneID, nodeID, "onKeyDown")
+	n.OnKeyUp = parseInvoke(m["onKeyUp"], diags, sceneID, nodeID, "onKeyUp")
+	// Native-canvas events (the HTML path does not read these): collision and
+	// raw pointer/hover handlers. Without these lines the typed fields stay
+	// nil for every JSON-loaded app and the canvas engine's copies are dead.
+	n.OnCollide = parseInvoke(m["onCollide"], diags, sceneID, nodeID, "onCollide")
+	n.OnHoverIn = parseInvoke(m["onHoverIn"], diags, sceneID, nodeID, "onHoverIn")
+	n.OnHoverOut = parseInvoke(m["onHoverOut"], diags, sceneID, nodeID, "onHoverOut")
+	n.OnTouchStart = parseInvoke(m["onTouchStart"], diags, sceneID, nodeID, "onTouchStart")
+	n.OnTouchMove = parseInvoke(m["onTouchMove"], diags, sceneID, nodeID, "onTouchMove")
+	n.OnTouchEnd = parseInvoke(m["onTouchEnd"], diags, sceneID, nodeID, "onTouchEnd")
 	if ri, ok := m["renderItem"].(map[string]any); ok {
 		// A renderItem template runs with the item bound into the expression
 		// scope under `as` (default "item") plus index/first/last. Resolve the
@@ -1618,10 +1740,77 @@ const maxStepNesting = 32
 // authoring hint, not the safety net.
 const maxRenderSteps = 8
 
+// buildStylesheet parses one type:"stylesheet" document (a styles/<id>.qss
+// file collected by the walk) and appends its rules to the app's style
+// cascade. The raw source is kept on the app (model.App.Stylesheets) so the
+// serializer writes the sheet back verbatim — the same fixed-point property
+// the component documents have. A parse error is a diagnostic naming BOTH the
+// file and the line, mirroring the script-action compile surface; the rules
+// parsed before and after it still load, exactly like a scene keeps loading
+// alongside its own diagnostics. Unknown style keys (against
+// render.KnownStyleKeys) are warnings, same as in a node's inline style.
+func buildStylesheet(app *model.App, doc map[string]any, diags *[]string) {
+	sheetID := asString(doc["id"])
+	src := asString(doc["qss"])
+	app.Stylesheets = append(app.Stylesheets, model.Stylesheet{ID: sheetID, QSS: src})
+	rules, errs := qss.Parse(src)
+	origin := sheetID
+	if s := asString(doc["source"]); s != "" {
+		origin = s
+	}
+	if diags != nil {
+		for _, e := range errs {
+			*diags = append(*diags, fmt.Sprintf("error: [Stylesheet: %s] %s:%d: %s。", sheetID, origin, e.Line, e.Msg))
+		}
+		for _, r := range rules {
+			var unknown []string
+			for k := range r.Style {
+				if !render.KnownStyleKeys[k] {
+					unknown = append(unknown, k)
+				}
+			}
+			sort.Strings(unknown)
+			for _, k := range unknown {
+				*diags = append(*diags, fmt.Sprintf("warning: [Stylesheet: %s] %s 的规则 %q 包含未知样式键 %q,渲染器将忽略该键。", sheetID, origin, ruleSelectorText(r), k))
+			}
+		}
+	}
+	app.Styles = append(app.Styles, rules...)
+}
+
+// ruleSelectorText renders a style rule's selector the way it was authored
+// (`button` / `.name` / `#name`), for diagnostics.
+func ruleSelectorText(r model.StyleRule) string {
+	switch r.Kind {
+	case model.StyleRuleClass:
+		return "." + r.Name
+	case model.StyleRuleID:
+		return "#" + r.Name
+	}
+	return r.Name
+}
+
 func buildAction(doc map[string]any, diags *[]string, vars map[string]string) *model.Action {
 	actID := asString(doc["id"])
-	act := &model.Action{ID: actID}
+	act := &model.Action{ID: actID, Script: asString(doc["script"])}
 	act.Steps = buildSteps(doc["steps"], diags, actID, vars, 0)
+	if act.Script != "" && diags != nil {
+		// The script is compiled at load time: a parse error names the line,
+		// so an authoring agent can fix the exact spot instead of discovering
+		// the failure at dispatch time. A script that came from a script file
+		// (actions/<id>.qs) also names the file — the doc's "source" key,
+		// which collect() sets and a signed bundle preserves.
+		if _, err := qscript.Parse(act.Script); err != nil {
+			if src := asString(doc["source"]); src != "" {
+				*diags = append(*diags, fmt.Sprintf("error: [Action: %s] script 编译失败: %s: %v。", actID, src, err))
+			} else {
+				*diags = append(*diags, fmt.Sprintf("error: [Action: %s] script 编译失败: %v。", actID, err))
+			}
+		}
+		if len(act.Steps) > 0 {
+			*diags = append(*diags, fmt.Sprintf("warning: [Action: %s] 同时声明了 script 和 steps:运行时将执行 script,steps 会被忽略。请只保留一种。", actID))
+		}
+	}
 	if diags != nil {
 		if n := countRenderSteps(act.Steps); n > maxRenderSteps {
 			*diags = append(*diags, fmt.Sprintf("warning: [Action: %s] 有 %d 个 'render' 步骤(建议不超过 %d 个):每个 render 都会推送一帧实时同步,过多的中间帧会被订阅者丢弃。", actID, n, maxRenderSteps))
@@ -1758,10 +1947,22 @@ func buildStep(sm map[string]any, diags *[]string, actID string, vars map[string
 		*diags = append(*diags, fmt.Sprintf("[Action: %s] 导航目标使用了已弃用的 'scene://' 协议前缀: %q。请直接指定目标场景 ID (如 'main')。", actID, toVal))
 		toVal = strings.TrimPrefix(toVal, "scene://")
 	}
+	// The pre-`type` step format (`op: "set"` + `target`) parses to an empty
+	// Type, which the runtime's step switch silently no-ops — the worst kind
+	// of dead action. Name it, like the scene:// deprecation above.
+	if diags != nil {
+		if _, ok := sm["op"]; ok {
+			*diags = append(*diags, fmt.Sprintf("warning: [Action: %s] 步骤使用了已弃用的 \"op\" 键(旧格式),运行时不会执行它。请迁移为新格式,如 {\"type\": \"state.set\", \"path\": ..., \"value\": ...}。", actID))
+		}
+		if _, ok := sm["target"]; ok {
+			*diags = append(*diags, fmt.Sprintf("warning: [Action: %s] 步骤使用了已弃用的 \"target\" 键(旧格式),运行时不会执行它。新格式请使用 \"path\"。", actID))
+		}
+	}
 	step := model.Step{
 		Type:      asString(sm["type"]),
 		Path:      asString(sm["path"]),
 		Value:     asString(sm["value"]),
+		Index:     asString(sm["index"]),
 		MatchKey:  asString(sm["matchKey"]),
 		Match:     asString(sm["match"]),
 		Field:     asString(sm["field"]),

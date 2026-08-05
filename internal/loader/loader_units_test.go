@@ -254,6 +254,34 @@ func TestBuildNodeSceneProtocolViaBuildNode(t *testing.T) {
 	}
 }
 
+// TestBuildNodeKeyHandlers: onKeyDown/onKeyUp are first-class invokes like
+// onPress (the canvas backend's focus system dispatches them).
+func TestBuildNodeKeyHandlers(t *testing.T) {
+	// String shorthand.
+	n := BuildNode(map[string]any{"type": "column", "id": "c", "onKeyDown": "act"})
+	if n.OnKeyDown == nil || n.OnKeyDown.Name != "act" {
+		t.Fatalf("onKeyDown string shorthand not parsed, got %+v", n.OnKeyDown)
+	}
+	if n.OnKeyUp != nil {
+		t.Error("onKeyUp must stay nil when absent")
+	}
+
+	// Object form with args.
+	n = BuildNode(map[string]any{
+		"type": "column", "id": "c",
+		"onKeyUp": map[string]any{"name": "commit", "args": map[string]any{"k": "v"}},
+	})
+	if n.OnKeyUp == nil || n.OnKeyUp.Name != "commit" || n.OnKeyUp.Args["k"] != "v" {
+		t.Fatalf("onKeyUp object form not parsed, got %+v", n.OnKeyUp)
+	}
+
+	// Empty string yields no handler.
+	n = BuildNode(map[string]any{"type": "column", "id": "c", "onKeyDown": ""})
+	if n.OnKeyDown != nil {
+		t.Errorf("empty onKeyDown must parse to nil, got %+v", n.OnKeyDown)
+	}
+}
+
 func TestBuildActionFullStep(t *testing.T) {
 	doc := map[string]any{
 		"type": "action", "id": "sync",

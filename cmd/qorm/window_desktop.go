@@ -13,10 +13,8 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strconv"
-	"strings"
 
 	"github.com/qorm/qorm/internal/server"
 	"github.com/qorm/qorm/pkg/qormext"
@@ -91,75 +89,15 @@ func launchWindow(srv *server.Server, ln net.Listener, url, title string) bool {
 	return true
 }
 
-// windowStateFile is where a desktop app remembers its window position/size.
-func windowStateFile(title string) string {
-	dir, err := os.UserConfigDir()
-	if err != nil {
-		dir = os.TempDir()
-	}
-	d := filepath.Join(dir, "qorm", pkgID(title))
-	os.MkdirAll(d, 0o755)
-	return filepath.Join(d, "window.txt")
-}
-
-// readWindowState parses a saved "x,y,w,h" frame; nil if absent/malformed.
-func readWindowState(path string) []int {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return nil
-	}
-	parts := strings.Split(strings.TrimSpace(string(b)), ",")
-	if len(parts) != 4 {
-		return nil
-	}
-	out := make([]int, 0, 4)
-	for _, p := range parts {
-		n, err := strconv.Atoi(p)
-		if err != nil {
-			return nil
-		}
-		out = append(out, n)
-	}
-	return out
-}
-
-// bindDesktopHardware exposes a native hardware bridge to the web UI on desktop,
-// mirroring the mobile QORM Dev bridge. JS calls window.qormDesktop({op}); the
-// Go host runs the op (OS commands) and calls back qormOn<X>. Camera/mic/geo
-// already work via Web APIs (the desktop WebView loads localhost — a secure
-// context), so this covers the OS-level bits: volume, brightness, battery.
-var notifyClickHandler func(string)
-
-var biometricHandler func(bool, string)
-
-var btStateHandler func(bool)
-
-var btScanHandler func(string)
-
-// desktopBuiltins are the ops handled by the built-in bridge (so unknown ops
-// fall through to the user's plugin).
-var (
-	screenRecCmd  *exec.Cmd
-	screenRecFile string
-	caffeinateCmd *exec.Cmd
-)
-
-var desktopBuiltins = map[string]bool{
-	"notify": true, "badge": true, "loginItem": true, "loginItemGet": true,
-	"screens": true, "biometric": true, "wifiInfo": true, "bluetoothScan": true,
-	"bluetoothState": true, "platform": true, "getModes": true, "winDragStart": true, "winDragMove": true, "screenshot": true, "screenRecordStart": true, "screenRecordStop": true, "clipboardSet": true, "clipboardGet": true, "share": true, "deviceInfo": true, "networkStatus": true, "keepAwake": true, "haptic": true, "storageSet": true, "storageGet": true, "openURL": true, "speak": true, "speakStop": true, "volumeSet": true, "brightnessSet": true, "secureSet": true, "secureGet": true, "volumeGet": true, "volumeUp": true,
-	"volumeDown": true, "brightnessGet": true, "battery": true, "torchGet": true,
-	"brightnessUp": true, "brightnessDown": true, "torchToggle": true, "vibrate": true,
-}
-
-// brightnessUnsupportedJS updates the brightness readout to a clear
-// desktop-unsupported state (used when no backlight/tool is available) so the
-// auto-fired brightnessGet never leaves the widget stuck.
-const brightnessUnsupportedJS = `(function(){document.querySelectorAll('.qorm-brightness-out').forEach(function(o){o.textContent='Brightness: n/a on desktop';});})()`
+// The desktop hardware bridge's shared state (notifyClickHandler & friends,
+// desktopBuiltins, screenRecCmd, inhibitCmd, brightnessUnsupportedJS) lives in
+// hardware_desktop.go, which also compiles into the canvaswebview build; the
+// window-state helpers (windowStateFile/readWindowState) live next to their
+// only caller in webview_native.go.
 
 // runTray shows a system-tray icon + menu for the running app (a desktop
 // staple). It runs in its own process (systray needs the main run loop, which
 // the WebView also owns), spawned by launchWindow. Quit terminates the app.
 var gTrayURL string
 
-var inhibitCmd *exec.Cmd
+var caffeinateCmd *exec.Cmd

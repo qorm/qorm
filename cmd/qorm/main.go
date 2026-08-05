@@ -18,6 +18,10 @@ import (
 
 	qrt "github.com/qorm/qorm/internal/runtime"
 	"github.com/qorm/qorm/internal/server"
+	// Register the built-in widget library (badge, …) into the canvas
+	// engine's registry — widgets live outside the engine and compose the
+	// draw layer (internal/render/draw).
+	_ "github.com/qorm/qorm/internal/widgets"
 )
 
 // version is the QORM release version. It defaults to a dev value and is stamped
@@ -25,6 +29,7 @@ import (
 var version = "0.5.5"
 
 func main() {
+	runtime.LockOSThread()
 	if len(os.Args) < 2 {
 		if app := bundledApp(); app != "" {
 			os.Exit(cmdRun([]string{app, "--app"}))

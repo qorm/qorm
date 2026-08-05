@@ -1,0 +1,19 @@
+{
+  "type": "app",
+  "id": "qorm_webdemo",
+  "name": "QORM WebView Demo",
+  "entry": "main",
+  "globalState": {
+    "schema": { "count": "number" },
+    "initial": { "count": 0 }
+  },
+  "platforms": {
+    "desktop": {
+      "window": {
+        "width": 560,
+        "height": 640,
+        "title": "WebView Demo"
+      }
+    }
+  }
+}

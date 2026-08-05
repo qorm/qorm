@@ -1,0 +1,120 @@
+{
+  "type": "scene",
+  "id": "main",
+  "root": {
+    "type": "board",
+    "id": "board",
+    "style": {
+      "background": "#ECE8DF"
+    },
+    "children": [
+      {
+        "type": "box",
+        "id": "n1",
+        "style": {
+          "x": "{{state.n1x}}",
+          "y": "{{state.n1y}}",
+          "width": 210,
+          "height": 130,
+          "background": "#FFE873",
+          "borderRadius": 8,
+          "borderWidth": 1,
+          "borderColor": "#E0C85A",
+          "padding": 14
+        },
+        "onTouchStart": { "name": "drag_start_1" },
+        "onTouchMove": { "name": "drag_move_1" },
+        "children": [
+          {
+            "type": "text",
+            "text": "Groceries",
+            "style": { "color": "#5A4A1F", "fontSize": 15, "fontWeight": 700 }
+          },
+          {
+            "type": "text",
+            "text": "milk · eggs · bread",
+            "style": { "color": "#6B5C2E", "fontSize": 12, "margin": { "top": 8 } }
+          },
+          {
+            "type": "text",
+            "text": "coffee beans",
+            "style": { "color": "#6B5C2E", "fontSize": 12, "margin": { "top": 3 } }
+          }
+        ]
+      },
+      {
+        "type": "box",
+        "id": "n2",
+        "style": {
+          "x": "{{state.n2x}}",
+          "y": "{{state.n2y}}",
+          "width": 210,
+          "height": 130,
+          "background": "#FF9EB1",
+          "borderRadius": 8,
+          "borderWidth": 1,
+          "borderColor": "#E8899D",
+          "padding": 14
+        },
+        "onTouchStart": { "name": "drag_start_2" },
+        "onTouchMove": { "name": "drag_move_2" },
+        "children": [
+          {
+            "type": "text",
+            "text": "Ship the demo",
+            "style": { "color": "#5C1F2C", "fontSize": 15, "fontWeight": 700 }
+          },
+          {
+            "type": "text",
+            "text": "package the mac build",
+            "style": { "color": "#6E2A38", "fontSize": 12, "margin": { "top": 8 } }
+          },
+          {
+            "type": "text",
+            "text": "update the CHANGELOG",
+            "style": { "color": "#6E2A38", "fontSize": 12, "margin": { "top": 3 } }
+          }
+        ]
+      },
+      {
+        "type": "box",
+        "id": "n3",
+        "style": {
+          "x": "{{state.n3x}}",
+          "y": "{{state.n3y}}",
+          "width": 210,
+          "height": 130,
+          "background": "#A8E6A1",
+          "borderRadius": 8,
+          "borderWidth": 1,
+          "borderColor": "#8CCF85",
+          "padding": 14
+        },
+        "onTouchStart": { "name": "drag_start_3" },
+        "onTouchMove": { "name": "drag_move_3" },
+        "children": [
+          {
+            "type": "text",
+            "text": "Board ideas",
+            "style": { "color": "#1F4A1A", "fontSize": 15, "fontWeight": 700 }
+          },
+          {
+            "type": "text",
+            "text": "drag a note to move it",
+            "style": { "color": "#2F5C29", "fontSize": 12, "margin": { "top": 8 } }
+          },
+          {
+            "type": "text",
+            "text": "drag the empty canvas to pan",
+            "style": { "color": "#2F5C29", "fontSize": 12, "margin": { "top": 3 } }
+          },
+          {
+            "type": "text",
+            "text": "⌃ + scroll / pinch to zoom",
+            "style": { "color": "#2F5C29", "fontSize": 12, "margin": { "top": 3 } }
+          }
+        ]
+      }
+    ]
+  }
+}

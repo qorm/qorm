@@ -123,6 +123,12 @@ func cmdRun(args []string) int {
 			}
 		}
 	}
+	// Middle layer (native/desktop.go): hand the run to a cached user binary
+	// that has the app's Go compiled in — custom native ops and custom canvas
+	// widgets work under plain `qorm run`, not just `qorm package`.
+	if handled, code := maybeRunUserBinary(dir, args); handled {
+		return code
+	}
 	srv, name, err := buildServer(dir, trust, revoked)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)

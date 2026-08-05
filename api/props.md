@@ -20,6 +20,8 @@ Every node object may carry these top-level keys:
 | `layout` | object | layout hints: `width` `height` `align` `justify` |
 | `onPress` | action / string | press handler — an action id, or inline steps |
 | `onChange` | action / string | change handler (inputs, toggles, sliders, selects) |
+| `onKeyDown` | action / string | key-down handler — dispatched to the focused node first, then bubbling to the scene root; the pressed key is seeded as the `key` arg, read as `{{ key }}` (native canvas backend) |
+| `onKeyUp` | action / string | key-up handler (same dispatch as `onKeyDown`) |
 | `renderItem` | node | item template for a bound `list` |
 | `data` | string | list data-binding expression (e.g. `state.todos`) |
 | `children` | node[] | child nodes |
@@ -184,6 +186,7 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `video` | `src` |
 | `videocapture` | `label` |
 | `volume` | — |
+| `webview` | `html` · `src` · `url` |
 | `when` | — |
 | `wifi` | `label` |
 | `wrap` | `runSpacing` · `spacing` |

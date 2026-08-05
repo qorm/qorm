@@ -1,0 +1,5 @@
+{
+  "type": "action",
+  "id": "menu_pick",
+  "steps": [{ "type": "state.set", "path": "menuPicked", "value": "{{ value }}" }]
+}

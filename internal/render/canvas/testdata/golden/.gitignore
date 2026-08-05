@@ -1,0 +1,5 @@
+# Update-mode frame dumps (QORM_GOLDEN_UPDATE=1) are local eyeballing
+# artifacts, not the baseline: frames.sha256 is the source of truth and the
+# frames are reproducible from it plus the code, so the bulky derived
+# binaries stay out of git.
+png/

@@ -593,7 +593,7 @@ func TestSizeUnit(t *testing.T) {
 // accepts exactly the keys in KnownStyleKeys, so each newly consumed key must
 // be present or authors get a spurious unknown-key warning.
 func TestKnownStyleKeysNewEntries(t *testing.T) {
-	for _, k := range []string{"zIndex", "alignSelf", "flexShrink"} {
+	for _, k := range []string{"zIndex", "alignSelf", "flexShrink", "x", "y"} {
 		if !KnownStyleKeys[k] {
 			t.Errorf("KnownStyleKeys must include %q (loader whitelist)", k)
 		}

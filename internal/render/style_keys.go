@@ -16,6 +16,10 @@ var KnownStyleKeys = map[string]bool{
 	"borderRadius": true, "borderWidth": true, "borderColor": true,
 	"gap": true, "opacity": true, "shadow": true,
 	"position": true, "top": true, "right": true, "bottom": true, "left": true,
+	// Absolute positioning aliases (native canvas): x/y are the infinite-canvas
+	// board's coordinate model; the canvas renderer treats left/top as aliases
+	// and position:absolute as out-of-flow.
+	"x": true, "y": true,
 	"cursor": true, "transition": true,
 	"padding": true, "margin": true,
 	// Text (textCSS).

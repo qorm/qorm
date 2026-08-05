@@ -112,7 +112,7 @@ func (r *renderer) containerCSS(n *model.Node) string {
 	switch n.Type {
 	case "row":
 		b.WriteString("flex-direction:row;")
-	case "stack", "absolute":
+	case "stack", "absolute", "board":
 		b.WriteString("position:relative;flex-direction:column;")
 	case "grid":
 		// handled above (display:grid set before the switch)
@@ -295,6 +295,18 @@ func (r *renderer) boxCSS(n *model.Node) string {
 		for _, edge := range []string{"top", "right", "bottom", "left"} {
 			writeNum(&b, edge, s, edge)
 		}
+	} else if _, xok := numOK(s, "x"); xok {
+		// Native-canvas absolute-positioning aliases: x/y (the infinite-canvas
+		// board's coordinate model) emit as CSS left/top with an implicit
+		// position:absolute, so a whiteboard scene reads the same in the web
+		// backend — the board node itself is a position:relative container.
+		b.WriteString("position:absolute;")
+		writeNum(&b, "left", s, "x")
+		writeNum(&b, "top", s, "y")
+	} else if _, yok := numOK(s, "y"); yok {
+		b.WriteString("position:absolute;")
+		writeNum(&b, "left", s, "x")
+		writeNum(&b, "top", s, "y")
 	}
 	if v := colorStr(s, "cursor"); v != "" {
 		fmt.Fprintf(&b, "cursor:%s;", v)

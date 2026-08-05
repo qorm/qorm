@@ -1,5 +1,6 @@
 {
   "type": "scene", "id": "main",
+  "onEnter": "seed",
   "root": {
     "type": "column", "id": "root", "style": { "background": "var(--bg)", "padding": 12 }, "layout": { "width": "fill", "height": "fill" },
     "children": [

@@ -18,6 +18,8 @@ import (
 
 	"github.com/qorm/qorm/internal/expr"
 	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/qorm/internal/qscript"
+	"github.com/qorm/qorm/internal/theme"
 )
 
 // Viewport is a client viewport size in CSS pixels. The zero value means
@@ -31,6 +33,7 @@ type Viewport struct{ W, H int }
 type Runtime struct {
 	App   *model.App
 	State map[string]any
+	Theme *theme.Theme
 	// Viewport is the size of the client viewport driving this runtime (pushed
 	// by the browser via POST /viewport, or read from the JS globals in the
 	// WASM build). Exposed to expressions as viewport.width / viewport.height /
@@ -126,6 +129,14 @@ type Runtime struct {
 	// async requests plus pending `delay` continuations. Guarded by the host's
 	// dispatch lock, like the state it lives beside.
 	inflight int
+	// LastScriptError holds the most recent qscript runtime error ("" when
+	// the last script action ran clean). A script action has no per-step
+	// error path — it is one program — so its failures (governance limits,
+	// type errors) surface here, carrying the script line number; hosts and
+	// agents (MCP) can read it after a dispatch. Cleared at the start of
+	// every top-level dispatch and guarded by the host's dispatch lock, like
+	// the state it describes.
+	LastScriptError string
 	// keyed maps a step's `key` to the request currently occupying that slot,
 	// so a newer request on the same key can supersede it. Entries live only
 	// between launch and continuation; the map is nil until the first keyed
@@ -297,6 +308,27 @@ func (r *Runtime) Blocked() bool { return r.Scene == GuardBlocked }
 
 // CurrentScene is the scene id to render ("" falls back to the entry scene).
 func (r *Runtime) CurrentScene() string { return r.Scene }
+
+// KeyAction resolves a scene-level key binding (scene JSON "keys") for the
+// current scene — the declarative control scheme for games and
+// keyboard-driven apps, dispatched by the engine with no focus required.
+func (r *Runtime) KeyAction(key string) (string, bool) {
+	if r.App == nil || r.App.SceneKeys == nil {
+		return "", false
+	}
+	// CurrentScene's "" falls back to the entry scene (a single-scene app
+	// never navigates, so its keys must resolve from the first frame).
+	scene := r.Scene
+	if scene == "" {
+		scene = r.App.Entry
+	}
+	m := r.App.SceneKeys[scene]
+	if m == nil {
+		return "", false
+	}
+	a, ok := m[strings.ToLower(key)]
+	return a, ok
+}
 
 // Navigate pushes the current scene (and its route params) onto the back stack
 // and shows `to` with the given params. params may be nil (→ an empty route).
@@ -491,7 +523,17 @@ func New(app *model.App) *Runtime {
 	if state == nil {
 		state = map[string]any{}
 	}
-	rt := &Runtime{App: app, State: state, RouteParams: map[string]any{}, pendingEnter: true}
+	// Seed the active theme into state so expressions (e.g. a theme-toggle's
+	// `state.theme == …` ternary) and the native canvas backend — both of which
+	// read state.theme directly — see the manifest's initial theme instead of
+	// an empty value that only CurrentTheme() compensated for. Only when absent:
+	// an explicit initial/persisted theme wins.
+	if app != nil && app.Theme != "" {
+		if t, _ := state["theme"].(string); t == "" {
+			state["theme"] = app.Theme
+		}
+	}
+	rt := &Runtime{App: app, State: state, RouteParams: map[string]any{}, pendingEnter: true, Theme: theme.GetDefault()}
 	rt.refreshComputed() // derived values exist from the very first frame
 	return rt
 }
@@ -502,6 +544,10 @@ func (r *Runtime) SwapAppPreservingState(newApp *model.App) {
 	if newApp == nil {
 		return
 	}
+	oldTheme := ""
+	if r.App != nil {
+		oldTheme = r.App.Theme
+	}
 	r.App = newApp
 	if r.State == nil {
 		r.State = map[string]any{}
@@ -511,6 +557,21 @@ func (r *Runtime) SwapAppPreservingState(newApp *model.App) {
 			if _, exists := r.State[k]; !exists {
 				r.State[k] = deepCopy(v)
 			}
+		}
+	}
+	// Re-seed the manifest theme the way New does. state.theme holding the OLD
+	// manifest's value is a seed the runtime wrote, not a user choice — without
+	// this a manifest theme edit (or removal) never took effect on hot reload,
+	// because the stale seed pinned CurrentTheme() to the old value. An
+	// explicit initial theme wins over the manifest theme (New's precedence);
+	// a theme the app/user set to something else is preserved.
+	if cur, _ := r.State["theme"].(string); cur == "" || (oldTheme != "" && cur == oldTheme) {
+		if t, _ := newApp.GlobalState.Initial["theme"].(string); t != "" {
+			r.State["theme"] = t
+		} else if newApp.Theme != "" {
+			r.State["theme"] = newApp.Theme
+		} else {
+			delete(r.State, "theme")
 		}
 	}
 	r.refreshComputed()
@@ -1078,6 +1139,7 @@ func (r *Runtime) Dispatch(name string, args map[string]any) {
 	// draw from the same allowance (they restore this pointer when they land).
 	if r.callDepth == 0 {
 		r.budget = &frameBudget{left: MaxFrames}
+		r.LastScriptError = ""
 	}
 	r.callDepth++
 	// Derived values are republished at the dispatch BOUNDARY, not per step:
@@ -1125,6 +1187,19 @@ func (r *Runtime) Dispatch(name string, args map[string]any) {
 	}
 	act, ok := r.App.Actions[name]
 	if !ok {
+		return
+	}
+	if act.Script != "" {
+		// A script action runs its qscript source INSTEAD of steps (the loader
+		// warns when both are declared; the script always wins). Reads and
+		// writes go straight to the state store with the dispatch args bound
+		// as `args`; the script was already compiled at load time. A runtime
+		// failure (governance limit, type error) is recorded on LastScriptError
+		// with the script line number — dispatch stays fire-and-forget, like
+		// every other action path, and a failed script never panics the host.
+		if err := qscript.Run(act.Script, r.State, args); err != nil {
+			r.LastScriptError = err.Error()
+		}
 		return
 	}
 	// bareCtx exposes top-level state keys so a bare `count` in an action
@@ -1297,6 +1372,18 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any, depth int) {
 		}
 	case "state.set":
 		setPath(r.State, step.Path, EvalBinding(step.Value, ctx))
+	case "state.setAt":
+		// state.setAt writes ONE array element: path names the list, index an
+		// expression yielding the position (board-cell writes in games).
+		if arr, ok := getPath(r.State, step.Path).([]any); ok {
+			if f, ok := EvalBinding(step.Index, ctx).(float64); ok {
+				i := int(f)
+				if i >= 0 && i < len(arr) {
+					arr[i] = EvalBinding(step.Value, ctx)
+					setPath(r.State, step.Path, arr)
+				}
+			}
+		}
 	case "state.append":
 		cur := getPath(r.State, step.Path)
 		arr, _ := cur.([]any)

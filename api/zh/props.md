@@ -20,6 +20,8 @@
 | `layout` | object | 布局提示:`width` `height` `align` `justify` |
 | `onPress` | action / string | 按下处理器——动作 id 或内联 steps |
 | `onChange` | action / string | 变化处理器(输入、开关、滑块、下拉) |
+| `onKeyDown` | action / string | 按键按下处理器——先发给焦点节点,未处理再冒泡到场景根;按键名作为 `key` 参数注入,以 `{{ key }}` 读取(原生 canvas 后端) |
+| `onKeyUp` | action / string | 按键抬起处理器(分发同 `onKeyDown`) |
 | `renderItem` | node | 绑定 `list` 的条目模板 |
 | `data` | string | 列表数据绑定表达式(如 `state.todos`) |
 | `children` | node[] | 子节点 |
@@ -184,6 +186,7 @@
 | `video` | `src` |
 | `videocapture` | `label` |
 | `volume` | — |
+| `webview` | `html` · `src` · `url` |
 | `when` | — |
 | `wifi` | `label` |
 | `wrap` | `runSpacing` · `spacing` |

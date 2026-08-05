@@ -1,4 +1,4 @@
-//go:build darwin && desktop
+//go:build darwin && (desktop || canvaswebview)
 #import <Cocoa/Cocoa.h>
 #import <math.h>
 #import <WebKit/WebKit.h>
@@ -186,4 +186,61 @@ void qormWinDragMove(const char *cwid, int dx, int dy) {
         QormWV *v = gWins[wid];
         if (v) [v.window setFrameOrigin:NSMakePoint(gQormDragOrigin.x + dx, gQormDragOrigin.y - dy)];
     });
+}
+
+// ---- Embedded WKWebViews (canvaswebview build) ----------------------------
+// Windowless WKWebViews added as subviews of the canvas window's content view,
+// one per scene webview widget. They share the QormWV script-message handler
+// (wid-keyed, same qormdesktop bridge as the desktop windows), so a page in an
+// embed talks to Go through the identical contract. Everything here is called
+// synchronously on the main thread (the host's tick loop) — no dispatch_async.
+
+static void qormWVLoadInto(WKWebView *web, const char *url, const char *html) {
+    NSString *u = url ? [NSString stringWithUTF8String:url] : @"";
+    NSString *ht = html ? [NSString stringWithUTF8String:html] : @"";
+    if (u.length) {
+        [web loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:u]]];
+    } else {
+        // loadHTMLString covers both the inline-html prop and the empty
+        // source (about:blank equivalent), so an embed never sits on a stale
+        // previous page.
+        [web loadHTMLString:ht baseURL:nil];
+    }
+}
+
+void *qormWVEmbed(void *parent, const char *cwid, const char *url, const char *html, double x, double y, double w, double h) {
+    @autoreleasepool {
+        if (!gWins) gWins = [[NSMutableDictionary alloc] init];
+        NSString *wid = [NSString stringWithUTF8String:cwid];
+        QormWV *v = [[QormWV alloc] init];
+        v.wid = wid;
+        WKWebViewConfiguration *cfg = [[WKWebViewConfiguration alloc] init];
+        [cfg.userContentController addScriptMessageHandler:v name:@"qormdesktop"];
+        WKUserScript *us = [[WKUserScript alloc]
+            initWithSource:@"window.qormDesktop=function(j){window.webkit.messageHandlers.qormdesktop.postMessage(j);};"
+            injectionTime:WKUserScriptInjectionTimeAtDocumentStart forMainFrameOnly:YES];
+        [cfg.userContentController addUserScript:us];
+        cfg.preferences.javaScriptCanOpenWindowsAutomatically = YES;
+        v.web = [[WKWebView alloc] initWithFrame:NSMakeRect(x, y, w, h) configuration:cfg];
+        v.web.UIDelegate = v; // grants media-capture permission like the app window
+        [(__bridge NSView *)parent addSubview:v.web];
+        gWins[wid] = v;
+        qormWVLoadInto(v.web, url, html);
+        return (__bridge void *)v.web;
+    }
+}
+void qormWVFrame(void *view, double x, double y, double w, double h) {
+    [(__bridge NSView *)view setFrame:NSMakeRect(x, y, w, h)];
+}
+void qormWVLoad(void *view, const char *url, const char *html) {
+    qormWVLoadInto((__bridge WKWebView *)view, url, html);
+}
+void qormWVRemove(void *view) {
+    NSView *sv = (__bridge NSView *)view;
+    [sv removeFromSuperview];
+    NSString *hit = nil;
+    for (NSString *k in gWins) {
+        if (gWins[k].web == (WKWebView *)sv) { hit = k; break; }
+    }
+    if (hit) [gWins removeObjectForKey:hit];
 }

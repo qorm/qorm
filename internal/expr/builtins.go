@@ -58,6 +58,49 @@ func callBuiltin(name string, a []any, env *evalEnv) any {
 		return re.MatchString(Stringify(arg(0)))
 	case "str":
 		return Stringify(arg(0))
+	case "range":
+		// range(n): the integers 0..n-1 as a list (games/scans). n clamps to
+		// [0, 2^20] so a hostile or buggy size can never OOM the evaluation.
+		n := int(num(arg(0)))
+		if n < 0 {
+			n = 0
+		}
+		if n > 1<<20 {
+			n = 1 << 20
+		}
+		out := make([]any, n)
+		for i := range out {
+			out[i] = float64(i)
+		}
+		return out
+	case "fill":
+		// fill(n, v): n copies of v (board/state initialization).
+		n := int(num(arg(0)))
+		if n < 0 {
+			n = 0
+		}
+		if n > 1<<20 {
+			n = 1 << 20
+		}
+		out := make([]any, n)
+		for i := range out {
+			out[i] = arg(1)
+		}
+		return out
+	case "concat":
+		// concat(a, b, ...): lists joined in order; a bare (non-list) value
+		// appends as one element, nils drop.
+		out := []any{}
+		for _, v := range a {
+			switch t := v.(type) {
+			case []any:
+				out = append(out, t...)
+			case nil:
+			default:
+				out = append(out, v)
+			}
+		}
+		return out
 	case "slice":
 		arr, _ := arg(0).([]any)
 		if arr == nil {
@@ -86,6 +129,14 @@ func callBuiltin(name string, a []any, env *evalEnv) any {
 		return num(arg(0))
 	case "int":
 		return math.Trunc(num(arg(0)))
+	case "mod":
+		// mod(a, b): the % operator as a function (LCG arithmetic in scripts).
+		// Same truncation rules and zero-divisor guard as the operator.
+		d := int64(num(arg(1)))
+		if d == 0 {
+			return 0.0
+		}
+		return float64(int64(num(arg(0))) % d)
 	case "abs":
 		return math.Abs(num(arg(0)))
 	case "round":
@@ -381,6 +432,16 @@ func formatInt(f float64) string {
 
 // num coerces a value to float64 (re-uses toNum's rules).
 func num(v any) float64 { return toNum(v) }
+
+// CallBuiltin invokes a built-in function by name with already-evaluated
+// arguments — the very dispatch bindings use — exposed so the script
+// interpreter (internal/qscript) evaluates builtin calls with binding
+// semantics exactly, rather than growing a second implementation that could
+// drift. Callers get the same leniency bindings have: an unknown name or
+// out-of-range arguments yield nil/zero values, never an error.
+func CallBuiltin(name string, args []any) any {
+	return callBuiltin(name, args, &evalEnv{})
+}
 
 func reduceNums(a []any, f func(x, y float64) float64) any {
 	if len(a) == 0 {

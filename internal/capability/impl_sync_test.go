@@ -107,11 +107,13 @@ func caseStrings(f *ast.File, fn string) map[string]bool {
 	return ops
 }
 
-// builtinOps extracts the desktopBuiltins map keys from window_desktop.go —
-// the set of ops the built-in desktop bridge claims to handle.
+// builtinOps extracts the desktopBuiltins map keys from hardware_desktop.go —
+// the set of ops the built-in desktop bridge claims to handle. (The map lives
+// next to the bridge so the canvaswebview build, which links the bridge but
+// not window_desktop.go, shares it.)
 func builtinOps(t *testing.T) map[string]bool {
 	t.Helper()
-	f := parseFile(t, "window_desktop.go")
+	f := parseFile(t, "hardware_desktop.go")
 	ops := map[string]bool{}
 	ast.Inspect(f, func(n ast.Node) bool {
 		vs, ok := n.(*ast.ValueSpec)
@@ -137,7 +139,7 @@ func builtinOps(t *testing.T) map[string]bool {
 		return true
 	})
 	if len(ops) == 0 {
-		t.Fatal("desktopBuiltins not found in window_desktop.go — did it move?")
+		t.Fatal("desktopBuiltins not found in hardware_desktop.go — did it move?")
 	}
 	return ops
 }

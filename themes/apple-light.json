@@ -1,0 +1,102 @@
+{
+  "name": "apple-light",
+  "colors": {
+    "primary": "#007AFF",
+    "secondary": "#5856D6",
+    "success": "#34C759",
+    "warning": "#FF9500",
+    "danger": "#FF3B30",
+    "background": "#F5F5F7",
+    "surface": "#FFFFFFCC",
+    "text": "#1D1D1F",
+    "textSecondary": "#86868B",
+    "separator": "#C6C6C8",
+    "shadow": "#0000001A",
+    "shadowDeep": "#00000033",
+    "inputBg": "#E8E8ED",
+    "inputBorder": "#C6C6C8",
+    "cardBg": "#FFFFFF",
+    "focus": "#007AFF"
+  },
+  "components": {
+    "scene": {
+      "backgroundColor": "background",
+      "color": "text"
+    },
+    "column": {
+      "color": "text"
+    },
+    "row": {
+      "color": "text"
+    },
+    "button": {
+      "borderRadius": 12,
+      "padding": 14,
+      "backgroundColor": "primary",
+      "color": "#FFFFFF",
+      "fontSize": 16,
+      "fontWeight": 600,
+      "boxShadowColor": "shadow",
+      "boxShadowBlur": 8,
+      "boxShadowY": 3,
+      "pressedBackgroundColor": "#0062CC",
+      "hoveredBackgroundColor": "#1A86FF",
+      "pressedOpacity": 0.9
+    },
+    "text": {
+      "color": "text",
+      "fontSize": 16
+    },
+    "input": {
+      "borderRadius": 10,
+      "padding": 12,
+      "backgroundColor": "inputBg",
+      "color": "text",
+      "fontSize": 16,
+      "strokeColor": "inputBorder",
+      "strokeWidth": 1.0
+    },
+    "animated_container": {
+      "borderRadius": 16,
+      "backgroundColor": "cardBg",
+      "boxShadowColor": "shadowDeep",
+      "boxShadowBlur": 20,
+      "boxShadowY": 8
+    },
+    "card": {
+      "borderRadius": 16,
+      "padding": 16,
+      "backgroundColor": "cardBg",
+      "boxShadowColor": "shadow",
+      "boxShadowBlur": 12,
+      "boxShadowY": 4
+    },
+    "list": {
+      "backgroundColor": "cardBg",
+      "borderRadius": 12
+    },
+    "toggle": {
+      "borderRadius": 16,
+      "backgroundColor": "inputBg",
+      "pressedBackgroundColor": "#D5D5DA",
+      "hoveredBackgroundColor": "#DEDEE3",
+      "pressedOpacity": 0.9
+    },
+    "slider": {
+      "borderRadius": 4,
+      "backgroundColor": "inputBg"
+    },
+    "select": {
+      "borderRadius": 10,
+      "hoveredBackgroundColor": "inputBg",
+      "pressedBackgroundColor": "separator"
+    }
+  },
+  "motion": {
+    "durationFast": 120,
+    "durationNormal": 250,
+    "durationSlow": 400,
+    "easingStandard": "easeOutCubic",
+    "easingEmphasized": "easeInOutCubic"
+  }
+}

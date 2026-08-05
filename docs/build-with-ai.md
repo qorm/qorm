@@ -31,7 +31,7 @@ Prompt 1 (Load Framework & Skills):
 Load QORM framework MCP configuration and Skill library (https://github.com/qorm/qorm), set up environment, keep DevTool active.
 
 Prompt 2 (Create & Build App):
-Use QORM to create a new app in ./myapp, launch native window, and build: <YOUR APP IDEA HERE>.
+Use QORM to create a new app in ./myapp, launch the native window, then build the app for: <your app idea, e.g. a habit tracker with streak days>.
 ```
 
 `qorm run ./myapp` auto-scaffolds non-existent directories, starts the live HTTP server and MCP endpoint at `/mcp`, and opens your platform's native standalone application window automatically. Use `--web` if you specifically want a web browser tab instead.

@@ -256,7 +256,10 @@ func headMeta(p page, siteName string, pages []page) string {
 	}
 	if hasPage(pages, zhRel) {
 		u := canonicalURL(page{htmlRel: zhRel}, siteName)
-		fmt.Fprintf(&b, "<link rel=\"alternate\" hreflang=\"zh\" href=\"%s\">\n", esc(u))
+		// zh-CN (not bare zh) matches the marketing landing pages and the
+		// sitemap's xhtml:link annotations, so hreflang codes are consistent
+		// site-wide.
+		fmt.Fprintf(&b, "<link rel=\"alternate\" hreflang=\"zh-CN\" href=\"%s\">\n", esc(u))
 		if xdefault == "" {
 			xdefault = u
 		}
@@ -539,7 +542,8 @@ func sidebarHTML(all []page, lang, current string) string {
 
 // Version is the QORM release the site documents (e.g. "0.2.2"); when set it
 // renders a version badge in the header linking to the releases. Empty = hidden.
-// The docs command sets it from the built binary's version.
+// The docs command sets it from the built binary's version. Shown on every
+// docs/api page, homepages included.
 var Version string
 
 func pageHTML(title, lang, siteName, head, langSwitch, nav, body string, isHomepage bool) string {
@@ -547,12 +551,12 @@ func pageHTML(title, lang, siteName, head, langSwitch, nav, body string, isHomep
 		lang = "en"
 	}
 	verBadge := ""
-	if !isHomepage && Version != "" {
+	if Version != "" {
 		verBadge = fmt.Sprintf(`<a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v%s</a>`, html.EscapeString(Version))
 	}
-	homeLabel := "Home"
+	ctaLabel, ctaURL := "Get started", "/docs/build-with-ai.html"
 	if lang == "zh" {
-		homeLabel = "首页"
+		ctaLabel, ctaURL = "开始使用", "/docs/zh/build-with-ai.html"
 	}
 	patronLabel := "Patreon"
 	if lang == "zh" {
@@ -598,7 +602,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   header.top a.ver{font-size:11.5px;font-weight:700;color:var(--muted);border:.5px solid var(--line);border-radius:999px;padding:2px 8px;letter-spacing:.01em}
   header.top a.ver:hover{color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 40%%,var(--line));text-decoration:none}
   header.top .sp{flex:1}
-  header.top a.tl{color:var(--muted);font-size:14px;font-weight:500} header.top a.tl:hover{color:var(--ink);text-decoration:none} header.top a.tl.active-nav{color:var(--ink);font-weight:700}
+  header.top nav.pill{display:flex;align-items:center;gap:2px;background:var(--surface);border:.5px solid var(--line);border-radius:999px;padding:3px}
+  header.top nav.pill a.tl{color:var(--muted);font-size:13.5px;font-weight:600;padding:5px 12px;border-radius:999px;white-space:nowrap;transition:color .15s,background .15s}
+  header.top nav.pill a.tl:hover{color:var(--ink);background:var(--raise);text-decoration:none}
+  header.top nav.pill a.tl.active-nav{color:var(--accent-ink);background:color-mix(in srgb,var(--accent) 10%%,var(--surface))}
+  header.top .btn.navcta{display:inline-flex;align-items:center;font-weight:600;font-size:13.5px;border-radius:999px;padding:6px 14px;background:var(--accent);color:#fff;white-space:nowrap;transition:filter .12s}
+  header.top .btn.navcta:hover{filter:brightness(1.06);text-decoration:none}
+  @media (max-width:860px){header.top nav.pill,header.top .btn.navcta{display:none}}
   .tbtn{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:transform 0.2s ease, background 0.2s, color 0.2s, border-color 0.2s}
   .tbtn:hover{color:var(--ink);transform:rotate(15deg) scale(1.05)} .tbtn svg{width:16px;height:16px}
   header.top .iconlink{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;transition:transform .2s cubic-bezier(.16,1,.3,1),color .2s,border-color .2s}
@@ -643,8 +653,8 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   %s
   <span class="doc">%s</span>
   <span class="sp"></span>
-  <a class="tl" href="/">%s</a>
-  %s
+  <nav class="pill" aria-label="Primary">%s</nav>
+  <a class="btn navcta" href="%s">%s</a>
   <a class="iconlink" href="https://github.com/qorm/qorm" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
   <a class="iconlink patreon" href="https://www.patreon.com/qorm" target="_blank" rel="noopener" aria-label="%s" title="%s"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="14.4" cy="9.6" r="6.6"/><rect x="1.5" y="2.5" width="4" height="19" rx="0.3"/></svg></a>
   %s
@@ -676,16 +686,18 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- End Google Tag Manager (noscript) -->
 </body>
 </html>
-`, lang, html.EscapeString(title), head, verBadge, html.EscapeString(siteName), homeLabel, navLinks, patronLabel, patronLabel, langSwitch, nav, body)
+`, lang, html.EscapeString(title), head, verBadge, html.EscapeString(siteName), navLinks, ctaURL, ctaLabel, patronLabel, patronLabel, langSwitch, nav, body)
 }
 
-// docs & api top navigation tabs builder
+// docs & api top navigation tabs builder: the same pill group as the
+// marketing landing pages (Docs · API · Compare · About), with the docs/api
+// tab of the current site highlighted.
 func buildNavLinks(siteName, lang string) string {
-	docsLabel, apiLabel := "Docs", "API"
-	docsURL, apiURL := "/docs/", "/api/"
+	docsLabel, apiLabel, compareLabel, aboutLabel := "Docs", "API", "Compare", "About"
+	docsURL, apiURL, compareURL, aboutURL := "/docs/", "/api/", "/compare/", "/about.html"
 	if lang == "zh" {
-		docsLabel, apiLabel = "文档", "接口"
-		docsURL, apiURL = "/docs/zh/", "/api/zh/"
+		docsLabel, apiLabel, compareLabel, aboutLabel = "文档", "接口", "对比", "关于"
+		docsURL, apiURL, compareURL, aboutURL = "/docs/zh/", "/api/zh/", "/compare/index.zh.html", "/about.zh.html"
 	}
 
 	docsClass, apiClass := "tl", "tl"
@@ -694,6 +706,6 @@ func buildNavLinks(siteName, lang string) string {
 	} else if siteName == "api" {
 		apiClass = "tl active-nav"
 	}
-	return fmt.Sprintf(`<a class="%s" href="%s">%s</a><a class="%s" href="%s">%s</a>`,
-		docsClass, docsURL, docsLabel, apiClass, apiURL, apiLabel)
+	return fmt.Sprintf(`<a class="%s" href="%s">%s</a><a class="%s" href="%s">%s</a><a class="tl" href="%s">%s</a><a class="tl" href="%s">%s</a>`,
+		docsClass, docsURL, docsLabel, apiClass, apiURL, apiLabel, compareURL, compareLabel, aboutURL, aboutLabel)
 }

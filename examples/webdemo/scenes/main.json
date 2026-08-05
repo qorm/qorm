@@ -1,0 +1,57 @@
+{
+  "type": "scene",
+  "id": "main",
+  "root": {
+    "type": "column",
+    "id": "root",
+    "style": {
+      "background": "var(--background)",
+      "padding": 24,
+      "gap": 12
+    },
+    "layout": {
+      "width": "fill",
+      "height": "fill"
+    },
+    "children": [
+      {
+        "type": "text",
+        "id": "title",
+        "text": "Canvas + WKWebView",
+        "style": {
+          "color": "var(--label)",
+          "fontSize": 20,
+          "fontWeight": 700
+        }
+      },
+      {
+        "type": "webview",
+        "id": "page",
+        "html": "<!doctype html><html><body style=\"margin:0;font-family:-apple-system,sans-serif;background:#0d1117;color:#e6edf3;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh\"><h3 style=\"margin:0 0 8px\">WKWebView overlay</h3><p id=\"s\" style=\"margin:0 0 12px;color:#8b949e\">rendering…</p><button id=\"b\" style=\"padding:8px 16px;font-size:14px\">Call native bridge</button><script>document.getElementById('s').textContent='inline HTML in a real WKWebView';if(window.qormDesktop){window.qormDesktop(JSON.stringify({op:'probe',note:'webview-loaded'}));window.qormDesktop(JSON.stringify({op:'networkStatus'}));}function qormOnNetwork(j){document.getElementById('s').textContent='bridge reply: '+j;if(window.qormDesktop){window.qormDesktop(JSON.stringify({op:'probe',note:'reply-visible:'+j}));}}document.getElementById('b').onclick=function(){if(window.qormDesktop){window.qormDesktop(JSON.stringify({op:'networkStatus'}));}};</script></body></html>",
+        "style": {
+          "width": 512,
+          "height": 400
+        }
+      },
+      {
+        "type": "text",
+        "id": "note",
+        "text": "Two-way bridge: the page's button calls networkStatus into Go (reply paints back), and the QORM button below pushes the counter into the page from actions/pushCount.qs via native(\"webviewEval\") — DOM text, style colour, and a probe posted back.",
+        "style": {
+          "color": "var(--secondary-label)",
+          "fontSize": 12
+        }
+      },
+      {
+        "type": "button",
+        "id": "push",
+        "label": "Push count to page (Go to page)",
+        "onPress": {
+          "type": "invoke",
+          "name": "pushCount"
+        },
+        "style": { "margin": { "top": 12 } }
+      }
+    ]
+  }
+}

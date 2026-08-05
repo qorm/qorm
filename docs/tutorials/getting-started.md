@@ -7,6 +7,8 @@ description: Build a minimal QORM counter app from scratch: the manifest, a scen
 
 This tutorial builds a minimal QORM app from scratch: a counter. Three files — manifest, scene, and action — and `qorm run` gets it going.
 
+> **Rather have your AI build it?** The two copy-paste prompts live in [Build with your AI](../build-with-ai.md).
+
 ## Directory structure
 
 A QORM app is just a directory: `qorm.json` is the manifest, `scenes/` holds the UI, and `actions/` holds the actions.

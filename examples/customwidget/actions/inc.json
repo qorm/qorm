@@ -1,0 +1,7 @@
+{
+  "type": "action",
+  "id": "inc",
+  "steps": [
+    { "type": "state.set", "path": "score", "value": "{{state.score < 5 ? state.score + 1 : 5}}" }
+  ]
+}

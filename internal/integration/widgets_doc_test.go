@@ -26,7 +26,7 @@ func widgetCatalog(t *testing.T, lang string) string {
 	}
 	body := s[start : start+end]
 
-	labelRe := regexp.MustCompile(`"([a-z0-9]+)"`)
+	labelRe := regexp.MustCompile(`"([a-z0-9_]+)"`)
 	callRe := regexp.MustCompile(`r\.(\w+)\(`)
 	lines := strings.Split(body, "\n")
 

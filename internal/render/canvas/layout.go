@@ -1,0 +1,100 @@
+package canvas
+
+import (
+	"image"
+
+	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/qorm/internal/op"
+	"github.com/qorm/qorm/internal/render/graph"
+	"github.com/qorm/qorm/internal/runtime"
+)
+
+// Layout computes the bounding boxes and generates drawing operations for a tree of nodes.
+// inter carries cross-frame interaction state (pressed/hovered/focused); it may be nil.
+// scale is the device-pixel ratio (1 = logical == physical; 2 = Retina).
+func Layout(ops *op.Ops, root *model.Node, size image.Point, rt *runtime.Runtime, inter *Interaction, scale int) (graph.Node, bool) {
+	g, needsRedraw, _ := layout(ops, root, size, rt, inter, scale)
+	return g, needsRedraw
+}
+
+// layout is Layout plus the repeat-instance sidecar (list.go) the engine
+// keeps for event dispatch: which item scope a hit belongs to. The public
+// wrapper keeps the two-result form for layout-only callers.
+func layout(ops *op.Ops, root *model.Node, size image.Point, rt *runtime.Runtime, inter *Interaction, scale int) (graph.Node, bool, map[graph.Node]itemInstance) {
+	if root == nil {
+		return nil, false, nil
+	}
+	if scale < 1 {
+		scale = 1
+	}
+
+	bounds := image.Rect(0, 0, size.X, size.Y)
+
+	// Feed the live surface size to expressions (viewport.width / height /
+	// orientation) so responsive `when` nodes and {{ viewport.* }} bindings
+	// resolve against the real window — the canvas counterpart of the browser
+	// pushing its size over POST /viewport (runtime.Viewport). Logical pixels,
+	// matching the browser's CSS px.
+	if rt != nil {
+		rt.Viewport = runtime.Viewport{W: size.X, H: size.Y}
+	}
+
+	// 1. Measure pass (bottom-up)
+	rootNode := Measure(root, rt, inter, scale)
+	if rootNode == nil {
+		return nil, false, nil // the whole scene is conditionally hidden
+	}
+
+	// The scene root is the page: it spans the viewport width (CSS's initial
+	// containing block). A bare column/scroll with no width:fill otherwise
+	// shrinks to its content and the whole page hugs the left edge — and
+	// flex-stretch children then have nothing to stretch into (uikit's
+	// panels rendered at content width).
+	if rootNode.Style.WidthRaw == "" && rootNode.Style.Width <= 0 && rootNode.Width < bounds.Dx() {
+		rootNode.Width = bounds.Dx()
+	}
+
+	// An infinite-canvas board is a window-sized plane: it spans the viewport
+	// in BOTH axes (its children are absolutely positioned and out of flow, so
+	// they contribute nothing to its size), and its interaction sidecar carries
+	// the live pan/zoom. The board flag is set here, per frame, so a scene
+	// switch to a non-board root clears it via the Interaction reset.
+	if root != nil && root.Type == "board" {
+		rootNode.Width = bounds.Dx()
+		rootNode.Height = bounds.Dy()
+		if inter != nil {
+			inter.Board.Active = true
+			if inter.Board.Zoom == 0 {
+				inter.Board.Zoom = 1
+			}
+		}
+	}
+
+	// 1b. Fold text that overflows its column (wrap.go). This must run after
+	// measure (sizes known) and before layout (origins assigned); it repairs
+	// ancestor heights so pass 2 sees consistent boxes.
+	wrapTree(rootNode, bounds.Dx())
+
+	// 2. Layout pass (top-down) builds the scene graph
+	items := map[graph.Node]itemInstance{}
+	overlays := []graph.Node{}
+	rootGraphNode := performLayout(rootNode, bounds, image.Point{}, inter, rt, scale, items, &overlays)
+
+	if rootGraphNode != nil {
+		if rootGroup, ok := rootGraphNode.(*graph.Group); ok {
+			for _, overlay := range overlays {
+				if overlay != nil {
+					rootGroup.AddChild(overlay)
+				}
+			}
+		}
+	}
+
+	// 3. Render pass (retained mode graph -> display list)
+	if rootGraphNode != nil {
+		ctx := graph.NewContext(ops)
+		rootGraphNode.Draw(ctx)
+	}
+
+	return rootGraphNode, rootNode.NeedsRedraw, items
+}

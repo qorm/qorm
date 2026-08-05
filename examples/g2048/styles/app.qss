@@ -1,0 +1,24 @@
+# 2048 共享样式 —— DOM+CSS+JS 三层分离的样式层:
+# 结构在 scenes/*.json,逻辑在 actions/*.qs,通用样式集中在这里,
+# 场景节点经 class 引用(后者覆盖前者,id 规则与行内 style 优先级更高)。
+
+# SCORE / BEST 小标题
+.statLabel { color: var(--textSecondary); fontSize: 11; fontWeight: 700 }
+
+# SCORE / BEST 数值
+.statValue { color: var(--primary); fontSize: 16; fontWeight: 700 }
+
+# 记分牌底板(包裹一对 label+value;padding 留在场景行内 —— HTML 端只认行内样式)
+.scoreBox { background: var(--background); borderRadius: 6; gap: 2 }
+
+# 底部操作说明
+.helpText { color: var(--textSecondary); fontSize: 12; textAlign: center }
+
+# 胜利 / 结束覆盖层面板(padding/margin 是嵌套对象,留在场景行内)
+.overlayPanel { background: var(--background); borderRadius: 8; gap: 2 }
+
+# 覆盖层标题(YOU WIN / GAME OVER)
+.overlayTitle { color: var(--primary); fontSize: 13; fontWeight: 700 }
+
+# 覆盖层提示行(R: restart)
+.overlayHint { color: var(--textSecondary); fontSize: 10 }

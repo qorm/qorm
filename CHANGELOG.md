@@ -6,6 +6,38 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+- **Canvas interaction polish**: pressed/hover scale effects now animate through the
+  declarative `transition` system instead of snapping — a node with
+  `"pressedScale": 0.95` and `"transition": "0.2s"` gets a smooth spring-like scale
+  animation on press and release.
+- **Scroll momentum**: scroll viewports coast naturally after wheel/trackpad input
+  with frame-rate-independent friction decay (0.88). Per-viewport velocity tracked
+  via exponential moving average; momentum is skipped in the same frame as the
+  scroll event to prevent double-counting.
+- **Board pan momentum**: the infinite-canvas board coasts after a drag release
+  (0.92 friction for a floaty feel), using the same infrastructure as scroll
+  momentum. Velocity is tracked during drag via EMA and cancelled on any new
+  blank-space press.
+- **Disabled visual dimming**: disabled non-widget nodes (text, box, button, column,
+  row, …) automatically render at 50% opacity. Supports a per-node
+  `"disabledOpacity"` style key for custom values. Registered interactive widgets
+  (switch, checkbox, slider, select, …) are excluded — they handle their own
+  disabled visuals via `formDisabled`.
+- **Full input editing system**: text selection (Shift+arrow, Cmd+A, click-to-place,
+  double-click word, triple-click line/all, drag-select), system clipboard
+  (Cmd+C/X/V), undo/redo (Cmd+Z / Cmd+Shift+Z), Home/End, word navigation
+  (Cmd+Left/Right), caret blink, IME composition preview, secure input masking,
+  number input with min/max/step clamp, readonly mode, selection highlight
+  rendering.
+- **66-widget native canvas showcase** (`examples/widget-showcase`): card-grouped
+  layout demonstrating all structural and data widgets (menu, segmented, accordion,
+  listtile, table, breadcrumb, steps, pagination, timeline, navigation rail,
+  drawer, empty, icons, …).
+- **Unified bitmap icon font**: 66 hand-crafted + auto-generated icons on Unicode
+  Private Use Area U+E000+, rendered as variable-width bitmap glyphs at any scale,
+  with a `go:generate` SVG→bitmap pipeline (`tools/genicons`).
+
 ## [v0.5.5] - 2026-07-30
 
 ### Added

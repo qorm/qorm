@@ -1,4 +1,4 @@
-//go:build darwin && desktop
+//go:build darwin && (desktop || canvaswebview)
 
 package main
 
@@ -17,13 +17,20 @@ void qormWVOp(const char* wid, const char* op);
 const char* qormWVGetFrame(const char* wid);
 const char* qormWVList(void);
 void qormWVRun(void);
+void* qormWVEmbed(void* parent, const char* wid, const char* url, const char* html, double x, double y, double w, double h);
+void qormWVFrame(void* view, double x, double y, double w, double h);
+void qormWVLoad(void* view, const char* url, const char* html);
+void qormWVRemove(void* view);
 */
 import "C"
 
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"runtime"
+	"strconv"
+	"strings"
 	"time"
 	"unsafe"
 )
@@ -91,6 +98,74 @@ func frameFor(id string) string {
 	return s
 }
 func listWins() string { c := C.qormWVList(); s := C.GoString(c); C.free(unsafe.Pointer(c)); return s }
+
+// ---- Embedded WKWebViews (canvaswebview build): windowless web views that a
+// canvas host adds as subviews over its pixel plane, one per webview widget.
+// All four MUST be called on the main thread (the host's tick loop is it);
+// unlike the window ops above they act synchronously, no dispatch_async.
+
+// embedWebView creates a WKWebView with the qormdesktop script bridge wired
+// to goDesktopMessage(wid, …), adds it as a subview of parent at the given
+// frame (superview coordinates, bottom-left origin) and loads url — or html
+// via loadHTMLString when url is empty. Returns the WKWebView handle.
+func embedWebView(parent unsafe.Pointer, wid, url, html string, x, y, w, h float64) unsafe.Pointer {
+	ci, cu, ch := cstr(wid), cstr(url), cstr(html)
+	v := C.qormWVEmbed(parent, ci, cu, ch, C.double(x), C.double(y), C.double(w), C.double(h))
+	C.free(unsafe.Pointer(ci))
+	C.free(unsafe.Pointer(cu))
+	C.free(unsafe.Pointer(ch))
+	return v
+}
+
+// frameWebView repositions an embedded WKWebView (same coordinate space as
+// embedWebView).
+func frameWebView(view unsafe.Pointer, x, y, w, h float64) {
+	C.qormWVFrame(view, C.double(x), C.double(y), C.double(w), C.double(h))
+}
+
+// loadWebView swaps an embedded WKWebView's content (url, or html when url is
+// empty) — the host calls it when the widget's url/src/html prop changed.
+func loadWebView(view unsafe.Pointer, url, html string) {
+	cu, ch := cstr(url), cstr(html)
+	C.qormWVLoad(view, cu, ch)
+	C.free(unsafe.Pointer(cu))
+	C.free(unsafe.Pointer(ch))
+}
+
+// removeWebView detaches an embedded WKWebView and drops its bridge entry.
+func removeWebView(view unsafe.Pointer) { C.qormWVRemove(view) }
+
+// windowStateFile is where a desktop app remembers its window position/size.
+func windowStateFile(title string) string {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		dir = os.TempDir()
+	}
+	d := filepath.Join(dir, "qorm", pkgID(title))
+	os.MkdirAll(d, 0o755)
+	return filepath.Join(d, "window.txt")
+}
+
+// readWindowState parses a saved "x,y,w,h" frame; nil if absent/malformed.
+func readWindowState(path string) []int {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	parts := strings.Split(strings.TrimSpace(string(b)), ",")
+	if len(parts) != 4 {
+		return nil
+	}
+	out := make([]int, 0, 4)
+	for _, p := range parts {
+		n, err := strconv.Atoi(p)
+		if err != nil {
+			return nil
+		}
+		out = append(out, n)
+	}
+	return out
+}
 
 // control-engine entrypoints default to the "main" window
 func moveAppWindow(x, y, w, h int) { moveWin("main", x, y, w, h) }
