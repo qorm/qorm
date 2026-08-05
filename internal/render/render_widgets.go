@@ -327,7 +327,7 @@ func (r *renderer) gridView(n *model.Node) {
 		tmpl = fmt.Sprintf("repeat(auto-fill,minmax(%gpx,1fr))", propNum(n, "minItemWidth", 120))
 	}
 	gap := propNum(n, "spacing", 10)
-	style := fmt.Sprintf("display:grid;grid-template-columns:%s;gap:%gpx;", tmpl, gap)
+	style := fmt.Sprintf("display:grid;grid-template-columns:%s;gap:%gpx;grid-auto-rows:min-content;", tmpl, gap)
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q>`, attrID(n.ID), r.boxCSS(n)+style)
 	prev := r.scope
 	prevSuf := r.idSuffix
