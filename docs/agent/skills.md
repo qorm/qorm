@@ -3,7 +3,7 @@
 A QORM Skill is a battle-tested workflow description for AI agents — each skill
 encodes the exact steps, allowed tools, input files, and output format needed to
 complete a specific QORM task reliably. Skills are shipped in
-[`integrations/skill/`](../integrations/skill/) and loaded by the agent at
+[`integrations/skill/`](https://github.com/qorm/qorm/tree/main/integrations/skill) and loaded by the agent at
 session start.
 
 ## Available Skills
@@ -38,7 +38,7 @@ Permission requirements — which qorm_* tools are needed
 Purpose: let the agent create or modify scene JSON.
 
 Rules:
-- Use the canonical widget names from the [widget catalog](../api/widgets.md).
+- Use the canonical widget names from the [widget catalog](/api/widgets.md).
 - Prefer `column`/`row` for layout, `scroll` for scrollable content, `box` for
   card/surface containers.
 - Wire state with `{{ state.x }}` bindings; use `if`/`visible`/`show` for
@@ -48,7 +48,7 @@ Rules:
 - Prefer QSS stylesheets (`styles/*.qss`) for shared styles; use inline `style`
   for one-off overrides.
 - Validate with `qorm_check_layout` after every edit.
-- Check the [widget catalog](../api/widgets.md) for available props per widget type.
+- Check the [widget catalog](/api/widgets.md) for available props per widget type.
 
 ## layout-debugging
 
@@ -79,7 +79,7 @@ absolute-positioned nodes overlapping, `gap`/`padding` collapsing.
    `qorm_preview_patch` with the same ops — the preview token binds every commit
    to a prior review. Use `qorm_diff` to see what changed structurally.
 
-3. **Use the widget catalog.** The [widget catalog](../api/widgets.md) is
+3. **Use the widget catalog.** The [widget catalog](/api/widgets.md) is
    auto-generated from the runtime — it is always correct. Prefer canonical
    widget names; aliases work but may confuse future agents.
 

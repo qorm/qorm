@@ -79,7 +79,7 @@ Claude should follow these rules:
    `qorm_preview_patch` token.
 3. **Verify after edit.** Run `qorm_check_layout` with assertions matching the
    human's request. A passing check is proof.
-4. **Use the widget catalog.** The auto-generated [widget catalog](../api/widgets.md)
+4. **Use the widget catalog.** The auto-generated [widget catalog](/api/widgets.md)
    is canonical — prefer it over memory.
 5. **Respect the canvas engine.** Features work on both HTML and native paths.
    Test with `go test ./internal/render/canvas/... ./internal/widgets/...`.
