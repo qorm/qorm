@@ -79,3 +79,60 @@ acronym is the API surface: **Query** (HTTP/MCP reads),
   cgo): `-tags canvaswebview`; every other build draws the widget's
   placeholder (HTML renderer uses an `<iframe>`). Demo: `go run -tags
   canvaswebview ./cmd/qorm run examples/webdemo`.
+
+## Canvas engine (`internal/render/canvas`)
+
+The native canvas backend is a pure-Go retained-mode software renderer that
+drives the `-tags desktop` window without a browser engine. It is the same
+runtime model as the HTML path (same model tree, same state, same actions) but
+renders to a pixel buffer via a display-list rasterizer.
+
+**Architecture:** `input/state → layout → record (display list) → render`
+- **Single-threaded**: input and rendering both run on the host's main thread;
+  external mutations (HTTP/MCP) are enqueued and drained at the frame boundary.
+- **Display list**: rebuilt from scratch each frame (`op.Ops`), reusing backing
+  arrays in steady state.
+- **Graph scene**: model nodes → draw graph (`graph.Node`); hit-testing walks
+  the same tree that painting uses, so what you see is what you click.
+
+**Interaction:**
+- **Pointer**: hit testing, press/release dispatch, event bubbling, pointer
+  capture for InteractiveWidgets, hover tracking with onHoverIn/out.
+- **Keyboard**: Tab/Shift+Tab focus traversal (includes all InteractiveWidget
+  types), Enter/Space activation, Escape blur, modifier keys (Ctrl/Meta/Alt),
+  onKeyDown/Up bubbling.
+- **Text editing**: full selection model (SelStart/SelEnd/Anchor), Shift+arrow
+  extend, Cmd+A/C/X/V/Z/Y, word/line navigation, caret blink, IME composition
+  preview, undo/redo (50-entry stack), number input with min/max/step clamp.
+- **Scroll**: 2-axis viewports with chaining (inner→outer bubbling),
+  scroll-to-focus on keyboard Tab, scrollbar thumbs, **momentum inertia**
+  (frame-rate-independent friction decay, 0.88).
+- **Board**: infinite-canvas pan (drag-to-pan, Ctrl+scroll zoom), **momentum
+  coast** after drag release (0.92 friction).
+
+**Visual effects (declarative — any node can declare them):**
+- `pressedScale` / `hoverScale`: scale transform, animated through the
+  `transition` system (no snapping).
+- `pressedBackground` / `hoverBackground`: theme or per-node color swap.
+- `pressedOpacity` / `hoverOpacity`: per-node opacity.
+- `transition`: CSS-style duration (`"0.2s"`, `"200ms"`) — animates all
+  interaction-effect changes via Float64Tween/IntTween/ColorTween.
+- `disabled`: blocks pointer activation, shows not-allowed cursor, dims to
+  50% opacity on non-widget nodes (interactive widgets handle their own).
+- `animation`: entrance effects (fade, slide, bounce, shake, pulse, spin).
+
+**Widgets:** 80+ registered (`internal/widgets`), 28 interactive (custom
+HandlePointer), 5 overlay (drawer, menu, modal, snackbar, tooltip). The
+canonical showcase is `examples/widget-showcase`.
+
+**Style system:** 36 supported keys including min/max constraints, interaction
+effects, transitions. Theme cascade: default ← QSS type rule ← class rule ←
+id rule ← inline style. `warnUnsupportedStyleKeys` reports unknown keys once
+per scene.
+
+**Fonts:** 5×7 bitmap for ASCII, TrueType/SFNT for CJK (Source Han Sans SC
+subset, ~3.4MB), unified bitmap icon font on U+E000+ PUA (66 glyphs: 18
+hand-crafted + 47 auto-generated via `tools/genicons`).
+
+**Testing:** 229 canvas tests, 114 widget tests. Run: `go test
+./internal/render/canvas/... ./internal/widgets/...`.
