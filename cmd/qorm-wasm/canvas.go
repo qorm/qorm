@@ -4,7 +4,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"image"
 	"syscall/js"
 
@@ -34,7 +33,7 @@ func qormCanvasInit(_ js.Value, args []js.Value) any {
 	size := image.Pt(420, 680)
 	cvsSurface = canvas.NewHeadlessSurface(size)
 	cvsSurface.Logical = size
-	cvsSurface.ScaleFactor = 2
+	cvsSurface.ScaleFactor = 1
 	cvsEngine = canvas.NewEngine(rt, canvas.SoftwareRenderer{})
 	return nil
 }
@@ -48,16 +47,14 @@ func qormCanvasFrame(_ js.Value, args []js.Value) any {
 	buf := cvsSurface.Frame()
 	w, h := buf.Bounds().Dx(), buf.Bounds().Dy()
 
+	// 1:1 mapping: canvas pixel buffer == canvas element size
+	canvasEl := args[0]
+	canvasEl.Set("width", w)
+	canvasEl.Set("height", h)
+
 	pixels := js.Global().Get("Uint8ClampedArray").New(len(buf.Pix))
 	js.CopyBytesToJS(pixels, buf.Pix)
 	imgData := js.Global().Get("ImageData").New(pixels, w, h)
-
-	canvasEl := args[0]
-	lw, lh := w/2, h/2 // logical pixels at 2x scale
-	canvasEl.Set("width", lw)
-	canvasEl.Set("height", lh)
-	canvasEl.Get("style").Set("width", fmt.Sprintf("%dpx", lw))
-	canvasEl.Get("style").Set("height", fmt.Sprintf("%dpx", lh))
 	ctx := canvasEl.Call("getContext", "2d")
 	ctx.Call("putImageData", imgData, 0, 0)
 	return true
@@ -106,7 +103,7 @@ func qormCanvasInitFromBundle(_ js.Value, args []js.Value) any {
 	size := image.Pt(420, 680)
 	cvsSurface = canvas.NewHeadlessSurface(size)
 	cvsSurface.Logical = size
-	cvsSurface.ScaleFactor = 2
+	cvsSurface.ScaleFactor = 1
 	cvsEngine = canvas.NewEngine(res.RT, canvas.SoftwareRenderer{})
 	return nil
 }
