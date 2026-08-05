@@ -242,5 +242,6 @@
         ]
       }
     ]
-  }
+  },
+  "onEnter": "restart"
 }
