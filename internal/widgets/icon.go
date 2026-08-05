@@ -200,6 +200,15 @@ type subpath struct {
 	closed bool
 }
 
+// RasterIcon renders an icon-set SVG body into a w×h straight-alpha bitmap
+// at 4x supersampling. Exported for go:generate (tools that batch-convert
+// the SVG icon set into bitmap font glyphs).
+func RasterIcon(body string, w, h int, ink color.RGBA) *image.RGBA { return rasterIcon(body, w, h, ink) }
+
+// IconSet returns the built-in SVG icon set (name → SVG path body). Exported
+// for go:generate so the font-glyph tool can enumerate it.
+func IconSet() map[string]string { return iconSet }
+
 // rasterIcon renders an icon-set SVG body into a w×h straight-alpha bitmap
 // at 4x supersampling. The 24×24 viewBox maps onto the target box.
 func rasterIcon(body string, w, h int, ink color.RGBA) *image.RGBA {

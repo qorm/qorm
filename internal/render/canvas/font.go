@@ -229,8 +229,13 @@ var iconFont []iconGlyph
 var iconNameToRune = map[string]rune{}
 
 // registerIcon appends an icon glyph to the font and maps its name to the
-// next private-use code point (sequential from U+E000). Used by go:generate.
+// next private-use code point (sequential from U+E000). If the name is already
+// registered (e.g., by a hand-crafted entry that ran first), it is a no-op —
+// the first registration wins. Used by go:generate.
 func registerIcon(name string, g iconGlyph) rune {
+	if _, ok := iconNameToRune[name]; ok {
+		return iconNameToRune[name]
+	}
 	r := rune(0xE000 + len(iconFont))
 	iconFont = append(iconFont, g)
 	iconNameToRune[name] = r

@@ -1,6 +1,10 @@
 package canvas
 
+//go:generate go run ../../../tools/genicons/main.go
+
 // icon font — hand-crafted bitmap glyphs for the built-in icon set.
+// These entries take precedence over auto-generated ones in icon_font_auto.go
+// (registerIcon skips already-registered names, and this file's init runs first).
 // Each glyph is 16 rows tall, variable width (12–16 columns). The glyph
 // is defined as a []uint16 where each entry is one column; bit 0 = top row,
 // bit 15 = bottom row. Generated code lives below; manual tweaks are welcome —
