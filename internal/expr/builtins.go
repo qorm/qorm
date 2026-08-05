@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 	"unicode/utf8"
 )
 
@@ -289,6 +290,14 @@ func callBuiltin(name string, a []any, env *evalEnv) any {
 			rest = a[1:]
 		}
 		return formatPattern(Stringify(arg(0)), rest)
+	case "now":
+		// now(): wall-clock time in milliseconds since the Unix epoch. The
+		// only entropy source scripts get — they have no clock/IO otherwise,
+		// so the common pattern is to mod the value into the desired range
+		// and use it to seed an LCG (e.g. state.rng = mod(now(), 2^31-1) + 1).
+		// Goes through expr (not qscript) so bindings see the same value as
+		// scripts — a {{ now() }} in a binding resolves to the same number.
+		return float64(time.Now().UnixMilli())
 	}
 	return nil
 }

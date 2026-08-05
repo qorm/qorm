@@ -148,6 +148,9 @@
               "gap": 6,
               "width": 100
             },
+            "layout": {
+              "justify": "space-between"
+            },
             "children": [
               {
                 "type": "text",
@@ -163,6 +166,9 @@
                 "style": {
                   "gap": 1,
                   "background": "#2c2c34"
+                },
+                "layout": {
+                  "alignSelf": "start"
                 },
                 "renderItem": {
                   "type": "box",

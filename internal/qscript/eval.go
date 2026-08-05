@@ -367,6 +367,7 @@ var builtinNames = map[string]bool{
 	"at": true, "first": true, "last": true, "sum": true, "avg": true,
 	"count": true, "join": true, "split": true,
 	"keys": true, "values": true, "map": true, "filter": true, "format": true,
+	"now": true,
 }
 
 // nativeHook is the optional bridge to host-native ops (hardware widgets,

@@ -41,7 +41,9 @@ fn refreshNext() {
 
 # spawn moves nextIdx into the falling piece and draws the following piece
 # with a Park-Miller LCG kept in state.rng (x <- x*48271 mod 2^31-1: exact in
-# float64, and the only randomness the game gets — scripts have no clock/IO).
+# float64). The seed is now() (ms since epoch) so every restart plays a
+# different sequence; the manifest's initial rng is just a placeholder for
+# the very first frame before onEnter fires.
 # A piece that cannot enter the board tops the game out.
 fn spawn() {
   state.piece.shapeIdx = state.nextIdx
@@ -88,13 +90,14 @@ fn lock() {
 }
 # ---- end shared core ------------------------------------------------------
 
-# Back to a fresh game: empty board, zeroed counters, the LCG reseeded, then
-# the same spawn the manifest's initial state encodes (I piece, nextIdx 0).
+# Back to a fresh game: empty board, zeroed counters, the LCG reseeded from
+# now() (ms since epoch) so each restart plays a different piece sequence,
+# then the same spawn the manifest's initial state encodes (I piece first).
 state.board = fill(200, 0)
 state.score = 0
 state.lines = 0
 state.level = 1
-state.rng = 12345
+state.rng = mod(now(), 2147483646) + 1
 state.nextIdx = 0
 state.status = "playing"
 spawn()
