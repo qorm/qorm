@@ -193,4 +193,4 @@ func (t *TimePicker) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.
 }
 
 // Inline keeps the picker's content size in flex containers.
-func (TimePicker) Inline() {}
+func (*TimePicker) Inline() {}

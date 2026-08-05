@@ -243,4 +243,4 @@ func (*DatePicker) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.Po
 }
 
 // Inline keeps the picker's content size in flex containers.
-func (DatePicker) Inline() {}
+func (*DatePicker) Inline() {}

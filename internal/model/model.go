@@ -148,7 +148,7 @@ type App struct {
 	// Diagnostics holds static compilation warnings or syntax errors found by the loader.
 	Diagnostics []string
 
-	computedMu     sync.Mutex
+	computedMu     *sync.Mutex // pointer so copying App (e.g. cloneApp in mcp/patch) is vet-clean
 	computedOrder  []string
 	computedCyclic []string
 	computedCached bool
@@ -340,6 +340,7 @@ func (a *App) ComputedOrder() (order, cyclic []string) {
 	if a == nil || len(a.Computed) == 0 {
 		return nil, nil
 	}
+	if a.computedMu == nil { a.computedMu = &sync.Mutex{} }
 	a.computedMu.Lock()
 	if a.computedCached {
 		order, cyclic := a.computedOrder, a.computedCyclic

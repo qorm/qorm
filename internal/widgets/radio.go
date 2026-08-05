@@ -180,4 +180,4 @@ func (r *Radio) selected(n *model.Node, ln *canvas.LayoutNode, rt *runtime.Runti
 }
 
 // Inline marks Radio as inline-level (canvas.InlineWidget): flex containers keep its content size.
-func (Radio) Inline() {}
+func (*Radio) Inline() {}
