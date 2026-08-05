@@ -71,7 +71,8 @@ func UpdateAndGetAnimatedStyleD(key string, target NodeStyle, rt *runtime.Runtim
 		state.TargetStyle.BorderRadius != target.BorderRadius ||
 		state.TargetStyle.Width != target.Width ||
 		state.TargetStyle.Height != target.Height ||
-		state.TargetStyle.Opacity != target.Opacity {
+		state.TargetStyle.Opacity != target.Opacity ||
+		state.TargetStyle.EffectiveScale != target.EffectiveScale {
 		targetChanged = true
 	}
 
@@ -105,6 +106,7 @@ func UpdateAndGetAnimatedStyleD(key string, target NodeStyle, rt *runtime.Runtim
 	current.Gap = anim.IntTween(state.CurrentStyle.Gap, state.TargetStyle.Gap).Lerp(t)
 	current.BorderRadius = anim.Float64Tween(state.CurrentStyle.BorderRadius, state.TargetStyle.BorderRadius).Lerp(t)
 	current.Opacity = anim.Float64Tween(state.CurrentStyle.Opacity, state.TargetStyle.Opacity).Lerp(t)
+	current.EffectiveScale = anim.Float64Tween(state.CurrentStyle.EffectiveScale, state.TargetStyle.EffectiveScale).Lerp(t)
 
 	state.CurrentStyle = current
 	return current, true // Needs redraw

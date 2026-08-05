@@ -666,13 +666,12 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 		group.Hovered = inter.Hovered == ln.Node && inter.HoveredItem == ln.ItemIndex
 		group.Focused = inter.Focused == ln.Node && inter.FocusedItem == ln.ItemIndex
 		// The declarative pressed/hover SCALE (the style resolver's transform
-		// half): scale the node about its center while pressed (or hovered).
-		// Pressed wins; 0 = undeclared = no effect.
-		scaleF := 1.0
-		if group.Pressed && ln.Style.PressedScale > 0 {
-			scaleF = ln.Style.PressedScale
-		} else if group.Hovered && ln.Style.HoverScale > 0 {
-			scaleF = ln.Style.HoverScale
+		// half): scale the node about its center. EffectiveScale is resolved by
+		// applyInteractiveOverlay and may carry an in-flight transition tween
+		// so a node declaring `transition` animates its pressed scale.
+		scaleF := ln.Style.EffectiveScale
+		if scaleF <= 0 {
+			scaleF = 1
 		}
 		if scaleF != 1 {
 			group.ScaleX = scaleF

@@ -2,6 +2,7 @@ package canvas
 
 import (
 	"image"
+	"time"
 
 	"github.com/qorm/qorm/internal/geom"
 	"github.com/qorm/qorm/internal/model"
@@ -70,6 +71,13 @@ type Interaction struct {
 	// drop. Engine-owned; cleared by the drop and by any new press (an
 	// abandoned drag never sticks).
 	Drag DragState
+	// ScrollMomentum tracks per-viewport scroll inertia velocity (physical px
+	// per frame). Active while a wheel/trackpad gesture is in flight and for a
+	// brief deceleration phase after the last scroll event — the engine
+	// simulates the inertia the OS would otherwise provide (the host delivers
+	// discrete deltas with no momentum of their own). Lazily allocated; reset
+	// with the rest of Interaction on a scene switch.
+	ScrollMomentum map[*model.Node]ScrollMomentum
 	// Reorder is the in-flight drag-to-reorder gesture of a reorderable list:
 	// which item is being dragged and where it has moved to. Dispatched on
 	// release as onReorder {from, to} and cleared.
@@ -119,6 +127,13 @@ type BoardState struct {
 	// canvas follows 1:1 without a jump.
 	Panning bool
 	PanStart, PanOrigin geom.Point
+	// PanMomentum tracks the inertia velocity after a drag release: the
+	// velocity the last drag carried, decayed each frame by the same friction
+	// model as scroll momentum. Active while the coast phase runs; the engine
+	// keeps animating until it settles.
+	PanMomVX, PanMomVY float64
+	PanMomActive       bool
+	PanMomLast         time.Time
 }
 
 // The board zoom range (0.25x–4x). The sub-1 floor is real only because the

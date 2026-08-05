@@ -128,6 +128,11 @@ type NodeStyle struct {
 	// means "no effect" (a pressed/hovered scale of 0 is meaningless).
 	PressedScale float64 // scale the node to this factor while pressed
 	HoverScale   float64 // scale while hovered (pressed wins)
+	// EffectiveScale is the resolved interaction scale (1 = no effect; set by
+	// applyInteractiveOverlay from the pressed/hover scale). It joins the
+	// transition tween so a node declaring `transition` animates its pressed
+	// scale instead of snapping; performLayout applies the interpolated value.
+	EffectiveScale float64
 	// Transition is the declarative CSS-style transition duration ("0.2s",
 	// "200ms" or plain ms) that animates hover/press effect changes instead of
 	// snapping them (the interaction resolver routes the style through the
@@ -266,6 +271,9 @@ func applyInteractiveOverlay(s *NodeStyle, n *model.Node, rt *runtime.Runtime, i
 		if o, ok := evalFloatStyle(n, "hoverOpacity", rt); ok && o >= 0 && o <= 1 {
 			s.Opacity = o
 		}
+		if s.HoverScale > 0 {
+			s.EffectiveScale = s.HoverScale
+		}
 	}
 	// Pressed is applied LAST so it wins over hovered.
 	if inter.Pressed == n {
@@ -278,6 +286,9 @@ func applyInteractiveOverlay(s *NodeStyle, n *model.Node, rt *runtime.Runtime, i
 			s.Opacity = o
 		} else if comp, ok := rt.Theme.Components[n.Type]; ok && comp.PressedOpacity != nil {
 			s.Opacity = *comp.PressedOpacity
+		}
+		if s.PressedScale > 0 {
+			s.EffectiveScale = s.PressedScale
 		}
 	}
 }
@@ -400,7 +411,7 @@ func parseStyle(n *model.Node, rt *runtime.Runtime, sc ...*listScope) NodeStyle 
 	if len(sc) > 0 {
 		scope = sc[0]
 	}
-	s := NodeStyle{Opacity: 1}
+	s := NodeStyle{Opacity: 1, EffectiveScale: 1}
 
 	// Apply Theme Defaults
 	if rt != nil && rt.Theme != nil {
@@ -521,6 +532,19 @@ func parseStyle(n *model.Node, rt *runtime.Runtime, sc ...*listScope) NodeStyle 
 		}
 	}
 
+	// Disabled nodes dim to half opacity by default (a per-node
+	// disabledOpacity style key overrides it). Registered interactive widgets
+	// (switch, checkbox, slider, select, …) handle their own disabled visuals
+	// via formDisabled — the generic dimming only applies to plain nodes
+	// (text, box, button, column, row, …) so it never double-dims.
+	_, hasWidget := LookupWidget(n.Type)
+	if !hasWidget && nodeDisabled(n, rt) {
+		if do, ok := evalFloatStyle(n, "disabledOpacity", rt); ok && do >= 0 && do <= 1 {
+			s.Opacity = do
+		} else if s.Opacity >= 1 {
+			s.Opacity = 0.5
+		}
+	}
 	return s
 }
 

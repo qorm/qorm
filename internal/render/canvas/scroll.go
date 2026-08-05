@@ -3,6 +3,8 @@ package canvas
 import (
 	"image"
 	"image/color"
+	"math"
+	"time"
 
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/render/graph"
@@ -29,8 +31,10 @@ import (
 //     (HandleScroll) and on layout (scrollOffsetPos — a data shrink repairs a
 //     held offset).
 //
-// Wave-2 scope, deliberately: wheel/trackpad only (no touch-drag scrolling),
-// no scrollbar affordance (a later wave).
+// Wheel/trackpad scrolling with momentum inertia; scrollbar thumbs on each
+// overflowing axis. Touch-drag scrolling on the viewport itself is not yet
+// implemented (the pointer stream is claimed by the content's interactive
+// children — the HTML path's overflow-scroll touch model).
 
 // isScrollType reports the viewport container spellings (the HTML names).
 func isScrollType(t string) bool { return t == "scroll" || t == "scrollview" }
@@ -291,5 +295,161 @@ func (e *Engine) scrollViewport(vp *graph.Group, m *model.Node, dx, dy float64) 
 		pos.Y = next
 	}
 	e.Inter.ScrollOffsets[m] = pos
+
+	// Track momentum velocity: smooth the instantaneous velocity (consumed
+	// delta per event) into a per-viewport moving average so the deceleration
+	// phase starts from a reasonable initial speed.
+	if consumedX != 0 || consumedY != 0 {
+		if e.Inter.ScrollMomentum == nil {
+			e.Inter.ScrollMomentum = map[*model.Node]ScrollMomentum{}
+		}
+		mom := e.Inter.ScrollMomentum[m]
+		// Exponential moving average: 15% new delta, 85% old — the low weight
+		// keeps a single discrete wheel event from producing a large velocity
+		// overshoot, while continuous trackpad input still accumulates smooth speed.
+		const alpha = 0.15
+		mom.VX = alpha*consumedX + (1-alpha)*mom.VX
+		mom.VY = alpha*consumedY + (1-alpha)*mom.VY
+		mom.Active = true
+		mom.LastTime = time.Now()
+		e.Inter.ScrollMomentum[m] = mom
+	}
+
 	return dx - consumedX, dy - consumedY
+}
+
+// ScrollMomentum is the per-viewport scroll inertia state: velocity in physical
+// px per ideal frame (~16.7ms at 60fps) and the timestamp of the last scroll
+// event (so the deceleration phase knows the elapsed time for frame-rate
+// independent friction).
+type ScrollMomentum struct {
+	VX, VY   float64   // velocity in physical px per ideal frame (~16.7ms)
+	Active   bool      // momentum phase is in flight
+	LastTime time.Time // last scroll-event timestamp for this viewport
+}
+
+// momentumFriction is the per-frame velocity multiplier — 0.88 at ~16.7ms/frame
+// decays to ~5% after ~40 frames (~667ms), which feels like a natural trackpad
+// coast without overshooting a discrete wheel event.
+const momentumFriction = 0.88
+
+// momentumStopThreshold is the velocity magnitude below which momentum stops
+// (physical px per frame) — below this the deceleration is imperceptible.
+const momentumStopThreshold = 0.3
+
+// applyScrollMomentum advances every active viewport's momentum by one frame:
+// apply the velocity to the offset (clamped), then decay the velocity. Returns
+// whether any viewport still has active momentum (the engine must keep
+// animating until it all settles).
+func (e *Engine) applyScrollMomentum(now time.Time) bool {
+	if e.Inter.ScrollMomentum == nil {
+		return false
+	}
+	any := false
+	for m, mom := range e.Inter.ScrollMomentum {
+		if !mom.Active {
+			continue
+		}
+		// Decay velocity: friction adjusted for the elapsed time since the
+		// last event (or last momentum frame). A 16ms frame → friction^1,
+		// a 32ms frame → friction^2, keeping the feel frame-rate independent.
+		// When a scroll event just arrived (elapsed < 2ms), skip momentum
+		// this frame — the event handler already applied its own delta and
+		// double-counting would overshoot the offset.
+		elapsed := now.Sub(mom.LastTime).Seconds()
+		frames := elapsed * 60 // normalize to 60fps
+		if frames < 0.12 {
+			continue
+		}
+		mom.VX *= math.Pow(momentumFriction, frames)
+		mom.VY *= math.Pow(momentumFriction, frames)
+		mom.LastTime = now
+
+		// Stop when velocity is imperceptible.
+		if math.Abs(mom.VX) < momentumStopThreshold && math.Abs(mom.VY) < momentumStopThreshold {
+			mom.Active = false
+			mom.VX, mom.VY = 0, 0
+			e.Inter.ScrollMomentum[m] = mom
+			continue
+		}
+
+		// Apply velocity to the scroll offset, scaled by elapsed frames so
+		// a longer frame (e.g. 32ms at 30fps) advances twice as far — the
+		// velocity is in physical px per ideal frame (~16.7ms at 60fps).
+		if e.Inter.ScrollOffsets == nil {
+			e.Inter.ScrollOffsets = map[*model.Node]ScrollPos{}
+		}
+		pos := e.Inter.ScrollOffsets[m]
+		pos.X += mom.VX * frames
+		pos.Y += mom.VY * frames
+
+		// Clamp — the content size is only known at layout time, so the full
+		// clamp (scrollOffsetPos) runs in performLayout. A soft floor of 0
+		// here keeps the offset from drifting negative when the content has not
+		// yet been measured this frame; the layout-time clamp repairs the rest.
+		if pos.X < 0 {
+			pos.X = 0
+			mom.VX = 0
+		}
+		if pos.Y < 0 {
+			pos.Y = 0
+			mom.VY = 0
+		}
+		e.Inter.ScrollOffsets[m] = pos
+		e.Inter.ScrollMomentum[m] = mom
+		any = true
+	}
+	return any
+}
+
+// hasScrollMomentum reports whether any viewport still has active scroll
+// momentum — the engine's animating gate keeps ticking until this settles.
+func (e *Engine) hasScrollMomentum() bool {
+	if e.Inter.ScrollMomentum == nil {
+		return false
+	}
+	for _, mom := range e.Inter.ScrollMomentum {
+		if mom.Active {
+			return true
+		}
+	}
+	return false
+}
+
+// boardMomentumFriction is the per-frame velocity multiplier for board pan
+// coast — 0.92 gives a longer coast than scroll (≈50 frames / 833ms to 5%)
+// because panning an infinite canvas should feel floaty.
+const boardMomentumFriction = 0.92
+
+// applyBoardMomentum advances the board's pan momentum by one frame: apply the
+// velocity to PanX/PanY, then decay. Returns whether the coast is still active.
+func (e *Engine) applyBoardMomentum(now time.Time) bool {
+	b := &e.Inter.Board
+	if !b.PanMomActive {
+		return false
+	}
+	elapsed := now.Sub(b.PanMomLast).Seconds()
+	frames := elapsed * 60 // normalize to 60fps
+	if frames < 0.12 {
+		return true // still active but not yet time to advance
+	}
+	b.PanMomVX *= math.Pow(boardMomentumFriction, frames)
+	b.PanMomVY *= math.Pow(boardMomentumFriction, frames)
+	b.PanMomLast = now
+
+	// Stop when velocity is imperceptible.
+	if math.Abs(b.PanMomVX) < momentumStopThreshold && math.Abs(b.PanMomVY) < momentumStopThreshold {
+		b.PanMomActive = false
+		b.PanMomVX, b.PanMomVY = 0, 0
+		return false
+	}
+
+	b.PanX += b.PanMomVX * frames
+	b.PanY += b.PanMomVY * frames
+	return true
+}
+
+// hasBoardMomentum reports whether the board pan coast is still in flight.
+func (e *Engine) hasBoardMomentum() bool {
+	return e.Inter.Board.PanMomActive
 }

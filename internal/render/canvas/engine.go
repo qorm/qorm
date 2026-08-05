@@ -301,6 +301,15 @@ func (e *Engine) RenderInto(size image.Point, scale int, target *image.RGBA) (bo
 	// the state a tick writes is what this frame records.
 	e.tickTimers(root)
 
+	// Scroll momentum: advance every active viewport's inertia by one frame
+	// before layout, so the new offsets are what this frame records.
+	if e.applyScrollMomentum(time.Now()) {
+		e.dirty.Store(true)
+	}
+	if e.applyBoardMomentum(time.Now()) {
+		e.dirty.Store(true)
+	}
+
 	// Layout + record. The display list is rebuilt from scratch each frame;
 	// Reset keeps the backing array, so steady-state recording allocates
 	// nothing. (Before the Engine owned this, ops accumulated forever.)
@@ -333,6 +342,7 @@ func (e *Engine) RenderInto(size image.Point, scale int, target *image.RGBA) (bo
 	// cursor the same way. The textarea's caret is static, so it does not
 	// waste frames; both settle as soon as the session closes.
 	e.animating.Store(needsRedraw || e.sceneAnimating() || e.timersPending() ||
+		e.hasScrollMomentum() || e.hasBoardMomentum() ||
 		(e.Inter.Input != nil && e.Inter.Input.Node.Type == "input"))
 	return true, st
 }
@@ -466,17 +476,39 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 		switch {
 		case p.Type == PointerRelease:
 			e.Inter.Board.Panning = false
+			// Start the coast phase: capture the drag velocity so the canvas
+			// decelerates naturally instead of stopping dead at release.
+			e.Inter.Board.PanMomActive = true
+			e.Inter.Board.PanMomLast = time.Now()
 			e.dirty.Store(true)
 			return true
 		case p.Type == PointerMove && p.Buttons > 0:
+			// Track velocity: delta from the last move, smoothed with EMA so
+			// a single jittery event doesn't spike the coast speed.
+			now := time.Now()
+			dx := p.X - e.Inter.Board.PanStart.X + e.Inter.Board.PanOrigin.X - e.Inter.Board.PanX
+			dy := p.Y - e.Inter.Board.PanStart.Y + e.Inter.Board.PanOrigin.Y - e.Inter.Board.PanY
 			e.Inter.Board.PanX = e.Inter.Board.PanOrigin.X + (p.X - e.Inter.Board.PanStart.X)
 			e.Inter.Board.PanY = e.Inter.Board.PanOrigin.Y + (p.Y - e.Inter.Board.PanStart.Y)
+			// EMA: 20% new speed, 80% old — smooth but responsive.
+			dt := now.Sub(e.Inter.Board.PanMomLast).Seconds()
+			if dt > 0 && dt < 0.5 {
+				frames := dt * 60 // normalize to 60fps
+				if frames > 0 {
+					sx := dx / frames
+					sy := dy / frames
+					e.Inter.Board.PanMomVX = 0.2*sx + 0.8*e.Inter.Board.PanMomVX
+					e.Inter.Board.PanMomVY = 0.2*sy + 0.8*e.Inter.Board.PanMomVY
+				}
+			}
+			e.Inter.Board.PanMomLast = now
 			e.dirty.Store(true)
 			return true
 		default:
 			// A hover move or a fresh press during a pan: drop the drag state
 			// without consuming the event, so normal dispatch resumes.
 			e.Inter.Board.Panning = false
+			e.Inter.Board.PanMomActive = false
 		}
 	}
 
@@ -576,6 +608,7 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 	// pressable, an interactive widget — falls through to the normal path so
 	// the note drags instead of the board.
 	if e.Inter.Board.Active && p.Type == PointerPress && boardBlank(hit, rt) {
+		e.Inter.Board.PanMomActive = false // cancel any coast from a prior drag
 		e.Inter.Board.Panning = true
 		e.Inter.Board.PanStart = geom.Point{X: p.X, Y: p.Y}
 		e.Inter.Board.PanOrigin = geom.Point{X: e.Inter.Board.PanX, Y: e.Inter.Board.PanY}
