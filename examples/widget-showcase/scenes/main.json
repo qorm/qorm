@@ -2,9 +2,9 @@
   "type": "scene",
   "id": "main",
   "root": {
-    "type": "scroll",
+    "type": "column",
     "id": "root",
-    "style": { "background": "#F2F2F7", "height": "fill", "padding": 20 },
+    "style": { "background": "#F2F2F7", "padding": 20 },
     "children": [
 
       { "type": "text", "text": "Widget Showcase", "style": { "fontSize": 28, "fontWeight": 800, "padding": { "bottom": 2 } } },
@@ -14,7 +14,7 @@
         "type": "box", "style": { "background": "#FFFFFF", "borderRadius": 12, "padding": 20, "margin": { "bottom": 16 } },
         "children": [
           { "type": "text", "text": "Menu", "style": { "fontSize": 12, "fontWeight": 700, "color": "#8E8E93", "padding": { "bottom": 12 } } },
-          { "type": "menu", "id": "mn",
+          { "type": "menu", "id": "mn", "style": {"width":140},
             "props": { "label": "Actions", "items": [
               {"label":"Copy","onPress":{"name":"menu_pick","args":{"value":"copied"}}},
               {"label":"Delete","onPress":{"name":"menu_pick","args":{"value":"deleted"}}}
@@ -47,7 +47,7 @@
                 {"type":"text","text":"Production environment","style":{"fontSize":13,"color":"#8E8E93","padding":{"top":4}}}
               ]},
               { "type": "box", "props": {"title":"Advanced"}, "style": {"height":40}, "children": [
-                {"type":"text","text":"Cache: 24 MB","style":{"fontSize":13,"color":"#8E8E93"}}
+                {"type":"text","text":"Cache: 24 MB / 128 MB","style":{"fontSize":13,"color":"#8E8E93"}}
               ]}
             ]
           }
@@ -60,8 +60,9 @@
           { "type": "text", "text": "ListSection + ExpansionTile", "style": { "fontSize": 12, "fontWeight": 700, "color": "#8E8E93", "padding": { "bottom": 12 } } },
           { "type": "listsection", "id": "ls", "props": { "header": "Recent Items" },
             "children": [
-              { "type": "listtile", "props": {"title":"Project Alpha","subtitle":"Last edited 2h ago","leading":"📁"} },
-              { "type": "listtile", "props": {"title":"Meeting notes","subtitle":"Shared by Carol","leading":"📝"} }
+              { "type": "listtile", "props": {"title":"Project Alpha","subtitle":"Last edited 2h ago","leading":">"} },
+              { "type": "listtile", "props": {"title":"Meeting notes","subtitle":"Shared by Carol","leading":"*"} },
+              { "type": "listtile", "props": {"title":"Draft report","subtitle":"Saved locally","leading":"#"} }
             ]
           },
           { "type": "expansiontile", "id": "et",
@@ -142,12 +143,29 @@
       {
         "type": "box", "style": { "background": "#FFFFFF", "borderRadius": 12, "padding": 20, "margin": { "bottom": 16 } },
         "children": [
+          { "type": "text", "text": "Icons (vector glyphs)", "style": { "fontSize": 12, "fontWeight": 700, "color": "#8E8E93", "padding": { "bottom": 12 } } },
+          { "type": "row", "style": { "gap": 16 }, "children": [
+            { "type": "icon", "props": {"icon":"home","color":"#007AFF"}, "style":{"width":28,"height":28} },
+            { "type": "icon", "props": {"icon":"folder","color":"#FF9500"}, "style":{"width":28,"height":28} },
+            { "type": "icon", "props": {"icon":"star","color":"#FFCC00"}, "style":{"width":28,"height":28} },
+            { "type": "icon", "props": {"icon":"heart","color":"#FF3B30"}, "style":{"width":28,"height":28} },
+            { "type": "icon", "props": {"icon":"settings","color":"#8E8E93"}, "style":{"width":28,"height":28} },
+            { "type": "icon", "props": {"icon":"user","color":"#34C759"}, "style":{"width":28,"height":28} },
+            { "type": "icon", "props": {"icon":"mail","color":"#5856D6"}, "style":{"width":28,"height":28} },
+            { "type": "icon", "props": {"icon":"bell","color":"#FF9500"}, "style":{"width":28,"height":28} }
+          ]}
+        ]
+      },
+
+      {
+        "type": "box", "style": { "background": "#FFFFFF", "borderRadius": 12, "padding": 20, "margin": { "bottom": 16 } },
+        "children": [
           { "type": "text", "text": "Navigation Rail", "style": { "fontSize": 12, "fontWeight": 700, "color": "#8E8E93", "padding": { "bottom": 12 } } },
           { "type": "navigationrail", "id": "nr", "value": "{{state.railSelected}}", "onChange": {"name":"rail_select"},
             "props": { "items": [
-              {"value":"dashboard","label":"Home","icon":"🏠"},
-              {"value":"search","label":"Search","icon":"🔍"},
-              {"value":"settings","label":"Settings","icon":"⚙"}
+              {"value":"dashboard","label":"Home","icon":">"},
+              {"value":"search","label":"Search","icon":"@"},
+              {"value":"settings","label":"Settings","icon":"+"}
             ]}
           }
         ]
@@ -161,14 +179,14 @@
           { "type": "drawer", "id": "dr", "props": { "open": "{{state.drawerOpen}}", "side": "right" },
             "children": [
               { "type": "text", "text": "Drawer Panel", "style": {"fontSize":18,"fontWeight":700,"padding":{"bottom":12}} },
-              { "type": "text", "text": "Tap the backdrop to close.", "style": {"fontSize":14,"color":"#8E8E93","padding":{"bottom":16}} },
+              { "type": "text", "text": "Tap backdrop to close.", "style": {"fontSize":14,"color":"#8E8E93","padding":{"bottom":16}} },
               { "type": "button", "label": "Close", "onPress": {"name":"toggle_drawer","args":{"not":false}} }
             ]
           }
         ]
       },
 
-      { "type": "text", "text": "— End of showcase —", "style": { "fontSize": 12, "color": "#C7C7CC", "padding": { "top": 32, "bottom": 40 }, "textAlign": "center" } }
+      { "type": "text", "text": "End of showcase", "style": { "fontSize": 12, "color": "#C7C7CC", "padding": { "top": 32, "bottom": 40 }, "textAlign": "center" } }
     ]
   }
 }
