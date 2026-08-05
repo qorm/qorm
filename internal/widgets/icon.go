@@ -99,8 +99,15 @@ func iconSide(n *model.Node, ln *canvas.LayoutNode, rt *runtime.Runtime) float64
 // iconInk resolves the glyph color: author style color (currentColor
 // inheritance in HTML), else the theme text color.
 func iconInk(n *model.Node, ln *canvas.LayoutNode, rt *runtime.Runtime) color.RGBA {
-	if _, authorColor := n.Style["color"]; authorColor && ln != nil && ln.Style.Color.A > 0 {
+	// Style color wins (author styled the icon), then prop color (the HTML
+	// path's propStrOr("color") spelling), then the theme text default.
+	if ln != nil && ln.Style.Color.A > 0 {
 		return ln.Style.Color
+	}
+	if raw, ok := n.Prop("color"); ok {
+		if s, ok := raw.(string); ok && s != "" {
+			return canvas.ResolveColor(s, rt)
+		}
 	}
 	return themeColor(rt, "text", color.RGBA{29, 29, 31, 255})
 }

@@ -145,14 +145,14 @@
         "children": [
           { "type": "text", "text": "Icons (vector glyphs)", "style": { "fontSize": 12, "fontWeight": 700, "color": "#8E8E93", "padding": { "bottom": 12 } } },
           { "type": "row", "style": { "gap": 16 }, "children": [
-            { "type": "icon", "props": {"icon":"home","color":"#007AFF"}, "style":{"width":28,"height":28} },
-            { "type": "icon", "props": {"icon":"folder","color":"#FF9500"}, "style":{"width":28,"height":28} },
-            { "type": "icon", "props": {"icon":"star","color":"#FFCC00"}, "style":{"width":28,"height":28} },
-            { "type": "icon", "props": {"icon":"heart","color":"#FF3B30"}, "style":{"width":28,"height":28} },
-            { "type": "icon", "props": {"icon":"settings","color":"#8E8E93"}, "style":{"width":28,"height":28} },
-            { "type": "icon", "props": {"icon":"user","color":"#34C759"}, "style":{"width":28,"height":28} },
-            { "type": "icon", "props": {"icon":"mail","color":"#5856D6"}, "style":{"width":28,"height":28} },
-            { "type": "icon", "props": {"icon":"bell","color":"#FF9500"}, "style":{"width":28,"height":28} }
+            { "type": "icon", "props": {"icon":"home"}, "style":{"width":28,"height":28,"color":"#007AFF"} },
+            { "type": "icon", "props": {"icon":"folder"}, "style":{"width":28,"height":28,"color":"#FF9500"} },
+            { "type": "icon", "props": {"icon":"star"}, "style":{"width":28,"height":28,"color":"#FFCC00"} },
+            { "type": "icon", "props": {"icon":"heart"}, "style":{"width":28,"height":28,"color":"#FF3B30"} },
+            { "type": "icon", "props": {"icon":"settings"}, "style":{"width":28,"height":28,"color":"#8E8E93"} },
+            { "type": "icon", "props": {"icon":"user"}, "style":{"width":28,"height":28,"color":"#34C759"} },
+            { "type": "icon", "props": {"icon":"mail"}, "style":{"width":28,"height":28,"color":"#5856D6"} },
+            { "type": "icon", "props": {"icon":"bell"}, "style":{"width":28,"height":28,"color":"#FF9500"} }
           ]}
         ]
       },
