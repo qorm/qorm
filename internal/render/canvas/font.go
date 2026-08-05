@@ -206,6 +206,55 @@ var font5x7 = [96][5]uint8{
 	{0x00, 0x00, 0x00, 0x00, 0x00},
 }
 
+// ---------------------------------------------------------------------------
+// icon font — Unicode Private Use Area U+E000..U+E0FF
+// ---------------------------------------------------------------------------
+
+// iconGlyph is one variable-width bitmap glyph in the icon font. Cols and
+// rows are the bounding box (both ≤ 16), and data holds one uint16 per column
+// (bit 0 = top row). Icon glyphs are drawn by the same bitmap renderer that
+// paints the 5x7 ASCII font — no separate SVG raster pass.
+type iconGlyph struct {
+	cols int
+	rows int
+	data []uint16
+}
+
+// iconFont maps a rune in U+E000..U+E0FF to its glyph. Index 0 = U+E000.
+// Built by go generate from the SVG icon set; hand-polished for fidelity.
+var iconFont []iconGlyph
+
+// iconNameToRune maps an icon name (the HTML path's propStrOr("icon") spelling)
+// to the private-use code point that the bitmap font draws as that icon.
+var iconNameToRune = map[string]rune{}
+
+// registerIcon appends an icon glyph to the font and maps its name to the
+// next private-use code point (sequential from U+E000). Used by go:generate.
+func registerIcon(name string, g iconGlyph) rune {
+	r := rune(0xE000 + len(iconFont))
+	iconFont = append(iconFont, g)
+	iconNameToRune[name] = r
+	return r
+}
+
+// LookupIconRune returns the private-use code point that the bitmap font draws
+// as the named icon, if one is registered. The widgets library calls this to
+// render an icon as a simple text rune instead of rasterizing its SVG body.
+func LookupIconRune(name string) (rune, bool) {
+	r, ok := iconNameToRune[name]
+	return r, ok
+}
+
+// iconGlyphFor returns the icon glyph for a rune in the private-use range, or
+// nil when the rune is not an icon.
+func iconGlyphFor(r rune) *iconGlyph {
+	idx := int(r) - 0xE000
+	if idx < 0 || idx >= len(iconFont) {
+		return nil
+	}
+	return &iconFont[idx]
+}
+
 // Effective font sizes are clamped to [minFontSize, maxFontSize] at both
 // entry points (MeasureText for layout, DrawText for rasterization).
 // Lower bound 1 keeps degenerate input (0/negative from app JSON) bounded
@@ -295,7 +344,13 @@ func MeasureText(text string, fontSize float64) float64 {
 }
 
 // runeAdvance is the per-rune pen advance shared by MeasureText and DrawText.
+// Icon glyphs advance by their column count (scaled to fontSize/10 so they
+// follow the same scale factor as ASCII glyphs); wide/narrow ASCII runes use
+// the existing 1.0× or 0.6× fontSize metric.
 func runeAdvance(r rune, fontSize float64) float64 {
+	if ig := iconGlyphFor(r); ig != nil {
+		return float64(ig.cols) * fontSize / 10
+	}
 	if isWideRune(r) {
 		return fontSize
 	}
@@ -382,11 +437,20 @@ func drawTextBitmap(img *image.RGBA, text string, pos image.Point, col color.RGB
 	y := pos.Y
 	penX := float64(pos.X)
 	for _, r := range text {
-		c := byte(r)
-		if r < 32 || r > 127 {
-			c = 63 // '?'
+		if ig := iconGlyphFor(r); ig != nil {
+			// Icon glyph: cols/rows vary, scale = fontSize/10 (same as ASCII).
+			iconScale := intScale
+			if iconScale < 1 {
+				iconScale = 1
+			}
+			drawGlyph(img, ig.data, ig.rows, int(penX), y, iconScale, col, clips)
+		} else {
+			c := byte(r)
+			if r < 32 || r > 127 {
+				c = 63 // '?'
+			}
+			drawBitmapGlyph(img, c, int(penX), y, intScale, col, clips)
 		}
-		drawBitmapGlyph(img, c, int(penX), y, intScale, col, clips)
 		// Advance per rune from the shared metric (MeasureText).
 		penX += runeAdvance(r, fontSize)
 	}
@@ -399,39 +463,51 @@ func drawTextBitmap(img *image.RGBA, text string, pos image.Point, col color.RGB
 // MeasureText reports, so drawn and measured widths stay in lockstep (the
 // original text of a zoomed-out note keeps its box).
 func drawTextBitmapFrac(img *image.RGBA, text string, pos image.Point, col color.RGBA, scale float64, clips []op.ClipOp) {
-	gw, gh := 5*scale, 7*scale
 	y0 := float64(pos.Y)
 	penX := float64(pos.X)
 	for _, r := range text {
-		c := byte(r)
-		if r < 32 || r > 127 {
-			c = 63 // '?'
-		}
-		glyph := font5x7[c-32]
-
-		x0 := int(math.Floor(penX))
-		x1 := int(math.Ceil(penX + gw))
-		yy0 := int(math.Floor(y0))
-		yy1 := int(math.Ceil(y0 + gh))
-		for y := yy0; y < yy1; y++ {
-			// The destination pixel's source-cell row range, then columns.
-			v0 := (float64(y) - y0) / scale
-			v1 := (float64(y) + 1 - y0) / scale
-			for x := x0; x < x1; x++ {
-				u0 := (float64(x) - penX) / scale
-				u1 := (float64(x) + 1 - penX) / scale
-				cov := bitmapCellCoverage(glyph, u0, u1, v0, v1)
-				if cov <= 0 {
-					continue
+		if ig := iconGlyphFor(r); ig != nil {
+			gw, gh := float64(ig.cols)*scale, float64(ig.rows)*scale
+			x0 := int(math.Floor(penX))
+			x1 := int(math.Ceil(penX + gw))
+			yy0 := int(math.Floor(y0))
+			yy1 := int(math.Ceil(y0 + gh))
+			for y := yy0; y < yy1; y++ {
+				v0 := (float64(y) - y0) / scale
+				v1 := (float64(y) + 1 - y0) / scale
+				for x := x0; x < x1; x++ {
+					u0 := (float64(x) - penX) / scale
+					u1 := (float64(x) + 1 - penX) / scale
+					cov := varCellCoverage(ig.data, ig.rows, u0, u1, v0, v1)
+					if cov <= 0 { continue }
+					clipCov := clipCoverage(float64(x)+0.5, float64(y)+0.5, clips)
+					if clipCov <= 0 { continue }
+					blendOver(img, x, y, withOpacity(col, cov*clipCov))
 				}
-				clipCov := clipCoverage(float64(x)+0.5, float64(y)+0.5, clips)
-				if clipCov <= 0 {
-					continue
+			}
+		} else {
+			c := byte(r)
+			if r < 32 || r > 127 { c = 63 }
+			glyph := font5x7[c-32]
+			gw, gh := 5*scale, 7*scale
+			x0 := int(math.Floor(penX))
+			x1 := int(math.Ceil(penX + gw))
+			yy0 := int(math.Floor(y0))
+			yy1 := int(math.Ceil(y0 + gh))
+			for y := yy0; y < yy1; y++ {
+				v0 := (float64(y) - y0) / scale
+				v1 := (float64(y) + 1 - y0) / scale
+				for x := x0; x < x1; x++ {
+					u0 := (float64(x) - penX) / scale
+					u1 := (float64(x) + 1 - penX) / scale
+					cov := bitmapCellCoverage(glyph, u0, u1, v0, v1)
+					if cov <= 0 { continue }
+					clipCov := clipCoverage(float64(x)+0.5, float64(y)+0.5, clips)
+					if clipCov <= 0 { continue }
+					blendOver(img, x, y, withOpacity(col, cov*clipCov))
 				}
-				blendOver(img, x, y, withOpacity(col, cov*clipCov))
 			}
 		}
-		// Advance per rune from the shared metric (MeasureText).
 		penX += runeAdvance(r, scale*10)
 	}
 }
@@ -472,15 +548,49 @@ func bitmapCellCoverage(glyph [5]byte, u0, u1, v0, v1 float64) float64 {
 	}
 }
 
-// drawBitmapGlyph paints the 5x7 bitmap glyph for byte c (32..127) with its
-// top-left corner at (x, y), scaled by intScale (>= 1), honouring clips.
-func drawBitmapGlyph(img *image.RGBA, c byte, x, y, intScale int, col color.RGBA, clips []op.ClipOp) {
-	glyph := font5x7[c-32]
-	for colIdx := 0; colIdx < 5; colIdx++ {
-		colBits := glyph[colIdx]
-		for rowIdx := 0; rowIdx < 7; rowIdx++ {
+// varCellCoverage is bitmapCellCoverage for variable-size glyphs — the sub-1
+// scale path for icon glyphs (U+E000+) whose width and height are not fixed at
+// 5×7. colBits is the per-column data (one uint16, bits 0..rows-1), and
+// rows is the glyph height. The box filter normalizes by the footprint area,
+// same as bitmapCellCoverage.
+func varCellCoverage(colBits []uint16, rows int, u0, u1, v0, v1 float64) float64 {
+	var cov float64
+	for col := 0; col < len(colBits); col++ {
+		ow := math.Min(float64(col+1), u1) - math.Max(float64(col), u0)
+		if ow <= 0 {
+			continue
+		}
+		bits := colBits[col]
+		for row := 0; row < rows; row++ {
+			if (bits & (1 << row)) == 0 {
+				continue
+			}
+			oh := math.Min(float64(row+1), v1) - math.Max(float64(row), v0)
+			if oh > 0 {
+				cov += ow * oh
+			}
+		}
+	}
+	area := (u1 - u0) * (v1 - v0)
+	if area <= 0 {
+		return 0
+	}
+	c := cov / area
+	if c > 1 {
+		return 1
+	}
+	return c
+}
+
+// drawGlyph paints a variable-size bitmap glyph at (x, y) scaled by intScale
+// (>= 1), honouring clips. The glyph's columns live in cols (len(cols) items,
+// each a uint16 whose bits 0..rows-1 are the lit cells), and the box is
+// cols×rows source cells. ASCII 5x7 glyphs and the new icon-font glyphs share
+// this one renderer.
+func drawGlyph(img *image.RGBA, cols []uint16, rows, x, y, intScale int, col color.RGBA, clips []op.ClipOp) {
+	for colIdx, colBits := range cols {
+		for rowIdx := 0; rowIdx < rows; rowIdx++ {
 			if (colBits & (1 << rowIdx)) != 0 {
-				// Draw pixel at (x + colIdx*scale, y + rowIdx*scale)
 				sx := x + colIdx*intScale
 				sy := y + rowIdx*intScale
 				for dx := 0; dx < intScale; dx++ {
@@ -496,4 +606,15 @@ func drawBitmapGlyph(img *image.RGBA, c byte, x, y, intScale int, col color.RGBA
 			}
 		}
 	}
+}
+
+// drawBitmapGlyph paints the 5x7 bitmap glyph for byte c (32..127) with its
+// top-left corner at (x, y), scaled by intScale (>= 1), honouring clips.
+func drawBitmapGlyph(img *image.RGBA, c byte, x, y, intScale int, col color.RGBA, clips []op.ClipOp) {
+	g := font5x7[c-32]
+	cols := make([]uint16, 5)
+	for i := range cols {
+		cols[i] = uint16(g[i])
+	}
+	drawGlyph(img, cols, 7, x, y, intScale, col, clips)
 }

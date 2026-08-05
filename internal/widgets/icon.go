@@ -132,13 +132,25 @@ func (Icon) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.N
 	if ln.Width <= 0 || ln.Height <= 0 {
 		return nil
 	}
-	// An explicit style width/height bypasses Measure's clamp — re-clamp so
-	// the supersampled coverage map stays bounded (R7-C).
 	w, h := ln.Width, ln.Height
 	if max := maxIconSide * scale; w > max || h > max {
 		w, h = max, max
 	}
 	name := iconName(ln.Node, ln, rt)
+	// When the icon font has a glyph for this name, render it as a text
+	// rune — the bitmap font path draws the icon glyph at the same scale
+	// and with the same color as any other text, with no per-frame SVG
+	// raster pass.
+	if r, ok := canvas.LookupIconRune(name); ok {
+		node := draw.NewText()
+		node.X = 0
+		node.Y = 0
+		node.Content = string(r)
+		node.FontSize = float64(w)
+		node.Fill = iconInk(ln.Node, ln, rt)
+		return node
+	}
+	// Fallback: rasterize the SVG body into a bitmap, same as before.
 	body, ok := iconSet[name]
 	if !ok {
 		warnIconOnce(name)
@@ -153,7 +165,7 @@ func (Icon) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.N
 	node.Width = float64(w)
 	node.Height = float64(h)
 	node.Bitmap = rasterIcon(body, w, h, iconInk(ln.Node, ln, rt))
-	node.Fit = "fill" // bitmap is rendered at exactly the box size (1:1)
+	node.Fit = "fill"
 	return node
 }
 
