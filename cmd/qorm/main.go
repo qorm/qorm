@@ -26,7 +26,7 @@ import (
 
 // version is the QORM release version. It defaults to a dev value and is stamped
 // at build time via -ldflags "-X main.version=<tag>" (see the build scripts / CI).
-var version = "0.5.5"
+var version = "0.8.0"
 
 func main() {
 	runtime.LockOSThread()
