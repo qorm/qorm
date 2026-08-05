@@ -46,3 +46,76 @@ QORM exposes a [Model Context Protocol](https://modelcontextprotocol.io) server 
 | `qorm_validate` | `node` (object), `sceneId` (string) | VALIDATE a QORM scene node or whole app against component schemas, widget catalog type rules, expression syntax, and design token constraints before patching or saving. Returns valid (bool) and an array of diagnostic warnings or errors. |
 
 Parameters marked `*` are required; the rest are optional.
+
+## AI Usage Guidance
+
+### Understanding the app
+
+Start every session with these read-only tools to build a mental model:
+
+1. **`qorm_inspect`** — the app's identity, state schema, current state, scenes,
+   actions, design tokens. Your first call.
+2. **`qorm_measure`** — every node's rendered position, size, visibility, and
+   computed styles. The single source of truth for what the user actually sees.
+3. **`qorm_render_html`** — the full rendered HTML. Use when you need to read
+   text content or understand the visual structure.
+4. **`qorm_activity`** — what the human just did (clicks, typing, form fills).
+   Use before making changes to avoid conflicting with the user.
+
+### Finding nodes to edit
+
+- **`qorm_query`** with `type`, `textContains`, `idContains`, `hasProp` filters
+  to locate nodes.
+- **`qorm_get_node`** to read a specific node's type, props, and children.
+- **`qorm_source_location`** to find where a node is declared in the source JSON
+  (file + line).
+
+### Making changes safely
+
+The design tools follow a review-before-commit pattern:
+
+1. **`qorm_preview_patch`** — apply patch ops to a COPY, get back rendered HTML
+   and a `previewToken`. Always preview first.
+2. **`qorm_diff`** — see the structural diff (added/removed nodes, changed
+   fields). Review before committing.
+3. **`qorm_apply_patch`** — commit to the live app. Must carry the
+   `previewToken` from step 1.
+4. **`qorm_undo`** — revert the last apply if something went wrong.
+
+Patch ops: `setProp` (change a prop/style), `addChild`/`insertBefore`/
+`insertAfter` (add nodes), `replace`/`wrap`/`move`/`remove` (restructure).
+
+### Operating the app
+
+- **`qorm_dispatch`** — run an action by name with optional args.
+- **`qorm_set_state`** — directly set a state path (dotted paths nest).
+- **`qorm_simulate_action`** — test an action against a state COPY without side
+  effects. Use before `qorm_dispatch` when unsure.
+
+### Verifying your work
+
+- **`qorm_check_layout`** — assert rendered positions, sizes, visibility,
+  overflow, contrast. The only way to prove your edit worked.
+- **`qorm_assert`** — check state values, HTML content, node existence.
+- **`qorm_validate`** — validate JSON against component schemas + widget catalog
+  + expression syntax. Run before saving.
+
+### Desktop window control
+
+- **`qorm_window`** — on macOS/Windows desktop (`-tags desktop`), control the
+  native app window: move, resize, focus, minimize, pin, tile, or execute
+  JavaScript in the WKWebView overlay.
+
+### Agent workflow checklist
+
+1. `qorm_inspect` → understand the app
+2. `qorm_measure` → see the current layout
+3. `qorm_query` → find target nodes
+4. `qorm_preview_patch` → preview changes
+5. `qorm_diff` → review structural impact
+6. `qorm_apply_patch` → commit
+7. `qorm_check_layout` → verify the result
+
+If anything fails at step 4-7, iterate: fix the patch, preview again, verify
+again. Never skip verification — a passing check is the only proof your edit
+landed correctly.

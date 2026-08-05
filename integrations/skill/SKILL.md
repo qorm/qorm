@@ -57,8 +57,84 @@ Before starting work on a QORM app, check for and apply framework updates:
 - Run `qorm version` to confirm the current version. If the version is behind the latest release, update before proceeding.
 - After updating, re-read `AGENTS.md` and this skill file — new features, widgets, or action types may have been added.
 
+## Canvas engine (native desktop window)
+
+On `-tags desktop`, the app opens as a standalone native window with a pure-Go
+software renderer — no browser engine. The same JSON scene runs identically:
+
+- **Layout**: identical to the HTML path (same measure/layout pipeline).
+- **Interaction**: full keyboard navigation (Tab/Shift-Tab, Enter/Space, Escape,
+  modifier keys), scroll viewports with momentum inertia, text editing with
+  selection/clipboard/undo, animated pressed/hover transitions, disabled visual
+  dimming.
+- **Widgets**: all 80+ widgets work, including overlay panels (drawer, menu,
+  modal, snackbar, tooltip) and interactive controls (switch, slider, checkbox,
+  select, textarea, draggable).
+- **Build**: `go run -tags desktop ./cmd/qorm run <app>`.
+
+### Declarative interaction effects (any node)
+
+These style keys work on ANY node — no per-widget logic needed:
+
+| Key | Effect |
+|---|---|
+| `pressedScale` / `hoverScale` | Scale transform on press/hover |
+| `pressedBackground` / `hoverBackground` | Color swap on press/hover |
+| `pressedOpacity` / `hoverOpacity` | Opacity change on press/hover |
+| `transition` | CSS-style duration (`"0.2s"`, `"200ms"`) — animates all the above |
+| `disabled` | Blocks pointer, dims to 50% opacity, shows not-allowed cursor |
+
+### Style system
+
+- **QSS stylesheets**: `styles/<id>.qss` with type/class/id selectors.
+  Cascade: theme default < type rule < class rule < id rule < inline style.
+- **Theme variables**: `var(--accent)`, `var(--label)`, etc. follow OS
+  light/dark.
+- **36 supported style keys**: background, color, padding, margin, gap,
+  width/height, min/max constraints, fontSize/fontWeight, textAlign,
+  borderRadius, strokeWidth/borderWidth, opacity, boxShadow*, and all
+  interaction keys above.
+
+### Script actions (qscript)
+
+When `steps` arrays get too long, write `actions/<id>.qs`:
+- `let x = <expr>` / `if <cond> { ... }` / `for item in <list> { ... }` /
+  `while <cond> { ... }` / `fn name(p) { ... }`
+- `state.x = <expr>` reads and writes state
+- `args.name` accesses action arguments
+- Full expression language: arithmetic, comparisons, ternary, builtins
+- Compile errors name file and line
+- See `examples/tetris` for a game written entirely in qscript
+
+### Text input editing (canvas backend)
+
+When an `input` or `textarea` is focused on the native canvas:
+
+- **Selection**: Shift+arrow extends, Cmd+A selects all, click places caret,
+  double-click selects word, triple-click selects line, drag selects text.
+- **Clipboard**: Cmd+C/X/V with system clipboard (macOS pbcopy/pbpaste).
+- **Undo/redo**: Cmd+Z / Cmd+Shift+Z, 50-entry stack.
+- **Navigation**: Left/Right, Cmd+Left/Right (word), Home/End, Up/Down
+  (textarea).
+- **Secure input**: `"secure": true` masks with bullets.
+- **Number input**: `"inputType": "number"` with `min`/`max`/`step` clamp.
+- **Readonly**: `"readonly": true` — focusable but not editable.
+- **IME**: composing text drawn with underline.
+
+### Icon font
+
+66 icons on Unicode Private Use Area U+E000+. Use the `icon` widget:
+```json
+{ "type": "icon", "props": { "icon": "heart" }, "style": { "color": "#FF3B30" } }
+```
+Available names: home, folder, star, heart, settings, search, user, bell, mail,
+check, plus, minus, trash, copy, info, chevron-right, chevron-down, and 47 more
+(auto-generated from the SVG set). See `internal/render/canvas/icon_font_data.go`.
+
 ## Don't
 
 - Don't use `value`/`on:{press}`/`{{count}}`/`scene://` (the aspirational spec format — the runtime ignores it).
 - Don't `apply_patch` without a matching `preview_patch` token.
-- Don't add emoji to UI/code/docs — use the built-in SVG icon set.
+- Don't add emoji to UI/code/docs — use the built-in icon font (66 icons).
+- Don't skip verification — always run `qorm_check_layout` after edits.
+- Don't guess what a widget supports — check the [widget catalog](api/widgets.md) (auto-generated, canonical).
