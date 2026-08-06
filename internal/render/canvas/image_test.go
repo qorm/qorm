@@ -5,6 +5,8 @@ import (
 	"image"
 	"image/color"
 	"image/jpeg"
+	_ "image/gif" // decoder only — tests in this file construct gifs too
+	"image/gif"
 	"image/png"
 	"os"
 	"path/filepath"
@@ -441,4 +443,73 @@ func TestImageCacheConcurrent(t *testing.T) {
 	for g := 0; g < 4; g++ {
 		<-done
 	}
+}
+
+// The native image widget decodes GIF via the stdlib image/gif decoder
+// (registered by the canvas engine's blank import); the resulting RGBA is
+// drawn just like a PNG. This locks in the format support: removing the
+// _ "image/gif" import would let this test fail at decode time.
+func TestImageDecodesGif(t *testing.T) {
+	resetImageCache(t)
+	dir := t.TempDir()
+
+	// 4x4 GIF, palette: index 0 transparent black, index 1 opaque red.
+	pal := color.Palette{color.RGBA{0, 0, 0, 0}, color.RGBA{0xff, 0, 0, 0xff}}
+	img := image.NewPaletted(image.Rect(0, 0, 4, 4), pal)
+	for y := 0; y < 4; y++ {
+		for x := 0; x < 4; x++ {
+			img.SetColorIndex(x, y, 1)
+		}
+	}
+	gifPath := writeTestGif(t, dir, "red.gif", &gif.GIF{
+		Image: []*image.Paletted{img},
+		Delay: []int{0},
+	})
+	rt := imageTestRuntime(dir)
+
+	n := imageNode(map[string]any{"src": "red.gif"})
+	got := RecordImage(n, rt, 8, 8, 0)
+	img8, ok := got.(*graph.Image)
+	if !ok {
+		t.Fatalf("RecordImage type = %T, want *graph.Image", got)
+	}
+	if img8.Width != 8 || img8.Height != 8 {
+		t.Fatalf("RecordImage size = %gx%g, want 8x8", img8.Width, img8.Height)
+	}
+	if img8.Bitmap == nil {
+		t.Fatal("RecordImage returned a nil bitmap")
+	}
+	// Sample the rendered bitmap: at least one pixel must be non-transparent
+	// (GIF decoded into a real RGBA, not the broken-img placeholder). The
+	// palette index 0 is transparent black; index 1 is opaque red.
+	painted := 0
+	for y := 0; y < 8 && painted < 1; y++ {
+		for x := 0; x < 8 && painted < 1; x++ {
+			px := img8.Bitmap.RGBAAt(x, y)
+			if px.A != 0 {
+				painted++
+			}
+		}
+	}
+	if painted == 0 {
+		t.Error("GIF decode produced only transparent pixels — got the placeholder?")
+	}
+
+	// The path is the resolved abs path the loader used.
+	_ = gifPath
+}
+
+// writeTestGif encodes a GIF in-memory and writes it to dir/name; returns
+// the resolved absolute path. Mirrors writeTestPNG.
+func writeTestGif(t *testing.T, dir, name string, g *gif.GIF) string {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := gif.EncodeAll(&buf, g); err != nil {
+		t.Fatalf("gif.EncodeAll: %v", err)
+	}
+	p := filepath.Join(dir, name)
+	if err := os.WriteFile(p, buf.Bytes(), 0o644); err != nil {
+		t.Fatalf("write %s: %v", p, err)
+	}
+	return p
 }

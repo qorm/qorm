@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	_ "image/gif"  // GIF decoding for image widget src
 	_ "image/jpeg" // JPEG decoding for image widget src
 	_ "image/png"  // PNG decoding for image widget src
 	"io"
