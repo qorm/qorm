@@ -1,0 +1,31 @@
+{
+  "name": "mario",
+  "colors": {
+    "sky":       "#5C94FC",
+    "ground":    "#8B4513",
+    "groundHi":  "#A55A2A",
+    "brick":     "#C84C0C",
+    "brickHi":   "#E0601C",
+    "coin":      "#FFD700",
+    "coinHi":    "#FFE040",
+    "flag":      "#1E9C2A",
+    "flagHi":    "#3CB84A",
+    "mario":     "#E52521",
+    "marioSkin": "#F2B47E",
+    "goomba":    "#7C4A00",
+    "goombaEye": "#FFFFFF",
+    "text":      "#FFFFFF",
+    "textDark":  "#1A1A1A",
+    "background":"#0F1B3D"
+  },
+  "components": {
+    "scene": { "backgroundColor": "sky" },
+    "column": { "color": "text" },
+    "row": { "color": "text" },
+    "text": { "color": "textDark", "fontSize": 18, "fontWeight": 600 },
+    "button": {
+      "borderRadius": 10, "padding": 10,
+      "backgroundColor": "mario", "color": "#FFFFFF", "fontSize": 14, "fontWeight": 700
+    }
+  }
+}

@@ -23,7 +23,7 @@ import (
 // skipDirs are directories that never contain renderable QORM sources.
 var skipDirs = map[string]bool{
 	"target": true, "qorm_standalone": true, "src": true,
-	"assets": true, "node_modules": true, ".git": true,
+	"assets": true, "themes": true, "node_modules": true, ".git": true,
 }
 
 // LoadDir loads an app from a directory.

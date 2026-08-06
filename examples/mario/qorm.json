@@ -3,15 +3,17 @@
   "id": "qorm_mario",
   "name": "QORM Mario",
   "entry": "main",
-  "theme": "apple-light",
+  "theme": "mario",
   "globalState": {
     "schema": {
       "rows": "array",
       "rows0": "array",
       "view": "array",
-      "iconNames": "array",
-      "cellGlyph": "array",
       "cellBg": "array",
+      "cellHi": "array",
+      "cellSh": "array",
+      "cellFg": "array",
+      "cellGlyph": "array",
       "mario": "object",
       "mario.x": "number",
       "mario.y": "number",
@@ -56,14 +58,41 @@
         "11111.11111.1111"
       ],
       "view": [],
-      "iconNames": [
+      "cellBg": [
+        "var(--sky)",
+        "var(--ground)",
+        "var(--brick)",
+        "var(--coin)",
+        "var(--flag)",
+        "var(--mario)",
+        "var(--goomba)"
+      ],
+      "cellHi": [
+        "var(--sky)",
+        "var(--groundHi)",
+        "var(--brickHi)",
+        "var(--coinHi)",
+        "var(--flagHi)",
+        "var(--marioSkin)",
+        "var(--goombaEye)"
+      ],
+      "cellSh": [
+        "var(--background)",
+        "var(--background)",
+        "var(--background)",
+        "var(--background)",
+        "var(--background)",
+        "var(--background)",
+        "var(--background)"
+      ],
+      "cellFg": [
         "",
-        "ground",
-        "brick",
-        "coin",
-        "flag",
-        "mario",
-        "goomba"
+        "var(--textDark)",
+        "var(--textDark)",
+        "var(--textDark)",
+        "var(--text)",
+        "var(--text)",
+        "var(--text)"
       ],
       "cellGlyph": [
         "",
@@ -73,15 +102,6 @@
         "▼",
         "M",
         "G"
-      ],
-      "cellBg": [
-        "var(--bg)",
-        "var(--surface)",
-        "var(--input)",
-        "var(--warning)",
-        "var(--success)",
-        "var(--primary)",
-        "var(--label)"
       ],
       "mario": { "x": 1, "y": 9, "rise": 0, "onGround": true },
       "goomba": { "x": 8, "y": 9, "dir": -1, "alive": true },

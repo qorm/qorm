@@ -19,8 +19,8 @@
     "id": "root",
     "style": {
       "background": "var(--background)",
-      "padding": 24,
-      "gap": 12
+      "padding": 16,
+      "gap": 8
     },
     "layout": {
       "width": "fill",
@@ -41,36 +41,62 @@
         "text": "SUPER QORM BROS",
         "style": {
           "color": "var(--primary)",
-          "fontSize": 22,
-          "fontWeight": 700,
+          "fontSize": 26,
+          "fontWeight": 800,
           "textAlign": "center"
         }
       },
       {
         "type": "row",
         "id": "hud",
-        "style": { "gap": 12 },
+        "style": {
+          "gap": 12
+        },
         "children": [
           {
             "type": "column",
             "id": "scorebox",
             "class": "scoreBox",
-            "layout": { "align": "center" },
-            "style": { "padding": 6 },
+            "layout": {
+              "align": "center"
+            },
+            "style": {
+              "padding": 6
+            },
             "children": [
-              { "type": "text", "text": "SCORE", "class": "statLabel" },
-              { "type": "text", "text": "{{ state.score }}", "class": "statValue" }
+              {
+                "type": "text",
+                "text": "SCORE",
+                "class": "statLabel"
+              },
+              {
+                "type": "text",
+                "text": "{{ state.score }}",
+                "class": "statValue"
+              }
             ]
           },
           {
             "type": "column",
             "id": "coinbox",
             "class": "scoreBox",
-            "layout": { "align": "center" },
-            "style": { "padding": 6 },
+            "layout": {
+              "align": "center"
+            },
+            "style": {
+              "padding": 6
+            },
             "children": [
-              { "type": "text", "text": "COINS", "class": "statLabel" },
-              { "type": "text", "text": "{{ state.coins }}", "class": "statValue" }
+              {
+                "type": "text",
+                "text": "COINS",
+                "class": "statLabel"
+              },
+              {
+                "type": "text",
+                "text": "{{ state.coins }}",
+                "class": "statValue"
+              }
             ]
           },
           {
@@ -78,116 +104,161 @@
             "id": "restartbtn",
             "label": "Restart",
             "class": "restartBtn",
-            "onPress": { "name": "restart" }
+            "onPress": {
+              "name": "restart"
+            }
           }
         ]
       },
       {
-        "type": "stack",
-        "id": "boardstack",
+        "type": "column",
+        "id": "boardframe",
+        "style": {
+          "background": "var(--background)",
+          "borderRadius": 8,
+          "padding": 8
+        },
         "children": [
           {
-            "type": "column",
-            "id": "boardframe",
+            "type": "gridview",
+            "id": "boardgrid",
+            "data": "{{ state.view }}",
+            "crossAxisCount": 16,
+            "spacing": 0,
             "style": {
-              "background": "var(--bg)",
-              "borderRadius": 8,
-              "padding": 8
+              "gap": 0
             },
-            "children": [
-              {
-                "type": "gridview",
-                "id": "boardgrid",
-                "data": "{{ state.view }}",
-                "crossAxisCount": 16,
-                "spacing": 1,
-                "style": { "gap": 1 },
-                "renderItem": {
-                  "type": "box",
-                  "layout": { "align": "center", "justify": "center" },
+            "renderItem": {
+              "type": "box",
+              "layout": {
+                "align": "center",
+                "justify": "center"
+              },
+              "style": {
+                "width": 32,
+                "height": 32,
+                "background": "{{ at(state.cellBg, item) }}"
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "if": "{{ item != 0 }}",
+                  "text": "{{ at(state.cellGlyph, item) }}",
                   "style": {
-                    "width": 24,
-                    "height": 24,
-                    "background": "{{ at(state.cellBg, item) }}"
-                  },
-                  "children": [
-                    {
-                      "type": "text",
-                      "if": "{{ item != 0 }}",
-                      "text": "{{ at(state.cellGlyph, item) }}",
-                      "style": {
-                        "fontSize": 16,
-                        "fontWeight": 800,
-                        "color": "var(--surface)"
-                      }
-                    }
-                  ]
+                    "fontSize": 20,
+                    "fontWeight": 800,
+                    "color": "{{ at(state.cellFg, item) }}"
+                  }
                 }
-              }
-            ]
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "type": "column",
+        "layout": {
+          "align": "center"
+        },
+        "if": "{{ state.status == 'won' }}",
+        "class": "overlayPanel",
+        "style": {
+          "padding": {
+            "top": 10,
+            "bottom": 10,
+            "left": 14,
+            "right": 14
+          },
+          "margin": {
+            "top": 90
+          }
+        },
+        "children": [
+          {
+            "type": "text",
+            "text": "COURSE CLEAR!",
+            "class": "overlayTitle"
           },
           {
-            "type": "column",
-            "layout": { "align": "center" },
-            "if": "{{ state.status == 'won' }}",
-            "class": "overlayPanel",
-            "style": {
-              "padding": { "top": 10, "bottom": 10, "left": 14, "right": 14 },
-              "margin": { "top": 90 }
-            },
-            "children": [
-              { "type": "text", "text": "COURSE CLEAR!", "class": "overlayTitle" },
-              { "type": "text", "text": "R or Restart to play again", "class": "overlayHint" }
-            ]
+            "type": "text",
+            "text": "R or Restart to play again",
+            "class": "overlayHint"
+          }
+        ]
+      },
+      {
+        "type": "column",
+        "layout": {
+          "align": "center"
+        },
+        "if": "{{ state.status == 'dead' }}",
+        "class": "overlayPanel",
+        "style": {
+          "padding": {
+            "top": 10,
+            "bottom": 10,
+            "left": 14,
+            "right": 14
+          },
+          "margin": {
+            "top": 90
+          }
+        },
+        "children": [
+          {
+            "type": "text",
+            "text": "GAME OVER",
+            "class": "overlayTitle"
           },
           {
-            "type": "column",
-            "layout": { "align": "center" },
-            "if": "{{ state.status == 'dead' }}",
-            "class": "overlayPanel",
-            "style": {
-              "padding": { "top": 10, "bottom": 10, "left": 14, "right": 14 },
-              "margin": { "top": 90 }
-            },
-            "children": [
-              { "type": "text", "text": "GAME OVER", "class": "overlayTitle" },
-              { "type": "text", "text": "R or Restart to try again", "class": "overlayHint" }
-            ]
+            "type": "text",
+            "text": "R or Restart to try again",
+            "class": "overlayHint"
           }
         ]
       },
       {
         "type": "row",
         "id": "controls",
-        "style": { "gap": 12 },
+        "style": {
+          "gap": 12
+        },
         "children": [
           {
             "type": "button",
             "id": "btnLeft",
-            "label": "◀",
+            "label": "\u2190",
             "class": "controlBtn",
-            "onPress": { "name": "moveLeft" }
+            "onPress": {
+              "name": "moveLeft"
+            }
           },
           {
             "type": "button",
             "id": "btnJump",
             "label": "JUMP",
             "class": "controlBtn",
-            "onPress": { "name": "jump" }
+            "onPress": {
+              "name": "jump"
+            }
           },
           {
             "type": "button",
             "id": "btnRight",
-            "label": "▶",
+            "label": "\u2192",
             "class": "controlBtn",
-            "onPress": { "name": "moveRight" }
+            "onPress": {
+              "name": "moveRight"
+            }
           }
         ]
       },
       {
         "type": "column",
         "id": "help",
-        "style": { "gap": 2 },
+        "style": {
+          "gap": 2
+        },
         "children": [
           {
             "type": "text",
