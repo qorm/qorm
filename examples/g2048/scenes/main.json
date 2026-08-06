@@ -112,7 +112,7 @@
             "type": "column",
             "id": "boardframe",
             "style": {
-              "background": "#bbada0",
+              "background": "var(--surface)",
               "borderRadius": 8,
               "padding": 8
             },

@@ -55,7 +55,7 @@
             "type": "stack",
             "id": "boardstack",
             "style": {
-              "background": "#2c2c34",
+              "background": "var(--bg)",
               "borderRadius": 6
             },
             "children": [
@@ -165,7 +165,7 @@
                 "spacing": 1,
                 "style": {
                   "gap": 1,
-                  "background": "#2c2c34"
+                  "background": "var(--bg)"
                 },
                 "layout": {
                   "alignSelf": "start"
