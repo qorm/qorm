@@ -1,6 +1,7 @@
 package expr
 
 import (
+	"encoding/json"
 	"math"
 	"regexp"
 	"sort"
@@ -159,6 +160,70 @@ func callBuiltin(name string, a []any, env *evalEnv) any {
 			return arg(0)
 		}
 		return arg(1)
+
+	// ---- type checks (v2) ----
+	case "typeof":
+		// typeof(v): one of "number", "string", "boolean", "null", "array",
+		// "object", "fn". Maps mirror qscript/js conventions so bindings can
+		// dispatch on shape.
+		return typeOfStr(arg(0))
+	case "isArray", "isList":
+		return isListArg(arg(0))
+	case "isString":
+		_, ok := arg(0).(string)
+		return ok
+	case "isNumber":
+		_, ok := arg(0).(float64)
+		return ok
+	case "isBool":
+		_, ok := arg(0).(bool)
+		return ok
+	case "isObject":
+		_, ok := arg(0).(map[string]any)
+		return ok
+	case "isNull":
+		return arg(0) == nil
+
+	// ---- JSON (v2) ----
+	case "jsonEncode", "JSON.stringify":
+		// jsonEncode(v): any -> compact JSON string. NaN/Inf become null
+		// (encoding/json marshalling) so output is always valid JSON.
+		b, err := json.Marshal(normalizeForJSON(arg(0)))
+		if err != nil {
+			return "" // degrade silently — a binding failure is not fatal
+		}
+		return string(b)
+	case "jsonDecode", "JSON.parse":
+		// jsonDecode(s): JSON string -> any. Returns nil on parse error so
+		// a malformed payload reads as an empty value, not a script error.
+		s := Stringify(arg(0))
+		if s == "" {
+			return nil
+		}
+		var v any
+		if err := json.Unmarshal([]byte(s), &v); err != nil {
+			return nil
+		}
+		return v
+
+	// ---- array extras (v2) ----
+	case "flatten":
+		// flatten(list): one level deep. A nested list of lists becomes a
+		// flat list; non-list elements pass through. Deeper nesting is left
+		// alone (use flatten(flatten(x)) to recurse, like JS's flat()).
+		arr, ok := arg(0).([]any)
+		if !ok {
+			return []any{}
+		}
+		out := make([]any, 0, len(arr))
+		for _, v := range arr {
+			if sub, ok := v.([]any); ok {
+				out = append(out, sub...)
+			} else {
+				out = append(out, v)
+			}
+		}
+		return out
 
 	// ---- collection builtins ----
 	// All degrade leniently: a non-list/non-map subject yields the zero result
@@ -716,4 +781,59 @@ func compileCached(pat string) *regexp.Regexp {
 		}
 	}
 	return re
+}
+
+// typeOfStr returns the type tag for v, mirroring qscript's convention:
+// "number"/"string"/"boolean"/"null"/"array"/"object". A function value
+// has its own "fn" tag (engine-level; bindings never see a function, but
+// tests do).
+func typeOfStr(v any) string {
+	switch v.(type) {
+	case float64:
+		return "number"
+	case string:
+		return "string"
+	case bool:
+		return "boolean"
+	case nil:
+		return "null"
+	case []any:
+		return "array"
+	case map[string]any:
+		return "object"
+	}
+	return "object"
+}
+
+// isListArg reports whether v is a list — the v2 array builtins (push,
+// pop, etc.) all share this check.
+func isListArg(v any) bool {
+	_, ok := v.([]any)
+	return ok
+}
+
+// normalizeForJSON rewrites qscript values into shapes encoding/json
+// understands: numbers stay float64 (JSON numbers); strings and bools are
+// already JSON-shaped; nil becomes JSON null. A map[string]any whose values
+// are themselves qscript values recurses — the function returns the same
+// tree with any non-JSON-compatible values zeroed.
+func normalizeForJSON(v any) any {
+	switch x := v.(type) {
+	case nil, bool, string, float64, int:
+		return v
+	case []any:
+		out := make([]any, len(x))
+		for i := range x {
+			out[i] = normalizeForJSON(x[i])
+		}
+		return out
+	case map[string]any:
+		out := make(map[string]any, len(x))
+		for k, vv := range x {
+			out[k] = normalizeForJSON(vv)
+		}
+		return out
+	}
+	// Unknown kinds (e.g. fn values) become null.
+	return nil
 }

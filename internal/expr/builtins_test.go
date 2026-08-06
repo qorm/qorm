@@ -206,3 +206,122 @@ func TestArrayMethodsV2Edges(t *testing.T) {
 		t.Errorf("repeat(0) → %q", got)
 	}
 }
+
+// V2: type checks, JSON, and the array extras added in this changeset.
+// Cover the new branches (typeof paths, isArray/isString/isObject/isNull,
+// jsonEncode/jsonDecode success and error paths, flatten).
+func TestV2TypeAndJSONBuiltins(t *testing.T) {
+	// typeof — every documented tag; nil is "null" not the zero value of
+	// the map iteration.
+	typeOf := map[string]any{
+		"1":          float64(1),
+		"0":          float64(0),
+		"\"a\"":      "a",
+		"\"\"":       "",
+		"true":       true,
+		"false":      false,
+		"null":       nil,
+		"[1]":        []any{float64(1)},
+		"[]":         []any{},
+		"{a:1}":      map[string]any{"a": float64(1)},
+		"{}":         map[string]any{},
+	}
+	typeOfWant := map[string]string{
+		"1": "number", "0": "number",
+		"\"a\"": "string", "\"\"": "string",
+		"true": "boolean", "false": "boolean",
+		"null": "null",
+		"[1]": "array", "[]": "array",
+		"{a:1}": "object", "{}": "object",
+	}
+	for k, v := range typeOf {
+		got := Stringify(CallBuiltin("typeof", []any{v}))
+		if got != typeOfWant[k] {
+			t.Errorf("typeof(%s) = %q, want %q", k, got, typeOfWant[k])
+		}
+	}
+
+	// Type predicates — all branches (true + false for every predicate).
+	yes := []any{[]any{float64(1)}, "x", float64(1), true, map[string]any{"a": float64(1)}, nil}
+	isArrayTrue := CallBuiltin("isArray", []any{yes[0]})
+	if isArrayTrue != true {
+		t.Errorf("isArray([1]) = %v, want true", isArrayTrue)
+	}
+	if got := CallBuiltin("isArray", []any{yes[1]}); got != false {
+		t.Errorf("isArray(\"x\") = %v, want false", got)
+	}
+	if got := CallBuiltin("isArray", []any{yes[3]}); got != false {
+		t.Errorf("isArray(true) = %v, want false", got)
+	}
+	if got := CallBuiltin("isList", []any{yes[0]}); got != true {
+		t.Errorf("isList([1]) = %v, want true", got)
+	}
+	if got := CallBuiltin("isString", []any{yes[1]}); got != true {
+		t.Errorf("isString(\"x\") = %v, want true", got)
+	}
+	if got := CallBuiltin("isString", []any{yes[2]}); got != false {
+		t.Errorf("isString(1) = %v, want false", got)
+	}
+	if got := CallBuiltin("isNumber", []any{yes[2]}); got != true {
+		t.Errorf("isNumber(1) = %v, want true", got)
+	}
+	if got := CallBuiltin("isNumber", []any{yes[1]}); got != false {
+		t.Errorf("isNumber(\"x\") = %v, want false", got)
+	}
+	if got := CallBuiltin("isBool", []any{yes[3]}); got != true {
+		t.Errorf("isBool(true) = %v, want true", got)
+	}
+	if got := CallBuiltin("isBool", []any{yes[1]}); got != false {
+		t.Errorf("isBool(\"x\") = %v, want false", got)
+	}
+	if got := CallBuiltin("isObject", []any{yes[4]}); got != true {
+		t.Errorf("isObject({a:1}) = %v, want true", got)
+	}
+	if got := CallBuiltin("isObject", []any{yes[0]}); got != false {
+		t.Errorf("isObject([1]) = %v, want false", got)
+	}
+	if got := CallBuiltin("isNull", []any{yes[5]}); got != true {
+		t.Errorf("isNull(null) = %v, want true", got)
+	}
+	if got := CallBuiltin("isNull", []any{yes[2]}); got != false {
+		t.Errorf("isNull(0) = %v, want false", got)
+	}
+
+	// jsonEncode: a known shape, nil, and a deep map.
+	got := Stringify(CallBuiltin("jsonEncode", []any{
+		map[string]any{"a": float64(1), "b": []any{float64(1), float64(2)}, "c": "hi"},
+	}))
+	if got != `{"a":1,"b":[1,2],"c":"hi"}` {
+		t.Errorf("jsonEncode = %q, want compact JSON", got)
+	}
+	if got := Stringify(CallBuiltin("jsonEncode", []any{nil})); got != "null" {
+		t.Errorf("jsonEncode(nil) = %q, want null", got)
+	}
+
+	// jsonDecode: happy path + malformed input + empty string.
+	decoded := CallBuiltin("jsonDecode", []any{`{"a":2,"b":[3,4]}`})
+	m, ok := decoded.(map[string]any)
+	if !ok {
+		t.Fatalf("jsonDecode type = %T, want map", decoded)
+	}
+	if a, _ := m["a"].(float64); a != 2 {
+		t.Errorf("jsonDecode .a = %v, want 2", m["a"])
+	}
+	if got := CallBuiltin("jsonDecode", []any{`{not json`}); got != nil {
+		t.Errorf("jsonDecode malformed = %v, want nil", got)
+	}
+	if got := CallBuiltin("jsonDecode", []any{""}); got != nil {
+		t.Errorf("jsonDecode(\"\") = %v, want nil", got)
+	}
+
+	// flatten: one level deep, non-list subject -> []any{}.
+	if got := CallBuiltin("flatten", []any{[]any{float64(1), float64(2), float64(3)}}); len(got.([]any)) != 3 {
+		t.Errorf("flatten flat len = %d, want 3", len(got.([]any)))
+	}
+	if got := CallBuiltin("flatten", []any{[]any{[]any{float64(1), float64(2)}, []any{float64(3)}}}); len(got.([]any)) != 3 {
+		t.Errorf("flatten nested len = %d, want 3 (one level deep)", len(got.([]any)))
+	}
+	if got := CallBuiltin("flatten", []any{"x"}); got == nil {
+		t.Errorf("flatten(\"x\") = nil, want []any{}")
+	}
+}

@@ -392,9 +392,14 @@ var builtinNames = map[string]bool{
 	// Array methods (v2): functional — each returns a NEW list.
 	"push": true, "unshift": true, "pop": true, "shift": true,
 	"reverse": true, "sort": true, "indexOf": true, "includes": true,
+	"flatten": true,
 	// String methods (v2).
 	"charAt": true, "substring": true, "repeat": true,
 	"padStart": true, "padEnd": true, "trimStart": true, "trimEnd": true,
+	// Type checks and JSON (v2).
+	"typeof": true, "isArray": true, "isList": true, "isString": true,
+	"isNumber": true, "isBool": true, "isObject": true, "isNull": true,
+	"jsonEncode": true, "JSON.stringify": true, "jsonDecode": true, "JSON.parse": true,
 }
 
 // nativeHook is the optional bridge to host-native ops (hardware widgets,

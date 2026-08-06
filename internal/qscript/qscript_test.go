@@ -625,3 +625,47 @@ func TestExprNewBuiltinsParity(t *testing.T) {
 		}
 	}
 }
+
+// v2 type checks, JSON, and the new array extras.
+func TestExprV2Builtins(t *testing.T) {
+	cases := []struct {
+		src, want string
+	}{
+		// typeof
+		{`state.out = typeof(1)`, "number"},
+		{`state.out = typeof("hi")`, "string"},
+		{`state.out = typeof(true)`, "boolean"},
+		{`state.out = typeof(null)`, "null"},
+		{`state.out = typeof([1,2])`, "array"},
+		{`state.out = typeof({a:1})`, "object"},
+		// isArray / isString / isObject / isNull
+		{`state.out = str(isArray([1]))`, "true"},
+		{`state.out = str(isArray("x"))`, "false"},
+		{`state.out = str(isString("x"))`, "true"},
+		{`state.out = str(isString(1))`, "false"},
+		{`state.out = str(isObject({a:1}))`, "true"},
+		{`state.out = str(isObject([1]))`, "false"},
+		{`state.out = str(isNull(null))`, "true"},
+		{`state.out = str(isNull(0))`, "false"},
+		// jsonEncode / jsonDecode round-trip
+		{`state.out = jsonEncode({a: 1, b: [1,2,3], c: "hi"})`, `{"a":1,"b":[1,2,3],"c":"hi"}`},
+		{`state.out = jsonDecode("{\"a\":1,\"b\":[1,2]}").a`, "1"},
+		{`state.out = str(isArray(jsonDecode("[1,2,3]")))`, "true"},
+		// flatten: one level deep — a nested list passes through
+		{`state.out = str(len(flatten([[1,2],[3,4],[5,6]])))`, "6"},
+		{`state.out = str(len(flatten([1, [2, 3], 4])))`, "4"},
+		{`state.out = str(len(flatten([1,2,3])))`, "3"},
+		{`state.out = str(len(flatten([[1,2],[3,[4,5]]])))`, "4"},
+		// Mixed with v2
+		{`state.out = str(isNumber(jsonDecode("42")))`, "true"},
+	}
+	for _, c := range cases {
+		st := map[string]any{}
+		if err := Run(c.src, st, nil); err != nil {
+			t.Fatalf("%s: %v", c.src, err)
+		}
+		if got := fmt.Sprint(st["out"]); got != c.want {
+			t.Errorf("%s → out=%q, want %q", c.src, got, c.want)
+		}
+	}
+}
