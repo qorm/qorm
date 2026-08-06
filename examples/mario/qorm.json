@@ -9,7 +9,9 @@
       "rows": "array",
       "rows0": "array",
       "view": "array",
-      "spriteSrc": "array",
+      "iconNames": "array",
+      "cellGlyph": "array",
+      "cellBg": "array",
       "mario": "object",
       "mario.x": "number",
       "mario.y": "number",
@@ -54,14 +56,32 @@
         "11111.11111.1111"
       ],
       "view": [],
-      "spriteSrc": [
+      "iconNames": [
         "",
-        "assets/ground.png",
-        "assets/brick.png",
-        "assets/coin.png",
-        "assets/flag.png",
-        "assets/mario.png",
-        "assets/goomba.png"
+        "ground",
+        "brick",
+        "coin",
+        "flag",
+        "mario",
+        "goomba"
+      ],
+      "cellGlyph": [
+        "",
+        "▒",
+        "▓",
+        "●",
+        "▼",
+        "M",
+        "G"
+      ],
+      "cellBg": [
+        "var(--bg)",
+        "var(--surface)",
+        "var(--input)",
+        "var(--warning)",
+        "var(--success)",
+        "var(--primary)",
+        "var(--label)"
       ],
       "mario": { "x": 1, "y": 9, "rise": 0, "onGround": true },
       "goomba": { "x": 8, "y": 9, "dir": -1, "alive": true },

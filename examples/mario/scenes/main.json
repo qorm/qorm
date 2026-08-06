@@ -108,14 +108,18 @@
                   "style": {
                     "width": 24,
                     "height": 24,
-                    "background": "var(--bg)"
+                    "background": "{{ at(state.cellBg, item) }}"
                   },
                   "children": [
                     {
-                      "type": "image",
+                      "type": "text",
                       "if": "{{ item != 0 }}",
-                      "src": "{{ at(state.spriteSrc, item) }}",
-                      "style": { "width": 24, "height": 24 }
+                      "text": "{{ at(state.cellGlyph, item) }}",
+                      "style": {
+                        "fontSize": 16,
+                        "fontWeight": 800,
+                        "color": "var(--surface)"
+                      }
                     }
                   ]
                 }
