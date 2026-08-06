@@ -9,7 +9,7 @@
       "rows": "array",
       "rows0": "array",
       "view": "array",
-      "colors": "array",
+      "spriteSrc": "array",
       "mario": "object",
       "mario.x": "number",
       "mario.y": "number",
@@ -54,14 +54,14 @@
         "11111.11111.1111"
       ],
       "view": [],
-      "colors": [
-        "#5c94fc",
-        "#8b4513",
-        "#c84c0c",
-        "#ffd700",
-        "#00a800",
-        "#ff1111",
-        "#5c3317"
+      "spriteSrc": [
+        "",
+        "assets/ground.png",
+        "assets/brick.png",
+        "assets/coin.png",
+        "assets/flag.png",
+        "assets/mario.png",
+        "assets/goomba.png"
       ],
       "mario": { "x": 1, "y": 9, "rise": 0, "onGround": true },
       "goomba": { "x": 8, "y": 9, "dir": -1, "alive": true },

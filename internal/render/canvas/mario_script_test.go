@@ -239,12 +239,14 @@ func TestMarioScriptSwipeControls(t *testing.T) {
 	e, surf, rt := marioFixture(t)
 	e.DrawFrame(surf)
 
-	g2048Swipe(e, 120, 400, 320, 405) // swipe right
+	// Coordinates land squarely on the (now larger) board — the prior
+	// coordinates targeted the older 20-px-cell layout.
+	g2048Swipe(e, 80, 300, 280, 305) // swipe right (dx > 0)
 	tetrisNoScriptErr(t, rt)
 	if x := marioOf(rt)["x"]; x != 2.0 {
 		t.Fatalf("mario.x = %v after swipe-right, want 2", x)
 	}
-	g2048Swipe(e, 200, 480, 205, 240) // swipe up
+	g2048Swipe(e, 200, 320, 205, 200) // swipe up
 	tetrisNoScriptErr(t, rt)
 	if r := marioOf(rt)["rise"]; r != 3.0 {
 		t.Fatalf("rise = %v after swipe-up, want 3 (jump armed)", r)

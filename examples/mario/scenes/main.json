@@ -90,7 +90,7 @@
             "type": "column",
             "id": "boardframe",
             "style": {
-              "background": "#5c94fc",
+              "background": "var(--bg)",
               "borderRadius": 8,
               "padding": 8
             },
@@ -106,10 +106,18 @@
                   "type": "box",
                   "layout": { "align": "center", "justify": "center" },
                   "style": {
-                    "width": 20,
-                    "height": 20,
-                    "background": "{{ at(state.colors, item) }}"
-                  }
+                    "width": 24,
+                    "height": 24,
+                    "background": "var(--bg)"
+                  },
+                  "children": [
+                    {
+                      "type": "image",
+                      "if": "{{ item != 0 }}",
+                      "src": "{{ at(state.spriteSrc, item) }}",
+                      "style": { "width": 24, "height": 24 }
+                    }
+                  ]
                 }
               }
             ]
