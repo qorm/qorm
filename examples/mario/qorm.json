@@ -1,0 +1,73 @@
+{
+  "type": "app",
+  "id": "qorm_mario",
+  "name": "QORM Mario",
+  "entry": "main",
+  "theme": "apple-light",
+  "globalState": {
+    "schema": {
+      "rows": "array",
+      "rows0": "array",
+      "view": "array",
+      "colors": "array",
+      "mario": "object",
+      "mario.x": "number",
+      "mario.y": "number",
+      "mario.rise": "number",
+      "mario.onGround": "boolean",
+      "goomba": "object",
+      "goomba.x": "number",
+      "goomba.y": "number",
+      "goomba.dir": "number",
+      "goomba.alive": "boolean",
+      "coins": "number",
+      "score": "number",
+      "status": "string"
+    },
+    "initial": {
+      "rows0": [
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "...............4",
+        "...............4",
+        "...............4",
+        "....3..........4",
+        "..3......3.....4",
+        "11111.11111.1111",
+        "11111.11111.1111"
+      ],
+      "rows": [
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "...............4",
+        "...............4",
+        "...............4",
+        "....3..........4",
+        "..3......3.....4",
+        "11111.11111.1111",
+        "11111.11111.1111"
+      ],
+      "view": [],
+      "colors": [
+        "#5c94fc",
+        "#8b4513",
+        "#c84c0c",
+        "#ffd700",
+        "#00a800",
+        "#ff1111",
+        "#5c3317"
+      ],
+      "mario": { "x": 1, "y": 9, "rise": 0, "onGround": true },
+      "goomba": { "x": 8, "y": 9, "dir": -1, "alive": true },
+      "coins": 0,
+      "score": 0,
+      "status": "playing"
+    }
+  }
+}

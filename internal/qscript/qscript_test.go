@@ -476,3 +476,152 @@ func TestLineCommentWithApostropheAndMultilineMap(t *testing.T) {
 		t.Errorf("js arg = %q", args["js"])
 	}
 }
+
+// ---- v2: array/string methods, break/continue, lib, call ----
+
+func TestArrayMethodsFunctional(t *testing.T) {
+	cases := []struct{ src, want string }{
+		{`let a = [1,2,3]
+state.out = join(push(a, 4), ",")`, "1,2,3,4"},
+		{`let a = [1,2,3]
+state.out = join(unshift(a, 0), ",")`, "0,1,2,3"},
+		{`let a = [1,2,3]
+state.out = join(pop(a), ",")`, "1,2"},
+		{`let a = [1,2,3]
+state.out = join(shift(a), ",")`, "2,3"},
+		{`let a = [1,2,3]
+state.out = join(reverse(a), ",")`, "3,2,1"},
+		{`let a = [3,1,2]
+state.out = join(sort(a), ",")`, "1,2,3"},
+		{`let a = [10,2]
+state.out = str(indexOf(a, 2))`, "1"},
+		{`let a = [10,2]
+state.out = str(indexOf(a, 99))`, "-1"},
+		{`let a = [10,2]
+state.out = str(includes(a, 10))`, "true"},
+		{`state.out = str(includes("hello", "ell"))`, "true"},
+		{`state.out = charAt("hello", 1)`, "e"},
+		{`state.out = substring("hello", 1, 3)`, "el"},
+		{`state.out = repeat("ab", 3)`, "ababab"},
+		{`state.out = padStart("5", 3, "0")`, "005"},
+		{`state.out = padEnd("5", 3, "0")`, "500"},
+		{`state.out = trimStart("  x  ")`, "x  "},
+		{`state.out = trimEnd("  x  ")`, "  x"},
+	}
+	for _, c := range cases {
+		st := map[string]any{}
+		if err := Run(c.src, st, nil); err != nil {
+			t.Fatalf("%s: %v", c.src, err)
+		}
+		if got := st["out"]; got != c.want {
+			t.Errorf("%s → out=%v, want %q", c.src, got, c.want)
+		}
+	}
+}
+
+func TestBreakContinue(t *testing.T) {
+	// break exits the loop; continue skips to the next iteration.
+	src := `let n = 0
+for x in range(10) {
+  if (x == 3) { continue }
+  if (x == 7) { break }
+  n = n + 1
+}
+state.out = n`
+	st := map[string]any{}
+	if err := Run(src, st, nil); err != nil {
+		t.Fatalf("break/continue: %v", err)
+	}
+	// 0,1,2 pass (3 skipped), 4,5,6 pass (7 breaks) → 6 values.
+	if got := st["out"]; got != float64(6) {
+		t.Errorf("break/continue → out=%v, want 6", got)
+	}
+	// while loop break
+	src2 := `let i = 0
+while (true) {
+  i = i + 1
+  if (i >= 5) { break }
+}
+state.out = i`
+	st2 := map[string]any{}
+	if err := Run(src2, st2, nil); err != nil {
+		t.Fatalf("while break: %v", err)
+	}
+	if got := st2["out"]; got != float64(5) {
+		t.Errorf("while break → out=%v, want 5", got)
+	}
+}
+
+func TestCallBuiltinDispatches(t *testing.T) {
+	var gotName string
+	var gotArgs map[string]any
+	SetDispatchHook(func(line int, name string, args map[string]any) error {
+		gotName = name
+		gotArgs = args
+		return nil
+	})
+	defer SetDispatchHook(nil)
+
+	st := map[string]any{}
+	src := `call("other", {a: 1})`
+	if err := Run(src, st, nil); err != nil {
+		t.Fatalf("call: %v", err)
+	}
+	if gotName != "other" {
+		t.Errorf("call dispatched %q, want other", gotName)
+	}
+	if gotArgs["a"] != float64(1) {
+		t.Errorf("call args = %v, want {a:1}", gotArgs)
+	}
+}
+
+func TestCallWithoutHookNoop(t *testing.T) {
+	// No hook installed: call() returns false without error (like native()).
+	st := map[string]any{}
+	src := `let ok = call("x")
+state.out = str(ok)`
+	if err := Run(src, st, nil); err != nil {
+		t.Fatalf("call without hook: %v", err)
+	}
+	if got := st["out"]; got != "false" {
+		t.Errorf("call without hook → %v, want false", got)
+	}
+}
+
+func TestLibPrependsAtDispatch(t *testing.T) {
+	// A lib's fn definitions join the script's compilation (runtime merges
+	// app.ScriptLib + "\n" + act.Script at dispatch).
+	lib := `fn double(x) { return x * 2 }
+fn greet() { return "hi" }`
+	src := `state.out = double(21)`
+	st := map[string]any{}
+	if err := Run(lib+"\n"+src, st, nil); err != nil {
+		t.Fatalf("lib+script: %v", err)
+	}
+	if got := st["out"]; got != float64(42) {
+		t.Errorf("lib fn → %v, want 42", got)
+	}
+}
+
+func TestExprNewBuiltinsParity(t *testing.T) {
+	// The new builtins must work identically in bindings (expr) and scripts
+	// (qscript delegates). Spot-check expr directly.
+	cases := []struct {
+		name string
+		args []any
+		want any
+	}{
+		{"push", []any{[]any{float64(1)}, float64(2)}, []any{float64(1), float64(2)}},
+		{"indexOf", []any{[]any{float64(5), float64(9)}, float64(9)}, float64(1)},
+		{"includes", []any{"hello world", "world"}, true},
+		{"charAt", []any{"abc", float64(1)}, "b"},
+		{"substring", []any{"abcdef", float64(2), float64(4)}, "cd"},
+		{"repeat", []any{"x", float64(3)}, "xxx"},
+	}
+	for _, c := range cases {
+		got := expr.CallBuiltin(c.name, c.args)
+		if fmt.Sprint(got) != fmt.Sprint(c.want) {
+			t.Errorf("%s%v → %v, want %v", c.name, c.args, got, c.want)
+		}
+	}
+}

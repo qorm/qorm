@@ -246,3 +246,91 @@ func TestG2048ScriptGameOverAndRestart(t *testing.T) {
 		t.Fatalf("best = %v after restart, want preserved 100", got)
 	}
 }
+
+// g2048Swipe drags from (x0,y0) to (x1,y1) through the engine's pointer
+// stream: press, one move, release — the shape of a finger flick.
+func g2048Swipe(e *Engine, x0, y0, x1, y1 float64) {
+	e.HandlePointer(PointerInput{Type: PointerPress, X: x0, Y: y0, Buttons: 1})
+	e.HandlePointer(PointerInput{Type: PointerMove, X: x1, Y: y1, Buttons: 1})
+	e.HandlePointer(PointerInput{Type: PointerRelease, X: x1, Y: y1})
+}
+
+// The scene's `swipes` map is the touch counterpart of its `keys`: a
+// press-drag-release flick in a dominant direction dispatches the bound
+// slide — same merges, same spawn rules as the arrows (assertions mirror the
+// key tests above). This is how the same game JSON plays on a phone.
+func TestG2048ScriptSwipeSlides(t *testing.T) {
+	e, surf, rt, _ := g2048Fixture(t)
+	e.DrawFrame(surf)
+
+	g2048SetBoard(rt, 2, 2, 2, 2)
+	rt.State["score"] = 0.0
+	g2048Swipe(e, 300, 400, 120, 405) // flick left
+	tetrisNoScriptErr(t, rt)
+	if b := g2048Board(rt); b[0] != 4.0 || b[1] != 4.0 {
+		t.Fatalf("row after swipe-left = %v, want [4 4 ...]", b[:4])
+	}
+	if got := rt.State["score"]; got != 8.0 {
+		t.Fatalf("score = %v after swipe-left, want 8 (4+4)", got)
+	}
+
+	g2048SetBoard(rt, 2, 0, 0, 0, 2)  // two 2s stacked in column 0
+	g2048Swipe(e, 200, 480, 205, 240) // flick up
+	tetrisNoScriptErr(t, rt)
+	if b := g2048Board(rt); b[0] != 4.0 {
+		t.Fatalf("column after swipe-up: b[0] = %v, want 4", b[0])
+	}
+
+	g2048SetBoard(rt, 2)
+	g2048Swipe(e, 200, 240, 208, 500) // flick down
+	tetrisNoScriptErr(t, rt)
+	if b := g2048Board(rt); b[12] != 2.0 {
+		t.Fatalf("column after swipe-down: b[12] = %v, want 2 (bottom row)", b[12])
+	}
+
+	g2048SetBoard(rt, 2, 2)
+	g2048Swipe(e, 120, 400, 320, 395) // flick right
+	tetrisNoScriptErr(t, rt)
+	if b := g2048Board(rt); b[3] != 4.0 {
+		t.Fatalf("row after swipe-right = %v, want [.. 4]", b[:4])
+	}
+}
+
+// A tap (travel below the slop) and a near-diagonal flick (no dominant axis)
+// are NOT swipes: the board neither slides nor spawns a tile.
+func TestG2048ScriptSwipeRejectsTapsAndDiagonals(t *testing.T) {
+	e, surf, rt, _ := g2048Fixture(t)
+	e.DrawFrame(surf)
+
+	// A lone tile mid-board would MOVE under any cardinal slide, so an
+	// unchanged board proves nothing dispatched.
+	g2048SetBoard(rt, 0, 0, 0, 0, 0, 2)
+	g2048Swipe(e, 200, 400, 206, 403) // a tap
+	g2048Swipe(e, 200, 400, 290, 480) // ambiguous diagonal
+	tetrisNoScriptErr(t, rt)
+	if b := g2048Board(rt); b[5] != 2.0 || b[4] != 0.0 {
+		t.Fatalf("board moved under a tap/diagonal: %v", b[:8])
+	}
+	if n := g2048Filled(rt); n != 1 {
+		t.Fatalf("filled = %d, want 1 (no slide, no spawn)", n)
+	}
+}
+
+// swipeDirection is the recognizer's verdict table: distance floor, axis
+// dominance, and the sign of the dominant travel.
+func TestSwipeDirection(t *testing.T) {
+	cases := []struct {
+		dx, dy float64
+		want   string
+	}{
+		{-100, 5, "left"}, {100, -5, "right"}, {3, -100, "up"}, {-3, 100, "down"},
+		{-10, 0, ""},  // below the distance floor
+		{100, 90, ""}, // diagonal: no dominant axis
+		{0, 0, ""},    // no travel at all
+	}
+	for _, c := range cases {
+		if got := swipeDirection(c.dx, c.dy); got != c.want {
+			t.Errorf("swipeDirection(%v, %v) = %q, want %q", c.dx, c.dy, got, c.want)
+		}
+	}
+}

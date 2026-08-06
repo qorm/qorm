@@ -114,6 +114,10 @@ The index may be any expression. Rules worth knowing:
 | `map(list, "expr")` | each element mapped through the sub-expression |
 | `filter(list, "expr")` | elements whose sub-expression is truthy |
 | `slice(list, lo, hi)` | sub-range, bounds-clamped; an inverted range is empty |
+| `push(list, v, …)` · `unshift(list, v, …)` | a NEW list with the values appended / prepended (`null` values drop) |
+| `pop(list)` · `shift(list)` | a NEW list without the last / first element (read it with `last()` / `first()` first) |
+| `reverse(list)` · `sort(list)` | a NEW list reversed / sorted — numbers ascending, then strings lexically, then booleans, `null` last; stable within each class |
+| `indexOf(list, v)` · `includes(list, v)` | first index of `v` or `-1` / whether `v` is an element |
 
 `map`, `filter` and the two-argument `count` take a **sub-expression written
 as a string**, with the element bound to `it`:
@@ -127,6 +131,14 @@ as a string**, with the element bound to `it`:
 A non-list subject yields the empty result rather than an error, so a binding
 never blows up on a state key that has not loaded yet.
 
+The list-shaping calls (`push`, `unshift`, `pop`, `shift`, `reverse`, `sort`)
+are **functional**: each returns a NEW list and never mutates its subject —
+assign the result back when you want to keep it:
+
+```json
+{ "type": "state.set", "path": "items", "value": "{{ push(state.items, state.draft) }}" }
+```
+
 ### Strings
 
 | Call | Result |
@@ -139,6 +151,12 @@ never blows up on a state key that has not loaded yet.
 | `split(s, sep)` | split into a list; an empty `sep` splits into runes; an empty subject is `[]` |
 | `join(list, sep)` | join elements; a `null` element joins as empty |
 | `format(pattern, …)` | `%s`, `%d`, `%f`, `%.Nf`, `%%`; an unknown verb passes through literally |
+| `charAt(s, i)` | the `i`-th rune as a string; out of range is `""` |
+| `substring(s, start, end)` | rune-clamped slice; negative/inverted ranges collapse like `slice` (`end` optional: to the end) |
+| `repeat(s, n)` | `s` repeated `n` times; `n <= 0` is `""` |
+| `padStart(s, n, ch)` · `padEnd(s, n, ch)` | pad to `n` runes with `ch` (default `" "`), left / right |
+| `trimStart(s)` · `trimEnd(s)` | trim leading / trailing whitespace only |
+| `includes(s, sub)` | substring containment when the subject is a string |
 
 ```json
 { "text": "{{ format('%s scored %.1f%%', state.name, state.pct) }}" }

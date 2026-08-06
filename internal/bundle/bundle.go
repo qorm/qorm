@@ -46,6 +46,11 @@ type Content struct {
 	// by sheet id. omitempty keeps the canonical encoding — and therefore the
 	// content hash — of every bundle without stylesheets unchanged.
 	Stylesheets map[string]map[string]any `json:"stylesheets,omitempty"`
+	// ScriptLib is the shared qscript library document (actions/lib.qs,
+	// type:"scriptlib") — the fn definitions merged into every script action
+	// at dispatch. omitempty keeps the canonical encoding — and therefore the
+	// content hash — of every bundle without a library unchanged.
+	ScriptLib map[string]any `json:"scriptLib,omitempty"`
 	// RequiredCapabilities lists the hardware/native capabilities (by canonical
 	// capability name, e.g. "camera") the app needs at runtime. The runtime
 	// refuses to start the bundle on a platform missing any of them. omitempty
@@ -129,6 +134,15 @@ func fromDocs(docs []map[string]any, locales map[string]map[string]string) (*Bun
 				c.Stylesheets = map[string]map[string]any{}
 			}
 			c.Stylesheets[id] = doc
+		case "scriptlib":
+			// The shared qscript library (actions/lib.qs): one per app. The
+			// directory loader diagnoses a second definition and keeps the
+			// first; packaging refuses outright, same rule as every other
+			// duplicated definition.
+			if c.ScriptLib != nil {
+				return nil, duplicateDocError("scriptlib", "lib")
+			}
+			c.ScriptLib = doc
 		}
 	}
 	// A component document colliding with a manifest-INLINE component of the
@@ -366,6 +380,9 @@ func (b *Bundle) ToApp() *model.App {
 	}
 	for _, c := range b.Content.Components {
 		docs = append(docs, c)
+	}
+	if b.Content.ScriptLib != nil {
+		docs = append(docs, b.Content.ScriptLib)
 	}
 	// Stylesheet ORDER is semantic (same-class rules cascade in declaration
 	// order), and this map iterates nondeterministically — feed the documents

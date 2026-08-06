@@ -100,6 +100,10 @@
 | `map(list, "表达式")` | 每个元素经子表达式映射 |
 | `filter(list, "表达式")` | 子表达式为真的元素 |
 | `slice(list, lo, hi)` | 子区间,边界自动钳制;区间倒置则为空 |
+| `push(list, v, …)` · `unshift(list, v, …)` | 返回**新列表**,把值追加/前置到末尾(`null` 值被丢弃) |
+| `pop(list)` · `shift(list)` | 返回**新列表**,去掉末/首元素(先用 `last()` / `first()` 读出) |
+| `reverse(list)` · `sort(list)` | 返回**新列表**,倒序/排序——数值升序在前,其次字符串按字典序,再是布尔,`null` 最后;同类内稳定 |
+| `indexOf(list, v)` · `includes(list, v)` | `v` 的首个下标,没有则 `-1` / `v` 是否在列表内 |
 
 `map`、`filter` 与双参数的 `count` 接受一个**写成字符串的子表达式**,元素绑定在 `it` 上:
 
@@ -110,6 +114,13 @@
 ```
 
 主体不是列表时返回空结果而非报错,所以当某个状态键尚未加载时绑定也不会炸。
+
+整形列表的调用(`push`、`unshift`、`pop`、`shift`、`reverse`、`sort`)是**函数式**的:
+各自返回一个**新列表**,绝不修改主体——想保留结果就把它赋回去:
+
+```json
+{ "type": "state.set", "path": "items", "value": "{{ push(state.items, state.draft) }}" }
+```
 
 ### 字符串
 
@@ -123,6 +134,12 @@
 | `split(s, sep)` | 拆分为列表;`sep` 为空则按字符拆分;主体为空得 `[]` |
 | `join(list, sep)` | 连接元素;`null` 元素连接为空串 |
 | `format(pattern, …)` | `%s`、`%d`、`%f`、`%.Nf`、`%%`;未知的动词原样输出 |
+| `charAt(s, i)` | 第 `i` 个字符(按 rune),越界为 `""` |
+| `substring(s, start, end)` | 按 rune 钳制的子串;负数/倒置区间像 `slice` 一样收缩(`end` 可省:到末尾) |
+| `repeat(s, n)` | 重复 `n` 次;`n <= 0` 为 `""` |
+| `padStart(s, n, ch)` · `padEnd(s, n, ch)` | 用 `ch`(默认 `" "`)左/右补齐到 `n` 个字符 |
+| `trimStart(s)` · `trimEnd(s)` | 只去前导/尾部空白 |
+| `includes(s, sub)` | 主体是字符串时为子串包含判断 |
 
 ```json
 { "text": "{{ format('%s scored %.1f%%', state.name, state.pct) }}" }
@@ -138,6 +155,7 @@
 | `min(a, b, …)` · `max(a, b, …)` | 在参数间取最小/最大 |
 | `not(x)` · `empty(x)` | 对真值判定取反 |
 | `default(x, fallback)`(别名 `coalesce`) | `x` 为真时取 `x`,否则取 `fallback` |
+| `now()` | Unix 毫秒时间戳(唯一的非确定性内建) |
 
 未知函数名在运行时求值为 `null`——但加载器会对集合类与 `format` 调用做静态的元数与
 参数类型检查,所以 `qorm run` 会在你看到空白屏幕之前就报出错误。

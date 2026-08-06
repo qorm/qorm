@@ -51,6 +51,63 @@ func TestBuildQSScriptFileAction(t *testing.T) {
 	}
 }
 
+// The reserved actions/lib.qs (shared script library) rides the same collect
+// walk: it is packaged, hashed, and reconstructed exactly as the directory
+// loader read it — you sign what you tested.
+func TestBuildScriptLibRoundTrip(t *testing.T) {
+	const lib = "fn double(x) { return x * 2 }\n"
+	dir := appDir(t, map[string]string{
+		"qorm.json": `{"type":"app","id":"t","entry":"main",
+			"globalState":{"schema":{"count":"number"},"initial":{"count":1}}}`,
+		"scenes/main.json": `{"type":"scene","id":"main","root":{"type":"column","id":"root"}}`,
+		"actions/lib.qs":   lib,
+		"actions/bump.qs":  "state.count = double(state.count)\n",
+	})
+	b, err := Build(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.Content.ScriptLib == nil {
+		t.Fatal("bundle has no scriptLib document")
+	}
+	if b.Content.ScriptLib["text"] != lib {
+		t.Fatalf("bundled scriptLib text = %q, want %q", b.Content.ScriptLib["text"], lib)
+	}
+	if b.Content.ScriptLib["source"] != "actions/lib.qs" {
+		t.Fatalf("bundled scriptLib source = %q, want actions/lib.qs", b.Content.ScriptLib["source"])
+	}
+	if _, asAction := b.Content.Actions["lib"]; asAction {
+		t.Fatal("lib.qs must be packaged as the scriptLib document, not as an action")
+	}
+	if err := Verify(b, nil); err != nil {
+		t.Fatal(err)
+	}
+	app, err := loader.LoadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := appShape(t, b.ToApp()), appShape(t, app); got != want {
+		t.Fatalf("bundle app != directory app:\nbundle: %s\ndir:    %s", got, want)
+	}
+	if got := b.ToApp().ScriptLib; got != lib {
+		t.Fatalf("reconstructed ScriptLib = %q, want %q", got, lib)
+	}
+}
+
+// Two library definitions are ambiguous — packaging refuses, the same rule
+// as every other duplicated definition.
+func TestBuildScriptLibDuplicateRefused(t *testing.T) {
+	dir := appDir(t, map[string]string{
+		"qorm.json":        `{"type":"app","id":"t","entry":"main"}`,
+		"scenes/main.json": `{"type":"scene","id":"main","root":{"type":"column","id":"root"}}`,
+		"actions/lib.qs":   "fn a() { return 1 }",
+		"extra.json":       `{"type":"scriptlib","text":"fn b() { return 2 }"}`,
+	})
+	if _, err := Build(dir); err == nil {
+		t.Fatal("Build must refuse two scriptlib definitions")
+	}
+}
+
 // A .qs file and a .json action defining one id is ambiguous — the directory
 // loader keeps the first and packaging would keep the last, so the build
 // refuses, exactly like two JSON action documents with one id.

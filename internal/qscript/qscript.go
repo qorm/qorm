@@ -1,9 +1,9 @@
-// Package qscript implements the QORM script language (v1) — a small,
+// Package qscript implements the QORM script language — a small,
 // deterministic, JS-lite interpreted language for app logic. Where scene
 // JSON declares structure and data, a script action (action JSON "script")
 // carries the logic that used to need a Go component or long step lists.
 //
-// # Language v1
+// # Language
 //
 // Statements:
 //
@@ -15,6 +15,7 @@
 //	if (expr) { ... } else { ... }   # else is optional; `else if` chains
 //	for name in expr { ... }         # iterate the elements of an array
 //	while expr { ... } { ... }       # (parens around the condition optional)
+//	break / continue                 # leave / re-iterate the innermost loop
 //	return expr?                     # inside fn; at top level ends the script.
 //	                                 # A bare `return` is recognised before '}'
 //	                                 # or end of script; anywhere else the text
@@ -34,7 +35,9 @@
 // users[0].name), unary ! and -, binary * / % + - < <= > >= == != && ||,
 // the ternary ?:, and the same builtin function set (len/slice/map/filter/
 // sum/count/at/fill/range/concat/join/split/keys/values/num/str/contains/
-// mod/floor/ceil/abs/min/max/...) — builtin calls are delegated to
+// mod/floor/ceil/abs/min/max/...) plus the v2 array/string methods
+// (push/unshift/pop/shift/reverse/sort/indexOf/includes/charAt/substring/
+// repeat/padStart/padEnd/trimStart/trimEnd) — builtin calls are delegated to
 // expr.CallBuiltin so script and binding semantics can never drift apart.
 // Scripts add array literals [e1, e2, ...] (the binding language has none).
 //
@@ -42,7 +45,8 @@
 // are self-delimiting. `state` is the injected read/write handle (reads are
 // runtime state paths, writes follow the runtime's setPath semantics) and
 // `args` is the injected dispatch-argument map. The words `let if else for
-// in while return fn state args true false null nil` are reserved.
+// in while return fn break continue state args true false null nil` are
+// reserved.
 //
 // # Governance (a runaway script degrades to an error, never a hang)
 //
@@ -55,14 +59,22 @@
 // Every violation returns an *Error carrying the script line number — the
 // interpreter never panics, whatever the input.
 //
-// # Non-determinism is banned by construction
+// # Determinism
 //
-// There is no clock, no I/O, no external call surface: a script is a pure
-// function of (state, args). Randomness enters only through state (e.g. an
-// LCG kept in state.rng — see examples/tetris). v1 deliberately offers NO
-// dispatch() builtin: scripts cannot fire other actions, so action recursion
-// governance stays the runtime's existing invoke-depth machinery and scripts
-// compose by sharing plain `fn` helpers instead.
+// There is no I/O and no external call surface: a script is a pure function
+// of (state, args). The ONLY clock is the explicit `now()` builtin (Unix ms),
+// and randomness otherwise enters only through state (e.g. an LCG kept in
+// state.rng — see examples/tetris).
+//
+// # Composing actions: call() and the shared library
+//
+// A script may fire a sibling action with call("id" [, args]). The call is
+// bridged by a host-installed dispatch hook (SetDispatchHook); the runtime
+// wires it to its own Dispatch, so call() chains re-enter the normal
+// invoke-depth governance and a failure surfaces as an *Error on the caller's
+// line. Without a hook, call() is a no-op returning false. Shared logic lives
+// in the reserved actions/lib.qs, which the loader collects (app.ScriptLib)
+// and the runtime prepends to every action's source at dispatch.
 package qscript
 
 import "fmt"
@@ -126,7 +138,7 @@ func (p *Program) Run(state, args map[string]any) error {
 		args = map[string]any{}
 	}
 	i := &interp{fns: p.fns, state: state, args: args}
-	_, _, err := i.exec(p.body, scope{}, 0)
+	_, _, _, err := i.exec(p.body, scope{}, 0)
 	return err
 }
 

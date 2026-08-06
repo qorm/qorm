@@ -11,6 +11,9 @@
 # 记分牌底板(包裹一对 label+value;padding 留在场景行内 —— HTML 端只认行内样式)
 .scoreBox { background: var(--background); borderRadius: 6; gap: 2 }
 
+# 重新开始按钮(手机端没有 R 键 —— 与记分牌同高的紧凑按钮)
+.restartBtn { background: var(--background); color: var(--primary); borderRadius: 6; fontSize: 13; fontWeight: 700; padding: 8 }
+
 # 底部操作说明
 .helpText { color: var(--textSecondary); fontSize: 12; textAlign: center }
 

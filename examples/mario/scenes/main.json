@@ -1,0 +1,194 @@
+{
+  "type": "scene",
+  "id": "main",
+  "onEnter": "restart",
+  "keys": {
+    "left": "moveLeft",
+    "right": "moveRight",
+    "up": "jump",
+    "space": "jump",
+    "r": "restart"
+  },
+  "swipes": {
+    "left": "moveLeft",
+    "right": "moveRight",
+    "up": "jump"
+  },
+  "root": {
+    "type": "column",
+    "id": "root",
+    "style": {
+      "background": "var(--background)",
+      "padding": 24,
+      "gap": 12
+    },
+    "layout": {
+      "width": "fill",
+      "height": "fill",
+      "align": "center"
+    },
+    "children": [
+      {
+        "type": "timer",
+        "id": "physics",
+        "every": 250,
+        "onTick": "tick",
+        "if": "{{ state.status == 'playing' }}"
+      },
+      {
+        "type": "text",
+        "id": "title",
+        "text": "SUPER QORM BROS",
+        "style": {
+          "color": "var(--primary)",
+          "fontSize": 22,
+          "fontWeight": 700,
+          "textAlign": "center"
+        }
+      },
+      {
+        "type": "row",
+        "id": "hud",
+        "style": { "gap": 12 },
+        "children": [
+          {
+            "type": "column",
+            "id": "scorebox",
+            "class": "scoreBox",
+            "layout": { "align": "center" },
+            "style": { "padding": 6 },
+            "children": [
+              { "type": "text", "text": "SCORE", "class": "statLabel" },
+              { "type": "text", "text": "{{ state.score }}", "class": "statValue" }
+            ]
+          },
+          {
+            "type": "column",
+            "id": "coinbox",
+            "class": "scoreBox",
+            "layout": { "align": "center" },
+            "style": { "padding": 6 },
+            "children": [
+              { "type": "text", "text": "COINS", "class": "statLabel" },
+              { "type": "text", "text": "{{ state.coins }}", "class": "statValue" }
+            ]
+          },
+          {
+            "type": "button",
+            "id": "restartbtn",
+            "label": "Restart",
+            "class": "restartBtn",
+            "onPress": { "name": "restart" }
+          }
+        ]
+      },
+      {
+        "type": "stack",
+        "id": "boardstack",
+        "children": [
+          {
+            "type": "column",
+            "id": "boardframe",
+            "style": {
+              "background": "#5c94fc",
+              "borderRadius": 8,
+              "padding": 8
+            },
+            "children": [
+              {
+                "type": "gridview",
+                "id": "boardgrid",
+                "data": "{{ state.view }}",
+                "crossAxisCount": 16,
+                "spacing": 1,
+                "style": { "gap": 1 },
+                "renderItem": {
+                  "type": "box",
+                  "layout": { "align": "center", "justify": "center" },
+                  "style": {
+                    "width": 20,
+                    "height": 20,
+                    "background": "{{ at(state.colors, item) }}"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "type": "column",
+            "layout": { "align": "center" },
+            "if": "{{ state.status == 'won' }}",
+            "class": "overlayPanel",
+            "style": {
+              "padding": { "top": 10, "bottom": 10, "left": 14, "right": 14 },
+              "margin": { "top": 90 }
+            },
+            "children": [
+              { "type": "text", "text": "COURSE CLEAR!", "class": "overlayTitle" },
+              { "type": "text", "text": "R or Restart to play again", "class": "overlayHint" }
+            ]
+          },
+          {
+            "type": "column",
+            "layout": { "align": "center" },
+            "if": "{{ state.status == 'dead' }}",
+            "class": "overlayPanel",
+            "style": {
+              "padding": { "top": 10, "bottom": 10, "left": 14, "right": 14 },
+              "margin": { "top": 90 }
+            },
+            "children": [
+              { "type": "text", "text": "GAME OVER", "class": "overlayTitle" },
+              { "type": "text", "text": "R or Restart to try again", "class": "overlayHint" }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "row",
+        "id": "controls",
+        "style": { "gap": 12 },
+        "children": [
+          {
+            "type": "button",
+            "id": "btnLeft",
+            "label": "◀",
+            "class": "controlBtn",
+            "onPress": { "name": "moveLeft" }
+          },
+          {
+            "type": "button",
+            "id": "btnJump",
+            "label": "JUMP",
+            "class": "controlBtn",
+            "onPress": { "name": "jump" }
+          },
+          {
+            "type": "button",
+            "id": "btnRight",
+            "label": "▶",
+            "class": "controlBtn",
+            "onPress": { "name": "moveRight" }
+          }
+        ]
+      },
+      {
+        "type": "column",
+        "id": "help",
+        "style": { "gap": 2 },
+        "children": [
+          {
+            "type": "text",
+            "text": "Arrows / swipe: move and jump   Space: jump   Stomp the Goomba",
+            "class": "helpText"
+          },
+          {
+            "type": "text",
+            "text": "Grab the coins, dodge the pits, reach the flag",
+            "class": "helpText"
+          }
+        ]
+      }
+    ]
+  }
+}

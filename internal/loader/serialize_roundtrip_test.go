@@ -272,6 +272,15 @@ func roundTripApp() *model.App {
 				Params:    map[string]string{"next": "{{ 'settings' }}"},
 			},
 		},
+		// Scene-level controls: key AND swipe bindings on the entry scene —
+		// the declarative game control scheme; a round trip that dropped them
+		// would ship a game with no controls.
+		SceneKeys: map[string]map[string]string{
+			"main": {"left": "increment", "space": "increment"},
+		},
+		SceneSwipes: map[string]map[string]string{
+			"main": {"left": "increment", "down": "increment"},
+		},
 		// Derived values, including one that reads another.
 		Computed: map[string]string{
 			"itemCount": "{{ len(state.items) }}",
@@ -389,6 +398,12 @@ func checkAppFields(t *testing.T, want, got *model.App) {
 		t.Errorf("Computed: want %v got %v (derived declarations must survive the round trip)", want.Computed, got.Computed)
 	}
 	checkGuardMap(t, want.SceneGuards, got.SceneGuards)
+	if !reflect.DeepEqual(want.SceneKeys, got.SceneKeys) {
+		t.Errorf("SceneKeys: want %v got %v (scene key bindings must survive the round trip)", want.SceneKeys, got.SceneKeys)
+	}
+	if !reflect.DeepEqual(want.SceneSwipes, got.SceneSwipes) {
+		t.Errorf("SceneSwipes: want %v got %v (scene swipe bindings must survive the round trip)", want.SceneSwipes, got.SceneSwipes)
+	}
 }
 
 // checkGuardMap asserts the scene route guards survive the round trip, field by

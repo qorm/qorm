@@ -51,18 +51,28 @@ type returnStmt struct {
 	line int
 }
 
+type breakStmt struct {
+	line int
+}
+
+type continueStmt struct {
+	line int
+}
+
 type exprStmt struct {
 	e    exprNode
 	line int
 }
 
-func (s *letStmt) stmtLine() int    { return s.line }
-func (s *assignStmt) stmtLine() int { return s.line }
-func (s *ifStmt) stmtLine() int     { return s.line }
-func (s *whileStmt) stmtLine() int  { return s.line }
-func (s *forStmt) stmtLine() int    { return s.line }
-func (s *returnStmt) stmtLine() int { return s.line }
-func (s *exprStmt) stmtLine() int   { return s.line }
+func (s *letStmt) stmtLine() int      { return s.line }
+func (s *assignStmt) stmtLine() int   { return s.line }
+func (s *ifStmt) stmtLine() int       { return s.line }
+func (s *whileStmt) stmtLine() int    { return s.line }
+func (s *forStmt) stmtLine() int      { return s.line }
+func (s *returnStmt) stmtLine() int   { return s.line }
+func (s *breakStmt) stmtLine() int    { return s.line }
+func (s *continueStmt) stmtLine() int { return s.line }
+func (s *exprStmt) stmtLine() int     { return s.line }
 
 type fnDecl struct {
 	name   string
@@ -141,6 +151,7 @@ var reservedWords = map[string]bool{
 	"let": true, "if": true, "else": true, "for": true, "in": true,
 	"while": true, "return": true, "fn": true, "state": true, "args": true,
 	"true": true, "false": true, "null": true, "nil": true,
+	"break": true, "continue": true,
 }
 
 // ---- parser ----
@@ -330,6 +341,12 @@ func (p *parser) parseStmt() (stmt, error) {
 				return nil, err
 			}
 			return &returnStmt{val: v, line: t.line}, nil
+		case "break":
+			p.next()
+			return &breakStmt{line: t.line}, nil
+		case "continue":
+			p.next()
+			return &continueStmt{line: t.line}, nil
 		}
 	}
 	// Expression statement or assignment: parse a unary-level expression

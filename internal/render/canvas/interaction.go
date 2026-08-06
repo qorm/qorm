@@ -82,6 +82,20 @@ type Interaction struct {
 	// which item is being dragged and where it has moved to. Dispatched on
 	// release as onReorder {from, to} and cleared.
 	Reorder ReorderState
+	// Swipe is the scene-level swipe recognizer (the scene JSON "swipes"
+	// bindings — the touch counterpart of "keys"). Armed by a press that fell
+	// through every interactive claim (widgets, reorder, board pan, drag,
+	// pressables) down to blank scene area; a release that travelled past the
+	// slop in one dominant direction dispatches the bound action.
+	Swipe SwipeTrack
+}
+
+// SwipeTrack is one in-flight scene-swipe candidate. Armed is true from a
+// blank-area press until the release (or a competing claim) settles it;
+// X/Y anchor the press position the release travel is measured against.
+type SwipeTrack struct {
+	Armed bool
+	X, Y  float64
 }
 
 // DragState is one in-flight draggable→dragtarget drag.
@@ -125,7 +139,7 @@ type BoardState struct {
 	// Panning is true while a blank-space drag is in flight; PanStart anchors
 	// the drag's pointer position and PanOrigin the pan at press, so the
 	// canvas follows 1:1 without a jump.
-	Panning bool
+	Panning             bool
 	PanStart, PanOrigin geom.Point
 	// PanMomentum tracks the inertia velocity after a drag release: the
 	// velocity the last drag carried, decayed each frame by the same friction

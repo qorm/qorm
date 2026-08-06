@@ -71,9 +71,9 @@ QORM 为 AI 智能体而生：只需**给你的 Agent 一句话**，就能自动
 <!-- comparison-table:start -->
 | | QORM | Flutter | React Native | Tauri | Electron | .NET MAUI | Kotlin MP | Compose MP |
 |---|---|---|---|---|---|---|---|---|
-| **开发语言** | JSON + Go | Dart | JavaScript | Rust + JS | JavaScript | C# / XAML | Kotlin | Kotlin |
+| **开发语言** | JSON + QScript + Go | Dart | JavaScript | Rust + JS | JavaScript | C# / XAML | Kotlin | Kotlin |
 | **UI 范式** | 声明式 JSON | 声明式 Widget | 声明式 JSX | Web (HTML/CSS) | Web (HTML/CSS) | 声明式 XAML | 共享逻辑+原生 UI | 声明式 Compose |
-| **渲染方式** | HTML/CSS (WebView) | Skia / Impeller | 原生组件 | 系统 WebView | Chromium | 原生控件 | 原生控件 | Skia |
+| **渲染方式** | HTML/CSS (WebView) + 原生画布 | Skia / Impeller | 原生组件 | 系统 WebView | Chromium | 原生控件 | 原生控件 | Skia |
 | **支持平台** | Web、iOS、Android、macOS、Linux、Windows、小程序 | Web、iOS、Android、macOS、Linux、Windows | iOS、Android、Web (beta) | macOS、Linux、Windows、iOS、Android (beta) | macOS、Linux、Windows | iOS、Android、macOS、Windows | iOS、Android、桌面、Web | iOS、Android、桌面、Web |
 | **包体积** | ~7 MB 静态二进制 | ~15-25 MB | ~7-15 MB | ~3-10 MB | ~150+ MB | ~10-20 MB | ~5-15 MB | ~10-20 MB |
 | **热重载** | 支持 (SSE 实时推送) | 支持 (有状态) | 支持 (Fast Refresh) | 支持 (Vite HMR) | 支持 (HMR) | 支持 (XAML) | 部分支持 | 支持 |
@@ -204,8 +204,10 @@ app JSON (manifest + scenes + actions)
 | `internal/model`   | App / Node / Action data model |
 | `internal/loader`  | load a dir (skips `type:test`), parse manifest/scene/action |
 | `internal/expr`    | expression evaluator (`count + 1`, `state.x`, ternary, ...) |
+| `internal/qscript` | deterministic JS-lite scripting for app logic (`script` actions, `actions/*.qs` + shared `lib.qs`) |
 | `internal/runtime` | state, binding interpolation, action steps (`state.set/append/appendObject/toggle`) |
 | `internal/render`  | full widget set → HTML/CSS, incl. `list` repeat with `{{item.*}}` scope |
+| `internal/render/canvas` | native software canvas renderer — the widget engine behind the games and the native window |
 | `internal/server`  | live HTTP server + event dispatch |
 | `internal/bundle`  | compile + sha256 content hash + ed25519 sign/verify |
 | `internal/keys`    | ed25519 keypair generation and storage |

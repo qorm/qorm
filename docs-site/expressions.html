@@ -17,17 +17,17 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <meta property="og:title" content="Expressions">
 <meta property="og:description" content="The {{ … }} expression language QORM binds with — scopes, operators, index access, and the full builtin function set.">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://qorm.com/QORM/expressions.html">
+<meta property="og:url" content="https://qorm.com/docs/expressions.html">
 <meta property="og:site_name" content="QORM">
 <meta property="og:locale" content="en_US">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Expressions">
 <meta name="twitter:description" content="The {{ … }} expression language QORM binds with — scopes, operators, index access, and the full builtin function set.">
-<link rel="canonical" href="https://qorm.com/QORM/expressions.html">
-<link rel="alternate" hreflang="en" href="https://qorm.com/QORM/expressions.html">
-<link rel="alternate" hreflang="zh" href="https://qorm.com/QORM/zh/expressions.html">
-<link rel="alternate" hreflang="x-default" href="https://qorm.com/QORM/expressions.html">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"The {{ … }} expression language QORM binds with — scopes, operators, index access, and the full builtin function set.","headline":"Expressions","inLanguage":"en","name":"Expressions","url":"https://qorm.com/QORM/expressions.html"}</script>
+<link rel="canonical" href="https://qorm.com/docs/expressions.html">
+<link rel="alternate" hreflang="en" href="https://qorm.com/docs/expressions.html">
+<link rel="alternate" hreflang="zh-CN" href="https://qorm.com/docs/zh/expressions.html">
+<link rel="alternate" hreflang="x-default" href="https://qorm.com/docs/expressions.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"The {{ … }} expression language QORM binds with — scopes, operators, index access, and the full builtin function set.","headline":"Expressions","inLanguage":"en","name":"Expressions","url":"https://qorm.com/docs/expressions.html"}</script>
 <link rel="icon" href="/assets/logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -52,7 +52,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   header.top a.ver{font-size:11.5px;font-weight:700;color:var(--muted);border:.5px solid var(--line);border-radius:999px;padding:2px 8px;letter-spacing:.01em}
   header.top a.ver:hover{color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));text-decoration:none}
   header.top .sp{flex:1}
-  header.top a.tl{color:var(--muted);font-size:14px;font-weight:500} header.top a.tl:hover{color:var(--ink);text-decoration:none} header.top a.tl.active-nav{color:var(--ink);font-weight:700}
+  header.top nav.pill{display:flex;align-items:center;gap:2px;background:var(--surface);border:.5px solid var(--line);border-radius:999px;padding:3px}
+  header.top nav.pill a.tl{color:var(--muted);font-size:13.5px;font-weight:600;padding:5px 12px;border-radius:999px;white-space:nowrap;transition:color .15s,background .15s}
+  header.top nav.pill a.tl:hover{color:var(--ink);background:var(--raise);text-decoration:none}
+  header.top nav.pill a.tl.active-nav{color:var(--accent-ink);background:color-mix(in srgb,var(--accent) 10%,var(--surface))}
+  header.top .btn.navcta{display:inline-flex;align-items:center;font-weight:600;font-size:13.5px;border-radius:999px;padding:6px 14px;background:var(--accent);color:#fff;white-space:nowrap;transition:filter .12s}
+  header.top .btn.navcta:hover{filter:brightness(1.06);text-decoration:none}
+  @media (max-width:860px){header.top nav.pill,header.top .btn.navcta{display:none}}
   .tbtn{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:transform 0.2s ease, background 0.2s, color 0.2s, border-color 0.2s}
   .tbtn:hover{color:var(--ink);transform:rotate(15deg) scale(1.05)} .tbtn svg{width:16px;height:16px}
   header.top .iconlink{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;transition:transform .2s cubic-bezier(.16,1,.3,1),color .2s,border-color .2s}
@@ -94,18 +100,18 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <body>
 <header class="top"><div class="tnav">
   <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
-  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.5.5</a>
-  <span class="doc">QORM</span>
+  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.8.0</a>
+  <span class="doc">docs</span>
   <span class="sp"></span>
-  <a class="tl" href="/">Home</a>
-  <a class="tl" href="/docs/">Docs</a><a class="tl" href="/api/">API</a>
+  <nav class="pill" aria-label="Primary"><a class="tl active-nav" href="/docs/">Docs</a><a class="tl" href="/api/">API</a><a class="tl" href="/compare/">Compare</a><a class="tl" href="/about.html">About</a></nav>
+  <a class="btn navcta" href="/docs/build-with-ai.html">Get started</a>
   <a class="iconlink" href="https://github.com/qorm/qorm" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
   <a class="iconlink patreon" href="https://www.patreon.com/qorm" target="_blank" rel="noopener" aria-label="Patreon" title="Patreon"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="14.4" cy="9.6" r="6.6"/><rect x="1.5" y="2.5" width="4" height="19" rx="0.3"/></svg></a>
   <a class="iconlink lang" href="zh/expressions.html" data-lang="zh" aria-label="中文" title="中文"><span>中</span></a>
   <button class="tbtn" id="theme" aria-label="Theme"></button>
 </div></header>
 <div class="shell">
-  <aside><div class="nav-group">overview</div><ul><li><a href="README.html">QORM documentation</a></li><li><a href="project-structure.html">Project structure</a></li><li><a href="build-with-ai.html">Build QORM apps with your AI assistant</a></li><li><a href="collaboration.html">Human-AI collaboration on a live app</a></li><li><a href="verification.html">Interpreting &amp; verifying a QORM app</a></li><li><a href="expressions.html" class="active">Expressions</a></li></ul><div class="nav-group">tutorials</div><ul><li><a href="tutorials/getting-started.html">Getting Started with QORM</a></li><li><a href="tutorials/first-scene.html">First Scene</a></li><li><a href="tutorials/first-action.html">First Action</a></li><li><a href="tutorials/first-component.html">First Component</a></li><li><a href="tutorials/first-platform-pack.html">First Platform Pack</a></li></ul><div class="nav-group">examples</div><ul><li><a href="examples/counter.html">Example: Counter</a></li><li><a href="examples/todo.html">Example: Todo</a></li><li><a href="examples/login.html">Example: Login</a></li><li><a href="examples/dashboard.html">Example: Dashboard</a></li></ul><div class="nav-group">platforms</div><ul><li><a href="platforms/web.html">QORM Web Platform</a></li><li><a href="platforms/mobile.html">QORM Mobile Platform</a></li><li><a href="platforms/desktop.html">QORM Desktop Platform</a></li><li><a href="platforms/miniapp.html">QORM Mini-program platform</a></li><li><a href="platforms/native-middlelayer.html">User middle layer: adding your own capabilities to an app</a></li><li><a href="platforms/capabilities.html">Capabilities</a></li><li><a href="platforms/support-matrix.html">Platform support matrix</a></li></ul><div class="nav-group">agent</div><ul><li><a href="agent/permissions.html">QORM Agent Permissions</a></li><li><a href="agent/mcp-tools.html">QORM MCP tools</a></li><li><a href="agent/skills.html">QORM Skills</a></li><li><a href="agent/claude-pack.html">QORM Claude Pack</a></li><li><a href="agent/codex-pack.html">QORM Codex Pack</a></li><li><a href="agent/openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">security</div><ul><li><a href="security/security-model.html">QORM Security Model</a></li><li><a href="security/permission-model.html">QORM Permission Model</a></li><li><a href="security/bundle-signing.html">QORM Bundle Signing</a></li></ul><div class="nav-group">spec</div><ul><li><a href="spec/navigation-spec.html">Navigation &amp;amp; routing</a></li></ul></aside>
+  <aside><div class="nav-group">overview</div><ul><li><a href="README.html">QORM documentation</a></li><li><a href="project-structure.html">Project structure</a></li><li><a href="build-with-ai.html">Build QORM apps with your AI assistant</a></li><li><a href="collaboration.html">Human-AI collaboration on a live app</a></li><li><a href="verification.html">Interpreting &amp; verifying a QORM app</a></li><li><a href="expressions.html" class="active">Expressions</a></li><li><a href="styles.html">QSS — QORM Style Sheets</a></li></ul><div class="nav-group">tutorials</div><ul><li><a href="tutorials/getting-started.html">Getting Started with QORM</a></li><li><a href="tutorials/first-scene.html">First Scene</a></li><li><a href="tutorials/first-action.html">First Action</a></li><li><a href="tutorials/first-component.html">First Component</a></li><li><a href="tutorials/first-platform-pack.html">First Platform Pack</a></li></ul><div class="nav-group">examples</div><ul><li><a href="examples/counter.html">Example: Counter</a></li><li><a href="examples/todo.html">Example: Todo</a></li><li><a href="examples/login.html">Example: Login</a></li><li><a href="examples/dashboard.html">Example: Dashboard</a></li></ul><div class="nav-group">platforms</div><ul><li><a href="platforms/web.html">QORM Web Platform</a></li><li><a href="platforms/mobile.html">QORM Mobile Platform</a></li><li><a href="platforms/desktop.html">QORM Desktop Platform</a></li><li><a href="platforms/miniapp.html">QORM Mini-program platform</a></li><li><a href="platforms/native-middlelayer.html">User middle layer: adding your own capabilities to an app</a></li><li><a href="platforms/capabilities.html">Capabilities</a></li><li><a href="platforms/support-matrix.html">Platform support matrix</a></li></ul><div class="nav-group">agent</div><ul><li><a href="agent/permissions.html">QORM Agent Permissions</a></li><li><a href="agent/mcp-tools.html">QORM MCP tools</a></li><li><a href="agent/skills.html">QORM Skills</a></li><li><a href="agent/claude-pack.html">QORM Claude Pack</a></li><li><a href="agent/codex-pack.html">QORM Codex Pack</a></li><li><a href="agent/openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">security</div><ul><li><a href="security/security-model.html">QORM Security Model</a></li><li><a href="security/permission-model.html">QORM Permission Model</a></li><li><a href="security/bundle-signing.html">QORM Bundle Signing</a></li></ul><div class="nav-group">spec</div><ul><li><a href="spec/navigation-spec.html">Navigation &amp;amp; routing</a></li></ul></aside>
   <main><h1 id="expressions">Expressions</h1>
 <p>Anything inside <code>{{ … }}</code> is an expression. The same little language is used everywhere: a node&#39;s <code>text</code>, a <code>style</code> value, an <code>if</code> condition, a list&#39;s <code>data</code>, an action step&#39;s <code>value</code>, an invoke&#39;s <code>args</code>, and an <code>http</code> URL.</p>
 <pre><code>{ &#34;type&#34;: &#34;text&#34;, &#34;text&#34;: &#34;{{ state.user.name }} has {{ count(state.cart) }} items&#34; }</code></pre>
@@ -188,12 +194,18 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <tr><td><code>map(list, &#34;expr&#34;)</code></td><td>each element mapped through the sub-expression</td></tr>
 <tr><td><code>filter(list, &#34;expr&#34;)</code></td><td>elements whose sub-expression is truthy</td></tr>
 <tr><td><code>slice(list, lo, hi)</code></td><td>sub-range, bounds-clamped; an inverted range is empty</td></tr>
+<tr><td><code>push(list, v, …)</code> · <code>unshift(list, v, …)</code></td><td>a NEW list with the values appended / prepended (<code>null</code> values drop)</td></tr>
+<tr><td><code>pop(list)</code> · <code>shift(list)</code></td><td>a NEW list without the last / first element (read it with <code>last()</code> / <code>first()</code> first)</td></tr>
+<tr><td><code>reverse(list)</code> · <code>sort(list)</code></td><td>a NEW list reversed / sorted — numbers ascending, then strings lexically, then booleans, <code>null</code> last; stable within each class</td></tr>
+<tr><td><code>indexOf(list, v)</code> · <code>includes(list, v)</code></td><td>first index of <code>v</code> or <code>-1</code> / whether <code>v</code> is an element</td></tr>
 </tbody></table>
 <p><code>map</code>, <code>filter</code> and the two-argument <code>count</code> take a <strong>sub-expression written as a string</strong>, with the element bound to <code>it</code>:</p>
 <pre><code>{ &#34;text&#34;: &#34;Total {{ sum(map(state.cart, \&#34;it.price * it.qty\&#34;)) }}&#34; }
 { &#34;data&#34;: &#34;{{ filter(state.todos, \&#34;!it.done\&#34;) }}&#34; }
 { &#34;text&#34;: &#34;{{ count(state.todos, \&#34;it.done\&#34;) }} of {{ len(state.todos) }} done&#34; }</code></pre>
 <p>A non-list subject yields the empty result rather than an error, so a binding never blows up on a state key that has not loaded yet.</p>
+<p>The list-shaping calls (<code>push</code>, <code>unshift</code>, <code>pop</code>, <code>shift</code>, <code>reverse</code>, <code>sort</code>) are <strong>functional</strong>: each returns a NEW list and never mutates its subject — assign the result back when you want to keep it:</p>
+<pre><code>{ &#34;type&#34;: &#34;state.set&#34;, &#34;path&#34;: &#34;items&#34;, &#34;value&#34;: &#34;{{ push(state.items, state.draft) }}&#34; }</code></pre>
 <h3 id="strings">Strings</h3>
 <table>
 <thead><tr><th>Call</th><th>Result</th></tr></thead>
@@ -206,6 +218,12 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <tr><td><code>split(s, sep)</code></td><td>split into a list; an empty <code>sep</code> splits into runes; an empty subject is <code>[]</code></td></tr>
 <tr><td><code>join(list, sep)</code></td><td>join elements; a <code>null</code> element joins as empty</td></tr>
 <tr><td><code>format(pattern, …)</code></td><td><code>%s</code>, <code>%d</code>, <code>%f</code>, <code>%.Nf</code>, <code>%%</code>; an unknown verb passes through literally</td></tr>
+<tr><td><code>charAt(s, i)</code></td><td>the <code>i</code>-th rune as a string; out of range is <code>&#34;&#34;</code></td></tr>
+<tr><td><code>substring(s, start, end)</code></td><td>rune-clamped slice; negative/inverted ranges collapse like <code>slice</code> (<code>end</code> optional: to the end)</td></tr>
+<tr><td><code>repeat(s, n)</code></td><td><code>s</code> repeated <code>n</code> times; <code>n &lt;= 0</code> is <code>&#34;&#34;</code></td></tr>
+<tr><td><code>padStart(s, n, ch)</code> · <code>padEnd(s, n, ch)</code></td><td>pad to <code>n</code> runes with <code>ch</code> (default <code>&#34; &#34;</code>), left / right</td></tr>
+<tr><td><code>trimStart(s)</code> · <code>trimEnd(s)</code></td><td>trim leading / trailing whitespace only</td></tr>
+<tr><td><code>includes(s, sub)</code></td><td>substring containment when the subject is a string</td></tr>
 </tbody></table>
 <pre><code>{ &#34;text&#34;: &#34;{{ format(&#39;%s scored %.1f%%&#39;, state.name, state.pct) }}&#34; }
 { &#34;text&#34;: &#34;{{ join(map(state.tags, \&#34;upper(it)\&#34;), &#39; · &#39;) }}&#34; }</code></pre>
@@ -218,6 +236,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <tr><td><code>min(a, b, …)</code> · <code>max(a, b, …)</code></td><td>over the arguments</td></tr>
 <tr><td><code>not(x)</code> · <code>empty(x)</code></td><td>logical negation of truthiness</td></tr>
 <tr><td><code>default(x, fallback)</code> (alias <code>coalesce</code>)</td><td><code>x</code> when truthy, otherwise <code>fallback</code></td></tr>
+<tr><td><code>now()</code></td><td>Unix time in milliseconds (the one non-deterministic builtin)</td></tr>
 </tbody></table>
 <p>An unknown function name evaluates to <code>null</code> at runtime — but the loader statically checks arity and argument types for the collection and <code>format</code> calls, so <code>qorm run</code> reports the mistake before you see a blank screen.</p>
 <h2 id="derived-values-computed">Derived values (<code>computed</code>)</h2>

@@ -109,6 +109,13 @@ type App struct {
 	// keyboard-driven apps, dispatched by the engine without any focus
 	// requirement). Empty/absent = no key bindings.
 	SceneKeys map[string]map[string]string
+	// SceneSwipes maps a scene id to its swipe bindings (scene JSON "swipes":
+	// a direction → action map, directions "left"/"right"/"up"/"down") — the
+	// TOUCH counterpart of SceneKeys: the engine's swipe recognizer dispatches
+	// them when a press drags in one dominant direction and releases, so the
+	// same game JSON plays with arrow keys on desktop and swipes on a phone.
+	// Empty/absent = no swipe bindings.
+	SceneSwipes map[string]map[string]string
 	// SceneGuards maps a scene id to its optional route guard (scene JSON
 	// "guard"): the condition every entry into that scene must satisfy, plus
 	// where to send the user when it does not. It runs BEFORE the scene's
@@ -145,6 +152,11 @@ type App struct {
 	// components (bundle.Build and bundle.FromApp must content-address the same
 	// app identically).
 	Stylesheets []Stylesheet
+	// ScriptLib is the shared qscript function library (actions/lib.qs): the
+	// fn definitions merged into EVERY script action's compilation, so games
+	// and app logic keep their helpers in one file instead of copy-pasting
+	// them into each action. Empty/absent = no library.
+	ScriptLib string
 	// Diagnostics holds static compilation warnings or syntax errors found by the loader.
 	Diagnostics []string
 
@@ -340,7 +352,9 @@ func (a *App) ComputedOrder() (order, cyclic []string) {
 	if a == nil || len(a.Computed) == 0 {
 		return nil, nil
 	}
-	if a.computedMu == nil { a.computedMu = &sync.Mutex{} }
+	if a.computedMu == nil {
+		a.computedMu = &sync.Mutex{}
+	}
 	a.computedMu.Lock()
 	if a.computedCached {
 		order, cyclic := a.computedOrder, a.computedCyclic

@@ -9,6 +9,12 @@
     "down": "slideDown",
     "r": "restart"
   },
+  "swipes": {
+    "left": "slideLeft",
+    "right": "slideRight",
+    "up": "slideUp",
+    "down": "slideDown"
+  },
   "root": {
     "type": "column",
     "id": "root",
@@ -86,6 +92,15 @@
                 "class": "statValue"
               }
             ]
+          },
+          {
+            "type": "button",
+            "id": "restartbtn",
+            "label": "Restart",
+            "class": "restartBtn",
+            "onPress": {
+              "name": "restart"
+            }
           }
         ]
       },
@@ -212,7 +227,7 @@
         "children": [
           {
             "type": "text",
-            "text": "Arrows: slide the tiles   Same values merge once per move",
+            "text": "Swipe or arrows: slide the tiles   Same values merge once per move",
             "class": "helpText"
           },
           {

@@ -9,13 +9,15 @@ component. JSON declares the scenes and the data; the logic lives in
   falling `piece`, the seeded LCG (`rng`), score/lines/level, the flat
   tetromino rotation table (`flat`: 7 shapes x 4 rotations x 4 `[x,y]`
   offsets) and the fixed piece palette (`colors`).
+- `actions/lib.qs` — the shared core merged into every action at dispatch:
+  `fits` (collision), `refreshView` / `refreshNext` (render arrays), `spawn`
+  (draws the next piece with a Park-Miller LCG in `state.rng`,
+  `x*48271 mod 2^31-1` — exact in float64), `lock` (merges the piece, clears
+  full rows, 100/300/500/800 x level, a level every 10 lines) and
+  `tickStep` (one gravity step).
 - `actions/*.qs` — the rules, each a script-file action: the filename is the
   action id and the file's full text is its qscript program. `tick` is
-  gravity (slide or lock); `hardDrop` falls in one
-  `for` loop; `lock` (shared helper) merges the piece, clears full rows
-  (100/300/500/800 x level, a level every 10 lines) and `spawn` draws the
-  next piece with a Park-Miller LCG in `state.rng` (`x*48271 mod 2^31-1`,
-  exact in float64 — the only randomness, since scripts have no clock/IO).
+  gravity (slide or lock); `hardDrop` falls in one `for` loop;
   `moveLeft` / `moveRight` / `moveDown` / `rotate` / `rotateCCW` guard on
   the shared `fits` collision helper; `togglePause` and `restart` round
   out the controls. `lockAndSpawn` is the locking half as a dispatchable
@@ -27,10 +29,9 @@ component. JSON declares the scenes and the data; the logic lives in
   `{{ at(state.colors, item) }}`), the 4x4 next-piece preview, and the
   pause / game-over overlays.
 
-qscript v1 has no cross-action calls (scripts cannot dispatch other
-actions), so the shared helpers (`fits` / `refreshView` / `refreshNext` /
-`spawn` / `lock`) are carried verbatim by every action that touches the
-board — each file stays self-contained.
+The shared helpers live once in `actions/lib.qs` — the reserved library file
+the loader collects and the runtime splices ahead of every script action at
+dispatch — so each action body stays a few lines.
 
 Because there is no widget code, the same JSON runs on every host: the
 native canvas window (where the engine itself schedules the timer node),

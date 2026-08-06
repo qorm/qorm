@@ -410,6 +410,13 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 	if p.Type == PointerPress && e.Inter.Drag.Active {
 		e.Inter.Drag = DragState{}
 	}
+	// A new press also settles any unsettled swipe candidate before the
+	// gesture paths below claim the stream — the recognizer re-arms only from
+	// a press that reaches the generic path (see there), so a captured
+	// gesture can never leave a stale candidate behind.
+	if p.Type == PointerPress {
+		e.Inter.Swipe.Armed = false
+	}
 
 	// A right-button press dispatches the nearest onContextMenu handler up the
 	// hit chain (the browser's contextmenu event) before anything else.
@@ -649,6 +656,10 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 		if e.Inter.Input != nil {
 			e.placeCaretFromPointer()
 		}
+		// A press on blank scene area arms the scene-swipe recognizer; a press
+		// that found a pressable is a tap on it, and a press on a reorderable
+		// item belongs to the reorder gesture — neither starts a swipe.
+		e.Inter.Swipe = SwipeTrack{Armed: e.Inter.Pressed == nil && !e.Inter.Reorder.Pending, X: p.X, Y: p.Y}
 		redraw = true
 	case p.Type == PointerRelease:
 		if e.Inter.Pressed != nil {
@@ -663,6 +674,21 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 		// drift into a full frame, churning the loop and starving the main
 		// (event-loop) thread. Drag moves (Buttons>0) are handled below.
 		redraw = e.updateHover(hit)
+	}
+
+	// A release that travelled past the swipe slop in one dominant direction
+	// dispatches the scene's bound swipe action — the touch counterpart of
+	// the scene's `keys`, and like keys it needs no focus and no handler on
+	// any node. It fires only when nothing else claimed the gesture (every
+	// competing path returns early or disarms the tracker), and it outranks
+	// the onTouchEnd bubble below: a swipe is a whole-gesture verdict.
+	if p.Type == PointerRelease && e.Inter.Swipe.Armed {
+		e.Inter.Swipe.Armed = false
+		if action, ok := rt.SwipeAction(swipeDirection(p.X-e.Inter.Swipe.X, p.Y-e.Inter.Swipe.Y)); ok {
+			e.dispatch(&model.Invoke{Name: action}, nil)
+			e.dirty.Store(true)
+			return true
+		}
 	}
 
 	// Bubble up the tree until a handler is found. A node whose style marks it
@@ -761,6 +787,40 @@ func (e *Engine) dispatchContextMenu(hit graph.Node, rt *runtime.Runtime) bool {
 // reorderStartSlop is how far a press must drag before a pending reorder
 // activates (the HTML path's 5px threshold — taps and small nudges are taps).
 const reorderStartSlop = 5.0
+
+// swipeMinDist is how far (physical px) a press must travel before its
+// release counts as a scene swipe at all — taps, restless holds and tiny
+// nudges stay taps. swipeAxisDominance is how much larger the dominant axis
+// must be than the other for the travel to read as a cardinal direction; a
+// near-diagonal drag is ambiguous and dispatches nothing.
+const (
+	swipeMinDist       = 24.0
+	swipeAxisDominance = 1.3
+)
+
+// swipeDirection classifies a press→release travel into "left" / "right" /
+// "up" / "down", or "" when it is not a swipe (too short, or no dominant
+// axis). The engine's swipe recognizer (HandlePointer) feeds the result to
+// the scene's "swipes" bindings.
+func swipeDirection(dx, dy float64) string {
+	ax, ay := math.Abs(dx), math.Abs(dy)
+	if math.Max(ax, ay) < swipeMinDist {
+		return ""
+	}
+	if ax > ay*swipeAxisDominance {
+		if dx > 0 {
+			return "right"
+		}
+		return "left"
+	}
+	if ay > ax*swipeAxisDominance {
+		if dy > 0 {
+			return "down"
+		}
+		return "up"
+	}
+	return ""
+}
 
 // reorderTarget maps a pointer Y to the target slot: whole row steps of the
 // dragged item's height (grid rows counting crossAxisCount columns), clamped

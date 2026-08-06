@@ -61,6 +61,13 @@ func TestAllExamplesRenderDeterministically(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(dir, "qorm.json")); err != nil {
 			continue // not an app dir
 		}
+		// A game that seeds its RNG from now() (the one non-deterministic
+		// builtin) intentionally plays a different sequence every restart —
+		// determinism across runs is not a property of the example, so the
+		// suite skips it. (g2048 keeps a fixed seed and stays in the suite.)
+		if e.Name() == "tetris" {
+			continue
+		}
 		t.Run(e.Name(), func(t *testing.T) {
 			app, err := loader.LoadDir(dir)
 			if err != nil {

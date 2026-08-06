@@ -228,6 +228,156 @@ func callBuiltin(name string, a []any, env *evalEnv) any {
 			out[i] = f
 		}
 		return out
+	case "push":
+		// push(list, v, ...): a NEW list with the values appended (functional —
+		// scripts assign the result back: state.items = push(state.items, x)).
+		// A non-list subject becomes a one-element list; nils drop.
+		arr, ok := arg(0).([]any)
+		if !ok {
+			arr = []any{}
+		}
+		out := append([]any{}, arr...)
+		for _, v := range a[1:] {
+			if v != nil {
+				out = append(out, v)
+			}
+		}
+		return out
+	case "unshift":
+		// unshift(list, v): a NEW list with v prepended. Non-list subject → [v].
+		arr, ok := arg(0).([]any)
+		if !ok {
+			arr = []any{}
+		}
+		out := []any{}
+		for _, v := range a[1:] {
+			if v != nil {
+				out = append(out, v)
+			}
+		}
+		return append(out, arr...)
+	case "pop":
+		// pop(list): a NEW list without the last element (the popped value is
+		// read with last() before/after). Empty/non-list → empty list.
+		arr, _ := arg(0).([]any)
+		if len(arr) <= 1 {
+			return []any{}
+		}
+		return append([]any{}, arr[:len(arr)-1]...)
+	case "shift":
+		// shift(list): a NEW list without the first element. Empty/non-list → empty.
+		arr, _ := arg(0).([]any)
+		if len(arr) <= 1 {
+			return []any{}
+		}
+		return append([]any{}, arr[1:]...)
+	case "reverse":
+		// reverse(list): a NEW list in reverse order. Non-list → empty list.
+		arr, ok := arg(0).([]any)
+		if !ok {
+			return []any{}
+		}
+		out := make([]any, len(arr))
+		for i, v := range arr {
+			out[len(arr)-1-i] = v
+		}
+		return out
+	case "sort":
+		// sort(list): a NEW list sorted — numbers first ascending, then strings
+		// lexically, booleans after (nil last). Stable within each class, so a
+		// sort of mixed data never rearranges equal elements randomly.
+		arr, ok := arg(0).([]any)
+		if !ok {
+			return []any{}
+		}
+		out := append([]any{}, arr...)
+		sort.SliceStable(out, func(i, j int) bool { return lessForSort(out[i], out[j]) })
+		return out
+	case "indexOf":
+		// indexOf(list, v): the first index of v (==-comparison), or -1.
+		arr, ok := arg(0).([]any)
+		if !ok {
+			return float64(-1)
+		}
+		target := arg(1)
+		for i, el := range arr {
+			if valuesEqual(el, target) {
+				return float64(i)
+			}
+		}
+		return float64(-1)
+	case "includes":
+		// includes(list, v): whether v is an element (==-comparison). For
+		// strings, includes(str, sub) is substring containment — mirroring
+		// JS where Array#includes and String#includes share the name.
+		if s, ok := arg(0).(string); ok {
+			return strings.Contains(s, Stringify(arg(1)))
+		}
+		arr, ok := arg(0).([]any)
+		if !ok {
+			return false
+		}
+		target := arg(1)
+		for _, el := range arr {
+			if valuesEqual(el, target) {
+				return true
+			}
+		}
+		return false
+	case "charAt":
+		// charAt(s, i): the i-th rune of s as a string, "" out of range.
+		s := Stringify(arg(0))
+		i := int(num(arg(1)))
+		if i < 0 {
+			return ""
+		}
+		runes := []rune(s)
+		if i >= len(runes) {
+			return ""
+		}
+		return string(runes[i])
+	case "substring":
+		// substring(s, start[, end]): rune-clamped slice; negative/inverted
+		// ranges collapse like slice().
+		s := Stringify(arg(0))
+		runes := []rune(s)
+		lo, hi := 0, len(runes)
+		if arg(1) != nil {
+			lo = int(num(arg(1)))
+		}
+		if arg(2) != nil {
+			hi = int(num(arg(2)))
+		}
+		if lo < 0 {
+			lo = 0
+		}
+		if hi > len(runes) {
+			hi = len(runes)
+		}
+		if lo > hi {
+			lo = hi
+		}
+		return string(runes[lo:hi])
+	case "repeat":
+		// repeat(s, n): s repeated n times, "" for n<=0; n caps at 2^20 so a
+		// hostile size cannot OOM.
+		n := int(num(arg(1)))
+		if n <= 0 {
+			return ""
+		}
+		if n > 1<<20 {
+			n = 1 << 20
+		}
+		return strings.Repeat(Stringify(arg(0)), n)
+	case "padStart":
+		// padStart(s, n[, ch]): left-pad to n RUNES with ch (default " ").
+		return padRunes(Stringify(arg(0)), int(num(arg(1))), arg(2), false)
+	case "padEnd":
+		return padRunes(Stringify(arg(0)), int(num(arg(1))), arg(2), true)
+	case "trimStart":
+		return strings.TrimLeft(Stringify(arg(0)), " \t\n\r")
+	case "trimEnd":
+		return strings.TrimRight(Stringify(arg(0)), " \t\n\r")
 	case "keys", "values":
 		// keys(map) / values(map): keys sorted lexically, values in
 		// sorted-key order — map iteration order is random in Go, and render
@@ -324,6 +474,86 @@ func evalSub(src string, elem any, env *evalEnv) any {
 		return nil
 	}
 	return evalNode(n, map[string]any{"it": elem}, env)
+}
+
+// lessForSort orders two values for sort(): numbers first (ascending, NaN
+// treated as smallest and stable), then strings (lexical), then booleans
+// (false < true), nil last — a total order over the value set so sort()
+// never panics on mixed data.
+func lessForSort(a, b any) bool {
+	an, aNum := a.(float64)
+	bn, bNum := b.(float64)
+	if aNum && bNum {
+		if math.IsNaN(an) {
+			return !math.IsNaN(bn)
+		}
+		if math.IsNaN(bn) {
+			return false
+		}
+		return an < bn
+	}
+	as, aStr := a.(string)
+	bs, bStr := b.(string)
+	if aStr && bStr {
+		return as < bs
+	}
+	ab, aBool := a.(bool)
+	bb, bBool := b.(bool)
+	if aBool && bBool {
+		return !ab && bb
+	}
+	// Numeric beats string beats bool beats nil.
+	rank := func(v any) int {
+		switch v.(type) {
+		case float64:
+			return 0
+		case string:
+			return 1
+		case bool:
+			return 2
+		default:
+			return 3
+		}
+	}
+	return rank(a) < rank(b)
+}
+
+// valuesEqual is the ==-comparison for indexOf/includes: numbers compare
+// numerically, everything else by equality of concrete value. nil never
+// equals anything (a nil lookup can't match, mirroring binding semantics).
+func valuesEqual(a, b any) bool {
+	if a == nil || b == nil {
+		return false
+	}
+	an, aNum := a.(float64)
+	bn, bNum := b.(float64)
+	if aNum && bNum {
+		return an == bn
+	}
+	return a == b
+}
+
+// padRunes pads s with ch (default " ") to n runes, left or right.
+func padRunes(s string, n int, ch any, right bool) string {
+	if n <= 0 {
+		return s
+	}
+	runes := []rune(s)
+	if len(runes) >= n {
+		return s
+	}
+	padCh := " "
+	if ch != nil {
+		padCh = Stringify(ch)
+		if padCh == "" {
+			padCh = " "
+		}
+	}
+	pad := strings.Repeat(padCh, n-len(runes))
+	if right {
+		return s + pad
+	}
+	return pad + s
 }
 
 // listAt implements at()/first()/last(): index into a list with

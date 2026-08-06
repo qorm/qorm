@@ -62,3 +62,32 @@ func TestSceneKeyBindings(t *testing.T) {
 		t.Error("unbound key resolved")
 	}
 }
+
+// Scene swipe bindings resolve exactly like key bindings — the touch
+// counterpart of TestSceneKeyBindings.
+func TestSceneSwipeBindings(t *testing.T) {
+	app := &model.App{
+		Entry: "main",
+		Scenes: map[string]*model.Node{
+			"main": {Type: "column", ID: "root"},
+			"game": {Type: "column", ID: "groot"},
+		},
+		SceneSwipes: map[string]map[string]string{
+			"game": {"left": "slideLeft", "up": "slideUp"},
+		},
+	}
+	rt := New(app)
+	if _, ok := rt.SwipeAction("left"); ok {
+		t.Error("swipes must not resolve outside their scene")
+	}
+	rt.Navigate("game", nil)
+	if a, ok := rt.SwipeAction("LEFT"); !ok || a != "slideLeft" {
+		t.Errorf("SwipeAction(LEFT) = %q,%v want slideLeft,true (case-insensitive)", a, ok)
+	}
+	if a, ok := rt.SwipeAction("up"); !ok || a != "slideUp" {
+		t.Errorf("SwipeAction(up) = %q,%v want slideUp,true", a, ok)
+	}
+	if _, ok := rt.SwipeAction("down"); ok {
+		t.Error("unbound swipe direction resolved")
+	}
+}

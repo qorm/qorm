@@ -330,6 +330,25 @@ func (r *Runtime) KeyAction(key string) (string, bool) {
 	return a, ok
 }
 
+// SwipeAction resolves a scene-level swipe binding (scene JSON "swipes") for
+// the current scene — the touch counterpart of KeyAction. dir is one of
+// "left", "right", "up", "down" (the loader drops any other direction).
+func (r *Runtime) SwipeAction(dir string) (string, bool) {
+	if r.App == nil || r.App.SceneSwipes == nil {
+		return "", false
+	}
+	scene := r.Scene
+	if scene == "" {
+		scene = r.App.Entry
+	}
+	m := r.App.SceneSwipes[scene]
+	if m == nil {
+		return "", false
+	}
+	a, ok := m[strings.ToLower(dir)]
+	return a, ok
+}
+
 // Navigate pushes the current scene (and its route params) onto the back stack
 // and shows `to` with the given params. params may be nil (→ an empty route).
 // Unknown scenes and no-op navigations are ignored, and the target's route
@@ -535,6 +554,13 @@ func New(app *model.App) *Runtime {
 	}
 	rt := &Runtime{App: app, State: state, RouteParams: map[string]any{}, pendingEnter: true, Theme: theme.GetDefault()}
 	rt.refreshComputed() // derived values exist from the very first frame
+	// The call() builtin's dispatch bridge: a script calling call("otherAction")
+	// re-enters Dispatch on the SAME runtime, so invoke-depth governance (the
+	// recursion guard below) applies to call()-chains exactly as it does to
+	// human/agent dispatches.
+	qscript.SetDispatchHook(func(line int, name string, args map[string]any) error {
+		return rt.DispatchErr(name, args)
+	})
 	return rt
 }
 
@@ -1197,7 +1223,17 @@ func (r *Runtime) Dispatch(name string, args map[string]any) {
 		// failure (governance limit, type error) is recorded on LastScriptError
 		// with the script line number — dispatch stays fire-and-forget, like
 		// every other action path, and a failed script never panics the host.
-		if err := qscript.Run(act.Script, r.State, args); err != nil {
+		// The shared function library (actions/lib.qs, loader.ScriptLib) is
+		// PREPENDED at dispatch: its fn definitions join every action's
+		// compilation without being stored in act.Script, so the round-trip
+		// serializer never writes the merged source back out (the fixed-point
+		// property holds). A lib must contain only fn definitions (its own
+		// parse errors were reported at load time).
+		src := act.Script
+		if lib := r.App.ScriptLib; lib != "" {
+			src = lib + "\n" + src
+		}
+		if err := qscript.Run(src, r.State, args); err != nil {
 			r.LastScriptError = err.Error()
 		}
 		return
@@ -1223,6 +1259,25 @@ func (r *Runtime) Dispatch(name string, args map[string]any) {
 // is. When the wait is accepted, the remaining steps become the continuation
 // and this call returns without running them; applyStep's own `delay` case is
 // the degradation for when it is not (see there).
+// DispatchErr is Dispatch with a return value for the qscript call() builtin:
+// it reports whether the action exists and was dispatched under the recursion
+// cap. A missing action or a depth-limit refusal is an error the calling
+// script sees; a nested script action's failure surfaces through
+// LastScriptError (restored by the outer dispatch's boundary reset).
+func (r *Runtime) DispatchErr(name string, args map[string]any) error {
+	if r.App == nil || r.App.Actions[name] == nil {
+		return fmt.Errorf("call(): action %q not found", name)
+	}
+	if r.callDepth >= maxInvokeDepth {
+		return fmt.Errorf("call(): invoke depth exceeded (max %d)", maxInvokeDepth)
+	}
+	r.Dispatch(name, args)
+	if r.LastScriptError != "" {
+		return fmt.Errorf("call(%q): %s", name, r.LastScriptError)
+	}
+	return nil
+}
+
 func (r *Runtime) applySteps(steps []model.Step, ctx map[string]any, depth int) {
 	if depth > maxIfDepth {
 		return

@@ -17,17 +17,17 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <meta property="og:title" content="表达式">
 <meta property="og:description" content="{{ … }} 里面是一个表达式。同一套小语言在各处通用:节点的 text、style 的取值、 if 条件、列表的 data、动作步骤的 value、invoke 的 args,以及 http 的 URL。">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://qorm.com/QORM/zh/expressions.html">
+<meta property="og:url" content="https://qorm.com/docs/zh/expressions.html">
 <meta property="og:site_name" content="QORM">
 <meta property="og:locale" content="zh_CN">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="表达式">
 <meta name="twitter:description" content="{{ … }} 里面是一个表达式。同一套小语言在各处通用:节点的 text、style 的取值、 if 条件、列表的 data、动作步骤的 value、invoke 的 args,以及 http 的 URL。">
-<link rel="canonical" href="https://qorm.com/QORM/zh/expressions.html">
-<link rel="alternate" hreflang="en" href="https://qorm.com/QORM/expressions.html">
-<link rel="alternate" hreflang="zh" href="https://qorm.com/QORM/zh/expressions.html">
-<link rel="alternate" hreflang="x-default" href="https://qorm.com/QORM/expressions.html">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"{{ … }} 里面是一个表达式。同一套小语言在各处通用:节点的 text、style 的取值、 if 条件、列表的 data、动作步骤的 value、invoke 的 args,以及 http 的 URL。","headline":"表达式","inLanguage":"zh","name":"表达式","url":"https://qorm.com/QORM/zh/expressions.html"}</script>
+<link rel="canonical" href="https://qorm.com/docs/zh/expressions.html">
+<link rel="alternate" hreflang="en" href="https://qorm.com/docs/expressions.html">
+<link rel="alternate" hreflang="zh-CN" href="https://qorm.com/docs/zh/expressions.html">
+<link rel="alternate" hreflang="x-default" href="https://qorm.com/docs/expressions.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"{{ … }} 里面是一个表达式。同一套小语言在各处通用:节点的 text、style 的取值、 if 条件、列表的 data、动作步骤的 value、invoke 的 args,以及 http 的 URL。","headline":"表达式","inLanguage":"zh","name":"表达式","url":"https://qorm.com/docs/zh/expressions.html"}</script>
 <link rel="icon" href="/assets/logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -52,7 +52,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   header.top a.ver{font-size:11.5px;font-weight:700;color:var(--muted);border:.5px solid var(--line);border-radius:999px;padding:2px 8px;letter-spacing:.01em}
   header.top a.ver:hover{color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));text-decoration:none}
   header.top .sp{flex:1}
-  header.top a.tl{color:var(--muted);font-size:14px;font-weight:500} header.top a.tl:hover{color:var(--ink);text-decoration:none} header.top a.tl.active-nav{color:var(--ink);font-weight:700}
+  header.top nav.pill{display:flex;align-items:center;gap:2px;background:var(--surface);border:.5px solid var(--line);border-radius:999px;padding:3px}
+  header.top nav.pill a.tl{color:var(--muted);font-size:13.5px;font-weight:600;padding:5px 12px;border-radius:999px;white-space:nowrap;transition:color .15s,background .15s}
+  header.top nav.pill a.tl:hover{color:var(--ink);background:var(--raise);text-decoration:none}
+  header.top nav.pill a.tl.active-nav{color:var(--accent-ink);background:color-mix(in srgb,var(--accent) 10%,var(--surface))}
+  header.top .btn.navcta{display:inline-flex;align-items:center;font-weight:600;font-size:13.5px;border-radius:999px;padding:6px 14px;background:var(--accent);color:#fff;white-space:nowrap;transition:filter .12s}
+  header.top .btn.navcta:hover{filter:brightness(1.06);text-decoration:none}
+  @media (max-width:860px){header.top nav.pill,header.top .btn.navcta{display:none}}
   .tbtn{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:transform 0.2s ease, background 0.2s, color 0.2s, border-color 0.2s}
   .tbtn:hover{color:var(--ink);transform:rotate(15deg) scale(1.05)} .tbtn svg{width:16px;height:16px}
   header.top .iconlink{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;transition:transform .2s cubic-bezier(.16,1,.3,1),color .2s,border-color .2s}
@@ -94,18 +100,18 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <body>
 <header class="top"><div class="tnav">
   <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
-  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.5.5</a>
-  <span class="doc">QORM</span>
+  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.8.0</a>
+  <span class="doc">docs</span>
   <span class="sp"></span>
-  <a class="tl" href="/">首页</a>
-  <a class="tl" href="/docs/zh/">文档</a><a class="tl" href="/api/zh/">接口</a>
+  <nav class="pill" aria-label="Primary"><a class="tl active-nav" href="/docs/zh/">文档</a><a class="tl" href="/api/zh/">接口</a><a class="tl" href="/compare/index.zh.html">对比</a><a class="tl" href="/about.zh.html">关于</a></nav>
+  <a class="btn navcta" href="/docs/zh/build-with-ai.html">开始使用</a>
   <a class="iconlink" href="https://github.com/qorm/qorm" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
   <a class="iconlink patreon" href="https://www.patreon.com/qorm" target="_blank" rel="noopener" aria-label="资助" title="资助"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="14.4" cy="9.6" r="6.6"/><rect x="1.5" y="2.5" width="4" height="19" rx="0.3"/></svg></a>
   <a class="iconlink lang" href="../expressions.html" data-lang="en" aria-label="English" title="English"><span>EN</span></a>
   <button class="tbtn" id="theme" aria-label="Theme"></button>
 </div></header>
 <div class="shell">
-  <aside><div class="nav-group">概览</div><ul><li><a href="README.html">QORM 文档</a></li><li><a href="project-structure.html">工程结构</a></li><li><a href="build-with-ai.html">与你的 AI 助手一起构建 QORM 应用</a></li><li><a href="collaboration.html">在运行中的应用上进行人机协作</a></li><li><a href="verification.html">解释并验证一个 QORM 应用</a></li><li><a href="expressions.html" class="active">表达式</a></li></ul><div class="nav-group">教程</div><ul><li><a href="tutorials/getting-started.html">QORM 快速上手</a></li><li><a href="tutorials/first-scene.html">第一个场景</a></li><li><a href="tutorials/first-action.html">第一个动作</a></li><li><a href="tutorials/first-component.html">第一个组件</a></li><li><a href="tutorials/first-platform-pack.html">第一个平台包</a></li></ul><div class="nav-group">示例</div><ul><li><a href="examples/counter.html">示例:计数器</a></li><li><a href="examples/todo.html">示例:待办事项</a></li><li><a href="examples/login.html">示例:登录</a></li><li><a href="examples/dashboard.html">示例:仪表盘</a></li></ul><div class="nav-group">平台</div><ul><li><a href="platforms/web.html">QORM Web 平台</a></li><li><a href="platforms/mobile.html">QORM 移动平台</a></li><li><a href="platforms/desktop.html">QORM 桌面平台</a></li><li><a href="platforms/miniapp.html">QORM 小程序平台</a></li><li><a href="platforms/native-middlelayer.html">用户中间层:为应用添加你自己的能力</a></li><li><a href="platforms/capabilities.html">能力清单</a></li><li><a href="platforms/support-matrix.html">平台支持矩阵</a></li></ul><div class="nav-group">智能体</div><ul><li><a href="agent/permissions.html">QORM Agent 权限</a></li><li><a href="agent/mcp-tools.html">QORM MCP 工具</a></li><li><a href="agent/skills.html">QORM Skills</a></li><li><a href="agent/claude-pack.html">QORM Claude Pack</a></li><li><a href="agent/codex-pack.html">QORM Codex Pack</a></li><li><a href="agent/openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">安全</div><ul><li><a href="security/security-model.html">QORM 安全模型</a></li><li><a href="security/permission-model.html">QORM 权限模型</a></li><li><a href="security/bundle-signing.html">QORM Bundle 签名</a></li></ul><div class="nav-group">spec</div><ul><li><a href="spec/navigation-spec.html">导航与路由</a></li></ul></aside>
+  <aside><div class="nav-group">概览</div><ul><li><a href="README.html">QORM 文档</a></li><li><a href="project-structure.html">工程结构</a></li><li><a href="build-with-ai.html">与你的 AI 助手一起构建 QORM 应用</a></li><li><a href="collaboration.html">在运行中的应用上进行人机协作</a></li><li><a href="verification.html">解释并验证一个 QORM 应用</a></li><li><a href="expressions.html" class="active">表达式</a></li><li><a href="styles.html">QSS — QORM 样式表</a></li></ul><div class="nav-group">教程</div><ul><li><a href="tutorials/getting-started.html">QORM 快速上手</a></li><li><a href="tutorials/first-scene.html">第一个场景</a></li><li><a href="tutorials/first-action.html">第一个动作</a></li><li><a href="tutorials/first-component.html">第一个组件</a></li><li><a href="tutorials/first-platform-pack.html">第一个平台包</a></li></ul><div class="nav-group">示例</div><ul><li><a href="examples/counter.html">示例:计数器</a></li><li><a href="examples/todo.html">示例:待办事项</a></li><li><a href="examples/login.html">示例:登录</a></li><li><a href="examples/dashboard.html">示例:仪表盘</a></li></ul><div class="nav-group">平台</div><ul><li><a href="platforms/web.html">QORM Web 平台</a></li><li><a href="platforms/mobile.html">QORM 移动平台</a></li><li><a href="platforms/desktop.html">QORM 桌面平台</a></li><li><a href="platforms/miniapp.html">QORM 小程序平台</a></li><li><a href="platforms/native-middlelayer.html">用户中间层:为应用添加你自己的能力</a></li><li><a href="platforms/capabilities.html">能力清单</a></li><li><a href="platforms/support-matrix.html">平台支持矩阵</a></li></ul><div class="nav-group">智能体</div><ul><li><a href="agent/permissions.html">QORM Agent 权限</a></li><li><a href="agent/mcp-tools.html">QORM MCP 工具</a></li><li><a href="agent/skills.html">QORM Skills</a></li><li><a href="agent/claude-pack.html">QORM Claude Pack</a></li><li><a href="agent/codex-pack.html">QORM Codex Pack</a></li><li><a href="agent/openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">安全</div><ul><li><a href="security/security-model.html">QORM 安全模型</a></li><li><a href="security/permission-model.html">QORM 权限模型</a></li><li><a href="security/bundle-signing.html">QORM Bundle 签名</a></li></ul><div class="nav-group">spec</div><ul><li><a href="spec/navigation-spec.html">导航与路由</a></li></ul></aside>
   <main><h1 id="表达式">表达式</h1>
 <p><code>{{ … }}</code> 里面是一个表达式。同一套小语言在各处通用:节点的 <code>text</code>、<code>style</code> 的取值、 <code>if</code> 条件、列表的 <code>data</code>、动作步骤的 <code>value</code>、invoke 的 <code>args</code>,以及 <code>http</code> 的 URL。</p>
 <pre><code>{ &#34;type&#34;: &#34;text&#34;, &#34;text&#34;: &#34;{{ state.user.name }} has {{ count(state.cart) }} items&#34; }</code></pre>
@@ -182,12 +188,18 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <tr><td><code>map(list, &#34;表达式&#34;)</code></td><td>每个元素经子表达式映射</td></tr>
 <tr><td><code>filter(list, &#34;表达式&#34;)</code></td><td>子表达式为真的元素</td></tr>
 <tr><td><code>slice(list, lo, hi)</code></td><td>子区间,边界自动钳制;区间倒置则为空</td></tr>
+<tr><td><code>push(list, v, …)</code> · <code>unshift(list, v, …)</code></td><td>返回<strong>新列表</strong>,把值追加/前置到末尾(<code>null</code> 值被丢弃)</td></tr>
+<tr><td><code>pop(list)</code> · <code>shift(list)</code></td><td>返回<strong>新列表</strong>,去掉末/首元素(先用 <code>last()</code> / <code>first()</code> 读出)</td></tr>
+<tr><td><code>reverse(list)</code> · <code>sort(list)</code></td><td>返回<strong>新列表</strong>,倒序/排序——数值升序在前,其次字符串按字典序,再是布尔,<code>null</code> 最后;同类内稳定</td></tr>
+<tr><td><code>indexOf(list, v)</code> · <code>includes(list, v)</code></td><td><code>v</code> 的首个下标,没有则 <code>-1</code> / <code>v</code> 是否在列表内</td></tr>
 </tbody></table>
 <p><code>map</code>、<code>filter</code> 与双参数的 <code>count</code> 接受一个<strong>写成字符串的子表达式</strong>,元素绑定在 <code>it</code> 上:</p>
 <pre><code>{ &#34;text&#34;: &#34;Total {{ sum(map(state.cart, \&#34;it.price * it.qty\&#34;)) }}&#34; }
 { &#34;data&#34;: &#34;{{ filter(state.todos, \&#34;!it.done\&#34;) }}&#34; }
 { &#34;text&#34;: &#34;{{ count(state.todos, \&#34;it.done\&#34;) }} of {{ len(state.todos) }} done&#34; }</code></pre>
 <p>主体不是列表时返回空结果而非报错,所以当某个状态键尚未加载时绑定也不会炸。</p>
+<p>整形列表的调用(<code>push</code>、<code>unshift</code>、<code>pop</code>、<code>shift</code>、<code>reverse</code>、<code>sort</code>)是<strong>函数式</strong>的: 各自返回一个<strong>新列表</strong>,绝不修改主体——想保留结果就把它赋回去:</p>
+<pre><code>{ &#34;type&#34;: &#34;state.set&#34;, &#34;path&#34;: &#34;items&#34;, &#34;value&#34;: &#34;{{ push(state.items, state.draft) }}&#34; }</code></pre>
 <h3 id="字符串">字符串</h3>
 <table>
 <thead><tr><th>调用</th><th>结果</th></tr></thead>
@@ -200,6 +212,12 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <tr><td><code>split(s, sep)</code></td><td>拆分为列表;<code>sep</code> 为空则按字符拆分;主体为空得 <code>[]</code></td></tr>
 <tr><td><code>join(list, sep)</code></td><td>连接元素;<code>null</code> 元素连接为空串</td></tr>
 <tr><td><code>format(pattern, …)</code></td><td><code>%s</code>、<code>%d</code>、<code>%f</code>、<code>%.Nf</code>、<code>%%</code>;未知的动词原样输出</td></tr>
+<tr><td><code>charAt(s, i)</code></td><td>第 <code>i</code> 个字符(按 rune),越界为 <code>&#34;&#34;</code></td></tr>
+<tr><td><code>substring(s, start, end)</code></td><td>按 rune 钳制的子串;负数/倒置区间像 <code>slice</code> 一样收缩(<code>end</code> 可省:到末尾)</td></tr>
+<tr><td><code>repeat(s, n)</code></td><td>重复 <code>n</code> 次;<code>n &lt;= 0</code> 为 <code>&#34;&#34;</code></td></tr>
+<tr><td><code>padStart(s, n, ch)</code> · <code>padEnd(s, n, ch)</code></td><td>用 <code>ch</code>(默认 <code>&#34; &#34;</code>)左/右补齐到 <code>n</code> 个字符</td></tr>
+<tr><td><code>trimStart(s)</code> · <code>trimEnd(s)</code></td><td>只去前导/尾部空白</td></tr>
+<tr><td><code>includes(s, sub)</code></td><td>主体是字符串时为子串包含判断</td></tr>
 </tbody></table>
 <pre><code>{ &#34;text&#34;: &#34;{{ format(&#39;%s scored %.1f%%&#39;, state.name, state.pct) }}&#34; }
 { &#34;text&#34;: &#34;{{ join(map(state.tags, \&#34;upper(it)\&#34;), &#39; · &#39;) }}&#34; }</code></pre>
@@ -212,6 +230,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <tr><td><code>min(a, b, …)</code> · <code>max(a, b, …)</code></td><td>在参数间取最小/最大</td></tr>
 <tr><td><code>not(x)</code> · <code>empty(x)</code></td><td>对真值判定取反</td></tr>
 <tr><td><code>default(x, fallback)</code>(别名 <code>coalesce</code>)</td><td><code>x</code> 为真时取 <code>x</code>,否则取 <code>fallback</code></td></tr>
+<tr><td><code>now()</code></td><td>Unix 毫秒时间戳(唯一的非确定性内建)</td></tr>
 </tbody></table>
 <p>未知函数名在运行时求值为 <code>null</code>——但加载器会对集合类与 <code>format</code> 调用做静态的元数与 参数类型检查,所以 <code>qorm run</code> 会在你看到空白屏幕之前就报出错误。</p>
 <h2 id="派生值computed">派生值(<code>computed</code>)</h2>

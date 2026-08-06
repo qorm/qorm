@@ -231,6 +231,29 @@ func FromDocs(docs []map[string]any) *model.App {
 						app.SceneKeys[sceneID] = m
 					}
 				}
+				// Scene swipe bindings: "swipes": {"left": "slideLeft", …} —
+				// the touch counterpart of "keys": the engine's swipe
+				// recognizer dispatches the bound action when a press drags in
+				// one dominant direction and releases. Directions are
+				// normalised to the four cardinals; anything else is dropped.
+				if swipes, ok := doc["swipes"].(map[string]any); ok && len(swipes) > 0 {
+					if app.SceneSwipes == nil {
+						app.SceneSwipes = map[string]map[string]string{}
+					}
+					m := map[string]string{}
+					for k, v := range swipes {
+						dir := strings.ToLower(asString(k))
+						if dir != "left" && dir != "right" && dir != "up" && dir != "down" {
+							continue
+						}
+						if s := asString(v); s != "" {
+							m[dir] = s
+						}
+					}
+					if len(m) > 0 {
+						app.SceneSwipes[sceneID] = m
+					}
+				}
 			}
 		case "action":
 			if actID := asString(doc["id"]); actID != "" {
@@ -254,6 +277,26 @@ func FromDocs(docs []map[string]any) *model.App {
 			}
 			seenStylesheets[sheetID] = true
 			buildStylesheet(app, doc, &diags)
+		case "scriptlib":
+			// The shared qscript library (actions/lib.qs): fn definitions merged
+			// into every script action's compilation (model.App.ScriptLib).
+			// Duplicates are diagnosed and first-wins, like stylesheets.
+			if app.ScriptLib != "" {
+				diags = append(diags, "error: 脚本库被重复定义(多个 type:\"scriptlib\" 文档)。仅保留最先出现的定义,打包(qorm build)会直接拒绝构建。")
+				continue
+			}
+			app.ScriptLib = asString(doc["text"])
+			if app.ScriptLib != "" {
+				// Compile at load time so a lib parse error names the line in
+				// the lib file itself (a broken lib breaks every action).
+				if _, err := qscript.Parse(app.ScriptLib); err != nil {
+					origin := asString(doc["source"])
+					if origin == "" {
+						origin = "lib.qs"
+					}
+					diags = append(diags, fmt.Sprintf("error: [ScriptLib: %s] 脚本库编译失败: %v。", origin, err))
+				}
+			}
 		case "component":
 			// A standalone component definition document (conventionally
 			// components/<name>.json), equivalent to one entry of qorm.json's
@@ -1305,6 +1348,19 @@ func collect(dir string) ([]map[string]any, error) {
 			rel, rerr := filepath.Rel(dir, path)
 			if rerr != nil {
 				rel = path
+			}
+			// The reserved name lib.qs is the SHARED FUNCTION LIBRARY: its fn
+			// definitions are merged into every script action's compilation
+			// (loader.ScriptLib), so games keep their physics/board helpers in
+			// ONE file instead of copy-pasting them into each action. Collected
+			// as a type:"scriptlib" document, not an action.
+			if id == "lib" {
+				out = append(out, map[string]any{
+					"type":   "scriptlib",
+					"text":   string(data),
+					"source": filepath.ToSlash(rel),
+				})
+				return nil
 			}
 			out = append(out, map[string]any{
 				"type":   "action",

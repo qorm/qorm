@@ -39,45 +39,48 @@ func (i *interp) bump(line int) error {
 	return nil
 }
 
-// exec runs a statement list, returning (value, true) when a `return` fired.
+// exec runs a statement list. The second return is true when a `return`
+// fired; the third is the loop-control signal — 0 = normal, 1 = break,
+// 2 = continue — propagated from a nested loop body so a loop's own
+// handler can distinguish its break/continue from a function return.
 // depth counts nested fn calls (maxCallDepth); block nesting is parse-bounded.
-func (i *interp) exec(stmts []stmt, sc scope, depth int) (any, bool, error) {
+func (i *interp) exec(stmts []stmt, sc scope, depth int) (any, bool, int, error) {
 	for _, s := range stmts {
 		if err := i.bump(s.stmtLine()); err != nil {
-			return nil, false, err
+			return nil, false, 0, err
 		}
-		v, ret, err := i.execStmt(s, sc, depth)
-		if err != nil || ret {
-			return v, ret, err
+		v, ret, flow, err := i.execStmt(s, sc, depth)
+		if err != nil || ret || flow != 0 {
+			return v, ret, flow, err
 		}
 	}
-	return nil, false, nil
+	return nil, false, 0, nil
 }
 
-func (i *interp) execStmt(s stmt, sc scope, depth int) (any, bool, error) {
+func (i *interp) execStmt(s stmt, sc scope, depth int) (any, bool, int, error) {
 	switch t := s.(type) {
 	case *letStmt:
 		v, err := i.eval(t.val, sc, depth)
 		if err != nil {
-			return nil, false, err
+			return nil, false, 0, err
 		}
 		sc[t.name] = v
 	case *assignStmt:
 		v, err := i.eval(t.val, sc, depth)
 		if err != nil {
-			return nil, false, err
+			return nil, false, 0, err
 		}
 		if err := i.assign(t.target, v, sc, depth); err != nil {
-			return nil, false, err
+			return nil, false, 0, err
 		}
 	case *exprStmt:
 		if _, err := i.eval(t.e, sc, depth); err != nil {
-			return nil, false, err
+			return nil, false, 0, err
 		}
 	case *ifStmt:
 		c, err := i.eval(t.cond, sc, depth)
 		if err != nil {
-			return nil, false, err
+			return nil, false, 0, err
 		}
 		if expr.Truthy(c) {
 			return i.exec(t.then, sc, depth)
@@ -88,59 +91,77 @@ func (i *interp) execStmt(s stmt, sc scope, depth int) (any, bool, error) {
 		for {
 			c, err := i.eval(t.cond, sc, depth)
 			if err != nil {
-				return nil, false, err
+				return nil, false, 0, err
 			}
 			if !expr.Truthy(c) {
 				break
 			}
 			iters++
 			if iters > maxLoopIters {
-				return nil, false, &Error{t.line, fmt.Sprintf("loop iteration limit exceeded (max %d)", maxLoopIters)}
+				return nil, false, 0, &Error{t.line, fmt.Sprintf("loop iteration limit exceeded (max %d)", maxLoopIters)}
 			}
 			if err := i.bump(t.line); err != nil {
-				return nil, false, err
+				return nil, false, 0, err
 			}
-			v, ret, err := i.exec(t.body, sc, depth)
-			if err != nil || ret {
-				return v, ret, err
+			v, ret, flow, err := i.exec(t.body, sc, depth)
+			if err != nil {
+				return v, false, 0, err
 			}
+			if ret {
+				return v, true, 0, nil
+			}
+			if flow == 1 { // break: leave the loop, signal consumed
+				break
+			}
+			// flow == 2 (continue): just move to the next iteration
 		}
 	case *forStmt:
 		in, err := i.eval(t.in, sc, depth)
 		if err != nil {
-			return nil, false, err
+			return nil, false, 0, err
 		}
 		if in == nil {
 			break // iterating nothing is a no-op, like a `forEach` over a missing path
 		}
 		arr, ok := in.([]any)
 		if !ok {
-			return nil, false, &Error{t.line, fmt.Sprintf("for-in needs an array to iterate, got %s", typeName(in))}
+			return nil, false, 0, &Error{t.line, fmt.Sprintf("for-in needs an array to iterate, got %s", typeName(in))}
 		}
 		if len(arr) > maxLoopIters {
-			return nil, false, &Error{t.line, fmt.Sprintf("loop iteration limit exceeded (max %d)", maxLoopIters)}
+			return nil, false, 0, &Error{t.line, fmt.Sprintf("loop iteration limit exceeded (max %d)", maxLoopIters)}
 		}
 		for _, el := range arr {
 			if err := i.bump(t.line); err != nil {
-				return nil, false, err
+				return nil, false, 0, err
 			}
 			sc[t.varName] = el
-			v, ret, err := i.exec(t.body, sc, depth)
-			if err != nil || ret {
-				return v, ret, err
+			v, ret, flow, err := i.exec(t.body, sc, depth)
+			if err != nil {
+				return v, false, 0, err
 			}
+			if ret {
+				return v, true, 0, nil
+			}
+			if flow == 1 { // break
+				break
+			}
+			// flow == 2 (continue): next iteration
 		}
+	case *breakStmt:
+		return nil, false, 1, nil
+	case *continueStmt:
+		return nil, false, 2, nil
 	case *returnStmt:
 		if t.val == nil {
-			return nil, true, nil
+			return nil, true, 0, nil
 		}
 		v, err := i.eval(t.val, sc, depth)
 		if err != nil {
-			return nil, false, err
+			return nil, false, 0, err
 		}
-		return v, true, nil
+		return v, true, 0, nil
 	}
-	return nil, false, nil
+	return nil, false, 0, nil
 }
 
 // assign writes v at the l-value target: a local (`x`), a state path
@@ -367,7 +388,13 @@ var builtinNames = map[string]bool{
 	"at": true, "first": true, "last": true, "sum": true, "avg": true,
 	"count": true, "join": true, "split": true,
 	"keys": true, "values": true, "map": true, "filter": true, "format": true,
-	"now": true,
+	"now": true, "call": true,
+	// Array methods (v2): functional — each returns a NEW list.
+	"push": true, "unshift": true, "pop": true, "shift": true,
+	"reverse": true, "sort": true, "indexOf": true, "includes": true,
+	// String methods (v2).
+	"charAt": true, "substring": true, "repeat": true,
+	"padStart": true, "padEnd": true, "trimStart": true, "trimEnd": true,
 }
 
 // nativeHook is the optional bridge to host-native ops (hardware widgets,
@@ -375,6 +402,18 @@ var builtinNames = map[string]bool{
 // shapes it); scripts call native(op, args). It stays a package var (no
 // canvas import — runtime → qscript → canvas would cycle).
 var nativeHook func(op string, data map[string]any, cb func(name string, arg any))
+
+// dispatchHook is the optional bridge for the call() builtin: the runtime
+// installs it so a script can dispatch sibling actions by name. Returns an
+// error (with the caller's script line) when the dispatched action fails —
+// the runtime's invoke-depth governance applies to call() recursion.
+var dispatchHook func(line int, name string, args map[string]any) error
+
+// SetDispatchHook installs the host's action-dispatch bridge for the call()
+// builtin (nil = call() returns false without dispatching).
+func SetDispatchHook(fn func(line int, name string, args map[string]any) error) {
+	dispatchHook = fn
+}
 
 // SetNativeHook installs the host's native-op bridge for the native()
 // builtin (nil = native() fails with an authoring error).
@@ -417,11 +456,35 @@ func (i *interp) evalCall(c call, sc scope, depth int) (any, error) {
 				inner[name] = nil // missing arguments read as nil, like bindings
 			}
 		}
-		v, _, err := i.exec(fn.body, inner, depth+1)
+		v, _, _, err := i.exec(fn.body, inner, depth+1)
 		if err != nil {
 			return nil, err
 		}
 		return v, nil
+	}
+	if c.name == "call" {
+		// call("actionId" [, argsMap]): dispatch another action through the
+		// host's dispatch hook (installed by the runtime). Scripts compose by
+		// firing sibling actions — the recursion governance is the runtime's
+		// invoke-depth machinery. Returns true when a hook is installed and
+		// the action ran, false when no hook is present.
+		if len(args) < 1 || len(args) > 2 {
+			return nil, &Error{c.line, "call(action [, args]) takes 1-2 arguments"}
+		}
+		name, _ := args[0].(string)
+		if name == "" {
+			return nil, &Error{c.line, "call(): action name must be a non-empty string"}
+		}
+		m := map[string]any{}
+		if len(args) == 2 {
+			if mm, ok := args[1].(map[string]any); ok {
+				m = mm
+			}
+		}
+		if dispatchHook == nil {
+			return false, nil // no host bridge: a no-op, like native() without one
+		}
+		return true, dispatchHook(c.line, name, m)
 	}
 	if c.name == "native" {
 		// native(op [, argsMap]): run one host-native op through the installed

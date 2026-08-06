@@ -522,3 +522,45 @@ func TestCheckStepExprTypesRecurseIntoSubMaps(t *testing.T) {
 		}
 	}
 }
+
+// Scene swipe bindings parse like key bindings: direction keys are normalised
+// to the four cardinals (case-insensitive) and anything else is dropped.
+func TestParseSceneSwipes(t *testing.T) {
+	app := FromDocs([]map[string]any{
+		{"type": "app", "id": "x", "entry": "game"},
+		{"type": "scene", "id": "game",
+			"root": map[string]any{"type": "column", "id": "root"},
+			"swipes": map[string]any{
+				"left": "slideLeft", "RIGHT": "slideRight",
+				"Up": "slideUp", "down": "slideDown",
+				"diagonal": "bogus", // not a cardinal direction — dropped
+			}},
+	})
+	got := app.SceneSwipes["game"]
+	want := map[string]string{
+		"left": "slideLeft", "right": "slideRight",
+		"up": "slideUp", "down": "slideDown",
+	}
+	if len(got) != len(want) {
+		t.Fatalf("SceneSwipes[game] = %v, want %v", got, want)
+	}
+	for k, v := range want {
+		if got[k] != v {
+			t.Errorf("SceneSwipes[game][%q] = %q, want %q", k, got[k], v)
+		}
+	}
+}
+
+// A scene whose swipes reduce to nothing records no entry (absent, not empty),
+// matching how an all-invalid keys map is treated.
+func TestParseSceneSwipesEmpty(t *testing.T) {
+	app := FromDocs([]map[string]any{
+		{"type": "app", "id": "x", "entry": "game"},
+		{"type": "scene", "id": "game",
+			"root":   map[string]any{"type": "column", "id": "root"},
+			"swipes": map[string]any{"diagonal": "bogus", "sideways": ""}},
+	})
+	if _, ok := app.SceneSwipes["game"]; ok {
+		t.Errorf("SceneSwipes[game] = %v, want no entry for an all-invalid map", app.SceneSwipes["game"])
+	}
+}

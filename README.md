@@ -75,9 +75,9 @@ are generated from the code and kept in sync by tests.
 <!-- comparison-table:start -->
 | | QORM | Flutter | React Native | Tauri | Electron | .NET MAUI | Kotlin MP | Compose MP |
 |---|---|---|---|---|---|---|---|---|
-| **Language** | JSON + Go | Dart | JavaScript | Rust + JS | JavaScript | C# / XAML | Kotlin | Kotlin |
+| **Language** | JSON + QScript + Go | Dart | JavaScript | Rust + JS | JavaScript | C# / XAML | Kotlin | Kotlin |
 | **UI paradigm** | Declarative JSON | Declarative widget | Declarative JSX | Web (HTML/CSS) | Web (HTML/CSS) | Declarative XAML | Shared logic, native UI | Declarative Compose |
-| **Rendering** | HTML/CSS (WebView) | Skia / Impeller | Native components | System WebView | Chromium | Native controls | Native controls | Skia |
+| **Rendering** | HTML/CSS (WebView) + native canvas | Skia / Impeller | Native components | System WebView | Chromium | Native controls | Native controls | Skia |
 | **Platforms** | Web, iOS, Android, macOS, Linux, Windows, Mini-program | Web, iOS, Android, macOS, Linux, Windows | iOS, Android, Web (beta) | macOS, Linux, Windows, iOS, Android (beta) | macOS, Linux, Windows | iOS, Android, macOS, Windows | iOS, Android, Desktop, Web | iOS, Android, Desktop, Web |
 | **Binary size** | ~7 MB static | ~15-25 MB | ~7-15 MB | ~3-10 MB | ~150+ MB | ~10-20 MB | ~5-15 MB | ~10-20 MB |
 | **Hot reload** | Yes (SSE live push) | Yes (stateful) | Yes (Fast Refresh) | Yes (Vite HMR) | Yes (HMR) | Yes (XAML) | Partial | Yes |
@@ -223,8 +223,10 @@ app JSON (manifest + scenes + actions)
 | `internal/model`   | App / Node / Action data model |
 | `internal/loader`  | load a dir (skips `type:test`), parse manifest/scene/action |
 | `internal/expr`    | expression evaluator (`count + 1`, `state.x`, ternary, ...) |
+| `internal/qscript` | deterministic JS-lite scripting for app logic (`script` actions, `actions/*.qs` + shared `lib.qs`) |
 | `internal/runtime` | state, binding interpolation, action steps (`state.set/append/appendObject/toggle`) |
 | `internal/render`  | full widget set → HTML/CSS, incl. `list` repeat with `{{item.*}}` scope |
+| `internal/render/canvas` | native software canvas renderer — the widget engine behind the games and the native window |
 | `internal/server`  | live HTTP server + event dispatch |
 | `internal/bundle`  | compile + sha256 content hash + ed25519 sign/verify |
 | `internal/keys`    | ed25519 keypair generation and storage |

@@ -400,6 +400,16 @@ func AppToDocs(app *model.App) []map[string]any {
 	for _, sheet := range sortedStylesheets(app) {
 		docs = append(docs, StylesheetToJSON(sheet))
 	}
+	// The shared qscript library (actions/lib.qs) round-trips as its own
+	// type:"scriptlib" document — the same spelling the collect walk emits,
+	// so Build (source docs) and FromApp (these docs) hash identically.
+	if app.ScriptLib != "" {
+		docs = append(docs, map[string]any{
+			"type":   "scriptlib",
+			"text":   app.ScriptLib,
+			"source": "actions/lib.qs",
+		})
+	}
 	for id, root := range app.Scenes {
 		doc := SceneToJSON(id, root)
 		// Scene lifecycle: the onEnter hook lives on the scene document, not
@@ -410,6 +420,15 @@ func AppToDocs(app *model.App) []map[string]any {
 		// Route guards live on the scene document too, beside onEnter.
 		if g := app.SceneGuards[id]; g != nil {
 			doc["guard"] = guardToJSON(g)
+		}
+		// Scene-level key and swipe bindings live on the scene document (the
+		// loader reads them off the doc, not the node tree) — emit them back,
+		// or a FromApp round trip would ship a game with no controls.
+		if keys := app.SceneKeys[id]; len(keys) > 0 {
+			doc["keys"] = copyStrMap(keys)
+		}
+		if swipes := app.SceneSwipes[id]; len(swipes) > 0 {
+			doc["swipes"] = copyStrMap(swipes)
 		}
 		docs = append(docs, doc)
 	}

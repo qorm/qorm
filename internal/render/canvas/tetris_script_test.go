@@ -36,6 +36,10 @@ func tetrisFixture(t *testing.T) (*Engine, *HeadlessSurface, *runtime.Runtime, *
 	}
 	rt := runtime.New(app)
 	rt.Theme = theme.GetDefault()
+	// The scene's onEnter (restart) initializes the board — the manifest's
+	// initial state no longer carries the 200 zeros (the script fills them).
+	// This is exactly the frame-boundary behavior the engine performs.
+	rt.RunPendingEnter()
 	return NewEngine(rt, SoftwareRenderer{}), NewHeadlessSurface(image.Pt(400, 820)), rt, app
 }
 

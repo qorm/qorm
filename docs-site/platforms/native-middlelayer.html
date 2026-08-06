@@ -17,17 +17,17 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <meta property="og:title" content="User middle layer: adding your own capabilities to an app">
 <meta property="og:description" content="QORM ships with about 26 built-in hardware capabilities (camera/recording, location, Bluetooth, NFC, biometrics, vibration/haptics, flashlight…">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://qorm.com/QORM/platforms/native-middlelayer.html">
+<meta property="og:url" content="https://qorm.com/docs/platforms/native-middlelayer.html">
 <meta property="og:site_name" content="QORM">
 <meta property="og:locale" content="en_US">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="User middle layer: adding your own capabilities to an app">
 <meta name="twitter:description" content="QORM ships with about 26 built-in hardware capabilities (camera/recording, location, Bluetooth, NFC, biometrics, vibration/haptics, flashlight…">
-<link rel="canonical" href="https://qorm.com/QORM/platforms/native-middlelayer.html">
-<link rel="alternate" hreflang="en" href="https://qorm.com/QORM/platforms/native-middlelayer.html">
-<link rel="alternate" hreflang="zh" href="https://qorm.com/QORM/zh/platforms/native-middlelayer.html">
-<link rel="alternate" hreflang="x-default" href="https://qorm.com/QORM/platforms/native-middlelayer.html">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"QORM ships with about 26 built-in hardware capabilities (camera/recording, location, Bluetooth, NFC, biometrics, vibration/haptics, flashlight…","headline":"User middle layer: adding your own capabilities to an app","inLanguage":"en","name":"User middle layer: adding your own capabilities to an app","url":"https://qorm.com/QORM/platforms/native-middlelayer.html"}</script>
+<link rel="canonical" href="https://qorm.com/docs/platforms/native-middlelayer.html">
+<link rel="alternate" hreflang="en" href="https://qorm.com/docs/platforms/native-middlelayer.html">
+<link rel="alternate" hreflang="zh-CN" href="https://qorm.com/docs/zh/platforms/native-middlelayer.html">
+<link rel="alternate" hreflang="x-default" href="https://qorm.com/docs/platforms/native-middlelayer.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"QORM ships with about 26 built-in hardware capabilities (camera/recording, location, Bluetooth, NFC, biometrics, vibration/haptics, flashlight…","headline":"User middle layer: adding your own capabilities to an app","inLanguage":"en","name":"User middle layer: adding your own capabilities to an app","url":"https://qorm.com/docs/platforms/native-middlelayer.html"}</script>
 <link rel="icon" href="/assets/logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -52,7 +52,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   header.top a.ver{font-size:11.5px;font-weight:700;color:var(--muted);border:.5px solid var(--line);border-radius:999px;padding:2px 8px;letter-spacing:.01em}
   header.top a.ver:hover{color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));text-decoration:none}
   header.top .sp{flex:1}
-  header.top a.tl{color:var(--muted);font-size:14px;font-weight:500} header.top a.tl:hover{color:var(--ink);text-decoration:none} header.top a.tl.active-nav{color:var(--ink);font-weight:700}
+  header.top nav.pill{display:flex;align-items:center;gap:2px;background:var(--surface);border:.5px solid var(--line);border-radius:999px;padding:3px}
+  header.top nav.pill a.tl{color:var(--muted);font-size:13.5px;font-weight:600;padding:5px 12px;border-radius:999px;white-space:nowrap;transition:color .15s,background .15s}
+  header.top nav.pill a.tl:hover{color:var(--ink);background:var(--raise);text-decoration:none}
+  header.top nav.pill a.tl.active-nav{color:var(--accent-ink);background:color-mix(in srgb,var(--accent) 10%,var(--surface))}
+  header.top .btn.navcta{display:inline-flex;align-items:center;font-weight:600;font-size:13.5px;border-radius:999px;padding:6px 14px;background:var(--accent);color:#fff;white-space:nowrap;transition:filter .12s}
+  header.top .btn.navcta:hover{filter:brightness(1.06);text-decoration:none}
+  @media (max-width:860px){header.top nav.pill,header.top .btn.navcta{display:none}}
   .tbtn{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:transform 0.2s ease, background 0.2s, color 0.2s, border-color 0.2s}
   .tbtn:hover{color:var(--ink);transform:rotate(15deg) scale(1.05)} .tbtn svg{width:16px;height:16px}
   header.top .iconlink{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;transition:transform .2s cubic-bezier(.16,1,.3,1),color .2s,border-color .2s}
@@ -94,18 +100,18 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <body>
 <header class="top"><div class="tnav">
   <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
-  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.5.5</a>
-  <span class="doc">QORM</span>
+  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.8.0</a>
+  <span class="doc">docs</span>
   <span class="sp"></span>
-  <a class="tl" href="/">Home</a>
-  <a class="tl" href="/docs/">Docs</a><a class="tl" href="/api/">API</a>
+  <nav class="pill" aria-label="Primary"><a class="tl active-nav" href="/docs/">Docs</a><a class="tl" href="/api/">API</a><a class="tl" href="/compare/">Compare</a><a class="tl" href="/about.html">About</a></nav>
+  <a class="btn navcta" href="/docs/build-with-ai.html">Get started</a>
   <a class="iconlink" href="https://github.com/qorm/qorm" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
   <a class="iconlink patreon" href="https://www.patreon.com/qorm" target="_blank" rel="noopener" aria-label="Patreon" title="Patreon"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="14.4" cy="9.6" r="6.6"/><rect x="1.5" y="2.5" width="4" height="19" rx="0.3"/></svg></a>
   <a class="iconlink lang" href="../zh/platforms/native-middlelayer.html" data-lang="zh" aria-label="中文" title="中文"><span>中</span></a>
   <button class="tbtn" id="theme" aria-label="Theme"></button>
 </div></header>
 <div class="shell">
-  <aside><div class="nav-group">overview</div><ul><li><a href="../README.html">QORM documentation</a></li><li><a href="../project-structure.html">Project structure</a></li><li><a href="../build-with-ai.html">Build QORM apps with your AI assistant</a></li><li><a href="../collaboration.html">Human-AI collaboration on a live app</a></li><li><a href="../verification.html">Interpreting &amp; verifying a QORM app</a></li><li><a href="../expressions.html">Expressions</a></li></ul><div class="nav-group">tutorials</div><ul><li><a href="../tutorials/getting-started.html">Getting Started with QORM</a></li><li><a href="../tutorials/first-scene.html">First Scene</a></li><li><a href="../tutorials/first-action.html">First Action</a></li><li><a href="../tutorials/first-component.html">First Component</a></li><li><a href="../tutorials/first-platform-pack.html">First Platform Pack</a></li></ul><div class="nav-group">examples</div><ul><li><a href="../examples/counter.html">Example: Counter</a></li><li><a href="../examples/todo.html">Example: Todo</a></li><li><a href="../examples/login.html">Example: Login</a></li><li><a href="../examples/dashboard.html">Example: Dashboard</a></li></ul><div class="nav-group">platforms</div><ul><li><a href="web.html">QORM Web Platform</a></li><li><a href="mobile.html">QORM Mobile Platform</a></li><li><a href="desktop.html">QORM Desktop Platform</a></li><li><a href="miniapp.html">QORM Mini-program platform</a></li><li><a href="native-middlelayer.html" class="active">User middle layer: adding your own capabilities to an app</a></li><li><a href="capabilities.html">Capabilities</a></li><li><a href="support-matrix.html">Platform support matrix</a></li></ul><div class="nav-group">agent</div><ul><li><a href="../agent/permissions.html">QORM Agent Permissions</a></li><li><a href="../agent/mcp-tools.html">QORM MCP tools</a></li><li><a href="../agent/skills.html">QORM Skills</a></li><li><a href="../agent/claude-pack.html">QORM Claude Pack</a></li><li><a href="../agent/codex-pack.html">QORM Codex Pack</a></li><li><a href="../agent/openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">security</div><ul><li><a href="../security/security-model.html">QORM Security Model</a></li><li><a href="../security/permission-model.html">QORM Permission Model</a></li><li><a href="../security/bundle-signing.html">QORM Bundle Signing</a></li></ul><div class="nav-group">spec</div><ul><li><a href="../spec/navigation-spec.html">Navigation &amp;amp; routing</a></li></ul></aside>
+  <aside><div class="nav-group">overview</div><ul><li><a href="../README.html">QORM documentation</a></li><li><a href="../project-structure.html">Project structure</a></li><li><a href="../build-with-ai.html">Build QORM apps with your AI assistant</a></li><li><a href="../collaboration.html">Human-AI collaboration on a live app</a></li><li><a href="../verification.html">Interpreting &amp; verifying a QORM app</a></li><li><a href="../expressions.html">Expressions</a></li><li><a href="../styles.html">QSS — QORM Style Sheets</a></li></ul><div class="nav-group">tutorials</div><ul><li><a href="../tutorials/getting-started.html">Getting Started with QORM</a></li><li><a href="../tutorials/first-scene.html">First Scene</a></li><li><a href="../tutorials/first-action.html">First Action</a></li><li><a href="../tutorials/first-component.html">First Component</a></li><li><a href="../tutorials/first-platform-pack.html">First Platform Pack</a></li></ul><div class="nav-group">examples</div><ul><li><a href="../examples/counter.html">Example: Counter</a></li><li><a href="../examples/todo.html">Example: Todo</a></li><li><a href="../examples/login.html">Example: Login</a></li><li><a href="../examples/dashboard.html">Example: Dashboard</a></li></ul><div class="nav-group">platforms</div><ul><li><a href="web.html">QORM Web Platform</a></li><li><a href="mobile.html">QORM Mobile Platform</a></li><li><a href="desktop.html">QORM Desktop Platform</a></li><li><a href="miniapp.html">QORM Mini-program platform</a></li><li><a href="native-middlelayer.html" class="active">User middle layer: adding your own capabilities to an app</a></li><li><a href="capabilities.html">Capabilities</a></li><li><a href="support-matrix.html">Platform support matrix</a></li></ul><div class="nav-group">agent</div><ul><li><a href="../agent/permissions.html">QORM Agent Permissions</a></li><li><a href="../agent/mcp-tools.html">QORM MCP tools</a></li><li><a href="../agent/skills.html">QORM Skills</a></li><li><a href="../agent/claude-pack.html">QORM Claude Pack</a></li><li><a href="../agent/codex-pack.html">QORM Codex Pack</a></li><li><a href="../agent/openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">security</div><ul><li><a href="../security/security-model.html">QORM Security Model</a></li><li><a href="../security/permission-model.html">QORM Permission Model</a></li><li><a href="../security/bundle-signing.html">QORM Bundle Signing</a></li></ul><div class="nav-group">spec</div><ul><li><a href="../spec/navigation-spec.html">Navigation &amp;amp; routing</a></li></ul></aside>
   <main><h1 id="user-middle-layer-adding-your-own-capabilities-to-an-app">User middle layer: adding your own capabilities to an app</h1>
 <p>QORM ships with about 26 built-in hardware capabilities (camera/recording, location, Bluetooth, NFC, biometrics, vibration/haptics, flashlight, brightness/volume, battery, sensors, network status, clipboard, sharing, notifications, screenshot/screen recording, and more), and app developers can add their own capabilities <strong>without modifying framework source code</strong>. <strong>Go is recommended</strong> -- write it once, run it everywhere. Swift/Java are reserved only for rare pure-native SDKs.</p>
 <h2 id="recommended-go-middle-layer-one-go-source-usable-everywhere">Recommended: Go middle layer (one Go source, usable everywhere)</h2>
@@ -206,6 +212,34 @@ qorm package examples/native-ext -p ios --dev URL    # inject ios.swift into the
 <pre><code>{ &#34;pluginABI&#34;: &#34;1&#34; }</code></pre>
 <p>The loader compares its major to the runtime&#39;s <code>ABIVersion</code> and emits a diagnostic if they differ, so an app built against an incompatible middle-layer contract is caught at load time instead of silently misbehaving. It is a warning, not a hard failure — the app still loads; only its custom native ops may not work. Apps that use no versioned middle-layer omit <code>pluginABI</code> entirely (always compatible).</p>
 <p>Related: <a href="mobile.html">Mobile</a> · <a href="desktop.html">Desktop</a></p>
+<h2 id="custom-canvas-widgets-native-renderer">Custom canvas widgets (native renderer)</h2>
+<p>The same middle-layer file (<code>native/desktop.go</code>) can also register <strong>custom widgets</strong> into the native canvas engine — the drawing-side counterpart of custom native ops. The engine ships a widget registry (<code>canvas.RegisterWidget</code>); the built-in library lives outside the engine in <code>internal/widgets/</code>, and your own types register exactly the same way:</p>
+<pre><code>//go:build ignore
+
+package main
+
+import (
+    &#34;github.com/qorm/qorm/internal/model&#34;
+    &#34;github.com/qorm/qorm/internal/render/canvas&#34;
+    &#34;github.com/qorm/qorm/internal/render/draw&#34;
+    &#34;github.com/qorm/qorm/internal/runtime&#34;
+)
+
+func init() { canvas.RegisterWidget(&#34;rating&#34;, ratingWidget{}) }
+
+type ratingWidget struct{}
+
+func (ratingWidget) Measure(n *model.Node, rt *runtime.Runtime, scale int) (w, h int) {
+    return 5 * 24 * scale, 24 * scale
+}
+
+func (ratingWidget) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.Node {
+    // compose draw-layer shapes (Rect/Text/Image/Circle/Group) — never touch
+    // engine internals. Style parsing, conditional render, disabled and
+    // onPress come free from the engine.
+}</code></pre>
+<p>Scenes then use the type directly: <code>{&#34;type&#34;: &#34;rating&#34;, &#34;value&#34;: 4}</code>, with <code>{{state.x}}</code> bindings evaluated per frame like any other prop. Optional extensions: <code>canvas.InteractiveWidget</code> (pointer/drag, see <code>internal/widgets/slider.go</code>) and <code>canvas.AnimatedWidget</code> (continuous animation, see <code>internal/widgets/spinner.go</code>). The full working app is <code>examples/customwidget</code>.</p>
+<p>Note: <code>qorm package</code> compiles the middle layer into the binary (so the widget ships in the app); a plain <code>qorm run</code> of a framework checkout does not inject it, so unregistered custom types render as unknown (empty) nodes.</p>
 </main>
 </div>
 <script>
