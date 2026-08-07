@@ -1,4 +1,4 @@
-# restart.qs — the action body; the shared core (fits/refreshView/refreshNext/spawn/lock) lives in lib.qs.
+# restart.qs — the action body; the shared core (SHAPES/fits/refreshView/refreshNext/spawn/lock) lives in lib.qs.
 
 # Back to a fresh game: empty board, zeroed counters, the LCG reseeded from
 # now() (ms since epoch) so each restart plays a different piece sequence,

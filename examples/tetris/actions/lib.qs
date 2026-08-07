@@ -4,39 +4,51 @@
 # spliced ahead of each action's body, so any top-level statement here would
 # run before every action.
 #
-# The board is a flat 10x20 row-major array; state.flat holds the 7 pieces
-# x 4 rotations x 4 cells as [x, y] pairs; state.view is the board plus the
-# falling piece, ready for the scene's gridview.
+# The board is a flat 10x20 row-major array; state.view is the board plus
+# the falling piece, ready for the scene's gridview. SHAPES lives in
+# globalState.initial (see qorm.json) — the engine initialises it before
+# the first action runs, so fits/refreshView/refreshNext/lock can just read
+# `state.SHAPES[si][rot][y*4+x]`. No `let SHAPES = ...` here, no init step
+# in restart.
+
+fn cellOf(si, r, x, y) {
+  let s = at(at(state.SHAPES, si), r)
+  return charAt(s, y * 4 + x) != "."
+}
 
 fn fits(si, r, px, py) {
-  let base = si * 16 + r * 4
-  for i in range(4) {
-    let c = at(state.flat, base + i)
-    let x = px + at(c, 0)
-    let y = py + at(c, 1)
-    if (x < 0 || x >= 10 || y >= 20) { return false }
-    if (y >= 0 && at(state.board, y * 10 + x) > 0) { return false }
+  for ry in range(4) {
+    for rx in range(4) {
+      if (cellOf(si, r, rx, ry) == 1) {
+        let x = px + rx
+        let y = py + ry
+        if (x < 0 || x >= 10 || y >= 20) { return false }
+        if (y >= 0 && at(state.board, y * 10 + x) > 0) { return false }
+      }
+    }
   }
   return true
 }
 
 fn refreshView() {
   let v = concat(state.board)
-  let base = state.piece.shapeIdx * 16 + state.piece.rot * 4
-  for i in range(4) {
-    let c = at(state.flat, base + i)
-    let y = state.piece.y + at(c, 1)
-    if (y >= 0) { v[y * 10 + state.piece.x + at(c, 0)] = state.piece.color }
+  for ry in range(4) {
+    for rx in range(4) {
+      if (cellOf(state.piece.shapeIdx, state.piece.rot, rx, ry) == 1) {
+        let y = state.piece.y + ry
+        if (y >= 0) { v[y * 10 + state.piece.x + rx] = state.piece.color }
+      }
+    }
   }
   state.view = v
 }
 
 fn refreshNext() {
   let v = fill(16, 0)
-  let base = state.nextIdx * 16
-  for i in range(4) {
-    let c = at(state.flat, base + i)
-    v[at(c, 1) * 4 + at(c, 0)] = state.nextIdx + 1
+  for ry in range(4) {
+    for rx in range(4) {
+      if (cellOf(state.nextIdx, 0, rx, ry) == 1) { v[ry * 4 + rx] = state.nextIdx + 1 }
+    }
   }
   state.nextView = v
 }
@@ -60,11 +72,13 @@ fn spawn() {
 # lock writes the falling piece into the board, clears full rows (100/300/
 # 500/800 x level for 1/2/3/4 rows, a level every 10 lines) and spawns next.
 fn lock() {
-  let base = state.piece.shapeIdx * 16 + state.piece.rot * 4
-  for i in range(4) {
-    let c = at(state.flat, base + i)
-    let y = state.piece.y + at(c, 1)
-    if (y >= 0) { state.board[y * 10 + state.piece.x + at(c, 0)] = state.piece.color }
+  for ry in range(4) {
+    for rx in range(4) {
+      if (cellOf(state.piece.shapeIdx, state.piece.rot, rx, ry) == 1) {
+        let y = state.piece.y + ry
+        if (y >= 0) { state.board[y * 10 + state.piece.x + rx] = state.piece.color }
+      }
+    }
   }
   let kept = []
   let cleared = 0
