@@ -156,9 +156,9 @@ func qormCanvasInitFromBundle(_ js.Value, args []js.Value) any {
 	if res.RT.App != nil && baseURL != "" {
 		res.RT.App.BaseDir = baseURL
 	}
-	// In WASM there is no filesystem — theme files in the doc list must be
-	// applied here because the canvas engine's resolveTheme will fail
-	// trying to os.ReadFile("themes/raiden.json").
+	// In WASM there is no filesystem — themes must be resolved from the doc
+	// list (for custom theme files) or from built-in defaults.
+	themeApplied := false
 	for _, d := range docs {
 		if t, _ := d["type"].(string); t == "theme" {
 			themeName, _ := d["name"].(string)
@@ -172,8 +172,14 @@ func qormCanvasInitFromBundle(_ js.Value, args []js.Value) any {
 				}
 			}
 			res.RT.Theme = th
+			themeApplied = true
 			break
 		}
+	}
+	// Built-in themes (apple-light etc.) have no doc in the list —
+	// resolveTheme will try os.ReadFile which fails in WASM.
+	if !themeApplied && res.RT != nil && res.RT.Theme == nil {
+		res.RT.Theme = theme.GetDefault()
 	}
 	adopt(res.RT)
 	handlers = res.Handlers
