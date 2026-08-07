@@ -10,6 +10,7 @@ guides see the [docs](/docs/).
 - [Node & widget props](props.md) — the node schema, common style props, and every widget's specific props
 - [Widget catalog](widgets.md) — every node `type` the renderer accepts, with aliases
 - [Actions & state](actions.md) — every action step `type` and its fields
+- [QScript language](../docs/qscript.md) — the `.qs` scripting language reference
 - [Gestures](gestures.md) — tap / long-press / swipe / drag, as widget props
 - [Animation](animation.md) — entrance effects and value-driven transitions
 - [Navigation](navigation.md) — scenes, the navigate step, and page transitions

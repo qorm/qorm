@@ -36,6 +36,7 @@ runnable reference — when a doc and a running example disagree, trust the exam
 - [Getting started](tutorials/getting-started.md) — install, your first app, the run loop
 - [First scene](tutorials/first-scene.md) · [First action](tutorials/first-action.md) · [First component](tutorials/first-component.md) · [First platform pack](tutorials/first-platform-pack.md)
 - [Expressions](expressions.md) — the `{{ … }}` language: scopes, operators, index access, and every builtin function
+- [QScript](qscript.md) — the `.qs` scripting language: `let`, `if`, `for`, `while`, `fn`, `call()`, and the shared `lib.qs`
 
 ## Reference
 

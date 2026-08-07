@@ -24,6 +24,7 @@ web / iOS / Android / 桌面——人和 AI 智能体都能读写。
 - [快速上手](tutorials/getting-started.md)——安装、你的第一个应用、运行循环
 - [第一个场景](tutorials/first-scene.md) · [第一个 action](tutorials/first-action.md) · [第一个组件](tutorials/first-component.md) · [第一个平台包](tutorials/first-platform-pack.md)
 - [表达式](expressions.md)——`{{ … }}` 语言:作用域、运算符、下标访问,以及全部内置函数
+- [QScript](qscript.md)——`.qs` 脚本语言:`let`、`if`、`for`、`while`、`fn`、`call()`,以及共享库 `lib.qs`
 
 ## 参考
 
