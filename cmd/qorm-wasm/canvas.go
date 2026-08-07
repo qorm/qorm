@@ -38,6 +38,9 @@ func wasmReadFile(path string) ([]byte, error) {
 	// main thread (rAF callback) without deadlocking the scheduler.
 	xhr := js.Global().Get("XMLHttpRequest").New()
 	xhr.Call("open", "GET", path, false) // false = synchronous
+	// MUST set responseType BEFORE send() for binary data — default is
+	// text/string and silently corrupts PNG bytes.
+	xhr.Set("responseType", "arraybuffer")
 	xhr.Call("send", nil)
 	status := xhr.Get("status").Int()
 	if status != 200 {
