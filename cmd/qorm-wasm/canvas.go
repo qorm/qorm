@@ -24,9 +24,17 @@ var (
 // the canvas engine never enters its negative cache for a known-good URL.
 // The pure-Go sync read is keyed off the same resolved URL the engine would
 // otherwise build (BaseDir + src), so no path translation is needed.
+//
+// preloadFailed is a *diagnostic ledger only* — it tracks which URLs the
+// preloader couldn't fetch, for log output. wasmReadFile does NOT consult
+// it: the preloader is a hint, the canvas engine's soft negative cache
+// (image.go: isTransientReadErr) is authoritative. Gating on preloadFailed
+// here would short-circuit the sync-XHR fallback for URLs the preloader
+// failed on, the engine would see the synthetic "preload failed" error as
+// a transient miss, and the asset would stay broken forever.
 var preloadedAssetsMu sync.RWMutex
 var preloadedAssets = map[string][]byte{}
-var preloadFailed = map[string]bool{} // 404s: known-bad, never retry
+var preloadFailed = map[string]bool{} // diagnostic only — see comment above
 
 func init() {
 	// Override filesystem readers so the canvas engine loads PNGs + theme
@@ -43,27 +51,30 @@ func init() {
 	js.Global().Set("qormCanvasKey", js.FuncOf(qormCanvasKey))
 	js.Global().Set("qormCanvasInitFromBundle", js.FuncOf(qormCanvasInitFromBundle))
 	js.Global().Set("qormCanvasPreloadAssets", js.FuncOf(qormCanvasPreloadAssets))
+	js.Global().Set("qormGetState", js.FuncOf(qormGetState))
 }
 
 // wasmReadFile is the disk-read seam. Order:
 //  1. Preloaded cache (populated by qormCanvasPreloadAssets) — fast path
 //     that the WASM measure/layout passes hit every frame.
-//  2. URL<->path translation for hosts that pass a relative path and
-//     rely on the engine's BaseDir to resolve it. We can't do that here
-//     because we lost the rt, so the host MUST preload by resolved URL.
-//  3. Sync XHR as a last-ditch fallback for unknown assets. The XHR is
-//     wrapped in a recover() because Chrome's deprecation warnings on
-//     main-thread sync XHR occasionally surface as a synchronous throw,
-//     not a status code — without the recover the whole engine panics.
+//  2. Sync XHR as the fallback for anything the preloader missed (e.g. a
+//     scene that references an asset the host forgot to list, or a URL the
+//     preloader fetch() flaked on). The XHR is wrapped in a recover()
+//     because Chrome's deprecation warnings on main-thread sync XHR
+//     occasionally surface as a synchronous throw, not a status code —
+//     without the recover the whole engine panics.
+//
+// Note: we deliberately do NOT short-circuit on preloadFailed[path]. The
+// preloader is a hint; the canvas engine's soft negative cache
+// (isTransientReadErr) is the only authoritative retry-vs-cache decision.
+// If the preloader failed once (network blip, 5xx) and the engine then
+// sees a transient miss every frame, the engine will keep retrying sync
+// XHR — which is exactly the right behaviour.
 func wasmReadFile(path string) ([]byte, error) {
 	preloadedAssetsMu.RLock()
 	if b, ok := preloadedAssets[path]; ok {
 		preloadedAssetsMu.RUnlock()
 		return b, nil
-	}
-	if preloadFailed[path] {
-		preloadedAssetsMu.RUnlock()
-		return nil, fmt.Errorf("preload failed for %s", path)
 	}
 	preloadedAssetsMu.RUnlock()
 	return wasmSyncRead(path)
@@ -368,4 +379,83 @@ func qormCanvasInitFromBundle(_ js.Value, args []js.Value) (ret any) {
 	}
 
 	return nil
+}
+
+// qormGetState returns a JSON snapshot of the current runtime state, for
+// debugging the games page from a browser devtools / Playwright. The
+// "minimal" mode is what you usually want — it skips the heavy arrays
+// (rows, viewTiles, etc.) and adds the engine-side diagnostics (camera
+// pan, image cache, preloader counts) that aren't visible from
+// rt.State. The default (no arg) is the raw rt.State marshalled to
+// JSON; use that when you need the full viewTiles/rows data and can
+// afford the wire cost.
+//
+// NOT for production use — the full state is on the Go heap and a
+// naive json.Marshal of a deeply-nested viewTiles can stutter.
+func qormGetState(_ js.Value, args []js.Value) any {
+	if rt == nil {
+		return "null"
+	}
+	if len(args) > 0 && args[0].String() == "minimal" {
+		out := map[string]any{}
+		if m, ok := rt.State["mario"].(map[string]any); ok {
+			out["mario"] = m
+		}
+		if s, ok := rt.State["status"].(string); ok {
+			out["status"] = s
+		}
+		if v, ok := rt.State["timeLeft"].(float64); ok {
+			out["timeLeft"] = v
+		}
+		if t, ok := rt.State["viewTiles"].([]any); ok {
+			out["viewTiles_len"] = len(t)
+			hist := map[string]int{}
+			minX, maxX := 1e9, -1e9
+			for _, it := range t {
+				if m, ok := it.(map[string]any); ok {
+					if k, ok := m["kind"].(string); ok {
+						hist[k]++
+					}
+					if x, ok := m["x"].(float64); ok {
+						if x < minX {
+							minX = x
+						}
+						if x > maxX {
+							maxX = x
+						}
+					}
+				}
+			}
+			out["viewTiles_hist"] = hist
+			if minX < maxX {
+				out["viewTiles_xRange"] = []float64{minX, maxX}
+			}
+		}
+		// Engine-side state the JS host can't see otherwise.
+		preloadedAssetsMu.RLock()
+		out["preloaded_count"] = len(preloadedAssets)
+		out["preloadFailed_count"] = len(preloadFailed)
+		preloadedAssetsMu.RUnlock()
+		out["imageCache_keys"] = canvas.ImageCacheKeys()
+		if cvsEngine != nil {
+			out["PanX"] = cvsEngine.Inter.Board.PanX
+			out["PanY"] = cvsEngine.Inter.Board.PanY
+			out["Zoom"] = cvsEngine.Inter.Board.Zoom
+			if cvsSurface != nil {
+				sz := cvsSurface.Size()
+				out["viewportW"] = sz.X
+				out["viewportH"] = sz.Y
+			}
+		}
+		b, err := json.Marshal(out)
+		if err != nil {
+			return fmt.Sprintf(`{"err":%q}`, err.Error())
+		}
+		return string(b)
+	}
+	b, err := json.Marshal(rt.State)
+	if err != nil {
+		return fmt.Sprintf(`{"err":%q}`, err.Error())
+	}
+	return string(b)
 }

@@ -24,6 +24,20 @@ import (
 // img instead of crashing the frame.
 var imagePlaceholder = color.RGBA{229, 229, 234, 255}
 
+// ImageCacheKeys returns the set of resolved URLs the engine has cached an
+// image for (or nil for a permanent failure). The WASM qormGetState helper
+// exposes this so the host can tell "the image is in the cache, the bytes
+// are fine" from "the engine never saw the URL".
+func ImageCacheKeys() []string {
+	imageCacheMu.Lock()
+	defer imageCacheMu.Unlock()
+	out := make([]string, 0, len(imageCache))
+	for k := range imageCache {
+		out = append(out, k)
+	}
+	return out
+}
+
 // imageReadFile is the disk-read seam: tests replace it to count reads and
 // prove the cache serves repeat loads without touching the disk again. The
 // WASM build replaces it with a JS-fetch-based reader so the playground
