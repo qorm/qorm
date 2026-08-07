@@ -219,9 +219,19 @@ func isSafeCSSColor(s string) bool {
 	return false
 }
 
+// themeReadFile is the read seam for skins — the WASM build replaces it
+// with an HTTP fetcher so resolveTheme can load from a URL prefix.
+var themeReadFile = os.ReadFile
+
+// SetThemeReadFile replaces the theme file reader (caller-owned).
+func SetThemeReadFile(fn func(string) ([]byte, error)) {
+	if fn == nil { themeReadFile = os.ReadFile; return }
+	themeReadFile = fn
+}
+
 // LoadTheme loads a JSON theme file and parses its colors
 func LoadTheme(path string) (*Theme, error) {
-	data, err := os.ReadFile(path)
+	data, err := themeReadFile(path)
 	if err != nil {
 		return nil, err
 	}

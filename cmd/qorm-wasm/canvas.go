@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
-	"image/color"
-	"strconv"
 	"syscall/js"
 
 	"github.com/qorm/qorm/internal/playcore"
@@ -21,9 +19,10 @@ var (
 )
 
 func init() {
-	// Override the image file reader so the canvas engine loads PNGs
-	// via JavaScript's fetch() instead of os.ReadFile (no fs in WASM).
+	// Override filesystem readers so the canvas engine loads PNGs + theme
+	// JSON via JavaScript's XMLHttpRequest instead of os.ReadFile.
 	canvas.SetImageReadFile(wasmReadFile)
+	theme.SetThemeReadFile(wasmReadFile)
 	js.Global().Set("qormCanvasInit", js.FuncOf(qormCanvasInit))
 	js.Global().Set("qormCanvasFrame", js.FuncOf(qormCanvasFrame))
 	js.Global().Set("qormCanvasPtr", js.FuncOf(qormCanvasPtr))
@@ -159,35 +158,6 @@ func qormCanvasInitFromBundle(_ js.Value, args []js.Value) any {
 	if res.RT.App != nil && baseURL != "" {
 		res.RT.App.BaseDir = baseURL
 	}
-	// In WASM there is no filesystem — themes must be resolved from the doc
-	// list (for custom theme files) or from built-in defaults.
-	themeApplied := false
-	for _, d := range docs {
-		if t, _ := d["type"].(string); t == "theme" {
-			themeName, _ := d["name"].(string)
-			th := &theme.Theme{Name: themeName, ParsedColors: make(map[string]color.RGBA)}
-			if colors, ok := d["colors"].(map[string]any); ok {
-				th.Colors = make(map[string]string, len(colors))
-				for k, v := range colors {
-					if s, ok := v.(string); ok {
-						th.Colors[k] = s
-						if c, pok := parseHexColor(s); pok {
-							th.ParsedColors[k] = c
-						}
-					}
-				}
-			}
-			res.RT.Theme = th
-			// Clear state.theme so resolveTheme takes the empty-name
-			// path (= keep current theme, do not os.ReadFile).
-			res.RT.State["theme"] = ""
-			themeApplied = true
-			break
-		}
-	}
-	if !themeApplied {
-		res.RT.Theme = theme.GetDefault()
-	}
 	adopt(res.RT)
 	handlers = res.Handlers
 
@@ -210,34 +180,3 @@ func qormCanvasInitFromBundle(_ js.Value, args []js.Value) any {
 	return nil
 }
 
-// parseHexColor decodes a hex string like #RRGGBB or #RRGGBBAA into
-// a color.RGBA. Inline copy of theme.parseColor (unexported).
-func parseHexColor(hex string) (color.RGBA, bool) {
-	if len(hex) > 1 && hex[0] == '#' {
-		hex = hex[1:]
-	}
-	var r, g, b uint8
-	var a uint8 = 255
-	switch len(hex) {
-	case 6:
-		n, err := strconv.ParseUint(hex, 16, 32)
-		if err != nil {
-			return color.RGBA{}, false
-		}
-		r = uint8(n >> 16)
-		g = uint8(n >> 8)
-		b = uint8(n)
-	case 8:
-		n, err := strconv.ParseUint(hex, 16, 32)
-		if err != nil {
-			return color.RGBA{}, false
-		}
-		r = uint8(n >> 24)
-		g = uint8(n >> 16)
-		b = uint8(n >> 8)
-		a = uint8(n)
-	default:
-		return color.RGBA{}, false
-	}
-	return color.RGBA{r, g, b, a}, true
-}
