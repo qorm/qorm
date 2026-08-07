@@ -542,9 +542,37 @@ func isStackType(t string) bool { return t == "stack" || t == "absolute" }
 // gridColumns reads a grid's column count from the `columns` prop (HTML:
 // propNum(n, "columns", 2), render_style.go:104), clamped to [1, maxGridColumns].
 // The upper clamp is load-bearing, not cosmetic: a huge JSON float (1e19)
-// converts to int platform-dependently (arm64 saturates to maxInt64), and
-// len(children)+cols-1 would then overflow in the row-count math below.
+// converts to int platform-dependently (on 32-bit and on 64-bit platforms
+// whose int conversion wraps for out-of-range floats, int(1e19) can come out
+// NEGATIVE — which the < 1 clamp then maps to 1 instead of maxGridColumns),
+// and len(children)+cols-1 would then overflow in the row-count math below.
 const maxGridColumns = 4096
+
+// clampGridCols normalises any prop value (float64 / int) into the legal
+// [1, maxGridColumns] range. Doing the float-side clamp BEFORE the int
+// conversion is what stops int(1e19)'s wraparound from sneaking through the
+// bottom clamp as 1.
+func clampGridCols(c any) int {
+	switch v := c.(type) {
+	case float64:
+		if math.IsNaN(v) || v < 1 {
+			return 1
+		}
+		if v > float64(maxGridColumns) {
+			return maxGridColumns
+		}
+		return int(v)
+	case int:
+		if v < 1 {
+			return 1
+		}
+		if v > maxGridColumns {
+			return maxGridColumns
+		}
+		return v
+	}
+	return 0 // caller will default to 1 via the lower clamp below
+}
 
 func gridColumns(n *model.Node) int {
 	cols := 2
@@ -555,12 +583,7 @@ func gridColumns(n *model.Node) int {
 		prop = "crossAxisCount"
 	}
 	if v, ok := n.Prop(prop); ok {
-		switch c := v.(type) {
-		case float64:
-			cols = int(c)
-		case int:
-			cols = c
-		}
+		cols = clampGridCols(v)
 	}
 	if cols < 1 {
 		cols = 1

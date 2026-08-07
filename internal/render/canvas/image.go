@@ -96,6 +96,16 @@ func warnImageOnce(key, format string, args ...any) {
 // an absolute path would turn the renderer into a local-file read primitive
 // whose pixels can leak back through screenshots). Remote/scheme sources are
 // not loadable by the native renderer and report ok=false.
+//
+// Native vs WASM: native (App.Web == false) treats BaseDir as a filesystem
+// path and refuses any src that escapes it. WASM (App.Web == true, set by
+// cmd/qorm-wasm at init) treats BaseDir as a URL prefix and joins
+// base + "/" + src; the browser then fetches the joined URL and the server
+// (or service worker) is the actual gatekeeper. The two cases are
+// distinguished by App.Web, NOT by the leading "/" of BaseDir — that
+// earlier heuristic confused a real macOS path (/var/folders/.../T/...) with
+// a browser URL prefix (/games/raiden/) and let "../../etc/passwd" through
+// the native jail.
 func resolveImageSrc(src string, rt *runtime.Runtime) (string, bool) {
 	src = strings.TrimSpace(src)
 	if src == "" {
@@ -109,18 +119,27 @@ func resolveImageSrc(src string, rt *runtime.Runtime) (string, bool) {
 	if strings.HasPrefix(src, "data:") {
 		return src, true
 	}
-	if filepath.IsAbs(src) {
-		warnImageOnce("abs:"+src, "image src %q is an absolute path; the native renderer only loads files inside the app directory", src)
-		return "", false
-	}
 	base := ""
+	isWeb := rt != nil && rt.App != nil && rt.App.Web
 	if rt != nil && rt.App != nil {
 		base = rt.App.BaseDir
 	}
-	// Web/WASM path: BaseDir is a URL prefix (e.g. "/games/raiden/"). Join
-	// with src using path semantics (not filepath) and skip the jail check.
-	if strings.HasPrefix(base, "/") || strings.HasPrefix(base, "http") {
+	if isWeb {
+		// Web/WASM: BaseDir is a URL prefix; the browser handles the fetch
+		// (and the host server's static handler is what enforces the jail).
+		if base == "" {
+			warnImageOnce("nobase:"+src, "image src %q is relative but the app has no BaseDir; cannot resolve it", src)
+			return "", false
+		}
 		return strings.TrimRight(base, "/") + "/" + src, true
+	}
+	// Native filesystem: refuse absolute paths first (filepath.IsAbs on the
+	// src is the right check here — on Unix that's "starts with /", which
+	// in the native case ALWAYS means "escape the app dir" and never
+	// "browser URL prefix"), then jail to base.
+	if filepath.IsAbs(src) {
+		warnImageOnce("abs:"+src, "image src %q is an absolute path; the native renderer only loads files inside the app directory", src)
+		return "", false
 	}
 	if base == "" {
 		// In-memory/bundle app with a relative src: unresolvable here.

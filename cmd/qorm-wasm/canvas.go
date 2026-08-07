@@ -307,7 +307,12 @@ func qormCanvasKey(_ js.Value, args []js.Value) any {
 // explicitly discarded so a game switch starts fresh. Preloaded assets from
 // the previous game are also flushed — a 404 on the old game's URL is not
 // the same as a 404 on the new game's URL.
-func qormCanvasInitFromBundle(_ js.Value, args []js.Value) any {
+func qormCanvasInitFromBundle(_ js.Value, args []js.Value) (ret any) {
+	defer func() {
+		if r := recover(); r != nil {
+			ret = map[string]any{"err": fmt.Sprintf("init panic: %v", r)}
+		}
+	}()
 	if len(args) < 2 {
 		return map[string]any{"err": "usage: qormCanvasInitFromBundle(docsJSON, baseURL [, width, height])"}
 	}
@@ -333,9 +338,15 @@ func qormCanvasInitFromBundle(_ js.Value, args []js.Value) any {
 	if len(res.Diagnostics) > 0 && res.HTML == "" {
 		return map[string]any{"err": "compile failed", "diagnostics": res.Diagnostics}
 	}
-	// Wire the BaseDir so resolveImageSrc knows where images live.
+	// Wire the BaseDir so resolveImageSrc knows where images live. Mark the
+	// app as Web (App.Web = true) too: without it, the resolver can't tell
+	// the WASM URL prefix (e.g. "/games/raiden/") apart from a real native
+	// path (e.g. "/var/folders/.../T/..." — both start with "/") and applies
+	// the filesystem jail check to the browser case, which would refuse
+	// every relative image src.
 	if res.RT.App != nil && baseURL != "" {
 		res.RT.App.BaseDir = baseURL
+		res.RT.App.Web = true
 	}
 	adopt(res.RT)
 	handlers = res.Handlers

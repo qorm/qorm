@@ -44,6 +44,14 @@ type App struct {
 	// BaseDir is the directory the app was loaded from (empty for bundles/
 	// in-memory apps); used to resolve relative asset paths like image src.
 	BaseDir string
+	// Web is true when the runtime is hosted in a browser (cmd/qorm-wasm).
+	// resolveImageSrc consults this to decide between a real-filesystem jail
+	// check (native: "../etc/passwd" refused) and a URL-prefix join (WASM:
+	// the browser fetches the joined URL). Without this flag the two cases
+	// are indistinguishable from BaseDir alone — a real macOS path like
+	// /var/folders/.../T/... and a browser URL prefix like /games/raiden/
+	// both start with "/", and the native side opened a path-traversal hole.
+	Web bool
 	// Theme selects the design token set ("apple" default, "material", …); a
 	// state.theme value overrides it at runtime.
 	Theme string

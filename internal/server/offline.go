@@ -104,7 +104,15 @@ function qormDir(d){ document.documentElement.setAttribute('dir', d||'ltr'); }
 		}
 		boot = otaBoot(string(cfg))
 	}
-	page, err = replaceOnce(page, "\n</script>\n</body>", boot+"</script>\n</body>")
+	// Inject the boot right before the page's main <script>…</script> block.
+	// The Page template renders the helpers + resizeTo + key bindings INSIDE
+	// the same <script> element with no leading newline (qormAppJS ends with
+	// `})();\n` and resizeJS / qormKeyBindings follow on the next line, so the
+	// last byte of the script body is `;`/`}`, not `\n`). Match on
+	// `</script>\n</body>` (the only place that substring occurs in the page)
+	// and prepend boot. The replacement string still ends with `</script>\n
+	// </body>` so the surrounding HTML structure is byte-identical.
+	page, err = replaceOnce(page, "</script>\n</body>", boot+"</script>\n</body>")
 	if err != nil {
 		return "", err
 	}

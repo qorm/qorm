@@ -9,6 +9,14 @@ package canvas
 // size, embedded bitmap/sfnt fonts identical on every platform — so any hash
 // drift is a real rendering change, intended or not.
 //
+// Platform note: the committed baseline is the Linux hash set, because CI
+// runs on ubuntu-latest. Mac produces slightly different SFNT rasterization
+// for two of the four scenes (counter_light, counter_dark) — sub-pixel
+// anti-aliasing on the text layer — so a Mac developer must re-baseline
+// locally: `QORM_GOLDEN_UPDATE=1 go test -run TestGolden ./internal/render/canvas/`.
+// counter_physics and gallery_if are platform-stable (their pixels are mostly
+// solid blocks / simple labels, where hinting differences wash out).
+//
 // Re-baseline after an intentional rendering change:
 //
 //	QORM_GOLDEN_UPDATE=1 go test -run TestGolden ./internal/render/canvas/
