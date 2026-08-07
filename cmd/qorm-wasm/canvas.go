@@ -370,15 +370,14 @@ func qormCanvasInitFromBundle(_ js.Value, args []js.Value) (ret any) {
 	preloadedAssets = map[string][]byte{}
 	preloadFailed = map[string]bool{}
 	preloadedAssetsMu.Unlock()
-	// Drop the cached frame buffer too — the new surface is a different
-	// size (or at least, we can't assume it's the same), and reusing a
-	// stale ImageData with mismatched w/h would putImageData into the
-	// wrong rows. The next qormCanvasFrame rebuilds.
-	frameMu.Lock()
-	framePixels = js.Value{}
-	frameImage = js.Value{}
-	frameW, frameH = 0, 0
-	frameMu.Unlock()
+	// NOTE: do NOT reset framePixels/frameImage here. qormCanvasFrame
+	// already rebuilds them when w/h change, and most game pairs
+	// (tetris/2048 both 420x680) hit the cache directly. Forcing a
+	// rebuild on every switch used to add a fresh 1-2 MB UA allocation
+	// on top of the still-pending GC from the previous game's
+	// allocations — under memory pressure that's the spike that
+	// crashed the Go runtime. If the surface really changes size, the
+	// next frame call detects w/h mismatch and rebuilds.
 
 	res := playcore.CompileDocs(docs)
 	if len(res.Diagnostics) > 0 && res.HTML == "" {

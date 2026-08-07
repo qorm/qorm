@@ -37,20 +37,38 @@
   "root": {
     "type": "board",
     "id": "world",
-    "style": { "background": "linear-gradient(var(--space), #000814)", "width": 320, "height": 560 },
+    "style": {
+      "background": "linear-gradient(var(--space), #000814)",
+      "width": 320,
+      "height": 560
+    },
     "disablePan": true,
     "children": [
-      { "type": "timer", "id": "tick", "every": 40, "onTick": "tick", "if": "{{ state.status == 'playing' }}" },
+      {
+        "type": "timer",
+        "id": "tick",
+        "every": 40,
+        "onTick": "tick",
+        "if": "{{ state.status == 'playing' }}"
+      },
       {
         "type": "list",
         "id": "starsFar",
         "data": "{{ state.starsFar }}",
         "direction": "column",
         "spacing": 0,
-        "style": { "gap": 0 },
+        "style": {
+          "gap": 0
+        },
         "renderItem": {
           "type": "box",
-          "style": { "x": "{{ item.x }}", "y": "{{ item.y }}", "width": 1, "height": 1, "background": "var(--star)" }
+          "style": {
+            "x": "{{ item.x }}",
+            "y": "{{ item.y }}",
+            "width": 1,
+            "height": 1,
+            "background": "var(--star)"
+          }
         }
       },
       {
@@ -59,31 +77,54 @@
         "data": "{{ state.starsNear }}",
         "direction": "column",
         "spacing": 0,
-        "style": { "gap": 0 },
+        "style": {
+          "gap": 0
+        },
         "renderItem": {
           "type": "box",
-          "style": { "x": "{{ item.x }}", "y": "{{ item.y }}", "width": 2, "height": 2, "background": "var(--text)" }
+          "style": {
+            "x": "{{ item.x }}",
+            "y": "{{ item.y }}",
+            "width": 2,
+            "height": 2,
+            "background": "var(--text)"
+          }
         }
       },
       {
         "type": "image",
         "id": "ground",
         "src": "{{ state.terrainType == 1 ? 'assets/water.png' : 'assets/ground.png' }}",
-        "style": { "x": "{{ 0 - mod(state.groundScroll, 32) }}", "y": 460, "width": 384, "height": 100 }
+        "style": {
+          "x": "{{ 0 - mod(state.groundScroll, 32) }}",
+          "y": 460,
+          "width": 384,
+          "height": 100
+        }
       },
       {
         "type": "image",
         "id": "boss",
         "if": "{{ state.boss.alive }}",
         "src": "assets/boss.png",
-        "style": { "x": "{{ state.boss.x - 48 }}", "y": "{{ state.boss.y - 32 }}", "width": 96, "height": 96 }
+        "style": {
+          "x": "{{ state.boss.x - 48 }}",
+          "y": "{{ state.boss.y - 32 }}",
+          "width": 96,
+          "height": 96
+        }
       },
       {
         "type": "image",
         "id": "player",
         "if": "{{ state.status == 'playing' && (state.player.invuln == 0 || mod(state.player.invuln, 4) < 2) }}",
         "src": "assets/player.png",
-        "style": { "x": "{{ state.player.x }}", "y": "{{ state.player.y }}", "width": 56, "height": 56 }
+        "style": {
+          "x": "{{ state.player.x }}",
+          "y": "{{ state.player.y }}",
+          "width": 56,
+          "height": 56
+        }
       },
       {
         "type": "list",
@@ -91,11 +132,18 @@
         "data": "{{ state.bullets }}",
         "direction": "column",
         "spacing": 0,
-        "style": { "gap": 0 },
+        "style": {
+          "gap": 0
+        },
         "renderItem": {
           "type": "image",
           "src": "{{ item.type == 9 ? 'assets/enemy_bullet.png' : (item.type == 2 ? 'assets/laser.png' : 'assets/bullet.png') }}",
-          "style": { "x": "{{ item.x - 16 }}", "y": "{{ item.y - 16 }}", "width": 32, "height": 32 }
+          "style": {
+            "x": "{{ item.x - 16 }}",
+            "y": "{{ item.y - 16 }}",
+            "width": 32,
+            "height": 32
+          }
         }
       },
       {
@@ -104,12 +152,19 @@
         "data": "{{ state.enemies }}",
         "direction": "column",
         "spacing": 0,
-        "style": { "gap": 0 },
+        "style": {
+          "gap": 0
+        },
         "renderItem": {
           "type": "image",
           "if": "{{ item.alive }}",
           "src": "{{ item.type == 4 ? 'assets/enemy_turret.png' : (item.type == 3 ? 'assets/enemy_heli.png' : (item.type == 2 ? 'assets/enemy_bomber.png' : 'assets/enemy_small.png')) }}",
-          "style": { "x": "{{ item.x - 16 }}", "y": "{{ item.y - 16 }}", "width": 32, "height": 32 }
+          "style": {
+            "x": "{{ item.x - 16 }}",
+            "y": "{{ item.y - 16 }}",
+            "width": 32,
+            "height": 32
+          }
         }
       },
       {
@@ -118,11 +173,18 @@
         "data": "{{ state.powerups }}",
         "direction": "column",
         "spacing": 0,
-        "style": { "gap": 0 },
+        "style": {
+          "gap": 0
+        },
         "renderItem": {
           "type": "image",
           "src": "{{ item.type == 3 ? 'assets/medal.png' : (item.type == 2 ? 'assets/powerup_b.png' : 'assets/powerup_p.png') }}",
-          "style": { "x": "{{ item.x - 16 }}", "y": "{{ item.y - 16 }}", "width": 32, "height": 32 }
+          "style": {
+            "x": "{{ item.x - 16 }}",
+            "y": "{{ item.y - 16 }}",
+            "width": 32,
+            "height": 32
+          }
         }
       },
       {
@@ -131,71 +193,177 @@
         "data": "{{ state.explosions }}",
         "direction": "column",
         "spacing": 0,
-        "style": { "gap": 0 },
+        "style": {
+          "gap": 0
+        },
         "renderItem": {
           "type": "image",
           "src": "{{ item.t < 1 ? 'assets/explode_1.png' : (item.t < 2 ? 'assets/explode_2.png' : 'assets/explode_3.png') }}",
-          "style": { "x": "{{ item.x - 16 }}", "y": "{{ item.y - 16 }}", "width": 32, "height": 32 }
+          "style": {
+            "x": "{{ item.x - 16 }}",
+            "y": "{{ item.y - 16 }}",
+            "width": 32,
+            "height": 32
+          }
         }
       },
       {
         "type": "box",
         "id": "bombFlash",
         "if": "{{ state.bombFlash > 0 }}",
-        "style": { "x": 0, "y": 0, "width": 320, "height": 560, "background": "#ffffff", "opacity": 0.6 }
+        "style": {
+          "x": 0,
+          "y": 0,
+          "width": 320,
+          "height": 560,
+          "background": "#ffffff",
+          "opacity": 0.6
+        }
       },
       {
         "type": "box",
         "id": "hudBg",
-        "style": { "x": 0, "y": 0, "width": 320, "height": 26, "background": "var(--panel)" }
+        "style": {
+          "x": 0,
+          "y": 0,
+          "width": 320,
+          "height": 26,
+          "background": "var(--panel)"
+        }
       },
       {
         "type": "row",
         "id": "hud",
-        "style": { "x": 6, "y": 4, "gap": 8 },
+        "style": {
+          "x": 6,
+          "y": 4,
+          "gap": 8
+        },
         "children": [
-          { "type": "text", "text": "1P", "class": "hudLabel" },
-          { "type": "text", "text": "{{ state.score }}", "class": "hudValue" },
-          { "type": "text", "text": "HI", "class": "hudLabel" },
-          { "type": "text", "text": "{{ state.hiScore }}", "class": "hudValue" },
-          { "type": "text", "text": "PWR", "class": "hudLabel" },
-          { "type": "text", "text": "{{ state.player.weapon }}", "class": "hudValue" },
+          {
+            "type": "text",
+            "text": "1P",
+            "class": "hudLabel"
+          },
+          {
+            "type": "text",
+            "text": "{{ state.score }}",
+            "class": "hudValue"
+          },
+          {
+            "type": "text",
+            "text": "HI",
+            "class": "hudLabel"
+          },
+          {
+            "type": "text",
+            "text": "{{ state.hiScore }}",
+            "class": "hudValue"
+          },
+          {
+            "type": "text",
+            "text": "PWR",
+            "class": "hudLabel"
+          },
+          {
+            "type": "text",
+            "text": "{{ state.player.weapon }}",
+            "class": "hudValue"
+          },
           {
             "type": "list",
             "id": "bombIcons",
-            "data": "{{ range(0, state.player.bombs, 1) }}",
+            "data": "{{ range(state.player.bombs) }}",
             "direction": "row",
             "spacing": 1,
-            "style": { "gap": 1 },
-            "renderItem": { "type": "image", "src": "assets/powerup_b.png", "style": { "width": 16, "height": 16 } }
+            "style": {
+              "gap": 1
+            },
+            "renderItem": {
+              "type": "image",
+              "src": "assets/powerup_b.png",
+              "style": {
+                "width": 16,
+                "height": 16
+              }
+            }
           },
           {
             "type": "list",
             "id": "livesIcons",
-            "data": "{{ range(0, state.player.lives, 1) }}",
+            "data": "{{ range(state.player.lives) }}",
             "direction": "row",
             "spacing": 1,
-            "style": { "gap": 1 },
-            "renderItem": { "type": "image", "src": "assets/player_icon.png", "style": { "width": 16, "height": 16 } }
+            "style": {
+              "gap": 1
+            },
+            "renderItem": {
+              "type": "image",
+              "src": "assets/player_icon.png",
+              "style": {
+                "width": 16,
+                "height": 16
+              }
+            }
           }
         ]
       },
       {
         "type": "row",
         "id": "moveControls",
-        "style": { "x": 6, "y": 514, "gap": 6 },
+        "style": {
+          "x": 6,
+          "y": 514,
+          "gap": 6
+        },
         "children": [
-          { "type": "button", "id": "btnL", "label": "<", "class": "ctrlBtn", "onPress": { "name": "moveLeft" } },
-          { "type": "button", "id": "btnR", "label": ">", "class": "ctrlBtn", "onPress": { "name": "moveRight" } }
+          {
+            "type": "button",
+            "id": "btnL",
+            "label": "<",
+            "class": "ctrlBtn",
+            "onPress": {
+              "name": "touchLeft"
+            }
+          },
+          {
+            "type": "button",
+            "id": "btnR",
+            "label": ">",
+            "class": "ctrlBtn",
+            "onPress": {
+              "name": "touchRight"
+            }
+          }
         ]
       },
       {
         "type": "row",
         "id": "fireControls",
-        "style": { "x": 180, "y": 514, "gap": 6 },
+        "style": {
+          "x": 180,
+          "y": 514,
+          "gap": 6
+        },
         "children": [
-          { "type": "button", "id": "btnShoot", "label": "FIRE", "class": "ctrlBtn", "onPress": { "name": "shoot" } },
-          { "type": "button", "id": "btnBomb", "label": "BOMB", "class": "ctrlBtn", "onPress": { "name": "bomb" } }
+          {
+            "type": "button",
+            "id": "btnShoot",
+            "label": "FIRE",
+            "class": "ctrlBtn",
+            "onPress": {
+              "name": "touchShoot"
+            }
+          },
+          {
+            "type": "button",
+            "id": "btnBomb",
+            "label": "BOMB",
+            "class": "ctrlBtn",
+            "onPress": {
+              "name": "bomb"
+            }
+          }
         ]
       },
       {
@@ -203,12 +371,39 @@
         "id": "deadPanel",
         "if": "{{ state.status == 'dead' }}",
         "class": "deadPanel",
-        "style": { "x": 60, "y": 220, "padding": 12 },
+        "style": {
+          "x": 60,
+          "y": 220,
+          "padding": 12
+        },
         "children": [
-          { "type": "image", "src": "assets/explode_3.png", "style": { "width": 48, "height": 48 } },
-          { "type": "text", "text": "GAME OVER", "class": "deadTitle" },
-          { "type": "text", "text": "Score: {{ state.score }}", "class": "deadHint" },
-          { "type": "button", "id": "btnRestart", "label": "Restart", "class": "restartBtn", "onPress": { "name": "restart" } }
+          {
+            "type": "image",
+            "src": "assets/explode_3.png",
+            "style": {
+              "width": 48,
+              "height": 48
+            }
+          },
+          {
+            "type": "text",
+            "text": "GAME OVER",
+            "class": "deadTitle"
+          },
+          {
+            "type": "text",
+            "text": "Score: {{ state.score }}",
+            "class": "deadHint"
+          },
+          {
+            "type": "button",
+            "id": "btnRestart",
+            "label": "Restart",
+            "class": "restartBtn",
+            "onPress": {
+              "name": "restart"
+            }
+          }
         ]
       },
       {
@@ -216,11 +411,31 @@
         "id": "wonPanel",
         "if": "{{ state.status == 'won' }}",
         "class": "deadPanel",
-        "style": { "x": 60, "y": 220, "padding": 12 },
+        "style": {
+          "x": 60,
+          "y": 220,
+          "padding": 12
+        },
         "children": [
-          { "type": "text", "text": "STAGE CLEAR!", "class": "deadTitle" },
-          { "type": "text", "text": "Score: {{ state.score }}", "class": "deadHint" },
-          { "type": "button", "id": "btnAgain", "label": "Play Again", "class": "restartBtn", "onPress": { "name": "restart" } }
+          {
+            "type": "text",
+            "text": "STAGE CLEAR!",
+            "class": "deadTitle"
+          },
+          {
+            "type": "text",
+            "text": "Score: {{ state.score }}",
+            "class": "deadHint"
+          },
+          {
+            "type": "button",
+            "id": "btnAgain",
+            "label": "Play Again",
+            "class": "restartBtn",
+            "onPress": {
+              "name": "restart"
+            }
+          }
         ]
       }
     ]

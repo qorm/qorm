@@ -113,7 +113,12 @@ fn moveBullets() {
   for b in state.bullets {
     b.x = b.x + b.dx
     b.y = b.y + b.dy
-    if (b.y >= -16 && b.x >= -16 && b.x <= 336) { live = push(live, b) }
+    # Player bullets (dy < 0) exit at top; enemy bullets (dy > 0) exit at bottom.
+    let onScreen = true
+    if (b.dy < 0 && b.y < -16) { onScreen = false }
+    if (b.dy > 0 && b.y > 576) { onScreen = false }
+    if (b.x < -16 || b.x > 336) { onScreen = false }
+    if (onScreen) { live = push(live, b) }
   }
   state.bullets = live
 }
@@ -139,6 +144,12 @@ fn useBomb() {
       state.score = state.score + 50
     }
   }
+  # Clear enemy bullets (type 9). Player bullets (type 1/2) stay.
+  let kept = []
+  for b in state.bullets {
+    if (b.type != 9) { kept = push(kept, b) }
+  }
+  state.bullets = kept
   if (state.boss.alive) {
     state.boss.hp = state.boss.hp - 20
     state.explosions = push(state.explosions, { x: state.boss.x, y: state.boss.y, t: 0 })
@@ -263,7 +274,6 @@ fn enemyFire() {
 # the top, fires aimed shots (handled in bossFire).
 fn spawnBoss() {
   state.boss = { alive: true, x: 160, y: -60, hp: 60, phase: 0 }
-  playSound("audio/music.wav")
 }
 
 fn moveBoss() {
