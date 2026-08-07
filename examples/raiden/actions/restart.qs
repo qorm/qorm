@@ -1,7 +1,7 @@
 # restart.qs — fresh run: ship back at start, everything cleared, counters
 # zeroed, status playing, background music on loop.
 
-state.player = { x: 144, y: 400, lives: 3, invuln: 0, weapon: 1, bombs: 2 }
+state.player = { x: 132, y: 404, lives: 3, invuln: 0, weapon: 1, bombs: 2 }
 state.bullets = []
 state.enemies = []
 state.explosions = []

@@ -47,7 +47,8 @@
         "cameraCenter": "x",
         "cameraCell": 32,
         "cameraViewport": 16,
-        "cameraDeadZone": 10,
+        "cameraDeadZone": 192,
+        "cameraMax": { "x": 6240 },
         "disablePan": true,
         "children": [
           {
@@ -95,7 +96,7 @@
               "type": "image",
               "id": "powerup",
               "src": "assets/mushroom.png",
-              "if": "{{p.alive and not p.dead}}",
+              "if": "{{p.alive && !p.dead}}",
               "style": {
                 "x": "{{p.x - 8}}",
                 "y": "{{p.y - 8}}",
@@ -221,7 +222,7 @@
               "type": "image",
               "id": "question-tile",
               "src": "assets/question.png",
-              "if": "{{tile.kind == '7' or tile.kind == '8'}}",
+              "if": "{{tile.kind == '7' || tile.kind == '8'}}",
               "style": {
                 "x": "{{tile.x}}",
                 "y": "{{tile.y}}",

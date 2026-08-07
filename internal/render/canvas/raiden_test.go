@@ -43,8 +43,8 @@ func TestRaidenFirstFrame(t *testing.T) {
 	if s := rt.State["status"]; s != "playing" {
 		t.Fatalf("status = %v at start, want playing", s)
 	}
-	if x, _ := rt.State["player"].(map[string]any)["x"].(float64); x != 144 {
-		t.Errorf("player.x = %v at start, want 144", x)
+	if x, _ := rt.State["player"].(map[string]any)["x"].(float64); x != 132 {
+		t.Errorf("player.x = %v at start, want 132", x)
 	}
 }
 
@@ -77,6 +77,12 @@ func TestRaidenTickAdvances(t *testing.T) {
 func TestRaidenTurretFires(t *testing.T) {
 	e, surf, rt := raidenFixture(t)
 	e.DrawFrame(surf)
+	// Make the player invulnerable so the turret's "snap to ground" y=444
+	// doesn't kill it via checkPlayerHits (the test only cares that the
+	// turret FIRES, not the player/enemy interaction). Without this, a
+	// bigger-sprite player or a closer turret silently kills the player
+	// and the bullet we want to see is filtered out as a player-hit.
+	rt.State["player"].(map[string]any)["invuln"] = 9999.0
 	// Plant a live turret mid-field.
 	enemies := rt.State["enemies"].([]any)
 	enemies = append(enemies,

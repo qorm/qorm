@@ -58,8 +58,8 @@ fn movePlayer() {
     dy = dy * 0.707
   }
   let sp = playerSpeed()
-  state.player.x = clamp(state.player.x + dx * sp, 0, 272)
-  state.player.y = clamp(state.player.y + dy * sp, 40, 428)
+  state.player.x = clamp(state.player.x + dx * sp, 0, 264)
+  state.player.y = clamp(state.player.y + dy * sp, 40, 400)
 }
 
 # ----- Weapons ---------------------------------------------------------------
@@ -76,7 +76,7 @@ fn fireBullet() {
   if (state.fireTimer < 4) { return }
   state.fireTimer = 0
   let w = state.player.weapon
-  let px = state.player.x + 24
+  let px = state.player.x + 28
   let py = state.player.y
   if (w == 1) {
     state.bullets = push(state.bullets, { x: px, y: py, dx: 0, dy: -9, type: 1 })
@@ -283,8 +283,8 @@ fn moveBoss() {
 fn bossFire() {
   let bx = state.boss.x
   let by = state.boss.y + 20
-  let px = state.player.x + 24
-  let py = state.player.y + 24
+  let px = state.player.x + 28
+  let py = state.player.y + 28
   let ang = atan2(py - by, px - bx)
   for i in range(3) {
     let a = ang + (i - 1) * 0.25
@@ -335,7 +335,7 @@ fn movePowerUps() {
 fn checkPowerUps() {
   let live = []
   for p in state.powerups {
-    if (abs(p.x - (state.player.x + 24)) < 26 && abs(p.y - (state.player.y + 24)) < 26) {
+    if (abs(p.x - (state.player.x + 28)) < 30 && abs(p.y - (state.player.y + 28)) < 30) {
       p.alive = false
       if (p.type == 1) {
         if (state.player.weapon < 6) {
@@ -409,8 +409,8 @@ fn pruneExplosions() {
 # checkPlayerHits: enemy bodies and enemy bullets (type 9) both hurt.
 fn checkPlayerHits() {
   if (state.player.invuln > 0) { return }
-  let pcx = state.player.x + 24
-  let pcy = state.player.y + 24
+  let pcx = state.player.x + 28
+  let pcy = state.player.y + 28
   # Enemy bullets.
   let kept = []
   for b in state.bullets {
@@ -439,7 +439,7 @@ fn checkPlayerHits() {
 fn playerHit() {
   state.player.lives = state.player.lives - 1
   state.player.invuln = 60
-  state.explosions = push(state.explosions, { x: state.player.x + 24, y: state.player.y + 24, t: 0 })
+  state.explosions = push(state.explosions, { x: state.player.x + 28, y: state.player.y + 28, t: 0 })
   playSound("audio/explode.wav")
   if (state.player.lives <= 0) {
     state.status = "dead"

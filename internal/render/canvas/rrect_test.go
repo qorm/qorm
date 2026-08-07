@@ -181,7 +181,7 @@ func TestImageDecodeRejectsHugeDimensions(t *testing.T) {
 	if err := os.WriteFile(path, hdr.Bytes(), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if got := decodeImageFile(path, "bomb.png"); got != nil {
+	if got, _ := decodeImageFile(path, "bomb.png"); got != nil {
 		t.Error("a PNG declaring 1e10 pixels must be refused before decoding")
 	}
 }

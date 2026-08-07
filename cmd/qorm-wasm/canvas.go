@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
+	"sync"
 	"syscall/js"
 
 	"github.com/qorm/qorm/internal/playcore"
@@ -18,9 +19,22 @@ var (
 	cvsSurface *canvas.HeadlessSurface
 )
 
+// preloadedAssets is a sync-on-read, async-on-write cache for asset bytes.
+// Populated by qormCanvasPreloadAssets BEFORE the first frame is drawn so
+// the canvas engine never enters its negative cache for a known-good URL.
+// The pure-Go sync read is keyed off the same resolved URL the engine would
+// otherwise build (BaseDir + src), so no path translation is needed.
+var preloadedAssetsMu sync.RWMutex
+var preloadedAssets = map[string][]byte{}
+var preloadFailed = map[string]bool{} // 404s: known-bad, never retry
+
 func init() {
 	// Override filesystem readers so the canvas engine loads PNGs + theme
-	// JSON via JavaScript's XMLHttpRequest instead of os.ReadFile.
+	// JSON via JavaScript's HTTP layer instead of os.ReadFile. The reader
+	// consults a preloaded byte cache first (populated by
+	// qormCanvasPreloadAssets, a Promise<ArrayBuffer> fan-in) and falls
+	// back to a sync XHR for anything that wasn't pre-warmed (e.g. a scene
+	// that references an asset the host forgot to list).
 	canvas.SetImageReadFile(wasmReadFile)
 	theme.SetThemeReadFile(wasmReadFile)
 	js.Global().Set("qormCanvasInit", js.FuncOf(qormCanvasInit))
@@ -28,24 +42,58 @@ func init() {
 	js.Global().Set("qormCanvasPtr", js.FuncOf(qormCanvasPtr))
 	js.Global().Set("qormCanvasKey", js.FuncOf(qormCanvasKey))
 	js.Global().Set("qormCanvasInitFromBundle", js.FuncOf(qormCanvasInitFromBundle))
+	js.Global().Set("qormCanvasPreloadAssets", js.FuncOf(qormCanvasPreloadAssets))
 }
 
-// wasmReadFile fetches a URL via JavaScript's fetch() and returns the
-// response body as bytes. The WAIT version blocks the current goroutine
-// — the calling context (DrawFrame on rAF) is the JS event loop thread,
-// so a synchronous XMLHttpRequest or a fetch+await pattern is safe here
-// as long as it completes within a frame budget (a 32×32 PNG is ~200 B).
+// wasmReadFile is the disk-read seam. Order:
+//  1. Preloaded cache (populated by qormCanvasPreloadAssets) — fast path
+//     that the WASM measure/layout passes hit every frame.
+//  2. URL<->path translation for hosts that pass a relative path and
+//     rely on the engine's BaseDir to resolve it. We can't do that here
+//     because we lost the rt, so the host MUST preload by resolved URL.
+//  3. Sync XHR as a last-ditch fallback for unknown assets. The XHR is
+//     wrapped in a recover() because Chrome's deprecation warnings on
+//     main-thread sync XHR occasionally surface as a synchronous throw,
+//     not a status code — without the recover the whole engine panics.
 func wasmReadFile(path string) ([]byte, error) {
-	// Use synchronous XMLHttpRequest — simpler and works in the WASM
-	// main thread (rAF callback) without deadlocking the scheduler.
-	xhr := js.Global().Get("XMLHttpRequest").New()
-	xhr.Call("open", "GET", path, false) // false = synchronous
-	// MUST set responseType BEFORE send() for binary data — default is
-	// text/string and silently corrupts PNG bytes.
-	xhr.Set("responseType", "arraybuffer")
-	xhr.Call("send", nil)
+	preloadedAssetsMu.RLock()
+	if b, ok := preloadedAssets[path]; ok {
+		preloadedAssetsMu.RUnlock()
+		return b, nil
+	}
+	if preloadFailed[path] {
+		preloadedAssetsMu.RUnlock()
+		return nil, fmt.Errorf("preload failed for %s", path)
+	}
+	preloadedAssetsMu.RUnlock()
+	return wasmSyncRead(path)
+}
+
+// wasmSyncRead is the legacy sync XHR fallback. The negative cache lives
+// in the canvas engine (image.go) — keeping it here would create two
+// competing caches. If the XHR throws (Chrome deprecation noise, CSP
+// denial, network race), we recover and report a synthetic HTTP 0 so the
+// engine's normal "image failed to load" placeholder path takes over.
+func wasmSyncRead(path string) ([]byte, error) {
+	var sendErr error
+	var xhr js.Value
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				sendErr = fmt.Errorf("XHR panic: %v", r)
+			}
+		}()
+		xhr = js.Global().Get("XMLHttpRequest").New()
+		xhr.Call("open", "GET", path, false) // false = synchronous
+		// MUST set responseType BEFORE send() for binary data — default is
+		// text/string and silently corrupts PNG bytes.
+		xhr.Set("responseType", "arraybuffer")
+		xhr.Call("send", nil)
+	}()
+	if sendErr != nil {
+		return nil, sendErr
+	}
 	status := xhr.Get("status").Int()
-	fmt.Printf("[wasm read] %s → HTTP %d\n", path, status)
 	if status != 200 {
 		return nil, fmt.Errorf("HTTP %d fetching %s", status, path)
 	}
@@ -56,9 +104,133 @@ func wasmReadFile(path string) ([]byte, error) {
 	// response is an ArrayBuffer; convert to Go []byte.
 	arr := js.Global().Get("Uint8Array").New(resp)
 	n := arr.Get("length").Int()
+	if n == 0 {
+		return nil, fmt.Errorf("zero-length response for %s", path)
+	}
 	buf := make([]byte, n)
 	js.CopyBytesToGo(buf, arr)
 	return buf, nil
+}
+
+// qormCanvasPreloadAssets(urlsJSON) returns a Promise<{loaded:number,
+// failed:number}> after fanning out an async fetch for every URL. The
+// engine's measure pass then finds the bytes in preloadedAssets and
+// never enters its negative cache for those URLs.
+//
+// Why a preloader and not "just use async fetch on every loadImage":
+// loadImage is called from the synchronous measure/layout passes
+// (every frame, 30+ widgets). Bridging it to async would require
+// suspend/resume on the goroutine for every read, which is far more
+// invasive and has worse worst-case latency than a one-time preload.
+func qormCanvasPreloadAssets(_ js.Value, args []js.Value) any {
+	if len(args) < 1 {
+		return js.Global().Get("Promise").Call("reject", "usage: qormCanvasPreloadAssets(urlsJSON)")
+	}
+	var urls []string
+	if err := json.Unmarshal([]byte(args[0].String()), &urls); err != nil {
+		return js.Global().Get("Promise").Call("reject", "invalid JSON: "+err.Error())
+	}
+	if len(urls) == 0 {
+		return js.Global().Get("Promise").Call("resolve", js.ValueOf(`{"loaded":0,"failed":0}`))
+	}
+
+	promiseCtor := js.Global().Get("Promise")
+	return promiseCtor.New(js.FuncOf(func(_ js.Value, pArgs []js.Value) any {
+		resolve, reject := pArgs[0], pArgs[1]
+
+		// Pending counter lives in a closure so each Promise has its own
+		// fan-in. resolved/failed are reported in the final payload.
+		var (
+			mu          sync.Mutex
+			pending     = len(urls)
+			loadedCount = 0
+			failedCount = 0
+		)
+		maybeFinish := func() {
+			mu.Lock()
+			defer mu.Unlock()
+			if pending > 0 {
+				return
+			}
+			payload := fmt.Sprintf(`{"loaded":%d,"failed":%d}`, loadedCount, failedCount)
+			if failedCount > 0 && loadedCount == 0 {
+				reject.Invoke(payload)
+			} else {
+				resolve.Invoke(payload)
+			}
+		}
+		onOne := func(url string, ok bool, data []byte, errStr string) {
+			preloadedAssetsMu.Lock()
+			if ok {
+				preloadedAssets[url] = data
+			} else {
+				preloadFailed[url] = true
+			}
+			preloadedAssetsMu.Unlock()
+			mu.Lock()
+			pending--
+			if ok {
+				loadedCount++
+			} else {
+				failedCount++
+				fmt.Printf("[wasm preload] %s failed: %s\n", url, errStr)
+			}
+			mu.Unlock()
+			maybeFinish()
+		}
+
+		for _, u := range urls {
+			u := u // capture per-iteration
+			fetch := js.Global().Get("fetch")
+			p := fetch.Invoke(u)
+
+			// Go disallows `cb := js.FuncOf(func(){ defer cb.Release(); ... })` —
+			// the closure can't reference the variable it's being assigned to
+			// via :=. Declare first, then assign, so the closure can see it.
+			var thenCb js.Func
+			thenCb = js.FuncOf(func(_ js.Value, tArgs []js.Value) any {
+				resp := tArgs[0]
+				ok := resp.Get("ok").Bool()
+				status := resp.Get("status").Int()
+				thenCb.Release()
+				if !ok {
+					onOne(u, false, nil, fmt.Sprintf("HTTP %d", status))
+					return js.Undefined()
+				}
+				bufPromise := resp.Call("arrayBuffer")
+				var bufThenCb js.Func
+				bufThenCb = js.FuncOf(func(_ js.Value, bArgs []js.Value) any {
+					bufThenCb.Release()
+					ab := bArgs[0]
+					arr := js.Global().Get("Uint8Array").New(ab)
+					n := arr.Get("length").Int()
+					if n == 0 {
+						onOne(u, false, nil, "zero-length arrayBuffer")
+						return js.Undefined()
+					}
+					data := make([]byte, n)
+					js.CopyBytesToGo(data, arr)
+					onOne(u, true, data, "")
+					return js.Undefined()
+				})
+				bufPromise.Call("then", bufThenCb)
+				return js.Undefined()
+			})
+			var catchCb js.Func
+			catchCb = js.FuncOf(func(_ js.Value, cArgs []js.Value) any {
+				catchCb.Release()
+				msg := "fetch error"
+				if len(cArgs) > 0 && !cArgs[0].IsUndefined() && !cArgs[0].IsNull() {
+					msg = cArgs[0].String()
+				}
+				onOne(u, false, nil, msg)
+				return js.Undefined()
+			})
+			p.Call("then", thenCb)
+			p.Call("catch", catchCb)
+		}
+		return js.Undefined()
+	}))
 }
 
 // qormCanvasInit prepares the canvas engine from the runtime already loaded
@@ -132,7 +304,9 @@ func qormCanvasKey(_ js.Value, args []js.Value) any {
 // qormCanvasInitFromBundle(docsJSON, baseURL, width, height) compiles a doc
 // array, sets the app's BaseDir to the given URL (so images resolve), and
 // prepares the canvas engine at the given size. Previous engine + runtime are
-// explicitly discarded so a game switch starts fresh.
+// explicitly discarded so a game switch starts fresh. Preloaded assets from
+// the previous game are also flushed — a 404 on the old game's URL is not
+// the same as a 404 on the new game's URL.
 func qormCanvasInitFromBundle(_ js.Value, args []js.Value) any {
 	if len(args) < 2 {
 		return map[string]any{"err": "usage: qormCanvasInitFromBundle(docsJSON, baseURL [, width, height])"}
@@ -143,13 +317,17 @@ func qormCanvasInitFromBundle(_ js.Value, args []js.Value) any {
 	}
 	baseURL := args[1].String()
 
-	// Discard previous engine + surface + image cache so stale
-	// timers/state/negative-cache don't survive the game switch.
+	// Discard previous engine + surface + image cache + preloaded bytes so
+	// stale timers/state/negative-cache don't survive the game switch.
 	cvsEngine = nil
 	cvsSurface = nil
 	rt = nil
 	handlers = nil
 	canvas.ResetImageCache()
+	preloadedAssetsMu.Lock()
+	preloadedAssets = map[string][]byte{}
+	preloadFailed = map[string]bool{}
+	preloadedAssetsMu.Unlock()
 
 	res := playcore.CompileDocs(docs)
 	if len(res.Diagnostics) > 0 && res.HTML == "" {
@@ -180,4 +358,3 @@ func qormCanvasInitFromBundle(_ js.Value, args []js.Value) any {
 
 	return nil
 }
-

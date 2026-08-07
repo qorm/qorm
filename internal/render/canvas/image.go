@@ -57,9 +57,21 @@ var imageWarnOut io.Writer = os.Stderr
 
 // imageCache memoises decode results by resolved absolute path; a nil Img is
 // a NEGATIVE entry (known-bad src) so a failing image neither re-reads the
-// disk nor re-warns on every frame. Failed srcs stay failed for the process
-// lifetime — a file appearing later needs an app reload, the same trade the
-// theme loader makes (engine.go themeFailed).
+// disk nor re-warns on every frame.
+//
+// Two negative entries are tracked separately:
+//   - imageCache["path"] = nil  → permanent failure cached forever
+//     (used for 404 / not-found / decode errors that won't fix themselves)
+//   - imageWarned["path"]        → transient failure, already warned once
+//     but the cache slot is NOT set, so the next frame retries the read
+//
+// The distinction matters in two places:
+//   1. The WASM canvas engine, where sync XHR can race the preloader and
+//      produce a transient failure for a URL that's about to land in the
+//      preloaded cache a few ms later. A permanent cache there would
+//      black-hole every asset for the rest of the WASM process lifetime.
+//   2. Any host where a transient network error (5xx, dropped connection)
+//      would otherwise lock out the image for the rest of the session.
 var (
 	imageCacheMu sync.Mutex
 	imageCache   = map[string]*image.RGBA{}
@@ -129,8 +141,11 @@ func resolveImageSrc(src string, rt *runtime.Runtime) (string, bool) {
 }
 
 // loadImage returns the decoded, straight-pixel bitmap for src, or nil on any
-// failure (missing file, undecodable bytes, unsupported source). Results —
-// including failures — are cached, so this is cheap to call every frame.
+// failure (missing file, undecodable bytes, unsupported source). The result
+// is cached so a successful read is one disk hit per process per src; a
+// permanent failure (404 / decode error) caches a nil Img and is never
+// retried; a transient failure (network / "the preloader hasn't landed
+// yet") is warned once but NOT cached, so the next frame retries.
 func loadImage(src string, rt *runtime.Runtime) *image.RGBA {
 	path, ok := resolveImageSrc(src, rt)
 	if !ok {
@@ -144,22 +159,36 @@ func loadImage(src string, rt *runtime.Runtime) *image.RGBA {
 	}
 	imageCacheMu.Unlock()
 
-	img := decodeImageFile(path, src)
+	img, transient := decodeImageFile(path, src)
 
 	imageCacheMu.Lock()
-	imageCache[path] = img
+	if !transient {
+		// Only permanent failures earn a cache slot. A nil transient read
+		// leaves the cache untouched so the next call (after a few ms, when
+		// the preloader has landed) gets a second chance.
+		imageCache[path] = img
+	}
 	imageCacheMu.Unlock()
 	return img
 }
 
 // decodeImageFile reads and decodes one image file into a STRAIGHT
-// (non-premultiplied) RGBA — the renderer's buffer convention. Failures warn
-// once and return nil (the caller negative-caches).
-func decodeImageFile(path, src string) *image.RGBA {
+// (non-premultiplied) RGBA — the renderer's buffer convention. The second
+// return is true for TRANSIENT failures (network / "not loaded yet" — the
+// preloader might be about to populate the byte cache, so don't negative-
+// cache the miss) and false for PERMANENT failures (HTTP 404, decode
+// errors — those won't fix themselves and need the negative cache to
+// avoid re-warning every frame).
+func decodeImageFile(path, src string) (*image.RGBA, bool) {
 	b, err := imageReadFile(path)
 	if err != nil {
-		warnImageOnce("load:"+path, "image src %q (%s) failed to load: %v; drawing a placeholder", src, path, err)
-		return nil
+		transient := isTransientReadErr(err)
+		if transient {
+			warnImageOnce("load:"+path, "image src %q (%s) transient load error: %v; will retry", src, path, err)
+		} else {
+			warnImageOnce("load:"+path, "image src %q (%s) failed to load: %v; drawing a placeholder", src, path, err)
+		}
+		return nil, transient
 	}
 	// Decompression-bomb guard (R6-E): check the declared dimensions BEFORE
 	// decoding — a 70KB PNG can legally inflate to gigapixels, and the
@@ -167,18 +196,46 @@ func decodeImageFile(path, src string) *image.RGBA {
 	cfg, _, err := image.DecodeConfig(bytes.NewReader(b))
 	if err != nil {
 		warnImageOnce("decode:"+path, "image src %q (%s) is not a decodable PNG/JPEG: %v; drawing a placeholder", src, path, err)
-		return nil
+		return nil, false
 	}
 	if px := int64(cfg.Width) * int64(cfg.Height); cfg.Width <= 0 || cfg.Height <= 0 || px > maxImagePixels {
 		warnImageOnce("toobig:"+path, "image src %q (%s) declares %dx%d pixels — over the native cap (%d); drawing a placeholder", src, path, cfg.Width, cfg.Height, maxImagePixels)
-		return nil
+		return nil, false
 	}
 	decoded, _, err := image.Decode(bytes.NewReader(b))
 	if err != nil {
 		warnImageOnce("decode:"+path, "image src %q (%s) is not a decodable PNG/JPEG: %v; drawing a placeholder", src, path, err)
-		return nil
+		return nil, false
 	}
-	return toStraightRGBA(decoded)
+	return toStraightRGBA(decoded), false
+}
+
+// isTransientReadErr returns true for errors that might fix themselves on
+// the next read: empty responses, network failures, 5xx-ish conditions.
+// HTTP 404 and "file not found" are PERMANENT and should be cached as nil
+// so we don't hammer a missing file once per frame. We can't tell apart
+// every 4xx vs 5xx from the error string the various readers hand us, so
+// the heuristic is: if the error mentions "404" / "not found" / "no such
+// file" → permanent; otherwise (HTTP 0, "XHR panic", empty body, etc.) →
+// transient. The host-specific imageReadFile in WASM is free to set
+// transient semantics differently if it can do better.
+func isTransientReadErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := err.Error()
+	// Permanent signals — a 404 is never going to land just by waiting.
+	if strings.Contains(s, "404") ||
+		strings.Contains(s, "not found") ||
+		strings.Contains(s, "No such file") ||
+		strings.Contains(s, "no such file") ||
+		strings.Contains(s, "doesn't exist") ||
+		strings.Contains(s, "does not exist") {
+		return false
+	}
+	// Everything else (5xx, network, empty body, decode race, XHR panic)
+	// gets a second chance next frame.
+	return true
 }
 
 // maxImagePixels caps a decoded image (~64MB of RGBA) so a hostile or

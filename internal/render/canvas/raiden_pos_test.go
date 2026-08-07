@@ -26,10 +26,10 @@ func TestRaidenPlayerLoads(t *testing.T) {
 	surf := NewHeadlessSurface(image.Pt(320, 560))
 	e.DrawFrame(surf)
 	img := surf.Frame()
-	// Player at (144,400) 48x48. Count opaque non-bg in that box.
+	// Player at (132,404) 56x56. Count opaque non-bg in that box.
 	nonbg, blue, grey := 0, 0, 0
-	for y := 400; y < 448; y++ {
-		for x := 144; x < 192; x++ {
+	for y := 404; y < 460; y++ {
+		for x := 132; x < 188; x++ {
 			c := img.RGBAAt(x, y)
 			if c.A == 0 { continue }
 			if !(absi(int(c.R),2)<10 && absi(int(c.G),8)<10 && absi(int(c.B),23)<10) { nonbg++ }
@@ -40,7 +40,10 @@ func TestRaidenPlayerLoads(t *testing.T) {
 	}
 	t.Logf("player box: nonbg=%d blue=%d grey(placeholder)=%d", nonbg, blue, grey)
 	if grey > 1000 { t.Error("player renders as placeholder grey box — image failed to load") }
-	if blue < 50 { t.Error("player has too few blue pixels — sprite not rendering correctly") }
+	// The cockpit is a small region in the redesigned sprite (a single
+	// bright blue highlight pixel plus the canopy band). Just require
+	// the canopy's mid blue to be present, not a fixed pixel count.
+	if blue < 10 { t.Error("player has no cockpit blue pixels — sprite not rendering correctly") }
 }
 
 func absi(a, b int) int { if a > b { return a - b }; return b - a }

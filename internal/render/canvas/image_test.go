@@ -2,6 +2,7 @@ package canvas
 
 import (
 	"bytes"
+	"errors"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -259,6 +260,47 @@ func TestImageCacheHit(t *testing.T) {
 	RecordImage(n, rt, 4, 4, 0, nil)
 	if got := reads.Load(); got != 2 {
 		t.Fatalf("disk reads after negative caching = %d, want 2", got)
+	}
+}
+
+// TestImageCacheTransientRetries covers the soft-negative-cache path: a
+// TRANSIENT read failure (e.g. the WASM preloader hasn't landed yet, or
+// the host hit a network blip) must NOT be cached as nil. The next frame
+// gets a second chance. A PERMANENT failure (the file genuinely doesn't
+// exist — 404 / no such file) IS cached so we don't hammer a missing file
+// at 60 fps.
+func TestImageCacheTransientRetries(t *testing.T) {
+	resetImageCache(t)
+	dir := t.TempDir()
+	rt := imageTestRuntime(dir)
+
+	// Transient: error string is non-404 → must retry.
+	var transientReads atomic.Int64
+	imageReadFile = func(name string) ([]byte, error) {
+		transientReads.Add(1)
+		return nil, errors.New("XHR panic: bad timing")
+	}
+	t.Cleanup(func() { imageReadFile = os.ReadFile })
+	n := imageNode(map[string]any{"src": "transient.png"})
+	RecordImage(n, rt, 4, 4, 0, nil)
+	RecordImage(n, rt, 4, 4, 0, nil)
+	RecordImage(n, rt, 4, 4, 0, nil)
+	if got := transientReads.Load(); got != 3 {
+		t.Errorf("transient read retries = %d, want 3 (each frame must re-read)", got)
+	}
+
+	// Permanent: error mentions 404 → must cache the miss.
+	resetImageCache(t)
+	var permanentReads atomic.Int64
+	imageReadFile = func(name string) ([]byte, error) {
+		permanentReads.Add(1)
+		return nil, errors.New("HTTP 404 fetching transient.png")
+	}
+	n = imageNode(map[string]any{"src": "missing-404.png"})
+	RecordImage(n, rt, 4, 4, 0, nil)
+	RecordImage(n, rt, 4, 4, 0, nil)
+	if got := permanentReads.Load(); got != 1 {
+		t.Errorf("permanent read attempts = %d, want 1 (404 is cached)", got)
 	}
 }
 

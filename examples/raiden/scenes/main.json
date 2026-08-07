@@ -37,7 +37,7 @@
   "root": {
     "type": "board",
     "id": "world",
-    "style": { "background": "var(--space)", "width": 320, "height": 560 },
+    "style": { "background": "linear-gradient(var(--space), #000814)", "width": 320, "height": 560 },
     "disablePan": true,
     "children": [
       { "type": "timer", "id": "tick", "every": 40, "onTick": "tick", "if": "{{ state.status == 'playing' }}" },
@@ -69,21 +69,21 @@
         "type": "image",
         "id": "ground",
         "src": "{{ state.terrainType == 1 ? 'assets/water.png' : 'assets/ground.png' }}",
-        "style": { "x": "{{ 0 - mod(state.groundScroll, 32) }}", "y": 476, "width": 352, "height": 32 }
+        "style": { "x": "{{ 0 - mod(state.groundScroll, 32) }}", "y": 460, "width": 384, "height": 100 }
       },
       {
         "type": "image",
         "id": "boss",
         "if": "{{ state.boss.alive }}",
         "src": "assets/boss.png",
-        "style": { "x": "{{ state.boss.x - 48 }}", "y": "{{ state.boss.y - 32 }}", "width": 96, "height": 64 }
+        "style": { "x": "{{ state.boss.x - 48 }}", "y": "{{ state.boss.y - 32 }}", "width": 96, "height": 96 }
       },
       {
         "type": "image",
         "id": "player",
         "if": "{{ state.status == 'playing' && (state.player.invuln == 0 || mod(state.player.invuln, 4) < 2) }}",
         "src": "assets/player.png",
-        "style": { "x": "{{ state.player.x }}", "y": "{{ state.player.y }}", "width": 48, "height": 48 }
+        "style": { "x": "{{ state.player.x }}", "y": "{{ state.player.y }}", "width": 56, "height": 56 }
       },
       {
         "type": "list",
@@ -147,18 +147,19 @@
       {
         "type": "box",
         "id": "hudBg",
-        "style": { "x": 0, "y": 0, "width": 320, "height": 22, "background": "var(--panel)" }
+        "style": { "x": 0, "y": 0, "width": 320, "height": 26, "background": "var(--panel)" }
       },
       {
         "type": "row",
         "id": "hud",
-        "style": { "x": 4, "y": 3, "gap": 10 },
+        "style": { "x": 6, "y": 4, "gap": 8 },
         "children": [
-          { "type": "text", "text": "SCORE", "class": "hudLabel" },
+          { "type": "text", "text": "1P", "class": "hudLabel" },
           { "type": "text", "text": "{{ state.score }}", "class": "hudValue" },
           { "type": "text", "text": "HI", "class": "hudLabel" },
           { "type": "text", "text": "{{ state.hiScore }}", "class": "hudValue" },
-          { "type": "text", "text": "W{{ state.player.weapon }}", "class": "hudValue" },
+          { "type": "text", "text": "PWR", "class": "hudLabel" },
+          { "type": "text", "text": "{{ state.player.weapon }}", "class": "hudValue" },
           {
             "type": "list",
             "id": "bombIcons",
@@ -166,7 +167,7 @@
             "direction": "row",
             "spacing": 1,
             "style": { "gap": 1 },
-            "renderItem": { "type": "image", "src": "assets/powerup_b.png", "style": { "width": 12, "height": 12 } }
+            "renderItem": { "type": "image", "src": "assets/powerup_b.png", "style": { "width": 16, "height": 16 } }
           },
           {
             "type": "list",
@@ -175,7 +176,7 @@
             "direction": "row",
             "spacing": 1,
             "style": { "gap": 1 },
-            "renderItem": { "type": "image", "src": "assets/player_icon.png", "style": { "width": 12, "height": 12 } }
+            "renderItem": { "type": "image", "src": "assets/player_icon.png", "style": { "width": 16, "height": 16 } }
           }
         ]
       },
@@ -184,14 +185,14 @@
         "id": "moveControls",
         "style": { "x": 6, "y": 514, "gap": 6 },
         "children": [
-          { "type": "button", "id": "btnL", "label": "◀", "class": "ctrlBtn", "onPress": { "name": "moveLeft" } },
-          { "type": "button", "id": "btnR", "label": "▶", "class": "ctrlBtn", "onPress": { "name": "moveRight" } }
+          { "type": "button", "id": "btnL", "label": "<", "class": "ctrlBtn", "onPress": { "name": "moveLeft" } },
+          { "type": "button", "id": "btnR", "label": ">", "class": "ctrlBtn", "onPress": { "name": "moveRight" } }
         ]
       },
       {
         "type": "row",
         "id": "fireControls",
-        "style": { "x": 212, "y": 514, "gap": 6 },
+        "style": { "x": 180, "y": 514, "gap": 6 },
         "children": [
           { "type": "button", "id": "btnShoot", "label": "FIRE", "class": "ctrlBtn", "onPress": { "name": "shoot" } },
           { "type": "button", "id": "btnBomb", "label": "BOMB", "class": "ctrlBtn", "onPress": { "name": "bomb" } }
