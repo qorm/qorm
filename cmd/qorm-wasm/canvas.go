@@ -178,6 +178,9 @@ func qormCanvasInitFromBundle(_ js.Value, args []js.Value) any {
 				}
 			}
 			res.RT.Theme = th
+			// Clear state.theme so resolveTheme takes the empty-name
+			// path (= keep current theme, do not os.ReadFile).
+			res.RT.State["theme"] = ""
 			themeApplied = true
 			break
 		}
