@@ -178,13 +178,6 @@ func qormCanvasInitFromBundle(_ js.Value, args []js.Value) any {
 				}
 			}
 			res.RT.Theme = th
-			// Prevent resolveTheme from trying to os.ReadFile for
-			// the custom theme — it reads rt.State["theme"] which
-			// was seeded from app.Theme at runtime init.
-			res.RT.State["theme"] = ""
-			if res.RT.App != nil {
-				res.RT.App.Theme = ""
-			}
 			themeApplied = true
 			break
 		}
@@ -205,6 +198,11 @@ func qormCanvasInitFromBundle(_ js.Value, args []js.Value) any {
 	cvsSurface.Logical = size
 	cvsSurface.ScaleFactor = 1
 	cvsEngine = canvas.NewEngine(res.RT, canvas.SoftwareRenderer{})
+	// Tell the engine the current theme is already loaded so it
+	// skips the os.ReadFile probe for custom themes in WASM.
+	if res.RT.Theme != nil && res.RT.Theme.Name != "" {
+		cvsEngine.SetThemeLoaded(res.RT.Theme.Name)
+	}
 
 	return nil
 }

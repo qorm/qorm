@@ -1304,6 +1304,14 @@ func (e *Engine) sceneRoot() *model.Node {
 // straight into a file path, so "../../evil" loaded arbitrary JSON as a skin.
 var validThemeName = regexp.MustCompile(`^[a-z0-9-]+$`)
 
+// SetThemeLoaded pre-seeds the internal theme cache so resolveTheme skips
+// its os.ReadFile probe. The WASM build calls this to inject a theme loaded
+// from the doc list (no filesystem in the browser).
+func (e *Engine) SetThemeLoaded(name string) {
+	e.themeLoaded = name
+	e.themeFailed = ""
+}
+
 // resolveTheme implements dynamic theme switching: state.theme names a
 // themes/<name>.json skin; without one the default theme applies. The name is
 // sanitized (no path traversal) and resolved against the app's own themes/
