@@ -17,6 +17,19 @@ import (
 var (
 	cvsEngine  *canvas.Engine
 	cvsSurface *canvas.HeadlessSurface
+
+	// Cached JS-side frame buffer + ImageData. Allocating a fresh
+	// Uint8ClampedArray + ImageData per frame at 60fps was a 100+ MB/s
+	// memory churn (1.97 MB/frame for a 1024x480 surface) that blew past
+	// Chrome's ArrayBuffer ceiling and crashed the Go runtime with
+	// "Array buffer allocation failed" — see the 2026-08-07
+	// "mario/raiden frozen after a while" incident. The pair is sized
+	// to the current surface and rebuilt only when w or h changes
+	// (game switch, window resize).
+	frameMu       sync.Mutex
+	framePixels   js.Value // Uint8ClampedArray
+	frameImage    js.Value // ImageData
+	frameW, frameH int
 )
 
 // preloadedAssets is a sync-on-read, async-on-write cache for asset bytes.
@@ -272,9 +285,22 @@ func qormCanvasFrame(_ js.Value, args []js.Value) any {
 	canvasEl.Set("width", w)
 	canvasEl.Set("height", h)
 
-	pixels := js.Global().Get("Uint8ClampedArray").New(len(buf.Pix))
+	// Reuse the Uint8ClampedArray + ImageData across frames; allocating
+	// per frame turned a 60fps render loop into a 100+ MB/s ArrayBuffer
+	// churn that crashed the Go runtime after ~10s (Chrome OOM at
+	// "Array buffer allocation failed"). See frameMu above.
+	frameMu.Lock()
+	if w != frameW || h != frameH {
+		n := w * h * 4
+		framePixels = js.Global().Get("Uint8ClampedArray").New(n)
+		frameImage = js.Global().Get("ImageData").New(framePixels, w, h)
+		frameW, frameH = w, h
+	}
+	pixels := framePixels
+	imgData := frameImage
+	frameMu.Unlock()
+
 	js.CopyBytesToJS(pixels, buf.Pix)
-	imgData := js.Global().Get("ImageData").New(pixels, w, h)
 	ctx := canvasEl.Call("getContext", "2d")
 	ctx.Call("putImageData", imgData, 0, 0)
 	return true
@@ -344,6 +370,15 @@ func qormCanvasInitFromBundle(_ js.Value, args []js.Value) (ret any) {
 	preloadedAssets = map[string][]byte{}
 	preloadFailed = map[string]bool{}
 	preloadedAssetsMu.Unlock()
+	// Drop the cached frame buffer too — the new surface is a different
+	// size (or at least, we can't assume it's the same), and reusing a
+	// stale ImageData with mismatched w/h would putImageData into the
+	// wrong rows. The next qormCanvasFrame rebuilds.
+	frameMu.Lock()
+	framePixels = js.Value{}
+	frameImage = js.Value{}
+	frameW, frameH = 0, 0
+	frameMu.Unlock()
 
 	res := playcore.CompileDocs(docs)
 	if len(res.Diagnostics) > 0 && res.HTML == "" {
@@ -446,6 +481,15 @@ func qormGetState(_ js.Value, args []js.Value) any {
 				out["viewportW"] = sz.X
 				out["viewportH"] = sz.Y
 			}
+			// Graph node counts — the live scene graph after the last
+			// layout pass. The mario/raiden regression "level stops
+			// rendering once the camera scrolls" shows up here as the
+			// *Image count falling from N → 0 even though viewTiles and
+			// imageCache are both intact.
+			imgs, groups, total := canvas.GraphImageCount(cvsEngine.Graph())
+			out["graph_imgs"] = imgs
+			out["graph_groups"] = groups
+			out["graph_total"] = total
 		}
 		b, err := json.Marshal(out)
 		if err != nil {

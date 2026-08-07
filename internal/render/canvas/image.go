@@ -38,6 +38,30 @@ func ImageCacheKeys() []string {
 	return out
 }
 
+// GraphImageCount walks the live scene graph and counts the *Image nodes
+// the layout pass emitted. A regression that drops list instances will
+// show up here (count falls from N → 0) without needing pixel sampling.
+func GraphImageCount(root graph.Node) (imgs, groups, total int) {
+	var walk func(n graph.Node)
+	walk = func(n graph.Node) {
+		if n == nil {
+			return
+		}
+		total++
+		switch n.(type) {
+		case *graph.Image:
+			imgs++
+		case *graph.Group:
+			groups++
+		}
+		for _, c := range n.Base().Children {
+			walk(c)
+		}
+	}
+	walk(root)
+	return
+}
+
 // imageReadFile is the disk-read seam: tests replace it to count reads and
 // prove the cache serves repeat loads without touching the disk again. The
 // WASM build replaces it with a JS-fetch-based reader so the playground

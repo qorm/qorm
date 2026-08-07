@@ -1098,7 +1098,21 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 		// every frame records + rasterizes notes the window can't see. The
 		// margin keeps a note whose shadow/ring reaches into the viewport from
 		// popping in/out at the edge.
-		if isBoard && inter != nil && inter.Board.Active && !boardChildVisible(cbounds, inter, bounds) {
+		//
+		// EXCEPTION: a list child of a board is a WRAPPER around its repeat
+		// instances — the list's own cbounds is a zero-rect at (0,0) (the
+		// board's default-case flex fallback has no flexRects to consume),
+		// and the cull uses cbounds + PanX. With PanX non-zero the list's
+		// screen box is entirely off-canvas, the cull drops the list, and
+		// EVERY instance vanishes — even ones that are right in the middle
+		// of the viewport. This is the 2026-08-07 "mario/raiden level
+		// disappears once the camera scrolls" regression: the list's
+		// children (the actual rendered tiles) are checked individually by
+		// their own layout pass, but the parent list was already gone, so
+		// they never made it into the graph. Skip the cull for list /
+		// gridview children and let the per-instance pass handle it.
+		isList := child.Node != nil && (child.Node.Type == "list" || child.Node.Type == "gridview")
+		if isBoard && inter != nil && inter.Board.Active && !isList && !boardChildVisible(cbounds, inter, bounds) {
 			continue
 		}
 
