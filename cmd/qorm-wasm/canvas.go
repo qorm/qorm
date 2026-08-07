@@ -143,12 +143,13 @@ func qormCanvasInitFromBundle(_ js.Value, args []js.Value) any {
 	}
 	baseURL := args[1].String()
 
-	// Discard previous engine + surface so stale timers/state don't survive
-	// the game switch.
+	// Discard previous engine + surface + image cache so stale
+	// timers/state/negative-cache don't survive the game switch.
 	cvsEngine = nil
 	cvsSurface = nil
 	rt = nil
 	handlers = nil
+	canvas.ResetImageCache()
 
 	res := playcore.CompileDocs(docs)
 	if len(res.Diagnostics) > 0 && res.HTML == "" {
@@ -177,9 +178,10 @@ func qormCanvasInitFromBundle(_ js.Value, args []js.Value) any {
 				}
 			}
 			res.RT.Theme = th
-			// Clear the manifest theme name so resolveTheme takes the
-			// early-return path (empty-name → keep current) instead of
-			// trying to os.ReadFile for the custom theme.
+			// Prevent resolveTheme from trying to os.ReadFile for
+			// the custom theme — it reads rt.State["theme"] which
+			// was seeded from app.Theme at runtime init.
+			res.RT.State["theme"] = ""
 			if res.RT.App != nil {
 				res.RT.App.Theme = ""
 			}

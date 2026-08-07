@@ -41,6 +41,16 @@ func SetImageReadFile(fn func(string) ([]byte, error)) {
 	imageReadFile = fn
 }
 
+// ResetImageCache clears the decode cache and warning ledger. The WASM
+// build calls it on every game switch so a stale negative cache from a
+// previous (failed) load doesn't suppress retries on the new BaseDir.
+func ResetImageCache() {
+	imageCacheMu.Lock()
+	imageCache = map[string]*image.RGBA{}
+	imageWarned = map[string]bool{}
+	imageCacheMu.Unlock()
+}
+
 // imageWarnOut mirrors the style-warning convention (style.go): one line per
 // problem, to stderr in production, captured by tests.
 var imageWarnOut io.Writer = os.Stderr
