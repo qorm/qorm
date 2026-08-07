@@ -128,8 +128,8 @@ func qormCanvasKey(_ js.Value, args []js.Value) any {
 
 // qormCanvasInitFromBundle(docsJSON, baseURL, width, height) compiles a doc
 // array, sets the app's BaseDir to the given URL (so images resolve), and
-// prepares the canvas engine at the given size. Previous engine state is
-// cleared (new engine + surface replace the old ones).
+// prepares the canvas engine at the given size. Previous engine + runtime are
+// explicitly discarded so a game switch starts fresh.
 func qormCanvasInitFromBundle(_ js.Value, args []js.Value) any {
 	if len(args) < 2 {
 		return map[string]any{"err": "usage: qormCanvasInitFromBundle(docsJSON, baseURL [, width, height])"}
@@ -139,6 +139,13 @@ func qormCanvasInitFromBundle(_ js.Value, args []js.Value) any {
 		return map[string]any{"err": "invalid JSON: " + err.Error()}
 	}
 	baseURL := args[1].String()
+
+	// Discard previous engine + surface so stale timers/state don't survive
+	// the game switch.
+	cvsEngine = nil
+	cvsSurface = nil
+	rt = nil
+	handlers = nil
 
 	res := playcore.CompileDocs(docs)
 	if len(res.Diagnostics) > 0 && res.HTML == "" {
@@ -160,8 +167,6 @@ func qormCanvasInitFromBundle(_ js.Value, args []js.Value) any {
 	cvsSurface = canvas.NewHeadlessSurface(size)
 	cvsSurface.Logical = size
 	cvsSurface.ScaleFactor = 1
-
-	// Clear previous engine (game switch).
 	cvsEngine = canvas.NewEngine(res.RT, canvas.SoftwareRenderer{})
 
 	return nil
