@@ -89,9 +89,13 @@ func resolveImageSrc(src string, rt *runtime.Runtime) (string, bool) {
 	if src == "" {
 		return "", false
 	}
-	if strings.Contains(src, "://") || strings.HasPrefix(src, "data:") || strings.HasPrefix(src, "//") {
+	if strings.Contains(src, "://") || strings.HasPrefix(src, "//") {
 		warnImageOnce("remote:"+src, "image src %q is not a local file; the native renderer loads app-relative files only", src)
 		return "", false
+	}
+	// data: URIs are decoded inline by loadImage; skip the path join.
+	if strings.HasPrefix(src, "data:") {
+		return src, true
 	}
 	if filepath.IsAbs(src) {
 		warnImageOnce("abs:"+src, "image src %q is an absolute path; the native renderer only loads files inside the app directory", src)

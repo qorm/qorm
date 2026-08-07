@@ -98,10 +98,26 @@ func applyBoardCamera(n *model.Node, rt *runtime.Runtime, inter *Interaction, sc
 	cx := tx
 	cy := ty
 
-	center := false
+	// cameraCenter accepts `true` (centre both axes), `"x"` (centre X only,
+	// leave Y pinned to the world top), or `"y"` (centre Y only). The
+	// per-axis form is what a side-scroller wants: NES Mario's camera
+	// stays glued to the bottom of the level (Y is constant) and only the
+	// X axis follows the player, so the ground tile is always anchored to
+	// the bottom of the screen regardless of the player's vertical state.
+	centerX, centerY := false, false
 	if raw, ok := n.Prop("cameraCenter"); ok {
-		if b, ok := raw.(bool); ok {
-			center = b
+		switch v := raw.(type) {
+		case bool:
+			centerX, centerY = v, v
+		case string:
+			switch v {
+			case "x":
+				centerX = true
+			case "y":
+				centerY = true
+			case "true", "1":
+				centerX, centerY = true, true
+			}
 		}
 	}
 	// cameraDeadZone (logical viewport units) lets the camera IGNORE target
@@ -120,10 +136,48 @@ func applyBoardCamera(n *model.Node, rt *runtime.Runtime, inter *Interaction, sc
 			dz = v
 		}
 	}
-	if center {
-		desiredX := -cx + viewW/2
-		desiredY := -cy + viewH/2
-		if dz > 0 {
+	// cameraMax bounds the camera's resolved pan in PHYSICAL px — without
+	// it, the engine will follow the target past the right edge of the
+	// level and start showing empty space (the same way a side-scroller
+	// forgets to stop at the level end). Two-arg form: {x, y} clamps each
+	// axis independently. Authors who want to lock the camera to the
+	// level bounds compute (levelW - viewportW) * cell in their scene
+	// JSON and pass the result.
+	maxX, maxY := math.Inf(1), math.Inf(1)
+	if raw, ok := n.Prop("cameraMax"); ok {
+		switch v := raw.(type) {
+		case float64:
+			maxX = v
+			maxY = v
+		case int:
+			maxX = float64(v)
+			maxY = float64(v)
+		case int64:
+			maxX = float64(v)
+			maxY = float64(v)
+		case map[string]any:
+			if x, ok := toFloatAny(v["x"]); ok {
+				maxX = x
+			}
+			if y, ok := toFloatAny(v["y"]); ok {
+				maxY = y
+			}
+		}
+	}
+	if centerX || centerY {
+		desiredX := 0.0
+		desiredY := 0.0
+		if centerX {
+			desiredX = -cx + viewW/2
+		} else {
+			desiredX = -cx
+		}
+		if centerY {
+			desiredY = -cy + viewH/2
+		} else {
+			desiredY = 0
+		}
+		if centerX && dz > 0 {
 			// Convert the dead zone to PanX units (pan-inverse of target
 			// motion: target moving right by dx shifts the desired pan by
 			// -dx; we want the camera NOT to shift when the target moves
@@ -142,6 +196,10 @@ func applyBoardCamera(n *model.Node, rt *runtime.Runtime, inter *Interaction, sc
 		inter.Board.PanX = desiredX
 		inter.Board.PanY = desiredY
 	} else {
+		// No centering: pin the camera to the world origin (top-left) and
+		// let the target move freely inside the viewport. This is the
+		// natural "no follow" mode — a board that shows the full world
+		// with the player inside it, no auto-scroll.
 		inter.Board.PanX = -cx
 		inter.Board.PanY = -cy
 	}

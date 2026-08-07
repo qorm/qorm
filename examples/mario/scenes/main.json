@@ -44,7 +44,7 @@
           "height": 480
         },
         "cameraTarget": "{{state.mario}}",
-        "cameraCenter": true,
+        "cameraCenter": "x",
         "cameraCell": 32,
         "cameraViewport": 16,
         "cameraDeadZone": 10,
