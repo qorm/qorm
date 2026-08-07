@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
+	"runtime"
 	"sync"
 	"syscall/js"
 
@@ -370,6 +371,11 @@ func qormCanvasInitFromBundle(_ js.Value, args []js.Value) (ret any) {
 	preloadedAssets = map[string][]byte{}
 	preloadFailed = map[string]bool{}
 	preloadedAssetsMu.Unlock()
+	// Force GC now that old Engine/Surface/Runtime/State are unreachable.
+	// In WASM the GC is lazy; accumulating dead objects across 3-4 game
+	// switches (~80 MB of stale buffers + runtime.Dispatch pipelines)
+	// exceeds Chrome's ArrayBuffer ceiling and crashes the process.
+	runtime.GC()
 	// NOTE: do NOT reset framePixels/frameImage here. qormCanvasFrame
 	// already rebuilds them when w/h change, and most game pairs
 	// (tetris/2048 both 420x680) hit the cache directly. Forcing a
