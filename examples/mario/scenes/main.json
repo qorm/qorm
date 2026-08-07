@@ -48,7 +48,9 @@
         "cameraCell": 32,
         "cameraViewport": 16,
         "cameraDeadZone": 192,
-        "cameraMax": { "x": 6240 },
+        "cameraMax": {
+          "x": 6240
+        },
         "disablePan": true,
         "children": [
           {
@@ -320,6 +322,46 @@
                 "height": 32
               }
             }
+          },
+          {
+            "type": "column",
+            "id": "deadOverlay",
+            "if": "{{ state.status == 'dead' && state.deathDone }}",
+            "layout": {
+              "align": "center",
+              "justify": "center"
+            },
+            "style": {
+              "x": 160,
+              "y": 160,
+              "width": 192,
+              "height": 128,
+              "background": "#000000cc",
+              "borderRadius": 12,
+              "padding": 16,
+              "gap": 8
+            },
+            "children": [
+              {
+                "type": "text",
+                "text": "GAME OVER",
+                "style": {
+                  "fontSize": 20,
+                  "fontWeight": 800,
+                  "color": "#ffffff",
+                  "textAlign": "center"
+                }
+              },
+              {
+                "type": "text",
+                "text": "Press R to restart",
+                "style": {
+                  "fontSize": 12,
+                  "color": "#aaaaaa",
+                  "textAlign": "center"
+                }
+              }
+            ]
           }
         ]
       },

@@ -101,6 +101,9 @@ fn lose() {
   if (state.status == "dead") { return }
   state.status = "dead"
   state.mario.alive = false
+  state.mario.vy = -300
+  state.mario.onGround = false
+  state.deathTimer = 60
   stopMusic()
   playSound("audio/death.wav")
 }
@@ -122,9 +125,11 @@ fn physicsStep() {
   }
 
   if (!state.mario.alive) {
-    # Death animation: free-fall.
+    # Death animation: bounce up, then free-fall off screen.
     state.mario.vy = state.mario.vy + 800 * dt
     state.mario.y = state.mario.y + state.mario.vy * dt
+    state.deathTimer = state.deathTimer - 1
+    if (state.deathTimer <= 0) { state.deathDone = true }
     return
   }
 
