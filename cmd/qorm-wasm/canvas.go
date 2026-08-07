@@ -4,6 +4,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"image"
 	"syscall/js"
 
@@ -17,11 +18,41 @@ var (
 )
 
 func init() {
+	// Override the image file reader so the canvas engine loads PNGs
+	// via JavaScript's fetch() instead of os.ReadFile (no fs in WASM).
+	canvas.SetImageReadFile(wasmReadFile)
 	js.Global().Set("qormCanvasInit", js.FuncOf(qormCanvasInit))
 	js.Global().Set("qormCanvasFrame", js.FuncOf(qormCanvasFrame))
 	js.Global().Set("qormCanvasPtr", js.FuncOf(qormCanvasPtr))
 	js.Global().Set("qormCanvasKey", js.FuncOf(qormCanvasKey))
 	js.Global().Set("qormCanvasInitFromBundle", js.FuncOf(qormCanvasInitFromBundle))
+}
+
+// wasmReadFile fetches a URL via JavaScript's fetch() and returns the
+// response body as bytes. The WAIT version blocks the current goroutine
+// — the calling context (DrawFrame on rAF) is the JS event loop thread,
+// so a synchronous XMLHttpRequest or a fetch+await pattern is safe here
+// as long as it completes within a frame budget (a 32×32 PNG is ~200 B).
+func wasmReadFile(path string) ([]byte, error) {
+	// Use synchronous XMLHttpRequest — simpler and works in the WASM
+	// main thread (rAF callback) without deadlocking the scheduler.
+	xhr := js.Global().Get("XMLHttpRequest").New()
+	xhr.Call("open", "GET", path, false) // false = synchronous
+	xhr.Call("send", nil)
+	status := xhr.Get("status").Int()
+	if status != 200 {
+		return nil, fmt.Errorf("HTTP %d fetching %s", status, path)
+	}
+	resp := xhr.Get("response")
+	if resp.IsUndefined() || resp.IsNull() {
+		return nil, fmt.Errorf("empty response for %s", path)
+	}
+	// response is an ArrayBuffer; convert to Go []byte.
+	arr := js.Global().Get("Uint8Array").New(resp)
+	n := arr.Get("length").Int()
+	buf := make([]byte, n)
+	js.CopyBytesToGo(buf, arr)
+	return buf, nil
 }
 
 // qormCanvasInit prepares the canvas engine from the runtime already loaded
@@ -62,48 +93,73 @@ func qormCanvasFrame(_ js.Value, args []js.Value) any {
 
 // qormCanvasPtr(typ, x, y) forwards a pointer event.
 func qormCanvasPtr(_ js.Value, args []js.Value) any {
-	if cvsEngine == nil || len(args) < 3 { return false }
+	if cvsEngine == nil || len(args) < 3 {
+		return false
+	}
 	typ := args[0].String()
 	x, y := args[1].Float(), args[2].Float()
 	var pt canvas.PointerType
 	switch typ {
-	case "press":  pt = canvas.PointerPress
-	case "release": pt = canvas.PointerRelease
-	default:       pt = canvas.PointerMove
+	case "press":
+		pt = canvas.PointerPress
+	case "release":
+		pt = canvas.PointerRelease
+	default:
+		pt = canvas.PointerMove
 	}
 	return cvsEngine.HandlePointer(canvas.PointerInput{Type: pt, X: x, Y: y, Buttons: 1})
 }
 
 // qormCanvasKey(key, down) forwards a keyboard event.
 func qormCanvasKey(_ js.Value, args []js.Value) any {
-	if cvsEngine == nil || len(args) < 1 { return false }
+	if cvsEngine == nil || len(args) < 1 {
+		return false
+	}
 	key := args[0].String()
 	down := true
-	if len(args) > 1 { down = args[1].Bool() }
+	if len(args) > 1 {
+		down = args[1].Bool()
+	}
 	return cvsEngine.HandleKey(canvas.KeyInput{Key: key, Down: down})
 }
 
-// qormCanvasInitFromBundle(docsJSON) compiles a doc array and prepares the
-// canvas engine in one call.
+// qormCanvasInitFromBundle(docsJSON, baseURL, width, height) compiles a doc
+// array, sets the app's BaseDir to the given URL (so images resolve), and
+// prepares the canvas engine at the given size. Previous engine state is
+// cleared (new engine + surface replace the old ones).
 func qormCanvasInitFromBundle(_ js.Value, args []js.Value) any {
-	if len(args) < 1 {
-		return map[string]any{"err": "missing docs JSON"}
+	if len(args) < 2 {
+		return map[string]any{"err": "usage: qormCanvasInitFromBundle(docsJSON, baseURL [, width, height])"}
 	}
 	var docs []map[string]any
 	if err := json.Unmarshal([]byte(args[0].String()), &docs); err != nil {
 		return map[string]any{"err": "invalid JSON: " + err.Error()}
 	}
+	baseURL := args[1].String()
+
 	res := playcore.CompileDocs(docs)
 	if len(res.Diagnostics) > 0 && res.HTML == "" {
 		return map[string]any{"err": "compile failed", "diagnostics": res.Diagnostics}
 	}
+	// Wire the BaseDir so resolveImageSrc knows where images live.
+	if res.RT.App != nil && baseURL != "" {
+		res.RT.App.BaseDir = baseURL
+	}
 	adopt(res.RT)
 	handlers = res.Handlers
 
-	size := image.Pt(420, 680)
+	w, h := 420, 680
+	if len(args) >= 4 {
+		w = args[2].Int()
+		h = args[3].Int()
+	}
+	size := image.Pt(w, h)
 	cvsSurface = canvas.NewHeadlessSurface(size)
 	cvsSurface.Logical = size
 	cvsSurface.ScaleFactor = 1
+
+	// Clear previous engine (game switch).
 	cvsEngine = canvas.NewEngine(res.RT, canvas.SoftwareRenderer{})
+
 	return nil
 }

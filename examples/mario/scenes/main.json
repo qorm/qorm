@@ -41,8 +41,7 @@
         "style": {
           "background": "var(--sky)",
           "width": 512,
-          "height": 480,
-          "overflow": "hidden"
+          "height": 480
         },
         "cameraTarget": "{{state.mario}}",
         "cameraCenter": true,
@@ -65,8 +64,7 @@
               "x": "{{state.mario.x - 8}}",
               "y": "{{state.mario.y - 8}}",
               "width": 32,
-              "height": 32,
-              "imageRendering": "pixelated"
+              "height": 32
             }
           },
           {
@@ -77,14 +75,13 @@
             "renderItem": {
               "type": "image",
               "id": "goomba",
-              "src": "{{'assets/goomba_walk.png' if (g.walkPhase > 0 and g.walkPhase < 8) else 'assets/goomba.png'}}",
+              "src": "assets/goomba.png",
               "if": "{{g.alive}}",
               "style": {
                 "x": "{{g.x - 8}}",
                 "y": "{{g.y - 8}}",
                 "width": 32,
-                "height": 32,
-                "imageRendering": "pixelated"
+                "height": 32
               }
             }
           },
@@ -102,8 +99,7 @@
                 "x": "{{p.x - 8}}",
                 "y": "{{p.y - 8}}",
                 "width": 32,
-                "height": 32,
-                "imageRendering": "pixelated"
+                "height": 32
               }
             }
           },
@@ -121,8 +117,7 @@
                 "x": "{{tile.x}}",
                 "y": "{{tile.y}}",
                 "width": 32,
-                "height": 32,
-                "imageRendering": "pixelated"
+                "height": 32
               }
             }
           },
@@ -140,8 +135,7 @@
                 "x": "{{tile.x}}",
                 "y": "{{tile.y}}",
                 "width": 32,
-                "height": 32,
-                "imageRendering": "pixelated"
+                "height": 32
               }
             }
           },
@@ -159,8 +153,7 @@
                 "x": "{{tile.x}}",
                 "y": "{{tile.y}}",
                 "width": 32,
-                "height": 32,
-                "imageRendering": "pixelated"
+                "height": 32
               }
             }
           },
@@ -178,8 +171,7 @@
                 "x": "{{tile.x}}",
                 "y": "{{tile.y}}",
                 "width": 32,
-                "height": 32,
-                "imageRendering": "pixelated"
+                "height": 32
               }
             }
           },
@@ -197,8 +189,7 @@
                 "x": "{{tile.x}}",
                 "y": "{{tile.y}}",
                 "width": 32,
-                "height": 32,
-                "imageRendering": "pixelated"
+                "height": 32
               }
             }
           },
@@ -216,8 +207,7 @@
                 "x": "{{tile.x}}",
                 "y": "{{tile.y}}",
                 "width": 32,
-                "height": 32,
-                "imageRendering": "pixelated"
+                "height": 32
               }
             }
           },
@@ -235,8 +225,7 @@
                 "x": "{{tile.x}}",
                 "y": "{{tile.y}}",
                 "width": 32,
-                "height": 32,
-                "imageRendering": "pixelated"
+                "height": 32
               }
             }
           },
@@ -254,8 +243,7 @@
                 "x": "{{tile.x}}",
                 "y": "{{tile.y}}",
                 "width": 32,
-                "height": 32,
-                "imageRendering": "pixelated"
+                "height": 32
               }
             }
           },
@@ -273,8 +261,7 @@
                 "x": "{{tile.x}}",
                 "y": "{{tile.y}}",
                 "width": 32,
-                "height": 32,
-                "imageRendering": "pixelated"
+                "height": 32
               }
             }
           },
@@ -292,8 +279,7 @@
                 "x": "{{tile.x}}",
                 "y": "{{tile.y}}",
                 "width": 32,
-                "height": 32,
-                "imageRendering": "pixelated"
+                "height": 32
               }
             }
           },
@@ -311,8 +297,7 @@
                 "x": "{{tile.x}}",
                 "y": "{{tile.y}}",
                 "width": 32,
-                "height": 32,
-                "imageRendering": "pixelated"
+                "height": 32
               }
             }
           },
@@ -330,8 +315,7 @@
                 "x": "{{tile.x}}",
                 "y": "{{tile.y}}",
                 "width": 32,
-                "height": 32,
-                "imageRendering": "pixelated"
+                "height": 32
               }
             }
           }
@@ -346,7 +330,6 @@
           "background": "#000000",
           "padding": 32,
           "color": "#FFFFFF",
-          "fontFamily": "monospace",
           "fontSize": 28
         },
         "children": [
@@ -354,67 +337,101 @@
             "type": "text",
             "id": "hud-title",
             "text": "MARIO",
-            "style": { "fontSize": 36, "color": "#FFFFFF", "fontWeight": 800, "marginBottom": 32 }
+            "style": {
+              "fontSize": 36,
+              "color": "#FFFFFF",
+              "fontWeight": 800
+            }
           },
           {
             "type": "text",
             "id": "hud-score-label",
             "text": "SCORE",
-            "style": { "fontSize": 18, "color": "#888888", "marginBottom": 4 }
+            "style": {
+              "fontSize": 18,
+              "color": "#888888"
+            }
           },
           {
             "type": "text",
             "id": "hud-score-value",
             "text": "{{ state.score }}",
-            "style": { "fontSize": 32, "color": "#FFFFFF", "marginBottom": 24 }
+            "style": {
+              "fontSize": 32,
+              "color": "#FFFFFF"
+            }
           },
           {
             "type": "text",
             "id": "hud-coin-label",
             "text": "COINS",
-            "style": { "fontSize": 18, "color": "#888888", "marginBottom": 4 }
+            "style": {
+              "fontSize": 18,
+              "color": "#888888"
+            }
           },
           {
             "type": "text",
             "id": "hud-coin-value",
             "text": "x{{ state.coins }}",
-            "style": { "fontSize": 32, "color": "#F8B800", "marginBottom": 24 }
+            "style": {
+              "fontSize": 32,
+              "color": "#F8B800"
+            }
           },
           {
             "type": "text",
             "id": "hud-world-label",
             "text": "WORLD",
-            "style": { "fontSize": 18, "color": "#888888", "marginBottom": 4 }
+            "style": {
+              "fontSize": 18,
+              "color": "#888888"
+            }
           },
           {
             "type": "text",
             "id": "hud-world-value",
             "text": "1-1",
-            "style": { "fontSize": 32, "color": "#FFFFFF", "marginBottom": 24 }
+            "style": {
+              "fontSize": 32,
+              "color": "#FFFFFF"
+            }
           },
           {
             "type": "text",
             "id": "hud-time-label",
             "text": "TIME",
-            "style": { "fontSize": 18, "color": "#888888", "marginBottom": 4 }
+            "style": {
+              "fontSize": 18,
+              "color": "#888888"
+            }
           },
           {
             "type": "text",
             "id": "hud-time-value",
             "text": "{{ floor(state.timeLeft) }}",
-            "style": { "fontSize": 32, "color": "#FFFFFF", "marginBottom": 24 }
+            "style": {
+              "fontSize": 32,
+              "color": "#FFFFFF"
+            }
           },
           {
             "type": "text",
             "id": "hud-lives-label",
             "text": "LIVES",
-            "style": { "fontSize": 18, "color": "#888888", "marginBottom": 4 }
+            "style": {
+              "fontSize": 18,
+              "color": "#888888"
+            }
           },
           {
             "type": "text",
             "id": "hud-lives-value",
             "text": "x{{ state.lives }}",
-            "style": { "fontSize": 32, "color": "#E40058" }
+            "style": {
+              "fontSize": 32,
+              "color": "#E40058"
+            }
           }
         ]
       }

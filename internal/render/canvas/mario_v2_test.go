@@ -121,33 +121,49 @@ func TestMarioV2FirstFrame(t *testing.T) {
 	_ = surf
 }
 
-// WalkAndCoin: hold right long enough to walk past the first row of
-// floating coins (row 1, x=10..14 in NES 1-1). The test's tick budget is
-// generous — 1.5s of in-game time — so mario has time to reach the
-// floating coin row at x=320-480 (cell 10-15) and pick at least one up.
+// WalkAndCoin: hold right long enough for mavis to walk across the
+// starting area. The floating coin row at row 1 (x=10..14) is too high
+// for a walking mavis to reach (small mavis's jump arc tops out around
+// y=240 — well below the row-1 coins at y=32), so this test only
+// verifies horizontal locomotion and the post-walk world state. The
+// coin pickup branch is exercised by TestMarioV2CoinPickup below,
+// which teleports mavis next to a coin row so the test stays
+// deterministic and the level data stays NES-accurate.
 func TestMarioV2WalkAndCoin(t *testing.T) {
 	e, surf, rt := marioV2Fixture(t)
 	marioV2Press(e, "right")
-	for i := 0; i < 720; i++ {
+	for i := 0; i < 400; i++ {
 		marioV2Tick(e, surf, 1)
-		if i%80 == 0 {
-			m := rt.State["mario"].(map[string]any)
-			t.Logf("tick %d: x=%v y=%v vx=%v vy=%v onGround=%v keys=%+v",
-				i, m["x"], m["y"], m["vx"], m["vy"], m["onGround"], rt.State["keys"])
-		}
 	}
 	marioV2Release(e, "right")
 	m := rt.State["mario"].(map[string]any)
-	t.Logf("final: x=%v y=%v vx=%v coins=%v",
-		m["x"], m["y"], m["vx"], rt.State["coins"])
 	if got, _ := m["x"].(float64); got <= 32 {
-		t.Errorf("mario.x = %v after 1.5s right, want > 32 (walked away) — lastTick=%v keys=%+v vx=%v",
+		t.Errorf("mario.x = %v after right, want > 32 (walked away) — lastTick=%v keys=%+v vx=%v",
 			got, rt.State["lastTickMs"], rt.State["keys"], m["vx"])
 	}
-	coins, _ := rt.State["coins"].(float64)
-	if coins == 0 {
-		t.Errorf("mario should have picked at least one coin walking right (coins=%v, x=%v, y=%v)",
-			coins, m["x"], m["y"])
+	if rt.State["status"] != "playing" {
+		t.Errorf("status = %v after short walk, want playing", rt.State["status"])
+	}
+}
+
+// CoinPickup: the floating coin row at row 3, x=18..22 sits at y=96..128
+// (cells 3). mavis's body occupies the same y range, so teleporting him
+// just under the row 3 coins lets one physics step collect them without
+// needing a real jump. The collision check in physicsStep looks at
+// mavis's center / head / foot cells, so being next to the coin row is
+// enough.
+func TestMarioV2CoinPickup(t *testing.T) {
+	e, surf, rt := marioV2Fixture(t)
+	m := rt.State["mario"].(map[string]any)
+	m["x"] = 576.0
+	m["y"] = 96.0
+	m["vx"] = 0
+	m["vy"] = 0
+	m["onGround"] = true
+	marioV2Tick(e, surf, 1)
+	if got, _ := rt.State["coins"].(float64); got == 0 {
+		t.Errorf("expected at least one coin after 1 step under row-3 coins (coins=%v, mario=%+v)",
+			got, rt.State["mario"])
 	}
 }
 
@@ -197,8 +213,8 @@ func TestMarioV2Restart(t *testing.T) {
 	if m["x"].(float64) != 32.0 {
 		t.Errorf("after restart mario.x = %v, want 32", m["x"])
 	}
-	if y, _ := m["y"].(float64); y < 280 || y > 300 {
-		t.Errorf("after restart mario.y = %v, want ~292", y)
+	if y, _ := m["y"].(float64); y < 395 || y > 405 {
+		t.Errorf("after restart mario.y = %v, want ~400 (16px mavis standing on rows 13-14 ground)", y)
 	}
 	if rt.State["status"] != "playing" {
 		t.Errorf("status = %v after restart, want playing", rt.State["status"])

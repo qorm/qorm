@@ -638,6 +638,20 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 	// per-frame follow so the app's qscript stays focused on game logic.
 	if ln.Node != nil && ln.Node.Type == "board" {
 		applyBoardCamera(ln.Node, rt, inter, bounds.Size(), scale)
+		// An infinite-canvas board's frame spans the viewport in BOTH axes.
+		// Its children are absolutely positioned (x/y) and out of flow, so
+		// they don't contribute to the board's intrinsic size — without
+		// this override the measure pass would shrink the board to its
+		// child column-height (2 stacked notes → 80px tall on a 400x400
+		// surface, see board_test.go). Filling both axes here matches the
+		// contract documented in layout.go's board comment and the test
+		// assertion in TestBoardViewportSpansAndTransforms.
+		if ln.Style.WidthRaw == "" && ln.Style.Width <= 0 {
+			ln.Width = bounds.Dx() - ln.Style.MarginLeft - ln.Style.MarginRight
+		}
+		if ln.Style.HeightRaw == "" && ln.Style.Height <= 0 {
+			ln.Height = bounds.Dy() - ln.Style.MarginTop - ln.Style.MarginBot
+		}
 	}
 
 	if ln.Style.WidthRaw == "fill" {

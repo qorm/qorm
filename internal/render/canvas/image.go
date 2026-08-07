@@ -25,8 +25,21 @@ import (
 var imagePlaceholder = color.RGBA{229, 229, 234, 255}
 
 // imageReadFile is the disk-read seam: tests replace it to count reads and
-// prove the cache serves repeat loads without touching the disk again.
+// prove the cache serves repeat loads without touching the disk again. The
+// WASM build replaces it with a JS-fetch-based reader so the playground
+// and games page can load images from HTTP URLs.
 var imageReadFile = os.ReadFile
+
+// SetImageReadFile replaces the image disk-read function (caller-owned).
+// The WASM build wires it to syscall/js fetch; tests wire it to count
+// reads. Pass nil to restore os.ReadFile.
+func SetImageReadFile(fn func(string) ([]byte, error)) {
+	if fn == nil {
+		imageReadFile = os.ReadFile
+		return
+	}
+	imageReadFile = fn
+}
 
 // imageWarnOut mirrors the style-warning convention (style.go): one line per
 // problem, to stderr in production, captured by tests.
@@ -77,6 +90,11 @@ func resolveImageSrc(src string, rt *runtime.Runtime) (string, bool) {
 	base := ""
 	if rt != nil && rt.App != nil {
 		base = rt.App.BaseDir
+	}
+	// Web/WASM path: BaseDir is a URL prefix (e.g. "/games/raiden/"). Join
+	// with src using path semantics (not filepath) and skip the jail check.
+	if strings.HasPrefix(base, "/") || strings.HasPrefix(base, "http") {
+		return strings.TrimRight(base, "/") + "/" + src, true
 	}
 	if base == "" {
 		// In-memory/bundle app with a relative src: unresolvable here.

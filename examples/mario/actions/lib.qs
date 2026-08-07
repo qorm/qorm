@@ -299,12 +299,17 @@ fn stepGoombas(dt) {
       continue }
     e.walkPhase = (e.walkPhase + 1) % 16
     let nx = e.x + e.vx * dt
-    # Check ledge: a goomba turns at the edge of a platform.
+    # Check the cell in front of the goomba, in the goomba's body row.
+    # Using the goomba's BOTTOM row (y+cell)/cell would always be the ground
+    # row, so the wall check fires every frame and the goomba oscillates
+    # in place. The body row is floor(y/cell) — for a 32-px goomba at y=400
+    # (sitting on the row-13 ground) the body is in row 12, and a wall at
+    # row 12 actually blocks horizontal motion.
     let dir = e.vx < 0 ? 0 - 1 : 1
-    let aheadX = floor((e.x + (dir > 0 ? cell : 0)) / cell) + dir
-    let aheadY = floor((e.y + cell) / cell)
-    if (isSolid(tileAt(aheadX, aheadY))) {
-      # Wall directly ahead: turn.
+    let aheadX = floor((e.x + (dir > 0 ? cell - 1 : 0)) / cell) + dir
+    let aheadY = floor(e.y / cell)
+    let wallAhead = isSolid(tileAt(aheadX, aheadY))
+    if (wallAhead) {
       e.vx = 0 - e.vx
     } else if (e.x >= 0 && e.x < state.levelW * cell) {
       e.x = nx
