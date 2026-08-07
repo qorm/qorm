@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
+	"image/color"
+	"strconv"
 	"syscall/js"
 
 	"github.com/qorm/qorm/internal/playcore"
@@ -162,23 +164,30 @@ func qormCanvasInitFromBundle(_ js.Value, args []js.Value) any {
 	for _, d := range docs {
 		if t, _ := d["type"].(string); t == "theme" {
 			themeName, _ := d["name"].(string)
-			th := &theme.Theme{Name: themeName}
+			th := &theme.Theme{Name: themeName, ParsedColors: make(map[string]color.RGBA)}
 			if colors, ok := d["colors"].(map[string]any); ok {
 				th.Colors = make(map[string]string, len(colors))
 				for k, v := range colors {
 					if s, ok := v.(string); ok {
 						th.Colors[k] = s
+						if c, pok := parseHexColor(s); pok {
+							th.ParsedColors[k] = c
+						}
 					}
 				}
 			}
 			res.RT.Theme = th
+			// Clear the manifest theme name so resolveTheme takes the
+			// early-return path (empty-name → keep current) instead of
+			// trying to os.ReadFile for the custom theme.
+			if res.RT.App != nil {
+				res.RT.App.Theme = ""
+			}
 			themeApplied = true
 			break
 		}
 	}
-	// Built-in themes (apple-light etc.) have no doc in the list —
-	// resolveTheme will try os.ReadFile which fails in WASM.
-	if !themeApplied && res.RT != nil && res.RT.Theme == nil {
+	if !themeApplied {
 		res.RT.Theme = theme.GetDefault()
 	}
 	adopt(res.RT)
@@ -196,4 +205,36 @@ func qormCanvasInitFromBundle(_ js.Value, args []js.Value) any {
 	cvsEngine = canvas.NewEngine(res.RT, canvas.SoftwareRenderer{})
 
 	return nil
+}
+
+// parseHexColor decodes a hex string like #RRGGBB or #RRGGBBAA into
+// a color.RGBA. Inline copy of theme.parseColor (unexported).
+func parseHexColor(hex string) (color.RGBA, bool) {
+	if len(hex) > 1 && hex[0] == '#' {
+		hex = hex[1:]
+	}
+	var r, g, b uint8
+	var a uint8 = 255
+	switch len(hex) {
+	case 6:
+		n, err := strconv.ParseUint(hex, 16, 32)
+		if err != nil {
+			return color.RGBA{}, false
+		}
+		r = uint8(n >> 16)
+		g = uint8(n >> 8)
+		b = uint8(n)
+	case 8:
+		n, err := strconv.ParseUint(hex, 16, 32)
+		if err != nil {
+			return color.RGBA{}, false
+		}
+		r = uint8(n >> 24)
+		g = uint8(n >> 16)
+		b = uint8(n >> 8)
+		a = uint8(n)
+	default:
+		return color.RGBA{}, false
+	}
+	return color.RGBA{r, g, b, a}, true
 }
