@@ -9,11 +9,14 @@ package canvas
 //   - FirstFrame           : load + restart, mario at start, status playing
 //   - WalkAndCoin          : hold right + 1s → mario moved + a coin picked
 //   - JumpArc              : tap jump → vy goes negative, lands, onGround
-//   - GoombaStompAndTouch  : fall on goomba = stomp, walk into = hurt
-//   - PitDeath             : out-of-world Y = lose
-//   - FlagWins             : touching the flag tile = win
 //   - Restart              : restart resets to a clean run
 //   - SwipeControls        : swipe up also triggers jump (touch parity)
+//   - CoinPickup           : mario walks over coin → coin collected, score +200
+//
+// TODO: GoombaStompAndTouch (fall on goomba = stomp, walk into = hurt),
+// PitDeath (out-of-world Y = lose), FlagWins (touching the flag tile = win)
+// — the game logic exists in actions/lib.qs but tests haven't been ported
+// from the retired mario_script_test.go to the v2 physics model.
 //
 // All tests use a headless engine + custom surface; the 16-ms physics
 // timer is forced by rewriting its nextFire into the past each call, so

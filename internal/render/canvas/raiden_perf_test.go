@@ -22,11 +22,17 @@ func TestRaidenPerf(t *testing.T) {
 		e.DrawFrame(surf)
 	}
 	dur := time.Since(start)
-	t.Logf("30 frames in %v = %.1f ms/frame (%.0f fps)", dur, float64(dur)/float64(30)/1e6, 30*float64(time.Second)/float64(dur))
-	// Count nodes measured.
-	rt2 := rt
-	bullets, _ := rt2.State["bullets"].([]any)
-	enemies, _ := rt2.State["enemies"].([]any)
-	starsFar, _ := rt2.State["starsFar"].([]any)
-	t.Logf("entities: bullets=%d enemies=%d starsFar=%d", len(bullets), len(enemies), len(starsFar))
+	msPerFrame := float64(dur) / float64(30) / 1e6
+	t.Logf("30 frames in %v = %.1f ms/frame (%.0f fps)", dur, msPerFrame, 30*float64(time.Second)/float64(dur))
+	if msPerFrame > 50 {
+		t.Errorf("frame time %.1f ms exceeds 50ms limit (rendering too slow)", msPerFrame)
+	}
+	bullets, _ := rt.State["bullets"].([]any)
+	if len(bullets) == 0 {
+		t.Error("no bullets fired after 35 ticks — fire logic broken")
+	}
+	enemies, _ := rt.State["enemies"].([]any)
+	if len(enemies) == 0 {
+		t.Error("no enemies spawned after 35 ticks — spawn logic broken")
+	}
 }
