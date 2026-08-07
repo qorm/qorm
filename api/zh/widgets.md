@@ -23,6 +23,7 @@
 | `battery` | — | `hwList` |
 | `biometric` | faceid, fingerprint | `biometric` |
 | `bluetooth` | — | `hwList` |
+| `board` | — | `board` |
 | `bottomappbar` | — | `bottomAppBar` |
 | `bottomnav` | bottomnavigationbar, navigationbar | `bottomNav` |
 | `breadcrumb` | — | `breadcrumb` |

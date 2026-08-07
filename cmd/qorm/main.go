@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strconv"
 
+	"github.com/qorm/qorm/internal/audio"
 	"github.com/qorm/qorm/internal/bundle"
 	"github.com/qorm/qorm/internal/keys"
 	"github.com/qorm/qorm/internal/loader"
@@ -23,6 +24,11 @@ import (
 	// draw layer (internal/render/draw).
 	_ "github.com/qorm/qorm/internal/widgets"
 )
+
+// init wires the real audio sink at startup so qscript's playSound /
+// playMusic actually emit sound on macOS / Linux. Without this the sink
+// stays as the silent nopSink and headless tests are quiet.
+func init() { audio.RegisterSink(&audio.StdoutSink{}) }
 
 // version is the QORM release version. It defaults to a dev value and is stamped
 // at build time via -ldflags "-X main.version=<tag>" (see the build scripts / CI).

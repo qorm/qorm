@@ -1,12 +1,6 @@
-# tick.qs — one physics frame; the shared core lives in lib.qs. The scene's
-# timer drives it while status is playing.
+# tick.qs — the 60-fps physics frame. The scene's timer drives it while
+# status is playing. The full physics step (gravity, horizontal, collision,
+# enemy AI, pickup) lives in lib.qs as `physicsStep`; this file is the thin
+# shim the timer dispatches.
 
-if (state.status == "playing") {
-  gravity()
-  if (state.status == "playing") {
-    stepGoomba()
-    touchGoomba()
-  }
-  collect()
-  refreshView()
-}
+physicsStep()

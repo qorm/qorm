@@ -714,13 +714,18 @@ func TestViewportRejectsMalformedPayload(t *testing.T) {
 	defer ts.Close()
 	tok := pageEventToken(t, ts.URL)
 
+	// Capture the initial viewport (may already be seeded from the app's
+	// manifest window spec — responsive example declares 900x640, so a
+	// pre-broadcast viewport is not the zero value any more).
+	initial := s.rt.Viewport
+
 	for _, body := range []string{`{bad`, `{"w":-5,"h":100}`, `{"w":100,"h":-1}`} {
 		if code, _ := doJSON(t, http.MethodPost, ts.URL+"/viewport", tok, "", body); code != http.StatusBadRequest {
 			t.Fatalf("POST /viewport %s: want 400, got %d", body, code)
 		}
 	}
-	if s.rt.Viewport != (qrt.Viewport{}) {
-		t.Fatalf("rejected payloads must not change the viewport: %+v", s.rt.Viewport)
+	if s.rt.Viewport != initial {
+		t.Fatalf("rejected payloads must not change the viewport: got %+v, want %+v", s.rt.Viewport, initial)
 	}
 }
 

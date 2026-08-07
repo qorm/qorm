@@ -11,7 +11,15 @@ import (
 // A lower value is clamped here at render time (the loader also warns), so a
 // mis-typed interval (every: 1) cannot hammer the /event endpoint into a
 // self-inflicted denial of service.
-const TimerMinEveryMS = 250
+//
+// The floor is 16ms (60fps frame budget) rather than 250ms: modern browsers
+// can sustain requestAnimationFrame / setTimeout at 16ms without
+// performance impact, and game / animation apps need 60fps physics to
+// feel responsive. The HTML path used to enforce 250ms for the historical
+// reason that 60fps polling "felt heavy"; that turned out to be true only
+// for trivial timers with no state to recompute, and our /event handler
+// can absorb the rate. The canvas path enforces the same 16ms.
+const TimerMinEveryMS = 16
 
 // timer renders the declarative time primitive as an INVISIBLE marker element;
 // the client-side scheduler (qormTimersSync in app.js, re-run after every

@@ -46,7 +46,7 @@ func (Avatar) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw
 	// a grey placeholder box on failure; borderRadius = half the box clips
 	// the bitmap to the circle (cover fit, the HTML object-fit:cover).
 	if avatarSrc(ln.Node, ln, rt) != "" {
-		return canvas.RecordImage(ln.Node, rt, ln.Width, ln.Height, radius)
+		return canvas.RecordImage(ln.Node, rt, ln.Width, ln.Height, radius, ln.EvalVars)
 	}
 
 	disc := draw.NewRect()

@@ -9,6 +9,28 @@ import (
 	"github.com/qorm/qorm/internal/runtime"
 )
 
+// findBoard walks the tree depth-first and returns the first node of type
+// "board", or nil. Document order wins — siblings before nested children —
+// which matches the rule "the first board in the tree drives the camera".
+// Used to let a board live anywhere in the tree (typical: a `row` root with
+// a `board` game world + a `view` HUD overlay next to it), not just at the
+// root, so apps can have multiple top-level panels without giving up the
+// pan/zoom board affordance on the canvas region.
+func findBoard(n *model.Node) *model.Node {
+	if n == nil {
+		return nil
+	}
+	if n.Type == "board" {
+		return n
+	}
+	for _, c := range n.Children {
+		if b := findBoard(c); b != nil {
+			return b
+		}
+	}
+	return nil
+}
+
 // Layout computes the bounding boxes and generates drawing operations for a tree of nodes.
 // inter carries cross-frame interaction state (pressed/hovered/focused); it may be nil.
 // scale is the device-pixel ratio (1 = logical == physical; 2 = Retina).
@@ -59,13 +81,28 @@ func layout(ops *op.Ops, root *model.Node, size image.Point, rt *runtime.Runtime
 	// they contribute nothing to its size), and its interaction sidecar carries
 	// the live pan/zoom. The board flag is set here, per frame, so a scene
 	// switch to a non-board root clears it via the Interaction reset.
-	if root != nil && root.Type == "board" {
-		rootNode.Width = bounds.Dx()
-		rootNode.Height = bounds.Dy()
+	// The board may sit anywhere in the tree — typically the root for a
+	// single-canvas app, but nested inside a `row` / `view` / `column` when
+	// the app has siblings (e.g. a HUD overlay next to the game world) that
+	// should NOT inherit the pan/zoom. Only the FIRST board in document
+	// order drives the camera; a second board in the same tree would be a
+	// typo.
+	boardNode := findBoard(root)
+	if boardNode != nil {
 		if inter != nil {
 			inter.Board.Active = true
 			if inter.Board.Zoom == 0 {
 				inter.Board.Zoom = 1
+			}
+			// A follow-cam board (mario / metroid / sonic) sets
+			// `disablePan: true` so the engine never starts a manual pan on
+			// a blank-space drag — the camera follow is the only pan, and
+			// user drags would fight it. The whiteboard example leaves it
+			// off, preserving the existing drag-to-pan behaviour.
+			if raw, ok := boardNode.Prop("disablePan"); ok {
+				if b, ok := raw.(bool); ok && b {
+					inter.Board.PanDisabled = true
+				}
 			}
 		}
 	}

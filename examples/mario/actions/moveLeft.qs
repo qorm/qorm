@@ -1,13 +1,10 @@
-# moveLeft.qs — the action body; the shared core lives in lib.qs.
-# One cell left when the target cell is open (walls/bricks block), then
-# resolve whatever Mario walks into.
+# moveLeft.qs — keydown handler for the left arrow / A key. We just flip a
+# direction flag; the physics step in lib.qs reads it next tick and
+# accelerates mario. Keyup (the scene's `keyReleases` map) calls
+# `stopMoveLeft` to clear the flag — without that, mario would slide
+# forever after the first keypress.
 
 if (state.status == "playing") {
-  let nx = state.mario.x - 1
-  if (!isSolid(nx, state.mario.y)) {
-    state.mario.x = nx
-    collect()
-    touchGoomba()
-    refreshView()
-  }
+  state.keys.left = true
+  state.mario.dir = -1
 }

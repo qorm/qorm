@@ -37,8 +37,61 @@ func LoadDir(dir string) (*model.App, error) {
 	}
 	app := FromDocs(docs)
 	loadLocales(dir, app)
+	// Build / run config (qorm.config.json) is OPTIONAL and lives NEXT TO
+	// qorm.json, NOT inside it. qorm.json describes the app's content
+	// (scenes, actions, theme, i18n) — those get hashed and signed into the
+	// bundle, so they belong to the user. qorm.config.json describes the
+	// host window, dev server flags, and other build-time choices that
+	// DON'T ship with the bundle and DON'T change per launch beyond the
+	// host environment. Splitting them keeps the signed payload clean and
+	// lets a build farm override display defaults without editing the app.
+	//
+	// A top-level `display` field inside qorm.json is still accepted for
+	// backwards compatibility — it loads first (so a redundant config
+	// file doesn't silently break a manifest that already had it).
+	loadConfig(dir, app)
 	app.BaseDir = dir
 	return app, nil
+}
+
+// loadConfig reads <dir>/qorm.config.json (optional) and applies it to the
+// app. Currently only the `display` block is recognised — width / height /
+// resizable / title land in App.Window, which the server then seeds into
+// the runtime Viewport at startup (so the first frame already has the
+// right size, with no client round-trip). The desktop host reads the same
+// field to size the native window.
+func loadConfig(dir string, app *model.App) {
+	cfgPath := filepath.Join(dir, "qorm.config.json")
+	data, err := os.ReadFile(cfgPath)
+	if err != nil {
+		return // optional file — silent when absent
+	}
+	var doc map[string]any
+	if err := json.Unmarshal(data, &doc); err != nil {
+		// Don't fail the load for a malformed config — surface a warning
+		// via the app's diagnostics? The loader returns (*App, error)
+		// only; the diagnostics slice lives on app.Diagnostics (not
+		// exposed by LoadDir). Use the public Collect-style path next
+		// time; for now, skip silently.
+		return
+	}
+	if d, ok := doc["display"].(map[string]any); ok {
+		// qorm.config.json WINS over both the manifest's top-level
+		// `display` and platforms.desktop.window — the config file is
+		// the explicit override the build / run command honours.
+		if w, ok := d["width"].(float64); ok && w > 0 {
+			app.Window.Width = int(w)
+		}
+		if h, ok := d["height"].(float64); ok && h > 0 {
+			app.Window.Height = int(h)
+		}
+		if t, ok := d["title"].(string); ok && t != "" {
+			app.Window.Title = t
+		}
+		if r, ok := d["resizable"].(bool); ok {
+			app.Window.Resizable = r
+		}
+	}
 }
 
 // loadLocales reads <dir>/locales/<lang>.json message catalogs into the app.
@@ -229,6 +282,27 @@ func FromDocs(docs []map[string]any) *model.App {
 					}
 					if len(m) > 0 {
 						app.SceneKeys[sceneID] = m
+					}
+				}
+				// Scene key-release bindings: "keyReleases": {"left": "stopLeft"}
+				// — the keyup counterpart of "keys". The engine dispatches the
+				// bound action on the same key's release, so games with
+				// "hold to move" controls can clear the direction flag the
+				// physics step reads. Authors can declare both maps with the
+				// same key set; the engine treats them as a press/release
+				// pair and dispatches them independently.
+				if kr, ok := doc["keyReleases"].(map[string]any); ok && len(kr) > 0 {
+					if app.SceneKeyReleases == nil {
+						app.SceneKeyReleases = map[string]map[string]string{}
+					}
+					m := map[string]string{}
+					for k, v := range kr {
+						if s := asString(v); s != "" {
+							m[strings.ToLower(k)] = s
+						}
+					}
+					if len(m) > 0 {
+						app.SceneKeyReleases[sceneID] = m
 					}
 				}
 				// Scene swipe bindings: "swipes": {"left": "slideLeft", …} —
@@ -1152,8 +1226,15 @@ func checkTimers(app *model.App, diags *[]string) {
 					*diags = append(*diags, fmt.Sprintf("warning: [Scene: %s] timer (id: %q) 需要 every(毫秒周期)或 after(毫秒一次性延时)之一,否则不会触发。", scope, n.ID))
 				}
 			}
-			if everyLit && every > 0 && every < render.TimerMinEveryMS {
-				*diags = append(*diags, fmt.Sprintf("warning: [Scene: %s] timer (id: %q) 的 every=%dms 低于下限 %dms(防自我拒绝服务),渲染时将被钳制为 %dms。", scope, n.ID, every, render.TimerMinEveryMS, render.TimerMinEveryMS))
+			// Floor at 16ms (60fps frame budget): anything finer is below
+			// the canvas frame loop's own tick rate, and a mis-typed
+			// every: 1 would pin the render loop. Each backend then
+			// applies ITS OWN floor (canvas 16ms, HTML 250ms for browser
+			// setTimeout) — the loader only enforces the contract that
+			// "any value below 16ms is meaningless regardless of host",
+			// not a product-level decision.
+			if everyLit && every > 0 && every < 16 {
+				*diags = append(*diags, fmt.Sprintf("warning: [Scene: %s] timer (id: %q) 的 every=%dms 低于 16ms 下限(60fps 上限),渲染时将被钳制为 16ms。", scope, n.ID, every))
 			}
 			tick, hasTick := n.Props["onTick"]
 			if !hasTick {
@@ -1284,6 +1365,14 @@ func collect(dir string) ([]map[string]any, error) {
 		}
 		ext := filepath.Ext(path)
 		if ext != ".json" && ext != ".qs" && ext != ".qss" {
+			return nil
+		}
+		// qorm.config.json is the build / run configuration file (display
+		// size, host window flags, ...). It is NOT a QORM source document
+		// (no "type" key, never hashed into the bundle); it is loaded
+		// directly by loadConfig. Skip it here so CollectDocs doesn't
+		// mistake it for a malformed scene / action.
+		if filepath.Base(path) == "qorm.config.json" {
 			return nil
 		}
 		// A .qss file is a STYLESHEET: it lives in a styles/ directory, its
@@ -1457,6 +1546,25 @@ func applyManifest(app *model.App, doc map[string]any, diags *[]string) {
 	if v, ok := doc["branding"]; ok {
 		app.Branding = asBool(v)
 	}
+	// Top-level `display` declares the app's intended viewport / window
+	// size at start time. Side-scroller games, fixed-aspect dashboards
+	// and any app whose layout is NOT fluid declare it here so the
+	// runtime Viewport is seeded BEFORE the first render (no race
+	// against a late /viewport POST), and so the server / desktop host
+	// can size the host window without a client round-trip. A nested
+	// platforms.desktop.window entry still wins when both are present
+	// (the desktop host needs Chromeless / Transparent which the
+	// top-level form does not carry) — see applyPlatforms below.
+	if d, ok := doc["display"].(map[string]any); ok {
+		app.Window.Width = int(asFloat(d["width"]))
+		app.Window.Height = int(asFloat(d["height"]))
+		if t, ok := d["title"].(string); ok && t != "" {
+			app.Window.Title = t
+		}
+		if r, ok := d["resizable"].(bool); ok {
+			app.Window.Resizable = r
+		}
+	}
 	// Plugin (middle-layer) ABI compatibility: warn if the app was authored
 	// against an incompatible qormext contract major. Non-fatal — the app still
 	// loads; the custom native ops just may not behave.
@@ -1546,16 +1654,29 @@ func applyManifest(app *model.App, doc map[string]any, diags *[]string) {
 				app.Tray = model.TrayConfig{Icon: asString(tr["icon"]), Tip: asString(tr["tip"]), Items: parseMenuItems(tr["items"])}
 			}
 			if w, ok := desk["window"].(map[string]any); ok {
-				app.Window = model.Window{
-					Width:       int(asFloat(w["width"])),
-					Height:      int(asFloat(w["height"])),
-					Title:       asString(w["title"]),
-					Resizable:   asBool(w["resizable"]),
-					Chromeless:  asBool(w["chromeless"]),
-					Transparent: asBool(w["transparent"]),
-					HideLog:     asBool(w["hideLog"]),
-					HideTray:    asBool(w["hideTray"]),
+				// Top-level `display` already seeded a width/height — the
+				// desktop-only fields (Chromeless, Transparent, HideLog,
+				// HideTray) are the only ones we can ADD; we never
+				// overwrite a non-zero size because a side-scroller game
+				// declaring 1024x480 in display would be ruined by a
+				// 800x600 desktop-window entry mistakenly left in the
+				// manifest.
+				if app.Window.Width == 0 {
+					app.Window.Width = int(asFloat(w["width"]))
 				}
+				if app.Window.Height == 0 {
+					app.Window.Height = int(asFloat(w["height"]))
+				}
+				if t := asString(w["title"]); t != "" && app.Window.Title == "" {
+					app.Window.Title = t
+				}
+				if r, ok := w["resizable"].(bool); ok {
+					app.Window.Resizable = r
+				}
+				app.Window.Chromeless = asBool(w["chromeless"])
+				app.Window.Transparent = asBool(w["transparent"])
+				app.Window.HideLog = asBool(w["hideLog"])
+				app.Window.HideTray = asBool(w["hideTray"])
 			}
 		}
 	}

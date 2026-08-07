@@ -382,6 +382,7 @@ var builtinNames = map[string]bool{
 	"contains": true, "startsWith": true, "endsWith": true, "replace": true,
 	"matches": true, "str": true, "num": true, "number": true, "int": true,
 	"abs": true, "round": true, "floor": true, "ceil": true, "mod": true,
+	"sin": true, "cos": true, "tan": true, "atan2": true, "sqrt": true,
 	"min": true, "max": true, "not": true, "empty": true,
 	"default": true, "coalesce": true,
 	"range": true, "fill": true, "concat": true, "slice": true,
@@ -389,6 +390,8 @@ var builtinNames = map[string]bool{
 	"count": true, "join": true, "split": true,
 	"keys": true, "values": true, "map": true, "filter": true, "format": true,
 	"now": true, "call": true,
+	// Audio (WAV playback routed through the runtime's audio handler).
+	"playSound": true, "playMusic": true, "stopMusic": true,
 	// Array methods (v2): functional — each returns a NEW list.
 	"push": true, "unshift": true, "pop": true, "shift": true,
 	"reverse": true, "sort": true, "indexOf": true, "includes": true,

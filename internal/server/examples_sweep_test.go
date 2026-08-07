@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/qorm/qorm/internal/loader"
+	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/render"
 	qrt "github.com/qorm/qorm/internal/runtime"
 )
@@ -24,6 +25,13 @@ func exampleServer(t *testing.T, name string) (*Server, string, string) {
 	if err != nil {
 		t.Fatalf("load %s: %v", name, err)
 	}
+	// Sweep tests assert on the "viewport unknown" render path — the
+	// first frame, before any client has reported a size. Examples that
+	// declare a `platforms.desktop.window` or `display` in their manifest
+	// would otherwise seed the runtime Viewport and skip that path.
+	// Null the window spec here so the sweep covers the actual contract
+	// the responsive tests pin down in TestSweepDashboard.
+	app.Window = model.Window{}
 	s := New(qrt.New(app))
 	ts := httptest.NewServer(s.Handler())
 	t.Cleanup(ts.Close)

@@ -128,7 +128,12 @@ type FrameStats struct {
 	Total        time.Duration
 }
 
-// Engine drives the native backend's staged frame loop:
+// Graph exposes the most recently laid-out scene graph (the root node of the
+// retained-mode tree RenderInto rebuilt on its last frame). Tests use it to
+// assert the layout outcome; production code reads through the
+// graph.SnapshotFor / WidgetFrames seams instead. May be nil before the first
+// RenderInto or after the scene root was conditionally hidden.
+func (e *Engine) Graph() graph.Node { return e.graphRoot }
 //
 //	input/state → layout → record (display list) → render
 //
@@ -211,9 +216,21 @@ func (e *Engine) RequestDraw() { e.dirty.Store(true) }
 // Dirty reports whether a redraw is pending (input or state change).
 func (e *Engine) Dirty() bool { return e.dirty.Load() }
 
-// Animating reports whether a tween is still in flight (the host should keep
-// ticking until this is false).
-func (e *Engine) Animating() bool { return e.animating.Load() }
+// Animating reports whether a tween is still in flight OR a declarative timer
+// is mounted and waiting for its next deadline. The host's idle loop only
+// calls RenderInto when this is true, so timers (which start off un-fired
+// with `nextFire = now + every` — see tickTimer) MUST register here the
+// instant they show up in the mounted scene. Without this, a game whose
+// first frame only sets state would tick zero times: the engine renders
+// once (the first call here observes the timer node and returns), the
+// timer is now pending but `Dirty` is false, the host idles forever, and
+// the game freezes on its initial frame.
+func (e *Engine) Animating() bool {
+	if e.animating.Load() {
+		return true
+	}
+	return e.timersPending()
+}
 
 // EnqueueMutation hands an external state change (an HTTP/MCP handler's work)
 // to the render thread and blocks until it has run, preserving the caller's
@@ -613,8 +630,10 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 	// A blank-space press on an active board starts a pan (drag the empty
 	// canvas). A press on anything with a handler — a note's onTouchMove, a
 	// pressable, an interactive widget — falls through to the normal path so
-	// the note drags instead of the board.
-	if e.Inter.Board.Active && p.Type == PointerPress && boardBlank(hit, rt) {
+	// the note drags instead of the board. A board with `disablePan: true`
+	// (side-scroller follow-cam) skips the manual pan — the user has no
+	// pan affordance, and the engine's camera follow owns the offset.
+	if e.Inter.Board.Active && !e.Inter.Board.PanDisabled && p.Type == PointerPress && boardBlank(hit, rt) {
 		e.Inter.Board.PanMomActive = false // cancel any coast from a prior drag
 		e.Inter.Board.Panning = true
 		e.Inter.Board.PanStart = geom.Point{X: p.X, Y: p.Y}
@@ -1213,16 +1232,32 @@ func (e *Engine) HandleKey(k KeyInput) bool {
 				}
 			}
 		}
-		// Scene-level key bindings (the scene's own `keys` map — games and
-		// keyboard-driven apps): key → action, no focus required. Generic
-		// handlers above win any conflict (tab/return/escape keep their
-		// meaning); the map fills the rest.
-		if !handled {
-			if action, ok := rt.KeyAction(k.Key); ok {
+	}
+	// Scene-level key bindings (the scene's own `keys` map — games and
+	// keyboard-driven apps): key → action, no focus required. Generic
+	// handlers in the k.Down branch above win any conflict (tab/return/
+	// escape keep their meaning); the map fills the rest. On keyup
+	// (k.Down == false) the keyReleases map is tried so a "hold to move"
+	// game can clear its direction flag without a focused widget;
+	// otherwise the bubbling onKeyUp on a focused widget picks it up.
+	//
+	// Run AFTER the k.Down branch and OUTSIDE its `if k.Down` guard —
+	// otherwise a keyup event skips the keyReleases map entirely and the
+	// game's "hold to run" never gets its stopMove/release action. The
+	// `!handled` short-circuit means a focused widget that consumed the
+	// event in the k.Down branch still wins (a focused text field keeps
+	// its delete key from leaking to the scene).
+	if !handled {
+		if !k.Down {
+			if action, ok := rt.KeyReleaseAction(k.Key); ok {
 				e.dispatch(&model.Invoke{Name: action}, nil)
 				e.dirty.Store(true)
 				handled = true
 			}
+		} else if action, ok := rt.KeyAction(k.Key); ok {
+			e.dispatch(&model.Invoke{Name: action}, nil)
+			e.dirty.Store(true)
+			handled = true
 		}
 	}
 	if !handled {

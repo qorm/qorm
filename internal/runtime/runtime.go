@@ -11,11 +11,13 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/qorm/qorm/internal/audio"
 	"github.com/qorm/qorm/internal/expr"
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/qscript"
@@ -330,6 +332,27 @@ func (r *Runtime) KeyAction(key string) (string, bool) {
 	return a, ok
 }
 
+// KeyReleaseAction resolves the keyup counterpart of KeyAction (scene JSON
+// "keyReleases"): a key-name → action map dispatched on the same key being
+// released. The lookup mirrors KeyAction — case-insensitive, falls back to
+// the entry scene — so a press/release pair can be authored on the same
+// key from one JSON block.
+func (r *Runtime) KeyReleaseAction(key string) (string, bool) {
+	if r.App == nil || r.App.SceneKeyReleases == nil {
+		return "", false
+	}
+	scene := r.Scene
+	if scene == "" {
+		scene = r.App.Entry
+	}
+	m := r.App.SceneKeyReleases[scene]
+	if m == nil {
+		return "", false
+	}
+	a, ok := m[strings.ToLower(key)]
+	return a, ok
+}
+
 // SwipeAction resolves a scene-level swipe binding (scene JSON "swipes") for
 // the current scene — the touch counterpart of KeyAction. dir is one of
 // "left", "right", "up", "down" (the loader drops any other direction).
@@ -536,6 +559,29 @@ func (r *Runtime) NavigateToPath(rawQuery string) {
 	r.NavigateTo(vals.Get("scene"), params)
 }
 
+// loadAppTheme returns the skin a runtime should start with. The default Apple
+// HIG theme is always the safe fallback (matches the rest of the built-in
+// palettes' behavior); a custom skin (themes/<name>.json beside the manifest)
+// wins when it exists and parses, so the server's first frame already paints
+// the right colors and `background: var(--sky)` resolves instead of empty.
+func loadAppTheme(app *model.App) *theme.Theme {
+	if app == nil || app.Theme == "" {
+		return theme.GetDefault()
+	}
+	// Built-in names are already covered by render.ThemeCSS — the runtime
+	// still gets the default Theme struct so legacy callers that read
+	// rt.Theme.ParsedColors see the right values.
+	if theme.IsBuiltinTheme(app.Theme) {
+		return theme.GetDefault()
+	}
+	if app.BaseDir != "" {
+		if t, err := theme.LoadTheme(filepath.Join(app.BaseDir, "themes", app.Theme+".json")); err == nil {
+			return t
+		}
+	}
+	return theme.GetDefault()
+}
+
 // New creates a runtime with state seeded from the manifest's initial values.
 func New(app *model.App) *Runtime {
 	state := deepCopyMap(app.GlobalState.Initial)
@@ -552,7 +598,7 @@ func New(app *model.App) *Runtime {
 			state["theme"] = app.Theme
 		}
 	}
-	rt := &Runtime{App: app, State: state, RouteParams: map[string]any{}, pendingEnter: true, Theme: theme.GetDefault()}
+	rt := &Runtime{App: app, State: state, RouteParams: map[string]any{}, pendingEnter: true, Theme: loadAppTheme(app)}
 	rt.refreshComputed() // derived values exist from the very first frame
 	// The call() builtin's dispatch bridge: a script calling call("otherAction")
 	// re-enters Dispatch on the SAME runtime, so invoke-depth governance (the
@@ -561,8 +607,41 @@ func New(app *model.App) *Runtime {
 	qscript.SetDispatchHook(func(line int, name string, args map[string]any) error {
 		return rt.DispatchErr(name, args)
 	})
+	// Audio hook: playSound / playMusic builtins route here so qscript can
+	// trigger WAV playback without expr importing the runtime.
+	expr.SetAudioHandler(audioAdapter{rt: rt})
 	return rt
 }
+
+// audioAdapter forwards qscript's playSound/playMusic/stopMusic to the
+// runtime's audio sink. It owns the runtime reference so a swap (hot reload)
+// keeps routing to the current app's BaseDir.
+type audioAdapter struct{ rt *Runtime }
+
+func (a audioAdapter) baseDir() string {
+	if a.rt != nil && a.rt.App != nil {
+		return a.rt.App.BaseDir
+	}
+	return ""
+}
+
+func (a audioAdapter) PlayOnce(src string) error {
+	snd, err := audio.LoadSound(a.baseDir(), src)
+	if err != nil {
+		return err
+	}
+	return audio.ActiveSink().Play(snd, false)
+}
+
+func (a audioAdapter) PlayLoop(src string) error {
+	snd, err := audio.LoadSound(a.baseDir(), src)
+	if err != nil {
+		return err
+	}
+	return audio.ActiveSink().Play(snd, true)
+}
+
+func (a audioAdapter) Stop() error { return audio.ActiveSink().Stop() }
 
 // SwapAppPreservingState swaps out the app manifest (e.g. during a hot reload)
 // while preserving active runtime state and user inputs.

@@ -64,6 +64,7 @@
 | `battery` | `label` |
 | `biometric` | `label` |
 | `bluetooth` | `label` |
+| `board` | — |
 | `bottomappbar` | — |
 | `bottomnav` | `items` |
 | `breadcrumb` | `items` · `separator` |

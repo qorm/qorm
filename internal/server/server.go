@@ -125,6 +125,15 @@ type Server struct {
 // New builds a server for a runtime (no OTA).
 func New(rt *runtime.Runtime) *Server {
 	s := &Server{rt: rt, eventToken: genEventToken()}
+	// Seed the runtime's viewport from the manifest's window hints. Without
+	// this, the very first render — before any browser has reported its size
+	// via POST /viewport — sees a zero-value Viewport, and any `when` node
+	// gated on `viewport.width` falls into the else branch. A side-scroller
+	// game or fixed-aspect dashboard declares its target size in the manifest
+	// precisely to avoid that race.
+	if rt != nil && rt.App != nil && rt.App.Window.Width > 0 {
+		rt.Viewport = runtime.Viewport{W: rt.App.Window.Width, H: rt.App.Window.Height}
+	}
 	s.initAgent()
 	return s
 }
@@ -979,6 +988,17 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/dev/state", blockCrossOrigin(s.serveDevState))
 	mux.HandleFunc("/dev/tree", blockCrossOrigin(s.serveDevTree))
 	mux.HandleFunc("/dev/highlight", blockCrossOrigin(s.serveDevHighlight))
+	// Static asset serve: /assets/* and /themes/* and /locales/* are read from
+	// the app's directory tree (qorm.json "id" is the bundle root). Without
+	// this an image widget's `src: "assets/mario.png"` 404s in the browser
+	// and the canvas draws a grey placeholder, even though the bundle has
+	// the file. The filesystem layout is the source of truth — the loader
+	// already validated that every asset path in the manifest resolves.
+	if s.rt != nil && s.rt.App != nil && s.rt.App.BaseDir != "" {
+		mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir(filepath.Join(s.rt.App.BaseDir, "assets")))))
+		mux.Handle("/themes/", http.StripPrefix("/themes/", http.FileServer(http.Dir(filepath.Join(s.rt.App.BaseDir, "themes")))))
+		mux.Handle("/locales/", http.StripPrefix("/locales/", http.FileServer(http.Dir(filepath.Join(s.rt.App.BaseDir, "locales")))))
+	}
 	return mux
 }
 
@@ -1286,6 +1306,15 @@ func (s *Server) servePoll(w http.ResponseWriter, r *http.Request) {
 
 type eventReq struct {
 	H int `json:"h"`
+	// Action is the alternative to H: the name of the action to dispatch.
+	// Used by the HTML client's scene-level key bindings (scene JSON
+	// `keys` / `keyReleases`) — those names are NOT in the handler table
+	// because no rendered element invokes them; only the canvas engine
+	// (which talks straight to rt.Dispatch) and the page-side key
+	// listener (which talks to /event) need to reach them. Resolved
+	// against the current handler table by name; falls through to H if
+	// empty.
+	Action string `json:"action"`
 	// Rev is the revision of the frame the browser was showing when the human
 	// acted. Handler indices are positional and are renumbered by every render,
 	// so a frame that arrived between the paint and the click — an agent edit,
@@ -1328,7 +1357,17 @@ func (s *Server) serveEvent(w http.ResponseWriter, r *http.Request) {
 	// Resolve the handler index against the frame the click came from (see
 	// eventReq.Rev); an unknown/absent revision falls back to the newest table.
 	table := s.lookupHandlers(req.Rev)
-	if req.H >= 0 && req.H < len(table) {
+	dispatched := false
+	if req.Action != "" {
+		// Scene-level key bindings: dispatch by name. The action may not
+		// be in the handler table (no rendered element invokes it), so
+		// we go straight to rt.Dispatch with no captured scope. The
+		// args are empty because the binding came from a key name, not
+		// from a handler entry with an Args map.
+		s.logEvent("human", "dispatch "+req.Action)
+		s.rt.Dispatch(req.Action, nil)
+		dispatched = true
+	} else if req.H >= 0 && req.H < len(table) {
 		h := table[req.H]
 		if h.Name != "" {
 			s.logEvent("human", "dispatch "+h.Name)
@@ -1343,7 +1382,9 @@ func (s *Server) serveEvent(w http.ResponseWriter, r *http.Request) {
 			args[name] = runtime.EvalBinding(exprStr, ctx)
 		}
 		s.rt.Dispatch(h.Name, args)
+		dispatched = true
 	}
+	_ = dispatched
 	rev, html, nav := s.bump()
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("X-Qorm-Rev", strconv.FormatInt(rev, 10))
@@ -1401,6 +1442,46 @@ func qormAppJS(rev int64, eventToken string) string {
 	return s
 }
 
+// qormKeyBindings returns a JSON snippet declaring __qormKeys and
+// __qormKeyReleases for the current scene, plus __qormKeyToIdx (handler
+// index) for the names. The HTML path has no equivalent of the canvas
+// engine's HandleKey — without this, a scene's `keys` / `keyReleases` JSON
+// is invisible in the browser and a "hold to run" game simply does not
+// respond. The names are normalised to lowercase to match the runtime's
+// KeyAction lookup. Handler index resolution: render.RenderScene gives us
+// the full handler table for this scene, so we walk it once and emit a
+// name → index map; the client keydown handler looks up an action by
+// name then dispatches qorm(idx).
+func qormKeyBindings(rt *runtime.Runtime) string {
+	if rt == nil || rt.App == nil {
+		return ""
+	}
+	scene := rt.CurrentScene()
+	if scene == "" {
+		scene = rt.App.Entry
+	}
+	keys := rt.App.SceneKeys[scene]
+	rels := rt.App.SceneKeyReleases[scene]
+	if len(keys) == 0 && len(rels) == 0 {
+		return ""
+	}
+	// Get current handler table — the same call the server uses after a
+	// render. RenderScene is cheap; on the page-serve path it doubles as
+	// a "this is the table the body HTML was rendered against" guarantee.
+	res := render.RenderScene(rt, scene)
+	nameToIdx := map[string]int{}
+	for i, h := range res.Handlers {
+		if _, exists := nameToIdx[h.Name]; !exists {
+			nameToIdx[h.Name] = i
+		}
+	}
+	keysJSON, _ := json.Marshal(keys)
+	relsJSON, _ := json.Marshal(rels)
+	idxJSON, _ := json.Marshal(nameToIdx)
+	return fmt.Sprintf("window.__qormKeys=%s;window.__qormKeyReleases=%s;window.__qormKeyToIdx=%s;",
+		keysJSON, relsJSON, idxJSON)
+}
+
 func Page(rt *runtime.Runtime, body string, rev int64, eventToken ...string) string {
 	tok := ""
 	if len(eventToken) > 0 {
@@ -1418,6 +1499,26 @@ func Page(rt *runtime.Runtime, body string, rev int64, eventToken ...string) str
 	title := w.Title
 	if title == "" {
 		title = rt.App.Name
+	}
+	// fixedSize is true when the manifest declared an explicit width/height.
+	// When set, the stage element gets a `qorm-fixed` class so the responsive
+	// media queries below (max-width:640 / min-width:1024) are skipped, and
+	// the inline JS calls window.resizeTo so the browser opens at the right
+	// size. Without this a 1024x480 side-scroller game would render into a
+	// 420x720 portrait-shaped stage and look like a stretched phone app.
+	fixedSize := w.Width > 0 && w.Height > 0
+	fixedClass := ""
+	fixedCSS := ""
+	resizeJS := ""
+	if fixedSize {
+		fixedClass = " qorm-fixed"
+		fixedCSS = fmt.Sprintf("#qorm-stage.qorm-fixed { width:%dpx !important; min-width:%dpx; max-width:%dpx; height:%dpx !important; min-height:%dpx; max-height:%dpx; } body { align-items:center; padding:0; }",
+			w.Width, w.Width, w.Width, w.Height, w.Height, w.Height)
+		// window.resizeTo is allowed on window.open'd windows; the
+		// initial load of a tab gets the call silently no-op'd on
+		// some browsers, but the explicit viewport hint still seeds
+		// the responsive layout correctly.
+		resizeJS = fmt.Sprintf("try{window.resizeTo(%d,%d);}catch(e){}", w.Width, w.Height)
 	}
 	lang := langTag(rt.CurrentLocale())
 	dir := "ltr"
@@ -1456,6 +1557,7 @@ func Page(rt *runtime.Runtime, body string, rev int64, eventToken ...string) str
   #qorm-stage { width:%dpx; max-width:100%%; min-height:%dpx; background:var(--bg); color:var(--label);
                 border-radius:var(--stage-radius); box-shadow:0 12px 48px rgba(0,0,0,.18);
                 overflow:hidden; display:flex; }
+  %s
   @media (max-width:640px) {
     body { padding:0; align-items:stretch; }
     #qorm-stage { width:100%%; max-width:100%%; min-height:100vh; border-radius:0; box-shadow:none; }
@@ -1690,10 +1792,10 @@ func Page(rt *runtime.Runtime, body string, rev int64, eventToken ...string) str
 </style>
 </head>
 <body>
-<div id="qorm-stage" class="qorm-theme-%s"><div id="qorm-root">%s</div></div>
-<script>%s</script>
+<div id="qorm-stage" class="qorm-theme-%s%s"><div id="qorm-root">%s</div></div>
+<script>%s%s%s</script>
 </body>
-</html>`, html.EscapeString(lang), dir, htmlEscape(title), themeCSS(rt), width, height, html.EscapeString(theme), body, qormAppJS(rev, tok))
+</html>`, html.EscapeString(lang), dir, htmlEscape(title), themeCSS(rt), width, height, fixedCSS, html.EscapeString(theme), fixedClass, body, qormAppJS(rev, tok), resizeJS, qormKeyBindings(rt))
 }
 
 // themeClass turns the active theme name (state.theme — writable by an action,
@@ -1769,12 +1871,21 @@ func langTag(locale string) string {
 
 // themeCSS is the shell's theme block: the shared built-in palettes plus the
 // app's own manifest designTokens rendered as var(--qorm-token-*) on the
-// stage, so scenes can style against them.
+// stage, so scenes can style against them. When the active theme is a custom
+// skin (themes/<name>.json, not one of the built-in palettes) we also emit
+// `.qorm-theme-<name> { --<color>: ...; }` so scenes that reference
+// var(--sky) / var(--ground) / ... see real values, not the empty string.
 func themeCSS(rt *runtime.Runtime) string {
+	base := render.ThemeCSS
 	if css := render.TokenCSS("#qorm-stage", rt.App.DesignTokens); css != "" {
-		return render.ThemeCSS + "\n  " + css
+		base += "\n  " + css
 	}
-	return render.ThemeCSS
+	if rt.Theme != nil {
+		if extra := rt.Theme.CSSClassRules(); extra != "" {
+			base += "\n  " + extra
+		}
+	}
+	return base
 }
 
 // htmlEscape entity-encodes an app-supplied string (the manifest name / window

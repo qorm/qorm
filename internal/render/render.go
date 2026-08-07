@@ -142,12 +142,26 @@ func (r *renderer) spendNode() bool {
 }
 
 // Render renders the entry scene of a runtime.
-func Render(rt *runtime.Runtime) Result { return RenderScene(rt, "") }
+func Render(rt *runtime.Runtime) Result { return RenderSceneWithOpts(rt, "", RenderOpts{}) }
+
+// RenderWithOpts is the engine-aware Render: pass the live Board state so
+// a `type:"board"` root's children are placed in viewport space. Used by
+// the server (which owns the canvas engine) and by RenderSubtreeWithOpts.
+func RenderWithOpts(rt *runtime.Runtime, opts RenderOpts) Result {
+	return RenderSceneWithOpts(rt, "", opts)
+}
 
 // RenderScene renders a specific scene by id (empty / unknown falls back to the
 // entry scene) — lets a desktop window show a different scene of the same app.
 func RenderScene(rt *runtime.Runtime, sceneID string) Result {
-	r := &renderer{rt: rt, scope: map[string]any{}}
+	return RenderSceneWithOpts(rt, sceneID, RenderOpts{})
+}
+
+// RenderSceneWithOpts is the engine-aware RenderScene: the live Board state
+// travels through opts so a board scene's camera pan / zoom is reflected
+// in the HTML.
+func RenderSceneWithOpts(rt *runtime.Runtime, sceneID string, opts RenderOpts) Result {
+	r := &renderer{rt: rt, scope: map[string]any{}, opts: opts}
 	root := rt.App.EntryRoot()
 	if sceneID != "" {
 		if sc := rt.App.Scenes[sceneID]; sc != nil {
@@ -189,7 +203,15 @@ func RenderScene(rt *runtime.Runtime, sceneID string) Result {
 // RenderSubtree renders a specific node subtree by node ID within the active scene.
 // Returns the isolated HTML, event handlers and unknowns for that subtree.
 func RenderSubtree(rt *runtime.Runtime, nodeID string) Result {
-	r := &renderer{rt: rt, scope: map[string]any{}}
+	return RenderSubtreeWithOpts(rt, nodeID, RenderOpts{})
+}
+
+// RenderSubtreeWithOpts is the engine-aware variant of RenderSubtree: the
+// server passes in the live Board state (pan / zoom) so a `type:"board"`
+// subtree renders its children in viewport space instead of world space.
+// Tests and the old "no engine" path stay on RenderSubtree.
+func RenderSubtreeWithOpts(rt *runtime.Runtime, nodeID string, opts RenderOpts) Result {
+	r := &renderer{rt: rt, scope: map[string]any{}, opts: opts}
 	if rt == nil || rt.App == nil {
 		return Result{HTML: `<div style="padding:24px;color:#888">no app</div>`}
 	}
@@ -737,12 +759,13 @@ func (r *renderer) renderInner(n *model.Node) {
 		r.textFormField(n)
 	case "circularprogress", "circularprogressindicator":
 		r.circularProgress(n)
+	case "board":
+		r.board(n)
 	case "row", "column", "columns", "stack", "vstack", "hstack", "zstack", "absolute",
 		"scroll", "scrollview", "grid", "card", "component", "flex", "box",
 		"div", "container", "group", "view", "fragment", "wrapper", "panel",
 		"body", "content", "main", "section", "header", "footer", "aside", "nav",
-		"center", "start", "end", "between", "around", "evenly", "stretch",
-		"board":
+		"center", "start", "end", "between", "around", "evenly", "stretch":
 		r.container(n)
 	default:
 		r.unknown(n)

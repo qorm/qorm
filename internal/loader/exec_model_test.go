@@ -216,7 +216,7 @@ func TestTimerDiagnostics(t *testing.T) {
 	}{
 		{"missing id", map[string]any{"every": float64(1000), "onTick": "tick"}, "timer 节点缺少 id"},
 		{"missing schedule", map[string]any{"id": "t1", "onTick": "tick"}, "需要 every"},
-		{"every too small", map[string]any{"id": "t2", "every": float64(50), "onTick": "tick"}, "低于下限"},
+		{"every too small", map[string]any{"id": "t2", "every": float64(8), "onTick": "tick"}, "低于 16ms"},
 		{"missing onTick", map[string]any{"id": "t3", "every": float64(1000)}, "缺少 onTick"},
 		{"unknown onTick action", map[string]any{"id": "t4", "every": float64(1000), "onTick": "ghost"}, `引用了不存在的动作 "ghost"`},
 		{"unknown onTick invoke form", map[string]any{"id": "t5", "every": float64(1000), "onTick": map[string]any{"name": "ghost"}}, `引用了不存在的动作 "ghost"`},

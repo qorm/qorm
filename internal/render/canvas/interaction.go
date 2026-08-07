@@ -132,6 +132,12 @@ type BoardState struct {
 	// Active is true when the current scene root is a board (set during
 	// layout; cleared by the Interaction reset on scene switch).
 	Active bool
+	// PanDisabled is true when the author set `disablePan: true` on the board
+	// root — the engine then ignores blank-space pointer drags for the
+	// board, leaving the camera to follow its `cameraTarget` without
+	// fighting the user. Side-scroller games (mario, metroid, sonic) all
+	// set this; the default (false) keeps the existing whiteboard UX.
+	PanDisabled bool
 	// Zoom is the canvas scale factor in [minBoardZoom, maxBoardZoom].
 	Zoom float64
 	// PanX/PanY is the screen-space translate applied on top of Zoom.

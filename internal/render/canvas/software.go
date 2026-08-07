@@ -337,8 +337,13 @@ func withOpacity(c color.RGBA, op float64) color.RGBA {
 
 // clipBounds returns the intersection of all clip rects with the image bounds:
 // the bounding box a paint can possibly touch (per-pixel rounding still tested
-// by inAllClips).
+// by inAllClips). Clip rects are already in screen space — the ClipOp handler
+// transforms them by the current matrix at emit time so all downstream
+// consumers (clipBounds, clipCoverage, draw.Draw targets) share one frame.
 func clipBounds(clips []op.ClipOp, img *image.RGBA) image.Rectangle {
+	if len(clips) == 0 {
+		return img.Bounds()
+	}
 	r := clips[0].Rect
 	for _, c := range clips[1:] {
 		r = r.Intersect(c.Rect)
@@ -347,9 +352,10 @@ func clipBounds(clips []op.ClipOp, img *image.RGBA) image.Rectangle {
 }
 
 // clipCoverage returns the combined coverage of the active clips at a pixel
-// centre. Rectangular clips remain exact; rounded clips use the same signed
-// distance field as RRectOp, giving image/text content a soft one-pixel edge
-// instead of the visibly jagged binary corner produced by inAllClips.
+// centre. Clip rects are already in screen space (ClipOp transforms them
+// at emit time). Rectangular clips remain exact; rounded clips use the same
+// signed distance field as RRectOp, giving image/text content a soft one-pixel
+// edge instead of the visibly jagged binary corner produced by inAllClips.
 func clipCoverage(px, py float64, clips []op.ClipOp) float64 {
 	coverage := 1.0
 	for _, c := range clips {

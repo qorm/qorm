@@ -7,13 +7,17 @@ import (
 	"github.com/qorm/qorm/internal/runtime"
 )
 
-// timerMinEveryMS floors a timer node's `every` interval — the canvas mirror
-// of the HTML path's render.TimerMinEveryMS (the client-side scheduler floor,
-// render_timer.go). The constant is duplicated, not imported: the two engines
-// stay import-free of each other, and one repeated integer is the cheaper
-// coupling. A lower authored value clamps here so a mis-typed every: 1 cannot
-// pin the render loop.
-const timerMinEveryMS = 250 * time.Millisecond
+// timerMinEveryMS floors a timer node's `every` interval for the canvas engine.
+//
+// The canvas engine owns its frame loop (frame.go / engine.go RenderInto) and
+// drives timers from it, so a 16ms floor (60fps) is safe — that is the
+// physical frame budget the host already runs at. The HTML path keeps
+// render.TimerMinEveryMS = 250 because client-side setTimeout at finer
+// intervals wastes CPU on polling; the two engines stay decoupled and only
+// the canvas floor is this small.
+//
+// Game authors who want 60fps physics (mario, raiden) write every: 16 here.
+const timerMinEveryMS = 16 * time.Millisecond
 
 // sceneTimer is the engine's live record for one mounted timer node. Entries
 // key by the node's model pointer — the same identity the Interaction uses —

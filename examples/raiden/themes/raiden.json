@@ -1,0 +1,26 @@
+{
+  "name": "raiden",
+  "colors": {
+    "space":      "#020817",
+    "star":       "#5566aa",
+    "panel":      "#0a1530",
+    "player":     "#50a0ff",
+    "enemy":      "#ff5050",
+    "bullet":     "#fff066",
+    "explosion":  "#ffdc50",
+    "text":       "#ffffff",
+    "textDim":    "#99aacc",
+    "accent":     "#fff066"
+  },
+  "components": {
+    "scene":   { "backgroundColor": "space" },
+    "column":  { "color": "text" },
+    "row":     { "color": "text" },
+    "text":    { "color": "text", "fontSize": 14, "fontWeight": 600 },
+    "button":  {
+      "borderRadius": 6, "padding": 6,
+      "backgroundColor": "player", "color": "#ffffff",
+      "fontSize": 14, "fontWeight": 700
+    }
+  }
+}

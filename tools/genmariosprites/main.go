@@ -1,18 +1,16 @@
-// genmariosprites writes the 24×24 pixel-art PNGs that examples/mario renders
-// inside its gridview. Each sprite is described as a 24-line ASCII map (one
-// char per pixel); the tool runs once at edit time and the outputs are
-// checked in. Run from the repo root:
+// genmariosprites writes the pixel-art PNGs that examples/mario renders
+// inside its gridview. Each sprite is described as ASCII maps (one char per
+// pixel); the tool runs at edit time and the outputs are checked in. Run:
 //
 //   go run ./tools/genmariosprites
 //
 // Pixel legend (single character → color, transparent otherwise):
 //
-//   R mario red      Z goomba brown   G coin gold       O brick orange
-//   E mario skin     L goomba belly   N coin dark       X brick dark
-//   B mario brown    W white          K black           Y ground brown
-//                                              T ground topsoil
-//                                              F flag green    D flag dark
-//                                              P flag pole     Q pole dark
+//   R mario red      E mario skin     B mario brown     W white
+//   K black          Y yellow buttons Z goomba brown    L goomba belly
+//   G coin gold      N coin dark      O brick orange    X brick dark
+//   V ground brown  T topsoil        F flag green      D flag dark
+//   P flag pole      Q pole dark      U sky blue        C cloud
 package main
 
 import (
@@ -36,19 +34,22 @@ var palette = map[pixel]color.RGBA{
 	'E': rgba(255, 179, 128),  // mario skin
 	'B': rgba(107, 51, 0),     // mario brown (shoes / moustache)
 	'W': rgba(255, 255, 255),  // white
-	'K': rgba(26, 26, 26),     // black
+	'K': rgba(20, 20, 20),     // black
+	'Y': rgba(255, 215, 0),    // yellow buttons / belt
 	'Z': rgba(124, 74, 0),     // goomba brown
 	'L': rgba(179, 129, 74),   // goomba belly (lighter)
 	'G': rgba(255, 215, 0),    // coin gold
 	'N': rgba(184, 148, 0),    // coin dark
 	'O': rgba(200, 76, 12),    // brick orange
 	'X': rgba(107, 36, 0),     // brick dark (grout)
-	'Y': rgba(139, 69, 19),    // ground brown
+	'V': rgba(139, 69, 19),    // ground brown
 	'T': rgba(92, 51, 23),     // ground topsoil
 	'F': rgba(30, 180, 30),    // flag green
 	'D': rgba(10, 122, 10),    // flag dark
 	'P': rgba(124, 74, 0),     // flag pole
 	'Q': rgba(92, 51, 23),     // pole dark
+	'U': rgba(92, 148, 252),   // sky blue (cloud bg)
+	'C': rgba(255, 255, 255),  // cloud white
 }
 
 type sprite = [size]string
@@ -58,46 +59,102 @@ type sprite = [size]string
 // they read clearly at 24 px.
 
 var sprites = map[string]sprite{
-	// Mario: red cap, peach face (two black eyes, a moustache), red body,
-	// two brown shoes.
+	// Mario STANDING: red cap with brim, peach face with eyes + moustache,
+	// blue (red here) body with yellow buttons, brown shoes.
 	"mario": {
 		`......RRRRRRRR......`,
 		`....RRRRRRRRRRRR....`,
-		`..RRRRRRRRRRRRRRRR..`,
-		`.RRRRRRRRRRRRRRRRRR.`,
-		`RRRRRRRRRRRRRRRRRRRR`,
-		`RRRRRRRRRRRRRRRRRRRR`,
-		`EEEEEEEEEEEEEEEEEEEE`,
-		`EKEEEEEEEKEEEEEEEKEE`,
-		`EKEEEEEEEKEEEEEEEKEE`,
-		`EEEEBBBBBBBBBBBBEEEE`,
-		`EEEEBBBBBBBBBBBBEEEE`,
-		`RRRRRRRRRRRRRRRRRRRR`,
-		`RRRRRRRRRRRRRRRRRRRR`,
-		`RBRRRRRRRRRRRRRRRBRR`,
-		`RBRRRRRRRRRRRRRRRBRR`,
-		`RBRRRRRRRRRRRRRRRBRR`,
-		`RRRRRRRRRRRRRRRRRRRR`,
-		`RRRRRRRRRRRRRRRRRRRR`,
-		`RRRRRRRRRRRRRRRRRRRR`,
-		`BBBB..........BBBB.`,
-		`BBBB..........BBBB.`,
-		`BBBB..........BBBB.`,
-		`.BBB............BBB.`,
-		`..BBB..........BBB.`,
+		`...RRRRRRRRRRRRRR...`,
+		`...RRRRRRRRRRRRRR...`,
+		`...RRRRRRRRRRRRRR...`,
+		`....RRRRRRRRRRRR....`,
+		`.....EEEEEEEEEEE....`,
+		`....EKEEEEEKEEEEEK..`,
+		`....EKEEEEEKEEEEEK..`,
+		`....EEEEBBBBBBBBEE..`,
+		`....EEEEBBBBBBBBEE..`,
+		`....RRRRRRRRRRRRRR..`,
+		`....RRRRRRRRRRRRRR..`,
+		`...RRRRYRRRRRRRRRRR.`,
+		`...RRRRYRRRRRRRRRRR.`,
+		`...RRRRRRRRRRRRRRRR.`,
+		`...RRRRRRRRRRRRRRRR.`,
+		`...RRRRRRRRRRRRRRRR.`,
+		`...RRRRRRRRRRRRRRRR.`,
+		`....BBBBBBBBBBBBBB..`,
+		`....BBBBBBBBBBBBBB..`,
+		`....BBBB......BBBB.`,
+		`....BBB........BBB.`,
+		`....BBB........BBB.`,
 	},
 
-	// Goomba: brown dome, two angry white-and-black eyes, lighter belly,
-	// two feet.
+	// Mario WALKING (frame 2): legs swapped, arm forward — a stride pose.
+	"mario_walk": {
+		`......RRRRRRRR......`,
+		`....RRRRRRRRRRRR....`,
+		`...RRRRRRRRRRRRRR...`,
+		`...RRRRRRRRRRRRRR...`,
+		`...RRRRRRRRRRRRRR...`,
+		`....RRRRRRRRRRRR....`,
+		`.....EEEEEEEEEEE....`,
+		`....EKEEEEEKEEEEEK..`,
+		`....EKEEEEEKEEEEEK..`,
+		`....EEEEBBBBBBBBEE..`,
+		`....EEEEBBBBBBBBEE..`,
+		`...RRRRRRRRRRRRRR...`,
+		`..RRRRRRRRRRRRRRRR..`,
+		`.RRRRRYRRRRRRRRRRRRR`,
+		`.RRRRRYRRRRRRRRRRRRR`,
+		`..RRRRRRRRRRRRRRRR..`,
+		`...RRRRRRRRRRRRRR...`,
+		`...RRRRRRRRRRRRRR...`,
+		`...RRRRRRRRRRRRRR...`,
+		`...BBBBBBBBBBBBBB...`,
+		`..BBBBBBBBBBBBBBBB..`,
+		`..BBB.........BBB...`,
+		`..BBB.........BB....`,
+		`..BBB..........B....`,
+	},
+
+	// Mario JUMPING: legs tucked under, arms out — a leap pose.
+	"mario_jump": {
+		`......RRRRRRRR......`,
+		`....RRRRRRRRRRRR....`,
+		`...RRRRRRRRRRRRRR...`,
+		`...RRRRRRRRRRRRRR...`,
+		`...RRRRRRRRRRRRRR...`,
+		`....RRRRRRRRRRRR....`,
+		`.....EEEEEEEEEEE....`,
+		`....EKEEEEEKEEEEEK..`,
+		`....EKEEEEEKEEEEEK..`,
+		`....EEEEBBBBBBBBEE..`,
+		`....EEEEBBBBBBBBEE..`,
+		`.RRRRRRRRRRRRRRRRRR.`,
+		`RRRRRRRRRRRRRRRRRRRR`,
+		`RRRYRRRRRRRRRRRRRYRR`,
+		`RRRRRRRRRRRRRRRRRRRR`,
+		`.RRRRRRRRRRRRRRRRRR.`,
+		`..RRRRRRRRRRRRRRRR..`,
+		`...RRRRRRRRRRRRRR...`,
+		`....BBBBBBBBBBBB...`,
+		`.....BBBBBBBBBB....`,
+		`.....BBB....BBB....`,
+		`......BB....BB.....`,
+		`......BB....BB.....`,
+		`......B......B.....`,
+	},
+
+	// Goomba STANDING: angry brown dome with eyes + feet.
 	"goomba": {
 		`........................`,
-		`...ZZZZZZZZZZZZZZZ...`,
-		`..ZZZZZZZZZZZZZZZZZZ.`,
-		`.ZZLZZZZZZZZZZZZZZLZZ.`,
-		`.ZZLZZZZZZZZZZZZZZLZZ.`,
+		`....ZZZZZZZZZZZZZZ....`,
+		`...ZZZZZZZZZZZZZZZZ...`,
+		`..ZZZLZZZZZZZZZZLZZZ..`,
+		`..ZZZLZZZZZZZZZZLZZZ..`,
 		`.ZZWWKKWWWWWWWWKKWWZZ.`,
 		`.ZZWKKWWWWWWWWWWKKWZZ.`,
 		`.ZZWWKKWWWWWWWWKKWWZZ.`,
+		`.ZZLZZLZZZZZZZZLZZLZZ.`,
 		`ZZLZZLZZZZZZZZZZLZZLZ`,
 		`ZZLZZLZZZZZZZZZZLZZLZ`,
 		`ZZLZZLZZZZZZZZZZLZZLZ`,
@@ -105,15 +162,42 @@ var sprites = map[string]sprite{
 		`.ZZLZZZZZZZZZZZZZZLZZ.`,
 		`.ZLZZZZZZZZZZZZZZZLZZ.`,
 		`..ZZZZZZZZZZZZZZZZZZ.`,
-		`...ZZZZZZZZZZZZZZZZ.`,
-		`...ZZ...ZZ...ZZ...ZZ.`,
-		`...BB...BB...BB...BB.`,
-		`..BBBB.BBBB.BBBB.BBB.`,
-		`..BBBB.BBBB.BBBB.BBB.`,
-		`..BBBB.BBBB.BBBB.BBB.`,
-		`..BBB....BBBB....BB.`,
-		`..BB......BB......BB.`,
-		`..BB.......B......BB.`,
+		`...ZZZZZZZZZZZZZZZZ..`,
+		`....ZZ...ZZ...ZZ...Z.`,
+		`....BB...BB...BB...B.`,
+		`...BBBB.BBBB.BBBB.BB.`,
+		`...BBBB.BBBB.BBBB.BB.`,
+		`...BBBB.BBBB.BBBB.BB.`,
+		`...BBB....BBBB....B..`,
+		`...BB......BB......B.`,
+	},
+
+	// Goomba WALKING (frame 2): feet shifted one pixel — alternating stride.
+	"goomba_walk": {
+		`........................`,
+		`....ZZZZZZZZZZZZZZ....`,
+		`...ZZZZZZZZZZZZZZZZ...`,
+		`..ZZZLZZZZZZZZZZLZZZ..`,
+		`..ZZZLZZZZZZZZZZLZZZ..`,
+		`.ZZWWKKWWWWWWWWKKWWZZ.`,
+		`.ZZWKKWWWWWWWWWWKKWZZ.`,
+		`.ZZWWKKWWWWWWWWKKWWZZ.`,
+		`.ZZLZZLZZZZZZZZLZZLZZ.`,
+		`ZZLZZLZZZZZZZZZZLZZLZ`,
+		`ZZLZZLZZZZZZZZZZLZZLZ`,
+		`ZZLZZLZZZZZZZZZZLZZLZ`,
+		`ZZLZZZZZZZZZZZZZZLZZL`,
+		`.ZZLZZZZZZZZZZZZZZLZZ.`,
+		`.ZLZZZZZZZZZZZZZZZLZZ.`,
+		`..ZZZZZZZZZZZZZZZZZZ.`,
+		`...ZZZZZZZZZZZZZZZZ..`,
+		`...ZZ....ZZ....ZZ....`,
+		`...BB....BB....BB....`,
+		`..BBB....BBB....BB...`,
+		`..BBBB..BBBB..BBBB...`,
+		`..BBBB..BBBB..BBBB...`,
+		`..BBB....BBB....BB...`,
+		`..BB......BB......B..`,
 	},
 
 	// Coin: gold disc with a darker inner ring.
@@ -175,28 +259,28 @@ var sprites = map[string]sprite{
 	// Ground: brown block with darker topsoil line and texture.
 	"ground": {
 		`TTTTTTTTTTTTTTTTTTTTTTTT`,
-		`TYYYYYYYYYYYYYYYYYYYYYYT`,
-		`TYYYYY.YYYYYYYYYYYYYYYT`,
-		`TY.YYYY.YY.YYYYY.YYYY.T`,
-		`TYYYY.YY.YY.YYYYY.YY.YT`,
-		`TY.YYY.YYYYY.YYYY.YYY.T`,
-		`TYYYYYYYYYYYYYYYYYYYYYT`,
-		`TYYYYYYYYYYYYYYYYYYYYYT`,
-		`TY.YY.YYYYYYYYYY.YY.YYT`,
-		`TYYYYYYYYYYYYYYYYYYYYYT`,
-		`TYYYY.YYYYYYYYYY.YYYYT`,
-		`TY.YYYYYYYYYYYYYYY.YY.T`,
-		`TYYYYYYYYYYYYYYYYYYYYYT`,
-		`TYYYYY.YYYYYYYYYYYYYYYT`,
-		`TY.YYYYYYYYYYYYYYYYYY.T`,
-		`TYYYYYYYYYYYYYYYYYYYYYT`,
-		`TYYYY.YYYYY.YY.YYY.YY.T`,
-		`TYYYYYYYYYYYYYYYYYYYYYT`,
-		`TY.YY.YYYYYYYYYYY.YY.T`,
-		`TYYYYYYYYYYYYYYYYYYYYYT`,
-		`TYYYYYY.YYYYYYYYYY.YYT`,
-		`TYYYYYYYYYYYYYYYYYYYYYT`,
-		`TYYYYYYYYYYYYYYYYYYYYYT`,
+		`TVVVVVVVVVVTg`,
+		`TVYYYYYYYYYYYYYYYYYVT`,
+		`TVYYYYYYYYYYYYYYYYYVT`,
+		`TVYY.YYYYYYYYYYYYYYVT`,
+		`TVYYYYYYYYYYYYYYYYYVT`,
+		`TVYYYYYYYYYYYYYYYYYVT`,
+		`TVYYYYYYYYYYYYYYYYYVT`,
+		`TVYYYYYYYYYYYYYYYYYVT`,
+		`TVYYYYYYYYYYYYYYYYYVT`,
+		`TVYYYYYYYYYYYYYYYYYVT`,
+		`TVYYYYYYYYYYYYYYYYYVT`,
+		`TVYYYYYYYYYYYYYYYYYVT`,
+		`TVYYYYYYYYYYYYYYYYYVT`,
+		`TVYYYYYYYYYYYYYYYYYVT`,
+		`TVYYYYYYYYYYYYYYYYYVT`,
+		`TVYYYYYYYYYYYYYYYYYVT`,
+		`TVYYYYYYYYYYYYYYYYYVT`,
+		`TVYYYYYYYYYYYYYYYYYVT`,
+		`TVYYYYYYYYYYYYYYYYYVT`,
+		`TVYYYYYYYYYYYYYYYYYVT`,
+		`TVYYYYYYYYYYYYYYYYYVT`,
+		`TVYYYYYYYYYYYYYYYYYVT`,
 		`TTTTTTTTTTTTTTTTTTTTTTTT`,
 	},
 
@@ -216,8 +300,8 @@ var sprites = map[string]sprite{
 		`....PFFFFFDDDFFFFFFFF.`,
 		`....PFFFFFDDDFFFFFFFF.`,
 		`....PFFFFFDDDFFFFFFFF.`,
-		`....PFFFFFFFFFFFDDDFFF.`,
-		`....PFFFFFFFFFFFFFDDDF`,
+		`....PFFFFFFFFFFFFFFDD.`,
+		`....PFFFFFFFFFFFFFFFDD`,
 		`....PFFFFFFFFFFFFFDDD.`,
 		`....PFFFFFFFFFFFFFDD..`,
 		`....PFFFFFFFFFFFFFF...`,
@@ -235,7 +319,6 @@ func main() {
 		log.Fatal(err)
 	}
 	for name, px := range sprites {
-		// Validate every row is exactly `size` chars (or shorter — padded).
 		for i, row := range px {
 			if len(row) > size {
 				log.Fatalf("%s: row %d has %d cols, want <= %d", name, i, len(row), size)

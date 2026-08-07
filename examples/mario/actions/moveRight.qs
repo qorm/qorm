@@ -1,13 +1,7 @@
-# moveRight.qs — the action body; the shared core lives in lib.qs.
-# One cell right when the target cell is open (walls/bricks block), then
-# resolve whatever Mario walks into.
+# moveRight.qs — keydown handler for the right arrow / D key. Mirrors
+# moveLeft.qs; the physics step is the single source of truth for velocity.
 
 if (state.status == "playing") {
-  let nx = state.mario.x + 1
-  if (!isSolid(nx, state.mario.y)) {
-    state.mario.x = nx
-    collect()
-    touchGoomba()
-    refreshView()
-  }
+  state.keys.right = true
+  state.mario.dir = 1
 }

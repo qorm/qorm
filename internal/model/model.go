@@ -109,6 +109,28 @@ type App struct {
 	// keyboard-driven apps, dispatched by the engine without any focus
 	// requirement). Empty/absent = no key bindings.
 	SceneKeys map[string]map[string]string
+	// SceneKeyReleases is the keyup counterpart of SceneKeys (scene JSON
+	// "keyReleases"): a key-name → action map dispatched when the same key
+	// is RELEASED. Games with "hold to move" controls (platformers,
+	// shoot-em-ups, ...) need both — pressing sets a direction flag the
+	// physics step reads, releasing clears it; without the release path
+	// the app resorts to a one-shot action per press and the motion is
+	// grainy. Empty/absent = no keyup bindings (the original v1 contract;
+	// apps that don't need it pay nothing).
+	SceneKeyReleases map[string]map[string]string
+	// Display is the app's intended window size + chrome hints (qorm.json
+	// "display": { "width", "height", "resizable", "title", "minWidth",
+	// "minHeight" }). Side-scroller games, dashboards, and any app whose
+	// layout is NOT fluid need a fixed window — without it, the host
+	// browser / OS picks whatever default and the canvas is rendered into
+	// a portrait-shaped viewport, ruining the game's aspect ratio. The
+	// server seeds the runtime's Viewport from this at startup (so the
+	// first render uses the right size before any client reports back) and
+	// the desktop host uses it to set the native window's initial frame.
+	// Empty/absent = fluid default (the runtime's zero-value Viewport
+	// pattern, which evaluates `{{ viewport.width }}` as 0 until the
+	// client reports its real size).
+	Display DisplaySpec
 	// SceneSwipes maps a scene id to its swipe bindings (scene JSON "swipes":
 	// a direction → action map, directions "left"/"right"/"up"/"down") — the
 	// TOUCH counterpart of SceneKeys: the engine's swipe recognizer dispatches
@@ -586,6 +608,21 @@ type Window struct {
 	Transparent   bool // transparent background → custom-shape windows
 	HideLog       bool // don't spawn the Activity-log window (HUDs default to this)
 	HideTray      bool // don't show the menu-bar tray icon
+}
+
+// DisplaySpec is the app's intended window geometry + chrome hints, parsed
+// from qorm.json "display": { "width", "height", "resizable", "title",
+// "minWidth", "minHeight" }. Side-scrollers and dashboards whose layout is
+// NOT fluid declare a fixed window so the host doesn't render into a
+// portrait viewport that ruins the aspect ratio. The server seeds the
+// runtime's Viewport from this at startup and the desktop host uses it to
+// size the native window. Zero-value = fluid default.
+type DisplaySpec struct {
+	Width, Height int
+	Title         string
+	Resizable     bool
+	MinWidth      int
+	MinHeight     int
 }
 
 // Node is a single UI element in a scene tree.

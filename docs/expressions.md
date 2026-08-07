@@ -118,6 +118,10 @@ The index may be any expression. Rules worth knowing:
 | `pop(list)` · `shift(list)` | a NEW list without the last / first element (read it with `last()` / `first()` first) |
 | `reverse(list)` · `sort(list)` | a NEW list reversed / sorted — numbers ascending, then strings lexically, then booleans, `null` last; stable within each class |
 | `indexOf(list, v)` · `includes(list, v)` | first index of `v` or `-1` / whether `v` is an element |
+| `range(start, end, step)` | list of numbers from `start` (inclusive) to `end` (exclusive), by `step` (default 1); capped at 2^20 elements |
+| `fill(n, v)` | `n` copies of `v` in a new list (board / state initialisation) |
+| `concat(a, b, …)` | lists joined in order; a bare value is treated as a one-element list |
+| `flatten(list)` | one level deep — inline `[1,[2,[3]]]` → `[1,2,[3]]` |
 
 `map`, `filter` and the two-argument `count` take a **sub-expression written
 as a string**, with the element bound to `it`:
@@ -172,7 +176,38 @@ assign the result back when you want to keep it:
 | `min(a, b, …)` · `max(a, b, …)` | over the arguments |
 | `not(x)` · `empty(x)` | logical negation of truthiness |
 | `default(x, fallback)` (alias `coalesce`) | `x` when truthy, otherwise `fallback` |
+| `sin(x)` · `cos(x)` · `tan(x)` | trig (radians) — curved motion / aimed shots in games |
+| `atan2(y, x)` | angle in (-π, π] from positive x-axis to (x, y) — aim towards a target |
+| `sqrt(x)` | square root |
 | `now()` | Unix time in milliseconds (the one non-deterministic builtin) |
+
+### Type checks
+
+| Call | Result |
+|---|---|
+| `typeof(x)` | `"string"` / `"number"` / `"boolean"` / `"object"` / `"array"` / `"null"` |
+| `isString(x)` · `isNumber(x)` · `isBool(x)` · `isObject(x)` · `isArray(x)` · `isNull(x)` | boolean tests |
+
+### JSON
+
+| Call | Result |
+|---|---|
+| `jsonEncode(v)` (alias `JSON.stringify`) | JSON string; throws away functions, keeps numbers / strings / booleans / lists / objects / null |
+| `jsonDecode(s)` (alias `JSON.parse`) | parsed value; malformed input and an empty string both give `null` |
+
+### Audio (canvas engine only)
+
+| Call | Result |
+|---|---|
+| `playSound(src)` | one-shot WAV playback — source resolves under the app directory |
+| `playMusic(src)` | loop WAV playback — call `stopMusic()` to stop |
+| `stopMusic()` | halt the current looping track |
+
+### Dispatch
+
+| Call | Result |
+|---|---|
+| `call(name)` | dispatch another script action on the same runtime; subject to the same recursion guard as human / agent dispatches |
 
 An unknown function name evaluates to `null` at runtime — but the loader
 statically checks arity and argument types for the collection and `format`
@@ -246,13 +281,13 @@ copy taken at that moment. `{{ computed.total }}` is that bare spelling of the
 `computed` key, so it behaves exactly like `{{ count }}` does.
 
 ```json
-{ "type": "state.set", "path": "items", "value": "{{ append(state.items, 1) }}" },
+{ "type": "state.set", "path": "items", "value": "{{ push(state.items, 1) }}" },
 { "type": "render" },
 { "type": "state.set", "path": "shown", "value": "{{ state.computed.subtotal }}" }
 ```
 
 Reading `{{ computed.subtotal }}` on that last line would show the subtotal from
-before the append. **Use the `state.`-rooted spelling in an action that renders
+before the push. **Use the `state.`-rooted spelling in an action that renders
 mid-flight**; the bare one is fine (and shorter) in a straight-line action, and
 in scene bindings both are always current.
 

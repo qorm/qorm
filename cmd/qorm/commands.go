@@ -248,6 +248,16 @@ func cmdRender(args []string) int {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
+	// Run the entry scene's onEnter (server.New does the same on the live
+	// path) so the first render reflects whatever state-mutating bootstrap
+	// the app ships — a mario game that computes its initial viewTiles /
+	// cameraX / cameraY in restart.qs would otherwise show an empty grid
+	// in the static snapshot.
+	rt.RunPendingEnter()
+	if rt.LastScriptError != "" {
+		fmt.Fprintf(os.Stderr, "error: onEnter script: %s\n", rt.LastScriptError)
+		return 1
+	}
 	res := render.Render(rt)
 	page := server.Page(rt, res.HTML, 0)
 	if out == "" {

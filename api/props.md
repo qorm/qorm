@@ -64,6 +64,7 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `battery` | `label` |
 | `biometric` | `label` |
 | `bluetooth` | `label` |
+| `board` | — |
 | `bottomappbar` | — |
 | `bottomnav` | `items` |
 | `breadcrumb` | `items` · `separator` |

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/qorm/qorm/internal/loader"
+	"github.com/qorm/qorm/internal/model"
 	qrt "github.com/qorm/qorm/internal/runtime"
 )
 
@@ -20,6 +21,12 @@ func responsiveServer(t *testing.T) *Server {
 	if err != nil {
 		t.Fatalf("load responsive example: %v", err)
 	}
+	// The viewport tests are about the "unknown viewport" branch swap
+	// behaviour — the client has not reported its size yet, and the `when`
+	// node falls into the else (narrow) branch. The manifest's window
+	// hint, if any, would seed the runtime Viewport and skip that whole
+	// path; null it out so the test exercises the actual flow.
+	app.Window = model.Window{}
 	return New(qrt.New(app))
 }
 

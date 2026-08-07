@@ -324,4 +324,54 @@ func TestV2TypeAndJSONBuiltins(t *testing.T) {
 	if got := CallBuiltin("flatten", []any{"x"}); got == nil {
 		t.Errorf("flatten(\"x\") = nil, want []any{}")
 	}
+
+	// Trig + sqrt builtins (curved motion / aimed shots in games).
+	if got := CallBuiltin("sin", []any{0.0}); got != 0.0 {
+		t.Errorf("sin(0) = %v, want 0", got)
+	}
+	if got := CallBuiltin("cos", []any{0.0}); got != 1.0 {
+		t.Errorf("cos(0) = %v, want 1", got)
+	}
+	if got := CallBuiltin("atan2", []any{0.0, 1.0}); got != 0.0 {
+		t.Errorf("atan2(0,1) = %v, want 0", got)
+	}
+	if got := CallBuiltin("atan2", []any{1.0, 0.0}); math.Abs(got.(float64)-math.Pi/2) > 1e-9 {
+		t.Errorf("atan2(1,0) = %v, want pi/2", got)
+	}
+	if got := CallBuiltin("sqrt", []any{16.0}); got != 4.0 {
+		t.Errorf("sqrt(16) = %v, want 4", got)
+	}
+	if got := CallBuiltin("tan", []any{0.0}); got != 0.0 {
+		t.Errorf("tan(0) = %v, want 0", got)
+	}
+
+	// Audio builtins: route through the global AudioHandler. With the default
+	// nopAudio installed, all three return nil without panicking.
+	if got := CallBuiltin("playSound", []any{"assets/coin.wav"}); got != nil {
+		t.Errorf("playSound = %v, want nil", got)
+	}
+	if got := CallBuiltin("playMusic", []any{"assets/theme.wav"}); got != nil {
+		t.Errorf("playMusic = %v, want nil", got)
+	}
+	if got := CallBuiltin("stopMusic", nil); got != nil {
+		t.Errorf("stopMusic = %v, want nil", got)
+	}
+	// A test handler that records calls proves the dispatch reaches the sink.
+	var calls []string
+	SetAudioHandler(testAudio{onCall: func(op string) { calls = append(calls, op) }})
+	defer SetAudioHandler(nil)
+	CallBuiltin("playSound", []any{"a.wav"})
+	CallBuiltin("playMusic", []any{"b.wav"})
+	CallBuiltin("stopMusic", nil)
+	if len(calls) != 3 || calls[0] != "once:a.wav" || calls[1] != "loop:b.wav" || calls[2] != "stop" {
+		t.Errorf("audio handler calls = %v, want [once:a.wav loop:b.wav stop]", calls)
+	}
 }
+
+// testAudio is a minimal AudioHandler used to verify the dispatcher routes
+// playSound / playMusic / stopMusic through SetAudioHandler.
+type testAudio struct{ onCall func(string) }
+
+func (a testAudio) PlayOnce(src string) error { a.onCall("once:" + src); return nil }
+func (a testAudio) PlayLoop(src string) error { a.onCall("loop:" + src); return nil }
+func (a testAudio) Stop() error                { a.onCall("stop"); return nil }

@@ -108,7 +108,14 @@ type NodeStyle struct {
 	// instead of flowing it — the coordinate model of an infinite-canvas
 	// board. Out of flow, so it neither consumes flex space nor reflows
 	// siblings.
-	PosX, PosY   int
+	//
+	// Stored as float64 (sub-pixel): a 60fps physics tick (mario) wants
+	// `x: state.mario * 32` to land between two pixels so the sprite moves
+	// smoothly, not in 1-pixel snaps. The renderer rounds to int at the
+	// final draw (measure.go); float here is the contract, int is the
+	// pixel. Old examples that pass integer x/y keep integer values
+	// end-to-end — the change is a strict superset.
+	PosX, PosY   float64
 	HasPos       bool
 	Align        string
 	AlignSelf    string // CSS align-self (style/layout alignSelf) — distinct from Align (align-items)
@@ -160,8 +167,8 @@ func (s *NodeStyle) scaleBy(f int) {
 	s.BoxShadowY *= f
 	s.Width *= f
 	s.Height *= f
-	s.PosX *= f
-	s.PosY *= f
+	s.PosX *= float64(f)
+	s.PosY *= float64(f)
 	s.FontSize *= f
 	s.BorderRadius *= float64(f)
 	s.StrokeWidth *= float64(f)
@@ -662,24 +669,26 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 	}
 
 	// Absolute position: x/y (native) or left/top (HTML alias). Either key
-	// present marks the node positioned; the missing axis reads 0.
+	// present marks the node positioned; the missing axis reads 0. Stored
+	// as float64 (see PosX/PosY doc) so a 60fps physics tick can land
+	// between pixels; the renderer rounds at draw time.
 	for _, key := range []string{"x", "left"} {
 		v := esp(style[key])
 		if f, ok := v.(float64); ok {
-			s.PosX = int(f)
+			s.PosX = f
 			s.HasPos = true
 		} else if i, ok := v.(int); ok {
-			s.PosX = i
+			s.PosX = float64(i)
 			s.HasPos = true
 		}
 	}
 	for _, key := range []string{"y", "top"} {
 		v := esp(style[key])
 		if f, ok := v.(float64); ok {
-			s.PosY = int(f)
+			s.PosY = f
 			s.HasPos = true
 		} else if i, ok := v.(int); ok {
-			s.PosY = i
+			s.PosY = float64(i)
 			s.HasPos = true
 		}
 	}

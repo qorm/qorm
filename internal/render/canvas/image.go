@@ -208,11 +208,16 @@ func imageFit(n *model.Node, rt *runtime.Runtime) string {
 }
 
 // imageSrc evaluates the node's interpolated `src` prop ({{state.x}} etc.
-// resolve, mirroring the HTML path's interp, render_media.go:15).
-func imageSrc(n *model.Node, rt *runtime.Runtime) string {
+// resolve, mirroring the HTML path's interp, render_media.go:15). vars
+// carries the repeat-instance scope (item/index) when the image sits inside
+// a gridview or list renderItem template.
+func imageSrc(n *model.Node, rt *runtime.Runtime, vars map[string]any) string {
 	raw, ok := n.Prop("src")
 	if !ok {
 		return ""
+	}
+	if vars != nil {
+		return strings.TrimSpace(evalPropStrWithVars(raw, rt, vars))
 	}
 	return strings.TrimSpace(evalPropStr(raw, rt))
 }
@@ -222,11 +227,13 @@ func imageSrc(n *model.Node, rt *runtime.Runtime) string {
 // size (× scale, like style dims) is used; explicit style width/height still
 // win — the generic override in measure() applies them on top of this result.
 // Unloaded/failed images report 0×0 so the node collapses like an empty img.
-func MeasureImage(n *model.Node, rt *runtime.Runtime, scale int) (w, h int) {
+// vars carries the repeat-instance scope when the image is inside a list/gridview
+// renderItem (nil outside lists).
+func MeasureImage(n *model.Node, rt *runtime.Runtime, scale int, vars map[string]any) (w, h int) {
 	if scale < 1 {
 		scale = 1
 	}
-	img := loadImage(imageSrc(n, rt), rt)
+	img := loadImage(imageSrc(n, rt, vars), rt)
 	if img == nil {
 		return 0, 0
 	}
@@ -240,11 +247,13 @@ func MeasureImage(n *model.Node, rt *runtime.Runtime, scale int) (w, h int) {
 // node's parsed style and clips the bitmap like a Rect body. A failed or
 // empty src yields the grey placeholder box (failed srcs also warned once at
 // load time); empty src adds nothing but the box, mirroring a broken img.
-func RecordImage(n *model.Node, rt *runtime.Runtime, width, height int, borderRadius float64) graph.Node {
+// vars carries the repeat-instance scope when the image is inside a
+// list/gridview renderItem (nil outside lists).
+func RecordImage(n *model.Node, rt *runtime.Runtime, width, height int, borderRadius float64, vars map[string]any) graph.Node {
 	if width <= 0 || height <= 0 {
 		return nil
 	}
-	src := imageSrc(n, rt)
+	src := imageSrc(n, rt, vars)
 	img := loadImage(src, rt)
 	if img == nil || src == "" {
 		ph := graph.NewRect()

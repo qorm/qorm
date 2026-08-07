@@ -1,6 +1,6 @@
 # User middle layer: adding your own capabilities to an app
 
-QORM ships with about 26 built-in hardware capabilities (camera/recording, location, Bluetooth, NFC, biometrics, vibration/haptics, flashlight, brightness/volume, battery, sensors, network status, clipboard, sharing, notifications, screenshot/screen recording, and more), and app developers can add their own capabilities **without modifying framework source code**. **Go is recommended** -- write it once, run it everywhere. Swift/Java are reserved only for rare pure-native SDKs.
+QORM ships with 43 built-in hardware capabilities (camera/recording, location, Bluetooth, NFC, biometrics, vibration/haptics, flashlight, brightness/volume, battery, sensors, network status, clipboard, sharing, notifications, screenshot/screen recording, and more), and app developers can add their own capabilities **without modifying framework source code**. **Go is recommended** -- write it once, run it everywhere. Swift/Java are reserved only for rare pure-native SDKs.
 
 ## Recommended: Go middle layer (one Go source, usable everywhere)
 

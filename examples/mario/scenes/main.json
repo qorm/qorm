@@ -5,270 +5,416 @@
   "keys": {
     "left": "moveLeft",
     "right": "moveRight",
+    "a": "moveLeft",
+    "d": "moveRight",
     "up": "jump",
+    "w": "jump",
     "space": "jump",
+    "shift": "runOn",
     "r": "restart"
   },
+  "keyReleases": {
+    "left": "stopLeft",
+    "right": "stopRight",
+    "a": "stopLeft",
+    "d": "stopRight",
+    "up": "stopJump",
+    "w": "stopJump",
+    "space": "stopJump",
+    "shift": "runOff"
+  },
   "swipes": {
-    "left": "moveLeft",
-    "right": "moveRight",
     "up": "jump"
   },
   "root": {
-    "type": "column",
+    "type": "row",
     "id": "root",
     "style": {
-      "background": "var(--background)",
-      "padding": 16,
-      "gap": 8
-    },
-    "layout": {
-      "width": "fill",
-      "height": "fill",
-      "align": "center"
+      "width": 1024,
+      "height": 480,
+      "background": "#000000"
     },
     "children": [
       {
-        "type": "timer",
-        "id": "physics",
-        "every": 250,
-        "onTick": "tick",
-        "if": "{{ state.status == 'playing' }}"
-      },
-      {
-        "type": "text",
-        "id": "title",
-        "text": "SUPER QORM BROS",
+        "type": "board",
+        "id": "world",
         "style": {
-          "color": "var(--primary)",
-          "fontSize": 26,
-          "fontWeight": 800,
-          "textAlign": "center"
-        }
-      },
-      {
-        "type": "row",
-        "id": "hud",
-        "style": {
-          "gap": 12
+          "background": "var(--sky)",
+          "width": 512,
+          "height": 480,
+          "overflow": "hidden"
         },
+        "cameraTarget": "{{state.mario}}",
+        "cameraCenter": true,
+        "cameraCell": 32,
+        "cameraViewport": 16,
+        "disablePan": true,
         "children": [
           {
-            "type": "column",
-            "id": "scorebox",
-            "class": "scoreBox",
-            "layout": {
-              "align": "center"
-            },
-            "style": {
-              "padding": 6
-            },
-            "children": [
-              {
-                "type": "text",
-                "text": "SCORE",
-                "class": "statLabel"
-              },
-              {
-                "type": "text",
-                "text": "{{ state.score }}",
-                "class": "statValue"
-              }
-            ]
+            "type": "timer",
+            "id": "physics",
+            "every": 16,
+            "onTick": "tick",
+            "if": "{{ state.status == 'playing' }}"
           },
           {
-            "type": "column",
-            "id": "coinbox",
-            "class": "scoreBox",
-            "layout": {
-              "align": "center"
-            },
+            "type": "image",
+            "id": "mario",
+            "src": "assets/mario.png",
             "style": {
-              "padding": 6
-            },
-            "children": [
-              {
-                "type": "text",
-                "text": "COINS",
-                "class": "statLabel"
-              },
-              {
-                "type": "text",
-                "text": "{{ state.coins }}",
-                "class": "statValue"
-              }
-            ]
-          },
-          {
-            "type": "button",
-            "id": "restartbtn",
-            "label": "Restart",
-            "class": "restartBtn",
-            "onPress": {
-              "name": "restart"
+              "x": "{{state.mario.x - 8}}",
+              "y": "{{state.mario.y - 8}}",
+              "width": 32,
+              "height": 32,
+              "imageRendering": "pixelated"
             }
-          }
-        ]
-      },
-      {
-        "type": "column",
-        "id": "boardframe",
-        "style": {
-          "background": "var(--background)",
-          "borderRadius": 8,
-          "padding": 8
-        },
-        "children": [
+          },
           {
-            "type": "gridview",
-            "id": "boardgrid",
-            "data": "{{ state.view }}",
-            "crossAxisCount": 16,
-            "spacing": 0,
-            "style": {
-              "gap": 0
-            },
+            "type": "list",
+            "id": "goombas",
+            "data": "{{state.goombas}}",
+            "as": "g",
             "renderItem": {
-              "type": "box",
-              "layout": {
-                "align": "center",
-                "justify": "center"
-              },
+              "type": "image",
+              "id": "goomba",
+              "src": "{{'assets/goomba_walk.png' if (g.walkPhase > 0 and g.walkPhase < 8) else 'assets/goomba.png'}}",
+              "if": "{{g.alive}}",
               "style": {
+                "x": "{{g.x - 8}}",
+                "y": "{{g.y - 8}}",
                 "width": 32,
                 "height": 32,
-                "background": "{{ at(state.cellBg, item) }}"
-              },
-              "children": [
-                {
-                  "type": "text",
-                  "if": "{{ item != 0 }}",
-                  "text": "{{ at(state.cellGlyph, item) }}",
-                  "style": {
-                    "fontSize": 20,
-                    "fontWeight": 800,
-                    "color": "{{ at(state.cellFg, item) }}"
-                  }
-                }
-              ]
+                "imageRendering": "pixelated"
+              }
+            }
+          },
+          {
+            "type": "list",
+            "id": "powerups",
+            "data": "{{state.powerups}}",
+            "as": "p",
+            "renderItem": {
+              "type": "image",
+              "id": "powerup",
+              "src": "assets/mushroom.png",
+              "if": "{{p.alive and not p.dead}}",
+              "style": {
+                "x": "{{p.x - 8}}",
+                "y": "{{p.y - 8}}",
+                "width": 32,
+                "height": 32,
+                "imageRendering": "pixelated"
+              }
+            }
+          },
+          {
+            "type": "list",
+            "id": "ground-tiles",
+            "data": "{{state.viewTiles}}",
+            "as": "tile",
+            "renderItem": {
+              "type": "image",
+              "id": "ground-tile",
+              "src": "assets/ground.png",
+              "if": "{{tile.kind == '1'}}",
+              "style": {
+                "x": "{{tile.x}}",
+                "y": "{{tile.y}}",
+                "width": 32,
+                "height": 32,
+                "imageRendering": "pixelated"
+              }
+            }
+          },
+          {
+            "type": "list",
+            "id": "brick-tiles",
+            "data": "{{state.viewTiles}}",
+            "as": "tile",
+            "renderItem": {
+              "type": "image",
+              "id": "brick-tile",
+              "src": "assets/brick.png",
+              "if": "{{tile.kind == '2'}}",
+              "style": {
+                "x": "{{tile.x}}",
+                "y": "{{tile.y}}",
+                "width": 32,
+                "height": 32,
+                "imageRendering": "pixelated"
+              }
+            }
+          },
+          {
+            "type": "list",
+            "id": "coin-tiles",
+            "data": "{{state.viewTiles}}",
+            "as": "tile",
+            "renderItem": {
+              "type": "image",
+              "id": "coin-tile",
+              "src": "assets/coin.png",
+              "if": "{{tile.kind == '3'}}",
+              "style": {
+                "x": "{{tile.x}}",
+                "y": "{{tile.y}}",
+                "width": 32,
+                "height": 32,
+                "imageRendering": "pixelated"
+              }
+            }
+          },
+          {
+            "type": "list",
+            "id": "flag-tiles",
+            "data": "{{state.viewTiles}}",
+            "as": "tile",
+            "renderItem": {
+              "type": "image",
+              "id": "flag-tile",
+              "src": "assets/flag.png",
+              "if": "{{tile.kind == '4'}}",
+              "style": {
+                "x": "{{tile.x}}",
+                "y": "{{tile.y}}",
+                "width": 32,
+                "height": 32,
+                "imageRendering": "pixelated"
+              }
+            }
+          },
+          {
+            "type": "list",
+            "id": "pipe-top-tiles",
+            "data": "{{state.viewTiles}}",
+            "as": "tile",
+            "renderItem": {
+              "type": "image",
+              "id": "pipe-top-tile",
+              "src": "assets/pipe_top.png",
+              "if": "{{tile.kind == '5'}}",
+              "style": {
+                "x": "{{tile.x}}",
+                "y": "{{tile.y}}",
+                "width": 32,
+                "height": 32,
+                "imageRendering": "pixelated"
+              }
+            }
+          },
+          {
+            "type": "list",
+            "id": "pipe-body-tiles",
+            "data": "{{state.viewTiles}}",
+            "as": "tile",
+            "renderItem": {
+              "type": "image",
+              "id": "pipe-body-tile",
+              "src": "assets/pipe_body.png",
+              "if": "{{tile.kind == '6'}}",
+              "style": {
+                "x": "{{tile.x}}",
+                "y": "{{tile.y}}",
+                "width": 32,
+                "height": 32,
+                "imageRendering": "pixelated"
+              }
+            }
+          },
+          {
+            "type": "list",
+            "id": "question-tiles",
+            "data": "{{state.viewTiles}}",
+            "as": "tile",
+            "renderItem": {
+              "type": "image",
+              "id": "question-tile",
+              "src": "assets/question.png",
+              "if": "{{tile.kind == '7' or tile.kind == '8'}}",
+              "style": {
+                "x": "{{tile.x}}",
+                "y": "{{tile.y}}",
+                "width": 32,
+                "height": 32,
+                "imageRendering": "pixelated"
+              }
+            }
+          },
+          {
+            "type": "list",
+            "id": "stair-tiles",
+            "data": "{{state.viewTiles}}",
+            "as": "tile",
+            "renderItem": {
+              "type": "image",
+              "id": "stair-tile",
+              "src": "assets/stair.png",
+              "if": "{{tile.kind == 'b'}}",
+              "style": {
+                "x": "{{tile.x}}",
+                "y": "{{tile.y}}",
+                "width": 32,
+                "height": 32,
+                "imageRendering": "pixelated"
+              }
+            }
+          },
+          {
+            "type": "list",
+            "id": "cloud-tiles",
+            "data": "{{state.viewTiles}}",
+            "as": "tile",
+            "renderItem": {
+              "type": "image",
+              "id": "cloud-tile",
+              "src": "assets/cloud.png",
+              "if": "{{tile.kind == 'd'}}",
+              "style": {
+                "x": "{{tile.x}}",
+                "y": "{{tile.y}}",
+                "width": 32,
+                "height": 32,
+                "imageRendering": "pixelated"
+              }
+            }
+          },
+          {
+            "type": "list",
+            "id": "bush-tiles",
+            "data": "{{state.viewTiles}}",
+            "as": "tile",
+            "renderItem": {
+              "type": "image",
+              "id": "bush-tile",
+              "src": "assets/bush.png",
+              "if": "{{tile.kind == 'e'}}",
+              "style": {
+                "x": "{{tile.x}}",
+                "y": "{{tile.y}}",
+                "width": 32,
+                "height": 32,
+                "imageRendering": "pixelated"
+              }
+            }
+          },
+          {
+            "type": "list",
+            "id": "hill-tiles",
+            "data": "{{state.viewTiles}}",
+            "as": "tile",
+            "renderItem": {
+              "type": "image",
+              "id": "hill-tile",
+              "src": "assets/hill.png",
+              "if": "{{tile.kind == 'h'}}",
+              "style": {
+                "x": "{{tile.x}}",
+                "y": "{{tile.y}}",
+                "width": 32,
+                "height": 32,
+                "imageRendering": "pixelated"
+              }
+            }
+          },
+          {
+            "type": "list",
+            "id": "castle-tiles",
+            "data": "{{state.viewTiles}}",
+            "as": "tile",
+            "renderItem": {
+              "type": "image",
+              "id": "castle-tile",
+              "src": "assets/castle.png",
+              "if": "{{tile.kind == 'c'}}",
+              "style": {
+                "x": "{{tile.x}}",
+                "y": "{{tile.y}}",
+                "width": 32,
+                "height": 32,
+                "imageRendering": "pixelated"
+              }
             }
           }
         ]
       },
       {
-        "type": "column",
-        "layout": {
-          "align": "center"
-        },
-        "if": "{{ state.status == 'won' }}",
-        "class": "overlayPanel",
+        "type": "view",
+        "id": "hud",
         "style": {
-          "padding": {
-            "top": 10,
-            "bottom": 10,
-            "left": 14,
-            "right": 14
-          },
-          "margin": {
-            "top": 90
-          }
+          "width": 512,
+          "height": 480,
+          "background": "#000000",
+          "padding": 32,
+          "color": "#FFFFFF",
+          "fontFamily": "monospace",
+          "fontSize": 28
         },
         "children": [
           {
             "type": "text",
-            "text": "COURSE CLEAR!",
-            "class": "overlayTitle"
+            "id": "hud-title",
+            "text": "MARIO",
+            "style": { "fontSize": 36, "color": "#FFFFFF", "fontWeight": 800, "marginBottom": 32 }
           },
           {
             "type": "text",
-            "text": "R or Restart to play again",
-            "class": "overlayHint"
-          }
-        ]
-      },
-      {
-        "type": "column",
-        "layout": {
-          "align": "center"
-        },
-        "if": "{{ state.status == 'dead' }}",
-        "class": "overlayPanel",
-        "style": {
-          "padding": {
-            "top": 10,
-            "bottom": 10,
-            "left": 14,
-            "right": 14
-          },
-          "margin": {
-            "top": 90
-          }
-        },
-        "children": [
-          {
-            "type": "text",
-            "text": "GAME OVER",
-            "class": "overlayTitle"
+            "id": "hud-score-label",
+            "text": "SCORE",
+            "style": { "fontSize": 18, "color": "#888888", "marginBottom": 4 }
           },
           {
             "type": "text",
-            "text": "R or Restart to try again",
-            "class": "overlayHint"
-          }
-        ]
-      },
-      {
-        "type": "row",
-        "id": "controls",
-        "style": {
-          "gap": 12
-        },
-        "children": [
-          {
-            "type": "button",
-            "id": "btnLeft",
-            "label": "\u2190",
-            "class": "controlBtn",
-            "onPress": {
-              "name": "moveLeft"
-            }
-          },
-          {
-            "type": "button",
-            "id": "btnJump",
-            "label": "JUMP",
-            "class": "controlBtn",
-            "onPress": {
-              "name": "jump"
-            }
-          },
-          {
-            "type": "button",
-            "id": "btnRight",
-            "label": "\u2192",
-            "class": "controlBtn",
-            "onPress": {
-              "name": "moveRight"
-            }
-          }
-        ]
-      },
-      {
-        "type": "column",
-        "id": "help",
-        "style": {
-          "gap": 2
-        },
-        "children": [
-          {
-            "type": "text",
-            "text": "Arrows / swipe: move and jump   Space: jump   Stomp the Goomba",
-            "class": "helpText"
+            "id": "hud-score-value",
+            "text": "{{ state.score }}",
+            "style": { "fontSize": 32, "color": "#FFFFFF", "marginBottom": 24 }
           },
           {
             "type": "text",
-            "text": "Grab the coins, dodge the pits, reach the flag",
-            "class": "helpText"
+            "id": "hud-coin-label",
+            "text": "COINS",
+            "style": { "fontSize": 18, "color": "#888888", "marginBottom": 4 }
+          },
+          {
+            "type": "text",
+            "id": "hud-coin-value",
+            "text": "x{{ state.coins }}",
+            "style": { "fontSize": 32, "color": "#F8B800", "marginBottom": 24 }
+          },
+          {
+            "type": "text",
+            "id": "hud-world-label",
+            "text": "WORLD",
+            "style": { "fontSize": 18, "color": "#888888", "marginBottom": 4 }
+          },
+          {
+            "type": "text",
+            "id": "hud-world-value",
+            "text": "1-1",
+            "style": { "fontSize": 32, "color": "#FFFFFF", "marginBottom": 24 }
+          },
+          {
+            "type": "text",
+            "id": "hud-time-label",
+            "text": "TIME",
+            "style": { "fontSize": 18, "color": "#888888", "marginBottom": 4 }
+          },
+          {
+            "type": "text",
+            "id": "hud-time-value",
+            "text": "{{ floor(state.timeLeft) }}",
+            "style": { "fontSize": 32, "color": "#FFFFFF", "marginBottom": 24 }
+          },
+          {
+            "type": "text",
+            "id": "hud-lives-label",
+            "text": "LIVES",
+            "style": { "fontSize": 18, "color": "#888888", "marginBottom": 4 }
+          },
+          {
+            "type": "text",
+            "id": "hud-lives-value",
+            "text": "x{{ state.lives }}",
+            "style": { "fontSize": 32, "color": "#E40058" }
           }
         ]
       }

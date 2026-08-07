@@ -264,7 +264,7 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 	} else if n.Type == "image" {
 		// Intrinsic size (scaled); an explicit style width/height overrides
 		// via the generic sizing below, and RecordImage gets the resolved box.
-		contentW, contentH = MeasureImage(n, rt, scale)
+		contentW, contentH = MeasureImage(n, rt, scale, evalCtxScope(rt, sc))
 	} else if w, ok := LookupWidget(n.Type); ok {
 		// A registered widget (built-in library or app-defined custom
 		// component): v1 leaf semantics — it measures itself; children flow
@@ -381,6 +381,30 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 
 func evalPropStr(val any, rt *runtime.Runtime) string {
 	return evalPropStrScope(val, rt, nil)
+}
+
+// evalPropStrWithVars evaluates a binding with an explicit vars overlay (the
+// repeat-instance scope: item/index/…). Used by imageSrc when the image sits
+// inside a gridview/list renderItem template.
+func evalPropStrWithVars(val any, rt *runtime.Runtime, vars map[string]any) string {
+	if s, ok := val.(string); ok && rt != nil {
+		ctx := evalCtx(rt)
+		for k, v := range vars {
+			ctx[k] = v
+		}
+		res := runtime.EvalBinding(s, ctx)
+		if res == nil {
+			return ""
+		}
+		if str, ok := res.(string); ok {
+			return str
+		}
+		return fmt.Sprintf("%v", res)
+	}
+	if s, ok := val.(string); ok {
+		return s
+	}
+	return ""
 }
 
 func evalPropStrScope(val any, rt *runtime.Runtime, sc *listScope) string {
@@ -606,6 +630,16 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 		return nil
 	}
 
+	// A board root with a `cameraTarget` prop has its pan rewritten every
+	// frame so the target stays at the configured screen position. Runs at
+	// the top of performLayout so the board content group (line 891) reads
+	// the freshly-set PanX/PanY and not the previous frame's. Side-scroller
+	// games (mario, metroid, sonic) declare this once; the engine does the
+	// per-frame follow so the app's qscript stays focused on game logic.
+	if ln.Node != nil && ln.Node.Type == "board" {
+		applyBoardCamera(ln.Node, rt, inter, bounds.Size(), scale)
+	}
+
 	if ln.Style.WidthRaw == "fill" {
 		ln.Width = bounds.Dx() - ln.Style.MarginLeft - ln.Style.MarginRight
 	}
@@ -766,7 +800,7 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 	} else if ln.Node.Type == "image" {
 		// Images mount their own shape (fit-computed dest rect, clip/opacity
 		// handled by the rasterizer); a broken src records a placeholder box.
-		if im := RecordImage(ln.Node, rt, ln.Width, ln.Height, ln.Style.BorderRadius); im != nil {
+		if im := RecordImage(ln.Node, rt, ln.Width, ln.Height, ln.Style.BorderRadius, ln.EvalVars); im != nil {
 			group.AddChild(im)
 		}
 	} else if w, ok := LookupWidget(ln.Node.Type); ok {
@@ -954,8 +988,19 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 			// consumes flex space nor reflows siblings, and its size is its
 			// own (content measure or explicit width/height). Works inside any
 			// container type, not just a board.
-			cbounds = image.Rect(cx+child.Style.PosX, cy+child.Style.PosY,
-				cx+child.Style.PosX+child.Width, cy+child.Style.PosY+child.Height)
+			//
+			// PosX/PosY are float64 (sub-pixel, see style.go) — a 60fps
+			// physics tick (mario) wants the sprite to land between two
+			// pixels so the motion is smooth, not 1-pixel-snapped. We round
+			// here because the rest of the layout pipeline (image.Rect,
+			// hit testing) is integer — the float survives only as the
+			// pre-round value, the pixel is the integer.
+			cbounds = image.Rect(
+				cx+int(math.Round(child.Style.PosX)),
+				cy+int(math.Round(child.Style.PosY)),
+				cx+int(math.Round(child.Style.PosX))+child.Width,
+				cy+int(math.Round(child.Style.PosY))+child.Height,
+			)
 		} else {
 			switch {
 			case isStack:

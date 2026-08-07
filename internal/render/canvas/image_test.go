@@ -90,7 +90,7 @@ func TestRecordImageEmitsImageOp(t *testing.T) {
 	writeTestPNG(t, dir, "a.png", solidRGBA(4, 4, red))
 	rt := imageTestRuntime(dir)
 
-	node := RecordImage(imageNode(map[string]any{"src": "a.png", "fit": "fill"}), rt, 8, 8, 0)
+	node := RecordImage(imageNode(map[string]any{"src": "a.png", "fit": "fill"}), rt, 8, 8, 0, nil)
 	imgShape, ok := node.(*graph.Image)
 	if !ok {
 		t.Fatalf("RecordImage returned %T, want *graph.Image", node)
@@ -125,7 +125,7 @@ func TestImageRasterizePixels(t *testing.T) {
 	writeTestPNG(t, dir, "a.png", solidRGBA(4, 4, red))
 	rt := imageTestRuntime(dir)
 
-	node := RecordImage(imageNode(map[string]any{"src": "a.png", "fit": "fill"}), rt, 8, 8, 0)
+	node := RecordImage(imageNode(map[string]any{"src": "a.png", "fit": "fill"}), rt, 8, 8, 0, nil)
 	img := renderImageNode(node, 2, 2, image.Pt(12, 12))
 
 	if got := img.RGBAAt(3, 3); got != red {
@@ -149,7 +149,7 @@ func TestImageFitGeometry(t *testing.T) {
 	rt := imageTestRuntime(dir)
 	white := color.RGBA{255, 255, 255, 255}
 
-	fill := RecordImage(imageNode(map[string]any{"src": "a.png", "fit": "fill"}), rt, 8, 8, 0)
+	fill := RecordImage(imageNode(map[string]any{"src": "a.png", "fit": "fill"}), rt, 8, 8, 0, nil)
 	img := renderImageNode(fill, 0, 0, image.Pt(8, 8))
 	if got := img.RGBAAt(4, 0); got != green {
 		t.Fatalf("fill: top row = %v, want %v (stretched)", got, green)
@@ -159,7 +159,7 @@ func TestImageFitGeometry(t *testing.T) {
 	}
 
 	// contain: scale 2 (width limits), dest 8×4 centred → rows 2..5.
-	contain := RecordImage(imageNode(map[string]any{"src": "a.png", "fit": "contain"}), rt, 8, 8, 0)
+	contain := RecordImage(imageNode(map[string]any{"src": "a.png", "fit": "contain"}), rt, 8, 8, 0, nil)
 	img = renderImageNode(contain, 0, 0, image.Pt(8, 8))
 	if got := img.RGBAAt(4, 1); got != white {
 		t.Fatalf("contain: letterbox row 1 = %v, want white", got)
@@ -175,14 +175,14 @@ func TestImageFitGeometry(t *testing.T) {
 	}
 
 	// cover: scale 4 (height limits), dest 16×8 centred → x clipped to 0..7.
-	cover := RecordImage(imageNode(map[string]any{"src": "a.png", "fit": "cover"}), rt, 8, 8, 0)
+	cover := RecordImage(imageNode(map[string]any{"src": "a.png", "fit": "cover"}), rt, 8, 8, 0, nil)
 	img = renderImageNode(cover, 0, 0, image.Pt(8, 8))
 	if got := img.RGBAAt(0, 4); got != green {
 		t.Fatalf("cover: left edge = %v, want %v (overflow clipped)", got, green)
 	}
 
 	// none: intrinsic 4×2 centred → cols 2..5, rows 3..4.
-	none := RecordImage(imageNode(map[string]any{"src": "a.png", "fit": "none"}), rt, 8, 8, 0)
+	none := RecordImage(imageNode(map[string]any{"src": "a.png", "fit": "none"}), rt, 8, 8, 0, nil)
 	img = renderImageNode(none, 0, 0, image.Pt(8, 8))
 	if got := img.RGBAAt(1, 3); got != white {
 		t.Fatalf("none: left of image = %v, want white", got)
@@ -213,7 +213,7 @@ func TestImageMissingFileDegrades(t *testing.T) {
 
 	n := imageNode(map[string]any{"src": "nope.png"})
 	for i := 0; i < 3; i++ {
-		node := RecordImage(n, rt, 8, 8, 0)
+		node := RecordImage(n, rt, 8, 8, 0, nil)
 		if _, ok := node.(*graph.Rect); !ok {
 			t.Fatalf("iteration %d: placeholder = %T, want *graph.Rect", i, node)
 		}
@@ -222,7 +222,7 @@ func TestImageMissingFileDegrades(t *testing.T) {
 		t.Fatalf("warning count = %d, want exactly 1:\n%s", got, warnBuf.String())
 	}
 
-	node := RecordImage(n, rt, 8, 8, 0)
+	node := RecordImage(n, rt, 8, 8, 0, nil)
 	img := renderImageNode(node, 0, 0, image.Pt(10, 10))
 	if got := img.RGBAAt(4, 4); got != imagePlaceholder {
 		t.Fatalf("placeholder pixel = %v, want %v", got, imagePlaceholder)
@@ -246,17 +246,17 @@ func TestImageCacheHit(t *testing.T) {
 	t.Cleanup(func() { imageReadFile = oldRead })
 
 	n := imageNode(map[string]any{"src": "a.png"})
-	RecordImage(n, rt, 4, 4, 0)
-	RecordImage(n, rt, 4, 4, 0)
-	MeasureImage(n, rt, 1)
+	RecordImage(n, rt, 4, 4, 0, nil)
+	RecordImage(n, rt, 4, 4, 0, nil)
+	MeasureImage(n, rt, 1, nil)
 	if got := reads.Load(); got != 1 {
 		t.Fatalf("disk reads = %d, want 1 (second load served from cache)", got)
 	}
 
 	// The negative path caches too: a missing file is not re-read per frame.
 	n = imageNode(map[string]any{"src": "missing.png"})
-	RecordImage(n, rt, 4, 4, 0)
-	RecordImage(n, rt, 4, 4, 0)
+	RecordImage(n, rt, 4, 4, 0, nil)
+	RecordImage(n, rt, 4, 4, 0, nil)
 	if got := reads.Load(); got != 2 {
 		t.Fatalf("disk reads after negative caching = %d, want 2", got)
 	}
@@ -271,15 +271,15 @@ func TestMeasureImage(t *testing.T) {
 	writeTestPNG(t, dir, "a.png", solidRGBA(6, 3, color.RGBA{9, 9, 9, 255}))
 	rt := imageTestRuntime(dir)
 
-	w, h := MeasureImage(imageNode(map[string]any{"src": "a.png"}), rt, 1)
+	w, h := MeasureImage(imageNode(map[string]any{"src": "a.png"}), rt, 1, nil)
 	if w != 6 || h != 3 {
 		t.Fatalf("MeasureImage scale 1 = %dx%d, want 6x3", w, h)
 	}
-	w, h = MeasureImage(imageNode(map[string]any{"src": "a.png"}), rt, 2)
+	w, h = MeasureImage(imageNode(map[string]any{"src": "a.png"}), rt, 2, nil)
 	if w != 12 || h != 6 {
 		t.Fatalf("MeasureImage scale 2 = %dx%d, want 12x6", w, h)
 	}
-	w, h = MeasureImage(imageNode(map[string]any{"src": "missing.png"}), rt, 1)
+	w, h = MeasureImage(imageNode(map[string]any{"src": "missing.png"}), rt, 1, nil)
 	if w != 0 || h != 0 {
 		t.Fatalf("MeasureImage missing = %dx%d, want 0x0", w, h)
 	}
@@ -294,7 +294,7 @@ func TestImageSrcBinding(t *testing.T) {
 	rt := imageTestRuntime(dir)
 	rt.State["pic"] = "bound.png"
 
-	node := RecordImage(imageNode(map[string]any{"src": "{{state.pic}}", "fit": "fill"}), rt, 4, 4, 0)
+	node := RecordImage(imageNode(map[string]any{"src": "{{state.pic}}", "fit": "fill"}), rt, 4, 4, 0, nil)
 	img := renderImageNode(node, 0, 0, image.Pt(4, 4))
 	if got := img.RGBAAt(2, 2); got != blue {
 		t.Fatalf("bound src pixel = %v, want %v", got, blue)
@@ -327,7 +327,7 @@ func TestImageRespectsClip(t *testing.T) {
 	}
 
 	// The image node's own borderRadius (style borderRadius) clips too.
-	node := RecordImage(imageNode(map[string]any{"src": "a.png", "fit": "fill"}), rt, 16, 16, 8)
+	node := RecordImage(imageNode(map[string]any{"src": "a.png", "fit": "fill"}), rt, 16, 16, 8, nil)
 	img = renderImageNode(node, 0, 0, image.Pt(16, 16))
 	if got := img.RGBAAt(0, 0); got != white {
 		t.Fatalf("borderRadius corner = %v, want white", got)
@@ -345,7 +345,7 @@ func TestImageRespectsOpacity(t *testing.T) {
 	writeTestPNG(t, dir, "a.png", solidRGBA(4, 4, color.RGBA{0, 0, 0, 255}))
 	rt := imageTestRuntime(dir)
 
-	node := RecordImage(imageNode(map[string]any{"src": "a.png", "fit": "fill"}), rt, 4, 4, 0)
+	node := RecordImage(imageNode(map[string]any{"src": "a.png", "fit": "fill"}), rt, 4, 4, 0, nil)
 	ops := &op.Ops{}
 	ctx := graph.NewContext(ops)
 	root := graph.NewGroup()
@@ -375,7 +375,7 @@ func TestImageUnsupportedDegrades(t *testing.T) {
 	t.Cleanup(func() { imageWarnOut = oldOut })
 
 	n := imageNode(map[string]any{"src": "a.png", "fit": "scale-down"})
-	node := RecordImage(n, rt, 8, 8, 0)
+	node := RecordImage(n, rt, 8, 8, 0, nil)
 	shape, ok := node.(*graph.Image)
 	if !ok {
 		t.Fatalf("unsupported fit: got %T, want *graph.Image", node)
@@ -383,17 +383,17 @@ func TestImageUnsupportedDegrades(t *testing.T) {
 	if shape.Fit != "cover" {
 		t.Fatalf("unsupported fit normalised to %q, want cover", shape.Fit)
 	}
-	RecordImage(n, rt, 8, 8, 0) // second frame: no repeat warning
+	RecordImage(n, rt, 8, 8, 0, nil) // second frame: no repeat warning
 	if got := bytes.Count(warnBuf.Bytes(), []byte("scale-down")); got != 1 {
 		t.Fatalf("fit warning count = %d, want 1:\n%s", got, warnBuf.String())
 	}
 
 	n = imageNode(map[string]any{"src": "https://example.com/x.png"})
-	node = RecordImage(n, rt, 8, 8, 0)
+	node = RecordImage(n, rt, 8, 8, 0, nil)
 	if _, ok := node.(*graph.Rect); !ok {
 		t.Fatalf("remote src: got %T, want placeholder *graph.Rect", node)
 	}
-	RecordImage(n, rt, 8, 8, 0)
+	RecordImage(n, rt, 8, 8, 0, nil)
 	if got := bytes.Count(warnBuf.Bytes(), []byte("https://example.com")); got != 1 {
 		t.Fatalf("remote warning count = %d, want 1:\n%s", got, warnBuf.String())
 	}
@@ -415,7 +415,7 @@ func TestImageJPEGDecodes(t *testing.T) {
 	}
 
 	rt := imageTestRuntime(dir)
-	node := RecordImage(imageNode(map[string]any{"src": "a.jpg", "fit": "fill"}), rt, 4, 4, 0)
+	node := RecordImage(imageNode(map[string]any{"src": "a.jpg", "fit": "fill"}), rt, 4, 4, 0, nil)
 	if _, ok := node.(*graph.Image); !ok {
 		t.Fatalf("JPEG src: got %T, want *graph.Image (decode failed?)", node)
 	}
@@ -435,8 +435,8 @@ func TestImageCacheConcurrent(t *testing.T) {
 			defer func() { done <- struct{}{} }()
 			n := imageNode(map[string]any{"src": "a.png"})
 			for i := 0; i < 50; i++ {
-				RecordImage(n, rt, 4, 4, 0)
-				MeasureImage(n, rt, 1)
+				RecordImage(n, rt, 4, 4, 0, nil)
+				MeasureImage(n, rt, 1, nil)
 			}
 		}()
 	}
@@ -468,7 +468,7 @@ func TestImageDecodesGif(t *testing.T) {
 	rt := imageTestRuntime(dir)
 
 	n := imageNode(map[string]any{"src": "red.gif"})
-	got := RecordImage(n, rt, 8, 8, 0)
+	got := RecordImage(n, rt, 8, 8, 0, nil)
 	img8, ok := got.(*graph.Image)
 	if !ok {
 		t.Fatalf("RecordImage type = %T, want *graph.Image", got)
@@ -497,6 +497,32 @@ func TestImageDecodesGif(t *testing.T) {
 
 	// The path is the resolved abs path the loader used.
 	_ = gifPath
+}
+
+// Image src binding resolves {{item}} from the repeat-instance scope, the
+// same path a gridview renderItem's <image> uses (mario sprites, etc.).
+func TestImageSrcBindingWithItemScope(t *testing.T) {
+	resetImageCache(t)
+	dir := t.TempDir()
+	green := color.RGBA{10, 200, 30, 255}
+	writeTestPNG(t, dir, "sprite.png", solidRGBA(4, 4, green))
+	rt := imageTestRuntime(dir)
+
+	// Simulate a gridview renderItem with item=2 → cellImage[2]="sprite.png"
+	cellImage := []any{"sky.png", "ground.png", "sprite.png", "coin.png"}
+	vars := map[string]any{
+		"item":       2,
+		"cellImage":  cellImage,
+	}
+	src := "sprite.png" // fallback: at(state.cellImage, item) should resolve to this
+
+	// Direct eval with vars: at(cellImage, item) → "sprite.png"
+	n := imageNode(map[string]any{"src": "{{ at(cellImage, item) }}", "fit": "fill"})
+	node := RecordImage(n, rt, 4, 4, 0, vars)
+	img := renderImageNode(node, 0, 0, image.Pt(4, 4))
+	if got := img.RGBAAt(2, 2); got != green {
+		t.Fatalf("item-scoped src pixel = %v, want %v (src=%s)", got, green, src)
+	}
 }
 
 // writeTestGif encodes a GIF in-memory and writes it to dir/name; returns

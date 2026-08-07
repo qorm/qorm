@@ -104,6 +104,10 @@
 | `pop(list)` · `shift(list)` | 返回**新列表**,去掉末/首元素(先用 `last()` / `first()` 读出) |
 | `reverse(list)` · `sort(list)` | 返回**新列表**,倒序/排序——数值升序在前,其次字符串按字典序,再是布尔,`null` 最后;同类内稳定 |
 | `indexOf(list, v)` · `includes(list, v)` | `v` 的首个下标,没有则 `-1` / `v` 是否在列表内 |
+| `range(start, end, step)` | 从 `start` (含)到 `end` (不含)的数字列表,步长为 `step` (默认 1);上限 2\^20 |
+| `fill(n, v)` | `n` 个 `v` 的新列表 (游戏棋盘 / 状态初始化) |
+| `concat(a, b, …)` | 按顺序拼接多个列表;非列表值视为单元素列表 |
+| `flatten(list)` | 扁平化一层 — `[1,[2,[3]]]` → `[1,2,[3]]` |
 
 `map`、`filter` 与双参数的 `count` 接受一个**写成字符串的子表达式**,元素绑定在 `it` 上:
 
@@ -155,7 +159,38 @@
 | `min(a, b, …)` · `max(a, b, …)` | 在参数间取最小/最大 |
 | `not(x)` · `empty(x)` | 对真值判定取反 |
 | `default(x, fallback)`(别名 `coalesce`) | `x` 为真时取 `x`,否则取 `fallback` |
+| `sin(x)` · `cos(x)` · `tan(x)` | 三角函数(弧度) — 用于游戏中曲线运动 / 瞄准弹道 |
+| `atan2(y, x)` | 从正 x 轴到点 (x, y) 的弧度角,范围 (-π, π] — 朝向目标瞄准 |
+| `sqrt(x)` | 平方根 |
 | `now()` | Unix 毫秒时间戳(唯一的非确定性内建) |
+
+### 类型检查
+
+| 调用 | 结果 |
+|---|---|
+| `typeof(x)` | `"string"` / `"number"` / `"boolean"` / `"object"` / `"array"` / `"null"` |
+| `isString(x)` · `isNumber(x)` · `isBool(x)` · `isObject(x)` · `isArray(x)` · `isNull(x)` | 布尔判断 |
+
+### JSON
+
+| 调用 | 结果 |
+|---|---|
+| `jsonEncode(v)` (别名 `JSON.stringify`) | JSON 字符串 |
+| `jsonDecode(s)` (别名 `JSON.parse`) | 解析后的值;格式错误或空字符串均返回 `null` |
+
+### 音频 (仅 canvas 引擎)
+
+| 调用 | 结果 |
+|---|---|
+| `playSound(src)` | 播放一次 WAV — 路径相对于应用目录 |
+| `playMusic(src)` | 循环播放 WAV — 调用 `stopMusic()` 停止 |
+| `stopMusic()` | 停止当前循环播放 |
+
+### 脚本分发
+
+| 调用 | 结果 |
+|---|---|
+| `call(name)` | 在当前 runtime 上调用另一个脚本 — 遵循同样的递归保护 |
 
 未知函数名在运行时求值为 `null`——但加载器会对集合类与 `format` 调用做静态的元数与
 参数类型检查,所以 `qorm run` 会在你看到空白屏幕之前就报出错误。
@@ -219,7 +254,7 @@
 `{{ count }}` 完全一致。
 
 ```json
-{ "type": "state.set", "path": "items", "value": "{{ append(state.items, 1) }}" },
+{ "type": "state.set", "path": "items", "value": "{{ push(state.items, 1) }}" },
 { "type": "render" },
 { "type": "state.set", "path": "shown", "value": "{{ state.computed.subtotal }}" }
 ```

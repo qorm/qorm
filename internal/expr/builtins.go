@@ -13,6 +13,44 @@ import (
 	"unicode/utf8"
 )
 
+// AudioHandler is the global hook the runtime installs so qscript's
+// playSound / playMusic builtins can route to the platform audio sink
+// without the expr package importing the runtime (which would cycle).
+type AudioHandler interface {
+	PlayOnce(src string) error
+	PlayLoop(src string) error
+	Stop() error
+}
+
+var (
+	audioMu  sync.RWMutex
+	audioH   AudioHandler = nopAudio{}
+)
+
+// SetAudioHandler installs the audio backend (typically the runtime). Pass
+// nil to restore the silent default.
+func SetAudioHandler(h AudioHandler) {
+	audioMu.Lock()
+	defer audioMu.Unlock()
+	if h == nil {
+		audioH = nopAudio{}
+		return
+	}
+	audioH = h
+}
+
+func activeAudio() AudioHandler {
+	audioMu.RLock()
+	defer audioMu.RUnlock()
+	return audioH
+}
+
+type nopAudio struct{}
+
+func (nopAudio) PlayOnce(string) error { return nil }
+func (nopAudio) PlayLoop(string) error { return nil }
+func (nopAudio) Stop() error           { return nil }
+
 // callBuiltin dispatches a function call. Unknown functions and out-of-range
 // arguments yield nil/zero values rather than errors, so bindings never panic.
 // env carries the guard-rail counters for builtins that evaluate string
@@ -147,6 +185,18 @@ func callBuiltin(name string, a []any, env *evalEnv) any {
 		return math.Floor(num(arg(0)))
 	case "ceil":
 		return math.Ceil(num(arg(0)))
+	case "sin":
+		return math.Sin(num(arg(0)))
+	case "cos":
+		return math.Cos(num(arg(0)))
+	case "tan":
+		return math.Tan(num(arg(0)))
+	case "atan2":
+		// atan2(y, x): angle in radians from the positive x-axis to (x,y),
+		// in (-pi, pi]. Used for aimed shots / curved motion in games.
+		return math.Atan2(num(arg(0)), num(arg(1)))
+	case "sqrt":
+		return math.Sqrt(num(arg(0)))
 	case "min":
 		return reduceNums(a, math.Min)
 	case "max":
@@ -513,6 +563,18 @@ func callBuiltin(name string, a []any, env *evalEnv) any {
 		// Goes through expr (not qscript) so bindings see the same value as
 		// scripts — a {{ now() }} in a binding resolves to the same number.
 		return float64(time.Now().UnixMilli())
+	case "playSound":
+		// playSound(src): play a one-shot WAV. The runtime's audio handler
+		// resolves src under the app's BaseDir (same jail as images).
+		_ = activeAudio().PlayOnce(Stringify(arg(0)))
+		return nil
+	case "playMusic":
+		// playMusic(src): loop a WAV until stopMusic() runs.
+		_ = activeAudio().PlayLoop(Stringify(arg(0)))
+		return nil
+	case "stopMusic":
+		_ = activeAudio().Stop()
+		return nil
 	}
 	return nil
 }

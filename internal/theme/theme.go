@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image/color"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/qorm/qorm/internal/anim"
@@ -107,6 +108,115 @@ type ComponentStyles struct {
 	PressedBackgroundColor string   `json:"pressedBackgroundColor,omitempty"`
 	HoveredBackgroundColor string   `json:"hoveredBackgroundColor,omitempty"`
 	PressedOpacity         *float64 `json:"pressedOpacity,omitempty"`
+}
+
+// IsBuiltinTheme reports whether a theme name has a built-in CSS palette
+// shipped in render.ThemeCSS (apple, dark, material, win11-light, win11-dark,
+// and the "auto" alias). Custom themes loaded from themes/<name>.json return
+// false here so the host knows it must inject the skin's colors itself.
+func IsBuiltinTheme(name string) bool {
+	switch name {
+	case "", "auto", "apple", "apple-light", "apple-dark",
+		"material", "win11-light", "win11-dark", "dark":
+		return true
+	}
+	return false
+}
+
+// CSSClassRules renders a custom theme (loaded from themes/<name>.json, not
+// matching any built-in) as a CSS rule that sets every color in the skin as a
+// --<name> custom property on the stage. The HTML renderer stamps this block
+// in addition to render.ThemeCSS so a scene's `background: var(--sky)` (etc.)
+// resolves to the skin's actual color, not the empty string.
+//
+// Returns "" for a nil theme or one whose name is built-in (those palettes are
+// already covered by render.ThemeCSS), so callers can always concatenate the
+// result without conditional logic.
+func (t *Theme) CSSClassRules() string {
+	if t == nil || t.Name == "" || IsBuiltinTheme(t.Name) || len(t.Colors) == 0 {
+		return ""
+	}
+	// Class names allow [a-z0-9-]; refuse anything else to keep the rule
+	// well-formed even when the manifest author chose an exotic theme id.
+	className := t.Name
+	for _, r := range className {
+		if !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-') {
+			return ""
+		}
+	}
+	// Sort keys for a byte-stable page — the theme block shows up in the
+	// /events broadcast's rev==0 frame, byte stability is what lets a small
+	// page diff actually mean "nothing changed".
+	keys := make([]string, 0, len(t.Colors))
+	for k := range t.Colors {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var sb strings.Builder
+	sb.WriteString(".qorm-theme-")
+	sb.WriteString(className)
+	sb.WriteString("{")
+	for _, k := range keys {
+		v := strings.TrimSpace(t.Colors[k])
+		if v == "" {
+			continue
+		}
+		// Allow only safe CSS values: hex, rgb(), rgba(), hsl(), and named
+		// colors via the color: and color value lexer. Anything else
+		// (selectors, semicolons, braces) would be a class-out.
+		if !isSafeCSSColor(v) {
+			continue
+		}
+		sb.WriteString("--")
+		sb.WriteString(k)
+		sb.WriteString(":")
+		sb.WriteString(v)
+		sb.WriteString(";")
+	}
+	sb.WriteString("}")
+	return sb.String()
+}
+
+// isSafeCSSColor accepts the subset of CSS color values a theme author is
+// likely to type: #RGB / #RRGGBB / #RRGGBBAA, rgb()/rgba()/hsl()/hsla() with
+// number or percentage args, or a short list of named colors. Anything more
+// exotic (gradients, currentColor) belongs on a node, not in a theme palette.
+func isSafeCSSColor(s string) bool {
+	if s == "" {
+		return false
+	}
+	// hex
+	if s[0] == '#' {
+		hex := s[1:]
+		switch len(hex) {
+		case 3, 4, 6, 8:
+			for _, r := range hex {
+				if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F')) {
+					return false
+				}
+			}
+			return true
+		}
+		return false
+	}
+	// functions rgb / rgba / hsl / hsla
+	if s[0] == 'r' || s[0] == 'h' {
+		open := strings.IndexByte(s, '(')
+		if open <= 0 || s[len(s)-1] != ')' {
+			return false
+		}
+		head := s[:open]
+		switch head {
+		case "rgb", "rgba", "hsl", "hsla":
+			return true
+		}
+	}
+	// a tiny named-color allowlist
+	switch strings.ToLower(s) {
+	case "transparent", "currentcolor", "inherit", "initial", "unset", "none":
+		return true
+	}
+	return false
 }
 
 // LoadTheme loads a JSON theme file and parses its colors

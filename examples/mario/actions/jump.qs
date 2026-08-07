@@ -1,8 +1,13 @@
-# jump.qs — the action body; the shared core lives in lib.qs.
-# Mario leaves the ground with a rise budget of 3 cells; gravity() spends it
-# one cell per tick before he starts to fall. Only a grounded Mario can jump.
+# jump.qs — the jump KEYDOWN handler. The jump KEYUP handler
+# (stopJump.qs) just clears the hold flag — the physics step uses the
+# flag to apply reduced gravity while the button is held, the classic
+# "variable jump height" trick (a tap gives a short hop, a hold gives a
+# full jump).
 
-if (state.status == "playing" && state.mario.onGround) {
-  state.mario.rise = 3
+if (state.status == "playing" && state.mario.onGround && state.mario.alive) {
+  state.mario.vy = -480
   state.mario.onGround = false
+  state.keys.jump = true
+  state.keys.jumpHold = true
+  playSound("audio/jump.wav")
 }

@@ -145,7 +145,7 @@ function qormTimersSync(){
     var id=el.getAttribute('data-qorm-timer'); if(!id) return;
     var every=parseInt(el.getAttribute('data-every'),10)||0;
     var after=parseInt(el.getAttribute('data-after'),10)||0;
-    if(every>0&&every<250) every=250; // defense in depth with the renderer's clamp
+    if(every>0&&every<16) every=16; // defense in depth with the renderer's clamp; 60fps floor
     seen[id]=1;
     var t=window.__qormTimers[id];
     if(t&&t.every===every&&t.after===after) return; // unchanged — never double-schedule
@@ -1566,5 +1566,72 @@ function qormSwipeActions(el){
       fetch('/navigate',{method:'POST',headers:{'Content-Type':'application/json','X-Qorm-Token':__tok},
         body:JSON.stringify({scene:scene,params:params})}).catch(function(){});
     }catch(e){}
+  });
+})();
+
+// ---- Scene-level key bindings (scene JSON `keys` / `keyReleases`) -------------
+// The canvas engine has a built-in HandleKey that consults rt.KeyAction /
+// KeyReleaseAction and dispatches without a focused widget; the HTML path had
+// no equivalent, so a `keys:{"left":"moveLeft"}` declaration was invisible in
+// the browser. server.go Page() emits window.__qormKeys and __qormKeyReleases
+// (the declarative control scheme for the current scene) plus
+// __qormKeyToIdx (action name → handler index in the latest render). This
+// listener normalises DOM KeyboardEvent.key/e.code into the same lowercase
+// names the runtime uses ("left", "right", "up", "down", "a", "space", …)
+// and dispatches via the standard qorm(idx) path — the same wire format a
+// button click uses, so the server's revision / handler-table bookkeeping
+// stays in one place.
+(function(){
+  function normKey(e){
+    var k = e.key;
+    if (k === ' ') return 'space';
+    if (k === 'Escape') return 'escape';
+    if (k === 'Tab') return 'tab';
+    if (k === 'Enter') return 'return';
+    if (k === 'Backspace') return 'backspace';
+    if (k === 'Shift') return 'shift';
+    if (k === 'Control') return 'control';
+    if (k === 'Alt') return 'alt';
+    if (k === 'Meta') return 'meta';
+    if (k === 'ArrowLeft') return 'left';
+    if (k === 'ArrowRight') return 'right';
+    if (k === 'ArrowUp') return 'up';
+    if (k === 'ArrowDown') return 'down';
+    if (k && k.length === 1) return k.toLowerCase();
+    return (k || '').toLowerCase();
+  }
+  function isTypingTarget(t){
+    if (!t) return false;
+    var tag = t.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    if (t.isContentEditable) return true;
+    return false;
+  }
+  function dispatchAction(name){
+    // Scene-level key bindings live outside the rendered handler table
+    // (no element invokes them) — server.go /event accepts an `action`
+    // name to dispatch by name in that case. The same fetch+revision
+    // flow as a button click; just an alternative addressing mode.
+    fetch('/event', {method:'POST', headers:{'Content-Type':'application/json', 'X-Qorm-Token': __tok},
+      body: JSON.stringify({action: name, rev: __rev, inputs: {}})})
+      .then(function(r){ var rv=parseInt(r.headers.get('X-Qorm-Rev'))||0; var nav=r.headers.get('X-Qorm-Nav')||''; qormTheme(r.headers.get('X-Qorm-Theme')); return r.text().then(function(html){ return {rv:rv,html:html,nav:nav}; }); })
+      .then(function(o){ if(o.rv && o.rv<=__rev) return; if(o.rv) __rev=o.rv; window.__qormNav=o.nav; qormMorphInto(document.getElementById('qorm-root'), o.html); });
+  }
+  document.addEventListener('keydown', function(e){
+    if (e.repeat) return;                          // ignore key-held autorepeat; the action's "key is held" semantic is its own concern
+    if (isTypingTarget(e.target)) return;          // let focused inputs / text fields have their keys
+    if (!window.__qormKeys) return;
+    var name = window.__qormKeys[normKey(e)];
+    if (!name) return;
+    dispatchAction(name);
+    e.preventDefault();
+  });
+  document.addEventListener('keyup', function(e){
+    if (isTypingTarget(e.target)) return;
+    if (!window.__qormKeyReleases) return;
+    var name = window.__qormKeyReleases[normKey(e)];
+    if (!name) return;
+    dispatchAction(name);
+    e.preventDefault();
   });
 })();

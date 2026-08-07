@@ -31,8 +31,29 @@ type Result struct {
 	Unknown []string
 }
 
+// RenderOpts carries engine-side state (camera, board pan/zoom, …) into
+// the HTML renderer. The runtime itself is engine-free; the canvas
+// engine owns its BoardState / Interaction on a different struct, and
+// the server forwards the slice the HTML path needs at render time. An
+// empty Board means "no board active" — children of a `type:"board"`
+// root just render at their world coordinates, which is what a board
+// without camera follow expects.
+type RenderOpts struct {
+	Board BoardRender
+}
+
+// BoardRender is the slice of canvas BoardState the HTML renderer
+// reads (currently just pan + zoom). It mirrors the relevant fields of
+// canvas.BoardState so the render package can stay decoupled from the
+// canvas engine (the engine imports render, never the other way).
+type BoardRender struct {
+	PanX, PanY float64
+	Zoom       float64
+}
+
 type renderer struct {
 	rt           *runtime.Runtime
+	opts         RenderOpts
 	handlers     []Handler
 	scope        map[string]any
 	rootID       string // entry-scene root id (gets direction:rtl when RTL)
@@ -64,6 +85,61 @@ func (r *renderer) container(n *model.Node) {
 		r.node(c)
 	}
 	r.sb.WriteString(`</div>`)
+}
+
+// board renders an infinite-canvas board root: the children's coordinates
+// are in WORLD space (a side-scroller game's 64x12 level), but the
+// viewport only shows a window-sized slice. The canvas engine folds the
+// pan/zoom into the board's content-group transform; the HTML path has
+// no such group, so this renderer wraps the children in a positioned
+// div whose transform mirrors that matrix. Without this, the level
+// tiles would render at their raw world coordinates (offscreen, far
+// from the viewport) and the user would see only the sky background.
+//
+// Pan / zoom come from the canvas-side BoardState, NOT from the app
+// state — the engine keeps these on its Interaction sidecar (a single
+// float per axis; mirrors the canvas-mode r.Inter.Board fields). The
+// server pushes them into the renderer via the RenderOpts.Board field
+// (see render.go) so the runtime, which is engine-free, never grows a
+// dependency on canvas.
+func (r *renderer) board(n *model.Node) {
+	bg := r.containerCSS(n)
+	a := a11y(n)
+	if n.ID == r.rootID && !strings.Contains(a, "role=") {
+		a += ` role="main"`
+	}
+	// Outer div: the board itself, fixed to the manifest-declared size
+	// (or the viewport if the app didn't pin one). background, border
+	// radius, padding — all from the node's style. overflow:hidden
+	// crops the world to the viewport slice.
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q;overflow:hidden;position:relative%s%s%s>`, attrID(n.ID), bg, a, r.pressAttr(n), dragAttr(n))
+	// Inner div: the content group, translated by the live PanX / PanY
+	// and scaled by the live Zoom. The canvas engine owns these values;
+	// the renderer just paints what the engine told it.
+	px, py, zoom := r.opts.Board.PanX, r.opts.Board.PanY, r.opts.Board.Zoom
+	// Fallback for the web (no-engine) path: many apps — and every
+	// example with a board root before the canvas engine integration
+	// — don't go through RenderWithOpts, so opts.Board is zero. The
+	// app's own qscript has typically been writing cameraX / cameraY
+	// to state as part of its physics step; reading those makes the
+	// board transform work without the engine, and falls back to 0/0/1
+	// when neither source has a value.
+	if px == 0 && py == 0 {
+		if v, ok := r.rt.State["cameraX"]; ok {
+			px = asFloat(v)
+		}
+		if v, ok := r.rt.State["cameraY"]; ok {
+			py = asFloat(v)
+		}
+	}
+	if zoom == 0 {
+		zoom = 1
+	}
+	fmt.Fprintf(&r.sb, `<div style="position:absolute;left:0;top:0;width:1px;height:1px;transform-origin:0 0;transform:translate(%.4fpx,%.4fpx) scale(%.4f);">`, px, py, zoom)
+	for _, c := range n.Children {
+		r.node(c)
+	}
+	r.sb.WriteString(`</div></div>`)
 }
 
 func (r *renderer) text(n *model.Node) {

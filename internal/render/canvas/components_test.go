@@ -157,7 +157,7 @@ func TestComponentTemplateWithImageRenders(t *testing.T) {
 	// through the loader and produce a non-nil bitmap graph node. We
 	// don't assert specific pixel values — the loader pipeline (path
 	// resolve, decode, cache) is what we want to keep working.
-	rec := RecordImage(ln.Children[0].Node, rt, 24, 24, 0)
+	rec := RecordImage(ln.Children[0].Node, rt, 24, 24, 0, nil)
 	if rec == nil {
 		t.Fatal("RecordImage returned nil for component-instantiated image")
 	}

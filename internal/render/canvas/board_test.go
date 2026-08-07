@@ -249,3 +249,116 @@ func TestBoardZoomClamped(t *testing.T) {
 		t.Errorf("zoom = %v, want clamped %v", z, minBoardZoom)
 	}
 }
+
+// A board root with `cameraTarget` / `cameraCenter` / `cameraCell` rewrites
+// PanX/PanY every layout pass so the target lands at the configured spot.
+// Side-scroller games (mario / metroid / sonic) use this to make the
+// engine own the camera follow instead of having qscript fight PanX.
+//
+// cameraTarget is in PHYSICAL pixels (same as the rest of the app) — the
+// cameraCell/cameraViewport pair is multiplied together to derive the
+// center offset, so a `cameraViewport: 16` + `cameraCell: 32` reads as
+// "center the target inside a 512-px window". This test runs at 512x384
+// (16 cells × 32 px wide), so target x=128 lands at screen center.
+func TestBoardCameraFollow(t *testing.T) {
+	root := &model.Node{Type: "board", ID: "board",
+		Style: map[string]any{"background": "#000000"},
+		Props: map[string]any{
+			"cameraTarget": "{{state.player}}",
+			"cameraCenter": true,
+			"cameraCell":   32.0,
+		},
+	}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}}
+	rt := runtime.New(app)
+	rt.Theme = theme.GetDefault()
+	rt.State["player"] = map[string]any{"x": 128.0, "y": 192.0} // 4 cells across, 6 cells down
+	surf := NewHeadlessSurface(image.Pt(512, 384)) // 16x12 cells @ 32px
+	e := NewEngine(rt, SoftwareRenderer{})
+	e.DrawFrame(surf)
+	if !e.Inter.Board.Active {
+		t.Fatal("board must be active")
+	}
+	// Centered: pan = -target + (cameraViewport * cameraCell) / 2
+	// = -128 + (16*32)/2 = -128 + 256 = 128
+	if got, want := e.Inter.Board.PanX, 128.0; got != want {
+		t.Errorf("PanX = %v, want %v (cameraCenter=true, cell=32, target x=128)", got, want)
+	}
+	// PanY = -192 + (12*32)/2 = -192 + 192 = 0 (target is mid-screen vertically)
+	if got, want := e.Inter.Board.PanY, 0.0; got != want {
+		t.Errorf("PanY = %v, want %v", got, want)
+	}
+	// Move the player: re-render and the camera follows.
+	rt.State["player"] = map[string]any{"x": 320.0, "y": 192.0} // 10 cells across
+	e.MarkDirty()
+	e.DrawFrame(surf)
+	if got, want := e.Inter.Board.PanX, -64.0; got != want {
+		t.Errorf("after move PanX = %v, want %v (cameraCenter, cell=32, target x=320)", got, want)
+	}
+}
+
+// A board with `disablePan: true` ignores blank-space pointer drags — a
+// follow-cam game has no pan affordance for the user, and a stray drag
+// would fight the camera. The whiteboard example leaves the prop off.
+func TestBoardDisablePanSuppressesBlankDrag(t *testing.T) {
+	root := &model.Node{Type: "board", ID: "board",
+		Style: map[string]any{"background": "#EEEEEE"},
+		Props: map[string]any{"disablePan": true},
+	}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}}
+	rt := runtime.New(app)
+	rt.Theme = theme.GetDefault()
+	surf := NewHeadlessSurface(image.Pt(400, 400))
+	e := NewEngine(rt, SoftwareRenderer{})
+	e.DrawFrame(surf)
+	if !e.Inter.Board.PanDisabled {
+		t.Fatal("disablePan=true must set Board.PanDisabled")
+	}
+	e.HandlePointer(PointerInput{Type: PointerPress, X: 200, Y: 200, Buttons: 1})
+	if e.Inter.Board.Panning {
+		t.Error("blank-space press on a disablePan board must NOT start a pan")
+	}
+}
+
+// A board child with a fractional style x/y lands between pixels: the
+// sub-pixel contract is a 60fps game authoring `x: state.player * 32` and
+// expecting the sprite to drift smoothly, not snap to integer cells. The
+// renderer rounds at draw (measure.go), so the final bbox is int but the
+// pre-round value is float — here we exercise the parser keeps the float
+// through the layout pass.
+func TestBoardChildSubPixelPosition(t *testing.T) {
+	root := &model.Node{Type: "board", ID: "board",
+		Style: map[string]any{"background": "#000000"},
+		Children: []*model.Node{
+			{Type: "box", ID: "n1", Style: map[string]any{
+				"x": 100.5, "y": 50.25, "width": 60, "height": 40, "background": "#FF0000",
+			}},
+		},
+	}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}}
+	rt := runtime.New(app)
+	rt.Theme = theme.GetDefault()
+	surf := NewHeadlessSurface(image.Pt(400, 400))
+	e := NewEngine(rt, SoftwareRenderer{})
+	e.DrawFrame(surf)
+	// The style parser must keep the fractional part on PosX/PosY; rounding
+	// happens at the layout step. We re-parse the child to assert the float
+	// survived the pass — a regression to int(100.5) would break physics.
+	ps := parseStyle(root.Children[0], rt)
+	if ps.PosX != 100.5 {
+		t.Errorf("PosX = %v, want 100.5 (sub-pixel must survive parse)", ps.PosX)
+	}
+	if ps.PosY != 50.25 {
+		t.Errorf("PosY = %v, want 50.25", ps.PosY)
+	}
+	// And the rendered bbox snaps to the nearest pixel.
+	gn := e.findGroupByModel(root.Children[0])
+	if gn == nil {
+		t.Fatal("note group missing")
+	}
+	bb := gn.GetBBox()
+	// math.Round: 100.5 -> 101 (half away from zero), 50.25 -> 50.
+	if int(bb.MinX) != 101 || int(bb.MinY) != 50 {
+		t.Errorf("rendered bbox = (%v,%v), want (101,50) — round of 100.5/50.25", bb.MinX, bb.MinY)
+	}
+}
