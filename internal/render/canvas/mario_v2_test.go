@@ -19,8 +19,15 @@ package canvas
 // from the retired mario_script_test.go to the v2 physics model.
 //
 // All tests use a headless engine + custom surface; the 16-ms physics
-// timer is forced by rewriting its nextFire into the past each call, so
-// no test waits on wall-clock time.
+// timer is forced by rewriting its nextFire into the past each call.
+//
+// WALL-CLOCK NOTE: physicsStep derives dt from the wall clock
+// (`(now() - lastTickMs) / 1000`), so one forced tick simulates exactly
+// as much time as the tick loop's wall time — ~1ms on a fast machine,
+// ~15-20ms on a busy -race CI runner. Tests below therefore drive
+// movement by world position (stop when mario.x crosses a threshold),
+// NOT by tick count; a fixed tick count would walk mario 16x further on
+// CI and reach the goombas at x=560, failing "status = dead".
 
 import (
 	"image"
@@ -95,6 +102,19 @@ func marioV2Release(e *Engine, key string) {
 	e.HandleKey(KeyInput{Key: key, Down: false})
 }
 
+// marioV2X / marioV2Y / marioV2OnGround read live mario state between
+// ticks so the position-driven loops below can stop on world state instead
+// of a wall-clock-dependent tick count (see the WALL-CLOCK NOTE above).
+func marioV2X(rt *runtime.Runtime) float64 {
+	return rt.State["mario"].(map[string]any)["x"].(float64)
+}
+func marioV2Y(rt *runtime.Runtime) float64 {
+	return rt.State["mario"].(map[string]any)["y"].(float64)
+}
+func marioV2OnGround(rt *runtime.Runtime) bool {
+	return rt.State["mario"].(map[string]any)["onGround"].(bool)
+}
+
 // FirstFrame: the scene's onEnter (restart) runs once at load. Mario sits
 // at the start cell, status is playing, the camera is at the start.
 func TestMarioV2FirstFrame(t *testing.T) {
@@ -135,7 +155,12 @@ func TestMarioV2FirstFrame(t *testing.T) {
 func TestMarioV2WalkAndCoin(t *testing.T) {
 	e, surf, rt := marioV2Fixture(t)
 	marioV2Press(e, "right")
-	for i := 0; i < 400; i++ {
+	// Stop by world position, not tick count: a fixed 400-tick walk
+	// simulates ~0.4s on a fast machine but ~7s on a slow -race CI runner
+	// — far enough to reach the goomba at x=560 and die. Walking until
+	// mario crosses x=100 caps the simulated run at ~1s everywhere; the
+	// tick cap only guards against broken horizontal motion.
+	for i := 0; i < 4000 && marioV2X(rt) <= 100; i++ {
 		marioV2Tick(e, surf, 1)
 	}
 	marioV2Release(e, "right")
@@ -185,9 +210,19 @@ func TestMarioV2JumpArc(t *testing.T) {
 	e.DrawFrame(surf)
 	startY := rt.State["mario"].(map[string]any)["y"].(float64)
 	marioV2Press(e, "space")
-	marioV2Tick(e, surf, 800) // ~800ms of jump hold
+	// Same wall-clock reasoning as WalkAndCoin: hold until mario is
+	// clearly airborne (y dropped 40px) instead of a fixed tick count, so
+	// a slow -race CI runner can't hold the jump long enough to fly off
+	// the top of the level and never fall back down.
+	for i := 0; i < 4000 && marioV2Y(rt) > startY-40; i++ {
+		marioV2Tick(e, surf, 1)
+	}
 	marioV2Release(e, "space")
-	marioV2Tick(e, surf, 2000) // ~2s of fall (more than enough to land)
+	// Fall until the ground resolves onGround; release first so full
+	// gravity applies and mario lands at the same y he took off from.
+	for i := 0; i < 4000 && !marioV2OnGround(rt); i++ {
+		marioV2Tick(e, surf, 1)
+	}
 	m := rt.State["mario"].(map[string]any)
 	endY := m["y"].(float64)
 	if endY != startY {
