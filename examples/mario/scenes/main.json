@@ -47,6 +47,7 @@
         "cameraCenter": true,
         "cameraCell": 32,
         "cameraViewport": 16,
+        "cameraDeadZone": 10,
         "disablePan": true,
         "children": [
           {

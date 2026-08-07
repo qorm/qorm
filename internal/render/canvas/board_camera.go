@@ -104,9 +104,43 @@ func applyBoardCamera(n *model.Node, rt *runtime.Runtime, inter *Interaction, sc
 			center = b
 		}
 	}
+	// cameraDeadZone (logical viewport units) lets the camera IGNORE target
+	// movement inside a centered dead band, the way a side-scroller holds
+	// its camera at the start of the level until the player walks past the
+	// screen midpoint, then keeps them roughly in the same on-screen column
+	// as the level scrolls. NES Mario's "mario at the left third of the
+	// screen" feel is the canonical example: a 0 dead-zone centres the
+	// target; a value of e.g. 8 (in cameraViewport units) reserves 8 cells
+	// in the middle of the viewport as a "no scroll" band and only the
+	// outer thirds trigger follow. The prop accepts a float (it shares
+	// cameraViewport's px-in / px-out contract).
+	dz := 0.0
+	if raw, ok := n.Prop("cameraDeadZone"); ok {
+		if v, ok := toFloatAny(raw); ok && v > 0 {
+			dz = v
+		}
+	}
 	if center {
-		inter.Board.PanX = -cx + viewW/2
-		inter.Board.PanY = -cy + viewH/2
+		desiredX := -cx + viewW/2
+		desiredY := -cy + viewH/2
+		if dz > 0 {
+			// Convert the dead zone to PanX units (pan-inverse of target
+			// motion: target moving right by dx shifts the desired pan by
+			// -dx; we want the camera NOT to shift when the target moves
+			// inside the central band). The current pan is the previous
+			// frame's resolved value, snapshotted before this assignment.
+			curX := inter.Board.PanX
+			half := dz / 2
+			// pan window where the camera is parked: curX - half .. curX + half
+			lo, hi := curX-half, curX+half
+			if desiredX < lo {
+				desiredX = lo
+			} else if desiredX > hi {
+				desiredX = hi
+			}
+		}
+		inter.Board.PanX = desiredX
+		inter.Board.PanY = desiredY
 	} else {
 		inter.Board.PanX = -cx
 		inter.Board.PanY = -cy

@@ -45,6 +45,7 @@ func wasmReadFile(path string) ([]byte, error) {
 	xhr.Set("responseType", "arraybuffer")
 	xhr.Call("send", nil)
 	status := xhr.Get("status").Int()
+	fmt.Printf("[wasm read] %s → HTTP %d\n", path, status)
 	if status != 200 {
 		return nil, fmt.Errorf("HTTP %d fetching %s", status, path)
 	}
