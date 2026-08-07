@@ -10,6 +10,7 @@ import (
 
 	"github.com/qorm/qorm/internal/playcore"
 	"github.com/qorm/qorm/internal/render/canvas"
+	"github.com/qorm/qorm/internal/theme"
 )
 
 var (
@@ -154,6 +155,25 @@ func qormCanvasInitFromBundle(_ js.Value, args []js.Value) any {
 	// Wire the BaseDir so resolveImageSrc knows where images live.
 	if res.RT.App != nil && baseURL != "" {
 		res.RT.App.BaseDir = baseURL
+	}
+	// In WASM there is no filesystem — theme files in the doc list must be
+	// applied here because the canvas engine's resolveTheme will fail
+	// trying to os.ReadFile("themes/raiden.json").
+	for _, d := range docs {
+		if t, _ := d["type"].(string); t == "theme" {
+			themeName, _ := d["name"].(string)
+			th := &theme.Theme{Name: themeName}
+			if colors, ok := d["colors"].(map[string]any); ok {
+				th.Colors = make(map[string]string, len(colors))
+				for k, v := range colors {
+					if s, ok := v.(string); ok {
+						th.Colors[k] = s
+					}
+				}
+			}
+			res.RT.Theme = th
+			break
+		}
 	}
 	adopt(res.RT)
 	handlers = res.Handlers
