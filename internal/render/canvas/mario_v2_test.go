@@ -144,6 +144,25 @@ func TestMarioV2FirstFrame(t *testing.T) {
 	_ = surf
 }
 
+// CameraFollow: hold right until mario passes the dead zone (192px).
+// The camera should pan left so mario stays on screen — without pan,
+// mario would walk off the right edge of the 512px viewport.
+func TestMarioV2CameraFollow(t *testing.T) {
+	e, surf, rt := marioV2Fixture(t)
+	marioV2Press(e, "right")
+	// Walk until mario crosses x=256 (well past the 192px dead zone).
+	for i := 0; i < 4000 && marioV2X(rt) <= 256; i++ {
+		marioV2Tick(e, surf, 1)
+	}
+	marioV2Release(e, "right")
+	px := e.Inter.Board.PanX
+	if px >= 0 {
+		t.Errorf("camera PanX = %.0f after mario walked to x=%.0f — camera did not follow (expected negative pan from dead zone at 192px)",
+			px, marioV2X(rt))
+	}
+	t.Logf("mario at x=%.0f, camera PanX=%.0f", marioV2X(rt), px)
+}
+
 // WalkAndCoin: hold right long enough for mavis to walk across the
 // starting area. The floating coin row at row 1 (x=10..14) is too high
 // for a walking mavis to reach (small mavis's jump arc tops out around
