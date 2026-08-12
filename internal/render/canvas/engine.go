@@ -491,6 +491,14 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 		}
 	}
 
+	// An in-flight touch-drag scroll owns the stream (same priority band as
+	// board pan): finger deltas move the content with rubber-band overscroll.
+	if e.Inter.ScrollDrag.Pending || e.Inter.ScrollDrag.Active {
+		if e.handleScrollDrag(p) {
+			return true
+		}
+	}
+
 	// An in-flight board pan owns the stream: the canvas follows the pointer
 	// before any widget sees the move, so dragging across a note doesn't fight
 	// the pan. Ends on release — or on a button-less move, which means the drag
@@ -645,6 +653,29 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 		e.syncEditSession()
 		e.dirty.Store(true)
 		return true
+	}
+
+	// Arm touch-drag scroll when a press lands on a scroll viewport and no
+	// InteractiveWidget claimed it above. Pending until past scrollDragSlop
+	// so short taps still fire onPress / swipe. Short content still arms so
+	// pull-to-refresh rubber-band works on Y.
+	if p.Type == PointerPress {
+		if _, m := scrollAncestor(hit); m != nil {
+			if e.Inter.ScrollMomentum != nil {
+				if mom, ok := e.Inter.ScrollMomentum[m]; ok {
+					mom.Active, mom.Spring = false, false
+					mom.VX, mom.VY = 0, 0
+					e.Inter.ScrollMomentum[m] = mom
+				}
+			}
+			e.Inter.ScrollDrag = ScrollDragState{
+				Pending: true,
+				Node:    m,
+				LastX:   p.X, LastY: p.Y,
+				StartX: p.X, StartY: p.Y,
+				MomLast: time.Now(),
+			}
+		}
 	}
 
 	redraw := false

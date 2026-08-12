@@ -31,10 +31,11 @@ import (
 //     (HandleScroll) and on layout (scrollOffsetPos — a data shrink repairs a
 //     held offset).
 //
-// Wheel/trackpad scrolling with momentum inertia; scrollbar thumbs on each
-// overflowing axis. Touch-drag scrolling on the viewport itself is not yet
-// implemented (the pointer stream is claimed by the content's interactive
-// children — the HTML path's overflow-scroll touch model).
+// Wheel/trackpad scrolling with momentum inertia; touch-drag scrolling with
+// rubber-band overscroll and spring settle; scrollbar thumbs on each
+// overflowing axis. InteractiveWidget children still claim their own press
+// stream (buttons/sliders); non-interactive content under a scroll viewport
+// arms ScrollDrag (engine.go).
 
 // isScrollType reports the viewport container spellings (the HTML names).
 func isScrollType(t string) bool { return t == "scroll" || t == "scrollview" }
@@ -143,11 +144,17 @@ func addScrollbars(ln *LayoutNode, group *graph.Group, pos ScrollPos, scale int)
 // to [0, contentSize-viewportSize]. The clamp doubles as a repair: when the
 // content shrank under a held offset (items removed, window grown), the
 // cross-frame state is pulled back into range here.
+//
+// Soft exceptions: an active finger drag or an overscroll spring on this
+// viewport keeps the raw offset so rubber-band paint can show past the edge.
 func scrollOffsetPos(ln *LayoutNode, inter *Interaction) ScrollPos {
 	if inter == nil {
 		return ScrollPos{}
 	}
 	pos := inter.ScrollOffsets[ln.Node]
+	if scrollAllowsOverscroll(inter, ln.Node) {
+		return pos
+	}
 	maxX := float64(ln.ContentW - ln.Width)
 	maxY := float64(ln.ContentH - ln.Height)
 	if maxX < 0 {
@@ -173,6 +180,130 @@ func scrollOffsetPos(ln *LayoutNode, inter *Interaction) ScrollPos {
 		inter.ScrollOffsets[ln.Node] = clamped
 	}
 	return clamped
+}
+
+// scrollAllowsOverscroll reports whether this viewport may paint past its
+// hard clamp (active drag or spring settle).
+func scrollAllowsOverscroll(inter *Interaction, n *model.Node) bool {
+	if inter == nil || n == nil {
+		return false
+	}
+	if inter.ScrollDrag.Active && inter.ScrollDrag.Node == n {
+		return true
+	}
+	if mom, ok := inter.ScrollMomentum[n]; ok && mom.Spring {
+		return true
+	}
+	return false
+}
+
+// scrollAncestor returns the innermost scroll viewport group under hit
+// (or hit itself), plus its model node.
+func scrollAncestor(hit graph.Node) (*graph.Group, *model.Node) {
+	for n := hit; n != nil; {
+		if g, ok := n.(*graph.Group); ok {
+			if m := g.Base().Model; m != nil && isScrollType(m.Type) {
+				return g, m
+			}
+		}
+		p := n.Base().Parent
+		if p == nil {
+			break
+		}
+		n = p
+	}
+	return nil, nil
+}
+
+// scrollRange returns the max content offset (0 when content fits).
+func scrollRange(vp *graph.Group) (maxX, maxY float64) {
+	content := scrollContentOf(vp)
+	if content == nil {
+		return 0, 0
+	}
+	maxX = content.Base().Width - vp.Base().Width
+	maxY = content.Base().Height - vp.Base().Height
+	if maxX < 0 {
+		maxX = 0
+	}
+	if maxY < 0 {
+		maxY = 0
+	}
+	return maxX, maxY
+}
+
+// scrollCanDrag reports whether the viewport has overflow on either axis.
+func scrollCanDrag(vp *graph.Group) bool {
+	maxX, maxY := scrollRange(vp)
+	return maxX > 0 || maxY > 0
+}
+
+// rubberDelta damps a scroll delta when the offset is already past the hard
+// edge (or about to cross it). dim is the viewport size on that axis.
+func rubberDelta(offset, max, dim, delta float64) float64 {
+	if dim < 1 {
+		dim = 1
+	}
+	// Inside the hard range: full delta until the step would leave it.
+	next := offset + delta
+	if next >= 0 && next <= max {
+		return delta
+	}
+	// Crossing or already outside: depth-based resistance.
+	over := 0.0
+	if next < 0 {
+		if offset > 0 {
+			// Consume the in-range portion fully, rubber the rest.
+			inRange := -offset
+			if delta >= inRange {
+				return inRange + (delta-inRange)*overscrollRubber
+			}
+		}
+		over = math.Abs(math.Min(offset, 0))
+	} else if next > max {
+		if offset < max {
+			inRange := max - offset
+			if delta <= inRange {
+				return delta
+			}
+			return inRange + (delta-inRange)*overscrollRubber
+		}
+		over = offset - max
+		if over < 0 {
+			over = 0
+		}
+	}
+	return delta * overscrollRubber / (1 + over/(dim*0.55))
+}
+
+// scrollViewportRubber is scrollViewport with soft overscroll (rubber-band).
+// Used by touch-drag; wheel path keeps the hard clamp.
+func (e *Engine) scrollViewportRubber(vp *graph.Group, m *model.Node, dx, dy float64) {
+	if (dx != dx || dx > 1e308 || dx < -1e308) || (dy != dy || dy > 1e308 || dy < -1e308) {
+		return
+	}
+	maxX, maxY := scrollRange(vp)
+	if maxX <= 0 && maxY <= 0 {
+		// Still allow vertical pull for pull-to-refresh when content fits.
+		if dy == 0 {
+			return
+		}
+		maxY = 0
+	}
+	if e.Inter.ScrollOffsets == nil {
+		e.Inter.ScrollOffsets = map[*model.Node]ScrollPos{}
+	}
+	pos := e.Inter.ScrollOffsets[m]
+	if maxX > 0 && dx != 0 {
+		pos.X += rubberDelta(pos.X, maxX, vp.Base().Width, dx)
+	} else if maxX <= 0 {
+		pos.X = 0
+	}
+	if dy != 0 {
+		// Always rubber on Y so a short list can still pull-to-refresh.
+		pos.Y += rubberDelta(pos.Y, maxY, vp.Base().Height, dy)
+	}
+	e.Inter.ScrollOffsets[m] = pos
 }
 
 // ensureFocusVisible scrolls every scroll viewport on the focused node's
@@ -321,12 +452,26 @@ func (e *Engine) scrollViewport(vp *graph.Group, m *model.Node, dx, dy float64) 
 // ScrollMomentum is the per-viewport scroll inertia state: velocity in physical
 // px per ideal frame (~16.7ms at 60fps) and the timestamp of the last scroll
 // event (so the deceleration phase knows the elapsed time for frame-rate
-// independent friction).
+// independent friction). Spring is true while rubber-band overscroll is
+// easing back into the hard clamp range after a drag release.
 type ScrollMomentum struct {
 	VX, VY   float64   // velocity in physical px per ideal frame (~16.7ms)
 	Active   bool      // momentum phase is in flight
+	Spring   bool      // overscroll spring-back (ignores velocity, lerps to clamp)
 	LastTime time.Time // last scroll-event timestamp for this viewport
 }
+
+// scrollDragSlop is how far a press must travel before touch-drag scroll
+// activates (taps and small nudges stay free for onPress / swipe).
+const scrollDragSlop = 6.0
+
+// overscrollRubber is the base resistance factor for rubber-band drag past
+// the hard clamp (further overscroll is damped by depth).
+const overscrollRubber = 0.45
+
+// pullRefreshThreshold is how far (physical px) past the top a drag must
+// overscroll before release fires onRefresh / a wrapping refreshindicator.
+const pullRefreshThreshold = 56.0
 
 // momentumFriction is the per-frame velocity multiplier — 0.88 at ~16.7ms/frame
 // decays to ~5% after ~40 frames (~667ms), which feels like a natural trackpad
@@ -340,7 +485,8 @@ const momentumStopThreshold = 0.3
 // applyScrollMomentum advances every active viewport's momentum by one frame:
 // apply the velocity to the offset (clamped), then decay the velocity. Returns
 // whether any viewport still has active momentum (the engine must keep
-// animating until it all settles).
+// animating until it all settles). Spring mode lerps overscrolled offsets
+// back into range without free coasting past the edge.
 func (e *Engine) applyScrollMomentum(now time.Time) bool {
 	if e.Inter.ScrollMomentum == nil {
 		return false
@@ -350,17 +496,69 @@ func (e *Engine) applyScrollMomentum(now time.Time) bool {
 		if !mom.Active {
 			continue
 		}
+		elapsed := now.Sub(mom.LastTime).Seconds()
+		frames := elapsed * 60 // normalize to 60fps
+		if frames < 0.12 {
+			// Spring must not stall when the host draws faster than the
+			// momentum clock (tests, high-refresh): advance a minimum step.
+			if mom.Spring {
+				frames = 0.5
+			} else {
+				any = true
+				continue
+			}
+		}
+		if e.Inter.ScrollOffsets == nil {
+			e.Inter.ScrollOffsets = map[*model.Node]ScrollPos{}
+		}
+		pos := e.Inter.ScrollOffsets[m]
+
+		// Spring-back from rubber-band overscroll (after touch-drag release).
+		if mom.Spring {
+			maxX, maxY := 0.0, 0.0
+			if g := e.findGroupByModel(m); g != nil {
+				if gp, ok := g.(*graph.Group); ok {
+					maxX, maxY = scrollRange(gp)
+				}
+			}
+			const spring = 0.35 // per ideal frame toward the clamp edge
+			t := 1 - math.Pow(1-spring, frames)
+			if t > 1 {
+				t = 1
+			}
+			tx, ty := pos.X, pos.Y
+			if tx < 0 {
+				tx = 0
+			} else if tx > maxX {
+				tx = maxX
+			}
+			if ty < 0 {
+				ty = 0
+			} else if ty > maxY {
+				ty = maxY
+			}
+			pos.X += (tx - pos.X) * t
+			pos.Y += (ty - pos.Y) * t
+			mom.LastTime = now
+			if math.Abs(pos.X-tx) < 0.5 && math.Abs(pos.Y-ty) < 0.5 {
+				pos.X, pos.Y = tx, ty
+				mom.Spring = false
+				mom.Active = false
+				mom.VX, mom.VY = 0, 0
+			} else {
+				any = true
+			}
+			e.Inter.ScrollOffsets[m] = pos
+			e.Inter.ScrollMomentum[m] = mom
+			continue
+		}
+
 		// Decay velocity: friction adjusted for the elapsed time since the
 		// last event (or last momentum frame). A 16ms frame → friction^1,
 		// a 32ms frame → friction^2, keeping the feel frame-rate independent.
 		// When a scroll event just arrived (elapsed < 2ms), skip momentum
 		// this frame — the event handler already applied its own delta and
 		// double-counting would overshoot the offset.
-		elapsed := now.Sub(mom.LastTime).Seconds()
-		frames := elapsed * 60 // normalize to 60fps
-		if frames < 0.12 {
-			continue
-		}
 		mom.VX *= math.Pow(momentumFriction, frames)
 		mom.VY *= math.Pow(momentumFriction, frames)
 		mom.LastTime = now
@@ -370,23 +568,24 @@ func (e *Engine) applyScrollMomentum(now time.Time) bool {
 			mom.Active = false
 			mom.VX, mom.VY = 0, 0
 			e.Inter.ScrollMomentum[m] = mom
+			// If we stopped while overscrolled (rare), snap into spring.
+			if pos.X < 0 || pos.Y < 0 {
+				mom.Spring = true
+				mom.Active = true
+				e.Inter.ScrollMomentum[m] = mom
+				any = true
+			}
 			continue
 		}
 
 		// Apply velocity to the scroll offset, scaled by elapsed frames so
 		// a longer frame (e.g. 32ms at 30fps) advances twice as far — the
 		// velocity is in physical px per ideal frame (~16.7ms at 60fps).
-		if e.Inter.ScrollOffsets == nil {
-			e.Inter.ScrollOffsets = map[*model.Node]ScrollPos{}
-		}
-		pos := e.Inter.ScrollOffsets[m]
 		pos.X += mom.VX * frames
 		pos.Y += mom.VY * frames
 
-		// Clamp — the content size is only known at layout time, so the full
-		// clamp (scrollOffsetPos) runs in performLayout. A soft floor of 0
-		// here keeps the offset from drifting negative when the content has not
-		// yet been measured this frame; the layout-time clamp repairs the rest.
+		// Soft floor: free coast does not overscroll; hit the edge and stop
+		// that axis. (Rubber-band is drag-only; release overshoot uses Spring.)
 		if pos.X < 0 {
 			pos.X = 0
 			mom.VX = 0
@@ -400,6 +599,180 @@ func (e *Engine) applyScrollMomentum(now time.Time) bool {
 		any = true
 	}
 	return any
+}
+
+// handleScrollDrag processes one pointer event against an armed or active
+// ScrollDrag. Returns true when the event was consumed (caller must return).
+func (e *Engine) handleScrollDrag(p PointerInput) bool {
+	d := &e.Inter.ScrollDrag
+	switch {
+	case p.Type == PointerRelease || (p.Type == PointerMove && p.Buttons == 0):
+		wasActive := d.Active
+		if wasActive {
+			e.endScrollDrag()
+			e.dirty.Store(true)
+			return true
+		}
+		// Pending only (tap): clear without consuming so generic release
+		// can still fire onPress / swipe.
+		e.Inter.ScrollDrag = ScrollDragState{}
+		return false
+	case p.Type == PointerMove && p.Buttons > 0:
+		if d.Node == nil {
+			e.Inter.ScrollDrag = ScrollDragState{}
+			return false
+		}
+		if d.Pending {
+			if math.Hypot(p.X-d.StartX, p.Y-d.StartY) < scrollDragSlop {
+				d.LastX, d.LastY = p.X, p.Y
+				return false // still a tap candidate
+			}
+			d.Pending = false
+			d.Active = true
+			// Steal any generic press capture so pressables don't fire on release.
+			e.Inter.Pressed = nil
+			e.Inter.PressedItem = 0
+			e.Inter.PressedScope = nil
+			e.Inter.Swipe.Armed = false
+		}
+		if !d.Active {
+			return false
+		}
+		// Finger motion → content follows → scroll offset is opposite.
+		dx := -(p.X - d.LastX)
+		dy := -(p.Y - d.LastY)
+		d.LastX, d.LastY = p.X, p.Y
+		now := time.Now()
+		dt := now.Sub(d.MomLast).Seconds()
+		if dt > 0 && dt < 0.5 {
+			frames := dt * 60
+			if frames > 0 {
+				// MomV is in scroll-space (same sign as offset change).
+				d.MomVX = 0.25*(dx/frames) + 0.75*d.MomVX
+				d.MomVY = 0.25*(dy/frames) + 0.75*d.MomVY
+			}
+		}
+		d.MomLast = now
+		if g := e.findGroupByModel(d.Node); g != nil {
+			if vp, ok := g.(*graph.Group); ok {
+				e.scrollViewportRubber(vp, d.Node, dx, dy)
+			}
+		}
+		e.dirty.Store(true)
+		return true
+	default:
+		// A fresh press while pending/active drops the drag state.
+		if p.Type == PointerPress {
+			e.Inter.ScrollDrag = ScrollDragState{}
+		}
+		return false
+	}
+}
+
+// endScrollDrag finishes a touch-drag: seeds coast velocity and/or a spring
+// when rubber-banded past the edge; fires pull-to-refresh when pulled past
+// the top threshold.
+func (e *Engine) endScrollDrag() {
+	d := e.Inter.ScrollDrag
+	e.Inter.ScrollDrag = ScrollDragState{}
+	if d.Node == nil {
+		return
+	}
+	m := d.Node
+	if e.Inter.ScrollOffsets == nil {
+		e.Inter.ScrollOffsets = map[*model.Node]ScrollPos{}
+	}
+	pos := e.Inter.ScrollOffsets[m]
+	maxX, maxY := 0.0, 0.0
+	var vp *graph.Group
+	if g := e.findGroupByModel(m); g != nil {
+		if gp, ok := g.(*graph.Group); ok {
+			vp = gp
+			maxX, maxY = scrollRange(gp)
+		}
+	}
+	// Pull-to-refresh: overscrolled past the top by the threshold.
+	if pos.Y < -pullRefreshThreshold {
+		e.firePullRefresh(m, vp)
+	}
+	overX := pos.X < 0 || pos.X > maxX
+	overY := pos.Y < 0 || pos.Y > maxY
+	if e.Inter.ScrollMomentum == nil {
+		e.Inter.ScrollMomentum = map[*model.Node]ScrollMomentum{}
+	}
+	mom := e.Inter.ScrollMomentum[m]
+	if overX || overY {
+		mom.Spring = true
+		mom.Active = true
+		mom.VX, mom.VY = 0, 0
+		mom.LastTime = time.Now()
+		e.Inter.ScrollMomentum[m] = mom
+		return
+	}
+	// Coast with the drag's smoothed velocity (finger direction already
+	// converted to scroll deltas in the drag path — MomV is scroll-space).
+	if math.Abs(d.MomVX) >= momentumStopThreshold || math.Abs(d.MomVY) >= momentumStopThreshold {
+		mom.VX, mom.VY = d.MomVX, d.MomVY
+		mom.Active = true
+		mom.Spring = false
+		mom.LastTime = time.Now()
+		e.Inter.ScrollMomentum[m] = mom
+	}
+}
+
+// firePullRefresh dispatches onRefresh on the scroll node, a wrapping
+// refreshindicator, or the nearest ancestor declaring the prop.
+func (e *Engine) firePullRefresh(scroll *model.Node, vp *graph.Group) {
+	// Walk model via graph parents from the viewport group.
+	var chain []*model.Node
+	if scroll != nil {
+		chain = append(chain, scroll)
+	}
+	if vp != nil {
+		for p := vp.Base().Parent; p != nil; p = p.Base().Parent {
+			if m := p.Base().Model; m != nil {
+				chain = append(chain, m)
+			}
+		}
+	}
+	for _, m := range chain {
+		if m.Type == "refreshindicator" {
+			if inv := parseInvokeFromNode(m, "onRefresh"); inv != nil {
+				e.dispatch(inv, nil)
+				return
+			}
+			if m.OnPress != nil {
+				e.dispatch(m.OnPress, nil)
+				return
+			}
+		}
+		if inv := parseInvokeFromNode(m, "onRefresh"); inv != nil {
+			e.dispatch(inv, nil)
+			return
+		}
+	}
+}
+
+// parseInvokeFromNode reads a {name,args} or string action prop.
+func parseInvokeFromNode(n *model.Node, key string) *model.Invoke {
+	if n == nil {
+		return nil
+	}
+	raw, ok := n.Prop(key)
+	if !ok || raw == nil {
+		return nil
+	}
+	switch t := raw.(type) {
+	case string:
+		if t == "" {
+			return nil
+		}
+		return &model.Invoke{Name: t}
+	case map[string]any:
+		return propInvoke(t)
+	default:
+		return nil
+	}
 }
 
 // hasScrollMomentum reports whether any viewport still has active scroll

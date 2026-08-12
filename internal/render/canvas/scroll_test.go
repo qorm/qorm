@@ -367,3 +367,82 @@ func TestScrollRenderClipPixels(t *testing.T) {
 		t.Fatal("content below the viewport must stay clipped after scrolling")
 	}
 }
+
+// Touch-drag on a scroll viewport moves the content (finger down → offset
+// decreases in scroll space when pulling content down from top is rubber;
+// dragging up increases offset like scrolling down).
+func TestScrollTouchDrag(t *testing.T) {
+	e, surf, sv := scrollFixture(t, tallChildren(10, 50)) // content 500, viewport 100
+	e.DrawFrame(surf)
+
+	// Press in the viewport and drag upward 40px (finger up → scroll down).
+	e.HandlePointer(PointerInput{Type: PointerPress, X: 100, Y: 50, Buttons: 1})
+	e.HandlePointer(PointerInput{Type: PointerMove, X: 100, Y: 40, Buttons: 1}) // past slop
+	e.HandlePointer(PointerInput{Type: PointerMove, X: 100, Y: 10, Buttons: 1})
+	if !e.Inter.ScrollDrag.Active {
+		t.Fatal("drag past slop must activate ScrollDrag")
+	}
+	off := e.Inter.ScrollOffsets[sv]
+	if off.Y <= 0 {
+		t.Fatalf("finger drag up must increase scroll offset Y, got %v", off)
+	}
+	// Release should clear active drag and seed momentum or settle.
+	e.HandlePointer(PointerInput{Type: PointerRelease, X: 100, Y: 10})
+	if e.Inter.ScrollDrag.Active || e.Inter.ScrollDrag.Pending {
+		t.Fatal("release must clear ScrollDrag")
+	}
+}
+
+// Pulling past the top rubber-bands (negative offset allowed while dragging)
+// and springs back after release.
+func TestScrollRubberBandAndSpring(t *testing.T) {
+	e, surf, sv := scrollFixture(t, tallChildren(10, 50))
+	e.DrawFrame(surf)
+
+	// At top: drag finger down hard to overscroll.
+	e.HandlePointer(PointerInput{Type: PointerPress, X: 100, Y: 20, Buttons: 1})
+	for y := 20.0; y <= 120; y += 10 {
+		e.HandlePointer(PointerInput{Type: PointerMove, X: 100, Y: y, Buttons: 1})
+	}
+	if off := e.Inter.ScrollOffsets[sv]; off.Y >= 0 {
+		t.Fatalf("pull past top must rubber-band to negative Y, got %v", off.Y)
+	}
+	e.HandlePointer(PointerInput{Type: PointerRelease, X: 100, Y: 120})
+	mom := e.Inter.ScrollMomentum[sv]
+	if !mom.Spring && !mom.Active {
+		// Spring should be armed; if overscroll was tiny maybe already cleared.
+		if off := e.Inter.ScrollOffsets[sv]; off.Y < 0 {
+			t.Fatal("overscrolled release must arm spring momentum")
+		}
+	}
+	// Advance spring frames until settled.
+	for i := 0; i < 60; i++ {
+		e.DrawFrame(surf)
+		if off := e.Inter.ScrollOffsets[sv]; off.Y >= -0.5 {
+			if off.Y < 0 {
+				// still settling
+				continue
+			}
+			return
+		}
+	}
+	if off := e.Inter.ScrollOffsets[sv]; off.Y < -0.5 {
+		t.Fatalf("spring did not settle, offset Y = %v", off.Y)
+	}
+}
+
+// A short tap (no drag past slop) must not leave ScrollDrag armed and must
+// not change the offset.
+func TestScrollTapDoesNotScroll(t *testing.T) {
+	e, surf, sv := scrollFixture(t, tallChildren(10, 50))
+	e.DrawFrame(surf)
+	e.HandlePointer(PointerInput{Type: PointerPress, X: 100, Y: 50, Buttons: 1})
+	e.HandlePointer(PointerInput{Type: PointerMove, X: 101, Y: 51, Buttons: 1}) // under slop
+	e.HandlePointer(PointerInput{Type: PointerRelease, X: 101, Y: 51})
+	if e.Inter.ScrollDrag.Active || e.Inter.ScrollDrag.Pending {
+		t.Fatal("tap must clear pending ScrollDrag")
+	}
+	if off := e.Inter.ScrollOffsets[sv]; off.Y != 0 {
+		t.Fatalf("tap must not scroll, offset = %v", off)
+	}
+}

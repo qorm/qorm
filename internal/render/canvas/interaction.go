@@ -78,6 +78,11 @@ type Interaction struct {
 	// discrete deltas with no momentum of their own). Lazily allocated; reset
 	// with the rest of Interaction on a scene switch.
 	ScrollMomentum map[*model.Node]ScrollMomentum
+	// ScrollDrag is an in-flight finger/pointer drag on a scroll viewport
+	// (touch-drag scroll). Pending until past slop, then Active owns the
+	// stream like board pan; release seeds ScrollMomentum (+ spring when
+	// rubber-band overscrolled).
+	ScrollDrag ScrollDragState
 	// Reorder is the in-flight drag-to-reorder gesture of a reorderable list:
 	// which item is being dragged and where it has moved to. Dispatched on
 	// release as onReorder {from, to} and cleared.
@@ -102,6 +107,22 @@ type SwipeTrack struct {
 type DragState struct {
 	Active bool
 	Data   string // the draggable's payload, evaluated at drag start
+}
+
+// ScrollDragState is a finger/pointer drag on a scroll viewport. Pending arms
+// on press over a scrollable viewport (no InteractiveWidget claim); Active
+// after the drag passes scrollDragSlop so taps still reach pressables.
+type ScrollDragState struct {
+	Active  bool
+	Pending bool
+	Node    *model.Node
+	LastX   float64
+	LastY   float64
+	StartX  float64
+	StartY  float64
+	MomVX   float64 // physical px per ideal frame (~16.7ms)
+	MomVY   float64
+	MomLast time.Time
 }
 
 // ReorderState is a drag-to-reorder gesture on a reorderable list. Pending

@@ -7,6 +7,13 @@ All notable changes to QORM are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Canvas touch-drag scroll + rubber-band**: finger/pointer drag on `scroll` /
+  `scrollview` (when no InteractiveWidget claims the press) with slop, content-
+  follows-finger deltas, rubber-band overscroll, spring settle, and coast
+  momentum. Pull past the top threshold fires `onRefresh` on the scroll node
+  or a wrapping `refreshindicator`.
+- **Canvas refreshindicator polish**: rubber pull height, 8-spoke spinner,
+  700ms busy phase (`AnimatedWidget`), softer arm slop so taps pass through.
 - **Canvas entrance motion (competitive)**: entrance effects now drive real
   **scale + rotation** about the node center (pop/scale/zoomout/rotate/flip/
   spin/pulse/bounce), not fade-only fallbacks. Bound `animation` name changes

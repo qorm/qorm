@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/render/canvas"
@@ -41,8 +42,9 @@ func init() {
 	canvas.RegisterWidget("cupertinopicker", &Picker{local: map[*model.Node]string{}, geoms: map[*model.Node]*pickerGeo{}})
 	canvas.RegisterWidget("rating", &Rating{local: map[*model.Node]int{}, geoms: map[*model.Node]*ratingGeo{}})
 	canvas.RegisterWidget("refreshindicator", &RefreshIndicator{
-		dragY:  map[*model.Node]float64{},
-		startY: map[*model.Node]float64{},
+		dragY:      map[*model.Node]float64{},
+		startY:     map[*model.Node]float64{},
+		refreshing: map[*model.Node]time.Time{},
 	})
 	canvas.RegisterWidget("selectabletext", &SelectableText{inters: map[*model.Node]*canvas.Interaction{}})
 }
@@ -1431,11 +1433,15 @@ func (r *Rating) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.Poin
 
 // ---- refreshindicator -------------------------------------------------------
 
-// RefreshIndicator wraps children; a downward drag past threshold fires onRefresh.
+// RefreshIndicator wraps children; a downward drag past threshold fires
+// onRefresh. Also cooperates with engine scroll pull-to-refresh when wrapping
+// a scroll viewport (firePullRefresh walks ancestors). Standalone drag uses a
+// rubber-band pull + spring settle + brief busy spinner.
 type RefreshIndicator struct {
-	mu     sync.Mutex
-	dragY  map[*model.Node]float64
-	startY map[*model.Node]float64
+	mu         sync.Mutex
+	dragY      map[*model.Node]float64
+	startY     map[*model.Node]float64
+	refreshing map[*model.Node]time.Time // busy until this instant
 }
 
 func (r *RefreshIndicator) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
@@ -1476,25 +1482,53 @@ func (r *RefreshIndicator) record(ln *canvas.LayoutNode, rt *runtime.Runtime, sc
 	g.Clip = true
 	r.mu.Lock()
 	dy := r.dragY[ln.Node]
+	busyUntil, busy := r.refreshing[ln.Node]
 	r.mu.Unlock()
-	if dy > 0 {
-		// pull affordance
-		spinH := int(math.Min(dy, float64(40*scale)))
-		if spinH > 0 {
-			spin := draw.NewRect()
-			spin.NoHit = true
-			spin.Width = float64(ln.Width)
-			spin.Height = float64(spinH)
-			spin.Fill = themeColor(rt, "inputBg", color.RGBA{232, 232, 237, 80})
-			g.AddChild(spin)
-			// simple spinner dots
-			fs := 12 * scale
-			lbl := "…"
-			tw := int(canvas.MeasureText(lbl, float64(fs)))
-			g.AddChild(formText(lbl, float64((ln.Width-tw)/2), float64((spinH-lineHeight(fs))/2), fs, themeColor(rt, "textSecondary", color.RGBA{134, 134, 139, 255})))
+	spinH := 0
+	if busy && time.Now().Before(busyUntil) {
+		spinH = 36 * scale
+	} else if dy > 0 {
+		// Rubber-mapped pull height (diminishing returns past threshold).
+		spinH = int(math.Min(dy*0.55, float64(48*scale)))
+	} else if busy {
+		// Busy expired — clear.
+		r.mu.Lock()
+		delete(r.refreshing, ln.Node)
+		r.mu.Unlock()
+	}
+	if spinH > 0 {
+		band := draw.NewRect()
+		band.NoHit = true
+		band.Width = float64(ln.Width)
+		band.Height = float64(spinH)
+		band.Fill = themeColor(rt, "inputBg", color.RGBA{232, 232, 237, 90})
+		g.AddChild(band)
+		// Spinner: 8 tapered spokes (activityindicator look).
+		cx := float64(ln.Width) / 2
+		cy := float64(spinH) / 2
+		r0 := float64(8 * scale)
+		phase := 0.0
+		if busy {
+			phase = float64(time.Now().UnixMilli()%1000) / 1000 * 2 * math.Pi
+		} else if dy > 0 {
+			phase = math.Min(dy/56, 1) * 2 * math.Pi
+		}
+		accent := formAccent(rt)
+		for i := 0; i < 8; i++ {
+			a := phase + float64(i)*math.Pi/4
+			op := uint8(60 + i*24)
+			spoke := draw.NewRect()
+			spoke.NoHit = true
+			spoke.Width = float64(2 * scale)
+			spoke.Height = float64(5 * scale)
+			spoke.BorderRadius = float64(scale)
+			spoke.X = cx + math.Cos(a)*r0 - spoke.Width/2
+			spoke.Y = cy + math.Sin(a)*r0 - spoke.Height/2
+			spoke.Fill = color.RGBA{accent.R, accent.G, accent.B, op}
+			g.AddChild(spoke)
 		}
 	}
-	y := int(math.Min(dy, float64(40*scale)))
+	y := spinH
 	for _, child := range ln.Children {
 		ch := child.Height + child.Style.MarginTop + child.Style.MarginBot
 		bounds := image.Rect(0, y, ln.Width, y+ch)
@@ -1507,45 +1541,69 @@ func (r *RefreshIndicator) record(ln *canvas.LayoutNode, rt *runtime.Runtime, sc
 	return g
 }
 
+// Animating keeps the frame loop alive while the busy spinner is visible.
+func (r *RefreshIndicator) Animating() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	now := time.Now()
+	for _, until := range r.refreshing {
+		if now.Before(until) {
+			return true
+		}
+	}
+	return false
+}
+
 func (r *RefreshIndicator) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.PointerInput, inter *canvas.Interaction, _ image.Rectangle) bool {
 	const threshold = 56.0
+	const armSlop = 8.0
 	switch p.Type {
 	case canvas.PointerPress:
-		inter.Pressed = n
+		// Do not hard-capture yet: short taps / horizontal moves stay free.
 		r.mu.Lock()
 		r.startY[n] = p.Y
 		r.dragY[n] = 0
 		r.mu.Unlock()
-		return true
+		return false
 	case canvas.PointerMove:
-		if inter.Pressed != n {
+		r.mu.Lock()
+		start, ok := r.startY[n]
+		r.mu.Unlock()
+		if !ok {
 			return false
+		}
+		dy := p.Y - start
+		if dy < armSlop {
+			return false
+		}
+		// Rubber resistance past threshold.
+		pull := dy
+		if pull > threshold {
+			pull = threshold + (pull-threshold)*0.35
 		}
 		r.mu.Lock()
-		dy := p.Y - r.startY[n]
-		if dy < 0 {
-			dy = 0
-		}
-		r.dragY[n] = dy
+		r.dragY[n] = pull
 		r.mu.Unlock()
+		inter.Pressed = n
 		return true
 	case canvas.PointerRelease:
-		if inter.Pressed != n {
-			return false
-		}
 		r.mu.Lock()
 		dy := r.dragY[n]
 		r.dragY[n] = 0
 		delete(r.startY, n)
 		r.mu.Unlock()
 		if dy >= threshold {
+			r.mu.Lock()
+			r.refreshing[n] = time.Now().Add(700 * time.Millisecond)
+			r.mu.Unlock()
 			if inv := parseInvokeProp(n, "onRefresh"); inv != nil {
 				dispatchInvoke(inv, rt)
 			} else if n.OnPress != nil {
 				dispatchInvoke(n.OnPress, rt)
 			}
+			return true
 		}
-		return true
+		return dy > 0
 	}
 	return false
 }
