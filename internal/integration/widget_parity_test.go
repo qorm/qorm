@@ -77,24 +77,21 @@ var canvasEngineNativeTypes = map[string]bool{
 var htmlOnlyCoreAllowlist = map[string]string{
 	"actionsheet":      "canvas sheet/bottomsheet only; dedicated action sheet pending",
 	"alertdialog":      "dedicated alert dialog pending (modal/alert exist)",
-	"autocomplete":     "canvas port pending",
 	"descriptions":     "canvas port pending",
 	"dropdownbutton":   "canvas select/dropdown cover the common case",
 	"materialstepper":  "canvas port pending (steps exists)",
 	"monthview":        "canvas port pending",
 	"motion":           "canvas port pending (entrance/transition styles cover some cases)",
-	"pageview":         "canvas port pending",
 	"picker":           "canvas port pending (date/time pickers exist)",
-	"rangeslider":      "canvas port pending (slider exists)",
 	"rating":           "HTML-only; examples/customwidget registers canvas rating in middle layer",
 	"refreshindicator": "canvas port pending",
 	"selectabletext":   "canvas port pending",
 	"transform":        "canvas port pending",
-	"tree":             "canvas port pending",
 	// Ported to canvas — removed from allowlist (see widgets/*.go):
 	// activityindicator, animatedcontainer, aspectratio, circularprogress,
 	// ignorepointer, skeleton, tag, fab, switchlisttile, searchbar,
-	// checkboxlisttile, radiolisttile, field, textformfield, richtext, carousel.
+	// checkboxlisttile, radiolisttile, field, textformfield, richtext, carousel,
+	// rangeslider, pageview, tree, autocomplete.
 }
 
 // canvasOnlyAllowlist: RegisterWidget names with no HTML switch case. Empty

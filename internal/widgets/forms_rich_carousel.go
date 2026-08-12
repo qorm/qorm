@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/render/canvas"
@@ -143,7 +144,7 @@ func (t *TextFormField) sessionFor(n *model.Node) *canvas.InputState {
 	return inter.Input
 }
 
-func (TextFormField) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
+func (*TextFormField) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
 	if scale < 1 {
 		scale = 1
 	}
@@ -256,28 +257,42 @@ func (t *TextFormField) OnFocused(n *model.Node, inter *canvas.Interaction) {
 
 // ---- richtext ---------------------------------------------------------------
 
-// RichText lays out styled spans on one horizontal run (v1: single line wrap
-// by treating the whole as one text block with sequential glyph runs).
+// RichText lays out styled spans with multi-line wrap when the box width is
+// constrained (style.width or laid-out width). Spans keep their own font size,
+// color, and underline; wrapping is greedy by words, then by runes.
 type RichText struct{}
 
 func (RichText) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
 	if scale < 1 {
 		scale = 1
 	}
-	maxH := 0
-	for _, sp := range richSpans(n, rt, scale) {
-		w += sp.w
-		if sp.h > maxH {
-			maxH = sp.h
+	spans := richSpans(n, rt, scale)
+	avail := 0
+	if n != nil && n.Style != nil {
+		if f, ok := n.Style["width"].(float64); ok && f > 0 {
+			avail = int(f) * scale
 		}
 	}
-	if maxH < 1 {
-		maxH = lineHeight(14 * scale)
+	if avail > 0 {
+		lines, maxW, totalH := layoutRichLines(spans, avail)
+		if len(lines) == 0 {
+			return scale, lineHeight(14 * scale)
+		}
+		return maxW, totalH
+	}
+	for _, sp := range spans {
+		w += sp.w
+		if sp.h > h {
+			h = sp.h
+		}
+	}
+	if h < 1 {
+		h = lineHeight(14 * scale)
 	}
 	if w < 1 {
 		w = scale
 	}
-	return w, maxH
+	return w, h
 }
 
 func (RichText) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.Node {
@@ -289,23 +304,41 @@ func (RichText) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) dr
 	}
 	g := draw.NewGroup()
 	g.Width, g.Height = float64(ln.Width), float64(ln.Height)
-	x := 0.0
-	for _, sp := range richSpans(ln.Node, rt, scale) {
-		g.AddChild(formText(sp.text, x, 0, sp.fs, sp.ink))
-		if sp.underline {
-			ul := draw.NewRect()
-			ul.NoHit = true
-			ul.X = x
-			ul.Y = float64(sp.h) - float64(scale)
-			ul.Width = float64(sp.w)
-			ul.Height = float64(scale)
-			if ul.Height < 1 {
-				ul.Height = 1
+	spans := richSpans(ln.Node, rt, scale)
+	lines, _, _ := layoutRichLines(spans, ln.Width)
+	y := 0.0
+	for _, line := range lines {
+		x := 0.0
+		lineH := 0
+		for _, sp := range line {
+			if sp.h > lineH {
+				lineH = sp.h
 			}
-			ul.Fill = sp.ink
-			g.AddChild(ul)
 		}
-		x += float64(sp.w)
+		if lineH < 1 {
+			lineH = lineHeight(14 * scale)
+		}
+		for _, sp := range line {
+			if sp.text == "" {
+				continue
+			}
+			g.AddChild(formText(sp.text, x, y, sp.fs, sp.ink))
+			if sp.underline {
+				ul := draw.NewRect()
+				ul.NoHit = true
+				ul.X = x
+				ul.Y = y + float64(lineH) - float64(scale)
+				ul.Width = float64(sp.w)
+				ul.Height = float64(scale)
+				if ul.Height < 1 {
+					ul.Height = 1
+				}
+				ul.Fill = sp.ink
+				g.AddChild(ul)
+			}
+			x += float64(sp.w)
+		}
+		y += float64(lineH)
 	}
 	return g
 }
@@ -344,18 +377,135 @@ func richSpans(n *model.Node, rt *runtime.Runtime, scale int) []richSpan {
 		}
 		ink := themeColor(rt, "text", color.RGBA{29, 29, 31, 255})
 		if c, ok := m["color"].(string); ok && c != "" {
-			// resolve via a temporary style
 			ink = parseHexOrTheme(c, rt)
 		}
 		ul, _ := m["underline"].(bool)
-		italic, _ := m["italic"].(bool)
-		_ = italic // faux-italic left to text style path; span text is solid formText
 		out = append(out, richSpan{
 			text: text, fs: fs, w: int(canvas.MeasureText(text, float64(fs))),
 			h: lineHeight(fs), ink: ink, underline: ul,
 		})
 	}
 	return out
+}
+
+// layoutRichLines folds spans into lines that fit availW. Empty availW keeps
+// a single line (unconstrained measure).
+func layoutRichLines(spans []richSpan, availW int) (lines [][]richSpan, maxW, totalH int) {
+	if len(spans) == 0 {
+		return nil, 0, 0
+	}
+	if availW <= 0 {
+		w, h := 0, 0
+		for _, sp := range spans {
+			w += sp.w
+			if sp.h > h {
+				h = sp.h
+			}
+		}
+		return [][]richSpan{spans}, w, h
+	}
+	var cur []richSpan
+	curW := 0
+	flush := func() {
+		if len(cur) == 0 {
+			return
+		}
+		lineH := 0
+		lw := 0
+		for _, sp := range cur {
+			lw += sp.w
+			if sp.h > lineH {
+				lineH = sp.h
+			}
+		}
+		if lw > maxW {
+			maxW = lw
+		}
+		totalH += lineH
+		lines = append(lines, cur)
+		cur = nil
+		curW = 0
+	}
+	for _, sp := range spans {
+		if sp.text == "" {
+			continue
+		}
+		// Whole span fits on the current line.
+		if curW+sp.w <= availW || (curW == 0 && sp.w <= availW) {
+			cur = append(cur, sp)
+			curW += sp.w
+			continue
+		}
+		// Need to break the span's text across lines.
+		rest := sp.text
+		for rest != "" {
+			room := availW - curW
+			if room <= 0 {
+				flush()
+				room = availW
+			}
+			chunk, next := takeRichChunk(rest, sp.fs, room)
+			if chunk == "" {
+				// Single rune wider than room: force one rune so we progress.
+				r, size := utf8.DecodeRuneInString(rest)
+				if r == utf8.RuneError && size == 0 {
+					break
+				}
+				chunk = rest[:size]
+				next = rest[size:]
+			}
+			frag := richSpan{
+				text: chunk, fs: sp.fs,
+				w: int(canvas.MeasureText(chunk, float64(sp.fs))),
+				h: sp.h, ink: sp.ink, underline: sp.underline,
+			}
+			cur = append(cur, frag)
+			curW += frag.w
+			rest = next
+			if rest != "" {
+				flush()
+			}
+		}
+	}
+	flush()
+	if maxW < 1 {
+		maxW = availW
+	}
+	if totalH < 1 {
+		totalH = lineHeight(14)
+	}
+	return lines, maxW, totalH
+}
+
+// takeRichChunk returns the longest prefix of text that fits in room px,
+// breaking on spaces when possible, else between runes. The remainder is next.
+func takeRichChunk(text string, fs, room int) (chunk, next string) {
+	if room <= 0 || text == "" {
+		return "", text
+	}
+	if int(canvas.MeasureText(text, float64(fs))) <= room {
+		return text, ""
+	}
+	// Prefer word boundaries (space after a word).
+	best := 0
+	lastSpace := -1
+	for i, r := range text {
+		end := i + utf8.RuneLen(r)
+		if int(canvas.MeasureText(text[:end], float64(fs))) > room {
+			break
+		}
+		best = end
+		if r == ' ' {
+			lastSpace = end
+		}
+	}
+	if best == 0 {
+		return "", text
+	}
+	if lastSpace > 0 && lastSpace < len(text) {
+		return text[:lastSpace], text[lastSpace:]
+	}
+	return text[:best], text[best:]
 }
 
 func parseHexOrTheme(c string, rt *runtime.Runtime) color.RGBA {

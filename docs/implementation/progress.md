@@ -32,14 +32,19 @@
 - Docs：https://qorm.com/docs/  
 - Games：https://qorm.com/games/  
 
-## Canvas 完善波次（进行中 / 本机）
+## Canvas 完善波次
 
 | 项 | 状态 |
 |----|------|
 | style: gradient / flexGrow / boxShadowX / disabledOpacity | 🟢 |
 | widgets: aspectratio, ignorepointer, skeleton, circularprogress | 🟢 |
 | aliases: activityindicator, tag, animatedcontainer | 🟢 |
-| parity allowlist 收缩 | 🟢 |
+| fab / switchlisttile / letterSpacing·lineHeight·italic | 🟢 |
+| searchbar / checkboxlisttile / radiolisttile | 🟢 |
+| field / textformfield / richtext(wrap) / carousel | 🟢 |
+| multi-stop CSS-angle gradient + backdropBlur | 🟢 |
+| rangeslider / pageview / tree / autocomplete | 🟢 |
+| parity allowlist 收缩 | 🟢 剩余: actionsheet, alertdialog, descriptions, dropdownbutton, materialstepper, monthview, motion, picker, rating, refreshindicator, selectabletext, transform |
 | 测试 widgets/canvas/integration | 🟢 |
 
 ## 变更日志
@@ -49,3 +54,4 @@
 | 2026-08-12 | 实施波次 1–2 完成 |
 | 2026-08-12 | **v0.8.8** tag + main + 官网部署 |
 | 2026-08-12 | Canvas 完善：样式键 + 7 个 widget/别名 |
+| 2026-08-12 | Canvas：rangeslider/pageview/tree/autocomplete + richtext wrap + true angle gradient |

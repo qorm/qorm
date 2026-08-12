@@ -336,8 +336,8 @@ func matrixScale(m geom.Matrix) float64 {
 	return math.Hypot(m.A, m.B)
 }
 
-// sampleLinearGradient interpolates stops along an axis snapped from CSS angle.
-// t∈[0,1] along the gradient axis inside the rect.
+// sampleLinearGradient interpolates stops along a CSS-angle axis through the
+// rect. CSS: 0deg = to top, 90deg = to right (converted to math radians).
 func sampleLinearGradient(stops []color.RGBA, angle, px, py, ox, oy, w, h float64) color.RGBA {
 	if len(stops) == 0 {
 		return color.RGBA{}
@@ -345,30 +345,30 @@ func sampleLinearGradient(stops []color.RGBA, angle, px, py, ox, oy, w, h float6
 	if len(stops) == 1 {
 		return stops[0]
 	}
-	// Snap to nearest axis: 0/180 vertical, 90/270 horizontal.
+	if w <= 0 || h <= 0 {
+		return stops[0]
+	}
+	// CSS angle → direction vector (0° points up).
 	a := math.Mod(angle, 360)
 	if a < 0 {
 		a += 360
 	}
-	var t float64
-	switch {
-	case a < 45 || a >= 315: // to top
-		if h > 0 {
-			t = 1 - (py-oy)/h
-		}
-	case a < 135: // to right
-		if w > 0 {
-			t = (px - ox) / w
-		}
-	case a < 225: // to bottom
-		if h > 0 {
-			t = (py - oy) / h
-		}
-	default: // to left
-		if w > 0 {
-			t = 1 - (px-ox)/w
-		}
+	rad := a * math.Pi / 180
+	// CSS: 0deg = north, increases clockwise; math.Sin/Cos use CCW from east.
+	// Convert: css 0 → (0,-1), css 90 → (1,0).
+	dx := math.Sin(rad)
+	dy := -math.Cos(rad)
+	// Project pixel relative to rect center onto the gradient axis, normalize
+	// by the projected half-extent of the rect corners.
+	cx, cy := ox+w/2, oy+h/2
+	// Half-diagonal projection length along (dx,dy).
+	half := 0.5 * (math.Abs(dx)*w + math.Abs(dy)*h)
+	if half < 1e-6 {
+		return stops[0]
 	}
+	t := ((px-cx)*dx + (py-cy)*dy) / half
+	// Map [-1,1] → [0,1]
+	t = (t + 1) / 2
 	if t < 0 {
 		t = 0
 	}
