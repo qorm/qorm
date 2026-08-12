@@ -9,10 +9,11 @@
 | 功能 commit | 🟢 | `f6133ea` feat: HTML QSS/swipes/camera/audio parity… |
 | gofmt | 🟢 | `c1a0382` |
 | changelog archive | 🟢 | `e19220b` docs: changelog v0.8.8 |
-| version bump | 🟢 | `8a80a64` chore: bump version to v0.8.8 · `var version = "0.8.8"` |
-| tag | 🟢 | `v0.8.8` → origin |
+| version bump | 🟢 | `8a80a64` · `var version = "0.8.8"` |
+| CI 修复 | 🟢 | `d7cdb02` CanonicalAssetURL → playcore |
+| tag | 🟢 | `v0.8.8` → `d7cdb02`（含 CI 修复 force 更新） |
 | main push | 🟢 | origin/main 对齐 |
-| 官网 deploy | 🟢 | `./web_server/deploy-site.sh` OK · wasm 重建 · docs/api 渲染 |
+| 官网 deploy | 🟢 | 两次 `deploy-site.sh` OK · wasm+docs+v0.8.8 戳记 |
 
 ## G0–G2
 
