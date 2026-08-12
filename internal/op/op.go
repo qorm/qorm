@@ -124,6 +124,21 @@ func (o *Ops) Fingerprint() uint64 {
 			writeF64(t.ShadowBlur)
 			writeF64(t.ShadowX)
 			writeF64(t.ShadowY)
+			if t.Underline {
+				writeU8(1)
+			} else {
+				writeU8(0)
+			}
+			if t.LineThrough {
+				writeU8(1)
+			} else {
+				writeU8(0)
+			}
+			if t.Overline {
+				writeU8(1)
+			} else {
+				writeU8(0)
+			}
 		case ImageOp:
 			writeU8(11)
 			// Pointer identity + dest; pixel content is assumed stable for the
@@ -149,6 +164,11 @@ func (o *Ops) Fingerprint() uint64 {
 			} else {
 				writeU8(0)
 			}
+			if t.GradientConic {
+				writeU8(1)
+			} else {
+				writeU8(0)
+			}
 			writeF64(t.BackdropBlur)
 			writeColor(t.BackdropTint)
 			writeColor(t.Stroke)
@@ -162,6 +182,9 @@ func (o *Ops) Fingerprint() uint64 {
 			} else {
 				writeU8(0)
 			}
+			writeColor(t.Outline)
+			writeF64(t.OutlineWidth)
+			writeF64(t.OutlineOffset)
 		case RectOp:
 			writeU8(13)
 			writeRect(t.Rect)
@@ -224,6 +247,10 @@ type TextOp struct {
 	ShadowBlur  float64
 	ShadowX     float64
 	ShadowY     float64
+	// CSS text-decoration lines (underline / line-through / overline).
+	Underline   bool
+	LineThrough bool
+	Overline    bool
 }
 
 func (TextOp) isOp() {}
@@ -295,8 +322,11 @@ type RRectOp struct {
 	GradientStopPos []float64
 	// GradientAngle CSS degrees for linear gradients (0 = to top, 90 = to right).
 	// When GradientRadial is true, angle is ignored and fill is radial from center.
+	// When GradientConic is true, fill is a conic/sweep gradient from center;
+	// GradientAngle is the starting angle (CSS: 0 = from top, clockwise).
 	GradientAngle  float64
 	GradientRadial bool
+	GradientConic  bool
 	// BackdropBlur px: frost pixels already in the buffer under the rect.
 	BackdropBlur float64
 	BackdropTint color.RGBA
@@ -308,6 +338,10 @@ type RRectOp struct {
 	ShadowY      float64
 	// ShadowInset draws the shadow inside the shape (CSS box-shadow: inset).
 	ShadowInset bool
+	// Outline is CSS outline (outside the border box, does not affect layout).
+	Outline       color.RGBA
+	OutlineWidth  float64
+	OutlineOffset float64 // gap between border edge and outline
 }
 
 func (RRectOp) isOp() {}

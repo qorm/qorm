@@ -150,6 +150,11 @@ type Rect struct {
 	// GradientStopPos optional 0..1 positions; empty = even spacing.
 	GradientStopPos []float64
 	GradientRadial  bool
+	GradientConic   bool
+	// CSS outline (outside the border box).
+	OutlineColor  color.RGBA
+	OutlineWidth  float64
+	OutlineOffset float64
 }
 
 func NewRect() *Rect {
@@ -175,12 +180,19 @@ func (r *Rect) Draw(ctx *Context) {
 
 	rect := image.Rect(0, 0, int(r.Width), int(r.Height))
 
-	// Rounded, shadowed, gradient, or frosted: take the per-pixel SDF path.
-	if r.BorderRadius > 0 || r.ShadowColor.A > 0 || hasGrad || hasFrost {
-		ctx.RRectEx(rect, r.BorderRadius, r.Fill, r.Stroke, r.StrokeWidth,
-			r.ShadowColor, r.ShadowBlur, r.ShadowX, r.ShadowY,
-			r.GradientStops, r.GradientStopPos, r.GradientAngle, r.GradientRadial,
-			r.BackdropBlur, r.BackdropTint, r.ShadowInset)
+	// Rounded, shadowed, gradient, outlined, or frosted: per-pixel SDF path.
+	hasOutline := r.OutlineColor.A > 0 && r.OutlineWidth > 0
+	if r.BorderRadius > 0 || r.ShadowColor.A > 0 || hasGrad || hasFrost || hasOutline || r.GradientConic {
+		ctx.AddRRect(op.RRectOp{
+			Rect: rect, Radius: r.BorderRadius,
+			Fill: r.Fill, Stroke: r.Stroke, StrokeWidth: r.StrokeWidth,
+			Shadow: r.ShadowColor, ShadowBlur: r.ShadowBlur, ShadowX: r.ShadowX, ShadowY: r.ShadowY,
+			ShadowInset: r.ShadowInset,
+			GradientStops: r.GradientStops, GradientStopPos: r.GradientStopPos,
+			GradientAngle: r.GradientAngle, GradientRadial: r.GradientRadial, GradientConic: r.GradientConic,
+			BackdropBlur: r.BackdropBlur, BackdropTint: r.BackdropTint,
+			Outline: r.OutlineColor, OutlineWidth: r.OutlineWidth, OutlineOffset: r.OutlineOffset,
+		})
 		ctx.Restore()
 		return
 	}
@@ -217,6 +229,10 @@ type Text struct {
 	ShadowBlur  float64
 	ShadowX     float64
 	ShadowY     float64
+	// CSS text-decoration lines.
+	Underline   bool
+	LineThrough bool
+	Overline    bool
 }
 
 func NewText() *Text {
@@ -237,8 +253,13 @@ func (t *Text) Draw(ctx *Context) {
 	ctx.Save()
 	ctx.Transform(localTransform(&t.BaseNode))
 	ctx.Fill(t.Fill)
-	ctx.DrawTextDecorated(t.Content, image.Point{0, 0}, t.FontSize/10.0, t.FontWeight, t.LetterSpacing, t.Italic,
-		t.StrokeColor, t.StrokeWidth, t.ShadowColor, t.ShadowBlur, t.ShadowX, t.ShadowY)
+	ctx.AddText(op.TextOp{
+		Text: t.Content, Pos: image.Point{0, 0}, Scale: t.FontSize / 10.0,
+		Weight: t.FontWeight, LetterSpacing: t.LetterSpacing, Italic: t.Italic,
+		StrokeColor: t.StrokeColor, StrokeWidth: t.StrokeWidth,
+		ShadowColor: t.ShadowColor, ShadowBlur: t.ShadowBlur, ShadowX: t.ShadowX, ShadowY: t.ShadowY,
+		Underline: t.Underline, LineThrough: t.LineThrough, Overline: t.Overline,
+	})
 	ctx.Restore()
 }
 

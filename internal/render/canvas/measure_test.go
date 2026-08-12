@@ -478,22 +478,26 @@ func TestWarnUnsupportedStyleKeys(t *testing.T) {
 	}()
 
 	// Use keys that remain intentionally unimplemented on canvas so the
-	// one-shot warn path stays covered (gradient/flexGrow are supported now).
+	// one-shot warn path stays covered (gradient/flexGrow/textDecoration are
+	// supported now).
 	mk := func() *model.Node {
 		return &model.Node{Type: "column", ID: "root", Children: []*model.Node{
-			{Type: "text", ID: "a", Style: map[string]any{"fontFamily": "Comic Sans", "textDecoration": "underline", "fontSize": 14.0}},
+			{Type: "text", ID: "a", Style: map[string]any{"fontFamily": "Comic Sans", "writingMode": "vertical", "fontSize": 14.0}},
 			{Type: "text", ID: "b", Style: map[string]any{"fontFamily": "Papyrus"}},
 		}}
 	}
 	layoutScene(mk(), testRuntime(nil), image.Pt(100, 100))
 	out := buf.String()
-	for _, key := range []string{`"fontFamily"`, `"textDecoration"`} {
+	for _, key := range []string{`"fontFamily"`, `"writingMode"`} {
 		if !strings.Contains(out, key) {
 			t.Errorf("unsupported key %s must warn, got:\n%s", key, out)
 		}
 	}
 	if strings.Contains(out, `"fontSize"`) {
 		t.Errorf("supported key fontSize must not warn, got:\n%s", out)
+	}
+	if strings.Contains(out, `"textDecoration"`) {
+		t.Errorf("supported key textDecoration must not warn, got:\n%s", out)
 	}
 	if !strings.Contains(out, `node id: "a"`) {
 		t.Errorf("warning must name the node, got:\n%s", out)

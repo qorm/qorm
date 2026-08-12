@@ -194,6 +194,7 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 		} else if v, ok := n.Props["value"]; ok {
 			ln.Text = evalPropStrScope(v, rt, sc)
 		}
+		ln.Text = applyTextTransform(ln.Text, style.TextTransform)
 	} else if n.Type == "button" {
 		// Evaluate bindings in the label too (e.g. "Toggle ({{state.theme}})"),
 		// matching text nodes — otherwise the raw template shows literally.
@@ -202,6 +203,7 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 		} else if t, ok := n.Props["text"]; ok {
 			ln.Text = evalPropStrScope(t, rt, sc)
 		}
+		ln.Text = applyTextTransform(ln.Text, style.TextTransform)
 	} else if n.Type == "input" {
 		ln.Text, ln.Placeholder = inputDisplayText(n, rt, inter)
 		if s := editSession(inter, n); s != nil {
@@ -871,8 +873,9 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 	hasBg := ln.Style.Background.A > 0 || len(ln.Style.GradientStops) >= 2 || ln.Style.BackdropBlur > 0
 	hasStroke := ln.Style.StrokeColor.A > 0 && ln.Style.StrokeWidth > 0
 	hasShadow := ln.Style.BoxShadowColor.A > 0
+	hasOutline := ln.Style.OutlineColor.A > 0 && ln.Style.OutlineWidth > 0
 
-	if hasBg || hasStroke || hasShadow {
+	if hasBg || hasStroke || hasShadow || hasOutline {
 		bg := graph.NewRect()
 		bg.X = 0
 		bg.Y = 0
@@ -883,9 +886,15 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 		bg.GradientStopPos = ln.Style.GradientStopPos
 		bg.GradientAngle = ln.Style.GradientAngle
 		bg.GradientRadial = ln.Style.GradientRadial
+		bg.GradientConic = ln.Style.GradientConic
 		bg.BackdropBlur = ln.Style.BackdropBlur
 		bg.BackdropTint = ln.Style.BackdropTint
 		bg.BorderRadius = float64(ln.Style.BorderRadius)
+		if ln.Style.OutlineWidth > 0 && ln.Style.OutlineColor.A > 0 {
+			bg.OutlineColor = ln.Style.OutlineColor
+			bg.OutlineWidth = ln.Style.OutlineWidth
+			bg.OutlineOffset = ln.Style.OutlineOffset
+		}
 
 		if hasStroke {
 			bg.Stroke = ln.Style.StrokeColor
@@ -955,14 +964,18 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 			// left-aligned at the box origin — a wrapped paragraph has no
 			// centre alignment in v1.
 			lines := ln.Wrapped
-			// Multi-line ellipsis: when the box height cannot fit all folded
-			// lines, keep the first maxLines and ellipsize the last.
-			if ln.Style.TextOverflow == "ellipsis" && ln.Height > 0 && txtH > 0 {
-				maxLines := ln.Height / txtH
-				if maxLines < 1 {
+			// Multi-line ellipsis: lineClamp N, or box height with textOverflow.
+			if txtH > 0 {
+				maxLines := 0
+				if ln.Style.LineClamp > 0 {
+					maxLines = ln.Style.LineClamp
+				} else if ln.Style.TextOverflow == "ellipsis" && ln.Height > 0 {
+					maxLines = ln.Height / txtH
+				}
+				if maxLines < 1 && ln.Style.LineClamp > 0 {
 					maxLines = 1
 				}
-				if len(lines) > maxLines {
+				if maxLines > 0 && len(lines) > maxLines {
 					kept := make([]string, maxLines)
 					copy(kept, lines[:maxLines-1])
 					// Last line: prefix of the remaining text, ellipsized to width.
@@ -1276,8 +1289,8 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 	return group
 }
 
-// applyTextDecor copies glyph stroke/shadow fields from NodeStyle onto a
-// graph text node (software paints shadow → stroke → fill).
+// applyTextDecor copies glyph stroke/shadow/decoration fields from NodeStyle
+// onto a graph text node (software paints shadow → stroke → fill → lines).
 func applyTextDecor(t *graph.Text, s NodeStyle) {
 	t.StrokeColor = s.TextStrokeColor
 	t.StrokeWidth = s.TextStrokeWidth
@@ -1285,4 +1298,37 @@ func applyTextDecor(t *graph.Text, s NodeStyle) {
 	t.ShadowBlur = s.TextShadowBlur
 	t.ShadowX = s.TextShadowX
 	t.ShadowY = s.TextShadowY
+	dec := s.TextDecoration
+	t.Underline = strings.Contains(dec, "underline")
+	t.LineThrough = strings.Contains(dec, "line-through")
+	t.Overline = strings.Contains(dec, "overline")
+}
+
+// applyTextTransform implements CSS text-transform on a display string.
+func applyTextTransform(s, mode string) string {
+	switch mode {
+	case "uppercase":
+		return strings.ToUpper(s)
+	case "lowercase":
+		return strings.ToLower(s)
+	case "capitalize":
+		// Title-case first letter of each whitespace-separated word.
+		parts := strings.Fields(s)
+		for i, p := range parts {
+			if p == "" {
+				continue
+			}
+			r := []rune(p)
+			r[0] = []rune(strings.ToUpper(string(r[0])))[0]
+			if len(r) > 1 {
+				parts[i] = string(r[0]) + strings.ToLower(string(r[1:]))
+			} else {
+				parts[i] = string(r[0])
+			}
+		}
+		// Preserve original spacing loosely by rejoining with single spaces.
+		return strings.Join(parts, " ")
+	default:
+		return s
+	}
 }

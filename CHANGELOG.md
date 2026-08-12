@@ -7,6 +7,13 @@ All notable changes to QORM are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Canvas text decoration & transform**: `textDecoration` (`underline` /
+  `line-through` / `overline`), `textTransform` (`uppercase` / `lowercase` /
+  `capitalize`), and multi-line **`lineClamp`** (ellipsis on the last kept line).
+- **Canvas outline**: CSS `outline` / `outlineColor` / `outlineWidth` /
+  `outlineOffset` as an outer SDF ring (outside the border box).
+- **Canvas conic-gradient**: `background: conic-gradient(from 0deg, #f00, #00f)`
+  (and `gradient:`) paints a sweep fill from the box center.
 - **Canvas full CSS filter + blend**: `grayscale()`, `hue-rotate()`,
   `opacity()`, `drop-shadow(x y blur color)` on the filter stack; **mix-blend-
   mode** (`multiply` / `screen` / `overlay` / `darken` / `lighten`) when

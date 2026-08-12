@@ -103,7 +103,7 @@ func (c *Context) DrawTextTracking(text string, pos image.Point, scale float64, 
 // shadow (CSS text-stroke / text-shadow analogues). Zero alpha skips a layer.
 func (c *Context) DrawTextDecorated(text string, pos image.Point, scale float64, weight int, letterSpacing float64, italic bool,
 	stroke color.RGBA, strokeWidth float64, shadow color.RGBA, shadowBlur, shadowX, shadowY float64) {
-	c.ops.Add(op.TextOp{
+	c.AddText(op.TextOp{
 		Text:          text,
 		Pos:           pos,
 		Scale:         scale,
@@ -117,6 +117,16 @@ func (c *Context) DrawTextDecorated(text string, pos image.Point, scale float64,
 		ShadowX:       shadowX,
 		ShadowY:       shadowY,
 	})
+}
+
+// AddText records a full TextOp (decorations + underline/line-through/overline).
+func (c *Context) AddText(t op.TextOp) {
+	c.ops.Add(t)
+}
+
+// AddRRect records a full RRectOp (gradients, outline, inset shadow, frost).
+func (c *Context) AddRRect(rr op.RRectOp) {
+	c.ops.Add(rr)
 }
 
 // DrawImage draws src scaled into dest (current coordinate space).

@@ -90,6 +90,7 @@ type NodeStyle struct {
 	GradientStopPos []float64
 	GradientAngle   float64
 	GradientRadial  bool
+	GradientConic   bool // conic-gradient from center; angle is start degrees
 	// BackdropBlur is CSS backdrop-filter blur radius in px; when >0 the
 	// software path frosts the pixels under the fill before compositing
 	// Background / gradient (plus optional BackdropTint).
@@ -166,6 +167,17 @@ type NodeStyle struct {
 	// TextOverflow "ellipsis" truncates single-line text with "…" when it
 	// exceeds the laid-out width (CSS text-overflow:ellipsis + nowrap).
 	TextOverflow string
+	// LineClamp caps multi-line wrapped text to N lines with ellipsis on the
+	// last (CSS -webkit-line-clamp). 0 = unlimited.
+	LineClamp int
+	// TextDecoration CSS: underline | line-through | overline (space-separated).
+	TextDecoration string
+	// TextTransform CSS: uppercase | lowercase | capitalize.
+	TextTransform string
+	// Outline (CSS outline — outside the border box).
+	OutlineColor  color.RGBA
+	OutlineWidth  float64
+	OutlineOffset float64
 	// Text stroke / shadow (CSS -webkit-text-stroke / text-shadow analogues).
 	// Distinct from box StrokeColor (border) and BoxShadow* (drop shadow on
 	// the chrome). Zero alpha skips the layer in the software text path.
@@ -236,6 +248,8 @@ func (s *NodeStyle) scaleBy(f int) {
 	s.DropShadowX *= float64(f)
 	s.DropShadowY *= float64(f)
 	s.DropShadowBlur *= float64(f)
+	s.OutlineWidth *= float64(f)
+	s.OutlineOffset *= float64(f)
 }
 
 func evalStyleProp(val any, rt *runtime.Runtime, sc ...*listScope) any {
@@ -808,6 +822,53 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 	if to, ok := esp(style["textOverflow"]).(string); ok {
 		s.TextOverflow = strings.ToLower(strings.TrimSpace(to))
 	}
+	if v := esp(style["lineClamp"]); v != nil {
+		switch t := v.(type) {
+		case float64:
+			if t > 0 {
+				s.LineClamp = int(t)
+			}
+		case int:
+			if t > 0 {
+				s.LineClamp = t
+			}
+		}
+	}
+	if td, ok := esp(style["textDecoration"]).(string); ok {
+		s.TextDecoration = strings.ToLower(strings.TrimSpace(td))
+	}
+	if tt, ok := esp(style["textTransform"]).(string); ok {
+		s.TextTransform = strings.ToLower(strings.TrimSpace(tt))
+	}
+	if oc, ok := esp(style["outlineColor"]).(string); ok {
+		s.OutlineColor = resolveColor(oc, rt)
+	}
+	if v := esp(style["outlineWidth"]); v != nil {
+		switch t := v.(type) {
+		case float64:
+			s.OutlineWidth = t
+		case int:
+			s.OutlineWidth = float64(t)
+		case string:
+			s.OutlineWidth = parseCSSPx(t)
+		}
+	}
+	if v := esp(style["outlineOffset"]); v != nil {
+		switch t := v.(type) {
+		case float64:
+			s.OutlineOffset = t
+		case int:
+			s.OutlineOffset = float64(t)
+		case string:
+			s.OutlineOffset = parseCSSPx(t)
+		}
+	}
+	// Shorthand outline: "2px solid #f00" or "2px #f00" (style token ignored).
+	if v := esp(style["outline"]); v != nil {
+		if str, ok := v.(string); ok {
+			parseOutlineShorthand(s, str, rt)
+		}
+	}
 	// letterSpacing: CSS px extra advance between runes (number or "Npx").
 	if ls := esp(style["letterSpacing"]); ls != nil {
 		switch v := ls.(type) {
@@ -1032,7 +1093,8 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 	}
 	if bg, ok := esp(style["background"]).(string); ok {
 		bt := strings.TrimSpace(bg)
-		if strings.HasPrefix(bt, "linear-gradient") || strings.HasPrefix(bt, "radial-gradient") {
+		if strings.HasPrefix(bt, "linear-gradient") || strings.HasPrefix(bt, "radial-gradient") ||
+			strings.HasPrefix(bt, "conic-gradient") {
 			applyGradientString(s, bg, rt)
 		}
 	}
@@ -1051,9 +1113,9 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 	}
 }
 
-// applyGradientString parses a CSS linear-gradient(...) or radial-gradient(...)
-// into s.GradientStops (+ optional positions) and sets Background to the first
-// stop for solid fallbacks.
+// applyGradientString parses a CSS linear-gradient(...), radial-gradient(...),
+// or conic-gradient(...) into s.GradientStops (+ optional positions) and sets
+// Background to the first stop for solid fallbacks.
 func applyGradientString(s *NodeStyle, g string, rt *runtime.Runtime) {
 	g = strings.TrimSpace(g)
 	if strings.HasPrefix(g, "radial-gradient(") {
@@ -1064,6 +1126,20 @@ func applyGradientString(s *NodeStyle, g string, rt *runtime.Runtime) {
 		s.GradientStops = stops
 		s.GradientStopPos = pos
 		s.GradientRadial = true
+		s.GradientConic = false
+		s.Background = stops[0]
+		return
+	}
+	if strings.HasPrefix(g, "conic-gradient(") {
+		stops, pos, angle := parseConicGradient(g, rt)
+		if len(stops) == 0 {
+			return
+		}
+		s.GradientStops = stops
+		s.GradientStopPos = pos
+		s.GradientAngle = angle
+		s.GradientConic = true
+		s.GradientRadial = false
 		s.Background = stops[0]
 		return
 	}
@@ -1075,7 +1151,83 @@ func applyGradientString(s *NodeStyle, g string, rt *runtime.Runtime) {
 	s.GradientStopPos = pos
 	s.GradientAngle = angle
 	s.GradientRadial = false
+	s.GradientConic = false
 	s.Background = stops[0]
+}
+
+// parseConicGradient extracts stops and optional "from Ndeg" start angle.
+func parseConicGradient(g string, rt *runtime.Runtime) (stops []color.RGBA, pos []float64, angle float64) {
+	inner := strings.TrimSpace(g)
+	if i := strings.Index(inner, "("); i >= 0 {
+		inner = inner[i+1:]
+	}
+	inner = strings.TrimSuffix(strings.TrimSpace(inner), ")")
+	parts := splitCSSList(inner)
+	start := 0
+	if len(parts) > 0 {
+		p0 := strings.TrimSpace(strings.ToLower(parts[0]))
+		if strings.HasPrefix(p0, "from ") {
+			rest := strings.TrimSpace(strings.TrimPrefix(p0, "from "))
+			rest = strings.TrimSuffix(rest, "deg")
+			if f, err := strconv.ParseFloat(strings.TrimSpace(rest), 64); err == nil {
+				angle = f
+			}
+			start = 1
+		}
+	}
+	for _, p := range parts[start:] {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		// "color" or "color 25%"
+		fields := strings.Fields(p)
+		if len(fields) == 0 {
+			continue
+		}
+		c := resolveColor(fields[0], rt)
+		if c.A == 0 && !strings.HasPrefix(fields[0], "#") && !strings.HasPrefix(fields[0], "rgb") {
+			// try full first token group for hex-with-alpha etc.
+			c = resolveColor(fields[0], rt)
+		}
+		if c.A == 0 && fields[0] != "transparent" {
+			// still accept for multi-stop presence
+		}
+		stops = append(stops, c)
+		if len(fields) >= 2 && strings.HasSuffix(fields[1], "%") {
+			if f, err := strconv.ParseFloat(strings.TrimSuffix(fields[1], "%"), 64); err == nil {
+				pos = append(pos, f/100)
+			}
+		}
+	}
+	if len(pos) != len(stops) {
+		pos = nil
+	}
+	return stops, pos, angle
+}
+
+// parseOutlineShorthand parses "2px solid #f00" / "2px #f00" into outline fields.
+func parseOutlineShorthand(s *NodeStyle, raw string, rt *runtime.Runtime) {
+	parts := strings.Fields(raw)
+	for _, p := range parts {
+		pl := strings.ToLower(p)
+		if pl == "solid" || pl == "dashed" || pl == "dotted" || pl == "none" {
+			if pl == "none" {
+				s.OutlineWidth = 0
+				s.OutlineColor = color.RGBA{}
+			}
+			continue
+		}
+		if strings.HasPrefix(pl, "#") || strings.HasPrefix(pl, "rgb") || strings.HasPrefix(pl, "var(") {
+			s.OutlineColor = resolveColor(p, rt)
+			continue
+		}
+		if f := parseCSSPx(p); f > 0 || strings.HasSuffix(pl, "px") {
+			if s.OutlineWidth == 0 {
+				s.OutlineWidth = f
+			}
+		}
+	}
 }
 
 // parseLinearGradient extracts colour stops (with optional % positions) and a
@@ -1461,6 +1613,9 @@ var canvasStyleKeys = map[string]bool{
 	"fontSize": true, "fontWeight": true, "textAlign": true,
 	"letterSpacing": true, "lineHeight": true, "fontStyle": true,
 	"textOverflow": true, // "ellipsis" single-line truncate
+	"lineClamp":    true, // multi-line cap + ellipsis
+	"textDecoration": true, "textTransform": true,
+	"outline": true, "outlineColor": true, "outlineWidth": true, "outlineOffset": true,
 	"borderRadius": true, "strokeWidth": true, "borderWidth": true,
 	"opacity": true, "disabled": true, "disabledOpacity": true,
 	// Declarative interaction effects (any node; resolved generically by

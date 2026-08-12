@@ -33,6 +33,7 @@ var KnownStyleKeys = map[string]bool{
 	"textShadowX": true, "textShadowY": true,
 	// Box chrome (canvas RRect path).
 	"strokeColor": true, "strokeWidth": true,
+	"outline": true, "outlineColor": true, "outlineWidth": true, "outlineOffset": true,
 	"boxShadowColor": true, "boxShadowBlur": true,
 	"boxShadowX": true, "boxShadowY": true, "boxShadowInset": true,
 	"filter": true, "blur": true, "filterBlur": true,

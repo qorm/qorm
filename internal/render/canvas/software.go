@@ -279,6 +279,35 @@ func (r SoftwareRenderer) Render(ops *op.Ops, target *image.RGBA) {
 				}
 			}
 			DrawTextTracking(img, o.Text, pos, fill, scale, o.Weight, o.LetterSpacing, o.Italic, clips)
+			// CSS text-decoration lines after fill (underline / line-through / overline).
+			if o.Underline || o.LineThrough || o.Overline {
+				fontSize := clampFontSize(scale * 10)
+				tw := MeasureTextTracking(o.Text, fontSize, o.LetterSpacing*ms)
+				th := int(math.Round(fontSize))
+				if th < 1 {
+					th = 1
+				}
+				lineH := int(math.Max(1, math.Round(fontSize/12)))
+				drawTextLine := func(y int) {
+					for dy := 0; dy < lineH; dy++ {
+						for x := 0; x < int(math.Ceil(tw)); x++ {
+							px, py := pos.X+x, y+dy
+							if clipCoverage(float64(px)+0.5, float64(py)+0.5, clips) > 0 {
+								blendOver(img, px, py, fill)
+							}
+						}
+					}
+				}
+				if o.Underline {
+					drawTextLine(pos.Y + th - lineH)
+				}
+				if o.LineThrough {
+					drawTextLine(pos.Y + th/2)
+				}
+				if o.Overline {
+					drawTextLine(pos.Y)
+				}
+			}
 		case op.ImageOp:
 			if o.Src == nil {
 				break
@@ -354,7 +383,7 @@ func (r SoftwareRenderer) Render(ops *op.Ops, target *image.RGBA) {
 			cxL := float64(o.Rect.Min.X) + hw
 			cyL := float64(o.Rect.Min.Y) + hh
 
-			// Expand local bounds for AA band + shadow, then map to screen AABB.
+			// Expand local bounds for AA band + shadow + outline, then map to screen AABB.
 			padL := 1.0/s + 1.0
 			if o.Shadow.A > 0 {
 				padL = math.Max(padL, math.Abs(shadowXL)+shadowBlurL+1.0/s+1)
@@ -362,6 +391,9 @@ func (r SoftwareRenderer) Render(ops *op.Ops, target *image.RGBA) {
 			}
 			if strokeWidthL > 0 {
 				padL = math.Max(padL, strokeWidthL+1.0/s)
+			}
+			if o.Outline.A > 0 && o.OutlineWidth > 0 {
+				padL = math.Max(padL, o.OutlineOffset+o.OutlineWidth+1.0/s+1)
 			}
 			localBox := geom.NewBBox(float64(o.Rect.Min.X)-padL, float64(o.Rect.Min.Y)-padL, lw+2*padL, lh+2*padL)
 			sb := currentMatrix.TransformBBox(localBox)
@@ -439,7 +471,9 @@ func (r SoftwareRenderer) Render(ops *op.Ops, target *image.RGBA) {
 						if len(o.GradientStops) >= 2 {
 							// Gradients authored in local box space.
 							lox, loy := float64(o.Rect.Min.X), float64(o.Rect.Min.Y)
-							if o.GradientRadial {
+							if o.GradientConic {
+								fill = sampleConicGradient(o.GradientStops, o.GradientStopPos, o.GradientAngle, lx, ly, lox, loy, lw, lh)
+							} else if o.GradientRadial {
 								fill = sampleRadialGradient(o.GradientStops, o.GradientStopPos, lx, ly, lox, loy, lw, lh)
 							} else {
 								fill = sampleLinearGradient(o.GradientStops, o.GradientStopPos, o.GradientAngle, lx, ly, lox, loy, lw, lh)
@@ -473,6 +507,19 @@ func (r SoftwareRenderer) Render(ops *op.Ops, target *image.RGBA) {
 						// Stroke sits INSIDE the boundary (CSS border-box).
 						if cov := clamp01(0.5-dS) * clamp01(0.5+dS+strokeWidthS); cov > 0 {
 							blendOver(img, x, y, withOpacity(o.Stroke, cov*clipCov*currentOpacity))
+						}
+					}
+					// CSS outline: ring OUTSIDE the border box (offset + width).
+					if o.Outline.A > 0 && o.OutlineWidth > 0 {
+						offS := o.OutlineOffset * s
+						owS := o.OutlineWidth * s
+						// Outer edge at d = offS+owS, inner at d = offS (in screen SDF).
+						// Coverage in the band outside the shape.
+						if dS >= offS-0.5 {
+							cov := clamp01(0.5+(dS-offS)) * clamp01(0.5-(dS-offS-owS))
+							if cov > 0 {
+								blendOver(img, x, y, withOpacity(o.Outline, cov*clipCov*currentOpacity))
+							}
 						}
 					}
 				}
@@ -935,6 +982,31 @@ func sampleLinearGradient(stops []color.RGBA, stopPos []float64, angle, px, py, 
 	t := ((px-cx)*dx + (py-cy)*dy) / half
 	// Map [-1,1] → [0,1]
 	t = (t + 1) / 2
+	return sampleGradientT(stops, stopPos, t)
+}
+
+// sampleConicGradient interpolates stops by angle around the box center.
+// fromDeg is CSS degrees (0 = from top, increasing clockwise).
+func sampleConicGradient(stops []color.RGBA, stopPos []float64, fromDeg, px, py, ox, oy, w, h float64) color.RGBA {
+	if len(stops) == 0 {
+		return color.RGBA{}
+	}
+	if len(stops) == 1 {
+		return stops[0]
+	}
+	cx, cy := ox+w/2, oy+h/2
+	// Math atan2: 0 = east, CCW. CSS conic: 0 = north, CW.
+	ang := math.Atan2(px-cx, cy-py) // from north, CW → range (-π,π]
+	if ang < 0 {
+		ang += 2 * math.Pi
+	}
+	// Normalize to [0,1) then rotate by fromDeg.
+	t := ang / (2 * math.Pi)
+	t -= fromDeg / 360
+	t = math.Mod(t, 1)
+	if t < 0 {
+		t += 1
+	}
 	return sampleGradientT(stops, stopPos, t)
 }
 
