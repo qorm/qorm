@@ -7,6 +7,13 @@ All notable changes to QORM are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Canvas measure depth**: CollectMeasure enriches rows with HTML-parity
+  style fields (color, background, fontSize/Weight, padding, margin,
+  borderRadius, border, overflowX/Y), reports a `__stage` frame, and supports
+  **logical CSS px** (`MeasureOpts.Logical`) so HiDPI physical layout still
+  matches design-time agent checks. Canvas host / `MeasureScene` use logical.
+- **Nested scroll drag chaining**: touch-drag at the inner viewport's hard
+  edge bubbles to the outer scroller (innermost rubber-band otherwise).
 - **Canvas scroll steals from list rows**: a vertical drag that starts on an
   InteractiveWidget inside a scroll viewport (checkbox/listtile/…) activates
   scroll after slop and axis lock — list rows scroll instead of trapping the

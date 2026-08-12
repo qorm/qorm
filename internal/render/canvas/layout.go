@@ -35,16 +35,17 @@ func findBoard(n *model.Node) *model.Node {
 // inter carries cross-frame interaction state (pressed/hovered/focused); it may be nil.
 // scale is the device-pixel ratio (1 = logical == physical; 2 = Retina).
 func Layout(ops *op.Ops, root *model.Node, size image.Point, rt *runtime.Runtime, inter *Interaction, scale int) (graph.Node, bool) {
-	g, needsRedraw, _ := layout(ops, root, size, rt, inter, scale)
+	g, needsRedraw, _, _ := layout(ops, root, size, rt, inter, scale)
 	return g, needsRedraw
 }
 
 // layout is Layout plus the repeat-instance sidecar (list.go) the engine
 // keeps for event dispatch: which item scope a hit belongs to. The public
-// wrapper keeps the two-result form for layout-only callers.
-func layout(ops *op.Ops, root *model.Node, size image.Point, rt *runtime.Runtime, inter *Interaction, scale int) (graph.Node, bool, map[graph.Node]itemInstance) {
+// wrapper keeps the two-result form for layout-only callers. The LayoutNode
+// root is returned so the engine can feed CollectMeasure style fields.
+func layout(ops *op.Ops, root *model.Node, size image.Point, rt *runtime.Runtime, inter *Interaction, scale int) (graph.Node, bool, map[graph.Node]itemInstance, *LayoutNode) {
 	if root == nil {
-		return nil, false, nil
+		return nil, false, nil, nil
 	}
 	if scale < 1 {
 		scale = 1
@@ -64,7 +65,7 @@ func layout(ops *op.Ops, root *model.Node, size image.Point, rt *runtime.Runtime
 	// 1. Measure pass (bottom-up)
 	rootNode := Measure(root, rt, inter, scale)
 	if rootNode == nil {
-		return nil, false, nil // the whole scene is conditionally hidden
+		return nil, false, nil, nil // the whole scene is conditionally hidden
 	}
 
 	// The scene root is the page: it spans the viewport width (CSS's initial
@@ -133,5 +134,5 @@ func layout(ops *op.Ops, root *model.Node, size image.Point, rt *runtime.Runtime
 		rootGraphNode.Draw(ctx)
 	}
 
-	return rootGraphNode, rootNode.NeedsRedraw, items
+	return rootGraphNode, rootNode.NeedsRedraw, items, rootNode
 }

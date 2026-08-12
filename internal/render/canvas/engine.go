@@ -164,9 +164,12 @@ type Engine struct {
 	dirty     atomic.Bool // pending frame (input/state change)
 	animating atomic.Bool // a tween is mid-flight; keep rendering
 
-	ops       op.Ops
-	graphRoot graph.Node
-	lastRoot  *model.Node
+	ops        op.Ops
+	graphRoot  graph.Node
+	layoutRoot *LayoutNode // last laid-out tree (CollectMeasure style sidecar)
+	lastScale  int         // device-pixel ratio used for last layout
+	lastSize   image.Point // physical stage size of last layout
+	lastRoot   *model.Node
 
 	// lastPtr/hasPtr track the pointer's rest position from every
 	// HandlePointer call: ScrollInput carries no coordinates, so wheel and
@@ -332,8 +335,11 @@ func (e *Engine) RenderInto(size image.Point, scale int, target *image.RGBA) (bo
 	// nothing. (Before the Engine owned this, ops accumulated forever.)
 	t0 := time.Now()
 	e.ops.Reset()
-	rootNode, needsRedraw, instances := layout(&e.ops, root, size, rt, &e.Inter, scale)
+	rootNode, needsRedraw, instances, layoutRoot := layout(&e.ops, root, size, rt, &e.Inter, scale)
 	e.graphRoot = rootNode
+	e.layoutRoot = layoutRoot
+	e.lastScale = scale
+	e.lastSize = size
 	e.itemInstances = instances
 	st.LayoutRecord = time.Since(t0)
 

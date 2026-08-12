@@ -431,6 +431,56 @@ func TestScrollRubberBandAndSpring(t *testing.T) {
 	}
 }
 
+// Nested scroll: when the inner viewport is at its bottom edge, further
+// drag-up bubbles to the outer viewport.
+func TestScrollNestedDragBubbles(t *testing.T) {
+	// Inner: 200x80 viewport, content 200 tall → maxY 120
+	innerKids := tallChildren(5, 40)
+	inner := &model.Node{
+		Type: "scroll", ID: "inner",
+		Style:    map[string]any{"width": 180.0, "height": 80.0},
+		Children: innerKids,
+	}
+	// Outer: holds inner + filler
+	outerKids := append([]*model.Node{inner}, tallChildren(6, 50)...)
+	outer := &model.Node{
+		Type: "scroll", ID: "outer",
+		Style:    map[string]any{"width": 200.0, "height": 100.0},
+		Children: outerKids,
+	}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{outer}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}}
+	rt := runtime.New(app)
+	e := NewEngine(rt, SoftwareRenderer{})
+	surf := NewHeadlessSurface(image.Pt(400, 400))
+	e.DrawFrame(surf)
+
+	// Pin inner at its bottom without chaining the outer (direct offset).
+	if e.Inter.ScrollOffsets == nil {
+		e.Inter.ScrollOffsets = map[*model.Node]ScrollPos{}
+	}
+	e.Inter.ScrollOffsets[inner] = ScrollPos{Y: 200} // past max; layout clamps
+	e.Inter.ScrollOffsets[outer] = ScrollPos{Y: 0}
+	e.DrawFrame(surf)
+	innerOff := e.Inter.ScrollOffsets[inner]
+	if innerOff.Y < 50 {
+		t.Fatalf("inner should be scrolled, Y=%v", innerOff.Y)
+	}
+	outerBefore := e.Inter.ScrollOffsets[outer].Y
+
+	// Drag finger up (content follows → offset increases) at inner bottom → bubble.
+	e.HandlePointer(PointerInput{Type: PointerPress, X: 50, Y: 40, Buttons: 1})
+	e.HandlePointer(PointerInput{Type: PointerMove, X: 50, Y: 20, Buttons: 1})
+	e.HandlePointer(PointerInput{Type: PointerMove, X: 50, Y: -80, Buttons: 1})
+	e.HandlePointer(PointerInput{Type: PointerRelease, X: 50, Y: -80})
+
+	outerAfter := e.Inter.ScrollOffsets[outer].Y
+	if outerAfter <= outerBefore {
+		t.Fatalf("nested drag at inner bottom should bubble to outer: before=%v after=%v inner=%v",
+			outerBefore, outerAfter, e.Inter.ScrollOffsets[inner])
+	}
+}
+
 // A short tap (no drag past slop) must not leave ScrollDrag armed and must
 // not change the offset.
 func TestScrollTapDoesNotScroll(t *testing.T) {

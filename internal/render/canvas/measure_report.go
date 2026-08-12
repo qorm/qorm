@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
+	"image/color"
 	"strings"
 
 	"github.com/qorm/qorm/internal/model"
@@ -11,14 +12,34 @@ import (
 	"github.com/qorm/qorm/internal/runtime"
 )
 
+// MeasureOpts controls CollectMeasure / MeasureScene output.
+// Logical=true reports CSS-px (divide physical by scale) so agent checks match
+// design-time coordinates and the HTML getBoundingClientRect path at scale 1.
+type MeasureOpts struct {
+	Logical bool // report x/y/w/h in logical CSS px (default for MeasureScene)
+}
+
 // CollectMeasure walks the last rendered graph and emits HTML-compatible
-// measurement rows (same shape as app.js qormMeasure → POST /measure):
-// id, x, y, w, h, visible, text, plus a few style fields from LayoutNode
-// style when available. Agents use this for qorm_measure / qorm_check_layout
-// against the pure-Go canvas path (not the WebView DOM).
+// measurement rows (same shape as app.js qormMeasure → POST /measure).
+// Coordinates default to physical device px; pass Logical via CollectMeasureOpts
+// for design-time CSS px (HiDPI-safe agent checks).
 func (e *Engine) CollectMeasure() []byte {
+	return e.CollectMeasureOpts(MeasureOpts{})
+}
+
+// CollectMeasureOpts is CollectMeasure with Logical/physical control.
+func (e *Engine) CollectMeasureOpts(opts MeasureOpts) []byte {
 	if e == nil || e.graphRoot == nil {
 		return []byte("[]")
+	}
+	scale := e.lastScale
+	if scale < 1 {
+		scale = 1
+	}
+	// Prefer LayoutNode Abs* (post-entrance, accurate) with style sidecar.
+	snaps := map[string]measureSnap{}
+	if e.layoutRoot != nil {
+		collectLayoutSnaps(e.layoutRoot, snaps)
 	}
 	var rows []map[string]any
 	seen := map[string]bool{}
@@ -30,25 +51,7 @@ func (e *Engine) CollectMeasure() []byte {
 		b := n.Base()
 		if m := b.Model; m != nil && m.ID != "" && !b.Overlay && !seen[m.ID] {
 			seen[m.ID] = true
-			bb := n.GetBBox()
-			w := bb.MaxX - bb.MinX
-			h := bb.MaxY - bb.MinY
-			vis := w > 0.5 && h > 0.5 && b.Opacity > 0.01
-			row := map[string]any{
-				"id":      m.ID,
-				"tag":     "canvas",
-				"type":    m.Type,
-				"x":       roundPx(bb.MinX),
-				"y":       roundPx(bb.MinY),
-				"w":       roundPx(w),
-				"h":       roundPx(h),
-				"visible": vis,
-				"text":    measureTextOf(m, e.RT),
-				"opacity": fmt.Sprintf("%.3g", b.Opacity),
-			}
-			if b.Opacity <= 0 {
-				row["opacity"] = "0"
-			}
+			row := measureRowFromGraph(m, n, b, snaps[m.ID], scale, opts.Logical, e.RT)
 			rows = append(rows, row)
 		}
 		for _, c := range b.Children {
@@ -56,11 +59,212 @@ func (e *Engine) CollectMeasure() []byte {
 		}
 	}
 	walk(e.graphRoot)
+	// Layout-only ids (hidden zero-size) still appear if graph missed them.
+	for id, sn := range snaps {
+		if seen[id] {
+			continue
+		}
+		rows = append(rows, measureRowFromSnap(id, sn, scale, opts.Logical, e.RT))
+	}
+	// Stage row for audit bounds (like measuring qorm-root).
+	if e.lastSize.X > 0 && e.lastSize.Y > 0 {
+		sw, sh := float64(e.lastSize.X), float64(e.lastSize.Y)
+		if opts.Logical {
+			sw /= float64(scale)
+			sh /= float64(scale)
+		}
+		rows = append([]map[string]any{{
+			"id":      "__stage",
+			"tag":     "canvas",
+			"type":    "stage",
+			"x":       0.0,
+			"y":       0.0,
+			"w":       roundPx(sw),
+			"h":       roundPx(sh),
+			"visible": true,
+			"text":    "",
+			"display": "block",
+			"opacity": "1",
+			"scale":   scale,
+			"logical": opts.Logical,
+		}}, rows...)
+	}
 	b, err := json.Marshal(rows)
 	if err != nil {
 		return []byte("[]")
 	}
 	return b
+}
+
+type measureSnap struct {
+	id                                 string
+	typ                                string
+	absX, absY, w, h                   int
+	fs, fw, pad, br                    int
+	opacity                            float64
+	textAlign                          string
+	color, bg                          color.RGBA
+	strokeW                            float64
+	stroke                             color.RGBA
+	marginT, marginB, marginL, marginR int
+	contentW, contentH                 int // scroll overflow
+}
+
+func collectLayoutSnaps(ln *LayoutNode, out map[string]measureSnap) {
+	if ln == nil || ln.Node == nil {
+		return
+	}
+	if id := ln.Node.ID; id != "" {
+		s := ln.Style
+		op := s.Opacity
+		if op <= 0 {
+			op = 1
+		}
+		out[id] = measureSnap{
+			id: id, typ: ln.Node.Type,
+			absX: ln.AbsX, absY: ln.AbsY, w: ln.Width, h: ln.Height,
+			fs: s.FontSize, fw: s.FontWeight, pad: s.Padding,
+			br: int(s.BorderRadius), opacity: op, textAlign: s.TextAlign,
+			color: s.Color, bg: s.Background,
+			strokeW: s.StrokeWidth, stroke: s.StrokeColor,
+			marginT: s.MarginTop, marginB: s.MarginBot,
+			marginL: s.MarginLeft, marginR: s.MarginRight,
+			contentW: ln.ContentW, contentH: ln.ContentH,
+		}
+	}
+	for _, c := range ln.Children {
+		collectLayoutSnaps(c, out)
+	}
+}
+
+func measureRowFromGraph(m *model.Node, n graph.Node, b *graph.BaseNode, sn measureSnap, scale int, logical bool, rt *runtime.Runtime) map[string]any {
+	bb := n.GetBBox()
+	x, y := bb.MinX, bb.MinY
+	w, h := bb.MaxX-bb.MinX, bb.MaxY-bb.MinY
+	// Prefer layout Abs when available (stable before matrix jitter).
+	if sn.id != "" {
+		x, y = float64(sn.absX), float64(sn.absY)
+		w, h = float64(sn.w), float64(sn.h)
+	}
+	if logical && scale > 1 {
+		sf := float64(scale)
+		x, y, w, h = x/sf, y/sf, w/sf, h/sf
+	}
+	op := b.Opacity
+	if op <= 0 && sn.opacity > 0 {
+		op = sn.opacity
+	}
+	if op <= 0 {
+		op = 1
+	}
+	vis := w > 0.5 && h > 0.5 && op > 0.01
+	row := map[string]any{
+		"id":       m.ID,
+		"tag":      "canvas",
+		"type":     m.Type,
+		"x":        roundPx(x),
+		"y":        roundPx(y),
+		"w":        roundPx(w),
+		"h":        roundPx(h),
+		"visible":  vis,
+		"text":     measureTextOf(m, rt),
+		"display":  "block",
+		"opacity":  fmt.Sprintf("%.3g", op),
+		"position": "relative",
+		"scale":    scale,
+		"logical":  logical,
+	}
+	if sn.id != "" {
+		enrichStyle(row, sn, scale, logical)
+	} else {
+		// Minimal style from graph opacity only.
+	}
+	// a11y-ish props mirrored from HTML measure.
+	if raw, ok := m.Prop("ariaLabel"); ok {
+		row["ariaLabel"] = fmt.Sprint(raw)
+	}
+	if raw, ok := m.Prop("role"); ok {
+		row["role"] = fmt.Sprint(raw)
+	} else {
+		row["role"] = ""
+	}
+	row["tabindex"] = ""
+	return row
+}
+
+func measureRowFromSnap(id string, sn measureSnap, scale int, logical bool, rt *runtime.Runtime) map[string]any {
+	x, y, w, h := float64(sn.absX), float64(sn.absY), float64(sn.w), float64(sn.h)
+	if logical && scale > 1 {
+		sf := float64(scale)
+		x, y, w, h = x/sf, y/sf, w/sf, h/sf
+	}
+	row := map[string]any{
+		"id": id, "tag": "canvas", "type": sn.typ,
+		"x": roundPx(x), "y": roundPx(y), "w": roundPx(w), "h": roundPx(h),
+		"visible": w > 0.5 && h > 0.5 && sn.opacity > 0.01,
+		"text":    "", "display": "block",
+		"opacity": fmt.Sprintf("%.3g", sn.opacity),
+		"scale":   scale, "logical": logical,
+	}
+	enrichStyle(row, sn, scale, logical)
+	return row
+}
+
+func enrichStyle(row map[string]any, sn measureSnap, scale int, logical bool) {
+	div := 1.0
+	if logical && scale > 1 {
+		div = float64(scale)
+	}
+	if sn.fs > 0 {
+		row["fontSize"] = fmt.Sprintf("%.0fpx", float64(sn.fs)/div)
+	}
+	if sn.fw > 0 {
+		row["fontWeight"] = fmt.Sprintf("%d", sn.fw)
+	}
+	if sn.textAlign != "" {
+		row["textAlign"] = sn.textAlign
+	}
+	if sn.pad > 0 {
+		p := float64(sn.pad) / div
+		row["padding"] = fmt.Sprintf("%.0fpx", p)
+	}
+	if sn.br > 0 {
+		row["borderRadius"] = fmt.Sprintf("%.0fpx", float64(sn.br)/div)
+	}
+	if sn.color.A > 0 {
+		row["color"] = cssRGBA(sn.color)
+	}
+	if sn.bg.A > 0 {
+		row["background"] = cssRGBA(sn.bg)
+	} else {
+		row["background"] = "rgba(0, 0, 0, 0)"
+	}
+	if sn.strokeW > 0 && sn.stroke.A > 0 {
+		row["border"] = fmt.Sprintf("%.0fpx solid %s", sn.strokeW/div, cssRGBA(sn.stroke))
+	} else {
+		row["border"] = "none"
+	}
+	// margin shorthand top/right/bottom/left
+	if sn.marginT != 0 || sn.marginR != 0 || sn.marginB != 0 || sn.marginL != 0 {
+		row["margin"] = fmt.Sprintf("%.0fpx %.0fpx %.0fpx %.0fpx",
+			float64(sn.marginT)/div, float64(sn.marginR)/div,
+			float64(sn.marginB)/div, float64(sn.marginL)/div)
+	}
+	// Scroll overflow hints (HTML overflowX/Y boolean-ish).
+	if sn.contentW > sn.w {
+		row["overflowX"] = true
+	}
+	if sn.contentH > sn.h {
+		row["overflowY"] = true
+	}
+	row["zIndex"] = "auto"
+}
+
+func cssRGBA(c color.RGBA) string {
+	if c.A == 255 {
+		return fmt.Sprintf("rgb(%d, %d, %d)", c.R, c.G, c.B)
+	}
+	return fmt.Sprintf("rgba(%d, %d, %d, %.3g)", c.R, c.G, c.B, float64(c.A)/255)
 }
 
 func roundPx(v float64) float64 {
@@ -97,8 +301,8 @@ func measureTextOf(n *model.Node, rt *runtime.Runtime) string {
 }
 
 // MeasureScene is a headless one-shot: layout+paint into an offscreen buffer
-// and return CollectMeasure rows. Used by `qorm measure` on pure-Go builds
-// (no WebView). scale defaults to 1; width/height are logical stage size.
+// and return CollectMeasure rows in LOGICAL CSS px (scale-independent), which
+// is what agent checks and design tokens expect.
 func MeasureScene(rt *runtime.Runtime, width, height, scale int) []byte {
 	if rt == nil {
 		return []byte("[]")
@@ -117,5 +321,5 @@ func MeasureScene(rt *runtime.Runtime, width, height, scale int) []byte {
 	// Drive a couple of frames so entrance clocks settle enough for boxes.
 	e.DrawFrame(surf)
 	e.DrawFrame(surf)
-	return e.CollectMeasure()
+	return e.CollectMeasureOpts(MeasureOpts{Logical: true})
 }

@@ -200,10 +200,25 @@ func scrollAllowsOverscroll(inter *Interaction, n *model.Node) bool {
 // scrollAncestor returns the innermost scroll viewport group under hit
 // (or hit itself), plus its model node.
 func scrollAncestor(hit graph.Node) (*graph.Group, *model.Node) {
+	chain := scrollAncestorChain(hit)
+	if len(chain) == 0 {
+		return nil, nil
+	}
+	return chain[0].vp, chain[0].m
+}
+
+type scrollLink struct {
+	vp *graph.Group
+	m  *model.Node
+}
+
+// scrollAncestorChain returns scroll viewports from innermost to outermost.
+func scrollAncestorChain(hit graph.Node) []scrollLink {
+	var chain []scrollLink
 	for n := hit; n != nil; {
 		if g, ok := n.(*graph.Group); ok {
 			if m := g.Base().Model; m != nil && isScrollType(m.Type) {
-				return g, m
+				chain = append(chain, scrollLink{vp: g, m: m})
 			}
 		}
 		p := n.Base().Parent
@@ -212,7 +227,7 @@ func scrollAncestor(hit graph.Node) (*graph.Group, *model.Node) {
 		}
 		n = p
 	}
-	return nil, nil
+	return chain
 }
 
 // scrollRange returns the max content offset (0 when content fits).
@@ -680,16 +695,98 @@ func (e *Engine) handleScrollDrag(p PointerInput) bool {
 			}
 		}
 		d.MomLast = now
-		if g := e.findGroupByModel(d.Node); g != nil {
-			if vp, ok := g.(*graph.Group); ok {
-				e.scrollViewportRubber(vp, d.Node, dx, dy)
-			}
-		}
+		e.scrollDragApplyNested(d.Node, dx, dy)
 		e.dirty.Store(true)
 		return true
 	default:
 		// PointerPress is handled by armScrollDragFromHit; do not clear here.
 		return false
+	}
+}
+
+// scrollDragApplyNested routes a touch-drag delta through nested scroll
+// viewports: the innermost absorbs while it has room (or is allowed to
+// rubber-band); remainder bubbles to outer viewports with a hard clamp —
+// matching wheel scroll chaining + iOS nested scroll feel.
+func (e *Engine) scrollDragApplyNested(inner *model.Node, dx, dy float64) {
+	if inner == nil || (dx == 0 && dy == 0) {
+		return
+	}
+	g := e.findGroupByModel(inner)
+	if g == nil {
+		return
+	}
+	chain := scrollAncestorChain(g)
+	if len(chain) == 0 {
+		if vp, ok := g.(*graph.Group); ok {
+			e.scrollViewportRubber(vp, inner, dx, dy)
+			e.Inter.ScrollDrag.Node = inner
+		}
+		return
+	}
+	remainX, remainY := dx, dy
+	for i, link := range chain {
+		if remainX == 0 && remainY == 0 {
+			break
+		}
+		if e.Inter.ScrollOffsets == nil {
+			e.Inter.ScrollOffsets = map[*model.Node]ScrollPos{}
+		}
+		pos := e.Inter.ScrollOffsets[link.m]
+		maxX, maxY := scrollRange(link.vp)
+		// How much of remainY can this viewport take before the hard edge?
+		takeX, takeY := remainX, remainY
+		if i > 0 {
+			// Outer: hard clamp — only absorb the in-range portion.
+			if takeY < 0 && pos.Y+takeY < 0 {
+				takeY = -pos.Y
+			}
+			if takeY > 0 && pos.Y+takeY > maxY {
+				takeY = maxY - pos.Y
+			}
+			if takeX < 0 && pos.X+takeX < 0 {
+				takeX = -pos.X
+			}
+			if takeX > 0 && pos.X+takeX > maxX {
+				takeX = maxX - pos.X
+			}
+			if takeX == 0 && takeY == 0 {
+				continue
+			}
+			before := pos
+			e.scrollViewport(link.vp, link.m, takeX, takeY)
+			after := e.Inter.ScrollOffsets[link.m]
+			remainX -= after.X - before.X
+			remainY -= after.Y - before.Y
+			e.Inter.ScrollDrag.Node = link.m
+			continue
+		}
+		// Innermost: if already at the hard edge in the drag direction and an
+		// outer viewport exists, bubble the delta (no rubber fight). Otherwise
+		// rubber-band on this viewport (pull-to-refresh / edge bounce).
+		atTop, atBot := pos.Y <= 0.5, maxY <= 0 || pos.Y >= maxY-0.5
+		atLeft, atRight := pos.X <= 0.5, maxX <= 0 || pos.X >= maxX-0.5
+		bubbleY := len(chain) > 1 && ((takeY > 0 && atBot) || (takeY < 0 && atTop))
+		bubbleX := len(chain) > 1 && ((takeX > 0 && atRight) || (takeX < 0 && atLeft))
+		applyX, applyY := takeX, takeY
+		if bubbleY {
+			applyY = 0
+			remainY = takeY
+		}
+		if bubbleX {
+			applyX = 0
+			remainX = takeX
+		}
+		if applyX != 0 || applyY != 0 {
+			e.scrollViewportRubber(link.vp, link.m, applyX, applyY)
+			e.Inter.ScrollDrag.Node = link.m
+		}
+		if !bubbleY {
+			remainY = 0
+		}
+		if !bubbleX {
+			remainX = 0
+		}
 	}
 }
 
