@@ -144,9 +144,17 @@ func (c *Context) RRectEx(r image.Rectangle, radius float64, fill, stroke color.
 	})
 }
 
-// BeginLayer starts an offscreen layer (see op.LayerOp). Must pair with EndLayer.
+// BeginLayer starts an offscreen layer with blur only. Must pair with EndLayer.
 func (c *Context) BeginLayer(blur float64) {
-	c.ops.Add(op.LayerOp{Blur: blur})
+	c.BeginLayerFilter(blur, 1, 1, 1)
+}
+
+// BeginLayerFilter starts an offscreen layer with full CSS filter params
+// (blur + brightness + contrast + saturate). Identity color is 1,1,1.
+func (c *Context) BeginLayerFilter(blur, brightness, contrast, saturate float64) {
+	c.ops.Add(op.LayerOp{
+		Blur: blur, Brightness: brightness, Contrast: contrast, Saturate: saturate,
+	})
 }
 
 // EndLayer closes the current offscreen layer and composites it.

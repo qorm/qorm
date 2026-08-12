@@ -7,6 +7,12 @@ All notable changes to QORM are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Canvas CSS filter stack**: `filter: "blur(8px) brightness(1.2) contrast(0.9)
+  saturate(0)"` — offscreen layer with **3-pass Gaussian-approx blur** plus
+  brightness / contrast / saturate color matrix (percent or unitless). Still
+  supports `blur` / `filterBlur` shortcuts.
+- **Canvas overflow:hidden**: clips children to the box; with `borderRadius`
+  uses a rounded clip so cards match their chrome. Hit-testing honors `Clip`.
 - **Canvas filter blur**: CSS `filter: "blur(8px)"` (or `blur` / `filterBlur`)
   draws the node subtree into an offscreen layer, separable box-blurs it, and
   composites back — true group blur, not backdrop frost.

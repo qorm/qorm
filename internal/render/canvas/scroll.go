@@ -44,15 +44,22 @@ func isScrollType(t string) bool { return t == "scroll" || t == "scrollview" }
 // clip rect in its parent's coordinate space. It exists because Group.Draw
 // has no clip notion of its own: mounted first, its ClipOp covers every
 // sibling drawn after it, and the parent group's Restore pops it.
+// Radius > 0 emits a rounded clip (overflow:hidden + borderRadius).
 type clipNode struct {
 	graph.BaseNode
+	Radius float64
 }
 
 func newClipNode(w, h float64) *clipNode {
+	return newClipNodeR(w, h, 0)
+}
+
+func newClipNodeR(w, h, radius float64) *clipNode {
 	c := &clipNode{}
 	c.Init(c)
 	c.NoHit = true
 	c.Width, c.Height = w, h
+	c.Radius = radius
 	return c
 }
 
@@ -62,7 +69,12 @@ func (c *clipNode) Base() *graph.BaseNode { return &c.BaseNode }
 // already established the local coordinate space, and the clip must outlive
 // the siblings' own Save/Restore pairs.
 func (c *clipNode) Draw(ctx *graph.Context) {
-	ctx.ClipRect(image.Rect(0, 0, int(c.Width), int(c.Height)))
+	r := image.Rect(0, 0, int(c.Width), int(c.Height))
+	if c.Radius > 0 {
+		ctx.ClipRRect(r, c.Radius)
+		return
+	}
+	ctx.ClipRect(r)
 }
 
 // scrollContentOf returns the viewport's content group — the single

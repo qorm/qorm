@@ -10,9 +10,12 @@ import (
 // Group represents a container node
 type Group struct {
 	BaseNode
-	// FilterBlur is CSS filter: blur(Npx) on the whole subtree — recorded as
-	// a LayerOp so the software path can offscreen-blur then composite.
-	FilterBlur float64
+	// CSS filter on the whole subtree (offscreen LayerOp). Blur is px;
+	// Brightness/Contrast/Saturate are multipliers (1 = identity).
+	FilterBlur       float64
+	FilterBrightness float64
+	FilterContrast   float64
+	FilterSaturate   float64
 }
 
 // NewGroup creates a new Group node
@@ -59,12 +62,31 @@ func (g *Group) HitTest(p geom.Point) Node {
 	return g.BaseNode.HitTest(p)
 }
 
+// hasFilter reports whether any CSS filter is active on this group.
+// Color factors default to 1 (identity) from parseStyle; a zeroed Group
+// (all color 0) is treated as no color filter.
+func (g *Group) hasFilter() bool {
+	if g.FilterBlur > 0 {
+		return true
+	}
+	b, c, s := g.FilterBrightness, g.FilterContrast, g.FilterSaturate
+	if b == 0 && c == 0 && s == 0 {
+		return false // unset zero-value group
+	}
+	return b != 1 || c != 1 || s != 1
+}
+
 // Draw recursively updates transform and draws children
 func (g *Group) Draw(ctx *Context) {
 	g.UpdateGlobalTransform()
 
-	if g.FilterBlur > 0 {
-		ctx.BeginLayer(g.FilterBlur)
+	useLayer := g.hasFilter()
+	if useLayer {
+		b, c, s := g.FilterBrightness, g.FilterContrast, g.FilterSaturate
+		if b == 0 && c == 0 && s == 0 {
+			b, c, s = 1, 1, 1
+		}
+		ctx.BeginLayerFilter(g.FilterBlur, b, c, s)
 	}
 
 	ctx.Save()
@@ -76,7 +98,7 @@ func (g *Group) Draw(ctx *Context) {
 
 	ctx.Restore()
 
-	if g.FilterBlur > 0 {
+	if useLayer {
 		ctx.EndLayer()
 	}
 }

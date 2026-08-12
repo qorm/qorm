@@ -37,11 +37,14 @@ func (SoftwareRenderer) Render(ops *op.Ops, target *image.RGBA) {
 	// uniform scale so stroke widths, text font scale and corner radii follow
 	// a zoomed board).
 	// img is the active draw target — LayerOp redirects to a transparent
-	// offscreen buffer until EndLayerOp blurs and composites it back.
+	// offscreen buffer until EndLayerOp filters and composites it back.
 	img := target
 	type layerFrame struct {
-		parent *image.RGBA
-		blur   float64
+		parent     *image.RGBA
+		blur       float64
+		brightness float64
+		contrast   float64
+		saturate   float64
 	}
 	var layers []layerFrame
 
@@ -63,14 +66,21 @@ func (SoftwareRenderer) Render(ops *op.Ops, target *image.RGBA) {
 	for _, operation := range ops.Operations() {
 		switch o := operation.(type) {
 		case op.LayerOp:
-			// Offscreen layer for filter: blur() (and future group filters).
+			// Offscreen layer for CSS filter (blur + color matrix).
 			// Blur is authored in design px (already × DPR); multiply by the
 			// current matrix scale so a zoomed board softens in screen space.
 			blur := o.Blur
 			if ms := matrixScale(currentMatrix); ms > 1e-9 {
 				blur *= ms
 			}
-			layers = append(layers, layerFrame{parent: img, blur: blur})
+			b, c, s := o.Brightness, o.Contrast, o.Saturate
+			// Unset (all zero from BeginLayer blur-only) → identity.
+			if b == 0 && c == 0 && s == 0 {
+				b, c, s = 1, 1, 1
+			}
+			layers = append(layers, layerFrame{
+				parent: img, blur: blur, brightness: b, contrast: c, saturate: s,
+			})
 			img = image.NewRGBA(target.Bounds()) // transparent
 		case op.EndLayerOp:
 			if len(layers) == 0 {
@@ -78,7 +88,7 @@ func (SoftwareRenderer) Render(ops *op.Ops, target *image.RGBA) {
 			}
 			frame := layers[len(layers)-1]
 			layers = layers[:len(layers)-1]
-			endLayerComposite(frame.parent, img, frame.blur)
+			endLayerComposite(frame.parent, img, frame.blur, frame.brightness, frame.contrast, frame.saturate)
 			img = frame.parent
 		case op.ColorOp:
 			currentColor = o.Color
@@ -462,9 +472,9 @@ func (SoftwareRenderer) Render(ops *op.Ops, target *image.RGBA) {
 	}
 }
 
-// endLayerComposite blurs src (optional) and blends non-zero pixels onto dst.
-// Used by op.EndLayerOp for CSS filter: blur() group layers.
-func endLayerComposite(dst, src *image.RGBA, blurPx float64) {
+// endLayerComposite applies CSS filter (3-pass Gaussian-approx blur + color
+// matrix) then blends non-zero pixels onto dst.
+func endLayerComposite(dst, src *image.RGBA, blurPx, brightness, contrast, saturate float64) {
 	if dst == nil || src == nil {
 		return
 	}
@@ -472,17 +482,36 @@ func endLayerComposite(dst, src *image.RGBA, blurPx float64) {
 	if region.Empty() {
 		return
 	}
+	needColor := brightness != 1 || contrast != 1 || saturate != 1
 	r := int(math.Ceil(blurPx))
 	if r > 24 {
 		r = 24 // keep 60fps on large layers
 	}
 	if r < 1 {
-		compositeLayer(dst, src, region)
+		if !needColor {
+			compositeLayer(dst, src, region)
+			return
+		}
+		// Color-only filter: walk region.
+		region = region.Intersect(src.Bounds()).Intersect(dst.Bounds())
+		for y := region.Min.Y; y < region.Max.Y; y++ {
+			for x := region.Min.X; x < region.Max.X; x++ {
+				c := src.RGBAAt(x, y)
+				if c.A == 0 {
+					continue
+				}
+				blendOver(dst, x, y, applyFilterColor(c, brightness, contrast, saturate))
+			}
+		}
 		return
 	}
-	// Expand for blur kernel; zero-pad outside content (filter blur, not frost).
-	region = image.Rect(region.Min.X-r, region.Min.Y-r, region.Max.X+r, region.Max.Y+r).Intersect(src.Bounds())
-	blurred := boxBlurRegionZeroPad(src, region, r)
+	// Expand for blur kernel (3-pass needs ~3r pad); zero-pad OOB.
+	pad := r * 3
+	if pad > 48 {
+		pad = 48
+	}
+	region = image.Rect(region.Min.X-pad, region.Min.Y-pad, region.Max.X+pad, region.Max.Y+pad).Intersect(src.Bounds())
+	blurred := gaussianBlurApprox(src, region, r)
 	bw, bh := blurred.Bounds().Dx(), blurred.Bounds().Dy()
 	for y := 0; y < bh; y++ {
 		for x := 0; x < bw; x++ {
@@ -490,8 +519,74 @@ func endLayerComposite(dst, src *image.RGBA, blurPx float64) {
 			if c.A == 0 {
 				continue
 			}
+			if needColor {
+				c = applyFilterColor(c, brightness, contrast, saturate)
+			}
 			blendOver(dst, region.Min.X+x, region.Min.Y+y, c)
 		}
+	}
+}
+
+// gaussianBlurApprox approximates a Gaussian by stacking three separable box
+// blurs (W3C / CSS filter:blur quality without a true Gaussian kernel).
+func gaussianBlurApprox(img *image.RGBA, region image.Rectangle, radius int) *image.RGBA {
+	if radius < 1 {
+		return boxBlurRegionZeroPad(img, region, 0)
+	}
+	// Each pass uses ~radius/√3 so the total variance tracks the CSS radius.
+	pass := int(math.Round(float64(radius) / math.Sqrt(3)))
+	if pass < 1 {
+		pass = 1
+	}
+	// First pass reads from img[region]; subsequent passes work in local space.
+	cur := boxBlurRegionZeroPad(img, region, pass)
+	// Re-blur in-place coordinates: cur is origin (0,0) size = region.
+	local := image.Rect(0, 0, region.Dx(), region.Dy())
+	// boxBlurRegionZeroPad expects absolute coords when img is full-frame;
+	// for the local buffer, pass local and treat cur as the image.
+	cur = boxBlurRegionLocal(cur, local, pass)
+	cur = boxBlurRegionLocal(cur, local, pass)
+	return cur
+}
+
+// boxBlurRegionLocal blurs an image whose content already lives at (0,0).
+func boxBlurRegionLocal(img *image.RGBA, region image.Rectangle, radius int) *image.RGBA {
+	// Reuse zero-pad path: region is in img space.
+	return boxBlurRegionZeroPad(img, region, radius)
+}
+
+// applyFilterColor implements CSS filter brightness/contrast/saturate on a
+// straight-alpha pixel. Factors of 1 leave the channel unchanged.
+func applyFilterColor(c color.RGBA, brightness, contrast, saturate float64) color.RGBA {
+	if c.A == 0 {
+		return c
+	}
+	rf, gf, bf := float64(c.R)/255, float64(c.G)/255, float64(c.B)/255
+	// brightness(): multiply
+	if brightness != 1 {
+		rf *= brightness
+		gf *= brightness
+		bf *= brightness
+	}
+	// contrast(): scale about 0.5
+	if contrast != 1 {
+		rf = (rf-0.5)*contrast + 0.5
+		gf = (gf-0.5)*contrast + 0.5
+		bf = (bf-0.5)*contrast + 0.5
+	}
+	// saturate(): lerp toward Rec.709 luminance
+	if saturate != 1 {
+		// clamp chroma scale
+		y := 0.2126*rf + 0.7152*gf + 0.0722*bf
+		rf = y + (rf-y)*saturate
+		gf = y + (gf-y)*saturate
+		bf = y + (bf-y)*saturate
+	}
+	return color.RGBA{
+		R: uint8(clamp01(rf) * 255),
+		G: uint8(clamp01(gf) * 255),
+		B: uint8(clamp01(bf) * 255),
+		A: c.A,
 	}
 }
 

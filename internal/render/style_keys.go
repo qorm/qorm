@@ -36,6 +36,7 @@ var KnownStyleKeys = map[string]bool{
 	"boxShadowColor": true, "boxShadowBlur": true,
 	"boxShadowX": true, "boxShadowY": true, "boxShadowInset": true,
 	"filter": true, "blur": true, "filterBlur": true,
+	"overflow": true,
 	"pressedBackground": true, "hoverScale": true,
 	// Pseudo-state (pseudoStateCSS). Each key emits a CSS custom property into
 	// the node's inline style; the HTML shell (internal/server/server.go) carries

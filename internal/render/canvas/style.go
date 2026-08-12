@@ -178,10 +178,17 @@ type NodeStyle struct {
 	// TransitionEasing names an anim curve ("spring", "easeOut", …) for
 	// declarative transitions; empty uses the theme standard easing.
 	TransitionEasing string
-	// FilterBlur is CSS filter: blur(Npx) on the node subtree (offscreen layer).
-	FilterBlur float64
+	// CSS filter on the node subtree (offscreen layer). Blur is px;
+	// Brightness/Contrast/Saturate are multipliers (0 = unset → 1 at draw).
+	FilterBlur       float64
+	FilterBrightness float64
+	FilterContrast   float64
+	FilterSaturate   float64
 	// BoxShadowInset is CSS box-shadow: inset (inner shadow on the chrome).
 	BoxShadowInset bool
+	// Overflow "hidden" clips children to the box (optional rounded clip via
+	// BorderRadius). Empty / "visible" = no clip. Scroll viewports clip always.
+	Overflow string
 }
 
 // scaleBy multiplies every pixel-valued field by f (a device-pixel ratio), so
@@ -456,7 +463,11 @@ func parseStyle(n *model.Node, rt *runtime.Runtime, sc ...*listScope) NodeStyle 
 	if len(sc) > 0 {
 		scope = sc[0]
 	}
-	s := NodeStyle{Opacity: 1, EffectiveScale: 1}
+	s := NodeStyle{
+		Opacity: 1, EffectiveScale: 1,
+		// CSS filter color multipliers: 1 = identity (0 would mean black/flat).
+		FilterBrightness: 1, FilterContrast: 1, FilterSaturate: 1,
+	}
 
 	// Apply Theme Defaults
 	if rt != nil && rt.Theme != nil {
@@ -954,12 +965,11 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 		}
 	}
 
-	// CSS filter: blur(Npx) — also accepts numeric blur / filterBlur keys.
+	// CSS filter: "blur(8px) brightness(1.2) contrast(0.9) saturate(0)"
+	// plus numeric blur / filterBlur shortcuts.
 	if v := esp(style["filter"]); v != nil {
 		if str, ok := v.(string); ok {
-			if b, ok := parseCSSFilterBlur(str); ok {
-				s.FilterBlur = b
-			}
+			applyCSSFilterString(s, str)
 		}
 	}
 	if v := esp(style["blur"]); v != nil {
@@ -980,6 +990,11 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 			s.FilterBlur = float64(t)
 		case string:
 			s.FilterBlur = parseCSSPx(t)
+		}
+	}
+	if v := esp(style["overflow"]); v != nil {
+		if str, ok := v.(string); ok {
+			s.Overflow = strings.ToLower(strings.TrimSpace(str))
 		}
 	}
 
@@ -1231,22 +1246,104 @@ func parseCSSPx(s string) float64 {
 // parseCSSFilterBlur extracts the first blur() radius from a CSS filter
 // string (e.g. "blur(8px)", "blur(4)"). Returns ok=false when no blur is found.
 func parseCSSFilterBlur(s string) (float64, bool) {
+	f, ok := parseCSSFilterFunc(s, "blur")
+	return f, ok
+}
+
+// applyCSSFilterString parses a space-separated CSS filter list into s.
+// Supported: blur(Npx), brightness(N|N%), contrast(N|N%), saturate(N|N%).
+func applyCSSFilterString(s *NodeStyle, raw string) {
+	raw = strings.TrimSpace(strings.ToLower(raw))
+	if raw == "" || raw == "none" {
+		return
+	}
+	// Walk function tokens: name(args)
+	i := 0
+	for i < len(raw) {
+		for i < len(raw) && (raw[i] == ' ' || raw[i] == '\t') {
+			i++
+		}
+		if i >= len(raw) {
+			break
+		}
+		start := i
+		for i < len(raw) && raw[i] != '(' {
+			i++
+		}
+		if i >= len(raw) {
+			break
+		}
+		name := strings.TrimSpace(raw[start:i])
+		i++ // skip '('
+		argStart := i
+		depth := 1
+		for i < len(raw) && depth > 0 {
+			if raw[i] == '(' {
+				depth++
+			} else if raw[i] == ')' {
+				depth--
+			}
+			if depth > 0 {
+				i++
+			}
+		}
+		arg := strings.TrimSpace(raw[argStart:i])
+		if i < len(raw) && raw[i] == ')' {
+			i++
+		}
+		switch name {
+		case "blur":
+			if f, ok := parseFilterNumber(arg, false); ok && f >= 0 {
+				s.FilterBlur = f
+			}
+		case "brightness":
+			if f, ok := parseFilterNumber(arg, true); ok {
+				s.FilterBrightness = f
+			}
+		case "contrast":
+			if f, ok := parseFilterNumber(arg, true); ok {
+				s.FilterContrast = f
+			}
+		case "saturate":
+			if f, ok := parseFilterNumber(arg, true); ok {
+				s.FilterSaturate = f
+			}
+		}
+	}
+}
+
+// parseCSSFilterFunc finds name(arg) and parses the number (px stripped for blur).
+func parseCSSFilterFunc(s, name string) (float64, bool) {
 	s = strings.TrimSpace(strings.ToLower(s))
-	const prefix = "blur("
-	i := strings.Index(s, prefix)
-	if i < 0 {
+	prefix := name + "("
+	idx := strings.Index(s, prefix)
+	if idx < 0 {
 		return 0, false
 	}
-	rest := s[i+len(prefix):]
+	rest := s[idx+len(prefix):]
 	j := strings.IndexByte(rest, ')')
 	if j < 0 {
 		return 0, false
 	}
-	inner := strings.TrimSpace(rest[:j])
-	inner = strings.TrimSuffix(inner, "px")
-	f, err := strconv.ParseFloat(strings.TrimSpace(inner), 64)
-	if err != nil || f < 0 {
+	return parseFilterNumber(rest[:j], name != "blur")
+}
+
+// parseFilterNumber parses "1.2", "120%", "8px". percent=true maps 100% → 1.
+func parseFilterNumber(arg string, percent bool) (float64, bool) {
+	arg = strings.TrimSpace(arg)
+	arg = strings.TrimSuffix(arg, "px")
+	isPct := strings.HasSuffix(arg, "%")
+	if isPct {
+		arg = strings.TrimSpace(strings.TrimSuffix(arg, "%"))
+	}
+	f, err := strconv.ParseFloat(arg, 64)
+	if err != nil {
 		return 0, false
+	}
+	if isPct && percent {
+		f /= 100
+	} else if isPct && !percent {
+		// blur(50%) is not standard; treat as px for robustness.
 	}
 	return f, true
 }
@@ -1299,9 +1396,10 @@ var canvasStyleKeys = map[string]bool{
 	"textStrokeColor": true, "textStrokeWidth": true,
 	"textShadowColor": true, "textShadowBlur": true,
 	"textShadowX": true, "textShadowY": true,
-	// CSS filter: blur on the node subtree (offscreen layer).
+	// CSS filter on the node subtree (offscreen layer).
 	"filter": true, "blur": true, "filterBlur": true,
 	"boxShadowInset": true, // CSS box-shadow: inset
+	"overflow":       true, // "hidden" clips children (rounded via borderRadius)
 	// Spacer / simple widgets.
 	"size": true,
 }

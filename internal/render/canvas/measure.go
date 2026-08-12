@@ -789,10 +789,11 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 		// like CSS opacity:0).
 		group.Opacity = ln.Style.Opacity
 	}
-	if ln.Style.FilterBlur > 0 {
-		// CSS filter: blur() — offscreen layer in graph.Group.Draw.
-		group.FilterBlur = ln.Style.FilterBlur
-	}
+	// CSS filter stack → offscreen layer in graph.Group.Draw.
+	group.FilterBlur = ln.Style.FilterBlur
+	group.FilterBrightness = ln.Style.FilterBrightness
+	group.FilterContrast = ln.Style.FilterContrast
+	group.FilterSaturate = ln.Style.FilterSaturate
 
 	if ln.Node.OnPress != nil {
 		group.OnPress = ln.Node.OnPress
@@ -830,6 +831,11 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 		// (scroll.go).
 		group.Clip = true
 		group.AddChild(newClipNode(float64(ln.Width), float64(ln.Height)))
+	} else if ln.Style.Overflow == "hidden" || ln.Style.Overflow == "clip" {
+		// CSS overflow:hidden — clip children to the box; borderRadius makes
+		// a rounded clip so card chrome matches the painted fill.
+		group.Clip = true
+		group.AddChild(newClipNodeR(float64(ln.Width), float64(ln.Height), ln.Style.BorderRadius))
 	}
 
 	hasBg := ln.Style.Background.A > 0 || len(ln.Style.GradientStops) >= 2 || ln.Style.BackdropBlur > 0

@@ -169,6 +169,9 @@ func (o *Ops) Fingerprint() uint64 {
 		case LayerOp:
 			writeU8(14)
 			writeF64(t.Blur)
+			writeF64(t.Brightness)
+			writeF64(t.Contrast)
+			writeF64(t.Saturate)
 		case EndLayerOp:
 			writeU8(15)
 		default:
@@ -302,11 +305,17 @@ type RRectOp struct {
 func (RRectOp) isOp() {}
 
 // LayerOp begins an offscreen layer. Subsequent ops draw into a transparent
-// buffer until EndLayerOp; the layer is then optionally blurred and composited
-// onto the parent target (CSS filter: blur() on a group).
+// buffer until EndLayerOp; the layer is then filtered and composited onto the
+// parent target (CSS filter on a group).
 type LayerOp struct {
-	// Blur is the Gaussian-approx box blur radius in screen pixels.
+	// Blur is the Gaussian-approx radius in screen pixels (3 stacked box blurs).
 	Blur float64
+	// Brightness multiplies RGB (1 = identity; 0 = black). 0 means unset → 1.
+	Brightness float64
+	// Contrast scales about mid-gray (1 = identity). 0 means unset → 1.
+	Contrast float64
+	// Saturate scales chroma (1 = identity; 0 = grayscale). 0 means unset → 1.
+	Saturate float64
 }
 
 func (LayerOp) isOp() {}
