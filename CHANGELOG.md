@@ -6,6 +6,15 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+- **Canvas layout/feedback widgets**: `aspectratio`, `ignorepointer`, `skeleton`,
+  `circularprogress` (+ `circularprogressindicator`), plus aliases
+  `activityindicator`→spinner, `tag`→chip, and `animatedcontainer` as the
+  camelCase twin of `animated_container`.
+- **Canvas style keys**: `gradient` (first-stop solid), `flexGrow`/`flexShrink`/
+  `alignSelf`, `boxShadowX`, `disabledOpacity`, and `size` are first-class
+  (no longer false-warn as unsupported).
+
 ## [v0.8.8] - 2026-08-12
 
 ### Fixed

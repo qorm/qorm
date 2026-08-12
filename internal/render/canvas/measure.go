@@ -145,7 +145,8 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 	applyInteractiveOverlay(&style, n, rt, interForInstance(inter, sc))
 	style.scaleBy(scale)
 	var needsRedraw bool
-	if n.Type == "animated_container" {
+	// animatedcontainer is the HTML/camelCase spelling of animated_container.
+	if n.Type == "animated_container" || n.Type == "animatedcontainer" {
 		style, needsRedraw = UpdateAndGetAnimatedStyle(n.ID, style, rt)
 	} else if style.Transition > 0 {
 		// A declarative transition animates interaction-effect changes

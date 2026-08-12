@@ -477,15 +477,17 @@ func TestWarnUnsupportedStyleKeys(t *testing.T) {
 		styleWarnMu.Unlock()
 	}()
 
+	// Use keys that remain intentionally unimplemented on canvas so the
+	// one-shot warn path stays covered (gradient/flexGrow are supported now).
 	mk := func() *model.Node {
 		return &model.Node{Type: "column", ID: "root", Children: []*model.Node{
-			{Type: "text", ID: "a", Style: map[string]any{"gradient": "linear-gradient(red, blue)", "flexGrow": 1.0, "fontSize": 14.0}},
-			{Type: "text", ID: "b", Style: map[string]any{"gradient": "linear-gradient(red, blue)"}},
+			{Type: "text", ID: "a", Style: map[string]any{"backdropBlur": 12.0, "letterSpacing": 1.0, "fontSize": 14.0}},
+			{Type: "text", ID: "b", Style: map[string]any{"backdropBlur": 8.0}},
 		}}
 	}
 	layoutScene(mk(), testRuntime(nil), image.Pt(100, 100))
 	out := buf.String()
-	for _, key := range []string{`"gradient"`, `"flexGrow"`} {
+	for _, key := range []string{`"backdropBlur"`, `"letterSpacing"`} {
 		if !strings.Contains(out, key) {
 			t.Errorf("unsupported key %s must warn, got:\n%s", key, out)
 		}
@@ -496,8 +498,8 @@ func TestWarnUnsupportedStyleKeys(t *testing.T) {
 	if !strings.Contains(out, `node id: "a"`) {
 		t.Errorf("warning must name the node, got:\n%s", out)
 	}
-	if c := strings.Count(out, `"gradient"`); c != 1 {
-		t.Errorf("gradient warned %d times, want 1 (one-shot per key per scene)", c)
+	if c := strings.Count(out, `"backdropBlur"`); c != 1 {
+		t.Errorf("backdropBlur warned %d times, want 1 (one-shot per key per scene)", c)
 	}
 
 	// Same scene tree (same root pointer, as the engine reuses it across
@@ -512,7 +514,7 @@ func TestWarnUnsupportedStyleKeys(t *testing.T) {
 
 	// A different scene root re-arms the same key.
 	layoutScene(mk(), testRuntime(nil), image.Pt(100, 100))
-	if !strings.Contains(buf.String(), `"gradient"`) {
+	if !strings.Contains(buf.String(), `"backdropBlur"`) {
 		t.Error("a new scene tree must re-arm the warning")
 	}
 }

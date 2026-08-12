@@ -802,11 +802,26 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 	} else if i, ok := bsb.(int); ok {
 		s.BoxShadowBlur = i
 	}
+	bsx := esp(style["boxShadowX"])
+	if f, ok := bsx.(float64); ok {
+		s.BoxShadowX = int(f)
+	} else if i, ok := bsx.(int); ok {
+		s.BoxShadowX = i
+	}
 	bsy := esp(style["boxShadowY"])
 	if f, ok := bsy.(float64); ok {
 		s.BoxShadowY = int(f)
 	} else if i, ok := bsy.(int); ok {
 		s.BoxShadowY = i
+	}
+
+	// HTML "gradient" style key (linear-gradient(...)): the software
+	// rasterizer paints a solid fill, so resolve to the first colour stop
+	// (same as resolveColor on a background that is a gradient string).
+	if g, ok := esp(style["gradient"]).(string); ok && g != "" {
+		if c := resolveColor(g, rt); c.A > 0 {
+			s.Background = c
+		}
 	}
 }
 
@@ -822,33 +837,34 @@ func clamp01(v float64) float64 {
 }
 
 // canvasStyleKeys is the set of node style keys the native canvas renderer
-// actually consumes (parseStyle above, plus `disabled` — read by interaction.go
-// for pointer/focus suppression). The loader already flags keys unknown
-// to the HTML renderer (render.KnownStyleKeys) at load time; what remains to
-// surface HERE is the canvas-specific gap — keys the HTML path implements but
-// the native engine does not yet (gradient, flexGrow, min/max sizes, position,
-// boxShadowX at node level, ...) — so an author or agent learns about the
-// silent degradation instead of guessing.
+// actually consumes (parseStyle / applyStyleProps / flex / interaction).
+// The loader flags keys unknown to HTML (render.KnownStyleKeys); this set
+// is the canvas-specific residual — keys still unimplemented warn once per
+// scene (backdropBlur, fontFamily, letterSpacing, …).
 var canvasStyleKeys = map[string]bool{
-	"background": true, "color": true,
+	"background": true, "color": true, "gradient": true,
 	"strokeColor": true, "borderColor": true,
 	"padding": true, "gap": true, "margin": true,
 	"width": true, "height": true,
 	"minWidth": true, "maxWidth": true, "minHeight": true, "maxHeight": true,
+	// Flex (read by flex.go from style; listed so they do not false-warn).
+	"flexGrow": true, "flexShrink": true, "alignSelf": true,
 	// Absolute positioning (the infinite-canvas board's coordinate model):
 	// x/y are native, left/top the HTML aliases.
 	"x": true, "y": true, "left": true, "top": true,
 	"fontSize": true, "fontWeight": true, "textAlign": true,
 	"borderRadius": true, "strokeWidth": true, "borderWidth": true,
-	"opacity":  true,
-	"disabled": true,
+	"opacity": true, "disabled": true, "disabledOpacity": true,
 	// Declarative interaction effects (any node; resolved generically by
 	// applyInteractiveOverlay + performLayout).
 	"hoverBackground": true, "pressedBackground": true,
 	"hoverOpacity": true, "pressedOpacity": true,
 	"pressedScale": true, "hoverScale": true,
 	"transition":     true, // animates interaction effect changes ("0.2s")
-	"boxShadowColor": true, "boxShadowBlur": true, "boxShadowY": true,
+	"boxShadowColor": true, "boxShadowBlur": true,
+	"boxShadowX": true, "boxShadowY": true,
+	// Spacer / simple widgets.
+	"size": true,
 }
 
 // styleWarn* implement one-shot unsupported-style-key warnings: each key is

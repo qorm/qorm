@@ -54,8 +54,9 @@ var canvasEngineNativeTypes = map[string]bool{
 	"board": true,
 	// control-flow / structure
 	"when": true, "timer": true, "slot": true,
-	// animated style path (measure.go special-cases the snake spelling)
+	// animated style path (measure.go special-cases both spellings)
 	"animated_container": true,
+	"animatedcontainer":  true,
 	// flex / generic containers (HTML container() case aliases)
 	"column": true, "row": true, "columns": true,
 	"vstack": true, "hstack": true, "zstack": true,
@@ -74,36 +75,32 @@ var canvasEngineNativeTypes = map[string]bool{
 // what the harness checks. Remove an entry when canvas gains real support —
 // a stale entry fails the reverse check once the type is canvas-known.
 var htmlOnlyCoreAllowlist = map[string]string{
-	"actionsheet":       "canvas sheet/bottomsheet only; dedicated action sheet pending",
-	"activityindicator": "HTML alias of spinner; canvas registers spinner only",
-	"alertdialog":       "dedicated alert dialog pending (modal/alert exist)",
-	"animatedcontainer": "canvas animates animated_container spelling only",
-	"aspectratio":       "canvas port pending",
-	"autocomplete":      "canvas port pending",
-	"carousel":          "canvas port pending",
-	"circularprogress":  "canvas port pending (progress/spinner exist)",
-	"descriptions":      "canvas port pending",
-	"dropdownbutton":    "canvas select/dropdown cover the common case",
-	"fab":               "canvas port pending",
-	"field":             "canvas port pending (input/textarea exist)",
-	"ignorepointer":     "canvas port pending",
-	"materialstepper":   "canvas port pending (steps exists)",
-	"monthview":         "canvas port pending",
-	"motion":            "canvas port pending (entrance/transition styles cover some cases)",
-	"pageview":          "canvas port pending",
-	"picker":            "canvas port pending (date/time pickers exist)",
-	"rangeslider":       "canvas port pending (slider exists)",
-	"rating":            "HTML-only; examples/customwidget registers canvas rating in middle layer",
-	"refreshindicator":  "canvas port pending",
-	"richtext":          "canvas port pending",
-	"searchbar":         "canvas port pending",
-	"selectabletext":    "canvas port pending",
-	"skeleton":          "canvas port pending",
-	"switchlisttile":    "canvas port pending (switch/listtile exist)",
-	"tag":               "canvas port pending (chip family exists)",
-	"textformfield":     "canvas port pending (input/textarea exist)",
-	"transform":         "canvas port pending",
-	"tree":              "canvas port pending",
+	"actionsheet":      "canvas sheet/bottomsheet only; dedicated action sheet pending",
+	"alertdialog":      "dedicated alert dialog pending (modal/alert exist)",
+	"autocomplete":     "canvas port pending",
+	"carousel":         "canvas port pending",
+	"descriptions":     "canvas port pending",
+	"dropdownbutton":   "canvas select/dropdown cover the common case",
+	"fab":              "canvas port pending",
+	"field":            "canvas port pending (input/textarea exist)",
+	"materialstepper":  "canvas port pending (steps exists)",
+	"monthview":        "canvas port pending",
+	"motion":           "canvas port pending (entrance/transition styles cover some cases)",
+	"pageview":         "canvas port pending",
+	"picker":           "canvas port pending (date/time pickers exist)",
+	"rangeslider":      "canvas port pending (slider exists)",
+	"rating":           "HTML-only; examples/customwidget registers canvas rating in middle layer",
+	"refreshindicator": "canvas port pending",
+	"richtext":         "canvas port pending",
+	"searchbar":        "canvas port pending",
+	"selectabletext":   "canvas port pending",
+	"switchlisttile":   "canvas port pending (switch/listtile exist)",
+	"textformfield":    "canvas port pending (input/textarea exist)",
+	"transform":        "canvas port pending",
+	"tree":             "canvas port pending",
+	// Ported to canvas (layout_extras.go / measure alias) — kept out of allowlist:
+	// activityindicator, animatedcontainer, aspectratio, circularprogress,
+	// ignorepointer, skeleton, tag.
 }
 
 // canvasOnlyAllowlist: RegisterWidget names with no HTML switch case. Empty
