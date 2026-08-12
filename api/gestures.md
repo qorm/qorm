@@ -5,7 +5,7 @@ QORM ships touch/pointer gestures as widget props — no JavaScript to write.
 | gesture | how |
 |---|---|
 | tap / double-tap / long-press | `onPress` / `onDoubleTap` / `onLongPress` on any node |
-| scene swipe (game controls) | a scene-level `swipes` map — `{"left": "slideLeft", …}` — the touch counterpart of the scene's `keys`; a press that drags in one dominant direction and releases dispatches the bound action, so the same game plays with arrow keys on desktop and swipes on a phone |
+| scene swipe (game controls) | a scene-level `swipes` map — `{"left": "slideLeft", …}` — the touch counterpart of the scene's `keys`; a press that drags in one dominant direction and releases dispatches the bound action, so the same game plays with arrow keys on desktop and swipes on a phone. **Canvas and HTML paths both honor it** (HTML/`app.js` uses the same 24px floor + 1.3 axis dominance as canvas, dispatching via `/event` or WASM `qormSwipe`/`qormAction`) |
 | swipe-to-dismiss | a `dismissible` widget with `onDismissed` |
 | swipe-to-reveal actions | a `swipeactions` widget with an `actions` list |
 | swipeable pages | a horizontal `scroll` (scroll-snap) |

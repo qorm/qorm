@@ -754,7 +754,7 @@ func (r *renderer) listTile(n *model.Node) {
 	if n.OnPress != nil {
 		style += "cursor:pointer;"
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s%s>`, attrID(n.ID), style, a11y(n), r.pressAttr(n))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s%s>`, attrID(n.ID), style, r.a11y(n), r.pressAttr(n))
 	if lead := r.interp(propStr(n, "leading")); lead != "" {
 		fmt.Fprintf(&r.sb, `<div style="font-size:22px;flex:none;display:inline-flex;align-items:center;">%s</div>`, iconOrText(lead, 22))
 	}

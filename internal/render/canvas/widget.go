@@ -2,6 +2,7 @@ package canvas
 
 import (
 	"image"
+	"sort"
 	"sync"
 
 	"github.com/qorm/qorm/internal/model"
@@ -60,6 +61,20 @@ func LookupWidget(typ string) (Widget, bool) {
 	defer widgetsMu.RUnlock()
 	w, ok := widgets[typ]
 	return w, ok
+}
+
+// RegisteredWidgetNames returns a sorted snapshot of types currently in the
+// widget registry (built-ins from internal/widgets plus any app-defined
+// registrations). For tests and diagnostics — not a hot path.
+func RegisteredWidgetNames() []string {
+	widgetsMu.RLock()
+	defer widgetsMu.RUnlock()
+	names := make([]string, 0, len(widgets))
+	for k := range widgets {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	return names
 }
 
 // InteractiveWidget is an OPTIONAL extension for widgets that handle their

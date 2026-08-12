@@ -28,7 +28,7 @@ func (r *renderer) button(n *model.Node) {
 	style := base + r.boxCSS(n) + r.textCSS(n)
 	typeAttr, onclick := r.submitAttrs(n)
 	fmt.Fprintf(&r.sb, `<button id=%q class="qorm-tap"%s style=%q%s%s%s>%s</button>`,
-		attrID(n.ID), typeAttr, style, a11y(n), r.enterAttr(n), onclick, html.EscapeString(r.interp(labelOf(n))))
+		attrID(n.ID), typeAttr, style, r.a11y(n), r.enterAttr(n), onclick, html.EscapeString(r.interp(labelOf(n))))
 }
 
 // enterAttr marks a button as the ENTER TARGET of the form it sits in.
@@ -278,7 +278,7 @@ func (r *renderer) input(n *model.Node) {
 	}
 	fmt.Fprintf(&r.sb, `<input id=%q type=%q value=%q placeholder=%q style=%q%s%s%s%s>`,
 		attrID(n.ID), html.EscapeString(inputType), html.EscapeString(r.interp(n.Value)),
-		html.EscapeString(n.Placeholder), style, dataStateAttr(path), a11y(n),
+		html.EscapeString(n.Placeholder), style, dataStateAttr(path), r.a11y(n),
 		r.inputAttrs(n, false), r.changeWiring(n, path != ""))
 }
 
@@ -287,7 +287,7 @@ func (r *renderer) textarea(n *model.Node) {
 	path := boundPath(n.Value)
 	rows := int(propNum(n, "rows", 4))
 	fmt.Fprintf(&r.sb, `<textarea id=%q rows="%d" placeholder=%q style=%q%s%s%s%s>%s</textarea>`,
-		attrID(n.ID), rows, html.EscapeString(n.Placeholder), style, dataStateAttr(path), a11y(n),
+		attrID(n.ID), rows, html.EscapeString(n.Placeholder), style, dataStateAttr(path), r.a11y(n),
 		r.inputAttrs(n, true), r.changeWiring(n, path != ""), html.EscapeString(r.interp(n.Value)))
 }
 
@@ -295,7 +295,7 @@ func (r *renderer) selectBox(n *model.Node) {
 	style := r.boxCSS(n) + r.textCSS(n)
 	path := boundPath(n.Value)
 	cur := r.interp(n.Value)
-	fmt.Fprintf(&r.sb, `<select id=%q style=%q%s%s%s>`, attrID(n.ID), style, dataStateAttr(path), a11y(n), r.changeWiring(n, path != ""))
+	fmt.Fprintf(&r.sb, `<select id=%q style=%q%s%s%s>`, attrID(n.ID), style, dataStateAttr(path), r.a11y(n), r.changeWiring(n, path != ""))
 	for _, opt := range optionList(n.Props["options"]) {
 		sel := ""
 		if opt.value == cur {
@@ -317,7 +317,7 @@ func (r *renderer) checkbox(n *model.Node) {
 	// boolean control).
 	if n.Type == "switch" {
 		fmt.Fprintf(&r.sb, `<label id=%q style=%q%s>`, attrID(n.ID),
-			r.boxCSS(n)+"display:inline-flex;align-items:center;gap:10px;cursor:pointer;font-size:15px;", a11y(n))
+			r.boxCSS(n)+"display:inline-flex;align-items:center;gap:10px;cursor:pointer;font-size:15px;", r.a11y(n))
 		if label != "" {
 			fmt.Fprintf(&r.sb, `<span style="flex:1;">%s</span>`, label)
 		}
@@ -326,7 +326,7 @@ func (r *renderer) checkbox(n *model.Node) {
 		return
 	}
 	fmt.Fprintf(&r.sb, `<label id=%q style=%q%s><input type="checkbox"%s style="width:18px;height:18px;accent-color:var(--accent);"%s%s>%s</label>`,
-		attrID(n.ID), r.boxCSS(n)+"display:inline-flex;align-items:center;gap:8px;cursor:pointer;", a11y(n),
+		attrID(n.ID), r.boxCSS(n)+"display:inline-flex;align-items:center;gap:8px;cursor:pointer;", r.a11y(n),
 		checked, dataStateAttr(path), r.changeWiring(n, path != ""), label)
 }
 
@@ -347,7 +347,7 @@ func (r *renderer) radio(n *model.Node) {
 	// author-controlled and lands in a quoted HTML attribute, so it needs the
 	// same entity-encoding (%q alone leaves the quote-breakout open).
 	name := attrID(n.ID)
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;gap:6px;", a11y(n))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;gap:6px;", r.a11y(n))
 	for _, opt := range optionList(n.Props["options"]) {
 		checked := ""
 		if opt.value == cur {
@@ -372,7 +372,7 @@ func (r *renderer) slider(n *model.Node) {
 	}
 	fill := fmt.Sprintf("--pct:%g%%;", pct)
 	fmt.Fprintf(&r.sb, `<input id=%q class="qorm-slider" type="range" min=%q max=%q step=%q value=%q style=%q%s%s%s>`,
-		attrID(n.ID), num(min), num(max), num(step), num(val), r.boxCSS(n)+fill, dataStateAttr(path), a11y(n), r.changeWiring(n, path != ""))
+		attrID(n.ID), num(min), num(max), num(step), num(val), r.boxCSS(n)+fill, dataStateAttr(path), r.a11y(n), r.changeWiring(n, path != ""))
 }
 
 // field wraps a control with a label, required marker, and a conditional error
@@ -463,7 +463,7 @@ func (r *renderer) chip(n *model.Node) {
 		bg, fg, border = "var(--accent)", "#ffffff", "1px solid var(--accent)"
 	}
 	style := fmt.Sprintf("display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:16px;font-size:13px;background:%s;color:%s;border:%s;cursor:pointer;", bg, fg, border)
-	fmt.Fprintf(&r.sb, `<span id=%q style=%q%s%s>`, attrID(n.ID), r.boxCSS(n)+style, a11y(n), r.pressAttr(n))
+	fmt.Fprintf(&r.sb, `<span id=%q style=%q%s%s>`, attrID(n.ID), r.boxCSS(n)+style, r.a11y(n), r.pressAttr(n))
 	if selected && (n.Type == "filterchip" || propStr(n, "showCheck") == "true") {
 		r.sb.WriteString(`<span style="display:inline-flex;align-items:center;">` + iconSVG("check", 12) + `</span>`)
 	}
@@ -491,7 +491,7 @@ func (r *renderer) rangeSlider(n *model.Node) {
 	hiPath := boundPath(propStr(n, "high"))
 	lo := asFloat(runtime.EvalBinding(propStr(n, "low"), r.ctx()))
 	hi := asFloat(runtime.EvalBinding(propStr(n, "high"), r.ctx()))
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), r.boxCSS(n)+"position:relative;height:32px;", a11y(n))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), r.boxCSS(n)+"position:relative;height:32px;", r.a11y(n))
 	track := "position:absolute;left:0;right:0;top:14px;width:100%;margin:0;-webkit-appearance:none;background:transparent;pointer-events:none;"
 	fmt.Fprintf(&r.sb, `<input type="range" min=%q max=%q step=%q value=%q style=%q class="qorm-range-lo"%s%s>`,
 		num(min), num(max), num(step), num(lo), track, dataStateAttr(loPath), r.changeWiring(n, loPath != ""))
@@ -560,7 +560,7 @@ func (r *renderer) autocomplete(n *model.Node) {
 	}
 	fmt.Fprintf(&r.sb, `<input id=%q list=%q value=%q placeholder=%q style=%q%s%s%s>`,
 		attrID(n.ID), attrID(listID), html.EscapeString(r.interp(n.Value)), html.EscapeString(n.Placeholder),
-		style, dataStateAttr(path), a11y(n), r.changeWiring(n, path != ""))
+		style, dataStateAttr(path), r.a11y(n), r.changeWiring(n, path != ""))
 	fmt.Fprintf(&r.sb, `<datalist id=%q>`, attrID(listID))
 	for _, o := range optionList(r.boundArray(n, "options")) {
 		lbl := o.label
@@ -586,7 +586,7 @@ func (r *renderer) searchbar(n *model.Node) {
 	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-search" style=%q>`, attrID(n.ID), r.boxCSS(n)+"position:relative;display:inline-block;")
 	fmt.Fprintf(&r.sb, `<input type="text" value=%q placeholder=%q autocomplete="off" style="width:100%%;min-width:220px;box-sizing:border-box;height:40px;padding:0 12px;border:1px solid var(--sep);border-radius:8px;font-size:14px;outline:none;"%s%s%s onfocus="qormSearch(this)" oninput="qormSearch(this)" onblur="qormSearchBlur(this)" onkeydown="qormSearchKey(this,event)">`,
 		html.EscapeString(r.interp(n.Value)), html.EscapeString(propStrOr(n, "hint", n.Placeholder)),
-		dataStateAttr(path), a11y(n), r.changeWiring(n, path != ""))
+		dataStateAttr(path), r.a11y(n), r.changeWiring(n, path != ""))
 	r.sb.WriteString(`<div class="qorm-search-panel" style="display:none;position:absolute;top:100%;left:0;right:0;margin-top:4px;background:var(--surface);border:1px solid var(--sep);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);max-height:260px;overflow-y:auto;z-index:40;padding:4px;">`)
 	for _, it := range r.boundArray(n, "items") {
 		m, ok := it.(map[string]any)
@@ -633,7 +633,7 @@ func (r *renderer) textFormField(n *model.Node) {
 		fmt.Fprintf(&r.sb, `<span style="color:var(--label2);display:inline-flex;align-items:center;">%s</span>`, iconOrText(pre, 16))
 	}
 	itype := propStrOr(n, "inputType", "text")
-	al := a11y(n)
+	al := r.a11y(n)
 	// inputAttrs rides on the inner input: its maxlength truncates natively at
 	// the same limit the footer counter below displays.
 	fmt.Fprintf(&r.sb, `<input type=%q value=%q placeholder=%q style="flex:1;border:none;outline:none;font-size:14px;background:transparent;"%s%s%s%s%s>`,

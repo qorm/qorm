@@ -5,7 +5,7 @@ QORM 把触摸/指针手势作为组件属性提供——无需编写 JavaScript
 | 手势 | 怎么用 |
 |---|---|
 | 点按 / 双击 / 长按 | 任意节点上的 `onPress` / `onDoubleTap` / `onLongPress` |
-| 场景滑动(游戏操控) | 场景级 `swipes` 映射——`{"left": "slideLeft", …}`——是场景 `keys` 的触摸对应物;按下后朝某个主导方向拖动再抬起即派发绑定的动作,同一款游戏在桌面用方向键、在手机上用滑动即可畅玩 |
+| 场景滑动(游戏操控) | 场景级 `swipes` 映射——`{"left": "slideLeft", …}`——是场景 `keys` 的触摸对应物;按下后朝某个主导方向拖动再抬起即派发绑定的动作,同一款游戏在桌面用方向键、在手机上用滑动即可畅玩。**画布与 HTML 路径均支持**(HTML/`app.js` 用与画布相同的 24px 阈值 + 1.3 轴优势识别滑动,经 `/event` 或 WASM `qormSwipe`/`qormAction` 派发) |
 | 滑动删除 | 带 `onDismissed` 的 `dismissible` 组件 |
 | 滑动露出操作 | 带 `actions` 列表的 `swipeactions` 组件 |
 | 可滑动分页 | 水平方向的 `scroll`(滚动吸附) |

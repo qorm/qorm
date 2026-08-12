@@ -6,7 +6,48 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+- **HTML QSS residuals**: `aria-disabled`, spacer `size`, limitedBox max
+  constraints, and chart SVG width/height now read the effective style
+  (QSS + inline + bindings), matching boxCSS/textCSS cascade instead of raw
+  `n.Style` only.
+- **Web WASM games (Raiden / Mario)**: asset preloader cache keys now strip
+  `?v=` / `#fragment` so they match the engine's `BaseDir + src` lookups.
+  The games page had been preloading successfully while every measure pass
+  still missed the cache and fell back to main-thread sync XHR — image-heavy
+  games failed to render; Tetris/2048 were unaffected (no PNGs). Also: single
+  post-`InitFromBundle` preload (the pre-init pass was discarded), fuller
+  Mario asset list, and a bumped games-page WASM pin.
+- **Canvas golden frames on non-Linux**: SFNT text AA drift for
+  `counter_light` / `counter_dark` no longer fails local macOS/Windows runs;
+  Linux CI baseline stays strict (`QORM_GOLDEN_FORCE=1` restores hard compare).
+
+### Changed
+- **Docs**: clarify that the pure-Go canvas engine (`qorm_canvas` / default
+  macOS window) is not the `-tags desktop` native WebView path, and that
+  Raiden/Mario-class games need the canvas WASM host (not default HTML web
+  packaging).
+
 ### Added
+- **HTML board camera props**: `cameraTarget` / `cameraCenter` / `cameraViewport` / `cameraDeadZone` / `cameraMax` now drive the HTML board content transform (same pan math as canvas `applyBoardCamera`); `RenderOpts.Board` still wins when Active or pan is non-zero.
+
+- **HTML ↔ canvas widget parity harness**: `TestHTMLCanvasWidgetParity` in
+  `internal/integration` compares HTML `node()` switch types (catalog source)
+  against canvas engine-native types + `RegisterWidget` names, failing CI on
+  core drift outside documented allowlists (`htmlOnlyCoreAllowlist` /
+  `canvasOnlyAllowlist`). Not a pixel compare.
+
+- **HTML scene swipes**: scene JSON `swipes` (e.g. `{"left":"slideLeft"}`) now wire on the live server and offline/WASM HTML clients via `app.js`, matching the canvas recognizer (24px floor, 1.3 axis dominance) and key-binding dispatch path.
+
+- **WASM / web audio sink**: qscript `playSound` / `playMusic` / `stopMusic` play
+  WAVs via `HTMLAudioElement` on `js/wasm` (games page, packaged web). Paths
+  resolve as `BaseDir + src` like images; autoplay policy failures log once and
+  fail soft. Desktop `StdoutSink` unchanged.
+- **HTML QSS stylesheets**: the HTML render path now merges matching
+  `styles/*.qss` rules into node CSS with the same cascade as canvas
+  (type < class order < id < inline). Class/type/id selectors work for web
+  and `-tags desktop` HTML hosts; `{{bindings}}` in rules evaluate at render
+  time like inline style values.
 - **Canvas interaction polish**: pressed/hover scale effects now animate through the
   declarative `transition` system instead of snapping — a node with
   `"pressedScale": 0.95` and `"transition": "0.2s"` gets a smooth spring-like scale

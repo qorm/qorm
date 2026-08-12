@@ -625,21 +625,34 @@ func (a audioAdapter) baseDir() string {
 	return ""
 }
 
-func (a audioAdapter) PlayOnce(src string) error {
-	snd, err := audio.LoadSound(a.baseDir(), src)
-	if err != nil {
-		return err
-	}
-	return audio.ActiveSink().Play(snd, false)
+func (a audioAdapter) isWeb() bool {
+	return a.rt != nil && a.rt.App != nil && a.rt.App.Web
 }
 
-func (a audioAdapter) PlayLoop(src string) error {
+// play resolves src and starts playback. On App.Web the browser fetches
+// BaseDir+src via HTMLAudioElement (SrcPlayer); native loads a WAV from disk
+// and hands PCM to the platform sink.
+func (a audioAdapter) play(src string, loop bool) error {
+	if a.isWeb() {
+		url, err := audio.ResolveWebSrc(a.baseDir(), src)
+		if err != nil {
+			return err
+		}
+		if sp, ok := audio.ActiveSink().(audio.SrcPlayer); ok {
+			return sp.PlaySrc(url, loop)
+		}
+		return fmt.Errorf("audio: web playback requires a SrcPlayer sink")
+	}
 	snd, err := audio.LoadSound(a.baseDir(), src)
 	if err != nil {
 		return err
 	}
-	return audio.ActiveSink().Play(snd, true)
+	return audio.ActiveSink().Play(snd, loop)
 }
+
+func (a audioAdapter) PlayOnce(src string) error { return a.play(src, false) }
+
+func (a audioAdapter) PlayLoop(src string) error { return a.play(src, true) }
 
 func (a audioAdapter) Stop() error { return audio.ActiveSink().Stop() }
 

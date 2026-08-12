@@ -43,10 +43,18 @@ type RenderOpts struct {
 }
 
 // BoardRender is the slice of canvas BoardState the HTML renderer
-// reads (currently just pan + zoom). It mirrors the relevant fields of
+// reads (pan + zoom + Active). It mirrors the relevant fields of
 // canvas.BoardState so the render package can stay decoupled from the
 // canvas engine (the engine imports render, never the other way).
+//
+// Board pan precedence on the HTML path (see board()):
+//  1. opts.Board when Active or pan is non-zero (engine/host owns the camera)
+//  2. board cameraTarget / cameraCenter / … props (declarative follow)
+//  3. state.cameraX / state.cameraY (legacy qscript-written pan)
 type BoardRender struct {
+	// Active is true when a host (canvas engine) owns board interaction
+	// state for this frame — even if pan happens to be (0,0).
+	Active     bool
 	PanX, PanY float64
 	Zoom       float64
 }
@@ -76,7 +84,7 @@ type renderer struct {
 }
 
 func (r *renderer) container(n *model.Node) {
-	a := a11y(n)
+	a := r.a11y(n)
 	if n.ID == r.rootID && !strings.Contains(a, "role=") {
 		a += ` role="main"` // landmark for assistive tech
 	}
@@ -96,15 +104,16 @@ func (r *renderer) container(n *model.Node) {
 // tiles would render at their raw world coordinates (offscreen, far
 // from the viewport) and the user would see only the sky background.
 //
-// Pan / zoom come from the canvas-side BoardState, NOT from the app
-// state — the engine keeps these on its Interaction sidecar (a single
-// float per axis; mirrors the canvas-mode r.Inter.Board fields). The
-// server pushes them into the renderer via the RenderOpts.Board field
-// (see render.go) so the runtime, which is engine-free, never grows a
-// dependency on canvas.
+// Pan source precedence (paint-only; no HTML drag-pan ownership):
+//  1. RenderOpts.Board when Active or pan non-zero — live canvas-host feed
+//  2. cameraTarget (+ cameraCenter / cameraViewport / cameraDeadZone /
+//     cameraMax / cameraCell) — same math as canvas applyBoardCamera
+//  3. state.cameraX / cameraY — legacy qscript-written pan
+//
+// disablePan is interaction-only on canvas and ignored here.
 func (r *renderer) board(n *model.Node) {
 	bg := r.containerCSS(n)
-	a := a11y(n)
+	a := r.a11y(n)
 	if n.ID == r.rootID && !strings.Contains(a, "role=") {
 		a += ` role="main"`
 	}
@@ -114,22 +123,20 @@ func (r *renderer) board(n *model.Node) {
 	// crops the world to the viewport slice.
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q;overflow:hidden;position:relative%s%s%s>`, attrID(n.ID), bg, a, r.pressAttr(n), dragAttr(n))
 	// Inner div: the content group, translated by the live PanX / PanY
-	// and scaled by the live Zoom. The canvas engine owns these values;
-	// the renderer just paints what the engine told it.
+	// and scaled by the live Zoom.
 	px, py, zoom := r.opts.Board.PanX, r.opts.Board.PanY, r.opts.Board.Zoom
-	// Fallback for the web (no-engine) path: many apps — and every
-	// example with a board root before the canvas engine integration
-	// — don't go through RenderWithOpts, so opts.Board is zero. The
-	// app's own qscript has typically been writing cameraX / cameraY
-	// to state as part of its physics step; reading those makes the
-	// board transform work without the engine, and falls back to 0/0/1
-	// when neither source has a value.
-	if px == 0 && py == 0 {
-		if v, ok := r.rt.State["cameraX"]; ok {
-			px = asFloat(v)
-		}
-		if v, ok := r.rt.State["cameraY"]; ok {
-			py = asFloat(v)
+	engineBoard := r.opts.Board.Active || px != 0 || py != 0
+	if !engineBoard {
+		if cx, cy, ok := resolveHTMLBoardCamera(n, r.rt); ok {
+			px, py = cx, cy
+		} else if r.rt != nil {
+			// Legacy web (no-engine) path: qscript writes cameraX / cameraY.
+			if v, ok := r.rt.State["cameraX"]; ok {
+				px = asFloat(v)
+			}
+			if v, ok := r.rt.State["cameraY"]; ok {
+				py = asFloat(v)
+			}
 		}
 	}
 	if zoom == 0 {
@@ -144,7 +151,7 @@ func (r *renderer) board(n *model.Node) {
 
 func (r *renderer) text(n *model.Node) {
 	style := r.boxCSS(n) + r.textCSS(n)
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>%s</div>`, attrID(r.nid(n)), style, a11y(n), html.EscapeString(r.interp(n.Text)))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>%s</div>`, attrID(r.nid(n)), style, r.a11y(n), html.EscapeString(r.interp(n.Text)))
 }
 
 // scaffold is Flutter's Scaffold: an appbar child pins to the top, a bottomnav
@@ -234,7 +241,7 @@ func (r *renderer) wrap(n *model.Node) {
 	gap := propNum(n, "spacing", 8)
 	run := propNum(n, "runSpacing", gap)
 	style := fmt.Sprintf("display:flex;flex-wrap:wrap;column-gap:%gpx;row-gap:%gpx;", gap, run)
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), r.boxCSS(n)+style, a11y(n))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), r.boxCSS(n)+style, r.a11y(n))
 	for _, c := range n.Children {
 		r.node(c)
 	}
@@ -251,7 +258,7 @@ func (r *renderer) appbar(n *model.Node) {
 	// turns the frost off) without the app having to restyle the whole bar.
 	frost := frostCSS(r.backdropBlurPx(n, 20))
 	style := fmt.Sprintf("display:flex;align-items:center;gap:6px;height:calc(44px + var(--safe-top, env(safe-area-inset-top, 0px)));padding:var(--safe-top, env(safe-area-inset-top, 0px)) 8px 0 8px;box-sizing:border-box;background:%s;%sborder-bottom:.5px solid var(--sep);", bg, frost)
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), r.boxCSS(n)+style, a11y(n))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), r.boxCSS(n)+style, r.a11y(n))
 	if lead := r.interp(propStr(n, "leading")); lead != "" {
 		fmt.Fprintf(&r.sb, `<div style="min-width:44px;color:var(--accent);font-size:17px;display:inline-flex;align-items:center;">%s</div>`, iconOrText(lead, 20))
 	} else {
@@ -278,7 +285,7 @@ func (r *renderer) fab(n *model.Node) {
 	}
 	style := r.boxCSS(n) + "display:inline-flex;align-items:center;justify-content:center;border:none;cursor:pointer;background:var(--accent);color:#fff;box-shadow:0 6px 16px rgba(0,0,0,.18);" + shape
 	fmt.Fprintf(&r.sb, `<button id=%q class="qorm-tap" style=%q%s%s>%s</button>`,
-		attrID(n.ID), style, a11y(n), r.pressAttr(n), html.EscapeString(label))
+		attrID(n.ID), style, r.a11y(n), r.pressAttr(n), html.EscapeString(label))
 }
 
 func (r *renderer) link(n *model.Node) {
@@ -293,7 +300,7 @@ func (r *renderer) link(n *model.Node) {
 	}
 	style := r.boxCSS(n) + r.textCSS(n) + "cursor:pointer;text-decoration:none;"
 	fmt.Fprintf(&r.sb, `<a id=%q href=%q style=%q%s%s>%s</a>`,
-		attrID(n.ID), html.EscapeString(href), style, a11y(n), r.pressAttr(n), html.EscapeString(r.interp(labelOf(n))))
+		attrID(n.ID), html.EscapeString(href), style, r.a11y(n), r.pressAttr(n), html.EscapeString(r.interp(labelOf(n))))
 }
 
 var stateBindRe = regexp.MustCompile(`^\s*\{\{\s*state\.([a-zA-Z0-9_.]+)\s*\}\}\s*$`)
@@ -309,7 +316,7 @@ func (r *renderer) divider(n *model.Node) {
 
 func (r *renderer) spacer(n *model.Node) {
 	style := "flex:1 1 auto;"
-	if v, ok := numOK(n.Style, "size"); ok {
+	if v, ok := numOK(r.resolveStyle(r.effectiveStyle(n)), "size"); ok {
 		style = fmt.Sprintf("width:%gpx;height:%gpx;flex-shrink:0;", v, v)
 	}
 	fmt.Fprintf(&r.sb, `<div id=%q style=%q></div>`, attrID(n.ID), style)
@@ -850,7 +857,7 @@ func (r *renderer) monthView(n *model.Node) {
 	}
 
 	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-monthview" style=%q%s>`,
-		attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;", a11y(n))
+		attrID(n.ID), r.boxCSS(n)+"display:flex;flex-direction:column;gap:8px;", r.a11y(n))
 
 	// header: prev / month title / next
 	r.sb.WriteString(`<div style="display:flex;align-items:center;gap:8px;">`)
@@ -981,7 +988,7 @@ func fmtTime(h, m int) string { return fmt.Sprintf("%02d:%02d", h, m) }
 
 func (r *renderer) picker(n *model.Node) {
 	cur := r.interp(n.Value)
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), r.boxCSS(n)+"position:relative;height:180px;min-height:180px;flex-shrink:0;overflow:hidden;", a11y(n))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), r.boxCSS(n)+"position:relative;height:180px;min-height:180px;flex-shrink:0;overflow:hidden;", r.a11y(n))
 	// center selection band
 	r.sb.WriteString(`<div style="position:absolute;left:0;right:0;top:72px;height:36px;background:var(--fill);border-radius:8px;pointer-events:none;"></div>`)
 	r.sb.WriteString(`<div style="height:100%;overflow-y:auto;scroll-snap-type:y mandatory;padding:72px 0;">`)
@@ -1329,7 +1336,7 @@ func (r *renderer) navButton(n *model.Node, glyph, label, aria string) {
 	if n.OnPress != nil {
 		onclick = r.pressAttr(n)
 	}
-	al := a11y(n)
+	al := r.a11y(n)
 	if !strings.Contains(al, "aria-label") {
 		al += fmt.Sprintf(` aria-label=%q`, aria)
 	}
@@ -1359,7 +1366,7 @@ func (r *renderer) form(n *model.Node) {
 	if asBool(r.interp(propStr(n, "novalidate"))) {
 		nov = ` novalidate`
 	}
-	fmt.Fprintf(&r.sb, `<form id=%q style=%q%s%s%s>`, attrID(r.nid(n)), r.containerCSS(n), a11y(n), nov, submit)
+	fmt.Fprintf(&r.sb, `<form id=%q style=%q%s%s%s>`, attrID(r.nid(n)), r.containerCSS(n), r.a11y(n), nov, submit)
 	for _, c := range n.Children {
 		r.node(c)
 	}
@@ -1379,7 +1386,7 @@ func (r *renderer) offstage(n *model.Node) {
 	if off {
 		style += "display:none;"
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(r.nid(n)), style, a11y(n))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(r.nid(n)), style, r.a11y(n))
 	for _, c := range n.Children {
 		r.node(c)
 	}
@@ -1391,7 +1398,7 @@ func (r *renderer) offstage(n *model.Node) {
 // display:contents keeps the wrapper out of layout, so children lay out exactly
 // as if unwrapped; pointer-events:none then inherits down the DOM subtree.
 func (r *renderer) ignorePointer(n *model.Node) {
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(r.nid(n)), r.boxCSS(n)+"display:contents;pointer-events:none;", a11y(n))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(r.nid(n)), r.boxCSS(n)+"display:contents;pointer-events:none;", r.a11y(n))
 	for _, c := range n.Children {
 		r.node(c)
 	}
@@ -1438,7 +1445,7 @@ func (r *renderer) navigationDrawer(n *model.Node) {
 // the bottom safe-area inset applied.
 func (r *renderer) bottomAppBar(n *model.Node) {
 	style := r.boxCSS(n) + "display:flex;align-items:center;gap:8px;padding:8px 12px;min-height:56px;background:var(--surface);border-top:.5px solid var(--sep);padding-bottom:calc(8px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));"
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s role="toolbar">`, attrID(r.nid(n)), style, a11y(n))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s role="toolbar">`, attrID(r.nid(n)), style, r.a11y(n))
 	for _, c := range n.Children {
 		r.node(c)
 	}
@@ -1449,17 +1456,18 @@ func (r *renderer) bottomAppBar(n *model.Node) {
 // (px, read from style or props); a plain flow container otherwise.
 func (r *renderer) limitedBox(n *model.Node) {
 	lim := ""
-	if w, ok := numOK(n.Style, "maxWidth"); ok {
+	s := r.resolveStyle(r.effectiveStyle(n))
+	if w, ok := numOK(s, "maxWidth"); ok {
 		lim += fmt.Sprintf("max-width:%gpx;", w)
 	} else if w := propNum(n, "maxWidth", -1); w >= 0 {
 		lim += fmt.Sprintf("max-width:%gpx;", w)
 	}
-	if h, ok := numOK(n.Style, "maxHeight"); ok {
+	if h, ok := numOK(s, "maxHeight"); ok {
 		lim += fmt.Sprintf("max-height:%gpx;", h)
 	} else if h := propNum(n, "maxHeight", -1); h >= 0 {
 		lim += fmt.Sprintf("max-height:%gpx;", h)
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(r.nid(n)), r.boxCSS(n)+lim, a11y(n))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(r.nid(n)), r.boxCSS(n)+lim, r.a11y(n))
 	for _, c := range n.Children {
 		r.node(c)
 	}
@@ -1475,7 +1483,7 @@ func (r *renderer) indexedStack(n *model.Node) {
 	if raw, ok := n.Prop("index"); ok {
 		idx = int(asFloat(runtime.EvalBinding(fmt.Sprint(raw), r.ctx())))
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(r.nid(n)), r.boxCSS(n)+"position:relative;", a11y(n))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(r.nid(n)), r.boxCSS(n)+"position:relative;", r.a11y(n))
 	for i, c := range n.Children {
 		disp := "display:none;"
 		if i == idx {

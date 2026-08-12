@@ -237,10 +237,88 @@ func styleHasBinding(v any) bool {
 	return false
 }
 
+// matchingStyleRules returns the styles/*.qss rule bodies that apply to n, in
+// cascade order: every matching type rule first (declaration order), then
+// class rules, then id rules — so a later map in the slice overrides an
+// earlier one key by key. Class rules follow the node's own `class` list
+// order first (a class named later in the prop wins over an earlier one) and
+// declaration order within one class name. Mirrors the canvas path
+// (internal/render/canvas matchingStyleRules) so both backends share one
+// cascade contract.
+func matchingStyleRules(n *model.Node, styles []model.StyleRule) []map[string]any {
+	if n == nil || len(styles) == 0 {
+		return nil
+	}
+	var typeRules, idRules []map[string]any
+	classRules := map[string][]map[string]any{}
+	for _, r := range styles {
+		switch r.Kind {
+		case model.StyleRuleType:
+			if r.Name == n.Type {
+				typeRules = append(typeRules, r.Style)
+			}
+		case model.StyleRuleID:
+			if r.Name == n.ID {
+				idRules = append(idRules, r.Style)
+			}
+		case model.StyleRuleClass:
+			classRules[r.Name] = append(classRules[r.Name], r.Style)
+		}
+	}
+	var classes []string
+	if len(classRules) > 0 {
+		if cs, _ := n.Props["class"].(string); cs != "" {
+			classes = strings.Fields(cs)
+		}
+	}
+	total := len(typeRules) + len(idRules)
+	for _, c := range classes {
+		total += len(classRules[c])
+	}
+	if total == 0 {
+		return nil
+	}
+	out := make([]map[string]any, 0, total)
+	out = append(out, typeRules...)
+	for _, c := range classes {
+		out = append(out, classRules[c]...)
+	}
+	out = append(out, idRules...)
+	return out
+}
+
+// effectiveStyle merges matching stylesheet rules under the node's inline
+// style (cascade: type < class order < id < inline). Returns n.Style
+// unchanged when nothing matches so the common path stays allocation-free.
+// Rule values still go through resolveStyle with the caller, so {{bindings}}
+// evaluate at the same moment as inline values.
+func (r *renderer) effectiveStyle(n *model.Node) map[string]any {
+	if n == nil {
+		return nil
+	}
+	if r == nil || r.rt == nil || r.rt.App == nil || len(r.rt.App.Styles) == 0 {
+		return n.Style
+	}
+	matched := matchingStyleRules(n, r.rt.App.Styles)
+	if len(matched) == 0 {
+		return n.Style
+	}
+	out := make(map[string]any)
+	for _, m := range matched {
+		for k, v := range m {
+			out[k] = v
+		}
+	}
+	for k, v := range n.Style {
+		out[k] = v
+	}
+	return out
+}
+
 func (r *renderer) boxCSS(n *model.Node) string {
 	var b strings.Builder
 	b.WriteString("box-sizing:border-box;")
-	s := r.resolveStyle(n.Style)
+	s := r.resolveStyle(r.effectiveStyle(n))
 	lay := r.resolveStyle(n.Layout)
 	writeSize(&b, "width", pick(lay, "width"), pick(s, "width"))
 	writeSize(&b, "height", pick(lay, "height"), pick(s, "height"))
@@ -401,7 +479,7 @@ func frostCSS(px float64) string {
 // is resolved first, so the radius can be a `{{ … }}` binding like any other
 // numeric style.
 func (r *renderer) backdropBlurPx(n *model.Node, def float64) float64 {
-	v, ok := numOK(r.resolveStyle(n.Style), "backdropBlur")
+	v, ok := numOK(r.resolveStyle(r.effectiveStyle(n)), "backdropBlur")
 	if !ok {
 		return def
 	}
@@ -469,7 +547,7 @@ func styleDisabled(s map[string]any) bool {
 
 func (r *renderer) textCSS(n *model.Node) string {
 	var b strings.Builder
-	s := r.resolveStyle(n.Style)
+	s := r.resolveStyle(r.effectiveStyle(n))
 	if v := colorStr(s, "color"); v != "" {
 		fmt.Fprintf(&b, "color:%s;", v)
 	}
@@ -519,7 +597,11 @@ func (r *renderer) textCSS(n *model.Node) string {
 	return styleAttr(b.String())
 }
 
-func a11y(n *model.Node) string {
+// a11y emits shared ARIA/title/tooltip attributes. Role/label/title/tooltip
+// props stay literal (no {{binding}} resolve) so legacy attribute apps keep
+// byte-stable markup; only the disabled style marker goes through
+// effectiveStyle+resolveStyle so QSS rules and state bindings match the visual.
+func (r *renderer) a11y(n *model.Node) string {
 	var b strings.Builder
 	if v, ok := n.Prop("role"); ok {
 		fmt.Fprintf(&b, ` role=%q`, html.EscapeString(fmt.Sprint(v)))
@@ -538,10 +620,9 @@ func a11y(n *model.Node) string {
 	// is no native `disabled` attribute to set here — a11y is shared by every
 	// element kind (div/a/button/…), and the attribute is only valid on form
 	// controls, so the generic aria form plus the shell's pointer-events:none is
-	// the honest equivalent. Read raw (unresolved) so this stays a pure
-	// node->attributes function; a `{{ … }}` binding still drives the visual
-	// through boxCSS, which resolves.
-	if styleDisabled(n.Style) {
+	// the honest equivalent. Merge QSS + resolve bindings so aria-disabled
+	// tracks the same cascade as boxCSS/--qorm-dis.
+	if styleDisabled(r.resolveStyle(r.effectiveStyle(n))) {
 		b.WriteString(` aria-disabled="true"`)
 	}
 	return b.String()

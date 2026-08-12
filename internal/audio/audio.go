@@ -103,6 +103,14 @@ func activeSink() Player {
 // expr.CallBuiltin.
 func ActiveSink() Player { return activeSink() }
 
+// SrcPlayer is an optional Player extension for URL-based playback (WASM /
+// HTML hosts). When the app runs with App.Web, the runtime prefers PlaySrc
+// over LoadSound+Play so the browser fetches the WAV from BaseDir+src.
+type SrcPlayer interface {
+	Player
+	PlaySrc(url string, loop bool) error
+}
+
 // nopSink discards samples. Default; headless tests stay quiet.
 type nopSink struct{}
 

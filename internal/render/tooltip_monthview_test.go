@@ -57,9 +57,8 @@ func TestTooltipLegacyPropUnchanged(t *testing.T) {
 			t.Errorf("the tooltip prop must not gain the widget's markup (%q):\n%s", leak, res.HTML)
 		}
 	}
-	// The prop is deliberately NOT interpolated (a11y is a pure
-	// node->attributes function with no scope) — an app relying on the literal
-	// must keep seeing the literal.
+	// The prop is deliberately NOT interpolated (a11y leaves role/title/tooltip
+	// props literal) — an app relying on the literal must keep seeing it.
 	raw := renderWidgetState(t, &model.Node{Type: "text", ID: "t", Text: "x",
 		Props: map[string]any{"tooltip": "{{ state.hint }}"}}, map[string]any{"hint": "H"})
 	if !strings.Contains(raw.HTML, `data-tooltip="{{ state.hint }}"`) {

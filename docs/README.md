@@ -30,6 +30,14 @@ runnable reference — when a doc and a running example disagree, trust the exam
 ![The QORM counter example](assets/screenshots/counter.png) ![The QORM analytics dashboard example](assets/screenshots/dashboard.png) ![A QORM fitness app example](assets/screenshots/showcase.png)
 *The counter, the analytics dashboard, and a fitness app — one JSON runtime across examples.*
 
+## Maintainers (implementation board)
+
+Sprint analysis, progress, and audit logs for multi-agent workstreams (not the product API surface):
+
+- [Analysis & plan](implementation/analysis-and-plan.md)
+- [Progress](implementation/progress.md)
+- [Audit log](implementation/audit-log.md)
+
 ## Learn
 
 - [Project structure](project-structure.md) — the layout of a QORM app folder, file by file

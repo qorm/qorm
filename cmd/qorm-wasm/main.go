@@ -43,6 +43,8 @@ func main() {
 	js.Global().Set("qormCompile", js.FuncOf(qormCompile))
 	js.Global().Set("qormSetViewport", js.FuncOf(qormSetViewport))
 	js.Global().Set("qormKeyDown", js.FuncOf(qormKeyDown))
+	js.Global().Set("qormSwipe", js.FuncOf(qormSwipe))
+	js.Global().Set("qormAction", js.FuncOf(qormAction))
 	select {} // keep the Go runtime alive for the JS callbacks
 }
 
@@ -124,6 +126,10 @@ func qormInit(_ js.Value, args []js.Value) any {
 // opens a socket on a background goroutine.
 func adopt(r *runtime.Runtime) {
 	rt = r
+	// Browser host: image/audio src resolves as URL prefix + relative path.
+	if r != nil && r.App != nil {
+		r.App.Web = true
+	}
 	playcore.InstallSinks(
 		r,
 		func() *runtime.Runtime { return rt }, // generation pin: OTA/rollback/recompile
@@ -229,7 +235,8 @@ func qormSetState(_ js.Value, args []js.Value) any {
 // the author. Malformed JSON yields a diagnostic instead of throwing into JS.
 // qormKeyDown(key) dispatches a keyboard event to the runtime's scene-level
 // key bindings (scene JSON "keys"): the WASM playground's keyboard handler
-// calls this so games and keyboard-driven apps work in the browser.
+// and the offline HTML page's key listener call this so games and
+// keyboard-driven apps work without a server.
 func qormKeyDown(_ js.Value, args []js.Value) any {
 	if rt == nil || len(args) < 1 {
 		return errResult(nil)
@@ -240,6 +247,38 @@ func qormKeyDown(_ js.Value, args []js.Value) any {
 		return errResult(nil)
 	}
 	rt.Dispatch(action, nil)
+	return drainAndRender()
+}
+
+// qormSwipe(dir) dispatches a scene-level swipe binding (scene JSON "swipes")
+// — the touch counterpart of qormKeyDown. dir is left/right/up/down; the
+// offline HTML page's pointer swipe recognizer calls this after classifying
+// press→release travel.
+func qormSwipe(_ js.Value, args []js.Value) any {
+	if rt == nil || len(args) < 1 {
+		return errResult(nil)
+	}
+	dir := strings.ToLower(args[0].String())
+	action, ok := rt.SwipeAction(dir)
+	if !ok {
+		return errResult(nil)
+	}
+	rt.Dispatch(action, nil)
+	return drainAndRender()
+}
+
+// qormAction(name) dispatches a named action with empty args — the WASM twin
+// of POST /event {action}. Used by the shared app.js key/swipe listeners when
+// the live /event fetch is not available (offline package).
+func qormAction(_ js.Value, args []js.Value) any {
+	if rt == nil || len(args) < 1 {
+		return errResult(nil)
+	}
+	name := args[0].String()
+	if name == "" {
+		return errResult(nil)
+	}
+	rt.Dispatch(name, nil)
 	return drainAndRender()
 }
 

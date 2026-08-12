@@ -16,6 +16,9 @@ qorm package examples/dashboard -p web -o dashboard-web   # an installable, offl
 Serve the output folder and "Add to Home Screen". Any example packages to web.
 See the [support matrix](support-matrix.md).
 
+Raiden/Mario-class games need the canvas host (`qorm_canvas` / games page);
+default `qorm package -p web` is HTML morph, not full canvas game fidelity.
+
 ![The QORM dashboard packaged as a web app in a browser](img/web-dashboard.png)
 *`qorm package -p web` produces an installable PWA — here the dashboard example opened in a browser.*
 

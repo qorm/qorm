@@ -12,8 +12,9 @@ package canvas
 // Platform note: the committed baseline is the Linux hash set, because CI
 // runs on ubuntu-latest. Mac produces slightly different SFNT rasterization
 // for two of the four scenes (counter_light, counter_dark) — sub-pixel
-// anti-aliasing on the text layer — so a Mac developer must re-baseline
-// locally: `QORM_GOLDEN_UPDATE=1 go test -run TestGolden ./internal/render/canvas/`.
+// anti-aliasing on the text layer. Those two are compared only on linux
+// (and when QORM_GOLDEN_FORCE=1); other GOOS logs a skip on mismatch so
+// local Mac `go test` stays green without rewriting the Linux baseline.
 // counter_physics and gallery_if are platform-stable (their pixels are mostly
 // solid blocks / simple labels, where hinting differences wash out).
 //
@@ -30,6 +31,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	stdruntime "runtime"
 	"strings"
 	"testing"
 	"time"
@@ -38,6 +40,12 @@ import (
 	"github.com/qorm/qorm/internal/runtime"
 	"github.com/qorm/qorm/internal/theme"
 )
+
+// sfntPlatformSensitive scenes differ across OS text AA; baseline is Linux CI.
+var sfntPlatformSensitive = map[string]bool{
+	"counter_light": true,
+	"counter_dark":  true,
+}
 
 // goldenSize is the fixed logical size every scenario renders at (the counter
 // app's own desktop window size): determinism comes from never deriving it
@@ -246,6 +254,13 @@ func compareGoldenBaseline(t *testing.T, dir string, frames map[string]goldenFra
 		}
 		f := frames[name]
 		if got := hexSum(f.sum); got != expected {
+			// Known Mac/Windows SFNT AA drift vs Linux baseline — do not fail
+			// local trees or rewrite Linux goldens. Force with QORM_GOLDEN_FORCE=1.
+			if sfntPlatformSensitive[name] && stdruntime.GOOS != "linux" && os.Getenv("QORM_GOLDEN_FORCE") != "1" {
+				t.Logf("golden frame %q differs on %s (SFNT AA; Linux baseline kept): actual %s expected %s",
+					name, stdruntime.GOOS, got, expected)
+				continue
+			}
 			pngPath := filepath.Join(t.TempDir(), name+".actual.png")
 			if err := writeGoldenPNG(pngPath, f.img); err != nil {
 				t.Errorf("%s: dump actual frame: %v", name, err)

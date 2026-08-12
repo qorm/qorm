@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/qorm/qorm/internal/audio"
 	"github.com/qorm/qorm/internal/model"
 )
 
@@ -85,5 +86,55 @@ func TestNewInstallsAudioHandler(t *testing.T) {
 	rt := New(app)
 	if rt == nil {
 		t.Fatal("New returned nil")
+	}
+}
+
+
+// webSrcSink records PlaySrc calls for App.Web adapter tests.
+type webSrcSink struct {
+	calls []string
+	loop  []bool
+}
+
+func (w *webSrcSink) Play(*audio.Sound, bool) error { return nil }
+func (w *webSrcSink) Stop() error                   { return nil }
+func (w *webSrcSink) PlaySrc(url string, loop bool) error {
+	w.calls = append(w.calls, url)
+	w.loop = append(w.loop, loop)
+	return nil
+}
+
+func TestAudioAdapterWebPlaySrc(t *testing.T) {
+	sink := &webSrcSink{}
+	audio.RegisterSink(sink)
+	defer audio.RegisterSink(nil)
+
+	a := audioAdapter{rt: &Runtime{App: &model.App{
+		BaseDir: "/games/mario/",
+		Web:     true,
+	}}}
+	if err := a.PlayOnce("audio/coin.wav"); err != nil {
+		t.Fatalf("PlayOnce: %v", err)
+	}
+	if err := a.PlayLoop("audio/music.wav"); err != nil {
+		t.Fatalf("PlayLoop: %v", err)
+	}
+	if len(sink.calls) != 2 {
+		t.Fatalf("calls = %v, want 2", sink.calls)
+	}
+	if sink.calls[0] != "/games/mario/audio/coin.wav" || sink.loop[0] {
+		t.Errorf("one-shot = %q loop=%v", sink.calls[0], sink.loop[0])
+	}
+	if sink.calls[1] != "/games/mario/audio/music.wav" || !sink.loop[1] {
+		t.Errorf("music = %q loop=%v", sink.calls[1], sink.loop[1])
+	}
+}
+
+func TestAudioAdapterWebRejectsTraversal(t *testing.T) {
+	audio.RegisterSink(&webSrcSink{})
+	defer audio.RegisterSink(nil)
+	a := audioAdapter{rt: &Runtime{App: &model.App{BaseDir: "/games/mario/", Web: true}}}
+	if err := a.PlayOnce("../../etc/passwd"); err == nil {
+		t.Error("expected path-traversal error")
 	}
 }

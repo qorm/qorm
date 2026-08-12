@@ -1569,19 +1569,22 @@ function qormSwipeActions(el){
   });
 })();
 
-// ---- Scene-level key bindings (scene JSON `keys` / `keyReleases`) -------------
-// The canvas engine has a built-in HandleKey that consults rt.KeyAction /
-// KeyReleaseAction and dispatches without a focused widget; the HTML path had
-// no equivalent, so a `keys:{"left":"moveLeft"}` declaration was invisible in
-// the browser. server.go Page() emits window.__qormKeys and __qormKeyReleases
-// (the declarative control scheme for the current scene) plus
-// __qormKeyToIdx (action name → handler index in the latest render). This
-// listener normalises DOM KeyboardEvent.key/e.code into the same lowercase
-// names the runtime uses ("left", "right", "up", "down", "a", "space", …)
-// and dispatches via the standard qorm(idx) path — the same wire format a
-// button click uses, so the server's revision / handler-table bookkeeping
-// stays in one place.
+// ---- Scene-level key + swipe bindings (scene JSON `keys` / `keyReleases` / `swipes`)
+// The canvas engine has built-in HandleKey / swipe recognition that consult
+// rt.KeyAction / KeyReleaseAction / SwipeAction without a focused widget; the
+// HTML path had no equivalent, so a `keys:{"left":"moveLeft"}` or
+// `swipes:{"up":"jump"}` declaration was invisible in the browser. server.go
+// Page() emits window.__qormKeys, __qormKeyReleases, and __qormSwipes (the
+// declarative control scheme for the current scene) plus __qormKeyToIdx.
+// Keys normalise DOM KeyboardEvent.key into the same lowercase names the
+// runtime uses; swipes classify press→release travel with the same distance
+// floor (24px) and axis dominance (1.3) as the canvas engine. Both dispatch
+// by action name via /event {action} (live) or qormAction / qormKeyDown /
+// qormSwipe (offline WASM) — outside the positional handler table.
 (function(){
+  // Match canvas swipeMinDist / swipeAxisDominance (internal/render/canvas).
+  var SWIPE_MIN = 24;
+  var SWIPE_AXIS = 1.3;
   function normKey(e){
     var k = e.key;
     if (k === ' ') return 'space';
@@ -1607,21 +1610,53 @@ function qormSwipeActions(el){
     if (t.isContentEditable) return true;
     return false;
   }
+  // swipeDirection classifies press→release travel into left/right/up/down,
+  // or "" when too short or diagonal (no dominant axis). Mirrors the canvas
+  // engine's swipeDirection — keep SWIPE_MIN / SWIPE_AXIS in lockstep.
+  function swipeDirection(dx, dy){
+    var ax = Math.abs(dx), ay = Math.abs(dy);
+    if (Math.max(ax, ay) < SWIPE_MIN) return '';
+    if (ax > ay * SWIPE_AXIS) return dx > 0 ? 'right' : 'left';
+    if (ay > ax * SWIPE_AXIS) return dy > 0 ? 'down' : 'up';
+    return '';
+  }
+  function applyFrame(res){
+    if (!res) return;
+    if (res.theme) qormTheme(res.theme);
+    if (res.dir && typeof qormDir === 'function') qormDir(res.dir);
+    if (res.html != null) qormMorphInto(document.getElementById('qorm-root'), res.html);
+    if (typeof qormMeasure !== 'undefined') setTimeout(qormMeasure, 30);
+  }
   function dispatchAction(name){
-    // Scene-level key bindings live outside the rendered handler table
-    // (no element invokes them) — server.go /event accepts an `action`
-    // name to dispatch by name in that case. The same fetch+revision
-    // flow as a button click; just an alternative addressing mode.
+    // Scene-level key/swipe bindings live outside the rendered handler table
+    // (no element invokes them) — server.go /event accepts an `action` name
+    // to dispatch by name. Offline WASM exposes qormAction(name) for the
+    // same path (and qormKeyDown/qormSwipe for key/dir entry points).
+    if (typeof qormAction === 'function') {
+      try { applyFrame(qormAction(name)); } catch (err) {}
+      return;
+    }
     fetch('/event', {method:'POST', headers:{'Content-Type':'application/json', 'X-Qorm-Token': __tok},
       body: JSON.stringify({action: name, rev: __rev, inputs: {}})})
       .then(function(r){ var rv=parseInt(r.headers.get('X-Qorm-Rev'))||0; var nav=r.headers.get('X-Qorm-Nav')||''; qormTheme(r.headers.get('X-Qorm-Theme')); return r.text().then(function(html){ return {rv:rv,html:html,nav:nav}; }); })
       .then(function(o){ if(o.rv && o.rv<=__rev) return; if(o.rv) __rev=o.rv; window.__qormNav=o.nav; qormMorphInto(document.getElementById('qorm-root'), o.html); });
   }
+  // Expose the pure classifier for unit-style checks (and keep the algorithm
+  // in one place for both pointer and touch paths below).
+  window.__qormSwipeDirection = swipeDirection;
   document.addEventListener('keydown', function(e){
     if (e.repeat) return;                          // ignore key-held autorepeat; the action's "key is held" semantic is its own concern
     if (isTypingTarget(e.target)) return;          // let focused inputs / text fields have their keys
     if (!window.__qormKeys) return;
-    var name = window.__qormKeys[normKey(e)];
+    var k = normKey(e);
+    // Offline WASM can resolve keys in-process without the action map.
+    if (typeof qormKeyDown === 'function' && typeof qormAction !== 'function') {
+      try {
+        var r = qormKeyDown(k);
+        if (r && r.html) { applyFrame(r); e.preventDefault(); return; }
+      } catch (err) {}
+    }
+    var name = window.__qormKeys[k];
     if (!name) return;
     dispatchAction(name);
     e.preventDefault();
@@ -1634,4 +1669,45 @@ function qormSwipeActions(el){
     dispatchAction(name);
     e.preventDefault();
   });
+  // Scene swipe: press on non-interactive surface, drag past the distance
+  // floor in one dominant direction, release → bound action. Skips targets
+  // that own their own gesture (inputs, buttons, tabs, swipe-actions rows,
+  // scroll chains) so we do not steal their pointer.
+  if (window.__qormSceneSwipeReady) return;
+  window.__qormSceneSwipeReady = true;
+  var track = null; // {x0,y0,pid} while a candidate is armed
+  function isSwipeBlocked(t){
+    if (!t || !t.closest) return true;
+    if (isTypingTarget(t)) return true;
+    if (t.closest('button, a, input, textarea, select, option, [contenteditable="true"], [data-h], [data-qorm-tabs], .qorm-swa-content, .qorm-swa-actions, .qorm-slider, .qorm-sheet, .qorm-dsheet, .qorm-drawer, .qorm-menu-panel, .qorm-ctxmenu-panel')) return true;
+    return false;
+  }
+  function fireSwipe(dir){
+    if (!dir) return;
+    if (typeof qormSwipe === 'function' && typeof qormAction !== 'function') {
+      try {
+        var r = qormSwipe(dir);
+        if (r && r.html) { applyFrame(r); return; }
+      } catch (err) {}
+    }
+    if (!window.__qormSwipes) return;
+    var name = window.__qormSwipes[dir];
+    if (!name) return;
+    dispatchAction(name);
+  }
+  document.addEventListener('pointerdown', function(e){
+    if (e.button != null && e.button !== 0) return;
+    if (!window.__qormSwipes && typeof qormSwipe !== 'function') return;
+    if (isSwipeBlocked(e.target)) return;
+    track = {x0: e.clientX, y0: e.clientY, pid: e.pointerId};
+  }, true);
+  document.addEventListener('pointerup', function(e){
+    if (!track || e.pointerId !== track.pid) return;
+    var dx = e.clientX - track.x0, dy = e.clientY - track.y0;
+    track = null;
+    fireSwipe(swipeDirection(dx, dy));
+  }, true);
+  document.addEventListener('pointercancel', function(e){
+    if (track && e.pointerId === track.pid) track = null;
+  }, true);
 })();

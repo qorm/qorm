@@ -79,7 +79,7 @@ func (r *renderer) gestureDetector(n *model.Node) {
 	if attrs != "" || initJS != "" {
 		cursor = "cursor:pointer;"
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s%s>`, attrID(r.nid(n)), r.boxCSS(n)+cursor, a11y(n), attrs)
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s%s>`, attrID(r.nid(n)), r.boxCSS(n)+cursor, r.a11y(n), attrs)
 	for _, c := range n.Children {
 		r.node(c)
 	}
@@ -202,7 +202,7 @@ func (r *renderer) dismissible(n *model.Node) {
 func (r *renderer) draggable(n *model.Node) {
 	data := r.interp(propStr(n, "data"))
 	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-draggable" data-qorm-drag=%q style=%q%s>`,
-		attrID(r.nid(n)), html.EscapeString(data), r.boxCSS(n)+"cursor:grab;touch-action:none;", a11y(n))
+		attrID(r.nid(n)), html.EscapeString(data), r.boxCSS(n)+"cursor:grab;touch-action:none;", r.a11y(n))
 	for _, c := range n.Children {
 		r.node(c)
 	}
@@ -228,7 +228,7 @@ func (r *renderer) dragTarget(n *model.Node) {
 	if h >= 0 {
 		drop = fmt.Sprintf(` data-qorm-drop="%d"`, h)
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-droptarget"%s style=%q%s>`, attrID(r.nid(n)), drop, r.boxCSS(n), a11y(n))
+	fmt.Fprintf(&r.sb, `<div id=%q class="qorm-droptarget"%s style=%q%s>`, attrID(r.nid(n)), drop, r.boxCSS(n), r.a11y(n))
 	for _, c := range n.Children {
 		r.node(c)
 	}

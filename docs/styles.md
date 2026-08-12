@@ -51,11 +51,15 @@ Scene nodes reference rules with a `class` prop:
 { "type": "text", "text": "TETRIS", "class": "title" }
 ```
 
-## Canvas rendering
+## Rendering
 
-The native canvas backend (`-tags desktop`) applies QSS rules in its measure
-pass — theme component defaults, then type/class/id rules, then inline style —
-exactly the cascade above. The HTML renderer uses inline styles only.
+Both backends apply QSS with the same cascade (theme component default <
+type < class < id < inline). The native canvas backend (macOS default pure-Go
+window; games WASM with `qorm_canvas`) merges matching rules in its measure
+pass; the HTML path merges them into each node's emitted inline CSS
+(`boxCSS` / `textCSS`). Widget chrome defaults on the HTML path (button
+variants, shell theme vars) sit under QSS the way canvas theme component
+defaults do.
 
 ## Diagnostics
 

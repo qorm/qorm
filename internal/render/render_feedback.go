@@ -53,7 +53,7 @@ func (r *renderer) badge(n *model.Node) {
 	}
 	style := r.boxCSS(n) + r.textCSS(n) +
 		"display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;background:var(--fill);color:var(--label2);"
-	fmt.Fprintf(&r.sb, `<span id=%q style=%q%s>%s</span>`, attrID(n.ID), style, a11y(n), html.EscapeString(label))
+	fmt.Fprintf(&r.sb, `<span id=%q style=%q%s>%s</span>`, attrID(n.ID), style, r.a11y(n), html.EscapeString(label))
 }
 
 func (r *renderer) progress(n *model.Node) {
@@ -257,13 +257,11 @@ func tipHasFocusableChild(n *model.Node) bool {
 // :focus-within (internal/server/server.go).
 //
 // Why a widget rather than an upgrade of the legacy `tooltip` PROP: that prop is
-// emitted by a11y(), a deliberately PURE node->attributes function shared by
-// some forty renderers spread across the render package. It has no renderer and
-// no scope, so it cannot resolve a `{{ binding }}`, and it only reaches the
-// widgets that actually call it (`video`, for one, does not). A wrapper widget
-// gets all three for free — it evaluates its text in the live scope, it wraps
-// ANY subtree (built-in widget, component instance, list, video), and it leaves
-// a11y() and every app using the attribute byte-identical.
+// emitted by a11y() as a literal (props are not {{binding}}-resolved, matching
+// legacy attribute apps), and it only reaches widgets that call a11y (`video`,
+// for one, does not). A wrapper widget evaluates its text in the live scope, it
+// wraps ANY subtree (built-in widget, component instance, list, video), and it
+// leaves a11y() tooltip attributes byte-identical for prop users.
 //
 // Over the attribute it adds: `{{ binding }}` interpolation, a `position` of
 // top/bottom/left/right, a real text node (so a long hint WRAPS inside
@@ -428,7 +426,7 @@ func (r *renderer) circularProgress(n *model.Node) {
 	color := html.EscapeString(cssValueOr(propStr(n, "color"), "var(--accent)"))
 	cx := size / 2
 	fmt.Fprintf(&r.sb, `<svg id=%q width="%g" height="%g" viewBox="0 0 %g %g" style=%q%s>`,
-		attrID(n.ID), size, size, size, size, r.boxCSS(n), a11y(n))
+		attrID(n.ID), size, size, size, size, r.boxCSS(n), r.a11y(n))
 	fmt.Fprintf(&r.sb, `<circle cx="%g" cy="%g" r="%g" fill="none" stroke="var(--sep)" stroke-width="%g"/>`, cx, cx, rad, stroke)
 	if v := propStr(n, "value"); v != "" {
 		frac := asFloat(runtime.EvalBinding(v, r.ctx()))

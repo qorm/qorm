@@ -1442,16 +1442,17 @@ func qormAppJS(rev int64, eventToken string) string {
 	return s
 }
 
-// qormKeyBindings returns a JSON snippet declaring __qormKeys and
-// __qormKeyReleases for the current scene, plus __qormKeyToIdx (handler
-// index) for the names. The HTML path has no equivalent of the canvas
-// engine's HandleKey — without this, a scene's `keys` / `keyReleases` JSON
-// is invisible in the browser and a "hold to run" game simply does not
-// respond. The names are normalised to lowercase to match the runtime's
-// KeyAction lookup. Handler index resolution: render.RenderScene gives us
+// qormKeyBindings returns a JSON snippet declaring __qormKeys,
+// __qormKeyReleases, and __qormSwipes for the current scene, plus
+// __qormKeyToIdx (handler index) for action names. The HTML path has no
+// equivalent of the canvas engine's HandleKey / swipe recognizer — without
+// this, a scene's `keys` / `keyReleases` / `swipes` JSON is invisible in the
+// browser and a "hold to run" or swipe-to-slide game simply does not respond.
+// The names are normalised to lowercase to match the runtime's KeyAction /
+// SwipeAction lookup. Handler index resolution: render.RenderScene gives us
 // the full handler table for this scene, so we walk it once and emit a
-// name → index map; the client keydown handler looks up an action by
-// name then dispatches qorm(idx).
+// name → index map; the client key/swipe handlers look up an action by
+// name then dispatch via /event {action}.
 func qormKeyBindings(rt *runtime.Runtime) string {
 	if rt == nil || rt.App == nil {
 		return ""
@@ -1462,12 +1463,15 @@ func qormKeyBindings(rt *runtime.Runtime) string {
 	}
 	keys := rt.App.SceneKeys[scene]
 	rels := rt.App.SceneKeyReleases[scene]
-	if len(keys) == 0 && len(rels) == 0 {
+	swipes := rt.App.SceneSwipes[scene]
+	if len(keys) == 0 && len(rels) == 0 && len(swipes) == 0 {
 		return ""
 	}
 	// Get current handler table — the same call the server uses after a
 	// render. RenderScene is cheap; on the page-serve path it doubles as
 	// a "this is the table the body HTML was rendered against" guarantee.
+	// Built even when only swipes are present so keys can still resolve
+	// if a later morph updates __qormKeys without re-emitting this block.
 	res := render.RenderScene(rt, scene)
 	nameToIdx := map[string]int{}
 	for i, h := range res.Handlers {
@@ -1478,8 +1482,9 @@ func qormKeyBindings(rt *runtime.Runtime) string {
 	keysJSON, _ := json.Marshal(keys)
 	relsJSON, _ := json.Marshal(rels)
 	idxJSON, _ := json.Marshal(nameToIdx)
-	return fmt.Sprintf("window.__qormKeys=%s;window.__qormKeyReleases=%s;window.__qormKeyToIdx=%s;",
-		keysJSON, relsJSON, idxJSON)
+	swipesJSON, _ := json.Marshal(swipes)
+	return fmt.Sprintf("window.__qormKeys=%s;window.__qormKeyReleases=%s;window.__qormKeyToIdx=%s;window.__qormSwipes=%s;",
+		keysJSON, relsJSON, idxJSON, swipesJSON)
 }
 
 func Page(rt *runtime.Runtime, body string, rev int64, eventToken ...string) string {

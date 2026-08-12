@@ -746,6 +746,200 @@ func TestCSSFetchOrComment(t *testing.T) {
 	}
 }
 
+// TestHTMLQSSClassRule proves a styles/*.qss class rule reaches the HTML
+// render path: a node with only `class` (no inline style) emits the rule's
+// CSS declarations.
+func TestHTMLQSSClassRule(t *testing.T) {
+	node := &model.Node{
+		Type: "text", ID: "t", Text: "hi",
+		Props: map[string]any{"class": "accent"},
+	}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{node}}
+	app := &model.App{
+		Entry:  "main",
+		Scenes: map[string]*model.Node{"main": root},
+		Styles: []model.StyleRule{
+			{Kind: model.StyleRuleClass, Name: "accent", Style: map[string]any{
+				"background": "#007AFF",
+				"fontSize":   float64(22),
+				"color":      "var(--on-accent)",
+			}},
+		},
+	}
+	res := Render(qrt.New(app))
+	for _, w := range []string{"background:#007AFF;", "font-size:22px;", "color:var(--on-accent);"} {
+		if !strings.Contains(res.HTML, w) {
+			t.Errorf("class rule should emit %q:\n%s", w, res.HTML)
+		}
+	}
+}
+
+// TestHTMLQSSCascadePriority: type < class (prop order) < id < inline.
+func TestHTMLQSSCascadePriority(t *testing.T) {
+	rules := []model.StyleRule{
+		{Kind: model.StyleRuleType, Name: "text", Style: map[string]any{"fontSize": float64(20)}},
+		{Kind: model.StyleRuleClass, Name: "big", Style: map[string]any{"fontSize": float64(22)}},
+		{Kind: model.StyleRuleID, Name: "hero", Style: map[string]any{"fontSize": float64(24)}},
+	}
+	mk := func(class, id string, inline map[string]any) *model.Node {
+		n := &model.Node{Type: "text", ID: id, Text: "x", Style: inline, Props: map[string]any{}}
+		if class != "" {
+			n.Props["class"] = class
+		}
+		if id == "" {
+			n.ID = "n"
+		}
+		return n
+	}
+	cases := []struct {
+		name string
+		node *model.Node
+		want string
+	}{
+		{"type only", mk("other", "", nil), "font-size:20px;"},
+		{"class beats type", mk("big", "", nil), "font-size:22px;"},
+		{"id beats class", mk("big", "hero", nil), "font-size:24px;"},
+		{"inline beats id", mk("big", "hero", map[string]any{"fontSize": float64(26)}), "font-size:26px;"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{tc.node}}
+			app := &model.App{
+				Entry:  "main",
+				Scenes: map[string]*model.Node{"main": root},
+				Styles: rules,
+			}
+			res := Render(qrt.New(app))
+			if !strings.Contains(res.HTML, tc.want) {
+				t.Fatalf("html lacks %q:\n%s", tc.want, res.HTML)
+			}
+		})
+	}
+}
+
+// TestHTMLQSSClassOrder: later class name in the prop wins; later declaration
+// of the same class wins.
+func TestHTMLQSSClassOrder(t *testing.T) {
+	rules := []model.StyleRule{
+		{Kind: model.StyleRuleClass, Name: "a", Style: map[string]any{"fontSize": float64(10), "fontWeight": float64(400)}},
+		{Kind: model.StyleRuleClass, Name: "a", Style: map[string]any{"fontWeight": float64(700)}},
+		{Kind: model.StyleRuleClass, Name: "b", Style: map[string]any{"fontSize": float64(20)}},
+	}
+	render := func(class string) string {
+		n := &model.Node{Type: "text", ID: "t", Text: "x", Props: map[string]any{"class": class}}
+		root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{n}}
+		app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}, Styles: rules}
+		return Render(qrt.New(app)).HTML
+	}
+	html := render("a b")
+	if !strings.Contains(html, "font-size:20px;") {
+		t.Fatalf("class b later in prop should win fontSize:\n%s", html)
+	}
+	if !strings.Contains(html, "font-weight:700;") {
+		t.Fatalf("later .a declaration should win fontWeight:\n%s", html)
+	}
+	html2 := render("b a")
+	if !strings.Contains(html2, "font-size:10px;") {
+		t.Fatalf("class a later in prop should win fontSize:\n%s", html2)
+	}
+}
+
+// TestHTMLQSSBindingEvaluates: a {{binding}} in a rule body tracks live state.
+func TestHTMLQSSBindingEvaluates(t *testing.T) {
+	rules := []model.StyleRule{
+		{Kind: model.StyleRuleClass, Name: "dyn", Style: map[string]any{"fontSize": "{{ state.fs }}"}},
+	}
+	n := &model.Node{Type: "text", ID: "t", Text: "x", Props: map[string]any{"class": "dyn"}}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{n}}
+	app := &model.App{
+		Entry:       "main",
+		Scenes:      map[string]*model.Node{"main": root},
+		Styles:      rules,
+		GlobalState: model.GlobalState{Initial: map[string]any{"fs": float64(17)}},
+	}
+	rt := qrt.New(app)
+	res := Render(rt)
+	if !strings.Contains(res.HTML, "font-size:17px;") {
+		t.Fatalf("bound rule should emit 17px:\n%s", res.HTML)
+	}
+	rt.State["fs"] = float64(23)
+	res2 := Render(rt)
+	if !strings.Contains(res2.HTML, "font-size:23px;") {
+		t.Fatalf("bound rule should track state to 23px:\n%s", res2.HTML)
+	}
+}
+
+// TestHTMLQSSZeroMatchNoOp: non-matching rules must not leak onto a node.
+func TestHTMLQSSZeroMatchNoOp(t *testing.T) {
+	rules := []model.StyleRule{
+		{Kind: model.StyleRuleType, Name: "button", Style: map[string]any{"background": "red"}},
+		{Kind: model.StyleRuleClass, Name: "other", Style: map[string]any{"background": "blue"}},
+		{Kind: model.StyleRuleID, Name: "other", Style: map[string]any{"background": "green"}},
+	}
+	n := &model.Node{Type: "text", ID: "x", Text: "plain"}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{n}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}, Styles: rules}
+	res := Render(qrt.New(app))
+	for _, bad := range []string{"background:red;", "background:blue;", "background:green;"} {
+		if strings.Contains(res.HTML, bad) {
+			t.Errorf("non-matching rule leaked %q:\n%s", bad, res.HTML)
+		}
+	}
+}
+
+// TestHTMLQSSResidualDisabledAndSpacer: paths that used to read raw n.Style
+// (a11y aria-disabled, spacer size) must honor QSS class rules the same way
+// boxCSS/textCSS do via effectiveStyle.
+func TestHTMLQSSResidualDisabledAndSpacer(t *testing.T) {
+	rules := []model.StyleRule{
+		{Kind: model.StyleRuleClass, Name: "off", Style: map[string]any{"disabled": true}},
+		{Kind: model.StyleRuleClass, Name: "gap", Style: map[string]any{"size": float64(24)}},
+		{Kind: model.StyleRuleType, Name: "chart", Style: map[string]any{"width": float64(100), "height": float64(40)}},
+	}
+	t.Run("aria-disabled from class", func(t *testing.T) {
+		n := &model.Node{Type: "text", ID: "t", Text: "x", Props: map[string]any{"class": "off"}}
+		root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{n}}
+		app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}, Styles: rules}
+		html := Render(qrt.New(app)).HTML
+		if !strings.Contains(html, `aria-disabled="true"`) {
+			t.Fatalf("QSS disabled should set aria-disabled:\n%s", html)
+		}
+		if !strings.Contains(html, "--qorm-dis:1;") {
+			t.Fatalf("QSS disabled should still set visual marker:\n%s", html)
+		}
+	})
+	t.Run("bound disabled resolves for aria", func(t *testing.T) {
+		n := &model.Node{Type: "text", ID: "t", Text: "x", Style: map[string]any{"disabled": "{{ state.off }}"}}
+		root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{n}}
+		app := &model.App{
+			Entry: "main", Scenes: map[string]*model.Node{"main": root},
+			GlobalState: model.GlobalState{Initial: map[string]any{"off": true}},
+		}
+		html := Render(qrt.New(app)).HTML
+		if !strings.Contains(html, `aria-disabled="true"`) {
+			t.Fatalf("bound disabled should set aria-disabled:\n%s", html)
+		}
+	})
+	t.Run("spacer size from class", func(t *testing.T) {
+		n := &model.Node{Type: "spacer", ID: "sp", Props: map[string]any{"class": "gap"}}
+		root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{n}}
+		app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}, Styles: rules}
+		html := Render(qrt.New(app)).HTML
+		if !strings.Contains(html, "width:24px;height:24px;") {
+			t.Fatalf("QSS size should size the spacer:\n%s", html)
+		}
+	})
+	t.Run("chart dims from type rule", func(t *testing.T) {
+		n := &model.Node{Type: "chart", ID: "c", Props: map[string]any{"data": []any{float64(1), float64(2)}}}
+		root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{n}}
+		app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}, Styles: rules}
+		html := Render(qrt.New(app)).HTML
+		if !strings.Contains(html, `width="100"`) || !strings.Contains(html, `height="40"`) {
+			t.Fatalf("QSS chart width/height should set SVG attrs:\n%s", html)
+		}
+	})
+}
+
 func TestResponsiveBreakpointStyles(t *testing.T) {
 	style := map[string]any{
 		"color": map[string]any{

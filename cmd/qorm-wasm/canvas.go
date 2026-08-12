@@ -70,7 +70,9 @@ func init() {
 
 // wasmReadFile is the disk-read seam. Order:
 //  1. Preloaded cache (populated by qormCanvasPreloadAssets) — fast path
-//     that the WASM measure/layout passes hit every frame.
+//     that the WASM measure/layout passes hit every frame. Keys are
+//     canonicalAssetURL (query/fragment stripped) so host cache-bust
+//     "?v=…" on fetch still hits when the engine resolves BaseDir+src.
 //  2. Sync XHR as the fallback for anything the preloader missed (e.g. a
 //     scene that references an asset the host forgot to list, or a URL the
 //     preloader fetch() flaked on). The XHR is wrapped in a recover()
@@ -85,8 +87,9 @@ func init() {
 // sees a transient miss every frame, the engine will keep retrying sync
 // XHR — which is exactly the right behaviour.
 func wasmReadFile(path string) ([]byte, error) {
+	key := canonicalAssetURL(path)
 	preloadedAssetsMu.RLock()
-	if b, ok := preloadedAssets[path]; ok {
+	if b, ok := preloadedAssets[key]; ok {
 		preloadedAssetsMu.RUnlock()
 		return b, nil
 	}
@@ -184,12 +187,16 @@ func qormCanvasPreloadAssets(_ js.Value, args []js.Value) any {
 				resolve.Invoke(payload)
 			}
 		}
-		onOne := func(url string, ok bool, data []byte, errStr string) {
+		onOne := func(fetchURL string, ok bool, data []byte, errStr string) {
+			// Store under the query-stripped key so resolveImageSrc
+			// (BaseDir + src, no ?v=) hits the same slot the host
+			// preloaded with a cache-busting fetch URL.
+			key := canonicalAssetURL(fetchURL)
 			preloadedAssetsMu.Lock()
 			if ok {
-				preloadedAssets[url] = data
+				preloadedAssets[key] = data
 			} else {
-				preloadFailed[url] = true
+				preloadFailed[key] = true
 			}
 			preloadedAssetsMu.Unlock()
 			mu.Lock()
@@ -198,14 +205,14 @@ func qormCanvasPreloadAssets(_ js.Value, args []js.Value) any {
 				loadedCount++
 			} else {
 				failedCount++
-				fmt.Printf("[wasm preload] %s failed: %s\n", url, errStr)
+				fmt.Printf("[wasm preload] %s failed: %s\n", fetchURL, errStr)
 			}
 			mu.Unlock()
 			maybeFinish()
 		}
 
 		for _, u := range urls {
-			u := u // capture per-iteration
+			u := u // capture per-iteration; may include ?v= for cache bust
 			fetch := js.Global().Get("fetch")
 			p := fetch.Invoke(u)
 

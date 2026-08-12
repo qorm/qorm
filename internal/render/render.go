@@ -780,7 +780,7 @@ func (r *renderer) renderInner(n *model.Node) {
 func (r *renderer) unknown(n *model.Node) {
 	r.unknowns = append(r.unknowns, n.Type)
 	fmt.Fprintf(&r.sb, `<div id=%q data-qorm-unknown=%q style=%q%s>`,
-		attrID(n.ID), html.EscapeString(n.Type), r.containerCSS(n), a11y(n))
+		attrID(n.ID), html.EscapeString(n.Type), r.containerCSS(n), r.a11y(n))
 	for _, c := range n.Children {
 		r.node(c)
 	}

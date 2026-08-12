@@ -40,8 +40,8 @@ acronym is the API surface: **Query** (HTTP/MCP reads),
   reference them with a `class` prop (space-separated, later classes win).
   Cascade: theme component default < type rule < class rule (declaration
   order) < id rule < inline `style`. Parse errors are load-time diagnostics
-  naming file and line; unknown style keys warn. The canvas renderer applies
-  them; the HTML renderer does not yet (inline styles only there). Example:
+  naming file and line; unknown style keys warn. Canvas and HTML both apply
+  matching rules (HTML merges them into emitted node CSS). Example:
   [examples/tetris](examples/tetris) `styles/app.qss`.
 - **No emoji** in UI, code, or docs — use the built-in SVG icon set (icon *names*
   like `heart` / `star` / `zap`, listed in `internal/render/icons.go`).
@@ -74,7 +74,14 @@ acronym is the API surface: **Query** (HTTP/MCP reads),
   (needs python3 + fonttools). Without the asset the build still compiles
   and falls back to the bitmap font.
 - Run an example: `go run ./cmd/qorm run examples/counter`.
-- Native desktop window (opt-in, per-platform): `-tags desktop`.
+- `-tags desktop` = native WebView window (HTML path: WKWebView / WebView2 /
+  WebKitGTK), opt-in and per-platform (cgo).
+- macOS default without `-tags desktop` opens a pure-Go canvas window
+  (software renderer). Other platforms without desktop fall back to a browser
+  window.
+- Games WASM uses `-tags qorm_canvas` (site games page). Raiden/Mario-class
+  games need that canvas host; default `qorm package -p web` is HTML morph,
+  not full canvas game fidelity.
 - Canvas window + real WKWebView overlays for `webview` widgets (macOS,
   cgo): `-tags canvaswebview`; every other build draws the widget's
   placeholder (HTML renderer uses an `<iframe>`). Demo: `go run -tags
@@ -82,10 +89,12 @@ acronym is the API surface: **Query** (HTTP/MCP reads),
 
 ## Canvas engine (`internal/render/canvas`)
 
-The native canvas backend is a pure-Go retained-mode software renderer that
-drives the `-tags desktop` window without a browser engine. It is the same
-runtime model as the HTML path (same model tree, same state, same actions) but
-renders to a pixel buffer via a display-list rasterizer.
+The native canvas backend is a pure-Go retained-mode software renderer used by
+the macOS default window (no `-tags desktop`) and by games WASM
+(`qorm_canvas`). It is **not** the `-tags desktop` path — that tag is the
+native WebView (HTML). Same runtime model as the HTML path (same model tree,
+same state, same actions) but renders to a pixel buffer via a display-list
+rasterizer.
 
 **Architecture:** `input/state → layout → record (display list) → render`
 - **Single-threaded**: input and rendering both run on the host's main thread;

@@ -58,7 +58,7 @@ func (r *renderer) animatedContainer(n *model.Node) {
 	trans := fmt.Sprintf("transition:all %s %s;", dur, curve)
 	// containerCSS (not boxCSS) so an AnimatedContainer honours layout align/justify
 	// like any other container — e.g. centring an icon inside an animated circle.
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), r.containerCSS(n)+trans, a11y(n))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), r.containerCSS(n)+trans, r.a11y(n))
 	for _, c := range n.Children {
 		r.node(c)
 	}
@@ -122,7 +122,7 @@ func (r *renderer) motion(n *model.Node) {
 	curve := styleAttr(cssValueOr(propStr(n, "curve"), "cubic-bezier(.34,1.2,.64,1)"))
 	repeat := styleAttr(cssValueOr(propStr(n, "repeat"), "1"))
 	anim := fmt.Sprintf("animation:%s %gms %s %gms %s both;", kf, dur, curve, delay, repeat)
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), r.boxCSS(n)+anim, a11y(n))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), r.boxCSS(n)+anim, r.a11y(n))
 	for _, c := range n.Children {
 		r.node(c)
 	}
@@ -163,7 +163,7 @@ func (r *renderer) transform(n *model.Node) {
 	if len(parts) > 0 {
 		tf = "transform:" + strings.Join(parts, " ") + ";transform-origin:center;"
 	}
-	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), r.boxCSS(n)+tf, a11y(n))
+	fmt.Fprintf(&r.sb, `<div id=%q style=%q%s>`, attrID(n.ID), r.boxCSS(n)+tf, r.a11y(n))
 	for _, c := range n.Children {
 		r.node(c)
 	}
