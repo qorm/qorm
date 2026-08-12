@@ -19,4 +19,8 @@ state.fireTimer = 0
 state.bombFlash = 0
 state.boss = { alive: false, x: 160, y: -60, hp: 0, phase: 0 }
 state.status = "playing"
+state.fxHit = 0
+state.fxBomb = 0
+state.fxBoss = 0
+state.muzzle = 0
 playMusic("audio/music.wav")

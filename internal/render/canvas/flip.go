@@ -13,10 +13,10 @@ type flipState struct {
 	// Settled (or last committed) absolute box.
 	x, y, w, h float64
 	// In-flight animation.
-	animating                            bool
-	fromX, fromY, fromW, fromH           float64
-	toX, toY, toW, toH                   float64
-	ctrl                                 *anim.Controller
+	animating                  bool
+	fromX, fromY, fromW, fromH float64
+	toX, toY, toW, toH         float64
+	ctrl                       *anim.Controller
 }
 
 var globalFLIP = map[string]*flipState{}

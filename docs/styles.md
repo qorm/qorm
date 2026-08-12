@@ -51,6 +51,47 @@ Scene nodes reference rules with a `class` prop:
 { "type": "text", "text": "TETRIS", "class": "title" }
 ```
 
+## Structure · style · logic (with canvas FX)
+
+The three layers share the same style vocabulary:
+
+| Layer | Where | Role |
+|---|---|---|
+| Structure | `scenes/*.json` | Node tree, `class`, one-off inline `style` |
+| Style | `styles/*.qss` | Shared rules — **including every canvas FX key** (`filter`, `clipPath`, `layoutMotion`, `scrollSnapType`, spring `transition`, …) |
+| Logic | `actions/*.qs` (or JSON steps) | Mutate `state`; QSS/`style` bindings re-evaluate |
+
+**QSS** accepts the same keys as inline `style` (`render.KnownStyleKeys`). A rule
+body may hold numbers, strings, `var(--x)`, and `{{bindings}}` — evaluated each
+frame like inline values. Nested objects (`margin: {top: …}`) stay on the node.
+
+**qscript** does not assign styles directly. Write state, bind it:
+
+```qss
+/* styles/app.qss */
+.filterCard {
+  filter: {{ state.filterOn ? "saturate(0.3) brightness(1.15)" : "none" }}
+}
+.flipChip {
+  x: {{ state.flipLeft ? 16 : 280 }}
+  layoutMotion: true
+  transition: 0.35s spring
+}
+```
+
+```
+# actions/toggle_filter.qs
+state.filterOn = !state.filterOn
+```
+
+```json
+{ "type": "box", "id": "filter_card", "class": "filterCard", "children": [ … ] }
+```
+
+Runnable end-to-end: [`examples/canvas-fx`](https://github.com/qorm/qorm/tree/main/examples/canvas-fx) (`styles/app.qss` +
+`actions/*.qs`). Tetris is the same separation for game chrome:
+[`examples/tetris`](https://github.com/qorm/qorm/tree/main/examples/tetris).
+
 ## Rendering
 
 Both backends apply QSS with the same cascade (theme component default <
@@ -60,6 +101,231 @@ pass; the HTML path merges them into each node's emitted inline CSS
 (`boxCSS` / `textCSS`). Widget chrome defaults on the HTML path (button
 variants, shell theme vars) sit under QSS the way canvas theme component
 defaults do.
+
+## Accepted style keys
+
+The loader whitelist is `render.KnownStyleKeys` (~90 keys). Unknown keys are
+load-time **warnings** (the app still runs). The full group list lives in the
+auto-generated [common style props](/api/props.md#common-style-props).
+
+Keys that both HTML and canvas apply include box model, text color/size/weight,
+pseudo-state (`hover*` / `pressed*` / `disabled*`), and `backdropBlur` /
+`backdropTint`. Canvas-only visual effects (software raster) are listed below.
+
+## Canvas visual effects
+
+Declarative style keys consumed by the pure-Go canvas backend. Use them on any
+node (inline `style` or QSS). Runnable showcase: [`examples/canvas-fx`](https://github.com/qorm/qorm/tree/main/examples/canvas-fx).
+
+### Chrome, shadow, outline
+
+```json
+{
+  "style": {
+    "background": "#1c1c1e",
+    "borderRadius": 12,
+    "boxShadowColor": "#00000088",
+    "boxShadowBlur": 16,
+    "boxShadowX": 0,
+    "boxShadowY": 8,
+    "boxShadowInset": false,
+    "outlineColor": "#0a84ff",
+    "outlineWidth": 2,
+    "outlineOffset": 4
+  }
+}
+```
+
+- `strokeColor` / `strokeWidth` — vector stroke on the box RRect (distinct from
+  CSS border).
+- `boxShadowInset: true` — CSS inset box-shadow (inner rim).
+- `outline*` — outer ring outside the border box (focus-style chrome).
+
+### Text stroke, shadow, decoration
+
+```json
+{
+  "type": "text",
+  "text": "Title",
+  "style": {
+    "fontSize": 28,
+    "fontWeight": "700",
+    "textDecoration": "underline",
+    "textTransform": "uppercase",
+    "textStrokeColor": "#000",
+    "textStrokeWidth": 2,
+    "textShadowColor": "#00000066",
+    "textShadowBlur": 4,
+    "textShadowX": 0,
+    "textShadowY": 2,
+    "lineClamp": 2
+  }
+}
+```
+
+- `textDecoration`: `underline` / `line-through` / `overline`
+- `textTransform`: `uppercase` / `lowercase` / `capitalize`
+- `textOverflow: "ellipsis"` + multi-line `lineClamp`
+
+### Gradients
+
+`background` / `gradient` accept:
+
+- `linear-gradient(...)` and `radial-gradient(...)` (stop percentages supported)
+- `conic-gradient(from 0deg, #f00, #00f)` — sweep from box center (canvas)
+
+### Filters, blend, mask, clip
+
+```json
+{
+  "style": {
+    "filter": "blur(8px) brightness(1.1) saturate(1.2)",
+    "mixBlendMode": "multiply",
+    "maskFade": "right",
+    "maskFadeSize": 40,
+    "clipPath": "circle(50%)",
+    "layerCache": true,
+    "overflow": "hidden"
+  }
+}
+```
+
+| Key | Meaning |
+|---|---|
+| `filter` | CSS filter stack: `blur()` `brightness()` `contrast()` `saturate()` `grayscale()` `hue-rotate()` `opacity()` `drop-shadow()` `invert()` `sepia()` |
+| `blur` / `filterBlur` | Shorthand group blur radius (px) |
+| `mixBlendMode` | `multiply` / `screen` / `overlay` / `darken` / `lighten` when compositing the offscreen layer |
+| `maskFade` + `maskFadeSize` | Soft edge dissolve (`top` / `bottom` / `left` / `right`) |
+| `maskImage` | e.g. `linear-gradient(to bottom, black, transparent)` |
+| `clipPath` | `circle(50%)` / `ellipse(50% 40%)` / `inset(10px round 12px)` |
+| `layerCache` | Reuse the offscreen layer bitmap when content fingerprint is unchanged |
+| `overflow: "hidden"` | Clip children to the box (rounded when `borderRadius` is set) |
+| `tint` | RGB modulate on the subtree layer (Godot `modulate` / Phaser tint). Zero alpha = off |
+| `imageRendering` | `pixelated` forces nearest-neighbour even on fractional scales (pixel art) |
+
+### Transform (canvas)
+
+Persistent visual transform — layout box is unchanged (Godot `rotation` / `scale`, Phaser `setFlip`):
+
+```json
+{
+  "style": {
+    "rotate": 15,
+    "scale": 1.2,
+    "scaleX": 1,
+    "scaleY": 1,
+    "flipX": true,
+    "flipY": false
+  }
+}
+```
+
+- `rotate` — degrees about the node center
+- `scale` / `scaleX` / `scaleY` — 0 means unset (treated as 1)
+- `flipX` / `flipY` — negate the matching axis
+- Composes with entrance `animation`, `fx`, and `pressedScale` / `hoverScale`
+
+### Scroll snap
+
+On a `scroll` / `scrollview` viewport:
+
+```json
+{ "type": "scroll", "style": { "scrollSnapType": "y mandatory", "height": 320 }, "children": [
+  { "type": "box", "style": { "height": 320, "scrollSnapAlign": "start" }, "children": [ … ] }
+] }
+```
+
+- `scrollSnapType`: `x|y|both` + `mandatory|proximity`
+- `scrollSnapAlign` on children: `start` / `center` / `end`
+- Snaps after drag release or coast (carousel / pageview style)
+
+### Interaction + spring transition
+
+```json
+{
+  "style": {
+    "pressedScale": 0.96,
+    "hoverScale": 1.02,
+    "pressedBackground": "var(--accent)",
+    "transition": "0.3s spring",
+    "transitionEasing": "spring"
+  }
+}
+```
+
+- `transition: "0.2s"` / `"200ms"` — ease interaction and absolute `x`/`y` moves
+- `transition: "0.3s spring"` or `transitionEasing: "spring"` — underdamped
+  spring (overshoot then settle) on the canvas path
+- See [Animation](/api/animation.md) for entrance effects and FLIP layout motion
+
+### Game feedback FX (`fx` prop)
+
+Canvas-only one-shots modeled on DOTween / Phaser / Godot:
+
+```json
+{
+  "fx": "hit",
+  "fxToken": "{{ state.hits }}",
+  "fxDuration": 320,
+  "fxIntensity": 12
+}
+```
+
+```
+# actions/on_damage.qs — restarts the clip without remounting the node
+state.hits = state.hits + 1
+```
+
+Names: `shake`, `punch`, `flash`/`blink`, `hit`, `float`/`bob`, `wobble`,
+`knockback`, `burst`. Full table: [Animation — Game feedback FX](/api/animation.md#game-feedback-fx-fx-prop-canvas).
+
+Transition easings also accept game-engine names: `backOut`, `elastic`,
+`bounce`, `quadOut`, `sineOut`, `expoOut`, …
+
+Property tweens also accept DOTween-style loops: `transitionYoyo`,
+`transitionLoop`, `transitionRepeat`.
+
+### Timeline sequence
+
+DOTween Sequence / Godot Tween chain on any node — Append by default,
+`"parallel": true` Joins; bump `timelineToken` from qscript to replay:
+
+```json
+{
+  "timeline": [
+    { "scale": 1.3, "duration": 180, "ease": "backOut" },
+    { "dx": 48, "duration": 200, "ease": "easeOut", "parallel": true },
+    { "wait": 80 },
+    { "scale": 1, "dx": 0, "duration": 200, "ease": "easeInOut" }
+  ],
+  "timelineToken": "{{ state.tlPlay }}"
+}
+```
+
+Full table: [Animation — Timeline](/api/animation.md#timeline-sequence-timeline-prop-canvas).
+
+Also: `path` steps (polyline / cubic + `orient`), `timelineOnComplete`, list
+`stagger` (ms × index on entrance/fx/timeline), timeline `{ yoyo, loop }`.
+
+### FLIP layout motion
+
+```json
+{
+  "id": "chip",
+  "type": "box",
+  "style": {
+    "position": "absolute",
+    "x": "{{ state.chipX }}",
+    "y": 40,
+    "layoutMotion": true,
+    "transition": "0.35s"
+  }
+}
+```
+
+When `layoutMotion` is true, the node has a stable `id`, and `transition` is
+set, absolute position/size jumps ease instead of snapping (shared-element
+style). Demo: `examples/canvas-fx` "FLIP" chip.
 
 ## Diagnostics
 

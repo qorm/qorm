@@ -21,6 +21,7 @@ if (state.status == "playing") {
   checkPlayerHits()
   tickInvuln()
   tickBombFlash()
+  tickMuzzle()
 
   # Spawn director: formations early, singles mid, boss near the end.
   state.spawnTimer = state.spawnTimer - 1

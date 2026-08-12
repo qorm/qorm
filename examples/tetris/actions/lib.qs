@@ -66,7 +66,13 @@ fn spawn() {
   state.rng = mod(state.rng * 48271, 2147483647)
   state.nextIdx = mod(state.rng, 7)
   refreshNext()
-  if (!fits(state.piece.shapeIdx, 0, 3, 0)) { state.status = "over" }
+  state.fxSpawn = state.fxSpawn + 1
+  if (!fits(state.piece.shapeIdx, 0, 3, 0)) {
+    state.status = "over"
+    state.fxOver = state.fxOver + 1
+    stopMusic()
+    playSound("audio/gameover.wav")
+  }
 }
 
 # lock writes the falling piece into the board, clears full rows (100/300/
@@ -93,11 +99,31 @@ fn lock() {
       for x in range(10) { kept = concat(kept, at(state.board, row * 10 + x)) }
     }
   }
+  state.fxLock = state.fxLock + 1
+  state.fxKind = 0
+  state.flashOn = false
+  let prevLevel = state.level
   if (cleared > 0) {
     state.board = concat(fill(cleared * 10, 0), kept)
     state.lines = state.lines + cleared
     state.score = state.score + at([0, 100, 300, 500, 800], cleared) * state.level
     state.level = floor(state.lines / 10) + 1
+    state.fxClear = state.fxClear + 1
+    state.fxKind = 2
+    state.flashOn = true
+    state.clearName = at(["", "SINGLE", "DOUBLE", "TRIPLE", "TETRIS"], cleared)
+    if (cleared >= 4) {
+      state.fxTetris = state.fxTetris + 1
+      state.fxKind = 3
+      state.clearName = "TETRIS"
+      playSound("audio/tetris.wav")
+    } else {
+      playSound("audio/clear.wav")
+    }
+    if (state.level > prevLevel) { playSound("audio/levelup.wav") }
+  } else {
+    state.clearName = ""
+    playSound("audio/lock.wav")
   }
   spawn()
   refreshView()
@@ -107,6 +133,7 @@ fn lock() {
 # otherwise lock the piece and spawn the next. tick (the timer) and moveDown
 # (soft drop) both drive it; hardDrop drives its two halves at full travel.
 fn tickStep() {
+  if (state.flashOn) { state.flashOn = false }
   if (fits(state.piece.shapeIdx, state.piece.rot, state.piece.x, state.piece.y + 1)) {
     state.piece.y = state.piece.y + 1
     refreshView()

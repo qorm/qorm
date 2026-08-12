@@ -120,6 +120,18 @@ func TestTetrisScriptFirstFrame(t *testing.T) {
 	if !e.Animating() {
 		t.Fatal("the gravity timer must keep the loop alive while playing")
 	}
+	// Falling piece cells carry the 3D bevel stack (face + two highlights + specular).
+	bevel := 0
+	if g := tetrisFind(ln, "boardgrid"); g != nil {
+		for _, c := range g.Children {
+			if len(c.Children) >= 3 {
+				bevel++
+			}
+		}
+	}
+	if bevel < 4 {
+		t.Fatalf("bevelled minos = %d, want at least 4 (the falling piece)", bevel)
+	}
 }
 
 // Keys drive the piece through the scene's `keys` map into the script
@@ -253,9 +265,15 @@ func TestTetrisScriptTopOutAndRestart(t *testing.T) {
 	if !tetrisHasText(ln, "GAME OVER") {
 		t.Fatal("GAME OVER overlay must render when status=over")
 	}
-	e.DrawFrame(surf)
+	// Overlay pop entrance (~420ms) must finish; gravity timer is hidden.
+	deadline := time.Now().Add(time.Second)
+	for e.Animating() && time.Now().Before(deadline) {
+		e.MarkDirty()
+		e.DrawFrame(surf)
+		time.Sleep(20 * time.Millisecond)
+	}
 	if e.Animating() {
-		t.Fatal("the loop must settle once the game is over")
+		t.Fatal("the loop must settle once the game is over (after overlay entrance)")
 	}
 
 	e.HandleKey(KeyInput{Key: "r", Down: true})
@@ -311,5 +329,85 @@ func TestTetrisScriptLockAndSpawnAction(t *testing.T) {
 	}
 	if y := tetrisPiece(rt)["y"]; y != 0.0 {
 		t.Fatalf("piece.y = %v after spawn, want 0", y)
+	}
+}
+
+func tetrisToken(rt *runtime.Runtime, key string) float64 {
+	switch v := rt.State[key].(type) {
+	case float64:
+		return v
+	case int:
+		return float64(v)
+	}
+	return 0
+}
+
+// TestTetrisMotionFx: lock bumps fxLock; hard drop bumps fxDrop; line clear
+// bumps fxClear. Scene wires boardstack fx.
+func TestTetrisMotionFx(t *testing.T) {
+	_, _, rt, _ := tetrisFixture(t)
+	if s := rt.State["status"]; s != "playing" {
+		t.Fatalf("status = %v at start, want playing", s)
+	}
+	drop0 := tetrisToken(rt, "fxDrop")
+	lock0 := tetrisToken(rt, "fxLock")
+	rt.Dispatch("hardDrop", nil)
+	tetrisNoScriptErr(t, rt)
+	if tetrisToken(rt, "fxDrop") <= drop0 {
+		t.Fatalf("hardDrop should bump fxDrop, got %v", rt.State["fxDrop"])
+	}
+	if tetrisToken(rt, "fxLock") <= lock0 {
+		t.Fatalf("hardDrop lock should bump fxLock, got %v", rt.State["fxLock"])
+	}
+
+	// Isolated lock() via lockAndSpawn on a board whose bottom row is full
+	// (never occupy spawn cells at y=0..1 so the next piece can enter).
+	rt.Dispatch("restart", nil)
+	tetrisNoScriptErr(t, rt)
+	board := rt.State["board"].([]any)
+	for x := 0; x < 10; x++ {
+		board[19*10+x] = 1.0
+	}
+	rt.State["board"] = board
+	// Park the falling piece so lock writes only empty cells above the full row.
+	p := tetrisPiece(rt)
+	p["y"] = 14.0
+	clear0 := tetrisToken(rt, "fxClear")
+	rt.Dispatch("lockAndSpawn", nil)
+	tetrisNoScriptErr(t, rt)
+	if tetrisToken(rt, "fxClear") <= clear0 {
+		t.Fatalf("full-row lock should bump fxClear, got %v", rt.State["fxClear"])
+	}
+	if tetrisToken(rt, "fxKind") != 2 {
+		t.Fatalf("fxKind after line clear = %v, want 2", rt.State["fxKind"])
+	}
+	if name, _ := rt.State["clearName"].(string); name == "" {
+		t.Fatal("line clear should set clearName (SINGLE/DOUBLE/…)")
+	}
+
+	var stack *model.Node
+	var walk func(*model.Node)
+	walk = func(n *model.Node) {
+		if n == nil || stack != nil {
+			return
+		}
+		if n.ID == "boardstack" {
+			stack = n
+			return
+		}
+		for _, c := range n.Children {
+			walk(c)
+		}
+	}
+	for _, sc := range rt.App.Scenes {
+		walk(sc)
+	}
+	if stack == nil {
+		t.Fatal("boardstack missing")
+	}
+	// The stack must stay put: shake/burst on the whole board threw the
+	// well off-screen. Line-clear feedback is flash + banner + outline.
+	if raw, _ := stack.Prop("fx"); raw != nil {
+		t.Fatalf("boardstack must not declare fx (got %v)", raw)
 	}
 }

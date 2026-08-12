@@ -29,6 +29,9 @@ references below (the runnable sources are the contract).
 - [Actions & state](api/actions.md) — the step vocabulary, `script` actions in the qscript language (`actions/*.qs` + the shared `actions/lib.qs`), scene `keys`/`swipes`, `computed`.
 - [Expressions](docs/expressions.md) — the `{{ … }}` language: operators and every builtin (incl. the v2 array/string methods).
 - [Widget catalog](api/widgets.md) — every node `type` the renderer accepts (auto-generated from `internal/render`, guarded by `TestWidgetCatalogInSync`).
+- [Node & style props](api/props.md) — node schema + common style keys (~90; canvas filter/mask/snap/FLIP + game motion props).
+- [QSS & canvas effects](docs/styles.md) — stylesheets + declarative canvas visual effects.
+- [Animation](api/animation.md) — entrance, spring, FLIP, `fx` (burst…), `timeline` (path/cubic/onComplete/yoyo/stagger), transitionYoyo.
 - [Capabilities](docs/platforms/capabilities.md) — built-in hardware/OS ops, callbacks, and platforms (auto-generated from `internal/capability`).
 
 ## Middle-layer — add your own native ops
@@ -49,8 +52,9 @@ references below (the runnable sources are the contract).
 - [uikit](examples/uikit) — JSON-defined custom components · [i18n](examples/i18n) — ICU messages, plurals, RTL
 - [menus](examples/menus) — desktop system-bar / tray / right-click menus · [floating](examples/floating) — chromeless, custom-shape window
 - [places](examples/places) — scroll surfaces: a `largetitle` that collapses into a sticky compact bar, a frosted `backdropBlur` panel, and a `sheet` dragged between snap points
+- [canvas-fx](examples/canvas-fx) — canvas FX + full game motion: filter/mask/clip/snap/FLIP, invert/sepia/tint, rotate/scale/flip, pixelated images, `fx` (burst…), `timeline` (path/cubic/onComplete/yoyo), stagger
 - [derived](examples/derived) — `computed` cart totals declared once, a `guard` that bounces an unauthenticated checkout to sign-in, and a `forEach` bulk edit
-- [tetris](examples/tetris) · [g2048](examples/g2048) · [mario](examples/mario) · [raiden](examples/raiden) — full games written in qscript (`actions/*.qs`, shared core in `actions/lib.qs`), driven by scene `keys`/`swipes` and a `timer`
+- [tetris](examples/tetris) · [g2048](examples/g2048) · [mario](examples/mario) · [raiden](examples/raiden) — qscript games with canvas `fx` and chiptune `playSound`/`playMusic` (Tetris/2048 keep FX local — flash/banner/outline, not whole-board shake; Mario jump/coin; Raiden shoot/explode)
 
 ## Drive it as an AI agent
 

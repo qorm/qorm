@@ -4,4 +4,5 @@
 if (state.status == "playing" && fits(state.piece.shapeIdx, state.piece.rot, state.piece.x + 1, state.piece.y)) {
   state.piece.x = state.piece.x + 1
   refreshView()
+  playSound("audio/move.wav")
 }

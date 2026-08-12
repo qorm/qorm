@@ -5,6 +5,28 @@ deterministic, JS-lite for app and game logic. Scene JSON declares structure
 and data; a script action carries the logic that would otherwise need a Go
 component or long step lists.
 
+## Driving styles (QSS / canvas FX)
+
+Scripts do **not** set CSS keys directly. They write `state`; styles (inline or
+[`styles/*.qss`](styles.md)) re-evaluate `{{bindings}}` on the next frame — the
+same path as JSON `steps`. That covers every canvas effect key (`filter`,
+`layoutMotion`, `mixBlendMode`, scroll-snap, spring `transition`, …):
+
+```
+# actions/toggle_filter.qs
+state.filterOn = !state.filterOn
+```
+
+```qss
+/* styles/app.qss — binding evaluated each frame */
+.filterCard {
+  filter: {{ state.filterOn ? "saturate(0.3) brightness(1.15)" : "none" }}
+}
+```
+
+End-to-end: [`examples/canvas-fx`](https://github.com/qorm/qorm/tree/main/examples/canvas-fx). Shared game core in
+[`examples/tetris`](https://github.com/qorm/qorm/tree/main/examples/tetris) (`actions/*.qs` + `styles/app.qss`).
+
 ## Statements
 
 ```
@@ -114,7 +136,8 @@ governance. Without a hook installed, `call()` is a no-op.
 See the [Raiden](https://github.com/qorm/qorm/tree/main/examples/raiden),
 [Mario](https://github.com/qorm/qorm/tree/main/examples/mario), or
 [Tetris](https://github.com/qorm/qorm/tree/main/examples/tetris) examples
-for complete game scripts. Below is an excerpt from Raiden's `tick.qs`:
+for complete game scripts (including `playSound` / `playMusic` / `stopMusic`
+against baked `audio/*.wav`). Below is an excerpt from Raiden's `tick.qs`:
 
 ```
 # tick.qs — one physics frame. The scene's timer drives it.

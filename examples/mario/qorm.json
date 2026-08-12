@@ -41,7 +41,17 @@
       "status": "string",
       "lastTickMs": "number",
       "cameraX": "number",
-      "cameraY": "number"
+      "cameraY": "number",
+      "fxDeath": "number",
+      "fxCoin": "number",
+      "fxStomp": "number",
+      "fxJump": "number",
+      "fxHurt": "number",
+      "deathTimer": "number",
+      "deathDone": "boolean",
+      "bumpCX": "number",
+      "bumpCY": "number",
+      "bumpT": "number"
     },
     "initial": {
       "rows0": [
@@ -131,6 +141,8 @@
       "lives": 3,
       "status": "playing",
       "lastTickMs": 0,
+      "deathTimer": 0,
+      "deathDone": false,
       "cameraX": 0,
       "cameraY": 0
     }

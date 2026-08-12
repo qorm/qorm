@@ -3,6 +3,9 @@
 # A hard drop is tickStep's two halves at full travel: slide to the floor
 # (at most 19 rows from any spawn), then lock and spawn.
 if (state.status == "playing") {
+  state.fxDrop = state.fxDrop + 1
+  state.fxKind = 1
+  playSound("audio/drop.wav")
   for i in range(20) {
     if (fits(state.piece.shapeIdx, state.piece.rot, state.piece.x, state.piece.y + 1)) {
       state.piece.y = state.piece.y + 1

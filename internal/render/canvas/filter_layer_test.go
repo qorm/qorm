@@ -53,7 +53,7 @@ func TestBoxShadowInsetInnerOnly(t *testing.T) {
 	ops := &op.Ops{}
 	ops.Add(op.RRectOp{
 		Rect: image.Rect(8, 8, 40, 40), Radius: 0,
-		Fill: color.RGBA{255, 255, 255, 255},
+		Fill:   color.RGBA{255, 255, 255, 255},
 		Shadow: color.RGBA{0, 0, 0, 200}, ShadowBlur: 6, ShadowY: 3,
 		ShadowInset: true,
 	})

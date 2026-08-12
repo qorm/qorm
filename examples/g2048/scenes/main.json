@@ -33,6 +33,9 @@
         "type": "text",
         "id": "title",
         "text": "2048",
+        "animation": "fadeup",
+        "duration": 400,
+        "curve": "backOut",
         "style": {
           "color": "var(--primary)",
           "fontSize": 28,
@@ -65,8 +68,13 @@
               },
               {
                 "type": "text",
+                "id": "scoreVal",
                 "text": "{{ state.score }}",
-                "class": "statValue"
+                "class": "statValue",
+                "fx": "{{ state.fxMerge > 0 ? \"punch\" : \"none\" }}",
+                "fxToken": "{{ state.fxMerge }}",
+                "fxDuration": 220,
+                "fxIntensity": 0.18
               }
             ]
           },
@@ -98,6 +106,10 @@
             "id": "restartbtn",
             "label": "Restart",
             "class": "restartBtn",
+            "style": {
+              "pressedScale": 0.94,
+              "transition": "0.2s spring"
+            },
             "onPress": {
               "name": "restart"
             }
@@ -136,7 +148,7 @@
                     "width": 64,
                     "height": 64,
                     "borderRadius": 6,
-                    "background": "{{ at(state.colors, at(state.view, index)) }}"
+                    "background": "{{ at(state.mergeMask, index) ? \"#fde68a\" : (at(state.spawnMask, index) ? \"#fff7d6\" : at(state.colors, at(state.view, index))) }}"
                   },
                   "children": [
                     {
@@ -161,6 +173,9 @@
             },
             "if": "{{ state.status == 'won' }}",
             "class": "overlayPanel",
+            "animation": "pop",
+            "duration": 420,
+            "curve": "backOut",
             "style": {
               "padding": {
                 "top": 10,
@@ -192,6 +207,9 @@
             },
             "if": "{{ state.status == 'over' }}",
             "class": "overlayPanel",
+            "animation": "pop",
+            "duration": 420,
+            "curve": "backOut",
             "style": {
               "padding": {
                 "top": 10,

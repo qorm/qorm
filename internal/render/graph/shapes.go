@@ -18,7 +18,11 @@ type Group struct {
 	FilterSaturate   float64
 	FilterGrayscale  float64 // 0..1
 	FilterHueRotate  float64 // degrees
+	FilterInvert     float64 // 0..1 CSS invert()
+	FilterSepia      float64 // 0..1 CSS sepia()
 	FilterOpacity    float64 // 1 = identity; 0 = unset when all other zero
+	// Tint RGB-modulates the subtree layer. Zero alpha = unset.
+	Tint color.RGBA
 	// Drop-shadow filter (not box-shadow).
 	DropShadowX, DropShadowY, DropShadowBlur float64
 	DropShadowColor                          color.RGBA
@@ -78,7 +82,8 @@ func (g *Group) HitTest(p geom.Point) Node {
 
 // hasFilter reports whether any CSS filter / blend needs an offscreen layer.
 func (g *Group) hasFilter() bool {
-	if g.FilterBlur > 0 || g.FilterGrayscale > 0 || g.FilterHueRotate != 0 {
+	if g.FilterBlur > 0 || g.FilterGrayscale > 0 || g.FilterHueRotate != 0 ||
+		g.FilterInvert > 0 || g.FilterSepia > 0 || g.Tint.A > 0 {
 		return true
 	}
 	if g.DropShadowColor.A > 0 && (g.DropShadowBlur > 0 || g.DropShadowX != 0 || g.DropShadowY != 0) {
@@ -121,7 +126,8 @@ func (g *Group) Draw(ctx *Context) {
 		}
 		ctx.BeginLayerEx(op.LayerOp{
 			Blur: g.FilterBlur, Brightness: b, Contrast: c, Saturate: s,
-			Grayscale: g.FilterGrayscale, HueRotate: g.FilterHueRotate, Opacity: o,
+			Grayscale: g.FilterGrayscale, HueRotate: g.FilterHueRotate,
+			Invert: g.FilterInvert, Sepia: g.FilterSepia, Tint: g.Tint, Opacity: o,
 			DropShadowX: g.DropShadowX, DropShadowY: g.DropShadowY, DropShadowBlur: g.DropShadowBlur,
 			DropShadowColor: g.DropShadowColor, BlendMode: g.MixBlendMode,
 			MaskFade: g.MaskFade, MaskFadeSize: g.MaskFadeSize,
@@ -201,7 +207,7 @@ func (r *Rect) Draw(ctx *Context) {
 			Rect: rect, Radius: r.BorderRadius,
 			Fill: r.Fill, Stroke: r.Stroke, StrokeWidth: r.StrokeWidth,
 			Shadow: r.ShadowColor, ShadowBlur: r.ShadowBlur, ShadowX: r.ShadowX, ShadowY: r.ShadowY,
-			ShadowInset: r.ShadowInset,
+			ShadowInset:   r.ShadowInset,
 			GradientStops: r.GradientStops, GradientStopPos: r.GradientStopPos,
 			GradientAngle: r.GradientAngle, GradientRadial: r.GradientRadial, GradientConic: r.GradientConic,
 			BackdropBlur: r.BackdropBlur, BackdropTint: r.BackdropTint,
@@ -350,6 +356,8 @@ type Image struct {
 	Fit string
 	// BorderRadius clips the image to a rounded rect (style borderRadius).
 	BorderRadius float64
+	// Pixelated forces nearest-neighbour sampling (style imageRendering).
+	Pixelated bool
 }
 
 func NewImage() *Image {
@@ -388,7 +396,7 @@ func (i *Image) Draw(ctx *Context) {
 	} else {
 		ctx.ClipRect(nodeRect)
 	}
-	ctx.DrawImage(i.Bitmap, dest)
+	ctx.DrawImageEx(i.Bitmap, dest, i.Pixelated)
 
 	ctx.Restore()
 }

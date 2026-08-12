@@ -71,13 +71,21 @@ var nodeSchema = [][4]string{
 	{"…", "any", "any other key is a widget-specific **prop** (table below)", "其余任何键都是组件专有**属性**(见下表)"},
 }
 
-// commonStyle is the shared style vocabulary rendered by boxCSS/textCSS/
-// containerCSS/a11y in internal/render/render_style.go — available on the nodes
-// that render a styled box, regardless of type.
+// commonStyle is the shared style vocabulary accepted by the loader
+// (render.KnownStyleKeys) and applied by the HTML and/or native canvas
+// renderers on any node that draws a box. Canvas-only keys are marked
+// "(canvas)"; both backends share box/text/pseudo/backdrop unless noted.
+// Canonical showcase: examples/canvas-fx.
 var commonStyle = []struct{ group, keys string }{
-	{"Box (`style`)", "`width` `height` `minWidth` `maxWidth` `minHeight` `maxHeight` `padding` `margin` `gap` `background` `gradient` `borderRadius` `borderWidth` `borderColor` `shadow` `opacity` `aspectRatio` `flexGrow` `flexShrink` `alignSelf` `zIndex` `position` `top` `right` `bottom` `left` `cursor` `transition`"},
-	{"Text (`style`)", "`color` `fontSize` `fontWeight` `fontFamily` `lineHeight` `letterSpacing` `fontStyle` `textDecoration` `textTransform` `textAlign` `lineClamp`"},
-	{"Pseudo-state (`style`)", "`hoverBackground` `hoverColor` `hoverOpacity` `pressedScale` `pressedOpacity` `focusBorderColor` `disabled` `disabledOpacity`"},
+	{"Box (`style`)", "`width` `height` `minWidth` `maxWidth` `minHeight` `maxHeight` `padding` `margin` `gap` `background` `gradient` (linear / radial / **conic**, canvas) `borderRadius` `borderWidth` `borderColor` `shadow` `opacity` `aspectRatio` `flexGrow` `flexShrink` `alignSelf` `zIndex` `position` `top` `right` `bottom` `left` `x` `y` (canvas absolute aliases for left/top) `cursor` `overflow` (`hidden` clips children; rounded when `borderRadius` set, canvas) `transition` `transitionEasing` `transitionYoyo` `transitionLoop` `transitionRepeat` (DOTween-style SetLoops on property tweens, canvas)"},
+	{"Text (`style`)", "`color` `fontSize` `fontWeight` `fontFamily` `lineHeight` `letterSpacing` `fontStyle` `textDecoration` (`underline` / `line-through` / `overline`) `textTransform` (`uppercase` / `lowercase` / `capitalize`) `textAlign` `textOverflow` (`ellipsis`) `lineClamp` `textStrokeColor` `textStrokeWidth` `textShadowColor` `textShadowBlur` `textShadowX` `textShadowY` (stroke/shadow: canvas)"},
+	{"Chrome / shadow (`style`, canvas)", "`strokeColor` `strokeWidth` `outline` `outlineColor` `outlineWidth` `outlineOffset` `boxShadowColor` `boxShadowBlur` `boxShadowX` `boxShadowY` `boxShadowInset` (CSS inset box-shadow)"},
+	{"Filter / mask / clip (`style`, canvas)", "`filter` (`blur()` `brightness()` `contrast()` `saturate()` `grayscale()` `hue-rotate()` `opacity()` `drop-shadow()` `invert()` `sepia()`) `blur` `filterBlur` (shortcuts) `tint` (RGB modulate, canvas) `imageRendering` (`pixelated` nearest-neighbour, canvas) `mixBlendMode` (`multiply` / `screen` / `overlay` / `darken` / `lighten`) `maskFade` (`top` / `bottom` / `left` / `right`) `maskFadeSize` `maskImage` `clipPath` (`circle()` / `ellipse()` / `inset(… round …)`) `layerCache` (reuse offscreen bitmap when content fingerprint is unchanged)"},
+	{"Scroll snap (`style`, canvas)", "`scrollSnapType` (`x|y|both` + `mandatory|proximity`, on scroll viewports) `scrollSnapAlign` (`start` / `center` / `end`, on children)"},
+	{"Layout motion (`style`, canvas)", "`layoutMotion` (FLIP ease of absolute position/size when set with `transition` + stable `id`) — pair with `transition: \"0.3s\"` or `\"0.3s spring\"` / `transitionEasing: \"spring\"`"},
+	{"Transform (`style`, canvas)", "`rotate` (degrees, about center) `scale` `scaleX` `scaleY` (0 = unset → 1) `flipX` `flipY` — layout box unchanged; composes with entrance/`fx`/press scale"},
+	{"Game motion (node props, canvas)", "`fx` + `fxToken` (shake/punch/flash/hit/float/wobble/knockback/burst) · `timeline` + `timelineToken` (Sequence: Append/`parallel` Join, `path` follow, yoyo/loop) · `timelineOnComplete`/`onComplete` · `stagger` (list delay ms×index) · entrance `animation` + `curve` — see [animation](animation.md)"},
+	{"Pseudo-state (`style`)", "`hoverBackground` `hoverColor` `hoverOpacity` `hoverScale` `pressedBackground` `pressedScale` `pressedOpacity` `focusBorderColor` `disabled` `disabledOpacity`"},
 	{"Backdrop (`style`)", "`backdropBlur` (frosted-glass radius in px, capped at 120; `0` turns the frost off on `appbar` / `largetitle`, which are frosted by default) `backdropTint` (the translucent fill the blur shows through; a browser without `backdrop-filter` falls back to a solid panel)"},
 	{"Layout (`layout`)", "`width` `height` `align` `justify` (`wrap` on containers, `columns` on `grid`, `orientation` on `scroll`)"},
 	{"Accessibility (top-level)", "`role` `ariaLabel` `title` `tooltip`"},

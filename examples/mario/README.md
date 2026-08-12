@@ -25,7 +25,18 @@ in qscript actions under `actions/`.
   actions, so the course plays on a phone), on-screen ◀ / JUMP / ▶
   buttons, and the physics `timer` (250 ms) that runs gravity while
   `status` is `playing`. `onEnter` runs `restart`.
-- `styles/app.qss` — HUD boxes, buttons, help text, overlay panel.
+- `styles/app.qss` — HUD boxes, buttons, help text, overlay panel; control /
+  restart buttons use canvas **spring** `pressedScale`.
+- **Canvas motion (game engine):** qscript bumps `fxJump` / `fxCoin` /
+  `fxStomp` / `fxDeath` / `fxHurt`. Jump squash is the NES jump sprite
+  (`fxJump` still increments for agents; the sprite does not play a UI
+  `punch`). Death is the NES bounce — upward `vy` then free-fall, plus a
+  `knockback` fx on `fxDeath` — not a scale punch; GAME OVER pops in after
+  the bounce (`deathDone`, `animation` + `backOut`). Coins and mushrooms
+  `float`; the coin HUD punches. Sprites swap like NES: idle / walk / jump,
+  goomba walk + squash, used `?` blocks, invuln blink, block bump, big
+  Mario is taller. Sprites use `imageRendering: pixelated`; Mario
+  `flipX` follows `state.mario.dir`.
 - `actions/lib.qs` — the shared core merged into every action: level access
   (`tileAt` / `isSolid` / `setTile`), `gravity` (jump-rise budget, falling,
   landing on the goomba as a STOMP, pit death), `stepGoomba` (it paces its

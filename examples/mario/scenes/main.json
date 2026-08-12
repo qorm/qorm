@@ -58,17 +58,23 @@
             "id": "physics",
             "every": 16,
             "onTick": "tick",
-            "if": "{{ state.status == 'playing' }}"
+            "if": "{{ state.status == 'playing' || (state.status == 'dead' && !state.deathDone) }}"
           },
           {
             "type": "image",
             "id": "mario",
-            "src": "assets/mario.png",
+            "src": "{{ !state.mario.alive ? \"assets/mario_jump.png\" : (!state.mario.onGround ? \"assets/mario_jump.png\" : (state.mario.walkPhase > 3 && state.mario.walkPhase < 12 ? \"assets/mario_walk.png\" : \"assets/mario.png\")) }}",
+            "if": "{{ state.mario.invuln == 0 || mod(state.mario.invuln, 4) < 2 }}",
+            "fx": "{{ !state.mario.alive ? \"knockback\" : \"none\" }}",
+            "fxToken": "{{ state.fxDeath }}",
+            "fxDuration": 400,
+            "fxIntensity": 8,
             "style": {
               "x": "{{state.mario.x - 8}}",
-              "y": "{{state.mario.y - 8}}",
-              "width": 32,
-              "height": 32
+              "y": "{{state.mario.y - (state.mario.big ? 16 : 8)}}",
+              "width": "{{ state.mario.big ? 40 : 32 }}",
+              "height": "{{ state.mario.big ? 48 : 32 }}",
+              "flipX": "{{ state.mario.dir < 0 }}"
             }
           },
           {
@@ -79,13 +85,13 @@
             "renderItem": {
               "type": "image",
               "id": "goomba",
-              "src": "assets/goomba.png",
+              "src": "{{ g.squash > 0 ? \"assets/goomba.png\" : (g.walkPhase > 7 ? \"assets/goomba_walk.png\" : \"assets/goomba.png\") }}",
               "if": "{{g.alive}}",
               "style": {
                 "x": "{{g.x - 8}}",
-                "y": "{{g.y - 8}}",
+                "y": "{{g.squash > 0 ? g.y + 12 : g.y - 8}}",
                 "width": 32,
-                "height": 32
+                "height": "{{ g.squash > 0 ? 12 : 32 }}"
               }
             }
           },
@@ -99,6 +105,9 @@
               "id": "powerup",
               "src": "assets/mushroom.png",
               "if": "{{p.alive && !p.dead}}",
+              "fx": "float",
+              "fxDuration": 1400,
+              "fxIntensity": 2,
               "style": {
                 "x": "{{p.x - 8}}",
                 "y": "{{p.y - 8}}",
@@ -153,6 +162,9 @@
               "id": "coin-tile",
               "src": "assets/coin.png",
               "if": "{{tile.kind == '3'}}",
+              "fx": "float",
+              "fxDuration": 700,
+              "fxIntensity": 2,
               "style": {
                 "x": "{{tile.x}}",
                 "y": "{{tile.y}}",
@@ -223,7 +235,7 @@
             "renderItem": {
               "type": "image",
               "id": "question-tile",
-              "src": "assets/question.png",
+              "src": "{{ tile.kind == '8' ? \"assets/used.png\" : \"assets/question.png\" }}",
               "if": "{{tile.kind == '7' || tile.kind == '8'}}",
               "style": {
                 "x": "{{tile.x}}",
@@ -327,6 +339,9 @@
             "type": "column",
             "id": "deadOverlay",
             "if": "{{ state.status == 'dead' && state.deathDone }}",
+            "animation": "pop",
+            "duration": 420,
+            "curve": "backOut",
             "layout": {
               "align": "center",
               "justify": "center"
@@ -418,6 +433,10 @@
             "type": "text",
             "id": "hud-coin-value",
             "text": "x{{ state.coins }}",
+            "fx": "{{ state.fxCoin > 0 ? \"punch\" : \"none\" }}",
+            "fxToken": "{{ state.fxCoin }}",
+            "fxDuration": 220,
+            "fxIntensity": 0.18,
             "style": {
               "fontSize": 32,
               "color": "#F8B800"

@@ -181,11 +181,43 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 	// Entrance animation (the `animation` prop): a running entrance must keep
 	// frames coming, so it joins NeedsRedraw here and lands on the group in
 	// PerformLayout.
-	if ep := entranceFor(n, ln.ItemIndex, rt, inter, time.Now()); ep.running {
+	now := time.Now()
+	if ep := entranceFor(n, ln.ItemIndex, rt, inter, now); ep.running {
 		ln.NeedsRedraw = true
 		ln.EntranceActive = true
 		ln.EntranceOpacity, ln.EntranceDX, ln.EntranceDY = ep.opacity, ep.dx, ep.dy
 		ln.EntranceScale, ln.EntranceRotation = ep.scale, ep.rotation
+	}
+	// Game-style feedback FX (`fx` prop) + DOTween Sequence (`timeline`):
+	// composed onto the same transform channels as entrance.
+	composeMotion := func(dx, dy, rot, scale, opacity float64, keepAlive bool) {
+		if keepAlive {
+			ln.NeedsRedraw = true
+		}
+		if !ln.EntranceActive {
+			ln.EntranceActive = true
+			ln.EntranceOpacity = 1
+			ln.EntranceScale = 1
+		}
+		ln.EntranceDX += dx
+		ln.EntranceDY += dy
+		ln.EntranceRotation += rot
+		if scale > 0 && scale != 1 {
+			if ln.EntranceScale <= 0 {
+				ln.EntranceScale = 1
+			}
+			ln.EntranceScale *= scale
+		}
+		if opacity >= 0 && opacity < 1 {
+			ln.EntranceOpacity *= opacity
+		}
+	}
+	if fp := fxFor(n, ln.ItemIndex, rt, inter, now); fp.running {
+		composeMotion(fp.dx, fp.dy, fp.rotation, fp.scale, fp.opacity, true)
+	}
+	if tp := timelineFor(n, ln.ItemIndex, rt, inter, now); tp.active {
+		// Hold end pose after finish (DOTween default); only keepAlive while running.
+		composeMotion(tp.dx, tp.dy, tp.rotation, tp.scale, tp.opacity, tp.running)
 	}
 
 	if n.Type == "text" {
@@ -761,14 +793,35 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 			pressScale = 1
 		}
 	}
-	totalScale := entScale * pressScale
-	if totalScale != 1 || entRot != 0 || entDX != 0 || entDY != 0 {
+	styleScaleX := 1.0
+	if ln.Style.ScaleX != 0 {
+		styleScaleX = ln.Style.ScaleX
+	} else if ln.Style.Scale != 0 {
+		styleScaleX = ln.Style.Scale
+	}
+	styleScaleY := 1.0
+	if ln.Style.ScaleY != 0 {
+		styleScaleY = ln.Style.ScaleY
+	} else if ln.Style.Scale != 0 {
+		styleScaleY = ln.Style.Scale
+	}
+	if ln.Style.FlipX {
+		styleScaleX = -styleScaleX
+	}
+	if ln.Style.FlipY {
+		styleScaleY = -styleScaleY
+	}
+	totalScaleX := entScale * pressScale * styleScaleX
+	totalScaleY := entScale * pressScale * styleScaleY
+	totalRot := entRot + ln.Style.Rotate*math.Pi/180
+	if totalScaleX != 1 || totalScaleY != 1 || totalRot != 0 || entDX != 0 || entDY != 0 {
 		// Pivot scale+rotation about the node center so pop/spin/rotate look
-		// like CSS transform-origin:center (see entrance.go).
+		// like CSS transform-origin:center (see entrance.go). Independent
+		// ScaleX/ScaleY (incl. negative flip) share that pivot.
 		cx := float64(ln.Width) / 2
 		cy := float64(ln.Height) / 2
-		sx, sy := totalScale, totalScale
-		cos, sin := math.Cos(entRot), math.Sin(entRot)
+		sx, sy := totalScaleX, totalScaleY
+		cos, sin := math.Cos(totalRot), math.Sin(totalRot)
 		scx, scy := sx*cx, sy*cy
 		rx := cos*scx - sin*scy
 		ry := sin*scx + cos*scy
@@ -776,7 +829,7 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 		group.Y = float64(y) + entDY + cy - ry
 		group.ScaleX = sx
 		group.ScaleY = sy
-		group.Rotation = entRot
+		group.Rotation = totalRot
 	}
 	// FLIP layout motion: when transition + layoutMotion, ease absolute
 	// box jumps (shared-element style) instead of snapping.
@@ -820,7 +873,10 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 	group.FilterSaturate = ln.Style.FilterSaturate
 	group.FilterGrayscale = ln.Style.FilterGrayscale
 	group.FilterHueRotate = ln.Style.FilterHueRotate
+	group.FilterInvert = ln.Style.FilterInvert
+	group.FilterSepia = ln.Style.FilterSepia
 	group.FilterOpacity = ln.Style.FilterOpacity
+	group.Tint = ln.Style.Tint
 	group.DropShadowX = ln.Style.DropShadowX
 	group.DropShadowY = ln.Style.DropShadowY
 	group.DropShadowBlur = ln.Style.DropShadowBlur
@@ -958,6 +1014,9 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 		// Images mount their own shape (fit-computed dest rect, clip/opacity
 		// handled by the rasterizer); a broken src records a placeholder box.
 		if im := RecordImage(ln.Node, rt, ln.Width, ln.Height, ln.Style.BorderRadius, ln.EvalVars); im != nil {
+			if gi, ok := im.(*graph.Image); ok && strings.EqualFold(ln.Style.ImageRendering, "pixelated") {
+				gi.Pixelated = true
+			}
 			group.AddChild(im)
 		}
 	} else if w, ok := LookupWidget(ln.Node.Type); ok {
@@ -1377,6 +1436,9 @@ func layerContentFP(ln *LayoutNode) uint64 {
 	mix(uint64(ln.Style.FilterBlur * 1000))
 	mix(uint64(ln.Style.FilterBrightness * 1000))
 	mix(uint64(ln.Style.FilterSaturate * 1000))
+	mix(uint64(ln.Style.FilterInvert * 1000))
+	mix(uint64(ln.Style.FilterSepia * 1000))
+	mix(uint64(ln.Style.Tint.R)<<24 | uint64(ln.Style.Tint.G)<<16 | uint64(ln.Style.Tint.B)<<8 | uint64(ln.Style.Tint.A))
 	mix(uint64(ln.Style.MaskFadeSize * 100))
 	for _, r := range ln.Text {
 		mix(uint64(r))

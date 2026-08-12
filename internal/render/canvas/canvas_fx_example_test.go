@@ -2,13 +2,15 @@ package canvas
 
 // End-to-end measurement of examples/canvas-fx — the showcase for recent
 // canvas rendering features (scroll-snap, mask fade, conic, outline, filter,
-// blend, FLIP). Loads the real app JSON and asserts rendered pixels + measure.
+// blend, FLIP, text chrome, inset shadow, frost, press). Loads the real app
+// JSON and asserts rendered pixels + measure.
 
 import (
 	"encoding/json"
 	"image"
 	"image/color"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -43,9 +45,31 @@ func canvasFxFixture(t *testing.T) (*Engine, *HeadlessSurface, *runtime.Runtime)
 }
 
 func TestCanvasFxExampleLoadsAndRenders(t *testing.T) {
-	e, surf, _ := canvasFxFixture(t)
+	e, surf, rt := canvasFxFixture(t)
 	if surf.Presents < 1 {
 		t.Fatal("first frame must present")
+	}
+	// Structure/style/logic split: stylesheet + qs actions must load clean.
+	if rt.App == nil || len(rt.App.Styles) == 0 {
+		t.Fatal("styles/app.qss must contribute cascade rules")
+	}
+	if len(rt.App.Stylesheets) != 1 || rt.App.Stylesheets[0].ID != "app" {
+		t.Fatalf("Stylesheets = %+v, want styles/app.qss", rt.App.Stylesheets)
+	}
+	for _, d := range rt.App.Diagnostics {
+		t.Log("loader:", d)
+		if strings.Contains(d, "未知样式键") || strings.Contains(d, "unknown style") {
+			t.Errorf("QSS must not warn on canvas FX keys: %s", d)
+		}
+		if strings.Contains(d, "script 编译失败") {
+			t.Errorf("qs actions must compile: %s", d)
+		}
+	}
+	for _, id := range []string{"toggle_filter", "toggle_flip", "toggle_blend"} {
+		act := rt.App.Actions[id]
+		if act == nil || act.Script == "" {
+			t.Errorf("action %q should be a .qs script action", id)
+		}
 	}
 	// Scene must paint non-white content (dark stage background).
 	c := surf.Frame().RGBAAt(10, 10)
@@ -60,10 +84,260 @@ func TestCanvasFxExampleLoadsAndRenders(t *testing.T) {
 			ids[id] = true
 		}
 	}
-	for _, want := range []string{"title", "snap_strip", "conic_disc", "mask_panel", "flip_chip", "btn_flip", "clip_circle", "cache_blur"} {
+	for _, want := range []string{
+		"title", "snap_strip", "conic_disc", "mask_panel", "flip_chip", "btn_flip",
+		"clip_circle", "cache_blur", "game_sprite", "tl_sprite", "path_dot",
+		"stagger_list", "cubic_dot", "yoyo_style", "yoyo_tl", "btn_burst",
+		"text_chrome", "inset_shadow", "frost_panel", "press_card",
+		"ellipsis_line", "overflow_clip",
+		"invert_card", "tint_card", "xform_box", "pixel_img", "smooth_img",
+	} {
 		if !ids[want] {
 			t.Errorf("measure missing id %q (got %d rows)", want, len(rows))
 		}
+	}
+}
+
+func findCanvasFxNode(rt *runtime.Runtime, id string) *model.Node {
+	var found *model.Node
+	var walk func(*model.Node)
+	walk = func(n *model.Node) {
+		if n == nil || found != nil {
+			return
+		}
+		if n.ID == id {
+			found = n
+			return
+		}
+		for _, c := range n.Children {
+			walk(c)
+		}
+	}
+	if rt != nil && rt.App != nil {
+		for _, sc := range rt.App.Scenes {
+			walk(sc)
+		}
+	}
+	return found
+}
+
+// TestCanvasFxRenderChrome asserts sections 15–18 parse and measure: text
+// stroke/shadow, inset box-shadow + outline, backdrop frost, spring press card.
+func TestCanvasFxRenderChrome(t *testing.T) {
+	e, _, rt := canvasFxFixture(t)
+
+	textChrome := findCanvasFxNode(rt, "text_chrome")
+	inset := findCanvasFxNode(rt, "inset_shadow")
+	frost := findCanvasFxNode(rt, "frost_panel")
+	press := findCanvasFxNode(rt, "press_card")
+	ellipsis := findCanvasFxNode(rt, "ellipsis_line")
+	overflow := findCanvasFxNode(rt, "overflow_clip")
+	if textChrome == nil || inset == nil || frost == nil || press == nil {
+		t.Fatalf("missing chrome demo nodes: text=%v inset=%v frost=%v press=%v",
+			textChrome != nil, inset != nil, frost != nil, press != nil)
+	}
+
+	ts := parseStyle(textChrome, rt)
+	if ts.TextStrokeWidth <= 0 || ts.TextStrokeColor.A == 0 {
+		t.Errorf("text_chrome stroke = w=%v c=%v", ts.TextStrokeWidth, ts.TextStrokeColor)
+	}
+	if ts.TextShadowBlur <= 0 || ts.TextShadowColor.A == 0 {
+		t.Errorf("text_chrome shadow = blur=%v c=%v", ts.TextShadowBlur, ts.TextShadowColor)
+	}
+	if ts.TextDecoration != "underline" {
+		t.Errorf("text_chrome TextDecoration = %q", ts.TextDecoration)
+	}
+	if ts.TextTransform != "uppercase" {
+		t.Errorf("text_chrome TextTransform = %q", ts.TextTransform)
+	}
+	if ts.LetterSpacing <= 0 {
+		t.Errorf("text_chrome LetterSpacing = %v", ts.LetterSpacing)
+	}
+	if ts.FontStyle != "italic" {
+		t.Errorf("text_chrome FontStyle = %q", ts.FontStyle)
+	}
+
+	is := parseStyle(inset, rt)
+	if !is.BoxShadowInset {
+		t.Error("inset_shadow BoxShadowInset = false")
+	}
+	if is.BoxShadowBlur <= 0 || is.BoxShadowColor.A == 0 {
+		t.Errorf("inset_shadow box shadow blur=%v c=%v", is.BoxShadowBlur, is.BoxShadowColor)
+	}
+	if is.OutlineWidth <= 0 || is.OutlineColor.A == 0 {
+		t.Errorf("inset_shadow outline w=%v c=%v", is.OutlineWidth, is.OutlineColor)
+	}
+
+	fs := parseStyle(frost, rt)
+	if fs.BackdropBlur <= 0 {
+		t.Errorf("frost_panel BackdropBlur = %v", fs.BackdropBlur)
+	}
+	if fs.BackdropTint.A == 0 {
+		t.Errorf("frost_panel BackdropTint = %v", fs.BackdropTint)
+	}
+
+	ps := parseStyle(press, rt)
+	if ps.HoverScale <= 1 {
+		t.Errorf("press_card HoverScale = %v, want > 1", ps.HoverScale)
+	}
+	if ps.PressedScale <= 0 || ps.PressedScale >= 1 {
+		t.Errorf("press_card PressedScale = %v, want (0,1)", ps.PressedScale)
+	}
+	if ps.Transition <= 0 {
+		t.Errorf("press_card Transition = %v", ps.Transition)
+	}
+	if !strings.EqualFold(ps.TransitionEasing, "spring") {
+		t.Errorf("press_card TransitionEasing = %q, want spring", ps.TransitionEasing)
+	}
+	if pb, _ := press.Style["pressedBackground"].(string); pb == "" {
+		t.Error("press_card inline pressedBackground required for press overlay")
+	}
+
+	if clamp := findCanvasFxNode(rt, "clamp_copy"); clamp != nil {
+		cs := parseStyle(clamp, rt)
+		if cs.LineClamp != 2 {
+			t.Errorf("clamp_copy LineClamp = %d", cs.LineClamp)
+		}
+	}
+	if ellipsis != nil {
+		es := parseStyle(ellipsis, rt)
+		if es.TextOverflow != "ellipsis" {
+			t.Errorf("ellipsis_line TextOverflow = %q", es.TextOverflow)
+		}
+	}
+	if overflow != nil {
+		os := parseStyle(overflow, rt)
+		if os.Overflow != "hidden" {
+			t.Errorf("overflow_clip Overflow = %q", os.Overflow)
+		}
+		if os.BorderRadius <= 0 {
+			t.Errorf("overflow_clip BorderRadius = %v", os.BorderRadius)
+		}
+	}
+
+	rows := decodeMeasureRows(t, e)
+	for _, want := range []string{"text_chrome", "inset_shadow", "frost_panel", "press_card"} {
+		var w, h float64
+		found := false
+		for _, r := range rows {
+			if r["id"] == want {
+				w, h = asF64(r["w"]), asF64(r["h"])
+				found = true
+				break
+			}
+		}
+		if !found || w < 8 || h < 8 {
+			t.Errorf("measure %s missing or tiny (found=%v w=%v h=%v)", want, found, w, h)
+		}
+	}
+}
+
+// TestCanvasFxRenderSpriteStyle asserts sections 19–22: invert/sepia, tint,
+// rotate/scale/flip, and pixelated vs bilinear image sampling.
+func TestCanvasFxRenderSpriteStyle(t *testing.T) {
+	_, _, rt := canvasFxFixture(t)
+	inv := findCanvasFxNode(rt, "invert_card")
+	tint := findCanvasFxNode(rt, "tint_card")
+	xf := findCanvasFxNode(rt, "xform_box")
+	pix := findCanvasFxNode(rt, "pixel_img")
+	smo := findCanvasFxNode(rt, "smooth_img")
+	if inv == nil || tint == nil || xf == nil || pix == nil || smo == nil {
+		t.Fatalf("missing sprite-style nodes invert=%v tint=%v xform=%v pixel=%v smooth=%v",
+			inv != nil, tint != nil, xf != nil, pix != nil, smo != nil)
+	}
+
+	rt.State["colorFx"] = "invert"
+	is := parseStyle(inv, rt)
+	if is.FilterInvert < 1 {
+		t.Errorf("invert_card FilterInvert = %v after colorFx=invert", is.FilterInvert)
+	}
+	rt.State["colorFx"] = "sepia"
+	is = parseStyle(inv, rt)
+	if is.FilterSepia < 1 {
+		t.Errorf("invert_card FilterSepia = %v after colorFx=sepia", is.FilterSepia)
+	}
+
+	ts := parseStyle(tint, rt)
+	if ts.Tint.A == 0 {
+		t.Errorf("tint_card Tint unset (A=0), want #ff6b6b")
+	}
+
+	xs := parseStyle(xf, rt)
+	if xs.Scale != 1 {
+		t.Errorf("xform_box Scale = %v, want 1", xs.Scale)
+	}
+	rt.Dispatch("nudge_xform", nil)
+	if rt.LastScriptError != "" {
+		t.Fatalf("nudge_xform: %s", rt.LastScriptError)
+	}
+	xs = parseStyle(xf, rt)
+	if xs.Rotate != 15 {
+		t.Errorf("after nudge, rotate = %v, want 15", xs.Rotate)
+	}
+	if !xs.FlipX {
+		t.Error("after nudge, flipX should be true")
+	}
+
+	ps := parseStyle(pix, rt)
+	if !strings.EqualFold(ps.ImageRendering, "pixelated") {
+		t.Errorf("pixel_img ImageRendering = %q", ps.ImageRendering)
+	}
+}
+
+// TestCanvasFxQSSClassCascade proves styles/app.qss class rules feed the same
+// parseStyle path as inline style (filter binding + layoutMotion + scroll snap).
+func TestCanvasFxQSSClassCascade(t *testing.T) {
+	_, _, rt := canvasFxFixture(t)
+	var filterCard, flipChip, snapStrip *model.Node
+	var walk func(n *model.Node)
+	walk = func(n *model.Node) {
+		if n == nil {
+			return
+		}
+		switch n.ID {
+		case "filter_card":
+			filterCard = n
+		case "flip_chip":
+			flipChip = n
+		case "snap_strip":
+			snapStrip = n
+		}
+		for _, c := range n.Children {
+			walk(c)
+		}
+	}
+	for _, sc := range rt.App.Scenes {
+		walk(sc)
+	}
+	if filterCard == nil || flipChip == nil || snapStrip == nil {
+		t.Fatal("missing classed demo nodes")
+	}
+	if cs, _ := filterCard.Props["class"].(string); cs != "filterCard" {
+		t.Fatalf("filter_card class = %q", cs)
+	}
+	if len(matchingStyleRules(filterCard, rt)) == 0 {
+		t.Fatal("filter_card should match .filterCard from styles/app.qss")
+	}
+	// filterOn defaults true → QSS binding applies saturate/brightness stack.
+	fs := parseStyle(filterCard, rt)
+	if fs.FilterSaturate == 1 && fs.FilterBrightness == 1 {
+		t.Fatalf("filterCard QSS filter not applied: saturate=%v brightness=%v", fs.FilterSaturate, fs.FilterBrightness)
+	}
+	// flipChip class: layoutMotion + spring transition.
+	cs := parseStyle(flipChip, rt)
+	if !cs.LayoutMotion {
+		t.Fatalf("flipChip LayoutMotion from QSS = false; rules=%v", matchingStyleRules(flipChip, rt))
+	}
+	if cs.Transition <= 0 {
+		t.Fatalf("flipChip Transition from QSS = %v", cs.Transition)
+	}
+	if !strings.EqualFold(cs.TransitionEasing, "spring") {
+		t.Fatalf("flipChip TransitionEasing = %q, want spring", cs.TransitionEasing)
+	}
+	// scroll-snap type on the viewport class.
+	ss := parseStyle(snapStrip, rt)
+	if !strings.Contains(ss.ScrollSnapType, "y") || !strings.Contains(ss.ScrollSnapType, "mandatory") {
+		t.Fatalf("snapStrip ScrollSnapType = %q", ss.ScrollSnapType)
 	}
 }
 
@@ -316,6 +590,144 @@ func TestCanvasFxFlipLayoutMotion(t *testing.T) {
 	}
 	if x1 <= x0+20 {
 		t.Fatalf("after toggle flip, chip should move right: x0=%v x1=%v", x0, x1)
+	}
+}
+
+func TestCanvasFxCubicAndYoyoLoad(t *testing.T) {
+	e, surf, rt := canvasFxFixture(t)
+	rt.Dispatch("play_cubic", nil)
+	e.MarkDirty()
+	e.DrawFrame(surf)
+	var cubic *model.Node
+	var walk func(*model.Node)
+	walk = func(n *model.Node) {
+		if n == nil {
+			return
+		}
+		if n.ID == "cubic_dot" {
+			cubic = n
+		}
+		for _, c := range n.Children {
+			walk(c)
+		}
+	}
+	for _, sc := range rt.App.Scenes {
+		walk(sc)
+	}
+	if cubic == nil {
+		t.Fatal("cubic_dot missing")
+	}
+	inter := &Interaction{}
+	start := time.Now()
+	_ = timelineFor(cubic, 0, rt, inter, start)
+	mid := timelineFor(cubic, 0, rt, inter, start.Add(400*time.Millisecond))
+	if !mid.running || (mid.dx == 0 && mid.dy == 0) {
+		t.Fatalf("cubic mid running=%v dx=%v dy=%v", mid.running, mid.dx, mid.dy)
+	}
+
+	// Timeline yoyo object form on yoyo_tl
+	var ytl *model.Node
+	walk = func(n *model.Node) {
+		if n == nil {
+			return
+		}
+		if n.ID == "yoyo_tl" {
+			ytl = n
+		}
+		for _, c := range n.Children {
+			walk(c)
+		}
+	}
+	for _, sc := range rt.App.Scenes {
+		walk(sc)
+	}
+	if ytl == nil {
+		t.Fatal("yoyo_tl missing")
+	}
+	rt.Dispatch("play_yoyo_tl", nil)
+	inter2 := &Interaction{}
+	start2 := time.Now()
+	// Re-read node props after state change — timelineToken binding is eval'd in timelineFor
+	_ = timelineFor(ytl, 0, rt, inter2, start2)
+	midY := timelineFor(ytl, 0, rt, inter2, start2.Add(140*time.Millisecond))
+	if !midY.running {
+		t.Fatal("yoyo timeline should run")
+	}
+	if midY.scale <= 1.05 && midY.dx == 0 {
+		t.Fatalf("yoyo mid scale=%v dx=%v", midY.scale, midY.dx)
+	}
+}
+
+// TestCanvasFxTimelineOnCompleteAndPath exercises the full engine path:
+// load example → play timeline → settle → onComplete action; path step samples.
+func TestCanvasFxTimelineOnCompleteAndPath(t *testing.T) {
+	e, surf, rt := canvasFxFixture(t)
+	// Baseline done counter.
+	done0, _ := rt.State["done"].(float64)
+	_ = done0
+	tlDone0, _ := rt.State["tlDone"].(float64)
+
+	rt.Dispatch("play_timeline", nil)
+	e.MarkDirty()
+	// Advance wall clock via many frames until timeline settles and complete fires.
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		e.DrawFrame(surf)
+		if !e.Animating() && !e.Dirty() {
+			// may still need a frame after complete dirties
+			e.DrawFrame(surf)
+			break
+		}
+		time.Sleep(16 * time.Millisecond)
+	}
+	tlDone1, _ := rt.State["tlDone"].(float64)
+	// state numbers may be float64 from JSON
+	if tlDone1 <= tlDone0 {
+		// try int
+		if i, ok := rt.State["tlDone"].(int); ok && float64(i) > tlDone0 {
+			tlDone1 = float64(i)
+		}
+	}
+	if tlDone1 <= tlDone0 {
+		t.Fatalf("timelineOnComplete should bump tlDone: before=%v after=%v state=%v",
+			tlDone0, tlDone1, rt.State["tlDone"])
+	}
+
+	// Path follow: arm and sample mid displacement via timeline state.
+	rt.Dispatch("play_path", nil)
+	e.MarkDirty()
+	e.DrawFrame(surf)
+	// Locate path_dot model node and evaluate timeline mid-flight.
+	var pathDot *model.Node
+	var walk func(*model.Node)
+	walk = func(n *model.Node) {
+		if n == nil || pathDot != nil {
+			return
+		}
+		if n.ID == "path_dot" {
+			pathDot = n
+			return
+		}
+		for _, c := range n.Children {
+			walk(c)
+		}
+	}
+	for _, sc := range rt.App.Scenes {
+		walk(sc)
+	}
+	if pathDot == nil {
+		t.Fatal("path_dot missing")
+	}
+	// Fresh interaction clock for path (token changed).
+	inter := &Interaction{}
+	start := time.Now()
+	_ = timelineFor(pathDot, 0, rt, inter, start)
+	mid := timelineFor(pathDot, 0, rt, inter, start.Add(350*time.Millisecond))
+	if !mid.running {
+		t.Fatal("path timeline should be running mid-flight")
+	}
+	if mid.dx == 0 && mid.dy == 0 {
+		t.Fatalf("path should displace, got dx=%v dy=%v", mid.dx, mid.dy)
 	}
 }
 

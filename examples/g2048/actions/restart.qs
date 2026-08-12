@@ -8,6 +8,13 @@ state.board = fill(16, 0)
 state.score = 0
 state.status = "playing"
 state.rng = 424242
+state.cellGen = fill(16, 0)
+state.mergeMask = fill(16, 0)
+state.spawnMask = fill(16, 0)
+state.fxMerge = 0
+state.fxMove = 0
+state.fxBig = 0
+state.fxKind = 0
 spawn()
 spawn()
 refreshView()

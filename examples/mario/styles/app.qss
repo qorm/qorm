@@ -2,6 +2,9 @@
 # 结构在 scenes/*.json,逻辑在 actions/*.qs,通用样式集中在这里,
 # 场景节点经 class 引用(后者覆盖前者,id 规则与行内 style 优先级更高)。
 
+# Pixel-art sprites stay nearest-neighbour when scaled (big Mario, HiDPI).
+image { imageRendering: pixelated }
+
 # SCORE / COINS 小标题
 .statLabel { color: var(--text); fontSize: 11; fontWeight: 700 }
 
@@ -12,10 +15,29 @@
 .scoreBox { background: var(--mario); borderRadius: 6; gap: 2 }
 
 # 重新开始按钮(手机端没有 R 键 —— 与记分牌同高的紧凑按钮)
-.restartBtn { background: var(--mario); color: var(--text); borderRadius: 6; fontSize: 13; fontWeight: 700; padding: 8 }
+.restartBtn {
+  background: var(--mario)
+  color: var(--text)
+  borderRadius: 6
+  fontSize: 13
+  fontWeight: 700
+  padding: 8
+  pressedScale: 0.94
+  transition: 0.2s spring
+}
 
 # 屏幕触控按钮(◀ / JUMP / ▶ —— 手机上除滑动外的精确操控)
-.controlBtn { background: var(--mario); color: var(--text); borderRadius: 8; fontSize: 15; fontWeight: 700; padding: 10; width: 72 }
+.controlBtn {
+  background: var(--mario)
+  color: var(--text)
+  borderRadius: 8
+  fontSize: 15
+  fontWeight: 700
+  padding: 10
+  width: 72
+  pressedScale: 0.94
+  transition: 0.2s spring
+}
 
 # 底部操作说明
 .helpText { color: var(--text); fontSize: 12; textAlign: center }

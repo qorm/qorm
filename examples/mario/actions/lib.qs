@@ -104,6 +104,7 @@ fn lose() {
   state.mario.vy = -300
   state.mario.onGround = false
   state.deathTimer = 60
+  state.fxDeath = state.fxDeath + 1
   stopMusic()
   playSound("audio/death.wav")
 }
@@ -112,11 +113,21 @@ fn lose() {
 # physicsStep advances the world by one tick. The tick is driven by a 16-ms
 # timer (60 fps) declared in scenes/main.json.
 fn physicsStep() {
-  if (state.status != "playing") { return }
+  if (state.status == "won") { return }
   let now = num(now())
   let dt = (now - state.lastTickMs) / 1000
   if (dt <= 0 || dt > 0.1) { dt = 1 / 60 }
   state.lastTickMs = now
+
+  # lose() sets status=dead immediately; keep ticking so the NES bounce
+  # (upward vy, then free-fall) can play and deathDone can arm the overlay.
+  if (state.status == "dead" || !state.mario.alive) {
+    state.mario.vy = state.mario.vy + 800 * dt
+    state.mario.y = state.mario.y + state.mario.vy * dt
+    state.deathTimer = state.deathTimer - 1
+    if (state.deathTimer <= 0) { state.deathDone = true }
+    return
+  }
 
   # Timer countdown
   state.timeLeft = state.timeLeft - dt
@@ -124,14 +135,8 @@ fn physicsStep() {
     lose()
   }
 
-  if (!state.mario.alive) {
-    # Death animation: bounce up, then free-fall off screen.
-    state.mario.vy = state.mario.vy + 800 * dt
-    state.mario.y = state.mario.y + state.mario.vy * dt
-    state.deathTimer = state.deathTimer - 1
-    if (state.deathTimer <= 0) { state.deathDone = true }
-    return
-  }
+  if (state.mario.invuln > 0) { state.mario.invuln = state.mario.invuln - 1 }
+  if (state.bumpT > 0) { state.bumpT = state.bumpT - 1 }
 
   # Horizontal: input → acceleration, friction when no key is held.
   let k = state.keys
@@ -217,6 +222,7 @@ fn physicsStep() {
     setTile(mcx, cy, ".")
     state.coins = state.coins + 1
     state.score = state.score + 200
+    state.fxCoin = state.fxCoin + 1
     playSound("audio/coin.wav")
     if (state.coins >= 100) {
       state.coins = state.coins - 100
@@ -265,6 +271,9 @@ fn bumpBelow() {
   while (c <= mcx1) {
     let t = tileAt(c, mcy)
     if (t == "2") {
+      state.bumpCX = c
+      state.bumpCY = mcy
+      state.bumpT = 8
       if (state.mario.big) {
         setTile(c, mcy, ".")
         state.score = state.score + 50
@@ -273,10 +282,16 @@ fn bumpBelow() {
       }
     } else if (t == "7") {
       setTile(c, mcy, "8")
+      state.bumpCX = c
+      state.bumpCY = mcy
+      state.bumpT = 8
       spawnMushroom(c, mcy)
       state.score = state.score + 200
       playSound("audio/powerup_appear.wav")
     } else if (t == "8") {
+      state.bumpCX = c
+      state.bumpCY = mcy
+      state.bumpT = 8
       playSound("audio/bump.wav")
     }
     c = c + 1
@@ -302,6 +317,12 @@ fn stepGoombas(dt) {
     let e = at(state.goombas, g)
     if (!e.alive) { g = g + 1
       continue }
+    if (e.squash > 0) {
+      e.squash = e.squash - 1
+      if (e.squash <= 0) { e.alive = false }
+      g = g + 1
+      continue
+    }
     e.walkPhase = (e.walkPhase + 1) % 16
     let nx = e.x + e.vx * dt
     # Check the cell in front of the goomba, in the goomba's body row.
@@ -345,14 +366,16 @@ fn touchEnemies() {
   let g = 0
   while (g < len(state.goombas)) {
     let e = at(state.goombas, g)
-    if (!e.alive) { g = g + 1
+    if (!e.alive || e.squash > 0) { g = g + 1
       continue }
     if (mx < e.x + cell && mx + mW > e.x && my < e.y + cell && my + mH > e.y) {
       # Stomp: mario falling onto goomba from above.
       if (state.mario.vy > 0 && my + mH - e.y < cell / 2) {
-        e.alive = false
+        e.squash = 10
+        e.vx = 0
         state.score = state.score + 100
         state.mario.vy = -240
+        state.fxStomp = state.fxStomp + 1
         playSound("audio/stomp.wav")
       } else {
         hurtMario()
@@ -412,6 +435,7 @@ fn hurtMario() {
   if (state.mario.big) {
     state.mario.big = false
     state.mario.invuln = 30
+    state.fxHurt = state.fxHurt + 1
     playSound("audio/powerdown.wav")
   } else {
     lose()
@@ -438,7 +462,11 @@ fn buildViewTiles() {
     while (x < x1) {
       let ch = charAt(row, x)
       if (ch != ".") {
-        tiles = push(tiles, { x: num(x) * cell, y: num(y) * cell, kind: ch })
+        let ty = num(y) * cell
+        if (state.bumpT > 0 && x == state.bumpCX && y == state.bumpCY) {
+          ty = ty - 6
+        }
+        tiles = push(tiles, { x: num(x) * cell, y: ty, kind: ch })
       }
       x = x + 1
     }

@@ -12,7 +12,7 @@ guides see the [docs](/docs/).
 - [Actions & state](actions.md) — every action step `type` and its fields
 - [QScript language](../docs/qscript.md) — the `.qs` scripting language reference
 - [Gestures](gestures.md) — tap / long-press / swipe / drag, as widget props
-- [Animation](animation.md) — entrance effects and value-driven transitions
+- [Animation](animation.md) — entrance, spring, FLIP, game `fx`/`timeline` (path, onComplete, stagger), transition yoyo
 - [Navigation](navigation.md) — scenes, the navigate step, and page transitions
 
 ## The runtime surface

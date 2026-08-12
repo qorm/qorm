@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/qorm/qorm/internal/loader"
+	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/runtime"
 	"github.com/qorm/qorm/internal/theme"
 )
@@ -136,5 +137,68 @@ func TestRaidenBombClearsScreen(t *testing.T) {
 		if en.(map[string]any)["alive"] == true {
 			t.Error("an enemy survived the bomb")
 		}
+	}
+	if n := raidenFxNum(rt, "fxBomb"); n < 1 {
+		t.Fatalf("bomb should bump fxBomb, got %v", rt.State["fxBomb"])
+	}
+}
+
+func raidenFxNum(rt *runtime.Runtime, key string) float64 {
+	switch v := rt.State[key].(type) {
+	case float64:
+		return v
+	case int:
+		return float64(v)
+	}
+	return 0
+}
+
+// TestRaidenMotionFxHitAndProps: playerHit bumps fxHit; scene wires fx props.
+func TestRaidenMotionFxHitAndProps(t *testing.T) {
+	e, surf, rt := raidenFixture(t)
+	e.DrawFrame(surf)
+	if err := rt.DispatchErr("tick", nil); err != nil {
+		t.Log(err)
+	}
+	// Invoke playerHit via script by planting an enemy on the player.
+	p := rt.State["player"].(map[string]any)
+	p["invuln"] = 0.0
+	enemies := []any{
+		map[string]any{"x": p["x"].(float64) + 28, "y": p["y"].(float64) + 28, "type": 1.0, "alive": true, "form": 0.0, "phase": 0.0, "dir": 1.0, "drops": 0.0},
+	}
+	rt.State["enemies"] = enemies
+	for tm := range e.timers {
+		e.timers[tm].nextFire = nowMinus(time.Millisecond)
+	}
+	e.MarkDirty()
+	e.DrawFrame(surf)
+	if raidenFxNum(rt, "fxHit") < 1 {
+		t.Fatalf("player collision should bump fxHit, got %v (status=%v lives=%v)",
+			rt.State["fxHit"], rt.State["status"], p["lives"])
+	}
+
+	var player *model.Node
+	var walk func(*model.Node)
+	walk = func(n *model.Node) {
+		if n == nil || player != nil {
+			return
+		}
+		if n.ID == "player" {
+			player = n
+			return
+		}
+		for _, c := range n.Children {
+			walk(c)
+		}
+	}
+	for _, sc := range rt.App.Scenes {
+		walk(sc)
+	}
+	if player == nil {
+		t.Fatal("player node missing")
+	}
+	raw, _ := player.Prop("fx")
+	if raw == nil {
+		t.Fatal("player should declare fx")
 	}
 }

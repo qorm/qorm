@@ -10,5 +10,15 @@ state.level = 1
 state.rng = mod(now(), 2147483646) + 1
 state.nextIdx = 0
 state.status = "playing"
+state.fxClear = 0
+state.fxLock = 0
+state.fxDrop = 0
+state.fxSpawn = 0
+state.fxOver = 0
+state.fxTetris = 0
+state.fxKind = 0
+state.clearName = ""
+state.flashOn = false
+playMusic("audio/music.wav")
 spawn()
 refreshView()

@@ -16,61 +16,39 @@
       {
         "type": "column",
         "id": "body",
-        "style": { "gap": 18, "width": "fill" },
+        "style": { "gap": 18, "width": "fill", "maxWidth": 360 },
         "layout": { "width": "fill" },
         "children": [
           {
             "type": "text",
             "id": "title",
             "text": "Canvas FX",
-            "style": {
-              "fontSize": 28,
-              "fontWeight": 800,
-              "color": "#ffffff",
-              "textDecoration": "underline",
-              "letterSpacing": 1
-            }
+            "class": "title"
           },
           {
             "type": "text",
             "id": "subtitle",
-            "text": "snap · mask · conic · clip · cache · flip",
-            "style": {
-              "fontSize": 13,
-              "color": "#9aa3b2",
-              "textTransform": "uppercase",
-              "letterSpacing": 1.5
-            }
+            "text": "snap · mask · chrome · frost · press · qss · qs",
+            "class": "subtitle"
           },
 
           {
             "type": "text",
             "id": "h_snap",
             "text": "1. Scroll snap (drag the pager)",
-            "style": { "fontSize": 15, "fontWeight": 700, "color": "#e8ecf4" }
+            "class": "heading"
           },
           {
             "type": "scroll",
             "id": "snap_strip",
-            "style": {
-              "width": "fill",
-              "height": 120,
-              "scrollSnapType": "y mandatory",
-              "borderRadius": 14,
-              "background": "#1a1f2b"
-            },
+            "class": "snapStrip",
             "layout": { "width": "fill" },
             "children": [
               {
                 "type": "box",
                 "id": "page_a",
-                "style": {
-                  "width": "fill",
-                  "height": 120,
-                  "background": "linear-gradient(180deg, #007aff, #5ac8fa)",
-                  "scrollSnapAlign": "start",
-                  "padding": 16
-                },
+                "class": "snapPage",
+                "style": { "background": "linear-gradient(180deg, #007aff, #5ac8fa)" },
                 "children": [
                   {
                     "type": "text",
@@ -82,13 +60,8 @@
               {
                 "type": "box",
                 "id": "page_b",
-                "style": {
-                  "width": "fill",
-                  "height": 120,
-                  "background": "linear-gradient(180deg, #34c759, #30d158)",
-                  "scrollSnapAlign": "start",
-                  "padding": 16
-                },
+                "class": "snapPage",
+                "style": { "background": "linear-gradient(180deg, #34c759, #30d158)" },
                 "children": [
                   {
                     "type": "text",
@@ -100,13 +73,8 @@
               {
                 "type": "box",
                 "id": "page_c",
-                "style": {
-                  "width": "fill",
-                  "height": 120,
-                  "background": "linear-gradient(180deg, #ff9f0a, #ffd60a)",
-                  "scrollSnapAlign": "start",
-                  "padding": 16
-                },
+                "class": "snapPage",
+                "style": { "background": "linear-gradient(180deg, #ff9f0a, #ffd60a)" },
                 "children": [
                   {
                     "type": "text",
@@ -122,7 +90,7 @@
             "type": "text",
             "id": "h_conic",
             "text": "2. Conic gradient + outline",
-            "style": { "fontSize": 15, "fontWeight": 700, "color": "#e8ecf4" }
+            "class": "heading"
           },
           {
             "type": "row",
@@ -165,7 +133,7 @@
             "type": "text",
             "id": "h_mask",
             "text": "3. Mask fade (edge dissolve)",
-            "style": { "fontSize": 15, "fontWeight": 700, "color": "#e8ecf4" }
+            "class": "heading"
           },
           {
             "type": "box",
@@ -197,8 +165,8 @@
           {
             "type": "text",
             "id": "h_filter",
-            "text": "4. CSS filter stack",
-            "style": { "fontSize": 15, "fontWeight": 700, "color": "#e8ecf4" }
+            "text": "4. CSS filter stack (QSS + qs)",
+            "class": "heading"
           },
           {
             "type": "row",
@@ -208,14 +176,7 @@
               {
                 "type": "box",
                 "id": "filter_card",
-                "style": {
-                  "width": 160,
-                  "height": 72,
-                  "borderRadius": 12,
-                  "background": "#ff375f",
-                  "padding": 12,
-                  "filter": "{{ state.filterOn ? \"saturate(0.3) brightness(1.15)\" : \"none\" }}"
-                },
+                "class": "filterCard",
                 "children": [
                   {
                     "type": "text",
@@ -233,16 +194,9 @@
                 "type": "button",
                 "id": "btn_filter",
                 "text": "Toggle filter",
+                "class": "springBtn",
                 "onPress": { "type": "invoke", "name": "toggle_filter" },
-                "style": {
-                  "background": "#2c3344",
-                  "color": "#ffffff",
-                  "padding": 12,
-                  "borderRadius": 10,
-                  "fontWeight": 600,
-                  "pressedScale": 0.96,
-                  "transition": "0.2s spring"
-                }
+                "style": { "background": "#2c3344" }
               }
             ]
           },
@@ -251,7 +205,7 @@
             "type": "text",
             "id": "h_blend",
             "text": "5. Mix-blend-mode",
-            "style": { "fontSize": 15, "fontWeight": 700, "color": "#e8ecf4" }
+            "class": "heading"
           },
           {
             "type": "box",
@@ -292,21 +246,16 @@
             "type": "button",
             "id": "btn_blend",
             "text": "Toggle blend",
+            "class": "springBtn",
             "onPress": { "type": "invoke", "name": "toggle_blend" },
-            "style": {
-              "background": "#2c3344",
-              "color": "#ffffff",
-              "padding": 12,
-              "borderRadius": 10,
-              "fontWeight": 600
-            }
+            "style": { "background": "#2c3344" }
           },
 
           {
             "type": "text",
             "id": "h_flip",
-            "text": "6. FLIP layout motion",
-            "style": { "fontSize": 15, "fontWeight": 700, "color": "#e8ecf4" }
+            "text": "6. FLIP layout motion (QSS + qs)",
+            "class": "heading"
           },
           {
             "type": "box",
@@ -322,17 +271,7 @@
               {
                 "type": "box",
                 "id": "flip_chip",
-                "style": {
-                  "width": 72,
-                  "height": 40,
-                  "x": "{{ state.flipLeft ? 16 : 280 }}",
-                  "y": 20,
-                  "borderRadius": 20,
-                  "background": "#0a84ff",
-                  "transition": "0.35s spring",
-                  "layoutMotion": true,
-                  "padding": 8
-                },
+                "class": "flipChip",
                 "children": [
                   {
                     "type": "text",
@@ -352,23 +291,16 @@
             "type": "button",
             "id": "btn_flip",
             "text": "Move chip (FLIP)",
+            "class": "springBtn",
             "onPress": { "type": "invoke", "name": "toggle_flip" },
-            "style": {
-              "background": "#0a84ff",
-              "color": "#ffffff",
-              "padding": 14,
-              "borderRadius": 12,
-              "fontWeight": 700,
-              "pressedScale": 0.94,
-              "transition": "0.25s spring"
-            }
+            "style": { "background": "#0a84ff" }
           },
 
           {
             "type": "text",
             "id": "h_clip",
             "text": "7. clip-path circle / inset",
-            "style": { "fontSize": 15, "fontWeight": 700, "color": "#e8ecf4" }
+            "class": "heading"
           },
           {
             "type": "row",
@@ -379,13 +311,7 @@
               {
                 "type": "box",
                 "id": "clip_circle",
-                "style": {
-                  "width": 88,
-                  "height": 88,
-                  "background": "linear-gradient(135deg, #ff375f, #bf5af2)",
-                  "clipPath": "circle(50%)",
-                  "padding": 12
-                },
+                "class": "clipCircle",
                 "children": [
                   {
                     "type": "text",
@@ -397,13 +323,7 @@
               {
                 "type": "box",
                 "id": "clip_inset",
-                "style": {
-                  "width": 120,
-                  "height": 72,
-                  "background": "#30d158",
-                  "clipPath": "inset(8px round 16px)",
-                  "padding": 12
-                },
+                "class": "clipInset",
                 "children": [
                   {
                     "type": "text",
@@ -419,21 +339,13 @@
             "type": "text",
             "id": "h_cache",
             "text": "8. layerCache (static blur reuse)",
-            "style": { "fontSize": 15, "fontWeight": 700, "color": "#e8ecf4" }
+            "class": "heading"
           },
           {
             "type": "box",
             "id": "cache_blur",
-            "style": {
-              "width": "fill",
-              "height": 64,
-              "borderRadius": 12,
-              "background": "#5e5ce6",
-              "padding": 14,
-              "filter": "blur(2px)",
-              "layerCache": true
-            },
-            "layout": { "width": "fill" },
+            "class": "cacheBlur",
+            "style": { "width": 328 },
             "children": [
               {
                 "type": "text",
@@ -445,12 +357,722 @@
 
           {
             "type": "text",
+            "id": "h_gamefx",
+            "text": "9. Game FX (DOTween / Phaser-style)",
+            "class": "heading"
+          },
+          {
+            "type": "row",
+            "id": "gamefx_row",
+            "style": { "gap": 16 },
+            "layout": { "align": "center" },
+            "children": [
+              {
+                "type": "box",
+                "id": "game_sprite",
+                "fx": "{{ state.fxMode }}",
+                "fxToken": "{{ state.hits }}",
+                "fxDuration": 360,
+                "fxIntensity": 12,
+                "style": {
+                  "width": 72,
+                  "height": 72,
+                  "borderRadius": 16,
+                  "background": "linear-gradient(135deg, #ff375f, #ff9f0a)",
+                  "padding": 12
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "HP",
+                    "style": {
+                      "fontSize": 18,
+                      "fontWeight": 800,
+                      "color": "#ffffff",
+                      "textAlign": "center"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "column",
+                "style": { "gap": 8, "flexGrow": 1 },
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "hits: {{ state.hits }} · fx: {{ state.fxMode }}",
+                    "style": { "fontSize": 13, "color": "#9aa3b2" }
+                  },
+                  {
+                    "type": "row",
+                    "style": { "gap": 6 },
+                    "children": [
+                      {
+                        "type": "button",
+                        "id": "btn_hit",
+                        "text": "Hit",
+                        "class": "springBtn",
+                        "onPress": { "type": "invoke", "name": "fire_hit" },
+                        "style": { "background": "#ff375f", "padding": 8 }
+                      },
+                      {
+                        "type": "button",
+                        "id": "btn_shake",
+                        "text": "Shake",
+                        "class": "springBtn",
+                        "onPress": { "type": "invoke", "name": "set_fx_shake" },
+                        "style": { "background": "#2c3344", "padding": 8 }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "row",
+                    "style": { "gap": 6 },
+                    "children": [
+                      {
+                        "type": "button",
+                        "id": "btn_punch",
+                        "text": "Punch",
+                        "class": "springBtn",
+                        "onPress": { "type": "invoke", "name": "set_fx_punch" },
+                        "style": { "background": "#2c3344", "padding": 8 }
+                      },
+                      {
+                        "type": "button",
+                        "id": "btn_float",
+                        "text": "Float",
+                        "class": "springBtn",
+                        "onPress": { "type": "invoke", "name": "set_fx_float" },
+                        "style": { "background": "#0a84ff", "padding": 8 }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "button",
+                    "id": "btn_burst",
+                    "text": "Burst",
+                    "class": "springBtn",
+                    "onPress": { "type": "invoke", "name": "set_fx_burst" },
+                    "style": { "background": "#ff9f0a", "padding": 8, "color": "#1d1d1f" }
+                  }
+                ]
+              }
+            ]
+          },
+
+          {
+            "type": "text",
+            "id": "h_timeline",
+            "text": "10. Timeline sequence + onComplete",
+            "class": "heading"
+          },
+          {
+            "type": "row",
+            "id": "timeline_row",
+            "style": { "gap": 16 },
+            "layout": { "align": "center" },
+            "children": [
+              {
+                "type": "box",
+                "id": "tl_sprite",
+                "timeline": [
+                  { "scale": 1.35, "duration": 180, "ease": "backOut" },
+                  { "dx": 56, "dy": -6, "duration": 220, "ease": "easeOut", "parallel": true },
+                  { "wait": 80 },
+                  { "scale": 1, "dx": 0, "dy": 0, "duration": 240, "ease": "easeInOut" }
+                ],
+                "timelineToken": "{{ state.tlPlay }}",
+                "timelineOnComplete": "timeline_done",
+                "style": {
+                  "width": 64,
+                  "height": 64,
+                  "borderRadius": 14,
+                  "background": "linear-gradient(135deg, #5e5ce6, #0a84ff)",
+                  "padding": 10
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "SEQ",
+                    "style": {
+                      "fontSize": 14,
+                      "fontWeight": 800,
+                      "color": "#ffffff",
+                      "textAlign": "center"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "column",
+                "style": { "gap": 8, "flexGrow": 1 },
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "plays: {{ state.tlPlay }} · done: {{ state.tlDone }}",
+                    "style": { "fontSize": 12, "color": "#9aa3b2", "lineClamp": 2, "width": 220 }
+                  },
+                  {
+                    "type": "button",
+                    "id": "btn_timeline",
+                    "text": "Play sequence",
+                    "class": "springBtn",
+                    "onPress": { "type": "invoke", "name": "play_timeline" },
+                    "style": { "background": "#5e5ce6", "padding": 10 }
+                  }
+                ]
+              }
+            ]
+          },
+
+          {
+            "type": "text",
+            "id": "h_path",
+            "text": "11. Path follow (DOPath / Path2D)",
+            "class": "heading"
+          },
+          {
+            "type": "row",
+            "id": "path_row",
+            "style": { "gap": 16 },
+            "layout": { "align": "center" },
+            "children": [
+              {
+                "type": "box",
+                "id": "path_stage",
+                "style": {
+                  "width": 200,
+                  "height": 90,
+                  "borderRadius": 12,
+                  "background": "#1a1f2b"
+                },
+                "children": [
+                  {
+                    "type": "box",
+                    "id": "path_dot",
+                    "timeline": [
+                      {
+                        "path": [[0, 20], [60, -10], [120, 30], [160, 10]],
+                        "duration": 700,
+                        "ease": "easeInOut",
+                        "orient": true
+                      },
+                      { "path": [[160, 10], [0, 20]], "duration": 500, "ease": "sineInOut" }
+                    ],
+                    "timelineToken": "{{ state.pathPlay }}",
+                    "style": {
+                      "width": 28,
+                      "height": 28,
+                      "borderRadius": 14,
+                      "background": "#30d158"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "id": "btn_path",
+                "text": "Play path",
+                "class": "springBtn",
+                "onPress": { "type": "invoke", "name": "play_path" },
+                "style": { "background": "#30d158", "padding": 10, "color": "#0a1a0a" }
+              }
+            ]
+          },
+
+          {
+            "type": "text",
+            "id": "h_stagger",
+            "text": "12. Stagger (list entrance)",
+            "class": "heading"
+          },
+          {
+            "type": "list",
+            "id": "stagger_list",
+            "data": "{{ state.staggerItems }}",
+            "style": { "gap": 8 },
+            "layout": { "orientation": "horizontal" },
+            "renderItem": {
+              "type": "box",
+              "animation": "fadeup",
+              "duration": 420,
+              "curve": "backOut",
+              "stagger": 80,
+              "style": {
+                "width": 40,
+                "height": 40,
+                "borderRadius": 10,
+                "background": "{{ item.c }}"
+              }
+            }
+          },
+
+          {
+            "type": "text",
+            "id": "h_cubic",
+            "text": "13. Cubic Bezier path",
+            "class": "heading"
+          },
+          {
+            "type": "row",
+            "id": "cubic_row",
+            "style": { "gap": 16 },
+            "layout": { "align": "center" },
+            "children": [
+              {
+                "type": "box",
+                "id": "cubic_stage",
+                "style": {
+                  "width": 200,
+                  "height": 80,
+                  "borderRadius": 12,
+                  "background": "#1a1f2b"
+                },
+                "children": [
+                  {
+                    "type": "box",
+                    "id": "cubic_dot",
+                    "timeline": [
+                      {
+                        "path": [[8, 40], [40, -20], [140, 90], [180, 30]],
+                        "cubic": true,
+                        "duration": 900,
+                        "ease": "sineInOut",
+                        "orient": true
+                      }
+                    ],
+                    "timelineToken": "{{ state.cubicPlay }}",
+                    "style": {
+                      "width": 24,
+                      "height": 24,
+                      "borderRadius": 12,
+                      "background": "#bf5af2"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "id": "btn_cubic",
+                "text": "Play cubic",
+                "class": "springBtn",
+                "onPress": { "type": "invoke", "name": "play_cubic" },
+                "style": { "background": "#bf5af2", "padding": 10 }
+              }
+            ]
+          },
+
+          {
+            "type": "text",
+            "id": "h_yoyo",
+            "text": "14. Yoyo (style + timeline)",
+            "class": "heading"
+          },
+          {
+            "type": "row",
+            "id": "yoyo_row",
+            "style": { "gap": 16 },
+            "layout": { "align": "center" },
+            "children": [
+              {
+                "type": "box",
+                "id": "yoyo_style",
+                "style": {
+                  "width": 56,
+                  "height": 56,
+                  "borderRadius": 12,
+                  "background": "#af52de",
+                  "opacity": "{{ state.yoyoOn ? 0.3 : 1 }}",
+                  "transition": "0.35s",
+                  "transitionEasing": "sineInOut",
+                  "transitionYoyo": true,
+                  "transitionRepeat": 1
+                }
+              },
+              {
+                "type": "box",
+                "id": "yoyo_tl",
+                "timeline": {
+                  "yoyo": true,
+                  "repeat": 1,
+                  "steps": [
+                    { "scale": 1.4, "dx": 36, "duration": 280, "ease": "easeOut" }
+                  ]
+                },
+                "timelineToken": "{{ state.yoyoTl }}",
+                "style": {
+                  "width": 48,
+                  "height": 48,
+                  "borderRadius": 10,
+                  "background": "#64d2ff"
+                }
+              },
+              {
+                "type": "column",
+                "style": { "gap": 8 },
+                "children": [
+                  {
+                    "type": "button",
+                    "id": "btn_yoyo_style",
+                    "text": "Style yoyo",
+                    "class": "springBtn",
+                    "onPress": { "type": "invoke", "name": "toggle_yoyo" },
+                    "style": { "background": "#af52de", "padding": 10 }
+                  },
+                  {
+                    "type": "button",
+                    "id": "btn_yoyo_tl",
+                    "text": "Timeline yoyo",
+                    "class": "springBtn",
+                    "onPress": { "type": "invoke", "name": "play_yoyo_tl" },
+                    "style": { "background": "#64d2ff", "padding": 10, "color": "#0a1a2a" }
+                  }
+                ]
+              }
+            ]
+          },
+
+          {
+            "type": "text",
+            "id": "h_text",
+            "text": "15. Text chrome (stroke / shadow)",
+            "class": "heading"
+          },
+          {
+            "type": "column",
+            "id": "text_chrome_block",
+            "style": { "gap": 10, "width": "fill" },
+            "layout": { "width": "fill" },
+            "children": [
+              {
+                "type": "text",
+                "id": "text_chrome",
+                "text": "stroke",
+                "class": "textChrome"
+              },
+              {
+                "type": "text",
+                "id": "ellipsis_line",
+                "text": "A very long caption that should ellipsis when the line is too narrow for this card",
+                "class": "ellipsisLine"
+              },
+              {
+                "type": "box",
+                "id": "clamp_box",
+                "style": { "width": 220 },
+                "children": [
+                  {
+                    "type": "text",
+                    "id": "clamp_copy",
+                    "text": "Two-line clamp: this paragraph is long enough to wrap past two lines so the last visible line ends with an ellipsis instead of spilling down the stage.",
+                    "class": "clampCopy"
+                  }
+                ]
+              }
+            ]
+          },
+
+          {
+            "type": "text",
+            "id": "h_inset",
+            "text": "16. Inset shadow + outline ring",
+            "class": "heading"
+          },
+          {
+            "type": "row",
+            "id": "inset_row",
+            "style": { "gap": 16 },
+            "layout": { "align": "center" },
+            "children": [
+              {
+                "type": "box",
+                "id": "inset_shadow",
+                "class": "insetShadow",
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "inset + ring",
+                    "style": { "fontSize": 13, "fontWeight": 700, "color": "#e8ecf4" }
+                  }
+                ]
+              },
+              {
+                "type": "box",
+                "id": "overflow_clip",
+                "class": "overflowClip",
+                "children": [
+                  {
+                    "type": "box",
+                    "id": "overflow_child",
+                    "style": {
+                      "width": 90,
+                      "height": 90,
+                      "x": 56,
+                      "y": 24,
+                      "borderRadius": 8,
+                      "background": "#ff375f"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+
+          {
+            "type": "text",
+            "id": "h_frost",
+            "text": "17. Backdrop frost",
+            "class": "heading"
+          },
+          {
+            "type": "box",
+            "id": "frost_stage",
+            "style": {
+              "width": "fill",
+              "height": 132,
+              "borderRadius": 16,
+              "overflow": "hidden",
+              "background": "linear-gradient(90deg, #ff375f, #ff9f0a, #30d158, #0a84ff, #bf5af2)"
+            },
+            "layout": { "width": "fill" },
+            "children": [
+              {
+                "type": "row",
+                "id": "frost_blobs",
+                "style": { "gap": 10, "padding": 12 },
+                "children": [
+                  {
+                    "type": "box",
+                    "style": { "width": 56, "height": 108, "borderRadius": 12, "background": "#ffffff" }
+                  },
+                  {
+                    "type": "box",
+                    "style": { "width": 56, "height": 108, "borderRadius": 12, "background": "#ffd60a" }
+                  },
+                  {
+                    "type": "box",
+                    "style": { "width": 56, "height": 108, "borderRadius": 12, "background": "#64d2ff" }
+                  },
+                  {
+                    "type": "box",
+                    "style": { "width": 56, "height": 108, "borderRadius": 12, "background": "#ff375f" }
+                  }
+                ]
+              },
+              {
+                "type": "box",
+                "id": "frost_panel",
+                "class": "frostPanel",
+                "style": { "x": 72, "y": 24 },
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "frosted glass",
+                    "style": { "fontSize": 14, "fontWeight": 700, "color": "#1d1d1f" }
+                  },
+                  {
+                    "type": "text",
+                    "text": "backdropBlur + tint",
+                    "style": { "fontSize": 12, "color": "#3a3a3c", "fontStyle": "italic" }
+                  }
+                ]
+              }
+            ]
+          },
+
+          {
+            "type": "text",
+            "id": "h_press",
+            "text": "18. Hover / press spring",
+            "class": "heading"
+          },
+          {
+            "type": "button",
+            "id": "press_card",
+            "text": "Hover / press",
+            "class": "pressCard",
+            "style": {
+              "pressedBackground": "#30d158",
+              "hoverBackground": "#0a84ff",
+              "hoverScale": 1.06,
+              "pressedScale": 0.92,
+              "transition": "0.3s spring"
+            }
+          },
+
+          {
+            "type": "text",
+            "id": "h_invert",
+            "text": "19. invert / sepia",
+            "class": "heading"
+          },
+          {
+            "type": "row",
+            "id": "invert_row",
+            "style": { "gap": 12 },
+            "children": [
+              {
+                "type": "box",
+                "id": "invert_card",
+                "class": "invertCard",
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "{{ state.colorFx }}",
+                    "style": { "fontSize": 13, "fontWeight": 800, "color": "#ffffff" }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "id": "btn_color_fx",
+                "text": "Cycle filter",
+                "class": "springBtn",
+                "onPress": { "type": "invoke", "name": "cycle_color_fx" },
+                "style": { "background": "#ff375f", "padding": 10 }
+              }
+            ]
+          },
+
+          {
+            "type": "text",
+            "id": "h_tint",
+            "text": "20. tint (modulate)",
+            "class": "heading"
+          },
+          {
+            "type": "row",
+            "id": "tint_row",
+            "style": { "gap": 12 },
+            "children": [
+              {
+                "type": "box",
+                "id": "tint_card",
+                "class": "tintCard",
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "white x tint",
+                    "style": { "fontSize": 13, "fontWeight": 800, "color": "#1d1d1f" }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "id": "btn_tint",
+                "text": "Cycle tint",
+                "class": "springBtn",
+                "onPress": { "type": "invoke", "name": "cycle_tint" },
+                "style": { "background": "#ff6b6b", "padding": 10 }
+              }
+            ]
+          },
+
+          {
+            "type": "text",
+            "id": "h_xform",
+            "text": "21. rotate / scale / flip",
+            "class": "heading"
+          },
+          {
+            "type": "row",
+            "id": "xform_row",
+            "style": { "gap": 12 },
+            "children": [
+              {
+                "type": "box",
+                "id": "xform_box",
+                "class": "xformBox",
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "R",
+                    "style": { "fontSize": 18, "fontWeight": 800, "color": "#ffffff", "textAlign": "center" }
+                  }
+                ]
+              },
+              {
+                "type": "column",
+                "style": { "gap": 8 },
+                "children": [
+                  {
+                    "type": "button",
+                    "id": "btn_xform",
+                    "text": "Spin + flip",
+                    "class": "springBtn",
+                    "onPress": { "type": "invoke", "name": "nudge_xform" },
+                    "style": { "background": "#0a84ff", "padding": 10 }
+                  },
+                  {
+                    "type": "button",
+                    "id": "btn_scale",
+                    "text": "Scale",
+                    "class": "springBtn",
+                    "onPress": { "type": "invoke", "name": "bump_scale" },
+                    "style": { "background": "#30d158", "padding": 10 }
+                  }
+                ]
+              }
+            ]
+          },
+
+          {
+            "type": "text",
+            "id": "h_pixel",
+            "text": "22. imageRendering pixelated",
+            "class": "heading"
+          },
+          {
+            "type": "row",
+            "id": "pixel_row",
+            "style": { "gap": 16 },
+            "children": [
+              {
+                "type": "column",
+                "style": { "gap": 6 },
+                "children": [
+                  {
+                    "type": "image",
+                    "id": "pixel_img",
+                    "src": "assets/checker.png",
+                    "class": "pixelImg"
+                  },
+                  {
+                    "type": "text",
+                    "text": "pixelated",
+                    "style": { "fontSize": 11, "color": "#9aa3b2" }
+                  }
+                ]
+              },
+              {
+                "type": "column",
+                "style": { "gap": 6 },
+                "children": [
+                  {
+                    "type": "image",
+                    "id": "smooth_img",
+                    "src": "assets/checker.png",
+                    "class": "smoothImg"
+                  },
+                  {
+                    "type": "text",
+                    "text": "auto (bilinear)",
+                    "style": { "fontSize": 11, "color": "#9aa3b2" }
+                  }
+                ]
+              }
+            ]
+          },
+
+          {
+            "type": "text",
             "id": "footer",
-            "text": "Run: go run ./cmd/qorm run examples/canvas-fx",
+            "text": "chrome · frost · tint · pixel · fx — api/animation.md · docs/styles.md",
             "style": {
               "fontSize": 11,
               "color": "#6b7280",
               "fontStyle": "italic",
+              "width": "fill",
               "textDecoration": "overline"
             }
           }

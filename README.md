@@ -102,16 +102,30 @@ are generated from the code and kept in sync by tests.
   verify-before-activate delivery and one-command rollback.
 - **Design verification**: The agent proves its edits by measuring real rendered geometry with `qorm measure` / `qorm check`, verifying layout geometry quantitatively.
 
+## What's new in 0.8.10
+
+Canvas is a 2D game-engine-class renderer now: declarative `fx` / `timeline` /
+path follow / stagger / yoyo, plus `tint`, `invert()`/`sepia()`,
+`imageRendering: pixelated`, and persistent `rotate`/`scale`/`flipX`.
+
+Play it: [qorm.com/games](https://qorm.com/games/) (Tetris, 2048, Raiden, Mario)
+or `go run ./cmd/qorm run examples/tetris`. Showcase:
+`examples/canvas-fx`. Docs: [styles](docs/styles.md) ·
+[animation](api/animation.md) · [props](api/props.md).
+
 ## Run
 
 ```bash
-go run ./cmd/qorm run examples/counter      # opens the app in your browser
+go run ./cmd/qorm run examples/counter      # opens the app (browser or native canvas)
+go run ./cmd/qorm run examples/tetris       # canvas game + chiptune
+go run ./cmd/qorm run examples/canvas-fx    # visual + motion showcase
 go run ./cmd/qorm render examples/todo -o todo.html   # static snapshot
 ```
 
 Press `+` / `-` in the counter, or add/toggle tasks in the todo app — button
 presses POST to `/event`, the server updates state, re-runs the action, and
-swaps in the re-rendered UI.
+swaps in the re-rendered UI. Games on the macOS default window (and
+[qorm.com/games](https://qorm.com/games/)) use the pure-Go canvas engine.
 
 ## Signed bundles (verify-the-bundle, don't-trust-the-server)
 
@@ -252,12 +266,17 @@ Top-tier widget vocabulary, all mapped to semantic HTML/CSS:
   effect on mount (`fadeup`, `pop`, `bounce`, …); `animatedcontainer` /
   `animatedopacity` do value-driven transitions; buttons get iOS press feedback.
   See [animation](api/animation.md) and `examples/animations` /
-  `examples/payment`.
+  `examples/payment`. On canvas: game `fx` / `timeline` (path, yoyo,
+  onComplete, stagger), style `rotate`/`scale`/`flipX`, `tint`, and
+  `imageRendering: pixelated`.
 
 Plus cross-cutting features on every node: conditional rendering
 (`"if": "{{state.x}}"`), accessibility (`role`, `ariaLabel`, `title`), and rich
 style (shadow, gradient, position + top/left/right/bottom, aspectRatio,
-min/max width/height, opacity, transition, `animation`). See `examples/gallery`.
+min/max width/height, opacity, transition / spring, filter/mask/clip,
+scroll-snap, FLIP `layoutMotion`, `animation`). See `examples/gallery` and
+`examples/canvas-fx`; games in `examples/tetris` / `mario` / `raiden` /
+`g2048`. Full keys in [props](api/props.md) and [styles](docs/styles.md).
 
 ## Over-the-air updates
 

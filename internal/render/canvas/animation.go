@@ -9,6 +9,7 @@ import (
 )
 
 type AnimState struct {
+	BeginStyle   NodeStyle // origin at last retarget (yoyo begin)
 	TargetStyle  NodeStyle
 	CurrentStyle NodeStyle
 	Controller   *anim.Controller
@@ -28,8 +29,9 @@ func UpdateAndGetAnimatedStyle(id string, target NodeStyle, rt *runtime.Runtime)
 // instances that share a template ID, or their tweens would fight. duration
 // <= 0 falls back to the theme's "normal" motion token (250ms / easeOutCubic).
 // target.TransitionEasing selects a named curve ("spring", "easeOut", …);
-// empty uses the theme standard easing. Returns the interpolated style and
-// whether a redraw is still needed.
+// empty uses the theme standard easing. TransitionYoyo / TransitionLoop /
+// TransitionRepeat map to DOTween SetLoops. Returns the interpolated style
+// and whether a redraw is still needed.
 func UpdateAndGetAnimatedStyleD(key string, target NodeStyle, rt *runtime.Runtime, duration time.Duration) (NodeStyle, bool) {
 	if key == "" {
 		return target, false
@@ -47,10 +49,13 @@ func UpdateAndGetAnimatedStyleD(key string, target NodeStyle, rt *runtime.Runtim
 		if d <= 0 {
 			d = time.Duration(th.DurationMs("normal")) * time.Millisecond
 		}
+		ctrl := anim.NewController(d, resolveTransitionCurve(target.TransitionEasing, th))
+		applyTransitionLoop(ctrl, target)
 		state = &AnimState{
+			BeginStyle:   target,
 			TargetStyle:  target,
 			CurrentStyle: target,
-			Controller:   anim.NewController(d, resolveTransitionCurve(target.TransitionEasing, th)),
+			Controller:   ctrl,
 		}
 		// Push it immediately to finished
 		state.Controller.StartTime = time.Now().Add(-1 * time.Second)
@@ -91,49 +96,94 @@ func UpdateAndGetAnimatedStyleD(key string, target NodeStyle, rt *runtime.Runtim
 			th = rt.Theme
 		}
 		state.Controller.Curve = resolveTransitionCurve(target.TransitionEasing, th)
+		applyTransitionLoop(state.Controller, target)
+		// Yoyo/lerp origin is the live visual, not the previous target.
+		state.BeginStyle = state.CurrentStyle
 		state.TargetStyle = target
 		state.Controller.Reset()
+	} else {
+		// Loop mode flags may change without field retarget (rare).
+		applyTransitionLoop(state.Controller, target)
 	}
 
 	// Calculate interpolation using new anim engine
 	t, isRunning := state.Controller.Value()
 
 	if !isRunning {
-		state.CurrentStyle = state.TargetStyle
+		// Yoyo settles at begin; once/repeat settle at target.
+		if state.Controller.Mode == anim.LoopYoyo {
+			state.CurrentStyle = state.BeginStyle
+		} else {
+			state.CurrentStyle = state.TargetStyle
+		}
 		return state.CurrentStyle, false
 	}
 
 	// Copy all target fields (including non-animatable ones)
 	current := target
 
-	// Interpolate all animatable fields
-	current.Background = anim.ColorTween(state.CurrentStyle.Background, state.TargetStyle.Background).Lerp(t)
-	current.Color = anim.ColorTween(state.CurrentStyle.Color, state.TargetStyle.Color).Lerp(t)
-	current.Padding = anim.IntTween(state.CurrentStyle.Padding, state.TargetStyle.Padding).Lerp(t)
-	current.Width = anim.IntTween(state.CurrentStyle.Width, state.TargetStyle.Width).Lerp(t)
-	current.Height = anim.IntTween(state.CurrentStyle.Height, state.TargetStyle.Height).Lerp(t)
+	// Interpolate all animatable fields from Begin → Target (yoyo-safe).
+	begin := state.BeginStyle
+	end := state.TargetStyle
+	current.Background = anim.ColorTween(begin.Background, end.Background).Lerp(t)
+	current.Color = anim.ColorTween(begin.Color, end.Color).Lerp(t)
+	current.Padding = anim.IntTween(begin.Padding, end.Padding).Lerp(t)
+	current.Width = anim.IntTween(begin.Width, end.Width).Lerp(t)
+	current.Height = anim.IntTween(begin.Height, end.Height).Lerp(t)
 
-	current.MarginTop = anim.IntTween(state.CurrentStyle.MarginTop, state.TargetStyle.MarginTop).Lerp(t)
-	current.MarginBot = anim.IntTween(state.CurrentStyle.MarginBot, state.TargetStyle.MarginBot).Lerp(t)
-	current.MarginLeft = anim.IntTween(state.CurrentStyle.MarginLeft, state.TargetStyle.MarginLeft).Lerp(t)
-	current.MarginRight = anim.IntTween(state.CurrentStyle.MarginRight, state.TargetStyle.MarginRight).Lerp(t)
-	current.Gap = anim.IntTween(state.CurrentStyle.Gap, state.TargetStyle.Gap).Lerp(t)
-	current.BorderRadius = anim.Float64Tween(state.CurrentStyle.BorderRadius, state.TargetStyle.BorderRadius).Lerp(t)
-	current.Opacity = anim.Float64Tween(state.CurrentStyle.Opacity, state.TargetStyle.Opacity).Lerp(t)
-	current.EffectiveScale = anim.Float64Tween(state.CurrentStyle.EffectiveScale, state.TargetStyle.EffectiveScale).Lerp(t)
+	current.MarginTop = anim.IntTween(begin.MarginTop, end.MarginTop).Lerp(t)
+	current.MarginBot = anim.IntTween(begin.MarginBot, end.MarginBot).Lerp(t)
+	current.MarginLeft = anim.IntTween(begin.MarginLeft, end.MarginLeft).Lerp(t)
+	current.MarginRight = anim.IntTween(begin.MarginRight, end.MarginRight).Lerp(t)
+	current.Gap = anim.IntTween(begin.Gap, end.Gap).Lerp(t)
+	current.BorderRadius = anim.Float64Tween(begin.BorderRadius, end.BorderRadius).Lerp(t)
+	current.Opacity = anim.Float64Tween(begin.Opacity, end.Opacity).Lerp(t)
+	current.EffectiveScale = anim.Float64Tween(begin.EffectiveScale, end.EffectiveScale).Lerp(t)
 	// Absolute position (board / left-top): tween so x/y changes with
 	// transition animate instead of snapping (layout motion).
-	current.PosX = anim.Float64Tween(state.CurrentStyle.PosX, state.TargetStyle.PosX).Lerp(t)
-	current.PosY = anim.Float64Tween(state.CurrentStyle.PosY, state.TargetStyle.PosY).Lerp(t)
+	current.PosX = anim.Float64Tween(begin.PosX, end.PosX).Lerp(t)
+	current.PosY = anim.Float64Tween(begin.PosY, end.PosY).Lerp(t)
 
 	state.CurrentStyle = current
 	return current, true // Needs redraw
+}
+
+// applyTransitionLoop maps NodeStyle loop flags onto Controller (DOTween SetLoops).
+// LoopRepeat/LoopYoyo treat Repeat<=0 as infinite.
+func applyTransitionLoop(c *anim.Controller, s NodeStyle) {
+	if c == nil {
+		return
+	}
+	switch {
+	case s.TransitionYoyo:
+		c.Mode = anim.LoopYoyo
+		if s.TransitionRepeat != 0 {
+			c.Repeat = s.TransitionRepeat // <0 infinite, >0 count
+		} else if s.TransitionLoop {
+			c.Repeat = 0 // infinite yoyo
+		} else {
+			c.Repeat = 1 // one yoyo cycle then settle at begin
+		}
+	case s.TransitionLoop || s.TransitionRepeat < 0:
+		c.Mode = anim.LoopRepeat
+		c.Repeat = 0 // infinite
+		if s.TransitionRepeat > 0 {
+			c.Repeat = s.TransitionRepeat
+		}
+	case s.TransitionRepeat > 1:
+		c.Mode = anim.LoopRepeat
+		c.Repeat = s.TransitionRepeat
+	default:
+		c.Mode = anim.LoopOnce
+		c.Repeat = 0
+	}
 }
 
 // resolveTransitionCurve picks a named easing for declarative transitions.
 // Unknown/empty names fall back to the theme standard curve (easeOutCubic).
 func resolveTransitionCurve(name string, th *theme.Theme) anim.Curve {
 	if name != "" {
+		// Case-insensitive game-engine names (backOut, Elastic.Out → elasticout).
 		if c, ok := anim.CurveByName(name); ok {
 			return c
 		}

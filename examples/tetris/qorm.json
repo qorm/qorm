@@ -11,6 +11,8 @@
       "nextView": "array",
       "SHAPES": "array",
       "colors": "array",
+      "colorsHi": "array",
+      "colorsLo": "array",
       "piece": "object",
       "piece.shapeIdx": "number",
       "piece.rot": "number",
@@ -22,7 +24,16 @@
       "lines": "number",
       "level": "number",
       "rng": "number",
-      "status": "string"
+      "status": "string",
+      "fxClear": "number",
+      "fxLock": "number",
+      "fxDrop": "number",
+      "fxSpawn": "number",
+      "fxOver": "number",
+      "fxTetris": "number",
+      "fxKind": "number",
+      "clearName": "string",
+      "flashOn": "boolean"
     },
     "initial": {
       "SHAPES": [
@@ -43,6 +54,26 @@
         "#ef2029",
         "#0072bc",
         "#f7931e"
+      ],
+      "colorsHi": [
+        "#2a2a32",
+        "#b8f4ff",
+        "#fff6a0",
+        "#e8a8d8",
+        "#9af09a",
+        "#ff9a9e",
+        "#6ec8ff",
+        "#ffd08a"
+      ],
+      "colorsLo": [
+        "#0c0c10",
+        "#0a5a72",
+        "#8a6a00",
+        "#5c2854",
+        "#1a5c1a",
+        "#7a1014",
+        "#003a62",
+        "#8a4a00"
       ],
       "piece": {
         "shapeIdx": 0,

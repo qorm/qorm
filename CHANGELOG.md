@@ -7,71 +7,39 @@ All notable changes to QORM are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
-- **Canvas clip-path**: `clipPath: "circle(50%)"` / `"ellipse(50% 40%)"` /
-  `"inset(10px round 12px)"` — elliptical and inset clips with soft AA edges;
-  works with overflow:hidden-style hit clipping.
-- **Canvas layerCache**: `layerCache: true` on filter/mask groups reuses the
-  offscreen layer bitmap when content fingerprint is unchanged (static blur
-  panels skip re-raster of children).
-- **Example `examples/canvas-fx`**: runnable showcase for scroll-snap, mask
-  fade, conic-gradient, outline, text decoration/transform, CSS filter,
-  mix-blend-mode, FLIP, clip-path, and layerCache — covered by
-  `TestCanvasFx*` / `TestClip*` / `TestLayerCache*` + `qorm measure`.
-- **Canvas scroll-snap**: `scrollSnapType` (`y mandatory` / `x proximity` /
-  `both mandatory`, …) on scroll viewports and `scrollSnapAlign`
-  (`start` / `center` / `end`) on children — snaps after coast or drag
-  release (carousel / pageview / picker parity with HTML).
-- **Canvas mask fade**: `maskFade` (`top`|`bottom`|`left`|`right`) +
-  `maskFadeSize`, or `maskImage: linear-gradient(to bottom, …)` — soft edge
-  dissolve on a subtree layer (list/carousel edges).
-- **Canvas text decoration & transform**: `textDecoration` (`underline` /
-  `line-through` / `overline`), `textTransform` (`uppercase` / `lowercase` /
-  `capitalize`), and multi-line **`lineClamp`** (ellipsis on the last kept line).
-- **Canvas outline**: CSS `outline` / `outlineColor` / `outlineWidth` /
-  `outlineOffset` as an outer SDF ring (outside the border box).
-- **Canvas conic-gradient**: `background: conic-gradient(from 0deg, #f00, #00f)`
-  (and `gradient:`) paints a sweep fill from the box center.
-- **Canvas full CSS filter + blend**: `grayscale()`, `hue-rotate()`,
-  `opacity()`, `drop-shadow(x y blur color)` on the filter stack; **mix-blend-
-  mode** (`multiply` / `screen` / `overlay` / `darken` / `lighten`) when
-  compositing offscreen layers.
-- **Canvas dirty-region redraw**: engine unions changed layout boxes and
-  re-rasters only that pad-expanded region (full frame when color-only or
-  dirty > 75% of stage). `QORM_FULL_RASTER=1` forces full frames.
-- **Canvas FLIP layout motion**: set `layoutMotion: true` with `transition` +
-  stable `id` to ease absolute position/size jumps (shared-element style).
-- **Canvas CSS filter stack**: `filter: "blur(8px) brightness(1.2) contrast(0.9)
-  saturate(0)"` — offscreen layer with **3-pass Gaussian-approx blur** plus
-  brightness / contrast / saturate color matrix (percent or unitless). Still
-  supports `blur` / `filterBlur` shortcuts.
-- **Canvas overflow:hidden**: clips children to the box; with `borderRadius`
-  uses a rounded clip so cards match their chrome. Hit-testing honors `Clip`.
-- **Canvas filter blur**: CSS `filter: "blur(8px)"` (or `blur` / `filterBlur`)
-  draws the node subtree into an offscreen layer, separable box-blurs it, and
-  composites back — true group blur, not backdrop frost.
-- **Canvas inset box-shadow**: `boxShadowInset: true` paints CSS
-  `box-shadow: inset` on the chrome RRect (soft inner rim + offset).
-- **Canvas position transitions**: absolute `x`/`y` (and left/top) tween when
-  `transition` is set, so board / free-position layout motion eases instead of
-  snapping.
-- **Canvas text stroke + text shadow**: declarative `textStrokeColor` /
-  `textStrokeWidth` and `textShadowColor` / `textShadowBlur` / `textShadowX` /
-  `textShadowY` flow style → graph Text → `TextOp` → software multi-pass
-  (shadow → stroke → fill). Distinct from box border / box-shadow.
-- **Canvas spring transitions**: `transition: "0.3s spring"` (or
-  `transitionEasing: "spring"`) drives press/hover scale and color tweens with
-  the underdamped spring curve (overshoot then settle).
-- **Canvas ops fingerprint skip**: identical display lists reuse the prior
-  pixel buffer (no re-raster) while still Presenting — cheaper static frames
-  and spurious `RequestDraw` without breaking the present contract.
-- **Canvas rotated RRect sampling**: rounded rects, strokes, shadows and
-  gradients sample in **local space** via inverse transform, so rotation/skew
-  keep correct corners (no axis-aligned AABB SDF smear). Multi-line
-  **`textOverflow: ellipsis`** caps lines to box height and ellipsizes the last.
-- **Canvas rendering quality**: `boxShadowX` end-to-end (style → graph →
-  RRectOp SDF); **radial-gradient** fills; linear/radial **stop percentages**
-  (`#fff 0%, #000 100%`); separable **backdrop frost** blur (H then V);
-  single-line **`textOverflow: ellipsis`** when text exceeds the box width.
+- **Canvas game-engine motion**: Phaser/Godot/DOTween easings; declarative
+  `fx` + `fxToken` (shake/punch/flash/hit/float/wobble/knockback/burst);
+  `timeline` Sequence (Append/`parallel` Join, wait, `path` polyline/cubic +
+  `orient`, yoyo/loop); `timelineOnComplete`; list `stagger`; style
+  `transitionYoyo` / `transitionLoop` / `transitionRepeat`. Docs:
+  [api/animation.md](api/animation.md).
+- **Canvas sprite / filter / transform style**: `filter: invert()` / `sepia()`;
+  `tint` RGB modulate; `imageRendering: pixelated`; persistent `rotate` /
+  `scale` / `scaleX` / `scaleY` / `flipX` / `flipY` (layout box unchanged).
+- **`examples/canvas-fx`**: 22-section showcase (snap, mask, conic, clip,
+  cache, FLIP, fx, timeline, path, stagger, yoyo, text chrome, frost, press,
+  invert/sepia, tint, transform, pixelated). QSS + qscript; `TestCanvasFx*`.
+- **Games**:
+  - Tetris: bevel minos, local clear flash + banner + gold outline (no
+    board shake), original chiptune (`tools/gentetrisaudio`).
+  - 2048: local spawn/merge flashes only; the 4x4 frame does not move.
+  - Mario: NES sprites, squash stomp, invuln blink, NES death bounce,
+    `flipX` from `dir`, `imageRendering: pixelated`.
+  - Raiden: grow-in-place explosions, muzzle/engine, hit flash, dual
+    ground, pixelated sprites. Physics `x`/`y` stay untweened.
+- **Canvas visual effects** (style / QSS): clip-path (circle/ellipse/inset),
+  `layerCache`, scroll-snap, `maskFade` / `maskImage`, text decoration /
+  transform / `lineClamp` / stroke / shadow, outline, conic- + radial-
+  gradient (stop %), full CSS filter + mix-blend-mode, overflow:hidden
+  (rounded clip), inset box-shadow, spring `transition`, FLIP
+  `layoutMotion`, dirty-region redraw, ops fingerprint skip, local-space
+  rotated RRect sampling.
+
+### Changed
+- Puzzle-grid docs: Tetris / 2048 no longer described as whole-board
+  shake/burst. Live design is local flash + banner / tile color only.
+- Mario death keeps physics running through the NES bounce (`deathDone`)
+  instead of freezing on `status=dead`.
 
 ## [v0.8.9] - 2026-08-12
 

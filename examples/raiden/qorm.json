@@ -40,7 +40,11 @@
       "boss.y": "number",
       "boss.hp": "number",
       "boss.phase": "number",
-      "status": "string"
+      "status": "string",
+      "fxHit": "number",
+      "fxBomb": "number",
+      "fxBoss": "number",
+      "muzzle": "number"
     },
     "initial": {
       "player": { "x": 132, "y": 404, "lives": 3, "invuln": 0, "weapon": 1, "bombs": 2 },

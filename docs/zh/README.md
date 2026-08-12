@@ -25,6 +25,7 @@ web / iOS / Android / 桌面——人和 AI 智能体都能读写。
 - [第一个场景](tutorials/first-scene.md) · [第一个 action](tutorials/first-action.md) · [第一个组件](tutorials/first-component.md) · [第一个平台包](tutorials/first-platform-pack.md)
 - [表达式](expressions.md)——`{{ … }}` 语言:作用域、运算符、下标访问,以及全部内置函数
 - [QScript](qscript.md)——`.qs` 脚本语言:`let`、`if`、`for`、`while`、`fn`、`call()`,以及共享库 `lib.qs`
+- [QSS 与 canvas 样式](styles.md)——样式表与声明式 canvas 效果(滤镜、蒙版、吸附、FLIP、弹簧、`fx` / `timeline`、tint、pixelated、rotate/scale/flip)
 
 ## 参考
 
@@ -46,6 +47,8 @@ web / iOS / Android / 桌面——人和 AI 智能体都能读写。
 ## 示例(逐步讲解)
 
 - [Counter](examples/counter.md) · [Todo](examples/todo.md) · [Login](examples/login.md) · [Dashboard](examples/dashboard.md)
+- 游戏(canvas):[`tetris`](https://github.com/qorm/qorm/tree/main/examples/tetris) · [`mario`](https://github.com/qorm/qorm/tree/main/examples/mario) · [`raiden`](https://github.com/qorm/qorm/tree/main/examples/raiden) · [`g2048`](https://github.com/qorm/qorm/tree/main/examples/g2048)——在线 [qorm.com/games](https://qorm.com/games/)
+- 动效展示:[`canvas-fx`](https://github.com/qorm/qorm/tree/main/examples/canvas-fx)
 - 全部可运行应用位于 [`examples/`](https://github.com/qorm/qorm/tree/main/examples)。
 
 ## 人机协作

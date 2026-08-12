@@ -74,8 +74,8 @@ func TestOutlineOutsideBox(t *testing.T) {
 	img := image.NewRGBA(image.Rect(0, 0, 40, 40))
 	ops := &op.Ops{}
 	ops.Add(op.RRectOp{
-		Rect: image.Rect(10, 10, 30, 30),
-		Fill: color.RGBA{255, 255, 255, 255},
+		Rect:    image.Rect(10, 10, 30, 30),
+		Fill:    color.RGBA{255, 255, 255, 255},
 		Outline: color.RGBA{255, 0, 0, 255}, OutlineWidth: 2, OutlineOffset: 1,
 	})
 	SoftwareRenderer{}.Render(ops, img)

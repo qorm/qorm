@@ -147,6 +147,11 @@ func (o *Ops) Fingerprint() uint64 {
 			// life of a cached *image.RGBA in the graph.
 			writeU64(uint64(uintptr(unsafe.Pointer(t.Src))))
 			writeRect(t.Dest)
+			if t.Pixelated {
+				writeU8(1)
+			} else {
+				writeU8(0)
+			}
 		case RRectOp:
 			writeU8(12)
 			writeRect(t.Rect)
@@ -199,6 +204,9 @@ func (o *Ops) Fingerprint() uint64 {
 			writeF64(t.Saturate)
 			writeF64(t.Grayscale)
 			writeF64(t.HueRotate)
+			writeF64(t.Invert)
+			writeF64(t.Sepia)
+			writeColor(t.Tint)
 			writeF64(t.Opacity)
 			writeF64(t.DropShadowX)
 			writeF64(t.DropShadowY)
@@ -279,10 +287,10 @@ func (TransformOp) isOp() {}
 // axis-aligned ellipse centered in Rect (CSS clip-path: circle/ellipse).
 // Otherwise Radius > 0 is a rounded rect; Radius == 0 is a hard rect.
 type ClipOp struct {
-	Rect             image.Rectangle
-	Radius           float64
-	EllipseRX        float64 // screen px; with EllipseRY > 0 enables ellipse clip
-	EllipseRY        float64
+	Rect      image.Rectangle
+	Radius    float64
+	EllipseRX float64 // screen px; with EllipseRY > 0 enables ellipse clip
+	EllipseRY float64
 }
 
 func (ClipOp) isOp() {}
@@ -312,6 +320,9 @@ func (StrokePaintOp) isOp() {}
 type ImageOp struct {
 	Src  *image.RGBA
 	Dest image.Rectangle
+	// Pixelated forces nearest-neighbour sampling even when Dest != Src size
+	// (CSS image-rendering: pixelated).
+	Pixelated bool
 }
 
 func (ImageOp) isOp() {}
@@ -373,6 +384,12 @@ type LayerOp struct {
 	Grayscale float64
 	// HueRotate degrees. CSS hue-rotate().
 	HueRotate float64
+	// Invert 0..1. CSS invert().
+	Invert float64
+	// Sepia 0..1. CSS sepia().
+	Sepia float64
+	// Tint RGB-modulates the layer (Godot modulate / Phaser tint). A==0 = unset.
+	Tint color.RGBA
 	// Opacity multiplies layer alpha (1 = identity). CSS filter: opacity().
 	Opacity float64
 	// Drop-shadow (CSS filter: drop-shadow): offset + blur + color of alpha.

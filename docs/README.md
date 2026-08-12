@@ -45,6 +45,7 @@ Sprint analysis, progress, and audit logs for multi-agent workstreams (not the p
 - [First scene](tutorials/first-scene.md) · [First action](tutorials/first-action.md) · [First component](tutorials/first-component.md) · [First platform pack](tutorials/first-platform-pack.md)
 - [Expressions](expressions.md) — the `{{ … }}` language: scopes, operators, index access, and every builtin function
 - [QScript](qscript.md) — the `.qs` scripting language: `let`, `if`, `for`, `while`, `fn`, `call()`, and the shared `lib.qs`
+- [QSS & canvas styles](styles.md) — stylesheets plus declarative canvas effects (filter, mask, snap, FLIP, spring, `fx` / `timeline`, tint, pixelated, rotate/scale/flip)
 
 ## Reference
 
@@ -67,6 +68,8 @@ App-facing capability docs stay here with the platform guides:
 ## Examples (walkthroughs)
 
 - [Counter](examples/counter.md) · [Todo](examples/todo.md) · [Login](examples/login.md) · [Dashboard](examples/dashboard.md)
+- Games (canvas): [`tetris`](https://github.com/qorm/qorm/tree/main/examples/tetris) · [`mario`](https://github.com/qorm/qorm/tree/main/examples/mario) · [`raiden`](https://github.com/qorm/qorm/tree/main/examples/raiden) · [`g2048`](https://github.com/qorm/qorm/tree/main/examples/g2048) — live at [qorm.com/games](https://qorm.com/games/)
+- Motion showcase: [`canvas-fx`](https://github.com/qorm/qorm/tree/main/examples/canvas-fx)
 - The full set of runnable apps lives in [`examples/`](https://github.com/qorm/qorm/tree/main/examples).
 
 ## Human-AI collaboration

@@ -50,9 +50,9 @@ func isScrollType(t string) bool { return t == "scroll" || t == "scrollview" }
 // EllipseRX/RY > 0 emits an elliptical clip (clip-path: circle/ellipse).
 type clipNode struct {
 	graph.BaseNode
-	Radius           float64
-	EllipseRX        float64
-	EllipseRY        float64
+	Radius    float64
+	EllipseRX float64
+	EllipseRY float64
 }
 
 func newClipNode(w, h float64) *clipNode {
@@ -498,10 +498,10 @@ func (e *Engine) scrollViewport(vp *graph.Group, m *model.Node, dx, dy float64) 
 // easing back into the hard clamp range after a drag release. Snap is true
 // while easing to a scroll-snap target after coast/release (CSS scroll-snap).
 type ScrollMomentum struct {
-	VX, VY   float64   // velocity in physical px per ideal frame (~16.7ms)
-	Active   bool      // momentum phase is in flight
-	Spring   bool      // overscroll spring-back (ignores velocity, lerps to clamp)
-	Snap     bool      // scroll-snap settle toward SnapTo*
+	VX, VY   float64 // velocity in physical px per ideal frame (~16.7ms)
+	Active   bool    // momentum phase is in flight
+	Spring   bool    // overscroll spring-back (ignores velocity, lerps to clamp)
+	Snap     bool    // scroll-snap settle toward SnapTo*
 	SnapToX  float64
 	SnapToY  float64
 	HasSnapX bool

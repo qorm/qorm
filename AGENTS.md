@@ -41,7 +41,11 @@ acronym is the API surface: **Query** (HTTP/MCP reads),
   Cascade: theme component default < type rule < class rule (declaration
   order) < id rule < inline `style`. Parse errors are load-time diagnostics
   naming file and line; unknown style keys warn. Canvas and HTML both apply
-  matching rules (HTML merges them into emitted node CSS). Example:
+  matching rules (HTML merges them into emitted node CSS). Canvas visual
+  effects (filter, mask, scroll-snap, FLIP, spring, text stroke/shadow, …)
+  are documented in [docs/styles.md](docs/styles.md) and listed under
+  [common style props](api/props.md#common-style-props); showcase
+  [examples/canvas-fx](examples/canvas-fx). Example stylesheet:
   [examples/tetris](examples/tetris) `styles/app.qss`.
 - **No emoji** in UI, code, or docs — use the built-in SVG icon set (icon *names*
   like `heart` / `star` / `zap`, listed in `internal/render/icons.go`).
@@ -124,20 +128,46 @@ rasterizer.
   `transition` system (no snapping).
 - `pressedBackground` / `hoverBackground`: theme or per-node color swap.
 - `pressedOpacity` / `hoverOpacity`: per-node opacity.
-- `transition`: CSS-style duration (`"0.2s"`, `"200ms"`) — animates all
-  interaction-effect changes via Float64Tween/IntTween/ColorTween.
+- `transition`: CSS-style duration (`"0.2s"`, `"200ms"`, `"0.3s spring"`) —
+  interaction, absolute `x`/`y`, and FLIP; `transitionEasing: "spring"` for
+  underdamped spring.
+- `layoutMotion`: FLIP ease of absolute position/size (stable `id` +
+  `transition`).
+- `filter` / `blur` / `mixBlendMode` / `maskFade` / `clipPath` / `layerCache`:
+  CSS filter stack (incl. `invert()` / `sepia()`), blend modes, soft masks,
+  clip-path, offscreen layer reuse.
+- `tint`: RGB modulate on the subtree (Godot modulate / Phaser tint).
+- `imageRendering: pixelated`: nearest-neighbour even on fractional scales.
+- `rotate` / `scale` / `scaleX` / `scaleY` / `flipX` / `flipY`: persistent
+  visual transform; layout box unchanged.
+- `scrollSnapType` / `scrollSnapAlign`: scroll-snap after coast/drag release.
+- Text: `textStroke*` / `textShadow*` / `textDecoration` / `textTransform` /
+  `lineClamp` / `textOverflow`.
+- Chrome: `boxShadow*` (incl. inset) / `outline*` / `stroke*` / conic-gradient.
 - `disabled`: blocks pointer activation, shows not-allowed cursor, dims to
   50% opacity on non-widget nodes (interactive widgets handle their own).
-- `animation`: entrance effects (fade, slide, bounce, shake, pulse, spin).
+- `animation`: entrance effects (fade, slide, bounce, shake, pulse, spin);
+  optional `curve` (game-engine easings: `backOut`, `elastic`, `bounce`, …).
+- `fx` / `fxToken`: game feedback (shake, punch, flash, hit, float, wobble,
+  knockback, burst) — restarts when token bumps; fire from qscript. Inspired by
+  DOTween / Phaser / Godot one-shots.
+- `timeline` / `timelineToken`: DOTween Sequence / Godot Tween chain
+  (Append steps, `parallel` Join, wait, `path` follow + orient, yoyo/loop).
+- `timelineOnComplete` / `onComplete`: fire action once when finite timeline ends.
+- `stagger`: list index × ms delay for entrance / fx / timeline.
+- Style `transitionYoyo` / `transitionLoop` / `transitionRepeat` on property
+  tweens (DOTween SetLoops).
+- Showcase: `examples/canvas-fx`. Docs: [docs/styles.md](docs/styles.md),
+  [api/props.md](api/props.md), [api/animation.md](api/animation.md).
 
 **Widgets:** 80+ registered (`internal/widgets`), 28 interactive (custom
 HandlePointer), 5 overlay (drawer, menu, modal, snackbar, tooltip). The
 canonical showcase is `examples/widget-showcase`.
 
-**Style system:** 36 supported keys including min/max constraints, interaction
-effects, transitions. Theme cascade: default ← QSS type rule ← class rule ←
-id rule ← inline style. `warnUnsupportedStyleKeys` reports unknown keys once
-per scene.
+**Style system:** ~90 keys in `render.KnownStyleKeys` (box/text/chrome/
+filter/mask/snap/motion/pseudo/backdrop). Theme cascade: default ← QSS type
+rule ← class rule ← id rule ← inline style. `warnUnsupportedStyleKeys`
+reports unknown keys once per scene.
 
 **Fonts:** 5×7 bitmap for ASCII, TrueType/SFNT for CJK (Source Han Sans SC
 subset, ~3.4MB), unified bitmap icon font on U+E000+ PUA (66 glyphs: 18

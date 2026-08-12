@@ -75,6 +75,7 @@ fn fireBullet() {
   state.fireTimer = state.fireTimer + 1
   if (state.fireTimer < 4) { return }
   state.fireTimer = 0
+  state.muzzle = 3
   let w = state.player.weapon
   let px = state.player.x + 28
   let py = state.player.y
@@ -137,6 +138,7 @@ fn useBomb() {
   if (state.player.bombs <= 0 || state.status != "playing") { return }
   state.player.bombs = state.player.bombs - 1
   state.bombFlash = 8
+  state.fxBomb = state.fxBomb + 1
   for e in state.enemies {
     if (e.alive) {
       e.alive = false
@@ -152,6 +154,7 @@ fn useBomb() {
   state.bullets = kept
   if (state.boss.alive) {
     state.boss.hp = state.boss.hp - 20
+    state.fxBoss = state.fxBoss + 1
     state.explosions = push(state.explosions, { x: state.boss.x, y: state.boss.y, t: 0 })
     if (state.boss.hp <= 0) { bossDefeated() }
   }
@@ -393,6 +396,7 @@ fn checkHits() {
     # Boss hit.
     if (state.boss.alive && abs(b.x - state.boss.x) < 40 && abs(b.y - state.boss.y) < 30) {
       state.boss.hp = state.boss.hp - 1
+      state.fxBoss = state.fxBoss + 1
       hitBullets = push(hitBullets, bi)
       if (state.boss.hp <= 0) { bossDefeated() }
     }
@@ -449,6 +453,7 @@ fn checkPlayerHits() {
 fn playerHit() {
   state.player.lives = state.player.lives - 1
   state.player.invuln = 60
+  state.fxHit = state.fxHit + 1
   state.explosions = push(state.explosions, { x: state.player.x + 28, y: state.player.y + 28, t: 0 })
   playSound("audio/explode.wav")
   if (state.player.lives <= 0) {
@@ -463,6 +468,10 @@ fn playerHit() {
 
 fn tickInvuln() {
   if (state.player.invuln > 0) { state.player.invuln = state.player.invuln - 1 }
+}
+
+fn tickMuzzle() {
+  if (state.muzzle > 0) { state.muzzle = state.muzzle - 1 }
 }
 
 # ----- Terrain scroll (land/water alternation) -------------------------------

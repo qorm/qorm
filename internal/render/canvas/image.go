@@ -415,5 +415,21 @@ func RecordImage(n *model.Node, rt *runtime.Runtime, width, height int, borderRa
 	node.Bitmap = img
 	node.Fit = imageFit(n, rt)
 	node.BorderRadius = borderRadius
+	node.Pixelated = imageRenderingPixelated(n)
 	return node
+}
+
+func imageRenderingPixelated(n *model.Node) bool {
+	if n == nil || n.Style == nil {
+		return false
+	}
+	v, ok := n.Style["imageRendering"]
+	if !ok {
+		v, ok = n.Style["image-rendering"]
+	}
+	if !ok {
+		return false
+	}
+	s, ok := v.(string)
+	return ok && strings.EqualFold(strings.TrimSpace(s), "pixelated")
 }

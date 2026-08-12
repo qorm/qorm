@@ -54,6 +54,10 @@ func parseColor(c string) color.RGBA {
 		return color.RGBA{255, 0, 255, 255} // debug magenta
 	}
 
+	if strings.HasPrefix(c, "rgb(") || strings.HasPrefix(c, "rgba(") {
+		return parseRGBColor(c)
+	}
+
 	if strings.HasPrefix(c, "#") {
 		hex := c[1:]
 		switch len(hex) {
@@ -192,6 +196,12 @@ type NodeStyle struct {
 	// TransitionEasing names an anim curve ("spring", "easeOut", …) for
 	// declarative transitions; empty uses the theme standard easing.
 	TransitionEasing string
+	// TransitionYoyo / TransitionRepeat mirror DOTween SetLoops(n, Yoyo).
+	// When Yoyo is true, style tweens ping-pong begin↔target. Repeat <=0 with
+	// yoyo/loop means infinite; Repeat >0 is a finite count.
+	TransitionYoyo   bool
+	TransitionRepeat int  // 0 = once (or infinite when yoyo+loop semantics)
+	TransitionLoop   bool // forward-only repeat
 	// CSS filter on the node subtree (offscreen layer). Blur is px;
 	// Brightness/Contrast/Saturate are multipliers (0 = unset → 1 at draw).
 	FilterBlur       float64
@@ -200,7 +210,18 @@ type NodeStyle struct {
 	FilterSaturate   float64
 	FilterGrayscale  float64 // 0..1
 	FilterHueRotate  float64 // degrees
+	FilterInvert     float64 // 0..1 CSS invert()
+	FilterSepia      float64 // 0..1 CSS sepia()
 	FilterOpacity    float64 // 1 = identity
+	// Tint is Godot/Phaser RGB modulate on the subtree layer. Zero alpha = unset.
+	Tint color.RGBA
+	// ImageRendering is CSS image-rendering: "pixelated" forces nearest-neighbour.
+	ImageRendering string
+	// Persistent visual transform (does not change the layout box).
+	// Scale / ScaleX / ScaleY: 0 = unset (treat as 1). Rotate is degrees.
+	Rotate                float64
+	Scale, ScaleX, ScaleY float64
+	FlipX, FlipY          bool
 	// Drop-shadow filter (CSS filter: drop-shadow(...)).
 	DropShadowX, DropShadowY, DropShadowBlur float64
 	DropShadowColor                          color.RGBA
@@ -957,6 +978,32 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 	if te, ok := esp(style["transitionEasing"]).(string); ok && te != "" {
 		s.TransitionEasing = te
 	}
+	// DOTween-style loop modes on property tweens.
+	if y, ok := esp(style["transitionYoyo"]).(bool); ok {
+		s.TransitionYoyo = y
+	} else if ys, ok := esp(style["transitionYoyo"]).(string); ok {
+		s.TransitionYoyo = ys == "true" || ys == "1" || ys == "yes"
+	}
+	if l, ok := esp(style["transitionLoop"]).(bool); ok {
+		s.TransitionLoop = l
+	} else if ls, ok := esp(style["transitionLoop"]).(string); ok {
+		s.TransitionLoop = ls == "true" || ls == "1" || ls == "yes" || ls == "infinite"
+	}
+	if r := esp(style["transitionRepeat"]); r != nil {
+		switch v := r.(type) {
+		case float64:
+			s.TransitionRepeat = int(v)
+		case int:
+			s.TransitionRepeat = v
+		case string:
+			if v == "infinite" || v == "-1" {
+				s.TransitionRepeat = -1
+				s.TransitionLoop = true
+			} else if n, err := strconv.Atoi(strings.TrimSpace(v)); err == nil {
+				s.TransitionRepeat = n
+			}
+		}
+	}
 	// Text decorations (outline + drop shadow on glyphs, not the box).
 	if sc, ok := esp(style["textStrokeColor"]).(string); ok {
 		s.TextStrokeColor = resolveColor(sc, rt)
@@ -1146,6 +1193,47 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 			s.LayerCache = t
 		case string:
 			s.LayerCache = t == "true" || t == "1"
+		}
+	}
+	if v := styleString(esp(style["imageRendering"])); v == "" {
+		v = styleString(esp(style["image-rendering"]))
+		if v != "" {
+			s.ImageRendering = strings.ToLower(strings.TrimSpace(v))
+		}
+	} else {
+		s.ImageRendering = strings.ToLower(strings.TrimSpace(v))
+	}
+	if v, ok := esp(style["tint"]).(string); ok && v != "" {
+		s.Tint = resolveColor(v, rt)
+	}
+	if v := esp(style["rotate"]); v != nil {
+		if f, ok := parseStyleAngleDeg(v); ok {
+			s.Rotate = f
+		}
+	}
+	if v := esp(style["scale"]); v != nil {
+		if f, ok := parseStyleNumber(v); ok {
+			s.Scale = f
+		}
+	}
+	if v := esp(style["scaleX"]); v != nil {
+		if f, ok := parseStyleNumber(v); ok {
+			s.ScaleX = f
+		}
+	}
+	if v := esp(style["scaleY"]); v != nil {
+		if f, ok := parseStyleNumber(v); ok {
+			s.ScaleY = f
+		}
+	}
+	if v := esp(style["flipX"]); v != nil {
+		if b, ok := parseStyleBool(v); ok {
+			s.FlipX = b
+		}
+	}
+	if v := esp(style["flipY"]); v != nil {
+		if b, ok := parseStyleBool(v); ok {
+			s.FlipY = b
 		}
 	}
 
@@ -1588,6 +1676,112 @@ func splitCSSList(s string) []string {
 	return out
 }
 
+// parseRGBColor parses rgb(r,g,b) / rgba(r,g,b,a) (0–255 channels; alpha 0–1 or 0–255).
+func parseRGBColor(s string) color.RGBA {
+	s = strings.TrimSpace(s)
+	s = strings.TrimPrefix(s, "rgba(")
+	s = strings.TrimPrefix(s, "rgb(")
+	s = strings.TrimSuffix(s, ")")
+	parts := strings.Split(s, ",")
+	if len(parts) < 3 {
+		return color.RGBA{}
+	}
+	ch := func(p string) uint8 {
+		p = strings.TrimSpace(p)
+		if strings.HasSuffix(p, "%") {
+			f, err := strconv.ParseFloat(strings.TrimSuffix(p, "%"), 64)
+			if err != nil {
+				return 0
+			}
+			return uint8(clamp01(f/100) * 255)
+		}
+		f, err := strconv.ParseFloat(p, 64)
+		if err != nil {
+			return 0
+		}
+		if f < 0 {
+			f = 0
+		}
+		if f > 255 {
+			f = 255
+		}
+		return uint8(f)
+	}
+	a := uint8(255)
+	if len(parts) >= 4 {
+		p := strings.TrimSpace(parts[3])
+		if strings.HasSuffix(p, "%") {
+			f, err := strconv.ParseFloat(strings.TrimSuffix(p, "%"), 64)
+			if err == nil {
+				a = uint8(clamp01(f/100) * 255)
+			}
+		} else if f, err := strconv.ParseFloat(p, 64); err == nil {
+			if f <= 1 {
+				a = uint8(clamp01(f) * 255)
+			} else {
+				if f > 255 {
+					f = 255
+				}
+				if f < 0 {
+					f = 0
+				}
+				a = uint8(f)
+			}
+		}
+	}
+	return color.RGBA{ch(parts[0]), ch(parts[1]), ch(parts[2]), a}
+}
+
+func styleString(v any) string {
+	s, _ := v.(string)
+	return s
+}
+
+func parseStyleNumber(v any) (float64, bool) {
+	switch t := v.(type) {
+	case float64:
+		return t, true
+	case int:
+		return float64(t), true
+	case string:
+		s := strings.TrimSpace(t)
+		s = strings.TrimSuffix(s, "px")
+		f, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
+		return f, err == nil
+	}
+	return 0, false
+}
+
+func parseStyleAngleDeg(v any) (float64, bool) {
+	switch t := v.(type) {
+	case float64:
+		return t, true
+	case int:
+		return float64(t), true
+	case string:
+		s := strings.TrimSpace(strings.ToLower(t))
+		s = strings.TrimSuffix(s, "deg")
+		f, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
+		return f, err == nil
+	}
+	return 0, false
+}
+
+func parseStyleBool(v any) (bool, bool) {
+	switch t := v.(type) {
+	case bool:
+		return t, true
+	case string:
+		s := strings.ToLower(strings.TrimSpace(t))
+		return s == "true" || s == "1" || s == "yes", true
+	case float64:
+		return t != 0, true
+	case int:
+		return t != 0, true
+	}
+	return false, false
+}
+
 // clamp01 constrains an author opacity to [0,1] (CSS clamps likewise).
 func clamp01(v float64) float64 {
 	if v < 0 {
@@ -1620,7 +1814,8 @@ func parseCSSFilterBlur(s string) (float64, bool) {
 }
 
 // applyCSSFilterString parses a space-separated CSS filter list into s.
-// Supported: blur(Npx), brightness(N|N%), contrast(N|N%), saturate(N|N%).
+// Supported: blur, brightness, contrast, saturate, grayscale, hue-rotate,
+// opacity, invert, sepia, drop-shadow.
 func applyCSSFilterString(s *NodeStyle, raw string) {
 	raw = strings.TrimSpace(strings.ToLower(raw))
 	if raw == "" || raw == "none" {
@@ -1690,6 +1885,18 @@ func applyCSSFilterString(s *NodeStyle, raw string) {
 		case "opacity":
 			if f, ok := parseFilterNumber(arg, true); ok {
 				s.FilterOpacity = f
+			}
+		case "invert":
+			if arg == "" {
+				s.FilterInvert = 1
+			} else if f, ok := parseFilterNumber(arg, true); ok {
+				s.FilterInvert = clamp01(f)
+			}
+		case "sepia":
+			if arg == "" {
+				s.FilterSepia = 1
+			} else if f, ok := parseFilterNumber(arg, true); ok {
+				s.FilterSepia = clamp01(f)
 			}
 		case "drop-shadow":
 			parseDropShadowArgs(s, arg)
@@ -1802,8 +2009,8 @@ var canvasStyleKeys = map[string]bool{
 	"x": true, "y": true, "left": true, "top": true,
 	"fontSize": true, "fontWeight": true, "textAlign": true,
 	"letterSpacing": true, "lineHeight": true, "fontStyle": true,
-	"textOverflow": true, // "ellipsis" single-line truncate
-	"lineClamp":    true, // multi-line cap + ellipsis
+	"textOverflow":   true, // "ellipsis" single-line truncate
+	"lineClamp":      true, // multi-line cap + ellipsis
 	"textDecoration": true, "textTransform": true,
 	"outline": true, "outlineColor": true, "outlineWidth": true, "outlineOffset": true,
 	"borderRadius": true, "strokeWidth": true, "borderWidth": true,
@@ -1813,8 +2020,9 @@ var canvasStyleKeys = map[string]bool{
 	"hoverBackground": true, "pressedBackground": true,
 	"hoverOpacity": true, "pressedOpacity": true,
 	"pressedScale": true, "hoverScale": true,
-	"transition":     true, // animates interaction effect changes ("0.2s")
+	"transition":       true, // animates interaction effect changes ("0.2s")
 	"transitionEasing": true, // "spring", "easeOut", …
+	"transitionYoyo":   true, "transitionLoop": true, "transitionRepeat": true,
 	"boxShadowColor": true, "boxShadowBlur": true,
 	"boxShadowX": true, "boxShadowY": true,
 	// Glyph decorations (distinct from box border / box-shadow).
@@ -1823,6 +2031,10 @@ var canvasStyleKeys = map[string]bool{
 	"textShadowX": true, "textShadowY": true,
 	// CSS filter on the node subtree (offscreen layer).
 	"filter": true, "blur": true, "filterBlur": true,
+	"tint":           true,
+	"imageRendering": true, "image-rendering": true,
+	"rotate": true, "scale": true, "scaleX": true, "scaleY": true,
+	"flipX": true, "flipY": true,
 	"boxShadowInset": true, // CSS box-shadow: inset
 	"overflow":       true, // "hidden" clips children (rounded via borderRadius)
 	"mixBlendMode":   true,

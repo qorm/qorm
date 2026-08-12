@@ -9,7 +9,7 @@ QORM 应用的权威、机器生成的契约——直接从运行时源码抽取
 - [组件目录](widgets.md)——渲染器接受的每一种节点 `type` 及别名
 - [动作与状态](actions.md)——每种动作步骤 `type` 及其字段
 - [手势](gestures.md)——点按 / 长按 / 滑动 / 拖拽,作为组件属性
-- [动画](animation.md)——入场效果与值驱动的过渡
+- [动画](animation.md)——入场、弹簧、FLIP、游戏 `fx`/`timeline`(path、onComplete、stagger)、过渡 yoyo
 - [导航](navigation.md)——场景、navigate 步骤与页面转场
 
 ## 运行时接口面

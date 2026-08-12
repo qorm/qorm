@@ -377,8 +377,9 @@ func (r SoftwareRenderer) Render(ops *op.Ops, target *image.RGBA) {
 			// (it is both faster and preserves crisp pixel art), and use
 			// premultiplied bilinear sampling for fractional resize ratios. The
 			// latter removes the stair-step edges that were most noticeable on
-			// thumbnails and object-fit images.
-			bilinear := sw != dw || sh != dh
+			// thumbnails and object-fit images. Pixelated always nearest-neighbour
+			// (CSS image-rendering: pixelated) even when dest != src size.
+			bilinear := !o.Pixelated && (sw != dw || sh != dh)
 			for y := r.Min.Y; y < r.Max.Y; y++ {
 				for x := r.Min.X; x < r.Max.X; x++ {
 					cov := clipCoverage(float64(x)+0.5, float64(y)+0.5, clips)
@@ -579,6 +580,8 @@ func (r SoftwareRenderer) Render(ops *op.Ops, target *image.RGBA) {
 type layerParams struct {
 	blur, brightness, contrast, saturate float64
 	grayscale, hueRotate, opacity        float64
+	invert, sepia                        float64
+	tint                                 color.RGBA
 	dropX, dropY, dropBlur               float64
 	dropColor                            color.RGBA
 	blend                                string
@@ -607,9 +610,10 @@ func layerParamsFromOp(o op.LayerOp, matrixScale float64) layerParams {
 	return layerParams{
 		blur: o.Blur * matrixScale, brightness: b, contrast: c, saturate: s,
 		grayscale: o.Grayscale, hueRotate: o.HueRotate, opacity: opac,
+		invert: o.Invert, sepia: o.Sepia, tint: o.Tint,
 		dropX: o.DropShadowX * matrixScale, dropY: o.DropShadowY * matrixScale,
 		dropBlur: o.DropShadowBlur * matrixScale, dropColor: o.DropShadowColor,
-		blend: strings.ToLower(strings.TrimSpace(o.BlendMode)),
+		blend:    strings.ToLower(strings.TrimSpace(o.BlendMode)),
 		maskFade: fade, maskFadeSize: fs,
 	}
 }
@@ -682,7 +686,8 @@ func endLayerComposite(dst, src *image.RGBA, p layerParams) {
 	}
 
 	needColor := p.brightness != 1 || p.contrast != 1 || p.saturate != 1 ||
-		p.grayscale > 0 || p.hueRotate != 0 || p.opacity != 1
+		p.grayscale > 0 || p.hueRotate != 0 || p.opacity != 1 ||
+		p.invert > 0 || p.sepia > 0 || p.tint.A > 0
 	needMask := p.maskFade != "" && p.maskFadeSize > 0.5
 	r := int(math.Ceil(p.blur))
 	if r > 24 {
@@ -856,6 +861,26 @@ func applyFilterColorEx(c color.RGBA, p layerParams) color.RGBA {
 	}
 	if p.hueRotate != 0 {
 		rf, gf, bf = hueRotateRGB(rf, gf, bf, p.hueRotate)
+	}
+	if p.invert > 0 {
+		a := clamp01(p.invert)
+		rf = rf*(1-a) + (1-rf)*a
+		gf = gf*(1-a) + (1-gf)*a
+		bf = bf*(1-a) + (1-bf)*a
+	}
+	if p.sepia > 0 {
+		a := clamp01(p.sepia)
+		sr := 0.393*rf + 0.769*gf + 0.189*bf
+		sg := 0.349*rf + 0.686*gf + 0.168*bf
+		sb := 0.272*rf + 0.534*gf + 0.131*bf
+		rf = rf*(1-a) + sr*a
+		gf = gf*(1-a) + sg*a
+		bf = bf*(1-a) + sb*a
+	}
+	if p.tint.A > 0 {
+		rf *= float64(p.tint.R) / 255
+		gf *= float64(p.tint.G) / 255
+		bf *= float64(p.tint.B) / 255
 	}
 	a := c.A
 	if p.opacity != 1 {

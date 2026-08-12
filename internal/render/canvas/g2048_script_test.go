@@ -334,3 +334,46 @@ func TestSwipeDirection(t *testing.T) {
 		}
 	}
 }
+
+func g2048Token(rt *runtime.Runtime, key string) float64 {
+	switch v := rt.State[key].(type) {
+	case float64:
+		return v
+	case int:
+		return float64(v)
+	}
+	return 0
+}
+
+// TestG2048MotionFx: a merge slide bumps fxMerge / cellGen / mergeMask.
+func TestG2048MotionFx(t *testing.T) {
+	_, _, rt, _ := g2048Fixture(t)
+	g2048SetBoard(rt, 2, 2, 0, 0)
+	rt.State["cellGen"] = make([]any, 16)
+	rt.State["mergeMask"] = make([]any, 16)
+	for i := 0; i < 16; i++ {
+		rt.State["cellGen"].([]any)[i] = 0.0
+		rt.State["mergeMask"].([]any)[i] = 0.0
+	}
+	merge0 := g2048Token(rt, "fxMerge")
+	rt.Dispatch("slideLeft", nil)
+	if rt.LastScriptError != "" {
+		t.Fatalf("slideLeft: %s", rt.LastScriptError)
+	}
+	if g2048Token(rt, "fxMerge") <= merge0 {
+		t.Fatalf("merge should bump fxMerge, got %v board=%v", rt.State["fxMerge"], rt.State["board"])
+	}
+	if g2048Token(rt, "fxKind") != 2 {
+		t.Fatalf("fxKind after merge = %v, want 2", rt.State["fxKind"])
+	}
+	mask, _ := rt.State["mergeMask"].([]any)
+	merged := false
+	for _, v := range mask {
+		if f, _ := v.(float64); f != 0 {
+			merged = true
+		}
+	}
+	if !merged {
+		t.Fatal("mergeMask should mark the merged cell")
+	}
+}

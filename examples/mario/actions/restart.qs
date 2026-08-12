@@ -26,6 +26,16 @@ state.lives = 3
 state.timeLeft = 400
 state.status = "playing"
 state.lastTickMs = 0
+state.deathTimer = 0
+state.deathDone = false
+state.fxDeath = 0
+state.fxCoin = 0
+state.fxStomp = 0
+state.fxJump = 0
+state.fxHurt = 0
+state.bumpT = 0
+state.bumpCX = 0
+state.bumpCY = 0
 playMusic("audio/music.wav")
 # Compute the initial camera + visible tiles so the first frame
 # (before any client has connected and the 16ms timer starts firing)

@@ -12,17 +12,45 @@ func TestCurveByNameRegistry(t *testing.T) {
 		"easeOut", "easeOutCubic",
 		"easeInOut", "easeInOutCubic",
 		"standard", "emphasized",
+		// Game-engine vocabulary (Phaser / Godot / DOTween / GSAP).
+		"spring", "back", "elastic", "bounce",
+		"easeOutBack", "easeOutElastic", "easeOutBounce",
+		"easeOutQuad", "easeInOutSine", "easeOutExpo",
+		"backOut", "elasticOut", "bounceOut", "quadOut", "sineOut", "expoOut",
 	}
 	for _, name := range names {
 		if _, ok := CurveByName(name); !ok {
 			t.Errorf("CurveByName(%q) not registered", name)
 		}
 	}
-	if _, ok := CurveByName("bounce"); ok {
-		t.Error("CurveByName(bounce) should be unknown")
+	if _, ok := CurveByName("not-a-real-ease"); ok {
+		t.Error("CurveByName(not-a-real-ease) should be unknown")
 	}
 	if _, ok := CurveByName(""); ok {
 		t.Error("CurveByName(\"\") should be unknown")
+	}
+}
+
+func TestGameEngineEasingsEndpoints(t *testing.T) {
+	for name, c := range map[string]Curve{
+		"EaseOutBack":    EaseOutBack,
+		"EaseInBack":     EaseInBack,
+		"EaseOutElastic": EaseOutElastic,
+		"EaseOutBounce":  EaseOutBounce,
+		"EaseOutQuad":    EaseOutQuad,
+		"EaseOutSine":    EaseOutSine,
+		"EaseOutExpo":    EaseOutExpo,
+	} {
+		if got := c(0); math.Abs(got) > 1e-9 {
+			t.Errorf("%s(0) = %v, want ~0", name, got)
+		}
+		if got := c(1); math.Abs(got-1) > 1e-9 {
+			t.Errorf("%s(1) = %v, want 1", name, got)
+		}
+	}
+	// Back/elastic overshoot past 1 mid-flight (game-engine signature).
+	if EaseOutBack(0.7) <= 1 {
+		t.Errorf("EaseOutBack should overshoot past 1 mid-curve, got %v", EaseOutBack(0.7))
 	}
 }
 

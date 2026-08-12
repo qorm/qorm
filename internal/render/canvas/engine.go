@@ -353,6 +353,10 @@ func (e *Engine) RenderInto(size image.Point, scale int, target *image.RGBA) (bo
 
 	e.physics(rootNode)
 
+	// Motion onComplete (timeline/fx): measure queues invokes; dispatch here
+	// after layout so actions see the settled frame and can re-dirty.
+	e.drainMotionCompletes()
+
 	// dirty was consumed at the top of the frame; animation keeps the loop
 	// ticking until the tweens settle (no separate timer goroutine — the host
 	// polls). Registered AnimatedWidgets (spinner) never settle on their own,
@@ -1573,6 +1577,20 @@ func (e *Engine) themeDirs() []string {
 		return []string{filepath.Join(bd, "themes"), "themes"}
 	}
 	return []string{"themes"}
+}
+
+// drainMotionCompletes runs timeline onComplete actions queued during measure
+// (fx has no onComplete — only timelineOnComplete / onComplete on timeline nodes).
+func (e *Engine) drainMotionCompletes() {
+	if e == nil || len(e.Inter.MotionCompletes) == 0 {
+		return
+	}
+	q := e.Inter.MotionCompletes
+	e.Inter.MotionCompletes = nil
+	for _, pc := range q {
+		e.dispatch(pc.inv, pc.seeds)
+		e.dirty.Store(true)
+	}
 }
 
 // dispatch evaluates invoke args against live state and runs the action.

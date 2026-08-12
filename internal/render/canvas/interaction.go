@@ -45,6 +45,16 @@ type Interaction struct {
 	// prop), keyed by (node, list index). Reset with the rest of Interaction
 	// on scene switch — exactly when entrances replay (entrance.go).
 	Entrance map[entranceKey]*entranceState
+	// FX tracks per-node game-style feedback clocks (the `fx` prop — shake /
+	// punch / hit / …). Restarted when the bound effect name or fxToken
+	// changes so qscript can fire damage feedback without remounting.
+	FX map[fxKey]*fxState
+	// Timeline tracks per-node DOTween Sequence / Godot Tween chains (the
+	// `timeline` prop). Restarted when timelineToken or step signature changes.
+	Timeline map[timelineKey]*timelineState
+	// MotionCompletes are action invokes queued by timeline/fx onComplete
+	// during measure; Engine drains them after layout (same thread as Dispatch).
+	MotionCompletes []pendingComplete
 	// Input is the live edit session of the focused input node, nil when no
 	// input is being edited. Same cross-frame home as the identities above:
 	// the buffer and cursor survive the per-frame graph rebuild here
@@ -101,6 +111,19 @@ type Interaction struct {
 type SwipeTrack struct {
 	Armed bool
 	X, Y  float64
+}
+
+// pendingComplete is one timeline/fx onComplete invoke queued during measure.
+type pendingComplete struct {
+	inv   *model.Invoke
+	seeds map[string]any
+}
+
+func (inter *Interaction) queueComplete(inv *model.Invoke, seeds map[string]any) {
+	if inter == nil || inv == nil {
+		return
+	}
+	inter.MotionCompletes = append(inter.MotionCompletes, pendingComplete{inv: inv, seeds: seeds})
 }
 
 // DragState is one in-flight draggable→dragtarget drag.

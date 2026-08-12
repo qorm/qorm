@@ -4,6 +4,28 @@ QScript (`actions/*.qs`) 是 QORM 的脚本语言 — 一个小型、确定性�
 的解释型语言，用于应用和游戏逻辑。场景 JSON 声明结构和数据，而脚本负责那些本该由
 Go 组件或冗长步骤列表完成的计算。
 
+## 驱动样式(QSS / canvas FX)
+
+脚本**不**直接写 CSS 键。它们写 `state`;样式(内联或
+[`styles/*.qss`](styles.md))在下一帧重新求值 `{{绑定}}`——与 JSON `steps` 同一路径。
+这覆盖全部 canvas 效果键(`filter`、`layoutMotion`、`mixBlendMode`、scroll-snap、
+弹簧 `transition` 等):
+
+```
+# actions/toggle_filter.qs
+state.filterOn = !state.filterOn
+```
+
+```qss
+/* styles/app.qss — 每帧求值绑定 */
+.filterCard {
+  filter: {{ state.filterOn ? "saturate(0.3) brightness(1.15)" : "none" }}
+}
+```
+
+端到端示例:[`examples/canvas-fx`](https://github.com/qorm/qorm/tree/main/examples/canvas-fx)。共享游戏核心:
+[`examples/tetris`](https://github.com/qorm/qorm/tree/main/examples/tetris)(`actions/*.qs` + `styles/app.qss`)。
+
 ## 语句
 
 ```
@@ -106,7 +128,8 @@ call("someAction", { key: 42 })   # 带参数
 
 完整游戏脚本请参见 [Raiden](https://github.com/qorm/qorm/tree/main/examples/raiden)、
 [Mario](https://github.com/qorm/qorm/tree/main/examples/mario) 或
-[Tetris](https://github.com/qorm/qorm/tree/main/examples/tetris) 示例。
+[Tetris](https://github.com/qorm/qorm/tree/main/examples/tetris) 示例
+（含对 `audio/*.wav` 的 `playSound` / `playMusic` / `stopMusic`）。
 以下是 Raiden 的 `tick.qs` 节选：
 
 ```

@@ -104,9 +104,24 @@
       },
       {
         "type": "image",
+        "id": "ground2",
+        "src": "{{ state.terrainType == 1 ? 'assets/water.png' : 'assets/ground.png' }}",
+        "style": {
+          "x": "{{ 352 - mod(state.groundScroll, 32) }}",
+          "y": 460,
+          "width": 384,
+          "height": 100
+        }
+      },
+      {
+        "type": "image",
         "id": "boss",
         "if": "{{ state.boss.alive }}",
         "src": "assets/boss.png",
+        "fx": "{{ state.fxBoss > 0 ? \"punch\" : \"none\" }}",
+        "fxToken": "{{ state.fxBoss }}",
+        "fxDuration": 180,
+        "fxIntensity": 0.12,
         "style": {
           "x": "{{ state.boss.x - 48 }}",
           "y": "{{ state.boss.y - 32 }}",
@@ -119,11 +134,41 @@
         "id": "player",
         "if": "{{ state.status == 'playing' && (state.player.invuln == 0 || mod(state.player.invuln, 4) < 2) }}",
         "src": "assets/player.png",
+        "fx": "{{ state.fxHit > 0 ? \"flash\" : \"none\" }}",
+        "fxToken": "{{ state.fxHit }}",
+        "fxDuration": 200,
+        "fxIntensity": 0.45,
         "style": {
           "x": "{{ state.player.x }}",
           "y": "{{ state.player.y }}",
           "width": 56,
           "height": 56
+        }
+      },
+      {
+        "type": "box",
+        "id": "engine",
+        "if": "{{ state.status == 'playing' && (state.player.invuln == 0 || mod(state.player.invuln, 4) < 2) }}",
+        "style": {
+          "x": "{{ state.player.x + 22 }}",
+          "y": "{{ state.player.y + 50 }}",
+          "width": 12,
+          "height": "{{ 6 + mod(state.tick, 3) }}",
+          "borderRadius": 3,
+          "background": "{{ mod(state.tick, 2) == 0 ? \"#ff9f0a\" : \"#ff375f\" }}"
+        }
+      },
+      {
+        "type": "box",
+        "id": "muzzle",
+        "if": "{{ state.muzzle > 0 }}",
+        "style": {
+          "x": "{{ state.player.x + 24 }}",
+          "y": "{{ state.player.y - 6 }}",
+          "width": 8,
+          "height": 10,
+          "borderRadius": 2,
+          "background": "#fff4a8"
         }
       },
       {
@@ -139,10 +184,10 @@
           "type": "image",
           "src": "{{ item.type == 9 ? 'assets/enemy_bullet.png' : (item.type == 2 ? 'assets/laser.png' : 'assets/bullet.png') }}",
           "style": {
-            "x": "{{ item.x - 16 }}",
-            "y": "{{ item.y - 16 }}",
-            "width": 32,
-            "height": 32
+            "x": "{{ item.type == 2 ? item.x - 4 : item.x - 8 }}",
+            "y": "{{ item.type == 2 ? item.y - 16 : item.y - 8 }}",
+            "width": "{{ item.type == 2 ? 8 : 16 }}",
+            "height": "{{ item.type == 2 ? 28 : 16 }}"
           }
         }
       },
@@ -159,6 +204,9 @@
           "type": "image",
           "if": "{{ item.alive }}",
           "src": "{{ item.type == 4 ? 'assets/enemy_turret.png' : (item.type == 3 ? 'assets/enemy_heli.png' : (item.type == 2 ? 'assets/enemy_bomber.png' : 'assets/enemy_small.png')) }}",
+          "fx": "{{ item.type == 3 ? \"float\" : \"none\" }}",
+          "fxDuration": 900,
+          "fxIntensity": 3,
           "style": {
             "x": "{{ item.x - 16 }}",
             "y": "{{ item.y - 16 }}",
@@ -179,6 +227,9 @@
         "renderItem": {
           "type": "image",
           "src": "{{ item.type == 3 ? 'assets/medal.png' : (item.type == 2 ? 'assets/powerup_b.png' : 'assets/powerup_p.png') }}",
+          "fx": "float",
+          "fxDuration": 1000,
+          "fxIntensity": 4,
           "style": {
             "x": "{{ item.x - 16 }}",
             "y": "{{ item.y - 16 }}",
@@ -200,10 +251,11 @@
           "type": "image",
           "src": "{{ item.t < 1 ? 'assets/explode_1.png' : (item.t < 2 ? 'assets/explode_2.png' : 'assets/explode_3.png') }}",
           "style": {
-            "x": "{{ item.x - 16 }}",
-            "y": "{{ item.y - 16 }}",
-            "width": 32,
-            "height": 32
+            "x": "{{ item.x - (item.t < 1 ? 12 : (item.t < 2 ? 18 : 24)) }}",
+            "y": "{{ item.y - (item.t < 1 ? 12 : (item.t < 2 ? 18 : 24)) }}",
+            "width": "{{ item.t < 1 ? 24 : (item.t < 2 ? 36 : 48) }}",
+            "height": "{{ item.t < 1 ? 24 : (item.t < 2 ? 36 : 48) }}",
+            "opacity": "{{ item.t < 3 ? 1 : 0.5 }}"
           }
         }
       },
@@ -211,6 +263,10 @@
         "type": "box",
         "id": "bombFlash",
         "if": "{{ state.bombFlash > 0 }}",
+        "fx": "shake",
+        "fxToken": "{{ state.fxBomb }}",
+        "fxDuration": 280,
+        "fxIntensity": 10,
         "style": {
           "x": 0,
           "y": 0,
@@ -371,6 +427,9 @@
         "id": "deadPanel",
         "if": "{{ state.status == 'dead' }}",
         "class": "deadPanel",
+        "animation": "pop",
+        "duration": 420,
+        "curve": "backOut",
         "style": {
           "x": 60,
           "y": 220,
@@ -411,6 +470,9 @@
         "id": "wonPanel",
         "if": "{{ state.status == 'won' }}",
         "class": "deadPanel",
+        "animation": "pop",
+        "duration": 420,
+        "curve": "backOut",
         "style": {
           "x": 60,
           "y": 220,

@@ -72,7 +72,7 @@ software renderer — no browser engine. The same JSON scene runs identically:
   select, textarea, draggable).
 - **Build**: `go run -tags desktop ./cmd/qorm run <app>`.
 
-### Declarative interaction effects (any node)
+### Declarative interaction & canvas effects (any node)
 
 These style keys work on ANY node — no per-widget logic needed:
 
@@ -81,19 +81,48 @@ These style keys work on ANY node — no per-widget logic needed:
 | `pressedScale` / `hoverScale` | Scale transform on press/hover |
 | `pressedBackground` / `hoverBackground` | Color swap on press/hover |
 | `pressedOpacity` / `hoverOpacity` | Opacity change on press/hover |
-| `transition` | CSS-style duration (`"0.2s"`, `"200ms"`) — animates all the above |
+| `transition` | Duration (`"0.2s"`, `"200ms"`, `"0.3s spring"`) — interaction, x/y, FLIP |
+| `transitionEasing` | `"spring"` (underdamped) or named ease |
+| `layoutMotion` | FLIP ease of absolute position/size (needs stable `id` + `transition`) |
+| `filter` / `blur` / `filterBlur` | CSS filter stack (incl. `invert()` / `sepia()`) / group blur |
+| `tint` | RGB modulate (Godot modulate / Phaser tint) |
+| `imageRendering` | `pixelated` = nearest-neighbour (pixel art) |
+| `rotate` / `scale` / `scaleX` / `scaleY` / `flipX` / `flipY` | Persistent transform; layout box unchanged |
+| `mixBlendMode` | `multiply` / `screen` / `overlay` / `darken` / `lighten` |
+| `maskFade` / `maskFadeSize` / `maskImage` | Soft edge dissolve |
+| `clipPath` | `circle()` / `ellipse()` / `inset(… round …)` |
+| `layerCache` | Reuse offscreen layer when content fingerprint unchanged |
+| `scrollSnapType` / `scrollSnapAlign` | Scroll-snap on viewports / children |
+| `textStroke*` / `textShadow*` | Glyph outline and drop shadow |
+| `boxShadow*` / `outline*` | Box shadow (incl. inset) and outer outline |
 | `disabled` | Blocks pointer, dims to 50% opacity, shows not-allowed cursor |
+| `fx` + `fxToken` | Game feedback (shake/punch/flash/hit/float/wobble/knockback/burst); bump token from qs |
+| `timeline` + `timelineToken` | Sequence: Append, Join, path/cubic, yoyo/loop |
+| `timelineOnComplete` / `onComplete` | Action when finite timeline finishes |
+| `stagger` | List index × ms delay (entrance / fx / timeline) |
+| `transitionYoyo` / `transitionLoop` / `transitionRepeat` | Style property tween loops (DOTween SetLoops) |
+| `animation` + `curve` | Entrance effects; `curve` uses game-engine easings (`backOut`, `elastic`, `bounce`, …) |
+
+Runnable showcase: `examples/canvas-fx` (structure in `scenes/`, style in
+`styles/app.qss`, logic in `actions/*.qs`, game FX section 9). Full key list:
+`api/props.md`, `api/animation.md`, and `docs/styles.md`.
 
 ### Style system
 
 - **QSS stylesheets**: `styles/<id>.qss` with type/class/id selectors.
   Cascade: theme default < type rule < class rule < id rule < inline style.
+  **Same keys as inline `style`** — including every canvas FX key above.
+  Values may be numbers, strings, `var(--x)`, or `{{bindings}}` (re-evaluated
+  each frame). Nested objects stay on the node.
+- **qscript drives styles via state**: scripts write `state.x`; QSS/inline
+  bindings pick it up (no direct style assignment in qs). Example:
+  `state.filterOn = !state.filterOn` + `.filterCard { filter: {{ state.filterOn ? "…" : "none" }} }`.
 - **Theme variables**: `var(--accent)`, `var(--label)`, etc. follow OS
   light/dark.
-- **36 supported style keys**: background, color, padding, margin, gap,
-  width/height, min/max constraints, fontSize/fontWeight, textAlign,
-  borderRadius, strokeWidth/borderWidth, opacity, boxShadow*, and all
-  interaction keys above.
+- **~90 supported style keys** (`render.KnownStyleKeys`): box model, text
+  (decoration/transform/clamp/stroke/shadow), chrome/shadow/outline, filter/
+  mask/clip, scroll-snap, layout motion, interaction, backdrop — see
+  [api/props.md](../../api/props.md) common style props.
 
 ### Script actions (qscript)
 

@@ -4,4 +4,5 @@
 if (state.status == "playing" && fits(state.piece.shapeIdx, mod(state.piece.rot + 3, 4), state.piece.x, state.piece.y)) {
   state.piece.rot = mod(state.piece.rot + 3, 4)
   refreshView()
+  playSound("audio/rotate.wav")
 }

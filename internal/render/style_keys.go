@@ -21,6 +21,7 @@ var KnownStyleKeys = map[string]bool{
 	// and position:absolute as out-of-flow.
 	"x": true, "y": true,
 	"cursor": true, "transition": true, "transitionEasing": true,
+	"transitionYoyo": true, "transitionLoop": true, "transitionRepeat": true,
 	"padding": true, "margin": true,
 	// Text (textCSS).
 	"color": true, "fontSize": true, "fontWeight": true, "fontFamily": true,
@@ -37,6 +38,10 @@ var KnownStyleKeys = map[string]bool{
 	"boxShadowColor": true, "boxShadowBlur": true,
 	"boxShadowX": true, "boxShadowY": true, "boxShadowInset": true,
 	"filter": true, "blur": true, "filterBlur": true,
+	"tint":           true,
+	"imageRendering": true, "image-rendering": true,
+	"rotate": true, "scale": true, "scaleX": true, "scaleY": true,
+	"flipX": true, "flipY": true,
 	"overflow": true, "mixBlendMode": true, "layoutMotion": true,
 	"scrollSnapType": true, "scrollSnapAlign": true,
 	"maskFade": true, "maskFadeSize": true, "maskImage": true,

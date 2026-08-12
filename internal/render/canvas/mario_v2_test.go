@@ -36,6 +36,7 @@ import (
 	"time"
 
 	"github.com/qorm/qorm/internal/loader"
+	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/runtime"
 	"github.com/qorm/qorm/internal/theme"
 )
@@ -289,4 +290,146 @@ func TestMarioV2SwipeControls(t *testing.T) {
 		t.Errorf("jump didn't apply upward velocity: vy=%v", m["vy"])
 	}
 	marioV2Release(e, "space")
+	// Jump pose uses the dedicated jump sprite (NES-style, not a scale punch).
+	var mario *model.Node
+	var walk func(*model.Node)
+	walk = func(n *model.Node) {
+		if n == nil || mario != nil {
+			return
+		}
+		if n.ID == "mario" {
+			mario = n
+			return
+		}
+		for _, c := range n.Children {
+			walk(c)
+		}
+	}
+	for _, sc := range rt.App.Scenes {
+		walk(sc)
+	}
+	if mario != nil {
+		src := evalPropStr(mario.Props["src"], rt)
+		if src != "assets/mario_jump.png" {
+			t.Fatalf("airborne mario src = %q, want jump sprite", src)
+		}
+	}
+}
+
+func motionToken(rt *runtime.Runtime, key string) float64 {
+	switch v := rt.State[key].(type) {
+	case float64:
+		return v
+	case int:
+		return float64(v)
+	}
+	return 0
+}
+
+func marioV2Find(rt *runtime.Runtime, id string) *model.Node {
+	var found *model.Node
+	var walk func(*model.Node)
+	walk = func(n *model.Node) {
+		if n == nil || found != nil {
+			return
+		}
+		if n.ID == id {
+			found = n
+			return
+		}
+		for _, c := range n.Children {
+			walk(c)
+		}
+	}
+	for _, sc := range rt.App.Scenes {
+		walk(sc)
+	}
+	return found
+}
+
+func marioV2DeathDone(rt *runtime.Runtime) bool {
+	switch v := rt.State["deathDone"].(type) {
+	case bool:
+		return v
+	case float64:
+		return v != 0
+	}
+	return false
+}
+
+// TestMarioMotionFxJumpAndDeath: jump bumps fxJump; squash/stretch is the
+// NES jump sprite (not a UI punch). Death is the NES bounce + fxDeath
+// knockback token / GAME OVER overlay — not a scale punch.
+func TestMarioMotionFxJumpAndDeath(t *testing.T) {
+	e, surf, rt := marioV2Fixture(t)
+	if motionToken(rt, "fxJump") != 0 {
+		t.Fatalf("fxJump at start = %v, want 0", rt.State["fxJump"])
+	}
+	marioV2Press(e, "space")
+	marioV2Release(e, "space")
+	if motionToken(rt, "fxJump") < 1 {
+		t.Fatalf("jump should bump fxJump, got %v", rt.State["fxJump"])
+	}
+
+	mario := marioV2Find(rt, "mario")
+	if mario == nil {
+		t.Fatal("mario node missing")
+	}
+	raw, _ := mario.Prop("fx")
+	if s := evalPropStr(raw, rt); s != "none" && s != "" {
+		t.Fatalf("mario fx after jump = %q, want none (jump is sprite-based, not punch)", s)
+	}
+	if src := evalPropStr(mario.Props["src"], rt); src != "assets/mario_jump.png" {
+		t.Fatalf("airborne mario src = %q, want jump sprite", src)
+	}
+
+	// Pit death: y past the 15-row world (levelH * cellSize = 480).
+	m := rt.State["mario"].(map[string]any)
+	const pitY = 9999.0
+	m["y"] = pitY
+	marioV2Tick(e, surf, 2)
+	if rt.State["status"] != "dead" {
+		t.Fatalf("status after pit = %v, want dead", rt.State["status"])
+	}
+	if motionToken(rt, "fxDeath") < 1 {
+		t.Fatal("lose() must bump fxDeath")
+	}
+	if alive, _ := rt.State["mario"].(map[string]any)["alive"].(bool); alive {
+		t.Fatal("mario.alive after lose(), want false")
+	}
+	if s := evalPropStr(raw, rt); s != "knockback" {
+		t.Fatalf("mario fx after death = %q, want knockback (NES bounce, not punch)", s)
+	}
+	if tok, ok := mario.Prop("fxToken"); ok {
+		if s := evalPropStr(tok, rt); s == "" || s == "0" {
+			t.Fatalf("mario fxToken after death = %q, want fxDeath bump", s)
+		}
+	} else {
+		t.Fatal("mario fxToken missing; death should bind state.fxDeath")
+	}
+	p := fxFor(mario, 0, rt, &Interaction{}, time.Now())
+	if p.scale != 1 {
+		t.Fatalf("death fx scale = %v, want 1 (knockback is a shove, not a scale punch)", p.scale)
+	}
+
+	// NES bounce: lose() applies an upward vy; later ticks move y off the pit.
+	if vy, _ := m["vy"].(float64); vy >= 0 {
+		t.Fatalf("death bounce vy = %v, want upward (negative)", vy)
+	}
+	for i := 0; i < 80 && !marioV2DeathDone(rt); i++ {
+		marioV2Tick(e, surf, 1)
+	}
+	if marioV2Y(rt) == pitY {
+		t.Fatal("NES death bounce did not move mario.y")
+	}
+	if !marioV2DeathDone(rt) {
+		t.Fatal("deathDone should become true after the NES bounce timer")
+	}
+	overlay := marioV2Find(rt, "deadOverlay")
+	if overlay == nil {
+		t.Fatal("deadOverlay node missing")
+	}
+	if !nodeVisible(overlay, rt) {
+		t.Fatal("GAME OVER overlay should be visible once deathDone")
+	}
 }

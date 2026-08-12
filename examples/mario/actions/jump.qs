@@ -9,5 +9,6 @@ if (state.status == "playing" && state.mario.onGround && state.mario.alive) {
   state.mario.onGround = false
   state.keys.jump = true
   state.keys.jumpHold = true
+  state.fxJump = state.fxJump + 1
   playSound("audio/jump.wav")
 }

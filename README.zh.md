@@ -95,15 +95,29 @@ QORM 为 AI 智能体而生：只需**给你的 Agent 一句话**，就能自动
 - **签名包 + 热更新**: 基于 ed25519 签名及内容寻址的工件,本地校验完整性防篡改,支持高可靠热更新与快速回滚。
 - **设计验证**: 智能体通过 `qorm measure` / `qorm check` 测量实际渲染几何与像素约束，以客观数据验证修改效果。
 
+## 0.8.10 新内容
+
+Canvas 现在是一套 2D 游戏引擎级渲染器:声明式 `fx` / `timeline` / 路径跟随 /
+stagger / yoyo,以及 `tint`、`invert()`/`sepia()`、`imageRendering: pixelated`
+和持久 `rotate`/`scale`/`flipX`。
+
+在线玩:[qorm.com/games](https://qorm.com/games/)(俄罗斯方块、2048、Raiden、Mario)
+或 `go run ./cmd/qorm run examples/tetris`。展示:`examples/canvas-fx`。
+文档:[样式](docs/zh/styles.md) · [动画](api/zh/animation.md) ·
+[属性](api/zh/props.md)。
+
 ## 运行
 
 ```bash
-go run ./cmd/qorm run examples/counter      # opens the app in your browser
-go run ./cmd/qorm render examples/todo -o todo.html   # static snapshot
+go run ./cmd/qorm run examples/counter      # 浏览器或原生 canvas 窗口
+go run ./cmd/qorm run examples/tetris       # canvas 游戏 + chiptune
+go run ./cmd/qorm run examples/canvas-fx    # 视觉与动效展示
+go run ./cmd/qorm render examples/todo -o todo.html   # 静态快照
 ```
 
 在 counter 中按 `+` / `-`,或在 todo 应用中添加/切换任务——按钮点击会 POST 到
-`/event`,服务器更新状态、重新运行 action,并换入重新渲染后的 UI。
+`/event`,服务器更新状态、重新运行 action,并换入重新渲染后的 UI。游戏在 macOS
+默认窗口和 [qorm.com/games](https://qorm.com/games/) 上走纯 Go canvas 引擎。
 
 ## 签名 bundle(验证 bundle,而非信任服务器)
 
@@ -232,7 +246,11 @@ app JSON (manifest + scenes + actions)
 外加每个节点上的横切特性:条件渲染
 (`"if": "{{state.x}}"`)、无障碍(`role`、`ariaLabel`、`title`),以及丰富的
 样式(shadow、gradient、position + top/left/right/bottom、aspectRatio、
-min/max width/height、opacity、transition)。参见 `examples/gallery`。
+min/max width/height、opacity、transition / 弹簧、滤镜/蒙版/裁剪、
+scroll-snap、FLIP `layoutMotion`、`animation`、canvas `fx`/`timeline`、
+`tint`、`rotate`/`scale`/`flipX`)。参见 `examples/gallery` 与
+`examples/canvas-fx`;游戏见 `examples/tetris` / `mario` / `raiden` /
+`g2048`。完整键表:[属性](api/zh/props.md)、[样式](docs/zh/styles.md)。
 
 ## 空中下发更新
 

@@ -37,6 +37,9 @@
         "type": "text",
         "id": "title",
         "text": "TETRIS",
+        "animation": "fadeup",
+        "duration": 400,
+        "curve": "backOut",
         "style": {
           "color": "var(--primary)",
           "fontSize": 18,
@@ -55,8 +58,11 @@
             "type": "stack",
             "id": "boardstack",
             "style": {
-              "background": "#1c1c1c",
-              "borderRadius": 6
+              "background": "#0a0a10",
+              "borderRadius": 8,
+              "outlineColor": "{{ state.fxKind == 3 ? \"#f7d308\" : (state.fxKind == 2 ? \"#31c7ef\" : \"#333\") }}",
+              "outlineWidth": 2,
+              "outlineOffset": 2
             },
             "children": [
               {
@@ -71,10 +77,87 @@
                 "renderItem": {
                   "type": "box",
                   "style": {
-                    "width": 14,
-                    "height": 14,
-                    "background": "{{ at(state.colors, item) }}"
-                  }
+                    "width": 16,
+                    "height": 16,
+                    "background": "{{ item == 0 ? \"#121218\" : (state.flashOn ? \"#ffffff\" : at(state.colorsLo, item)) }}"
+                  },
+                  "children": [
+                    {
+                      "type": "box",
+                      "if": "{{ item > 0 }}",
+                      "style": {
+                        "x": 2,
+                        "y": 2,
+                        "width": 12,
+                        "height": 12,
+                        "background": "{{ state.flashOn ? \"#ffffff\" : at(state.colors, item) }}"
+                      }
+                    },
+                    {
+                      "type": "box",
+                      "if": "{{ item > 0 }}",
+                      "style": {
+                        "x": 2,
+                        "y": 2,
+                        "width": 12,
+                        "height": 3,
+                        "background": "{{ state.flashOn ? \"#ffffff\" : at(state.colorsHi, item) }}"
+                      }
+                    },
+                    {
+                      "type": "box",
+                      "if": "{{ item > 0 }}",
+                      "style": {
+                        "x": 2,
+                        "y": 5,
+                        "width": 3,
+                        "height": 9,
+                        "background": "{{ state.flashOn ? \"#ffffff\" : at(state.colorsHi, item) }}"
+                      }
+                    },
+                    {
+                      "type": "box",
+                      "if": "{{ item > 0 }}",
+                      "style": {
+                        "x": 3,
+                        "y": 3,
+                        "width": 4,
+                        "height": 2,
+                        "background": "#ffffff"
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "box",
+                "id": "clearFlash",
+                "if": "{{ state.flashOn }}",
+                "style": {
+                  "width": 169,
+                  "height": 339,
+                  "background": "{{ state.fxKind == 3 ? \"#f7d308\" : \"#ffffff\" }}",
+                  "opacity": 0.18
+                }
+              },
+              {
+                "type": "text",
+                "id": "clearBanner",
+                "if": "{{ state.clearName != \"\" }}",
+                "text": "{{ state.clearName }}",
+                "animation": "pop",
+                "duration": 380,
+                "curve": "backOut",
+                "fxToken": "{{ state.fxClear }}",
+                "style": {
+                  "width": 169,
+                  "margin": { "top": 140 },
+                  "fontSize": "{{ state.fxKind == 3 ? 22 : 16 }}",
+                  "fontWeight": 800,
+                  "textAlign": "center",
+                  "color": "{{ state.fxKind == 3 ? \"#f7d308\" : \"#ffffff\" }}",
+                  "textStrokeColor": "#000000",
+                  "textStrokeWidth": 2
                 }
               },
               {
@@ -84,6 +167,8 @@
                 },
                 "if": "{{ state.status == 'paused' }}",
                 "class": "overlayPanel",
+                "animation": "fade",
+                "duration": 280,
                 "style": {
                   "padding": {
                     "top": 10,
@@ -115,6 +200,9 @@
                 },
                 "if": "{{ state.status == 'over' }}",
                 "class": "overlayPanel",
+                "animation": "pop",
+                "duration": 420,
+                "curve": "backOut",
                 "style": {
                   "padding": {
                     "top": 10,
@@ -160,6 +248,10 @@
               {
                 "type": "gridview",
                 "id": "nextgrid",
+                "fx": "punch",
+                "fxToken": "{{ state.fxSpawn }}",
+                "fxDuration": 180,
+                "fxIntensity": 0.12,
                 "data": "{{ state.nextView }}",
                 "crossAxisCount": 4,
                 "spacing": 1,
@@ -175,8 +267,43 @@
                   "style": {
                     "width": 12,
                     "height": 12,
-                    "background": "{{ at(state.colors, item) }}"
-                  }
+                    "background": "{{ item == 0 ? \"#121218\" : at(state.colorsLo, item) }}"
+                  },
+                  "children": [
+                    {
+                      "type": "box",
+                      "if": "{{ item > 0 }}",
+                      "style": {
+                        "x": 2,
+                        "y": 2,
+                        "width": 8,
+                        "height": 8,
+                        "background": "{{ at(state.colors, item) }}"
+                      }
+                    },
+                    {
+                      "type": "box",
+                      "if": "{{ item > 0 }}",
+                      "style": {
+                        "x": 2,
+                        "y": 2,
+                        "width": 8,
+                        "height": 2,
+                        "background": "{{ at(state.colorsHi, item) }}"
+                      }
+                    },
+                    {
+                      "type": "box",
+                      "if": "{{ item > 0 }}",
+                      "style": {
+                        "x": 2,
+                        "y": 4,
+                        "width": 2,
+                        "height": 6,
+                        "background": "{{ at(state.colorsHi, item) }}"
+                      }
+                    }
+                  ]
                 }
               },
               {
@@ -191,8 +318,13 @@
               },
               {
                 "type": "text",
+                "id": "scoreVal",
                 "text": "{{ state.score }}",
-                "class": "statValue"
+                "class": "statValue",
+                "fx": "{{ state.fxClear > 0 ? \"punch\" : \"none\" }}",
+                "fxToken": "{{ state.fxClear }}",
+                "fxDuration": 220,
+                "fxIntensity": 0.2
               },
               {
                 "type": "text",
@@ -206,8 +338,12 @@
               },
               {
                 "type": "text",
+                "id": "linesVal",
                 "text": "{{ state.lines }}",
-                "class": "statValue"
+                "class": "statValue",
+                "fx": "{{ state.fxClear > 0 ? \"punch\" : \"none\" }}",
+                "fxToken": "{{ state.fxClear }}",
+                "fxDuration": 220
               },
               {
                 "type": "text",
@@ -221,8 +357,12 @@
               },
               {
                 "type": "text",
+                "id": "levelVal",
                 "text": "{{ state.level }}",
-                "class": "statValue"
+                "class": "statValue",
+                "fx": "punch",
+                "fxToken": "{{ state.level }}",
+                "fxDuration": 240
               }
             ]
           }

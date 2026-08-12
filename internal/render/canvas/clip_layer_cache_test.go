@@ -33,7 +33,7 @@ func TestClipPathCircleKeepsCornersEmpty(t *testing.T) {
 	ops := &op.Ops{}
 	ops.Add(op.SaveOp{})
 	ops.Add(op.ClipOp{
-		Rect: image.Rect(4, 4, 36, 36),
+		Rect:      image.Rect(4, 4, 36, 36),
 		EllipseRX: 16, EllipseRY: 16,
 	})
 	ops.Add(op.ColorOp{Color: color.RGBA{255, 0, 0, 255}})

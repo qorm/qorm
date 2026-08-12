@@ -9,13 +9,46 @@
       "flipLeft": "boolean",
       "blendOn": "boolean",
       "filterOn": "boolean",
-      "page": "number"
+      "page": "number",
+      "hits": "number",
+      "fxMode": "string",
+      "tlPlay": "number",
+      "tlDone": "number",
+      "pathPlay": "number",
+      "cubicPlay": "number",
+      "yoyoOn": "boolean",
+      "yoyoTl": "number",
+      "staggerItems": "array",
+      "colorFx": "string",
+      "tintHex": "string",
+      "xformRot": "number",
+      "xformScale": "number",
+      "xformFlip": "boolean"
     },
     "initial": {
       "flipLeft": true,
       "blendOn": true,
       "filterOn": true,
-      "page": 0
+      "page": 0,
+      "hits": 0,
+      "fxMode": "hit",
+      "tlPlay": 0,
+      "tlDone": 0,
+      "pathPlay": 0,
+      "cubicPlay": 0,
+      "yoyoOn": false,
+      "yoyoTl": 0,
+      "colorFx": "none",
+      "tintHex": "#ff6b6b",
+      "xformRot": 0,
+      "xformScale": 1,
+      "xformFlip": false,
+      "staggerItems": [
+        { "c": "#ff9f0a" },
+        { "c": "#30d158" },
+        { "c": "#0a84ff" },
+        { "c": "#bf5af2" }
+      ]
     }
   },
   "platforms": {

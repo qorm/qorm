@@ -14,7 +14,11 @@ qscript text actions under `actions/`.
   `keys` and `swipes` (the same four slides bound to arrows and to touch
   swipes, so the game plays on a phone), and the help lines. `onEnter` runs
   `restart`, so first load opens with two tiles.
-- `styles/app.qss` — board frame, score boxes, help text, overlay panel.
+- `styles/app.qss` — board frame, score boxes, help text, overlay panel;
+  Restart uses spring `pressedScale`.
+- **Local FX only (the board never moves):** merged cells flash gold,
+  newly spawned cells flash cream; SCORE punches; win/lose overlays pop.
+  No shake/burst on the 4x4 frame.
 - `actions/lib.qs` — the shared core, merged into every action at dispatch:
   map the board to four sequences in slide order, drop zeros, merge equal
   neighbours once each (`[2,2,2,2] -> [4,4,0,0]`), score the merged values,

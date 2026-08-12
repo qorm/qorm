@@ -1,0 +1,228 @@
+# Canvas FX — structure in scenes/, logic in actions/*.qs, shared look here.
+# All keys below are render.KnownStyleKeys (same whitelist as inline style).
+# {{bindings}} evaluate per frame like inline style values.
+
+# Section headings
+.heading {
+  fontSize: 15
+  fontWeight: 700
+  color: #e8ecf4
+}
+
+# Title with text decoration
+.title {
+  fontSize: 28
+  fontWeight: 800
+  color: #ffffff
+  textDecoration: underline
+  letterSpacing: 1
+}
+
+.subtitle {
+  fontSize: 13
+  color: #9aa3b2
+  textTransform: uppercase
+  letterSpacing: 1.5
+}
+
+# Spring press feedback on buttons
+.springBtn {
+  pressedScale: 0.94
+  transition: 0.25s spring
+  borderRadius: 12
+  fontWeight: 700
+  color: #ffffff
+  padding: 14
+}
+
+# Filter card: qs toggles state.filterOn → binding swaps the CSS filter stack
+.filterCard {
+  width: 160
+  height: 72
+  borderRadius: 12
+  background: #ff375f
+  padding: 12
+  filter: {{ state.filterOn ? "saturate(0.3) brightness(1.15)" : "none" }}
+}
+
+# FLIP chip: qs toggles state.flipLeft → layoutMotion eases absolute x
+.flipChip {
+  width: 72
+  height: 40
+  y: 20
+  borderRadius: 20
+  background: #0a84ff
+  transition: 0.35s spring
+  layoutMotion: true
+  padding: 8
+  x: {{ state.flipLeft ? 16 : 280 }}
+}
+
+# clip-path demo
+.clipCircle {
+  width: 88
+  height: 88
+  background: linear-gradient(135deg, #ff375f, #bf5af2)
+  clipPath: circle(50%)
+  padding: 12
+}
+
+.clipInset {
+  width: 120
+  height: 72
+  background: #30d158
+  clipPath: inset(8px round 16px)
+  padding: 12
+}
+
+# layerCache + group blur
+.cacheBlur {
+  height: 64
+  borderRadius: 12
+  background: #5e5ce6
+  padding: 14
+  filter: blur(2px)
+  layerCache: true
+}
+
+# Scroll snap viewport + pages
+.snapStrip {
+  width: fill
+  height: 120
+  scrollSnapType: y mandatory
+  borderRadius: 14
+  background: #1a1f2b
+}
+
+.snapPage {
+  width: fill
+  height: 120
+  scrollSnapAlign: start
+  padding: 16
+}
+
+# 15. Text chrome — stroke, shadow, decoration, transform, italic, tracking
+.textChrome {
+  fontSize: 32
+  fontWeight: 800
+  color: #ffd60a
+  textStrokeColor: #ff375f
+  textStrokeWidth: 2
+  textShadowColor: #00000099
+  textShadowBlur: 6
+  textShadowX: 0
+  textShadowY: 4
+  textDecoration: underline
+  textTransform: uppercase
+  letterSpacing: 3
+  fontStyle: italic
+}
+
+.ellipsisLine {
+  fontSize: 13
+  color: #9aa3b2
+  width: 220
+  textOverflow: ellipsis
+}
+
+.clampCopy {
+  fontSize: 13
+  color: #9aa3b2
+  lineClamp: 2
+}
+
+# 16. Inset box-shadow + outline ring (outer focus chrome)
+.insetShadow {
+  width: 180
+  height: 88
+  borderRadius: 16
+  background: #2c3344
+  boxShadowColor: #000000cc
+  boxShadowBlur: 18
+  boxShadowX: 0
+  boxShadowY: 6
+  boxShadowInset: true
+  outlineColor: #64d2ff
+  outlineWidth: 3
+  outlineOffset: 4
+  padding: 14
+}
+
+# overflow:hidden + borderRadius clips a child that sticks out
+.overflowClip {
+  width: 120
+  height: 88
+  borderRadius: 24
+  overflow: hidden
+  background: #1a1f2b
+}
+
+# 17. Frosted glass over a colorful backdrop
+.frostPanel {
+  width: 200
+  height: 84
+  borderRadius: 14
+  backdropBlur: 18
+  backdropTint: #e8ecf466
+  padding: 12
+  gap: 4
+}
+
+# 18. Dedicated hover / press card (spring transition)
+.pressCard {
+  width: 168
+  height: 88
+  borderRadius: 16
+  background: #5e5ce6
+  padding: 14
+  hoverScale: 1.06
+  pressedScale: 0.92
+  hoverBackground: #0a84ff
+  pressedBackground: #30d158
+  transition: 0.3s spring
+}
+
+# 19. invert() / sepia() via qs
+.invertCard {
+  width: 120
+  height: 72
+  borderRadius: 12
+  background: #ff375f
+  padding: 12
+  filter: {{ state.colorFx == "invert" ? "invert(100%)" : (state.colorFx == "sepia" ? "sepia(100%)" : "none") }}
+}
+
+# 20. tint RGB modulate (white = identity)
+.tintCard {
+  width: 120
+  height: 72
+  borderRadius: 12
+  background: #ffffff
+  padding: 12
+  tint: {{ state.tintHex }}
+}
+
+# 21. persistent rotate / scale / flipX (layout box stays 56x56)
+.xformBox {
+  width: 56
+  height: 56
+  borderRadius: 10
+  background: #0a84ff
+  padding: 14
+  rotate: {{ state.xformRot }}
+  scale: {{ state.xformScale }}
+  flipX: {{ state.xformFlip }}
+}
+
+# 22. 4x4 checker scaled up — pixelated vs bilinear
+.pixelImg {
+  width: 64
+  height: 64
+  imageRendering: pixelated
+}
+
+.smoothImg {
+  width: 64
+  height: 64
+  imageRendering: auto
+}

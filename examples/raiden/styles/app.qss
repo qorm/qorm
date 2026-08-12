@@ -1,5 +1,8 @@
 # Raiden 共享样式 —— 太空射击游戏的视觉风格
 
+# Pixel-art ships / shots stay crisp when scaled.
+image { imageRendering: pixelated }
+
 # HUD label (SCORE / LIVES)
 .hudLabel { color: var(--textDim); fontSize: 10; fontWeight: 700 }
 
@@ -7,10 +10,29 @@
 .hudValue { color: var(--accent); fontSize: 14; fontWeight: 700 }
 
 # 触控按钮(◀ / FIRE / ▶ —— 手机端除滑动外的精确操控)
-.ctrlBtn { background: var(--player); color: var(--text); borderRadius: 6; fontSize: 14; fontWeight: 700; padding: 8; width: 60 }
+.ctrlBtn {
+  background: var(--player)
+  color: var(--text)
+  borderRadius: 6
+  fontSize: 14
+  fontWeight: 700
+  padding: 8
+  width: 60
+  pressedScale: 0.94
+  transition: 0.2s spring
+}
 
 # Restart 按钮
-.restartBtn { background: var(--accent); color: var(--space); borderRadius: 6; fontSize: 14; fontWeight: 700; padding: 10 }
+.restartBtn {
+  background: var(--accent)
+  color: var(--space)
+  borderRadius: 6
+  fontSize: 14
+  fontWeight: 700
+  padding: 10
+  pressedScale: 0.94
+  transition: 0.2s spring
+}
 
 # GAME OVER 覆盖面板
 .deadPanel { background: var(--panel); borderRadius: 8; gap: 4 }

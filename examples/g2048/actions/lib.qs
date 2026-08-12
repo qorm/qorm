@@ -133,11 +133,44 @@ fn slide(dir) {
     if (at(nb, i) != at(state.board, i)) { changed = true }
   }
   if (changed) {
+    let gens = concat(state.cellGen)
+    let merge = fill(16, 0)
+    for i in range(16) {
+      if (at(nb, i) != at(state.board, i)) {
+        gens[i] = at(gens, i) + 1
+        if (at(nb, i) > 0 && at(state.board, i) > 0 && at(nb, i) > at(state.board, i)) {
+          merge[i] = 1
+        }
+      }
+    }
+    state.cellGen = gens
+    state.mergeMask = merge
     state.board = nb
     state.score = state.score + gained
     if (state.score > state.best) { state.best = state.score }
+    state.fxMove = state.fxMove + 1
+    state.fxKind = 1
+    if (gained > 0) {
+      state.fxMerge = state.fxMerge + 1
+      state.fxKind = 2
+    }
+    if (gained >= 128) {
+      state.fxBig = state.fxBig + 1
+      state.fxKind = 3
+    }
     spawn()
+    let spawned = fill(16, 0)
+    for i in range(16) {
+      if (at(state.board, i) != at(nb, i)) {
+        state.cellGen[i] = at(state.cellGen, i) + 1
+        spawned[i] = 1
+      }
+    }
+    state.spawnMask = spawned
     refreshView()
+  } else {
+    state.mergeMask = fill(16, 0)
+    state.spawnMask = fill(16, 0)
   }
   settle()
 }

@@ -137,7 +137,12 @@ func (c *Context) AddRRect(rr op.RRectOp) {
 
 // DrawImage draws src scaled into dest (current coordinate space).
 func (c *Context) DrawImage(src *image.RGBA, dest image.Rectangle) {
-	c.ops.Add(op.ImageOp{Src: src, Dest: dest})
+	c.DrawImageEx(src, dest, false)
+}
+
+// DrawImageEx is DrawImage with optional nearest-neighbour (pixelated) sampling.
+func (c *Context) DrawImageEx(src *image.RGBA, dest image.Rectangle, pixelated bool) {
+	c.ops.Add(op.ImageOp{Src: src, Dest: dest, Pixelated: pixelated})
 }
 
 // RRect records an antialiased rounded rectangle with optional inner stroke

@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/qorm/qorm/internal/anim"
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/runtime"
 )
@@ -97,6 +98,8 @@ func entranceFor(n *model.Node, idx int, rt *runtime.Runtime, inter *Interaction
 
 	duration := entranceNum(n, rt, "duration", 450)
 	delay := entranceNum(n, rt, "delay", 0)
+	// GSAP/DOTween stagger: list item i waits i * stagger ms extra.
+	delay += staggerMS(n, idx, rt)
 	repeatInf, repeatN := entranceRepeat(n, rt)
 
 	elapsed := float64(now.Sub(st.start).Milliseconds()) - delay
@@ -142,7 +145,7 @@ func entranceFor(n *model.Node, idx int, rt *runtime.Runtime, inter *Interaction
 		return entranceParams{opacity: 1, scale: 1}
 	}
 
-	ease := entranceEase(rt)
+	ease := entranceEaseFor(n, rt)
 	e := ease(cycle)
 
 	switch name {
@@ -250,32 +253,44 @@ func entranceRepeat(n *model.Node, rt *runtime.Runtime) (inf bool, count int) {
 	return false, 1
 }
 
-// entranceEase returns the theme's standard easing (falling back to
-// easeOutCubic), clamped to [0,1] input — the `curve` prop is not parsed yet
-// (nearest theme token, documented).
+// entranceEase returns the easing for an entrance: node `curve` prop first
+// (game-engine names via anim.CurveByName — back/elastic/bounce/spring/…),
+// then the theme standard curve, then easeOutCubic.
 func entranceEase(rt *runtime.Runtime) func(float64) float64 {
-	if rt != nil && rt.Theme != nil {
-		if c := rt.Theme.Easing("standard"); c != nil {
-			return func(t float64) float64 {
-				if t < 0 {
-					t = 0
+	return entranceEaseFor(nil, rt)
+}
+
+// entranceEaseFor resolves curve for a specific node (curve prop) or theme.
+func entranceEaseFor(n *model.Node, rt *runtime.Runtime) func(float64) float64 {
+	wrap := func(c func(float64) float64) func(float64) float64 {
+		return func(t float64) float64 {
+			if t < 0 {
+				t = 0
+			}
+			if t > 1 {
+				t = 1
+			}
+			return c(t)
+		}
+	}
+	if n != nil {
+		if raw, ok := n.Prop("curve"); ok {
+			name := strings.ToLower(strings.TrimSpace(evalPropStr(raw, rt)))
+			if name != "" {
+				if c, ok := anim.CurveByName(name); ok {
+					return wrap(c)
 				}
-				if t > 1 {
-					t = 1
-				}
-				return c(t)
 			}
 		}
 	}
-	return func(t float64) float64 {
-		if t < 0 {
-			t = 0
+	if rt != nil && rt.Theme != nil {
+		if c := rt.Theme.Easing("standard"); c != nil {
+			return wrap(c)
 		}
-		if t > 1 {
-			t = 1
-		}
-		return 1 - (1-t)*(1-t)*(1-t) // easeOutCubic
 	}
+	return wrap(func(t float64) float64 {
+		return 1 - (1-t)*(1-t)*(1-t) // easeOutCubic
+	})
 }
 
 // One-shot warnings for degraded/unknown effects (per effect name per scene,

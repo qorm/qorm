@@ -13,7 +13,14 @@
       "score": "number",
       "best": "number",
       "rng": "number",
-      "status": "string"
+      "status": "string",
+      "fxMerge": "number",
+      "fxMove": "number",
+      "fxBig": "number",
+      "cellGen": "array",
+      "mergeMask": "array",
+      "spawnMask": "array",
+      "fxKind": "number"
     },
     "initial": {
       "colors": [
