@@ -44,7 +44,7 @@ func init() {
 		dragY:  map[*model.Node]float64{},
 		startY: map[*model.Node]float64{},
 	})
-	canvas.RegisterWidget("selectabletext", SelectableText{})
+	canvas.RegisterWidget("selectabletext", &SelectableText{inters: map[*model.Node]*canvas.Interaction{}})
 }
 
 // ---- shared dialog actions --------------------------------------------------
@@ -1093,8 +1093,18 @@ func (Transform) record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int, s
 	if sy != nil {
 		g.ScaleY = *sy
 	}
+	// CSS skewX/skewY (degrees) → BaseNode Skew (radians).
+	if sk := numProp(ln.Node, rt, "skew"); sk != nil {
+		g.SkewX = *sk * math.Pi / 180
+	}
+	if skx := numProp(ln.Node, rt, "skewX"); skx != nil {
+		g.SkewX = *skx * math.Pi / 180
+	}
+	if sky := numProp(ln.Node, rt, "skewY"); sky != nil {
+		g.SkewY = *sky * math.Pi / 180
+	}
 	// Place origin at center, apply transform, then children at -center.
-	// BaseNode: Translate(X,Y).Rotate.Scale — so set X/Y to center+translate.
+	// BaseNode: Scale → Skew → Rotate → Translate — X/Y is center+translate.
 	ox, oy := 0.0, 0.0
 	if tx != nil {
 		ox = *tx * float64(scale)
@@ -1542,9 +1552,35 @@ func (r *RefreshIndicator) HandlePointer(n *model.Node, rt *runtime.Runtime, p c
 
 // ---- selectabletext ---------------------------------------------------------
 
-// SelectableText renders selectable-looking text (copy via OS still limited on
-// canvas; the visual and layout match the HTML selectabletext).
-type SelectableText struct{}
+// SelectableText is Flutter's SelectableText: drag/shift/Cmd+A select, Cmd+C
+// copies via the engine clipboard seam. Shares InputState with inputs (read-
+// only: mutations are blocked in handleEditKey).
+type SelectableText struct {
+	mu     sync.Mutex
+	inters map[*model.Node]*canvas.Interaction
+}
+
+func (s *SelectableText) cacheInter(n *model.Node, inter *canvas.Interaction) {
+	if s.inters == nil {
+		s.inters = map[*model.Node]*canvas.Interaction{}
+	}
+	if inter == nil {
+		return
+	}
+	s.mu.Lock()
+	s.inters[n] = inter
+	s.mu.Unlock()
+}
+
+func (s *SelectableText) sessionFor(n *model.Node) *canvas.InputState {
+	s.mu.Lock()
+	inter := s.inters[n]
+	s.mu.Unlock()
+	if inter == nil || inter.Input == nil || inter.Input.Node != n {
+		return nil
+	}
+	return inter.Input
+}
 
 func (SelectableText) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
 	if scale < 1 {
@@ -1560,7 +1596,7 @@ func (SelectableText) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]a
 	return w, h
 }
 
-func (SelectableText) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.Node {
+func (s *SelectableText) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) draw.Node {
 	if ln == nil {
 		return nil
 	}
@@ -1570,8 +1606,46 @@ func (SelectableText) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale i
 	fs := formFontSizeLN(ln, scale)
 	ink := formInk(ln.Node, ln, rt)
 	txt := formEvalStr(ln.Node.Text, rt)
+	if sess := s.sessionFor(ln.Node); sess != nil {
+		txt = string(sess.Runes)
+	}
 	g := draw.NewGroup()
 	g.Width, g.Height = float64(ln.Width), float64(ln.Height)
+	// Selection highlight behind the text (theme selection color).
+	if sess := s.sessionFor(ln.Node); sess != nil && sess.SelStart < sess.SelEnd {
+		x0 := int(canvas.MeasureText(string(sess.Runes[:sess.SelStart]), float64(fs)))
+		x1 := int(canvas.MeasureText(string(sess.Runes[:sess.SelEnd]), float64(fs)))
+		hi := draw.NewRect()
+		hi.NoHit = true
+		hi.X = float64(x0)
+		hi.Y = 0
+		hi.Width = float64(x1 - x0)
+		hi.Height = float64(lineHeight(fs))
+		hi.Fill = themeColor(rt, "selection", color.RGBA{0, 122, 255, 77})
+		if c := themeColor(rt, "accent", color.RGBA{0, 122, 255, 255}); c.A > 0 {
+			hi.Fill = color.RGBA{c.R, c.G, c.B, 77}
+		}
+		g.AddChild(hi)
+	}
 	g.AddChild(formText(txt, 0, 0, fs, ink))
 	return g
+}
+
+func (s *SelectableText) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.PointerInput, inter *canvas.Interaction, _ image.Rectangle) bool {
+	if formDisabled(n, rt) {
+		return false
+	}
+	s.cacheInter(n, inter)
+	if p.Type == canvas.PointerPress {
+		inter.Focused = n
+		inter.FocusVisible = false
+		// Let the engine open the session and map the caret on the next frame;
+		// returning true captures the press for drag-selection (engine path).
+		return true
+	}
+	return false
+}
+
+func (s *SelectableText) OnFocused(n *model.Node, inter *canvas.Interaction) {
+	s.cacheInter(n, inter)
 }

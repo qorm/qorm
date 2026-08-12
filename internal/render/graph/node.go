@@ -23,9 +23,13 @@ type BaseNode struct {
 	ScaleX   float64
 	ScaleY   float64
 	Rotation float64
-	Opacity  float64
-	Width    float64
-	Height   float64
+	// SkewX/SkewY are shear angles in radians (CSS skewX/skewY). Applied
+	// after scale and before rotate in the local matrix so rotate still
+	// orbits the sheared box.
+	SkewX, SkewY float64
+	Opacity      float64
+	Width        float64
+	Height       float64
 
 	// Global Transform Matrix (Computed during rendering)
 	GlobalTransform geom.Matrix
@@ -96,7 +100,7 @@ func (b *BaseNode) GetBBox() geom.BBox {
 
 // UpdateGlobalTransform recalculates the absolute matrix based on parent
 func (b *BaseNode) UpdateGlobalTransform() {
-	m := geom.Identity().Translate(b.X, b.Y).Rotate(b.Rotation).Scale(b.ScaleX, b.ScaleY)
+	m := localTransform(b)
 	if b.Parent != nil {
 		b.GlobalTransform = b.Parent.Base().GlobalTransform.Multiply(m)
 	} else {

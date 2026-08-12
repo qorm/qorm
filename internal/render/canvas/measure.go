@@ -45,12 +45,15 @@ type LayoutNode struct {
 	MarkedText string
 
 	// Entrance animation overlay (entrance.go): when EntranceActive, the
-	// node's group gets EntranceOpacity multiplied in and (EntranceDX,
-	// EntranceDY) added to its position this frame.
-	EntranceActive  bool
-	EntranceOpacity float64
-	EntranceDX      float64
-	EntranceDY      float64
+	// node's group gets EntranceOpacity multiplied in, (EntranceDX,
+	// EntranceDY) translation, EntranceScale about center, and
+	// EntranceRotation (radians) about center this frame.
+	EntranceActive   bool
+	EntranceOpacity  float64
+	EntranceDX       float64
+	EntranceDY       float64
+	EntranceScale    float64 // 0 or 1 = identity
+	EntranceRotation float64 // radians
 
 	// ItemIndex is the repeat instance this node belongs to: every node
 	// measured under one list item carries the item's index, so PerformLayout
@@ -181,6 +184,7 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 		ln.NeedsRedraw = true
 		ln.EntranceActive = true
 		ln.EntranceOpacity, ln.EntranceDX, ln.EntranceDY = ep.opacity, ep.dx, ep.dy
+		ln.EntranceScale, ln.EntranceRotation = ep.scale, ep.rotation
 	}
 
 	if n.Type == "text" {
@@ -722,13 +726,23 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 	group.Height = float64(ln.Height)
 	group.Model = ln.Node
 	ln.GraphNode = group
+	// Compose entrance + pressed/hover scale into one center-pivoted
+	// transform (graph: Scale then Rotate then Translate). Pure translation
+	// still updates AbsX/AbsY so hit-testing tracks the painted pixels.
+	entScale := 1.0
+	entRot := 0.0
+	entDX, entDY := 0.0, 0.0
 	if ln.EntranceActive {
 		group.Opacity *= ln.EntranceOpacity
-		group.X += ln.EntranceDX
-		group.Y += ln.EntranceDY
-		ln.AbsX += int(math.Round(ln.EntranceDX))
-		ln.AbsY += int(math.Round(ln.EntranceDY))
+		entDX, entDY = ln.EntranceDX, ln.EntranceDY
+		if ln.EntranceScale > 0 {
+			entScale = ln.EntranceScale
+		}
+		entRot = ln.EntranceRotation
+		ln.AbsX += int(math.Round(entDX))
+		ln.AbsY += int(math.Round(entDY))
 	}
+	pressScale := 1.0
 	if inter != nil {
 		// Repeat instances share the template's model pointer, so a flag
 		// lands only when the identity's companion index matches the instance
@@ -737,20 +751,29 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 		group.Pressed = inter.Pressed == ln.Node && inter.PressedItem == ln.ItemIndex
 		group.Hovered = inter.Hovered == ln.Node && inter.HoveredItem == ln.ItemIndex
 		group.Focused = inter.Focused == ln.Node && inter.FocusedItem == ln.ItemIndex
-		// The declarative pressed/hover SCALE (the style resolver's transform
-		// half): scale the node about its center. EffectiveScale is resolved by
-		// applyInteractiveOverlay and may carry an in-flight transition tween
-		// so a node declaring `transition` animates its pressed scale.
-		scaleF := ln.Style.EffectiveScale
-		if scaleF <= 0 {
-			scaleF = 1
+		// EffectiveScale is resolved by applyInteractiveOverlay and may carry
+		// an in-flight transition tween so `transition` animates pressed scale.
+		pressScale = ln.Style.EffectiveScale
+		if pressScale <= 0 {
+			pressScale = 1
 		}
-		if scaleF != 1 {
-			group.ScaleX = scaleF
-			group.ScaleY = scaleF
-			group.X += float64(ln.Width) * (1 - scaleF) / 2
-			group.Y += float64(ln.Height) * (1 - scaleF) / 2
-		}
+	}
+	totalScale := entScale * pressScale
+	if totalScale != 1 || entRot != 0 || entDX != 0 || entDY != 0 {
+		// Pivot scale+rotation about the node center so pop/spin/rotate look
+		// like CSS transform-origin:center (see entrance.go).
+		cx := float64(ln.Width) / 2
+		cy := float64(ln.Height) / 2
+		sx, sy := totalScale, totalScale
+		cos, sin := math.Cos(entRot), math.Sin(entRot)
+		scx, scy := sx*cx, sy*cy
+		rx := cos*scx - sin*scy
+		ry := sin*scx + cos*scy
+		group.X = float64(x) + entDX + cx - rx
+		group.Y = float64(y) + entDY + cy - ry
+		group.ScaleX = sx
+		group.ScaleY = sy
+		group.Rotation = entRot
 	}
 	if items != nil && ln.ItemScope != nil {
 		// Repeat instance root: record the dispatch sidecar (index for

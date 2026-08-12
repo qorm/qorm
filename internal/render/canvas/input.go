@@ -330,8 +330,9 @@ func editableType(typ string) bool {
 		return true
 	}
 	// Registered single-line/multi-line editors share the InputState session.
+	// selectabletext is read-only selection + copy (handleEditKey blocks mutations).
 	switch typ {
-	case "textarea", "searchbar", "textformfield", "autocomplete":
+	case "textarea", "searchbar", "textformfield", "autocomplete", "selectabletext":
 		_, ok := LookupWidget(typ)
 		return ok
 	default:
@@ -369,12 +370,20 @@ func readonlyInput(n *model.Node, rt *runtime.Runtime) bool {
 
 func (e *Engine) syncEditSession() {
 	f := e.Inter.Focused
-	if f != nil && editableType(f.Type) && !nodeDisabled(f, e.RT) && !readonlyInput(f, e.RT) {
+	// selectabletext is always a selection session (text prop), never blocked
+	// by the HTML-style readonly prop (it is definitionally non-editing).
+	selectable := f != nil && f.Type == "selectabletext" && editableType(f.Type) && !nodeDisabled(f, e.RT)
+	editable := f != nil && editableType(f.Type) && !nodeDisabled(f, e.RT) && !readonlyInput(f, e.RT)
+	if selectable || editable {
 		if s := e.Inter.Input; s == nil || s.Node != f {
-			// The buffer starts from the evaluated value with the cursor at
-			// the end and a collapsed selection, like clicking into an HTML
-			// field (a pointer click repositions it, input.go caretIndexFromPointer).
-			runes := []rune(evalPropStr(f.Value, e.RT))
+			// The buffer starts from the evaluated value (or Text for
+			// selectabletext) with the cursor at the end and a collapsed
+			// selection, like clicking into an HTML field.
+			src := f.Value
+			if f.Type == "selectabletext" {
+				src = f.Text
+			}
+			runes := []rune(evalPropStr(src, e.RT))
 			e.Inter.Input = &InputState{Node: f, Runes: runes, Cursor: len(runes),
 				SelStart: len(runes), SelEnd: len(runes), Anchor: len(runes), BlinkStart: time.Now()}
 		}
@@ -401,6 +410,7 @@ func (e *Engine) handleEditKey(k KeyInput) bool {
 		return false
 	}
 	multiline := s.Node.Type == "textarea"
+	readonlySel := s.Node.Type == "selectabletext"
 	// Snapshot the buffer before any mutation: every commit below records it
 	// on the undo stack, so Cmd+Z walks the edits back one at a time.
 	before := append([]rune(nil), s.Runes...)
@@ -418,6 +428,13 @@ func (e *Engine) handleEditKey(k KeyInput) bool {
 			}
 			return true
 		case "x":
+			if readonlySel {
+				// Copy-only: cut is not allowed on selectabletext.
+				if s.SelStart < s.SelEnd {
+					ClipboardSet(string(s.Runes[s.SelStart:s.SelEnd]))
+				}
+				return true
+			}
 			if s.SelStart < s.SelEnd {
 				ClipboardSet(string(s.Runes[s.SelStart:s.SelEnd]))
 				deleteSel(s)
@@ -425,6 +442,9 @@ func (e *Engine) handleEditKey(k KeyInput) bool {
 			}
 			return true
 		case "v":
+			if readonlySel {
+				return true // swallow paste
+			}
 			text := ClipboardGet()
 			if !multiline {
 				// Single-line fields strip newlines (HTML parity: pasting a
@@ -439,6 +459,9 @@ func (e *Engine) handleEditKey(k KeyInput) bool {
 			e.commit(s, before)
 			return true
 		case "z":
+			if readonlySel {
+				return true
+			}
 			if k.Shift {
 				if redoEdit(s) {
 					e.commitEdit(s)
@@ -448,6 +471,9 @@ func (e *Engine) handleEditKey(k KeyInput) bool {
 			}
 			return true
 		case "y": // Ctrl+Y (Windows) / Cmd+Shift+Z redo
+			if readonlySel {
+				return true
+			}
 			if redoEdit(s) {
 				e.commitEdit(s)
 			}
@@ -492,7 +518,7 @@ func (e *Engine) handleEditKey(k KeyInput) bool {
 		moveCursorTo(s, endFor(s), k.Shift)
 		return true
 	case "return", "enter":
-		if !multiline {
+		if readonlySel || !multiline {
 			return false
 		}
 		deleteSel(s)
@@ -504,6 +530,9 @@ func (e *Engine) handleEditKey(k KeyInput) bool {
 		e.commit(s, before)
 		return true
 	case "deleteForward":
+		if readonlySel {
+			return true
+		}
 		if deleteSel(s) {
 			e.commit(s, before)
 		} else if s.Cursor < len(s.Runes) {
@@ -513,6 +542,9 @@ func (e *Engine) handleEditKey(k KeyInput) bool {
 		}
 		return true
 	case "delete", "backspace":
+		if readonlySel {
+			return true
+		}
 		if deleteSel(s) {
 			e.commit(s, before)
 		} else if s.Cursor > 0 {
@@ -523,6 +555,9 @@ func (e *Engine) handleEditKey(k KeyInput) bool {
 		return true
 	}
 	if r, ok := keyText(k); ok {
+		if readonlySel {
+			return true // swallow typing on selectabletext
+		}
 		if numberInput(s.Node) && !numberRuneOK(s, r) {
 			return true // a numeric field rejects non-numeric characters
 		}

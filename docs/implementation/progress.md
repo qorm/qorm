@@ -57,3 +57,4 @@
 | 2026-08-12 | Canvas 完善：样式键 + 7 个 widget/别名 |
 | 2026-08-12 | Canvas：rangeslider/pageview/tree/autocomplete + richtext wrap + true angle gradient |
 | 2026-08-12 | Canvas：剩余 allowlist 12 类全部 port；parity 核心 allowlist 清空 |
+| 2026-08-12 | **竞争级加深**：entrance 真 scale/rotate + 绑定重播；selectabletext 选区/复制；transform skew |

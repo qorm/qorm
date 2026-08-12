@@ -64,6 +64,16 @@ func (m Matrix) Rotate(angle float64) Matrix {
 	})
 }
 
+// Skew returns a skewed matrix (angles in radians). ax shears X by Y
+// (CSS skewX), ay shears Y by X (CSS skewY).
+func (m Matrix) Skew(ax, ay float64) Matrix {
+	return m.Multiply(Matrix{
+		A: 1, B: math.Tan(ay),
+		C: math.Tan(ax), D: 1,
+		E: 0, F: 0,
+	})
+}
+
 // TransformPoint applies the matrix to a point
 func (m Matrix) TransformPoint(p Point) Point {
 	return Point{

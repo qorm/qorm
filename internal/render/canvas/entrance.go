@@ -2,9 +2,10 @@ package canvas
 
 // Entrance animations: the cross-cutting `animation` prop (api/animation.md)
 // — any node may play an entrance effect when it MOUNTS (created, appended to
-// a bound list, scene re-entered). The canvas engine replays this with
-// opacity + translation (the two channels its raster interpolates for free);
-// effects that need scale/rotate degrade to fade with a one-shot warning.
+// a bound list, scene re-entered), and when the bound effect name changes
+// (agent-driven motion switches). The canvas engine interpolates opacity,
+// translation, scale, and rotation — the graph BaseNode transform channels
+// the software raster already multiplies into every draw call.
 
 import (
 	"fmt"
@@ -27,41 +28,47 @@ type entranceKey struct {
 
 // entranceState is one entrance clock. It lives in Interaction.Entrance, so
 // it dies with the rest of Interaction on a scene switch — which is exactly
-// when entrances should replay (a fresh mount).
+// when entrances should replay (a fresh mount). name tracks the last effect
+// so a bound `animation: "{{state.effect}}"` change restarts the clock.
 type entranceState struct {
 	start time.Time
+	name  string
 }
 
 // entranceParams is what an entrance contributes to the node's group this
-// frame: opacity multiplied in, dx/dy added to its position, and whether the
-// animation is still running (the frame loop must keep ticking).
+// frame: opacity, translation, scale (1 = identity), rotation in radians,
+// and whether the animation is still running (the frame loop must keep ticking).
 type entranceParams struct {
-	opacity float64
-	dx, dy  float64
-	running bool
+	opacity  float64
+	dx, dy   float64
+	scale    float64 // 0 treated as 1 by the layout applier
+	rotation float64 // radians, about node center
+	running  bool
 }
 
-// entranceFx maps an effect name to its start transform: a fade flag and the
-// initial translation that eases to zero. Effects needing scale/rotate are
-// not representable in the current raster and degrade to fade.
+// entranceFx maps an effect name to its start transform: fade, initial
+// translation, start scale (eases to 1), and start rotation in degrees
+// (eases to 0; converted to radians when applied).
 type entranceFx struct {
-	fade   bool
-	dx, dy float64
+	fade    bool
+	dx, dy  float64
+	scale0  float64 // 0 = no scale channel (stay 1)
+	rotate0 float64 // degrees at t=0
 }
 
 var entranceEffects = map[string]entranceFx{
-	"fade":       {true, 0, 0},
-	"fadeup":     {true, 0, 12},
-	"fadedown":   {true, 0, -12},
-	"slideup":    {false, 0, 24},
-	"slidedown":  {false, 0, -24},
-	"slideleft":  {false, 24, 0},
-	"slideright": {false, -24, 0},
-	"pop":        {true, 0, 0}, // scale degraded to fade (raster has no scale yet)
-	"scale":      {true, 0, 0}, // ditto
-	"zoomout":    {true, 0, 0}, // ditto
-	"rotate":     {true, 0, 0}, // ditto
-	"flip":       {true, 0, 0}, // ditto
+	"fade":       {fade: true},
+	"fadeup":     {fade: true, dy: 12},
+	"fadedown":   {fade: true, dy: -12},
+	"slideup":    {dy: 24},
+	"slidedown":  {dy: -24},
+	"slideleft":  {dx: 24},
+	"slideright": {dx: -24},
+	"pop":        {fade: true, scale0: 0.55},
+	"scale":      {fade: true, scale0: 0.2},
+	"zoomout":    {fade: true, scale0: 1.45},
+	"rotate":     {fade: true, rotate0: -18},
+	"flip":       {fade: true, scale0: 0.01, rotate0: -90}, // scaleX-ish via uniform scale
 }
 
 // entranceFor evaluates the node's `animation` prop for this frame. now is
@@ -82,9 +89,9 @@ func entranceFor(n *model.Node, idx int, rt *runtime.Runtime, inter *Interaction
 	}
 	key := entranceKey{n, idx}
 	st, ok := inter.Entrance[key]
-	if !ok {
-		// First sight of this node = its mount: the clock starts now.
-		st = &entranceState{start: now}
+	if !ok || st.name != name {
+		// First sight, or the bound effect name changed: restart the clock.
+		st = &entranceState{start: now, name: name}
 		inter.Entrance[key] = st
 	}
 
@@ -94,7 +101,17 @@ func entranceFor(n *model.Node, idx int, rt *runtime.Runtime, inter *Interaction
 
 	elapsed := float64(now.Sub(st.start).Milliseconds()) - delay
 	if elapsed < 0 {
-		return entranceParams{opacity: entranceInitial(name), running: true}
+		p := entranceParams{opacity: entranceInitial(name), running: true, scale: 1}
+		if fx, ok := entranceEffects[name]; ok {
+			if fx.scale0 > 0 {
+				p.scale = fx.scale0
+			}
+			if fx.rotate0 != 0 {
+				p.rotation = fx.rotate0 * math.Pi / 180
+			}
+			p.dx, p.dy = fx.dx, fx.dy
+		}
+		return p
 	}
 	var t float64
 	if duration <= 0 {
@@ -122,7 +139,7 @@ func entranceFor(n *model.Node, idx int, rt *runtime.Runtime, inter *Interaction
 		}
 	}
 	if !running {
-		return entranceParams{opacity: 1}
+		return entranceParams{opacity: 1, scale: 1}
 	}
 
 	ease := entranceEase(rt)
@@ -130,16 +147,30 @@ func entranceFor(n *model.Node, idx int, rt *runtime.Runtime, inter *Interaction
 
 	switch name {
 	case "bounce":
-		// A jump: rise above the line and settle back, opacity full.
-		return entranceParams{opacity: 1, dy: -14 * math.Sin(math.Pi*cycle), running: true}
+		// Jump + squash/stretch: rise and settle with a mild scale pulse.
+		return entranceParams{
+			opacity: 1,
+			dy:      -14 * math.Sin(math.Pi*cycle),
+			scale:   1 + 0.12*math.Sin(math.Pi*cycle),
+			running: true,
+		}
 	case "shake":
-		return entranceParams{opacity: 1, dx: 10 * math.Sin(4*math.Pi*cycle) * (1 - cycle), running: true}
+		return entranceParams{opacity: 1, dx: 10 * math.Sin(4*math.Pi*cycle) * (1 - cycle), scale: 1, running: true}
 	case "pulse":
-		return entranceParams{opacity: 1 - 0.4*math.Sin(math.Pi*cycle), running: true}
+		// True scale pulse (not just opacity).
+		return entranceParams{
+			opacity: 1,
+			scale:   1 + 0.18*math.Sin(math.Pi*cycle),
+			running: true,
+		}
 	case "spin":
-		// Rotation is not representable; degrade to a gentle fade pulse.
-		warnEntranceOnce(name, "animation %q needs rotate/scale, which the native raster does not support yet; playing a fade instead", name)
-		return entranceParams{opacity: 0.5 + 0.5*e, running: true}
+		// Full 360° about the node center over one cycle.
+		return entranceParams{
+			opacity:  0.55 + 0.45*e,
+			scale:    0.7 + 0.3*e,
+			rotation: 2 * math.Pi * (1 - e),
+			running:  true,
+		}
 	}
 
 	fx, ok := entranceEffects[name]
@@ -147,14 +178,18 @@ func entranceFor(n *model.Node, idx int, rt *runtime.Runtime, inter *Interaction
 		warnEntranceOnce(name, "unknown animation effect %q; playing fade", name)
 		fx = entranceEffects["fade"]
 	}
-	if name == "pop" || name == "scale" || name == "zoomout" || name == "rotate" || name == "flip" {
-		warnEntranceOnce(name, "animation %q needs scale/rotate, which the native raster does not support yet; playing a fade instead", name)
-	}
-	p := entranceParams{dx: fx.dx * (1 - e), dy: fx.dy * (1 - e), running: true}
+	p := entranceParams{dx: fx.dx * (1 - e), dy: fx.dy * (1 - e), scale: 1, running: true}
 	if fx.fade {
 		p.opacity = e
 	} else {
 		p.opacity = 1
+	}
+	if fx.scale0 > 0 {
+		// Lerp scale0 → 1.
+		p.scale = fx.scale0 + (1-fx.scale0)*e
+	}
+	if fx.rotate0 != 0 {
+		p.rotation = (fx.rotate0 * math.Pi / 180) * (1 - e)
 	}
 	return p
 }

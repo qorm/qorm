@@ -7,12 +7,20 @@ All notable changes to QORM are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Canvas entrance motion (competitive)**: entrance effects now drive real
+  **scale + rotation** about the node center (pop/scale/zoomout/rotate/flip/
+  spin/pulse/bounce), not fade-only fallbacks. Bound `animation` name changes
+  restart the clock so agents can switch effects live.
+- **Canvas selectabletext**: true selection session (focus, drag/shift/Cmd+A)
+  with **Cmd+C clipboard copy**; typing/cut/paste blocked (read-only).
+- **Canvas transform skew**: `skew` / `skewX` / `skewY` (degrees) via graph
+  BaseNode shear; geom.Matrix.Skew shared by hit-test and raster.
 - **Canvas remaining catalog ports**: `actionsheet`, `alertdialog`,
   `descriptions`, `dropdownbutton` (Select alias), `materialstepper`,
   `monthview` (calendar grid + events), `motion` (entrance container),
   `picker` (option wheel), `rating` (stars/dots + tap), `refreshindicator`
-  (pull-to-refresh), `selectabletext`, and `transform` (rotate/scale/translate).
-  HTML↔canvas parity allowlist is empty for core example types.
+  (pull-to-refresh), `selectabletext`, and `transform` (rotate/scale/translate/
+  skew). HTML↔canvas parity allowlist is empty for core example types.
 - **Canvas rangeslider / pageview / tree / autocomplete**: dual-thumb range
   control (low/high bindings), one-page-at-a-time pageview with tap navigation,
   hierarchical tree with expand/collapse (bound `data`, per-node `expanded`),

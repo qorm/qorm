@@ -78,6 +78,42 @@ func TestEntranceListInstancesAreIndependent(t *testing.T) {
 	}
 }
 
+func TestEntrancePopUsesScale(t *testing.T) {
+	n, rt, inter, start := entranceFixture("pop")
+	ep := entranceFor(n, 0, rt, inter, start)
+	if ep.scale <= 0 || ep.scale >= 1 {
+		t.Fatalf("pop at t=0: scale=%v, want in (0,1)", ep.scale)
+	}
+	ep = entranceFor(n, 0, rt, inter, start.Add(500*time.Millisecond))
+	if ep.running || ep.scale != 1 {
+		t.Fatalf("pop settled: %+v, want scale=1 not running", ep)
+	}
+}
+
+func TestEntranceSpinUsesRotation(t *testing.T) {
+	n, rt, inter, start := entranceFixture("spin")
+	ep := entranceFor(n, 0, rt, inter, start.Add(100*time.Millisecond))
+	if !ep.running || ep.rotation == 0 {
+		t.Fatalf("spin mid: %+v, want non-zero rotation while running", ep)
+	}
+}
+
+func TestEntranceRebindRestarts(t *testing.T) {
+	n, rt, inter, start := entranceFixture("fade")
+	entranceFor(n, 0, rt, inter, start)
+	// Settle.
+	ep := entranceFor(n, 0, rt, inter, start.Add(500*time.Millisecond))
+	if ep.running {
+		t.Fatal("expected settled fade")
+	}
+	// Agent flips the effect name — clock must restart.
+	n.Props["animation"] = "pop"
+	ep2 := entranceFor(n, 0, rt, inter, start.Add(600*time.Millisecond))
+	if !ep2.running || ep2.scale >= 1 {
+		t.Fatalf("rebind to pop must restart: %+v", ep2)
+	}
+}
+
 func TestEntranceDrivesFrameLoopAndSettles(t *testing.T) {
 	// Scene level: a mounted card with a short entrance keeps the engine
 	// animating, then settles to full opacity.

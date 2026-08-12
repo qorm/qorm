@@ -21,14 +21,18 @@ func NewGroup() *Group {
 
 func (g *Group) Base() *BaseNode { return &g.BaseNode }
 
-// localTransform returns a node's local affine matrix (position × rotation ×
-// scale) — the same matrix UpdateGlobalTransform multiplies into the global
-// one, so the rasterizer applies exactly what hit testing inverts. Emitting it
-// (instead of the old integer translate) is what makes a node's ScaleX/ScaleY
-// reach the pixels: the board viewport sets them on its root group and pan +
-// zoom follow for free.
+// localTransform returns a node's local affine matrix — scale, then skew,
+// then rotate, then translate — the same matrix UpdateGlobalTransform
+// multiplies into the global one, so the rasterizer applies exactly what hit
+// testing inverts. Emitting it (instead of the old integer translate) is what
+// makes a node's ScaleX/ScaleY/Rotation/Skew reach the pixels: the board
+// viewport sets zoom on its root group and pan + zoom follow for free.
 func localTransform(b *BaseNode) geom.Matrix {
-	return geom.Identity().Translate(b.X, b.Y).Rotate(b.Rotation).Scale(b.ScaleX, b.ScaleY)
+	m := geom.Identity().Translate(b.X, b.Y).Rotate(b.Rotation)
+	if b.SkewX != 0 || b.SkewY != 0 {
+		m = m.Skew(b.SkewX, b.SkewY)
+	}
+	return m.Scale(b.ScaleX, b.ScaleY)
 }
 
 // HitTest for Group checks children in reverse order (top-most first)
