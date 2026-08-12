@@ -98,7 +98,7 @@ func TestGestureDetectorCaptureSurvivesExit(t *testing.T) {
 	})
 	e.HandlePointer(canvas.PointerInput{Type: canvas.PointerPress, X: 60, Y: 20, Buttons: 1})
 	e.HandlePointer(canvas.PointerInput{Type: canvas.PointerMove, X: 300, Y: 20, Buttons: 1}) // far outside
-	e.HandlePointer(canvas.PointerInput{Type: canvas.PointerMove, X: 60, Y: 20, Buttons: 1}) // back inside
+	e.HandlePointer(canvas.PointerInput{Type: canvas.PointerMove, X: 60, Y: 20, Buttons: 1})  // back inside
 	e.HandlePointer(canvas.PointerInput{Type: canvas.PointerRelease, X: 60, Y: 20})
 	if rt.State["seen"] != nil {
 		t.Fatalf("an out-of-bounds excursion must still count as a drag, seen = %v", rt.State["seen"])

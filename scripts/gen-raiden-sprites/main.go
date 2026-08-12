@@ -20,10 +20,10 @@ import (
 // Palette — shmup-friendly colors with proper light/mid/dark per hue so
 // each sprite has visible depth without anti-aliasing.
 var (
-	CTrans = color.RGBA{0, 0, 0, 0}
-	CBlack = color.RGBA{0x10, 0x10, 0x18, 0xFF}
-	CWhite = color.RGBA{0xFC, 0xFC, 0xFC, 0xFF}
-	CGray  = color.RGBA{0x88, 0x88, 0xA0, 0xFF}
+	CTrans  = color.RGBA{0, 0, 0, 0}
+	CBlack  = color.RGBA{0x10, 0x10, 0x18, 0xFF}
+	CWhite  = color.RGBA{0xFC, 0xFC, 0xFC, 0xFF}
+	CGray   = color.RGBA{0x88, 0x88, 0xA0, 0xFF}
 	CGrayDk = color.RGBA{0x44, 0x48, 0x58, 0xFF}
 
 	// Red (player ship, enemies)
@@ -128,7 +128,7 @@ func makePlayer() grid {
 	}
 	// Fuselage widening
 	for y := 6; y < 12; y++ {
-		w := 5 + (y - 6)*2 // 5, 7, 9, 11, 13
+		w := 5 + (y-6)*2 // 5, 7, 9, 11, 13
 		for x := 16 - w; x <= 15+w; x++ {
 			setPx(&g, x, y, CBlack)
 		}
@@ -143,7 +143,7 @@ func makePlayer() grid {
 	setPx(&g, 30, 14, CBlack)
 	// Wing tips slope down
 	for y := 14; y < 20; y++ {
-		setPx(&g, y-13, y, CBlack) // left
+		setPx(&g, y-13, y, CBlack)      // left
 		setPx(&g, 31-(y-14), y, CBlack) // right
 	}
 	// Wing underside

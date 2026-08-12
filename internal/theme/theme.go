@@ -225,7 +225,10 @@ var themeReadFile = os.ReadFile
 
 // SetThemeReadFile replaces the theme file reader (caller-owned).
 func SetThemeReadFile(fn func(string) ([]byte, error)) {
-	if fn == nil { themeReadFile = os.ReadFile; return }
+	if fn == nil {
+		themeReadFile = os.ReadFile
+		return
+	}
 	themeReadFile = fn
 }
 
@@ -235,19 +238,19 @@ func LoadTheme(path string) (*Theme, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	var t Theme
 	if err := json.Unmarshal(data, &t); err != nil {
 		return nil, err
 	}
-	
+
 	t.ParsedColors = make(map[string]color.RGBA)
 	for k, v := range t.Colors {
 		if c, ok := parseColor(v); ok {
 			t.ParsedColors[k] = c
 		}
 	}
-	
+
 	return &t, nil
 }
 
@@ -257,12 +260,12 @@ func (t *Theme) GetColor(val string) (color.RGBA, bool) {
 	if val == "" {
 		return color.RGBA{}, false
 	}
-	
+
 	// Check Theme Palette
 	if c, ok := t.ParsedColors[val]; ok {
 		return c, true
 	}
-	
+
 	// Fallback to literal hex parsing
 	return parseColor(val)
 }
@@ -347,7 +350,7 @@ func GetDefault() *Theme {
 		},
 		ParsedColors: make(map[string]color.RGBA),
 	}
-	
+
 	for k, v := range t.Colors {
 		if c, ok := parseColor(v); ok {
 			t.ParsedColors[k] = c
@@ -357,7 +360,7 @@ func GetDefault() *Theme {
 }
 
 func ptrFloat(f float64) *float64 { return &f }
-func ptrInt(i int) *int { return &i }
+func ptrInt(i int) *int           { return &i }
 
 // parseColor parses a hex string like #RRGGBBAA or #RRGGBB
 func parseColor(hex string) (color.RGBA, bool) {
@@ -368,7 +371,7 @@ func parseColor(hex string) (color.RGBA, bool) {
 	if len(hex) != 8 {
 		return color.RGBA{}, false
 	}
-	
+
 	var r, g, b, a uint8
 	_, err := fmt.Sscanf(hex, "%02x%02x%02x%02x", &r, &g, &b, &a)
 	if err != nil {

@@ -106,7 +106,7 @@ func (s *Sheet) OverlayRecord(ln *canvas.LayoutNode, rt *runtime.Runtime, scale 
 	}
 	panelH := ln.Height
 	if panelH > stageH-20*scale {
-		panelH = stageH - 20 * scale
+		panelH = stageH - 20*scale
 	}
 	panelX := (stageW - panelW) / 2
 	panelY := stageH - panelH

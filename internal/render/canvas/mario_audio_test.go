@@ -54,4 +54,4 @@ type recordingAudio struct {
 
 func (r *recordingAudio) PlayOnce(src string) error { r.onCall("once", src); return nil }
 func (r *recordingAudio) PlayLoop(src string) error { r.onCall("loop", src); return nil }
-func (r *recordingAudio) Stop() error                { r.onCall("stop", ""); return nil }
+func (r *recordingAudio) Stop() error               { r.onCall("stop", ""); return nil }

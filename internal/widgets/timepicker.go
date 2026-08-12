@@ -160,7 +160,7 @@ func (t *TimePicker) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.
 		return false
 	}
 	g := t.geo(n)
-	col := int(x / float64((tpColW+tpGap)))
+	col := int(x / float64((tpColW + tpGap)))
 	row := int(y / g.rowH)
 	if col < 0 || col > 1 {
 		return false

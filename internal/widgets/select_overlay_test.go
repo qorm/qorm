@@ -88,7 +88,6 @@ func TestSelectOverlayStaysBelowWhenRoomAllows(t *testing.T) {
 	sel.(*Select).setOpen(n, false)
 }
 
-
 // Moving the pointer over the open menu tracks the hovered row: the widget
 // asks for a redraw on change, and OverlayRecord paints the native-menu
 // accent highlight with a white label on that row.

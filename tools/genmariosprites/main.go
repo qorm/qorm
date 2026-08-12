@@ -2,15 +2,15 @@
 // inside its gridview. Each sprite is described as ASCII maps (one char per
 // pixel); the tool runs at edit time and the outputs are checked in. Run:
 //
-//   go run ./tools/genmariosprites
+//	go run ./tools/genmariosprites
 //
 // Pixel legend (single character → color, transparent otherwise):
 //
-//   R mario red      E mario skin     B mario brown     W white
-//   K black          Y yellow buttons Z goomba brown    L goomba belly
-//   G coin gold      N coin dark      O brick orange    X brick dark
-//   V ground brown  T topsoil        F flag green      D flag dark
-//   P flag pole      Q pole dark      U sky blue        C cloud
+//	R mario red      E mario skin     B mario brown     W white
+//	K black          Y yellow buttons Z goomba brown    L goomba belly
+//	G coin gold      N coin dark      O brick orange    X brick dark
+//	V ground brown  T topsoil        F flag green      D flag dark
+//	P flag pole      Q pole dark      U sky blue        C cloud
 package main
 
 import (
@@ -30,26 +30,26 @@ func rgba(r, g, b uint8) color.RGBA { return color.RGBA{r, g, b, 255} }
 
 var palette = map[pixel]color.RGBA{
 	'.': {0, 0, 0, 0},
-	'R': rgba(229, 37, 33),    // mario red
-	'E': rgba(255, 179, 128),  // mario skin
-	'B': rgba(107, 51, 0),     // mario brown (shoes / moustache)
-	'W': rgba(255, 255, 255),  // white
-	'K': rgba(20, 20, 20),     // black
-	'Y': rgba(255, 215, 0),    // yellow buttons / belt
-	'Z': rgba(124, 74, 0),     // goomba brown
-	'L': rgba(179, 129, 74),   // goomba belly (lighter)
-	'G': rgba(255, 215, 0),    // coin gold
-	'N': rgba(184, 148, 0),    // coin dark
-	'O': rgba(200, 76, 12),    // brick orange
-	'X': rgba(107, 36, 0),     // brick dark (grout)
-	'V': rgba(139, 69, 19),    // ground brown
-	'T': rgba(92, 51, 23),     // ground topsoil
-	'F': rgba(30, 180, 30),    // flag green
-	'D': rgba(10, 122, 10),    // flag dark
-	'P': rgba(124, 74, 0),     // flag pole
-	'Q': rgba(92, 51, 23),     // pole dark
-	'U': rgba(92, 148, 252),   // sky blue (cloud bg)
-	'C': rgba(255, 255, 255),  // cloud white
+	'R': rgba(229, 37, 33),   // mario red
+	'E': rgba(255, 179, 128), // mario skin
+	'B': rgba(107, 51, 0),    // mario brown (shoes / moustache)
+	'W': rgba(255, 255, 255), // white
+	'K': rgba(20, 20, 20),    // black
+	'Y': rgba(255, 215, 0),   // yellow buttons / belt
+	'Z': rgba(124, 74, 0),    // goomba brown
+	'L': rgba(179, 129, 74),  // goomba belly (lighter)
+	'G': rgba(255, 215, 0),   // coin gold
+	'N': rgba(184, 148, 0),   // coin dark
+	'O': rgba(200, 76, 12),   // brick orange
+	'X': rgba(107, 36, 0),    // brick dark (grout)
+	'V': rgba(139, 69, 19),   // ground brown
+	'T': rgba(92, 51, 23),    // ground topsoil
+	'F': rgba(30, 180, 30),   // flag green
+	'D': rgba(10, 122, 10),   // flag dark
+	'P': rgba(124, 74, 0),    // flag pole
+	'Q': rgba(92, 51, 23),    // pole dark
+	'U': rgba(92, 148, 252),  // sky blue (cloud bg)
+	'C': rgba(255, 255, 255), // cloud white
 }
 
 type sprite = [size]string

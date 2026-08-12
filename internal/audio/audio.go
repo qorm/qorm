@@ -22,10 +22,10 @@ import (
 // Sound is a decoded WAV: PCM samples + format headers, ready to hand to a
 // sink. Zero-value fields mean "uninitialized" — callers must check Loaded.
 type Sound struct {
-	SampleRate uint32
-	Channels   uint16
+	SampleRate    uint32
+	Channels      uint16
 	BitsPerSample uint16
-	Samples    []byte // interleaved little-endian PCM, length = total samples * bytes-per-sample
+	Samples       []byte // interleaved little-endian PCM, length = total samples * bytes-per-sample
 }
 
 // LoadSound reads a WAV file from disk and returns a decoded Sound. The

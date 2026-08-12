@@ -24,24 +24,24 @@ import (
 //
 // Props:
 //   - cameraTarget    : {{state.player}}    // an object {x, y} in PHYSICAL px
-//                                            // (the same coordinate space the
-//                                            // rest of the app uses — the
-//                                            // physics step is px-based, and
-//                                            // so is everything a tile list
-//                                            // outputs).
+//     // (the same coordinate space the
+//     // rest of the app uses — the
+//     // physics step is px-based, and
+//     // so is everything a tile list
+//     // outputs).
 //   - cameraCenter    : true                // center the target on the
-//                                            // viewport (default: align target
-//                                            // with the top-left, PanX = -x)
+//     // viewport (default: align target
+//     // with the top-left, PanX = -x)
 //   - cameraCell      : (deprecated, no-op) // kept for back-compat. The
-//                                            // camera contract is px-in,
-//                                            // px-out — apps whose state is
-//                                            // in world units should
-//                                            // pre-multiply in qscript.
+//     // camera contract is px-in,
+//     // px-out — apps whose state is
+//     // in world units should
+//     // pre-multiply in qscript.
 //   - cameraViewport  : 16                  // viewport width in PHYSICAL px
-//                                            // (used by cameraCenter only);
-//                                            // the engine still renders
-//                                            // whatever fits in the
-//                                            // surface bounds either way.
+//     // (used by cameraCenter only);
+//     // the engine still renders
+//     // whatever fits in the
+//     // surface bounds either way.
 //
 // The user's drag-to-pan still wins while a pan is in flight: a manual pan
 // is the user taking control, and the engine stops following until the

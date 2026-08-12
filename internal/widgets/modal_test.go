@@ -14,7 +14,7 @@ import (
 // (outside the centered panel) dispatches the dismiss handler.
 func TestModalOpenBackdropDismiss(t *testing.T) {
 	md := &model.Node{Type: "modal", ID: "md",
-		Props: map[string]any{"open": "{{state.show}}", "title": "Hello"},
+		Props:   map[string]any{"open": "{{state.show}}", "title": "Hello"},
 		OnPress: &model.Invoke{Name: "close"},
 		Children: []*model.Node{
 			{Type: "text", ID: "body", Props: map[string]any{"text": "body"}},

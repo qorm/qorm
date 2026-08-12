@@ -8,7 +8,7 @@
 // can't produce. That gets us a step closer to the look of a real
 // shoot-em-up.
 //
-//   go run ./tools/genraidensprites
+//	go run ./tools/genraidensprites
 package main
 
 import (
@@ -37,7 +37,9 @@ func lerp(c0, c1 color.RGBA, t float64) color.RGBA {
 func radial(px, py, cx, cy, r float64) float64 {
 	dx, dy := px-cx, py-cy
 	d := math.Sqrt(dx*dx + dy*dy)
-	if d >= r { return 0 }
+	if d >= r {
+		return 0
+	}
 	return 1 - d/r
 }
 
@@ -48,7 +50,9 @@ func fillRadial(img *image.RGBA, cx, cy, r float64, inner, outer color.RGBA) {
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
 			t := radial(float64(x)+0.5, float64(y)+0.5, cx, cy, r)
-			if t <= 0 { continue }
+			if t <= 0 {
+				continue
+			}
 			// Blend with whatever's underneath (alpha-composite).
 			col := lerp(outer, inner, t)
 			dst := img.RGBAAt(x, y)
@@ -86,7 +90,9 @@ func fillTriangle(img *image.RGBA, ax, ay, bx, by, cx, cy float64, col color.RGB
 		for x := minX; x < maxX; x++ {
 			px, py := float64(x)+0.5, float64(y)+0.5
 			cov := triCoverage(px, py, ax, ay, bx, by, cx, cy)
-			if cov <= 0 { continue }
+			if cov <= 0 {
+				continue
+			}
 			c := col
 			c.A = uint8(float64(col.A) * cov)
 			dst := img.RGBAAt(x, y)
@@ -109,11 +115,15 @@ func fillTriangle(img *image.RGBA, ax, ay, bx, by, cx, cy float64, col color.RGB
 // using barycentric coordinates — a standard anti-aliasing trick.
 func triCoverage(px, py, ax, ay, bx, by, cx, cy float64) float64 {
 	d := ((by-cy)*(ax-cx) + (cx-bx)*(ay-cy))
-	if d == 0 { return 0 }
+	if d == 0 {
+		return 0
+	}
 	wa := ((by-cy)*(px-cx) + (cx-bx)*(py-cy)) / d
 	wb := ((cy-ay)*(px-cx) + (ax-cx)*(py-cy)) / d
 	wc := 1 - wa - wb
-	if wa < 0 || wb < 0 || wc < 0 { return 0 }
+	if wa < 0 || wb < 0 || wc < 0 {
+		return 0
+	}
 	return math.Min(wa, math.Min(wb, wc))
 }
 
@@ -160,9 +170,13 @@ func newImage() *image.RGBA {
 
 func save(name string, img *image.RGBA) {
 	f, err := os.Create(filepath.Join("examples", "raiden", "assets", name+".png"))
-	if err != nil { log.Fatal(err) }
+	if err != nil {
+		log.Fatal(err)
+	}
 	defer f.Close()
-	if err := png.Encode(f, img); err != nil { log.Fatal(err) }
+	if err := png.Encode(f, img); err != nil {
+		log.Fatal(err)
+	}
 	log.Printf("wrote %s.png", name)
 }
 
@@ -407,7 +421,9 @@ func drawMedal() *image.RGBA {
 
 func main() {
 	out := filepath.Join("examples", "raiden", "assets")
-	if err := os.MkdirAll(out, 0o755); err != nil { log.Fatal(err) }
+	if err := os.MkdirAll(out, 0o755); err != nil {
+		log.Fatal(err)
+	}
 	save("player", drawPlayerShip())
 	save("player_icon", drawPlayerIcon())
 	save("bullet", drawBullet())

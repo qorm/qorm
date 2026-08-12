@@ -78,19 +78,27 @@ func (m Matrix) TransformBBox(b BBox) BBox {
 	p2 := m.TransformPoint(Point{b.MaxX, b.MinY})
 	p3 := m.TransformPoint(Point{b.MaxX, b.MaxY})
 	p4 := m.TransformPoint(Point{b.MinX, b.MaxY})
-	
+
 	minX := p1.X
 	maxX := p1.X
 	minY := p1.Y
 	maxY := p1.Y
-	
+
 	for _, p := range []Point{p2, p3, p4} {
-		if p.X < minX { minX = p.X }
-		if p.X > maxX { maxX = p.X }
-		if p.Y < minY { minY = p.Y }
-		if p.Y > maxY { maxY = p.Y }
+		if p.X < minX {
+			minX = p.X
+		}
+		if p.X > maxX {
+			maxX = p.X
+		}
+		if p.Y < minY {
+			minY = p.Y
+		}
+		if p.Y > maxY {
+			maxY = p.Y
+		}
 	}
-	
+
 	return BBox{MinX: minX, MinY: minY, MaxX: maxX, MaxY: maxY}
 }
 

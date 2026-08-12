@@ -302,8 +302,8 @@ func TestListReorderInteractiveItemKeepsTap(t *testing.T) {
 	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{list}}
 	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root},
 		Actions: map[string]*model.Action{
-			"hit":      {ID: "hit", Steps: []model.Step{{Type: "state.set", Path: "pressed", Value: "yes"}}},
-			"reorder":  {ID: "reorder", Steps: []model.Step{{Type: "state.set", Path: "lastFrom", Value: "{{from}}"}}},
+			"hit":     {ID: "hit", Steps: []model.Step{{Type: "state.set", Path: "pressed", Value: "yes"}}},
+			"reorder": {ID: "reorder", Steps: []model.Step{{Type: "state.set", Path: "lastFrom", Value: "{{from}}"}}},
 		}}
 	rt := runtime.New(app)
 	rt.State["items"] = names("a", "b", "c")

@@ -17,28 +17,28 @@ import (
 
 // NES 1-1 palette (curated subset, all opaque).
 var (
-	CTrans   = color.RGBA{0, 0, 0, 0}
-	CSky     = color.RGBA{0x5C, 0x94, 0xFC, 0xFF}
-	CBlack   = color.RGBA{0x00, 0x00, 0x00, 0xFF}
-	CWhite   = color.RGBA{0xFC, 0xFC, 0xFC, 0xFF}
-	CDark    = color.RGBA{0x40, 0x00, 0x00, 0xFF}
-	CGray    = color.RGBA{0x84, 0x84, 0x84, 0xFF}
-	CLight   = color.RGBA{0xFC, 0xB8, 0xB0, 0xFF}
-	CRed     = color.RGBA{0xE4, 0x00, 0x58, 0xFF}
-	CRedDk   = color.RGBA{0xA4, 0x00, 0x20, 0xFF}
-	CBlue    = color.RGBA{0x00, 0x58, 0xF8, 0xFF}
-	CBlueDk  = color.RGBA{0x00, 0x28, 0xA8, 0xFF}
-	CBrown   = color.RGBA{0x90, 0x40, 0x00, 0xFF}
-	CBrownDk = color.RGBA{0x68, 0x28, 0x00, 0xFF}
-	CBrownLt = color.RGBA{0xC0, 0x70, 0x20, 0xFF}
-	CYellow  = color.RGBA{0xF8, 0xB8, 0x00, 0xFF}
+	CTrans    = color.RGBA{0, 0, 0, 0}
+	CSky      = color.RGBA{0x5C, 0x94, 0xFC, 0xFF}
+	CBlack    = color.RGBA{0x00, 0x00, 0x00, 0xFF}
+	CWhite    = color.RGBA{0xFC, 0xFC, 0xFC, 0xFF}
+	CDark     = color.RGBA{0x40, 0x00, 0x00, 0xFF}
+	CGray     = color.RGBA{0x84, 0x84, 0x84, 0xFF}
+	CLight    = color.RGBA{0xFC, 0xB8, 0xB0, 0xFF}
+	CRed      = color.RGBA{0xE4, 0x00, 0x58, 0xFF}
+	CRedDk    = color.RGBA{0xA4, 0x00, 0x20, 0xFF}
+	CBlue     = color.RGBA{0x00, 0x58, 0xF8, 0xFF}
+	CBlueDk   = color.RGBA{0x00, 0x28, 0xA8, 0xFF}
+	CBrown    = color.RGBA{0x90, 0x40, 0x00, 0xFF}
+	CBrownDk  = color.RGBA{0x68, 0x28, 0x00, 0xFF}
+	CBrownLt  = color.RGBA{0xC0, 0x70, 0x20, 0xFF}
+	CYellow   = color.RGBA{0xF8, 0xB8, 0x00, 0xFF}
 	CYellowDk = color.RGBA{0xB8, 0x70, 0x00, 0xFF}
-	CGreenLt = color.RGBA{0x80, 0xD0, 0x10, 0xFF}
-	CGreen   = color.RGBA{0x00, 0xA8, 0x00, 0xFF}
-	CGreenDk = color.RGBA{0x00, 0x68, 0x00, 0xFF}
-	CCoin    = color.RGBA{0xFC, 0xE0, 0x40, 0xFF}
-	CCoinDk  = color.RGBA{0xB8, 0x80, 0x00, 0xFF}
-	COrange  = color.RGBA{0xFC, 0x88, 0x00, 0xFF}
+	CGreenLt  = color.RGBA{0x80, 0xD0, 0x10, 0xFF}
+	CGreen    = color.RGBA{0x00, 0xA8, 0x00, 0xFF}
+	CGreenDk  = color.RGBA{0x00, 0x68, 0x00, 0xFF}
+	CCoin     = color.RGBA{0xFC, 0xE0, 0x40, 0xFF}
+	CCoinDk   = color.RGBA{0xB8, 0x80, 0x00, 0xFF}
+	COrange   = color.RGBA{0xFC, 0x88, 0x00, 0xFF}
 )
 
 // setPx draws a pixel at (x,y) on a 16x16 grid; ignores out-of-range.
@@ -291,8 +291,8 @@ func makePipeTop() [][]color.RGBA {
 	// Shadow band under the lip (dark green line).
 	fillRect(g, 1, 6, 15, 7, CGreenDk)
 	// The 1-cell body preview.
-	fillRect(g, 1, 7, 4, 16, CGreen) // main body
-	fillRect(g, 5, 7, 13, 16, CGreenLt) // bright mid
+	fillRect(g, 1, 7, 4, 16, CGreen)     // main body
+	fillRect(g, 5, 7, 13, 16, CGreenLt)  // bright mid
 	fillRect(g, 14, 7, 15, 16, CGreenDk) // dark right edge
 	return g
 }
@@ -346,7 +346,7 @@ func makeMario() [][]color.RGBA {
 	fillRect(g, 12, 4, 14, 5, CRed)
 	// Face: rows 5-6.
 	fillRect(g, 3, 5, 5, 7, CLight)
-	setPx(g, 4, 5, CBlack) // eye
+	setPx(g, 4, 5, CBlack)  // eye
 	setPx(g, 10, 5, CBlack) // eye
 	fillRect(g, 9, 5, 12, 6, CLight)
 	setPx(g, 11, 5, CBlack)
@@ -355,10 +355,10 @@ func makeMario() [][]color.RGBA {
 	setPx(g, 3, 6, CBrownDk)
 	setPx(g, 12, 6, CBrownDk)
 	// Body / overalls: rows 7-12, blue.
-	fillRect(g, 4, 7, 12, 8, CRed) // shirt under overall strap
+	fillRect(g, 4, 7, 12, 8, CRed)   // shirt under overall strap
 	fillRect(g, 4, 8, 12, 13, CBlue) // overall
-	setPx(g, 6, 8, CYellow) // button
-	setPx(g, 10, 8, CYellow) // button
+	setPx(g, 6, 8, CYellow)          // button
+	setPx(g, 10, 8, CYellow)         // button
 	fillRect(g, 4, 13, 12, 14, CBlue)
 	// Arms: rows 9-11, red (sleeve).
 	setPx(g, 3, 9, CRed)
@@ -662,26 +662,26 @@ func main() {
 		log.Fatal(err)
 	}
 	sprites := map[string][][]color.RGBA{
-		"ground":        makeGround(),
-		"brick":         makeBrick(),
-		"question":      makeQuestion(),
-		"used":          makeUsed(),
-		"coin":          makeCoin(),
-		"pipe_top":      makePipeTop(),
-		"pipe_body":     makePipeBody(),
-		"flag":          makeFlag(),
-		"mario":         makeMario(),
-		"mario_walk":    makeMarioWalk(),
-		"mario_jump":    makeMarioJump(),
-		"goomba":        makeGoomba(),
-		"goomba_walk":   makeGoombaWalk(),
-		"cloud":         makeCloud(),
-		"bush":          makeBush(),
-		"hill":          makeHill(),
-		"mushroom":      makeMushroom(),
-		"castle":        makeCastle(),
-		"stair":         makeStair(),
-		"sky":           makeSky(),
+		"ground":      makeGround(),
+		"brick":       makeBrick(),
+		"question":    makeQuestion(),
+		"used":        makeUsed(),
+		"coin":        makeCoin(),
+		"pipe_top":    makePipeTop(),
+		"pipe_body":   makePipeBody(),
+		"flag":        makeFlag(),
+		"mario":       makeMario(),
+		"mario_walk":  makeMarioWalk(),
+		"mario_jump":  makeMarioJump(),
+		"goomba":      makeGoomba(),
+		"goomba_walk": makeGoombaWalk(),
+		"cloud":       makeCloud(),
+		"bush":        makeBush(),
+		"hill":        makeHill(),
+		"mushroom":    makeMushroom(),
+		"castle":      makeCastle(),
+		"stair":       makeStair(),
+		"sky":         makeSky(),
 	}
 	for name, g := range sprites {
 		writeSprite(outDir, name, g)

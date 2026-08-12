@@ -214,24 +214,24 @@ func TestV2TypeAndJSONBuiltins(t *testing.T) {
 	// typeof — every documented tag; nil is "null" not the zero value of
 	// the map iteration.
 	typeOf := map[string]any{
-		"1":          float64(1),
-		"0":          float64(0),
-		"\"a\"":      "a",
-		"\"\"":       "",
-		"true":       true,
-		"false":      false,
-		"null":       nil,
-		"[1]":        []any{float64(1)},
-		"[]":         []any{},
-		"{a:1}":      map[string]any{"a": float64(1)},
-		"{}":         map[string]any{},
+		"1":     float64(1),
+		"0":     float64(0),
+		"\"a\"": "a",
+		"\"\"":  "",
+		"true":  true,
+		"false": false,
+		"null":  nil,
+		"[1]":   []any{float64(1)},
+		"[]":    []any{},
+		"{a:1}": map[string]any{"a": float64(1)},
+		"{}":    map[string]any{},
 	}
 	typeOfWant := map[string]string{
 		"1": "number", "0": "number",
 		"\"a\"": "string", "\"\"": "string",
 		"true": "boolean", "false": "boolean",
 		"null": "null",
-		"[1]": "array", "[]": "array",
+		"[1]":  "array", "[]": "array",
 		"{a:1}": "object", "{}": "object",
 	}
 	for k, v := range typeOf {
@@ -374,4 +374,4 @@ type testAudio struct{ onCall func(string) }
 
 func (a testAudio) PlayOnce(src string) error { a.onCall("once:" + src); return nil }
 func (a testAudio) PlayLoop(src string) error { a.onCall("loop:" + src); return nil }
-func (a testAudio) Stop() error                { a.onCall("stop"); return nil }
+func (a testAudio) Stop() error               { a.onCall("stop"); return nil }

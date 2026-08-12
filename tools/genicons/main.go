@@ -17,7 +17,9 @@ import (
 func main() {
 	icons := widgets.IconSet()
 	names := make([]string, 0, len(icons))
-	for name := range icons { names = append(names, name) }
+	for name := range icons {
+		names = append(names, name)
+	}
 	sort.Strings(names)
 
 	var buf []byte
@@ -27,33 +29,52 @@ func main() {
 	n := 0
 	for _, name := range names {
 		bmp := widgets.RasterIcon(icons[name], 16, 16, color.RGBA{255, 255, 255, 255})
-		if bmp == nil { continue }
+		if bmp == nil {
+			continue
+		}
 		minC, maxC := 16, 0
 		for x := 0; x < 16; x++ {
 			for y := 0; y < 16; y++ {
 				if bmp.RGBAAt(x, y).A > 64 {
-					if x < minC { minC = x }; if x > maxC { maxC = x }
+					if x < minC {
+						minC = x
+					}
+					if x > maxC {
+						maxC = x
+					}
 				}
 			}
 		}
-		if minC > maxC { continue }
+		if minC > maxC {
+			continue
+		}
 		cols := maxC - minC + 1
 		bits := make([]uint16, cols)
 		for cx := 0; cx < cols; cx++ {
 			for row := 0; row < 16; row++ {
-				if bmp.RGBAAt(minC+cx, row).A > 64 { bits[cx] |= 1 << uint(row) }
+				if bmp.RGBAAt(minC+cx, row).A > 64 {
+					bits[cx] |= 1 << uint(row)
+				}
 			}
 		}
 		l, r := 0, len(bits)-1
-		for l < len(bits) && bits[l] == 0 { l++ }
-		for r >= 0 && bits[r] == 0 { r-- }
-		if l > r { continue }
+		for l < len(bits) && bits[l] == 0 {
+			l++
+		}
+		for r >= 0 && bits[r] == 0 {
+			r--
+		}
+		if l > r {
+			continue
+		}
 		bits = bits[l : r+1]
 
 		s := fmt.Sprintf("\tregisterIcon(%q, iconGlyph{%d, 16, []uint16{", name, len(bits))
 		buf = append(buf, s...)
 		for i, v := range bits {
-			if i > 0 { buf = append(buf, ',', ' ') }
+			if i > 0 {
+				buf = append(buf, ',', ' ')
+			}
 			buf = append(buf, fmt.Sprintf("0x%04x", v)...)
 		}
 		buf = append(buf, "}})\n"...)

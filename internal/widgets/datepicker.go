@@ -201,7 +201,7 @@ func (*DatePicker) HandlePointer(n *model.Node, rt *runtime.Runtime, p canvas.Po
 	if x < 0 || y < 0 {
 		return false
 	}
-	col := int(x / float64((dpColW+dpGap)))
+	col := int(x / float64((dpColW + dpGap)))
 	row := int(y / float64(dpRowH))
 	if col < 0 || col > 2 {
 		return false

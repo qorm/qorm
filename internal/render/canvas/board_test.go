@@ -273,7 +273,7 @@ func TestBoardCameraFollow(t *testing.T) {
 	rt := runtime.New(app)
 	rt.Theme = theme.GetDefault()
 	rt.State["player"] = map[string]any{"x": 128.0, "y": 192.0} // 4 cells across, 6 cells down
-	surf := NewHeadlessSurface(image.Pt(512, 384)) // 16x12 cells @ 32px
+	surf := NewHeadlessSurface(image.Pt(512, 384))              // 16x12 cells @ 32px
 	e := NewEngine(rt, SoftwareRenderer{})
 	e.DrawFrame(surf)
 	if !e.Inter.Board.Active {

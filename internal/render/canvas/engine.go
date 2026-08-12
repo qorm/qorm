@@ -134,7 +134,7 @@ type FrameStats struct {
 // graph.SnapshotFor / WidgetFrames seams instead. May be nil before the first
 // RenderInto or after the scene root was conditionally hidden.
 func (e *Engine) Graph() graph.Node { return e.graphRoot }
-//
+
 //	input/state → layout → record (display list) → render
 //
 // It owns the interaction state, the (reused) display-list buffer and the

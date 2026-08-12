@@ -203,7 +203,9 @@ type subpath struct {
 // RasterIcon renders an icon-set SVG body into a w×h straight-alpha bitmap
 // at 4x supersampling. Exported for go:generate (tools that batch-convert
 // the SVG icon set into bitmap font glyphs).
-func RasterIcon(body string, w, h int, ink color.RGBA) *image.RGBA { return rasterIcon(body, w, h, ink) }
+func RasterIcon(body string, w, h int, ink color.RGBA) *image.RGBA {
+	return rasterIcon(body, w, h, ink)
+}
 
 // IconSet returns the built-in SVG icon set (name → SVG path body). Exported
 // for go:generate so the font-glyph tool can enumerate it.
@@ -830,12 +832,12 @@ var iconSet = map[string]string{
 	// 24x24 silhouettes, drawn with one ink color over the cell's bg, so the
 	// mario theme resolves through the framework (no hardcoded colors in
 	// user config).
-	"mario": `<rect x="5" y="3" width="14" height="6"/><rect x="4" y="8" width="16" height="2"/><circle cx="12" cy="13" r="5"/><rect x="9" y="14" width="6" height="1.5"/><rect x="6" y="17" width="12" height="5"/><rect x="7" y="22" width="3" height="2"/><rect x="14" y="22" width="3" height="2"/>`,
+	"mario":  `<rect x="5" y="3" width="14" height="6"/><rect x="4" y="8" width="16" height="2"/><circle cx="12" cy="13" r="5"/><rect x="9" y="14" width="6" height="1.5"/><rect x="6" y="17" width="12" height="5"/><rect x="7" y="22" width="3" height="2"/><rect x="14" y="22" width="3" height="2"/>`,
 	"goomba": `<ellipse cx="12" cy="13" rx="7" ry="6"/><ellipse cx="9" cy="12" rx="1.5" ry="2" fill="none" stroke-width="1.4"/><ellipse cx="15" cy="12" rx="1.5" ry="2" fill="none" stroke-width="1.4"/><circle cx="9.5" cy="12.5" r="0.7" fill="none" stroke-width="1.2"/><circle cx="14.5" cy="12.5" r="0.7" fill="none" stroke-width="1.2"/><path d="M8 18q4 -2.5 8 0" fill="none"/><rect x="7" y="20" width="2.5" height="2.5"/><rect x="14.5" y="20" width="2.5" height="2.5"/>`,
-	"coin": `<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="none" stroke-width="2"/>`,
-	"brick": `<rect x="2" y="6" width="20" height="14"/><path d="M2 13h20M8 6v7M16 6v7M4 13v7M12 13v7M20 13v7" fill="none" stroke-width="1.2"/>`,
+	"coin":   `<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3" fill="none" stroke-width="2"/>`,
+	"brick":  `<rect x="2" y="6" width="20" height="14"/><path d="M2 13h20M8 6v7M16 6v7M4 13v7M12 13v7M20 13v7" fill="none" stroke-width="1.2"/>`,
 	"ground": `<rect x="2" y="6" width="20" height="14"/><path d="M2 9h20M5 6v3M14 6v3M3 13v7M9 13v7M17 13v7" fill="none" stroke-width="1.2"/><rect x="2" y="6" width="20" height="2"/>`,
-	"flag": `<rect x="4" y="2" width="2" height="20"/><path d="M6 3h12l-3 4 3 4H6z"/>`,
+	"flag":   `<rect x="4" y="2" width="2" height="20"/><path d="M6 3h12l-3 4 3 4H6z"/>`,
 }
 
 // Inline marks Icon as inline-level (canvas.InlineWidget): flex containers keep its content size.

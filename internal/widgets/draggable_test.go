@@ -150,7 +150,7 @@ func TestDraggableAbandonedDragClears(t *testing.T) {
 
 	e.HandlePointer(canvas.PointerInput{Type: canvas.PointerPress, X: 40, Y: 20, Buttons: 1})
 	e.HandlePointer(canvas.PointerInput{Type: canvas.PointerMove, X: 200, Y: 100, Buttons: 1}) // publish the drag
-	e.HandlePointer(canvas.PointerInput{Type: canvas.PointerRelease, X: 200, Y: 100})         // released over nothing
+	e.HandlePointer(canvas.PointerInput{Type: canvas.PointerRelease, X: 200, Y: 100})          // released over nothing
 	if !e.Inter.Drag.Active {
 		t.Fatal("precondition: the drag must still be in flight after a missed release")
 	}

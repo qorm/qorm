@@ -2,8 +2,8 @@ package widgets
 
 import (
 	"fmt"
-	"image/color"
 	"image"
+	"image/color"
 	"strings"
 
 	"github.com/qorm/qorm/internal/model"
@@ -81,7 +81,7 @@ func (l LargeTitle) record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int
 		g.AddChild(formText(title, float64(tx), float64((barH-lineHeight(fs))/2), fs, formInk(ln.Node, ln, rt)))
 	}
 	if len(ln.Children) > 0 {
-		ax := ln.Width - 12 * scale
+		ax := ln.Width - 12*scale
 		for _, cln := range ln.Children {
 			cw := cln.Width + cln.Style.MarginLeft + cln.Style.MarginRight
 			ch := cln.Height + cln.Style.MarginTop + cln.Style.MarginBot
@@ -126,4 +126,3 @@ func ltProp(n *model.Node, key string, rt *runtime.Runtime) string {
 	}
 	return strings.TrimSpace(fmt.Sprint(runtime.EvalBinding(fmt.Sprint(raw), map[string]any{"state": rt.State})))
 }
-

@@ -111,8 +111,8 @@ func TestComponentTemplateWithImageRenders(t *testing.T) {
 	writeTestPNG(t, dir, "icon.png", solidRGBA(4, 4, color.RGBA{0x77, 0x88, 0x99, 0xff}))
 
 	app := &model.App{
-		Entry:  "main",
-		Scenes: map[string]*model.Node{"main": {Type: "column", ID: "root"}},
+		Entry:   "main",
+		Scenes:  map[string]*model.Node{"main": {Type: "column", ID: "root"}},
 		BaseDir: dir,
 		Components: map[string]*model.Node{
 			"avatar": {
@@ -123,7 +123,7 @@ func TestComponentTemplateWithImageRenders(t *testing.T) {
 					// the test isn't sensitive to the intrinsic size.
 					{Type: "image", ID: "img",
 						Props: map[string]any{"src": "icon.png"},
-						Style:  map[string]any{"width": 24, "height": 24}},
+						Style: map[string]any{"width": 24, "height": 24}},
 					{Type: "text", ID: "label",
 						Props: map[string]any{"text": "{{prop.name}}"}},
 				},

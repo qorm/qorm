@@ -484,15 +484,21 @@ func drawTextBitmapFrac(img *image.RGBA, text string, pos image.Point, col color
 					u0 := (float64(x) - penX) / scale
 					u1 := (float64(x) + 1 - penX) / scale
 					cov := varCellCoverage(ig.data, ig.rows, u0, u1, v0, v1)
-					if cov <= 0 { continue }
+					if cov <= 0 {
+						continue
+					}
 					clipCov := clipCoverage(float64(x)+0.5, float64(y)+0.5, clips)
-					if clipCov <= 0 { continue }
+					if clipCov <= 0 {
+						continue
+					}
 					blendOver(img, x, y, withOpacity(col, cov*clipCov))
 				}
 			}
 		} else {
 			c := byte(r)
-			if r < 32 || r > 127 { c = 63 }
+			if r < 32 || r > 127 {
+				c = 63
+			}
 			glyph := font5x7[c-32]
 			gw, gh := 5*scale, 7*scale
 			x0 := int(math.Floor(penX))
@@ -506,9 +512,13 @@ func drawTextBitmapFrac(img *image.RGBA, text string, pos image.Point, col color
 					u0 := (float64(x) - penX) / scale
 					u1 := (float64(x) + 1 - penX) / scale
 					cov := bitmapCellCoverage(glyph, u0, u1, v0, v1)
-					if cov <= 0 { continue }
+					if cov <= 0 {
+						continue
+					}
 					clipCov := clipCoverage(float64(x)+0.5, float64(y)+0.5, clips)
-					if clipCov <= 0 { continue }
+					if clipCov <= 0 {
+						continue
+					}
 					blendOver(img, x, y, withOpacity(col, cov*clipCov))
 				}
 			}

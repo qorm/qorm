@@ -27,12 +27,12 @@ type Dismissible struct {
 }
 
 type dismissState struct {
-	offset     float64 // content shift, [-(rowWidth), 0]
-	rowWidth   float64
-	dragStartX float64
+	offset      float64 // content shift, [-(rowWidth), 0]
+	rowWidth    float64
+	dragStartX  float64
 	dragStartOf float64
-	dragging   bool
-	dismissed  bool
+	dragging    bool
+	dismissed   bool
 }
 
 func (d *Dismissible) state(n *model.Node) *dismissState {

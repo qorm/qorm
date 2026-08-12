@@ -840,15 +840,15 @@ var canvasStyleKeys = map[string]bool{
 	"x": true, "y": true, "left": true, "top": true,
 	"fontSize": true, "fontWeight": true, "textAlign": true,
 	"borderRadius": true, "strokeWidth": true, "borderWidth": true,
-	"opacity":         true,
-	"disabled":        true,
+	"opacity":  true,
+	"disabled": true,
 	// Declarative interaction effects (any node; resolved generically by
 	// applyInteractiveOverlay + performLayout).
 	"hoverBackground": true, "pressedBackground": true,
 	"hoverOpacity": true, "pressedOpacity": true,
 	"pressedScale": true, "hoverScale": true,
-	"transition": true, // animates interaction effect changes ("0.2s")
-	"boxShadowColor":  true, "boxShadowBlur": true, "boxShadowY": true,
+	"transition":     true, // animates interaction effect changes ("0.2s")
+	"boxShadowColor": true, "boxShadowBlur": true, "boxShadowY": true,
 }
 
 // styleWarn* implement one-shot unsupported-style-key warnings: each key is

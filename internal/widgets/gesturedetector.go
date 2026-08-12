@@ -116,7 +116,7 @@ func (g *GestureDetector) HandlePointer(n *model.Node, rt *runtime.Runtime, p ca
 	case canvas.PointerMove:
 		if st.down && p.Buttons > 0 && !st.moved &&
 			math.Hypot(p.X-st.pressPt.X, p.Y-st.pressPt.Y) > gestureTapSlop {
-			st.moved = true // a drag cancels the tap/long-press
+			st.moved = true          // a drag cancels the tap/long-press
 			st.lastTap = time.Time{} // ...and ends the double-tap sequence
 		}
 	case canvas.PointerRelease:

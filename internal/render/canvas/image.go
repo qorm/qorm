@@ -104,12 +104,12 @@ var imageWarnOut io.Writer = os.Stderr
 //     but the cache slot is NOT set, so the next frame retries the read
 //
 // The distinction matters in two places:
-//   1. The WASM canvas engine, where sync XHR can race the preloader and
-//      produce a transient failure for a URL that's about to land in the
-//      preloaded cache a few ms later. A permanent cache there would
-//      black-hole every asset for the rest of the WASM process lifetime.
-//   2. Any host where a transient network error (5xx, dropped connection)
-//      would otherwise lock out the image for the rest of the session.
+//  1. The WASM canvas engine, where sync XHR can race the preloader and
+//     produce a transient failure for a URL that's about to land in the
+//     preloaded cache a few ms later. A permanent cache there would
+//     black-hole every asset for the rest of the WASM process lifetime.
+//  2. Any host where a transient network error (5xx, dropped connection)
+//     would otherwise lock out the image for the rest of the session.
 var (
 	imageCacheMu sync.Mutex
 	imageCache   = map[string]*image.RGBA{}

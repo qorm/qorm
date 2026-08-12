@@ -91,14 +91,14 @@ func UpdateAndGetAnimatedStyleD(key string, target NodeStyle, rt *runtime.Runtim
 
 	// Copy all target fields (including non-animatable ones)
 	current := target
-	
+
 	// Interpolate all animatable fields
 	current.Background = anim.ColorTween(state.CurrentStyle.Background, state.TargetStyle.Background).Lerp(t)
 	current.Color = anim.ColorTween(state.CurrentStyle.Color, state.TargetStyle.Color).Lerp(t)
 	current.Padding = anim.IntTween(state.CurrentStyle.Padding, state.TargetStyle.Padding).Lerp(t)
 	current.Width = anim.IntTween(state.CurrentStyle.Width, state.TargetStyle.Width).Lerp(t)
 	current.Height = anim.IntTween(state.CurrentStyle.Height, state.TargetStyle.Height).Lerp(t)
-	
+
 	current.MarginTop = anim.IntTween(state.CurrentStyle.MarginTop, state.TargetStyle.MarginTop).Lerp(t)
 	current.MarginBot = anim.IntTween(state.CurrentStyle.MarginBot, state.TargetStyle.MarginBot).Lerp(t)
 	current.MarginLeft = anim.IntTween(state.CurrentStyle.MarginLeft, state.TargetStyle.MarginLeft).Lerp(t)

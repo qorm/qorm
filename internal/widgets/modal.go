@@ -134,7 +134,7 @@ func (m *Modal) OverlayRecord(ln *canvas.LayoutNode, rt *runtime.Runtime, scale 
 		panelW = 40 * scale
 	}
 	if panelW > stageW-40*scale {
-		panelW = stageW - 40 * scale
+		panelW = stageW - 40*scale
 	}
 	panelX := (stageW - panelW) / 2
 	panelY := (stageH - panelH) / 2

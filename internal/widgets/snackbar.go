@@ -74,7 +74,7 @@ func (s *Snackbar) OverlayRecord(ln *canvas.LayoutNode, rt *runtime.Runtime, sca
 		barW = 200 * scale
 	}
 	if barW > stageW-20*scale {
-		barW = stageW - 20 * scale
+		barW = stageW - 20*scale
 	}
 	barH := 48 * scale
 	barX := (stageW - barW) / 2

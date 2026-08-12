@@ -89,7 +89,6 @@ func TestNewInstallsAudioHandler(t *testing.T) {
 	}
 }
 
-
 // webSrcSink records PlaySrc calls for App.Web adapter tests.
 type webSrcSink struct {
 	calls []string

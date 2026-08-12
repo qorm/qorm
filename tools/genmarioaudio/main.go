@@ -2,7 +2,8 @@
 // background music loop and one-shot SFX. Output is CC0 (no copyright).
 //
 // Usage: go run ./tools/genmarioaudio [outdir]
-//   outdir defaults to ./examples/mario/audio.
+//
+//	outdir defaults to ./examples/mario/audio.
 package main
 
 import (

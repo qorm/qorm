@@ -11,13 +11,18 @@ func TestRaidenPerf(t *testing.T) {
 	keys["fire"] = true
 	// Warm up.
 	for i := 0; i < 5; i++ {
-		for tm := range e.timers { e.timers[tm].nextFire = nowMinus(time.Millisecond) }
-		e.MarkDirty(); e.DrawFrame(surf)
+		for tm := range e.timers {
+			e.timers[tm].nextFire = nowMinus(time.Millisecond)
+		}
+		e.MarkDirty()
+		e.DrawFrame(surf)
 	}
 	// Time 30 frames.
 	start := time.Now()
 	for i := 0; i < 30; i++ {
-		for tm := range e.timers { e.timers[tm].nextFire = nowMinus(time.Millisecond) }
+		for tm := range e.timers {
+			e.timers[tm].nextFire = nowMinus(time.Millisecond)
+		}
 		e.MarkDirty()
 		e.DrawFrame(surf)
 	}

@@ -5,9 +5,9 @@ import (
 	"errors"
 	"image"
 	"image/color"
-	"image/jpeg"
-	_ "image/gif" // decoder only — tests in this file construct gifs too
 	"image/gif"
+	_ "image/gif" // decoder only — tests in this file construct gifs too
+	"image/jpeg"
 	"image/png"
 	"os"
 	"path/filepath"
@@ -553,8 +553,8 @@ func TestImageSrcBindingWithItemScope(t *testing.T) {
 	// Simulate a gridview renderItem with item=2 → cellImage[2]="sprite.png"
 	cellImage := []any{"sky.png", "ground.png", "sprite.png", "coin.png"}
 	vars := map[string]any{
-		"item":       2,
-		"cellImage":  cellImage,
+		"item":      2,
+		"cellImage": cellImage,
 	}
 	src := "sprite.png" // fallback: at(state.cellImage, item) should resolve to this
 

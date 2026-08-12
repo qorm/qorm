@@ -53,14 +53,14 @@ var EaseInOutCubic Curve = func(t float64) float64 {
 // namedCurves maps theme/spec easing names to curves. The short names
 // ("easeOut", "easeInOut") match planning/spec/motion-spec.md vocabulary.
 var namedCurves = map[string]Curve{
-	"linear":        Linear,
-	"easeIn":        EaseInCubic,
-	"easeInCubic":   EaseInCubic,
-	"easeOut":       EaseOutCubic,
-	"easeOutCubic":  EaseOutCubic,
-	"easeInOut":     EaseInOutCubic,
+	"linear":         Linear,
+	"easeIn":         EaseInCubic,
+	"easeInCubic":    EaseInCubic,
+	"easeOut":        EaseOutCubic,
+	"easeOutCubic":   EaseOutCubic,
+	"easeInOut":      EaseInOutCubic,
 	"easeInOutCubic": EaseInOutCubic,
-	"spring":        Spring,
+	"spring":         Spring,
 	// Token aliases used by theme motion sections.
 	"standard":   EaseOutCubic,
 	"emphasized": EaseInOutCubic,
@@ -75,8 +75,8 @@ func CurveByName(name string) (Curve, bool) {
 
 // Tween generic type for animating any value
 type Tween[T any] struct {
-	Begin T
-	End   T
+	Begin  T
+	End    T
 	interp func(a, b T, t float64) T
 }
 

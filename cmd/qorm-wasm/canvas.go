@@ -27,9 +27,9 @@ var (
 	// "mario/raiden frozen after a while" incident. The pair is sized
 	// to the current surface and rebuilt only when w or h changes
 	// (game switch, window resize).
-	frameMu       sync.Mutex
-	framePixels   js.Value // Uint8ClampedArray
-	frameImage    js.Value // ImageData
+	frameMu        sync.Mutex
+	framePixels    js.Value // Uint8ClampedArray
+	frameImage     js.Value // ImageData
 	frameW, frameH int
 )
 

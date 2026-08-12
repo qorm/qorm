@@ -27,10 +27,10 @@ import (
 // goroutine-safe: a host must drive it from one thread (the same
 // single-threaded-render rule as the desktop engine) or hold Mu.
 type Session struct {
-	Eng  *canvas.Engine
-	rt   *runtime.Runtime
-	buf  *image.RGBA
-	size image.Point
+	Eng   *canvas.Engine
+	rt    *runtime.Runtime
+	buf   *image.RGBA
+	size  image.Point
 	scale int
 
 	mu sync.Mutex

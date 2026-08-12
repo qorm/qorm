@@ -23,8 +23,8 @@ type AudioHandler interface {
 }
 
 var (
-	audioMu  sync.RWMutex
-	audioH   AudioHandler = nopAudio{}
+	audioMu sync.RWMutex
+	audioH  AudioHandler = nopAudio{}
 )
 
 // SetAudioHandler installs the audio backend (typically the runtime). Pass

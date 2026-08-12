@@ -787,9 +787,9 @@ func (e *Engine) commitEdit(s *InputState) {
 // read on demand from the graph (a fresh click maps against the frame the
 // user is actually looking at).
 type InputMetrics struct {
-	TextX, TextY int      // scene origin of the first text run (physical px)
-	FontSize     float64  // physical px
-	LineH        int      // int(FontSize * 1.2), the per-line advance
+	TextX, TextY int     // scene origin of the first text run (physical px)
+	FontSize     float64 // physical px
+	LineH        int     // int(FontSize * 1.2), the per-line advance
 	Multiline    bool
 }
 
