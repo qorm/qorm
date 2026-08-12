@@ -56,3 +56,4 @@
 | 2026-08-12 | **v0.8.8** tag + main + 官网部署 |
 | 2026-08-12 | Canvas 完善：样式键 + 7 个 widget/别名 |
 | 2026-08-12 | Canvas：rangeslider/pageview/tree/autocomplete + richtext wrap + true angle gradient |
+| 2026-08-12 | Canvas：剩余 allowlist 12 类全部 port；parity 核心 allowlist 清空 |
