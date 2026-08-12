@@ -56,6 +56,10 @@ type TextOp struct {
 	// normal. The sfnt engine emboldens synthetically (the embedded font
 	// has one weight).
 	Weight int
+	// LetterSpacing is extra px between runes (CSS letter-spacing); 0 is default.
+	LetterSpacing float64
+	// Italic requests a light faux-italic second pass in the rasterizer.
+	Italic bool
 }
 
 func (TextOp) isOp() {}

@@ -172,7 +172,7 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 			// glyphs down instead of clamping (which overflowed a zoomed-out
 			// board's cards with full-size text).
 			scale := o.Scale * matrixScale(currentMatrix)
-			DrawTextWeighted(img, o.Text, pos, withOpacity(currentColor, currentOpacity), scale, o.Weight, clips)
+			DrawTextTracking(img, o.Text, pos, withOpacity(currentColor, currentOpacity), scale, o.Weight, o.LetterSpacing, o.Italic, clips)
 		case op.ImageOp:
 			if o.Src == nil {
 				break

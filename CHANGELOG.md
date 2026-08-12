@@ -7,6 +7,11 @@ All notable changes to QORM are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Canvas text styles**: `letterSpacing`, `lineHeight` (multiplier or px), and
+  `fontStyle: italic|oblique` (faux-italic) flow through measure/wrap/draw;
+  tracking is shared by MeasureTextTracking and the rasterizer.
+- **Canvas FAB + SwitchListTile**: `fab` / `floatingactionbutton` and
+  `switchlisttile` with trailing toggle (binding + onChange like `switch`).
 - **Canvas layout/feedback widgets**: `aspectratio`, `ignorepointer`, `skeleton`,
   `circularprogress` (+ `circularprogressindicator`), plus aliases
   `activityindicator`→spinner, `tag`→chip, and `animatedcontainer` as the

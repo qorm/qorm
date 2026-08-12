@@ -81,7 +81,6 @@ var htmlOnlyCoreAllowlist = map[string]string{
 	"carousel":         "canvas port pending",
 	"descriptions":     "canvas port pending",
 	"dropdownbutton":   "canvas select/dropdown cover the common case",
-	"fab":              "canvas port pending",
 	"field":            "canvas port pending (input/textarea exist)",
 	"materialstepper":  "canvas port pending (steps exists)",
 	"monthview":        "canvas port pending",
@@ -94,13 +93,12 @@ var htmlOnlyCoreAllowlist = map[string]string{
 	"richtext":         "canvas port pending",
 	"searchbar":        "canvas port pending",
 	"selectabletext":   "canvas port pending",
-	"switchlisttile":   "canvas port pending (switch/listtile exist)",
 	"textformfield":    "canvas port pending (input/textarea exist)",
 	"transform":        "canvas port pending",
 	"tree":             "canvas port pending",
-	// Ported to canvas (layout_extras.go / measure alias) — kept out of allowlist:
+	// Ported to canvas — removed from allowlist:
 	// activityindicator, animatedcontainer, aspectratio, circularprogress,
-	// ignorepointer, skeleton, tag.
+	// ignorepointer, skeleton, tag, fab, switchlisttile.
 }
 
 // canvasOnlyAllowlist: RegisterWidget names with no HTML switch case. Empty

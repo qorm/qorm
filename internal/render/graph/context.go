@@ -90,11 +90,18 @@ func (c *Context) DrawText(text string, pos image.Point, scale float64) {
 // DrawTextWeighted is DrawText with a font weight (0/400 normal; 600+ is
 // emboldened synthetically by the rasterizer).
 func (c *Context) DrawTextWeighted(text string, pos image.Point, scale float64, weight int) {
+	c.DrawTextTracking(text, pos, scale, weight, 0, false)
+}
+
+// DrawTextTracking is DrawTextWeighted with letter-spacing and optional italic.
+func (c *Context) DrawTextTracking(text string, pos image.Point, scale float64, weight int, letterSpacing float64, italic bool) {
 	c.ops.Add(op.TextOp{
-		Text:   text,
-		Pos:    pos,
-		Scale:  scale,
-		Weight: weight,
+		Text:          text,
+		Pos:           pos,
+		Scale:         scale,
+		Weight:        weight,
+		LetterSpacing: letterSpacing,
+		Italic:        italic,
 	})
 }
 

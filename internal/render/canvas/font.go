@@ -342,10 +342,30 @@ func activeTTFEngine() ttfEngine {
 // DrawText advances the pen by the same per-rune amounts, so measured and
 // drawn width cannot drift apart.
 func MeasureText(text string, fontSize float64) float64 {
+	return MeasureTextTracking(text, fontSize, 0)
+}
+
+// MeasureTextTracking is MeasureText plus CSS letter-spacing: extra px is
+// inserted between consecutive runes (n-1 gaps). Spacing of 0 matches
+// MeasureText exactly.
+func MeasureTextTracking(text string, fontSize, letterSpacing float64) float64 {
+	var base float64
 	if e := activeTTFEngine(); e != nil {
-		return e.Measure(text, fontSize)
+		base = e.Measure(text, fontSize)
+	} else {
+		base = bitmapMeasurer{}.Measure(text, fontSize)
 	}
-	return bitmapMeasurer{}.Measure(text, fontSize)
+	if letterSpacing == 0 || text == "" {
+		return base
+	}
+	n := 0
+	for range text {
+		n++
+	}
+	if n > 1 {
+		base += letterSpacing * float64(n-1)
+	}
+	return base
 }
 
 // runeAdvance is the per-rune pen advance shared by MeasureText and DrawText.
@@ -416,11 +436,45 @@ func DrawText(img *image.RGBA, text string, pos image.Point, col color.RGBA, sca
 // synthetically — the embedded font ships one weight, so a second pass at a
 // small x offset thickens the strokes (classic faux-bold, same advance).
 func DrawTextWeighted(img *image.RGBA, text string, pos image.Point, col color.RGBA, scale float64, weight int, clips []op.ClipOp) {
-	DrawText(img, text, pos, col, scale, clips)
-	if weight >= 600 {
-		fontSize := clampFontSize(scale * 10)
-		dx := int(fontSize)/24 + 1
-		DrawText(img, text, image.Pt(pos.X+dx, pos.Y), col, scale, clips)
+	DrawTextTracking(img, text, pos, col, scale, weight, 0, false, clips)
+}
+
+// DrawTextTracking is DrawTextWeighted with CSS letter-spacing and a light
+// faux-italic (skew via a second shifted pass when italic is true).
+func DrawTextTracking(img *image.RGBA, text string, pos image.Point, col color.RGBA, scale float64, weight int, letterSpacing float64, italic bool, clips []op.ClipOp) {
+	fontSize := clampFontSize(scale * 10)
+	if letterSpacing == 0 {
+		DrawText(img, text, pos, col, scale, clips)
+		if weight >= 600 {
+			dx := int(fontSize)/24 + 1
+			DrawText(img, text, image.Pt(pos.X+dx, pos.Y), col, scale, clips)
+		}
+		if italic {
+			// Faux italic: a thin second pass offset rightward (no true oblique matrix).
+			DrawText(img, text, image.Pt(pos.X+1, pos.Y), col, scale, clips)
+		}
+		return
+	}
+	// Spaced path: draw one rune at a time so tracking does not require a
+	// kern-aware rewrite of the sfnt engine.
+	penX := float64(pos.X)
+	first := true
+	for _, r := range text {
+		if !first {
+			penX += letterSpacing
+		}
+		first = false
+		s := string(r)
+		p := image.Pt(int(math.Round(penX)), pos.Y)
+		DrawText(img, s, p, col, scale, clips)
+		if weight >= 600 {
+			dx := int(fontSize)/24 + 1
+			DrawText(img, s, image.Pt(p.X+dx, p.Y), col, scale, clips)
+		}
+		if italic {
+			DrawText(img, s, image.Pt(p.X+1, p.Y), col, scale, clips)
+		}
+		penX += MeasureText(s, fontSize)
 	}
 }
 

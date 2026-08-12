@@ -249,19 +249,19 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 	contentW, contentH := 0, 0
 
 	if n.Type == "text" {
-		contentW = int(MeasureText(ln.Text, float64(fs)))
-		contentH = int(float64(fs) * 1.2)
+		contentW = int(MeasureTextTracking(ln.Text, float64(fs), style.LetterSpacing))
+		contentH = textLineHM(fs, style.LineHeight)
 	} else if n.Type == "button" {
-		contentW = int(MeasureText(ln.Text, float64(fs))) + 40*scale
-		contentH = int(float64(fs)*1.2) + 20*scale
+		contentW = int(MeasureTextTracking(ln.Text, float64(fs), style.LetterSpacing)) + 40*scale
+		contentH = textLineHM(fs, style.LineHeight) + 20*scale
 	} else if n.Type == "input" {
 		// Single-line field: one line of text tall; an empty value keeps a
 		// usable default width (browsers size an empty field to ~20 chars).
-		contentW = int(MeasureText(ln.Text, float64(fs)))
+		contentW = int(MeasureTextTracking(ln.Text, float64(fs), style.LetterSpacing))
 		if min := minInputWidth * scale; contentW < min {
 			contentW = min
 		}
-		contentH = int(float64(fs) * 1.2)
+		contentH = textLineHM(fs, style.LineHeight)
 	} else if n.Type == "image" {
 		// Intrinsic size (scaled); an explicit style width/height overrides
 		// via the generic sizing below, and RecordImage gets the resolved box.
@@ -870,11 +870,13 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 			fs = 14
 		}
 
-		txtH := textLineH(fs)
+		txtH := textLineHM(fs, ln.Style.LineHeight)
 		c := ln.Style.Color
 		if c.A == 0 {
 			c = color.RGBA{255, 255, 255, 255}
 		}
+		italic := ln.Style.FontStyle == "italic" || ln.Style.FontStyle == "oblique"
+		ls := ln.Style.LetterSpacing
 
 		if len(ln.Wrapped) > 0 {
 			// Folded block text (wrap.go): one graph text per line, all
@@ -888,10 +890,12 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 				textNode.Fill = c
 				textNode.FontSize = float64(fs)
 				textNode.FontWeight = ln.Style.FontWeight
+				textNode.LetterSpacing = ls
+				textNode.Italic = italic
 				group.AddChild(textNode)
 			}
 		} else {
-			txtW := int(MeasureText(ln.Text, float64(fs)))
+			txtW := int(MeasureTextTracking(ln.Text, float64(fs), ls))
 			tx := 0
 			if ln.Style.TextAlign == "center" || ln.Node.Type == "button" {
 				tx = (ln.Width - txtW) / 2
@@ -904,6 +908,8 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 			textNode.Fill = c
 			textNode.FontSize = float64(fs)
 			textNode.FontWeight = ln.Style.FontWeight
+			textNode.LetterSpacing = ls
+			textNode.Italic = italic
 			group.AddChild(textNode)
 		}
 	}

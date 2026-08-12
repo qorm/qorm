@@ -115,16 +115,19 @@ type NodeStyle struct {
 	// final draw (measure.go); float here is the contract, int is the
 	// pixel. Old examples that pass integer x/y keep integer values
 	// end-to-end — the change is a strict superset.
-	PosX, PosY   float64
-	HasPos       bool
-	Align        string
-	AlignSelf    string // CSS align-self (style/layout alignSelf) — distinct from Align (align-items)
-	Justify      string
-	FontSize     int
-	FontWeight   int
-	TextAlign    string
-	BorderRadius float64
-	Opacity      float64 // 1 = fully opaque; lowered by pressedOpacity theme state
+	PosX, PosY    float64
+	HasPos        bool
+	Align         string
+	AlignSelf     string // CSS align-self (style/layout alignSelf) — distinct from Align (align-items)
+	Justify       string
+	FontSize      int
+	FontWeight    int
+	TextAlign     string
+	LetterSpacing float64 // extra px between runes (0 = default tight tracking)
+	LineHeight    float64 // line-box multiplier; 0 means the engine default 1.2
+	FontStyle     string  // "italic" / "oblique" → faux-italic draw; empty/normal = roman
+	BorderRadius  float64
+	Opacity       float64 // 1 = fully opaque; lowered by pressedOpacity theme state
 
 	StrokeColor color.RGBA
 	StrokeWidth float64
@@ -739,6 +742,37 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 	if align, ok := esp(style["textAlign"]).(string); ok {
 		s.TextAlign = align
 	}
+	if fsStyle, ok := esp(style["fontStyle"]).(string); ok {
+		s.FontStyle = strings.ToLower(strings.TrimSpace(fsStyle))
+	}
+	// letterSpacing: CSS px extra advance between runes (number or "Npx").
+	if ls := esp(style["letterSpacing"]); ls != nil {
+		switch v := ls.(type) {
+		case float64:
+			s.LetterSpacing = v
+		case int:
+			s.LetterSpacing = float64(v)
+		case string:
+			s.LetterSpacing = parseCSSPx(v)
+		}
+	}
+	// lineHeight: unitless multiplier (1.2 default) or px absolute → convert
+	// to multiplier against FontSize when both are known later.
+	if lh := esp(style["lineHeight"]); lh != nil {
+		switch v := lh.(type) {
+		case float64:
+			s.LineHeight = v
+		case int:
+			s.LineHeight = float64(v)
+		case string:
+			s.LineHeight = parseCSSPx(v) // may be unitless "1.5" parsed as 1.5
+			if s.LineHeight == 0 {
+				if f, err := strconv.ParseFloat(strings.TrimSpace(v), 64); err == nil {
+					s.LineHeight = f
+				}
+			}
+		}
+	}
 
 	br := esp(style["borderRadius"])
 	if f, ok := br.(float64); ok {
@@ -836,6 +870,32 @@ func clamp01(v float64) float64 {
 	return v
 }
 
+// parseCSSPx reads a CSS length used for letter-spacing / line-height numbers:
+// "2", "2px", "0.5" → float. Non-numeric returns 0.
+func parseCSSPx(s string) float64 {
+	s = strings.TrimSpace(s)
+	s = strings.TrimSuffix(s, "px")
+	s = strings.TrimSpace(s)
+	f, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0
+	}
+	return f
+}
+
+// lineHeightMult returns the effective line-box multiplier for text layout.
+// Unitless author values in (0, 4] are treated as multipliers; larger values
+// are treated as absolute px and converted using fontSize (CSS-ish heuristic).
+func lineHeightMult(lh float64, fontSize int) float64 {
+	if lh <= 0 {
+		return 1.2
+	}
+	if lh > 4 && fontSize > 0 {
+		return lh / float64(fontSize)
+	}
+	return lh
+}
+
 // canvasStyleKeys is the set of node style keys the native canvas renderer
 // actually consumes (parseStyle / applyStyleProps / flex / interaction).
 // The loader flags keys unknown to HTML (render.KnownStyleKeys); this set
@@ -853,6 +913,7 @@ var canvasStyleKeys = map[string]bool{
 	// x/y are native, left/top the HTML aliases.
 	"x": true, "y": true, "left": true, "top": true,
 	"fontSize": true, "fontWeight": true, "textAlign": true,
+	"letterSpacing": true, "lineHeight": true, "fontStyle": true,
 	"borderRadius": true, "strokeWidth": true, "borderWidth": true,
 	"opacity": true, "disabled": true, "disabledOpacity": true,
 	// Declarative interaction effects (any node; resolved generically by

@@ -481,13 +481,13 @@ func TestWarnUnsupportedStyleKeys(t *testing.T) {
 	// one-shot warn path stays covered (gradient/flexGrow are supported now).
 	mk := func() *model.Node {
 		return &model.Node{Type: "column", ID: "root", Children: []*model.Node{
-			{Type: "text", ID: "a", Style: map[string]any{"backdropBlur": 12.0, "letterSpacing": 1.0, "fontSize": 14.0}},
+			{Type: "text", ID: "a", Style: map[string]any{"backdropBlur": 12.0, "fontFamily": "Comic Sans", "fontSize": 14.0}},
 			{Type: "text", ID: "b", Style: map[string]any{"backdropBlur": 8.0}},
 		}}
 	}
 	layoutScene(mk(), testRuntime(nil), image.Pt(100, 100))
 	out := buf.String()
-	for _, key := range []string{`"backdropBlur"`, `"letterSpacing"`} {
+	for _, key := range []string{`"backdropBlur"`, `"fontFamily"`} {
 		if !strings.Contains(out, key) {
 			t.Errorf("unsupported key %s must warn, got:\n%s", key, out)
 		}

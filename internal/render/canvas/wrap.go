@@ -18,7 +18,12 @@ import "strings"
 // wrapText folds text into lines that each fit availW (px). It returns nil
 // when the text already fits on one line (callers treat nil as unwrapped).
 func wrapText(text string, fontSize float64, availW int) []string {
-	if availW <= 0 || int(MeasureText(text, fontSize)) <= availW {
+	return wrapTextTracking(text, fontSize, 0, availW)
+}
+
+// wrapTextTracking is wrapText with CSS letter-spacing applied to measures.
+func wrapTextTracking(text string, fontSize, letterSpacing float64, availW int) []string {
+	if availW <= 0 || int(MeasureTextTracking(text, fontSize, letterSpacing)) <= availW {
 		return nil
 	}
 	var lines []string
@@ -36,11 +41,11 @@ func wrapText(text string, fontSize float64, availW int) []string {
 		curW += w
 	}
 	for _, word := range splitWords(text) {
-		ww := int(MeasureText(word, fontSize))
+		ww := int(MeasureTextTracking(word, fontSize, letterSpacing))
 		if ww > availW {
 			// Over-long word (or unspaced CJK run): hard-break between runes.
 			for _, r := range word {
-				rw := int(MeasureText(string(r), fontSize))
+				rw := int(MeasureTextTracking(string(r), fontSize, letterSpacing))
 				if curW+rw > availW {
 					flush()
 				}
@@ -51,7 +56,7 @@ func wrapText(text string, fontSize float64, availW int) []string {
 		if curW+ww > availW {
 			flush()
 			word = strings.TrimLeft(word, " ")
-			ww = int(MeasureText(word, fontSize))
+			ww = int(MeasureTextTracking(word, fontSize, letterSpacing))
 		}
 		cur.WriteString(word)
 		curW += ww
@@ -106,12 +111,12 @@ func wrapTree(ln *LayoutNode, availW int) {
 			if fs == 0 {
 				fs = 14
 			}
-			if lines := wrapText(c.Text, float64(fs), cAvail); lines != nil {
+			if lines := wrapTextTracking(c.Text, float64(fs), c.Style.LetterSpacing, cAvail); lines != nil {
 				c.Wrapped = lines
 				// Block text takes the column width (CSS); the height is the
 				// folded line count (measure had it at one line).
 				c.Width = cAvail
-				c.Height = len(lines) * textLineH(fs)
+				c.Height = len(lines) * textLineHM(fs, c.Style.LineHeight)
 			}
 		}
 		wrapTree(c, cAvail)
@@ -175,6 +180,11 @@ func heightsFromChildren(ln *LayoutNode) {
 	}
 }
 
-// textLineH is the text block's per-line height (measure.go uses the same
-// 1.2 factor for single-line text).
-func textLineH(fs int) int { return int(float64(fs) * 1.2) }
+// textLineH is the text block's per-line height using the default 1.2×
+// multiplier (call textLineHM for author lineHeight).
+func textLineH(fs int) int { return textLineHM(fs, 0) }
+
+// textLineHM applies an optional CSS line-height multiplier (0 → 1.2).
+func textLineHM(fs int, lineHeight float64) int {
+	return int(float64(fs) * lineHeightMult(lineHeight, fs))
+}
