@@ -6,6 +6,8 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+## [v0.8.10] - 2026-08-12
+
 ### Added
 - **Canvas game-engine motion**: Phaser/Godot/DOTween easings; declarative
   `fx` + `fxToken` (shake/punch/flash/hit/float/wobble/knockback/burst);
@@ -1196,6 +1198,7 @@ Initial release: QORM, an agent-native declarative-UI runtime in pure Go.
 - Render performance: cached parsed expressions and reflection-free CSS
   numeric writes in the hot path.
 
+[v0.8.10]: https://github.com/qorm/qorm/compare/v0.8.9...v0.8.10
 [v0.8.9]: https://github.com/qorm/qorm/compare/v0.8.8...v0.8.9
 [v0.8.8]: https://github.com/qorm/qorm/compare/v0.5.4...v0.8.8
 [v0.5.4]: https://github.com/qorm/qorm/compare/v0.5.3...v0.5.4
