@@ -9,6 +9,9 @@ All notable changes to QORM are documented here. The format is based on
 ## [v0.8.8] - 2026-08-12
 
 ### Fixed
+- **Host `go build ./...`**: move `CanonicalAssetURL` to `internal/playcore` so
+  `cmd/qorm-wasm` is fully `js && wasm` gated (a host-only `package main` file
+  without `main` broke pure-Go CI).
 - **HTML QSS residuals**: `aria-disabled`, spacer `size`, limitedBox max
   constraints, and chart SVG width/height now read the effective style
   (QSS + inline + bindings), matching boxCSS/textCSS cascade instead of raw

@@ -1,4 +1,4 @@
-package main
+package playcore
 
 import "testing"
 
@@ -15,8 +15,8 @@ func TestCanonicalAssetURL(t *testing.T) {
 		{"https://cdn.example/a.png?v=1", "https://cdn.example/a.png"},
 	}
 	for _, tc := range cases {
-		if got := canonicalAssetURL(tc.in); got != tc.want {
-			t.Errorf("canonicalAssetURL(%q) = %q, want %q", tc.in, got, tc.want)
+		if got := CanonicalAssetURL(tc.in); got != tc.want {
+			t.Errorf("CanonicalAssetURL(%q) = %q, want %q", tc.in, got, tc.want)
 		}
 	}
 }

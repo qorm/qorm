@@ -71,7 +71,7 @@ func init() {
 // wasmReadFile is the disk-read seam. Order:
 //  1. Preloaded cache (populated by qormCanvasPreloadAssets) — fast path
 //     that the WASM measure/layout passes hit every frame. Keys are
-//     canonicalAssetURL (query/fragment stripped) so host cache-bust
+//     playcore.CanonicalAssetURL (query/fragment stripped) so host cache-bust
 //     "?v=…" on fetch still hits when the engine resolves BaseDir+src.
 //  2. Sync XHR as the fallback for anything the preloader missed (e.g. a
 //     scene that references an asset the host forgot to list, or a URL the
@@ -87,7 +87,7 @@ func init() {
 // sees a transient miss every frame, the engine will keep retrying sync
 // XHR — which is exactly the right behaviour.
 func wasmReadFile(path string) ([]byte, error) {
-	key := canonicalAssetURL(path)
+	key := playcore.CanonicalAssetURL(path)
 	preloadedAssetsMu.RLock()
 	if b, ok := preloadedAssets[key]; ok {
 		preloadedAssetsMu.RUnlock()
@@ -191,7 +191,7 @@ func qormCanvasPreloadAssets(_ js.Value, args []js.Value) any {
 			// Store under the query-stripped key so resolveImageSrc
 			// (BaseDir + src, no ?v=) hits the same slot the host
 			// preloaded with a cache-busting fetch URL.
-			key := canonicalAssetURL(fetchURL)
+			key := playcore.CanonicalAssetURL(fetchURL)
 			preloadedAssetsMu.Lock()
 			if ok {
 				preloadedAssets[key] = data
