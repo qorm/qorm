@@ -61,3 +61,4 @@
 | 2026-08-12 | **滚动手感**：touch-drag + 橡皮筋 + spring + 惯性；pull-to-refresh 与 refreshindicator 联动 |
 | 2026-08-12 | **列表行拖滚协商** + **canvas 原生 measure**（`qorm measure` / MCP 无需 WebView） |
 | 2026-08-12 | measure 样式字段 + 逻辑像素/HiDPI；嵌套 scroll 拖动手势链 |
+| 2026-08-12 | 渲染质量：ShadowX、径向渐变+色标位置、可分离 frost blur、text ellipsis |

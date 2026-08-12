@@ -95,3 +95,24 @@ func TestTextWrapSkipsRowsAndShortText(t *testing.T) {
 		t.Error("row child must not wrap in v1")
 	}
 }
+
+func TestEllipsizeTextFitsUnchanged(t *testing.T) {
+	s := ellipsizeText("hi", 14, 0, 200)
+	if s != "hi" {
+		t.Fatalf("got %q", s)
+	}
+}
+
+func TestEllipsizeTextTruncates(t *testing.T) {
+	long := "abcdefghijklmnopqrstuvwxyz"
+	s := ellipsizeText(long, 14, 0, 40)
+	if s == long {
+		t.Fatal("expected truncation")
+	}
+	if int(MeasureText(s, 14)) > 40 {
+		t.Fatalf("ellipsized width %v exceeds 40", MeasureText(s, 14))
+	}
+	if len([]rune(s)) >= len([]rune(long)) {
+		t.Fatalf("expected fewer runes, got %q", s)
+	}
+}

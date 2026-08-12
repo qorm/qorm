@@ -119,15 +119,20 @@ func (ImageOp) isOp() {}
 // corners get a ~1px antialiasing band and the shadow falls off smoothly,
 // unlike the ClipOp+PaintOp path whose clip edges are binary. Rect is in the
 // current transformed coordinate space; the shadow is the same shape offset
-// by ShadowY with a smoothstep falloff over ShadowBlur pixels.
+// by (ShadowX, ShadowY) with a smoothstep falloff over ShadowBlur pixels.
 type RRectOp struct {
 	Rect   image.Rectangle
 	Radius float64
 	Fill   color.RGBA
-	// GradientStops when len>=2 paints a linear fill (Fill is first-stop fallback).
+	// GradientStops when len>=2 paints a gradient fill (Fill is first-stop fallback).
 	GradientStops []color.RGBA
-	// GradientAngle CSS degrees; rasterizer snaps to axis-aligned for v1.
-	GradientAngle float64
+	// GradientStopPos optional 0..1 positions aligned with GradientStops; empty
+	// means evenly spaced stops.
+	GradientStopPos []float64
+	// GradientAngle CSS degrees for linear gradients (0 = to top, 90 = to right).
+	// When GradientRadial is true, angle is ignored and fill is radial from center.
+	GradientAngle  float64
+	GradientRadial bool
 	// BackdropBlur px: frost pixels already in the buffer under the rect.
 	BackdropBlur float64
 	BackdropTint color.RGBA
@@ -135,6 +140,7 @@ type RRectOp struct {
 	StrokeWidth  float64
 	Shadow       color.RGBA
 	ShadowBlur   float64
+	ShadowX      float64
 	ShadowY      float64
 }
 

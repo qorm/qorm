@@ -839,7 +839,9 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 		bg.Height = float64(ln.Height)
 		bg.Fill = ln.Style.Background
 		bg.GradientStops = ln.Style.GradientStops
+		bg.GradientStopPos = ln.Style.GradientStopPos
 		bg.GradientAngle = ln.Style.GradientAngle
+		bg.GradientRadial = ln.Style.GradientRadial
 		bg.BackdropBlur = ln.Style.BackdropBlur
 		bg.BackdropTint = ln.Style.BackdropTint
 		bg.BorderRadius = float64(ln.Style.BorderRadius)
@@ -852,6 +854,7 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 		if hasShadow {
 			bg.ShadowColor = ln.Style.BoxShadowColor
 			bg.ShadowBlur = float64(ln.Style.BoxShadowBlur)
+			bg.ShadowX = float64(ln.Style.BoxShadowX)
 			bg.ShadowY = float64(ln.Style.BoxShadowY)
 		}
 
@@ -922,7 +925,12 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 				group.AddChild(textNode)
 			}
 		} else {
-			txtW := int(MeasureTextTracking(ln.Text, float64(fs), ls))
+			content := ln.Text
+			// Single-line ellipsis when text overflows the laid-out box.
+			if ln.Style.TextOverflow == "ellipsis" && ln.Width > 0 {
+				content = ellipsizeText(content, float64(fs), ls, ln.Width)
+			}
+			txtW := int(MeasureTextTracking(content, float64(fs), ls))
 			tx := 0
 			if ln.Style.TextAlign == "center" || ln.Node.Type == "button" {
 				tx = (ln.Width - txtW) / 2
@@ -931,7 +939,7 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 			textNode := graph.NewText()
 			textNode.X = float64(tx)
 			textNode.Y = float64(ty)
-			textNode.Content = ln.Text
+			textNode.Content = content
 			textNode.Fill = c
 			textNode.FontSize = float64(fs)
 			textNode.FontWeight = ln.Style.FontWeight

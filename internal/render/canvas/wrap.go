@@ -15,6 +15,44 @@ package canvas
 
 import "strings"
 
+// ellipsizeText truncates text to fit availW, appending "…" when needed.
+// Returns the original string when it already fits or availW is unbounded.
+func ellipsizeText(text string, fontSize, letterSpacing float64, availW int) string {
+	if availW <= 0 || text == "" {
+		return text
+	}
+	if int(MeasureTextTracking(text, fontSize, letterSpacing)) <= availW {
+		return text
+	}
+	ellipsis := "…"
+	ew := int(MeasureTextTracking(ellipsis, fontSize, letterSpacing))
+	if ew >= availW {
+		return ellipsis
+	}
+	// Binary search longest prefix that fits with ellipsis.
+	runes := []rune(text)
+	lo, hi := 0, len(runes)
+	best := 0
+	for lo <= hi {
+		mid := (lo + hi) / 2
+		if mid == 0 {
+			lo = 1
+			continue
+		}
+		w := int(MeasureTextTracking(string(runes[:mid])+ellipsis, fontSize, letterSpacing))
+		if w <= availW {
+			best = mid
+			lo = mid + 1
+		} else {
+			hi = mid - 1
+		}
+	}
+	if best == 0 {
+		return ellipsis
+	}
+	return string(runes[:best]) + ellipsis
+}
+
 // wrapText folds text into lines that each fit availW (px). It returns nil
 // when the text already fits on one line (callers treat nil as unwrapped).
 func wrapText(text string, fontSize float64, availW int) []string {

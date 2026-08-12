@@ -81,12 +81,15 @@ func parseColor(c string) color.RGBA {
 type NodeStyle struct {
 	Background color.RGBA
 	Color      color.RGBA
-	// GradientStops, when len>=2, paints a linear gradient fill (see
-	// software RRect path) instead of solid Background. AngleDeg is CSS
-	// degrees (0 = to top, 90 = to right); only 0/90/180/270 are rasterized
-	// as axis-aligned for v1 (other angles snap to nearest axis).
-	GradientStops []color.RGBA
-	GradientAngle float64
+	// GradientStops, when len>=2, paints a gradient fill (see software RRect
+	// path) instead of solid Background. GradientAngle is CSS degrees for
+	// linear gradients (0 = to top, 90 = to right). GradientStopPos holds
+	// optional 0..1 stop positions; empty = even spacing. GradientRadial
+	// selects a circular gradient from the box center.
+	GradientStops   []color.RGBA
+	GradientStopPos []float64
+	GradientAngle   float64
+	GradientRadial  bool
 	// BackdropBlur is CSS backdrop-filter blur radius in px; when >0 the
 	// software path frosts the pixels under the fill before compositing
 	// Background / gradient (plus optional BackdropTint).
@@ -160,6 +163,9 @@ type NodeStyle struct {
 	// snapping them (the interaction resolver routes the style through the
 	// tween engine while it is non-zero).
 	Transition time.Duration
+	// TextOverflow "ellipsis" truncates single-line text with "…" when it
+	// exceeds the laid-out width (CSS text-overflow:ellipsis + nowrap).
+	TextOverflow string
 }
 
 // scaleBy multiplies every pixel-valued field by f (a device-pixel ratio), so
@@ -402,9 +408,9 @@ func resolveColor(c string, rt *runtime.Runtime) color.RGBA {
 		return color.RGBA{255, 0, 255, 255} // debug magenta
 	}
 
-	// 1c. Gradient: the software rasterizer has no gradient paint — degrade a
-	// linear-gradient(...) to its first #hex stop instead of nothing/black.
-	if strings.HasPrefix(c, "linear-gradient(") {
+	// 1c. Gradients as colour values: first #hex stop as solid fallback
+	// (full multi-stop paint uses applyGradientString on background/gradient).
+	if strings.HasPrefix(c, "linear-gradient(") || strings.HasPrefix(c, "radial-gradient(") {
 		if i := strings.Index(c, "#"); i >= 0 {
 			rest := c[i+1:]
 			end := strings.IndexAny(rest, ",%) ")
@@ -757,6 +763,9 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 	if fsStyle, ok := esp(style["fontStyle"]).(string); ok {
 		s.FontStyle = strings.ToLower(strings.TrimSpace(fsStyle))
 	}
+	if to, ok := esp(style["textOverflow"]).(string); ok {
+		s.TextOverflow = strings.ToLower(strings.TrimSpace(to))
+	}
 	// letterSpacing: CSS px extra advance between runes (number or "Npx").
 	if ls := esp(style["letterSpacing"]); ls != nil {
 		switch v := ls.(type) {
@@ -866,8 +875,11 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 	if g, ok := esp(style["gradient"]).(string); ok && g != "" {
 		applyGradientString(s, g, rt)
 	}
-	if bg, ok := esp(style["background"]).(string); ok && strings.HasPrefix(strings.TrimSpace(bg), "linear-gradient") {
-		applyGradientString(s, bg, rt)
+	if bg, ok := esp(style["background"]).(string); ok {
+		bt := strings.TrimSpace(bg)
+		if strings.HasPrefix(bt, "linear-gradient") || strings.HasPrefix(bt, "radial-gradient") {
+			applyGradientString(s, bg, rt)
+		}
 	}
 	if bb := esp(style["backdropBlur"]); bb != nil {
 		switch v := bb.(type) {
@@ -884,34 +896,49 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 	}
 }
 
-// applyGradientString parses a CSS linear-gradient(...) into s.GradientStops
-// and sets Background to the first stop for solid fallbacks.
+// applyGradientString parses a CSS linear-gradient(...) or radial-gradient(...)
+// into s.GradientStops (+ optional positions) and sets Background to the first
+// stop for solid fallbacks.
 func applyGradientString(s *NodeStyle, g string, rt *runtime.Runtime) {
-	stops, angle := parseLinearGradient(g, rt)
+	g = strings.TrimSpace(g)
+	if strings.HasPrefix(g, "radial-gradient(") {
+		stops, pos := parseRadialGradient(g, rt)
+		if len(stops) == 0 {
+			return
+		}
+		s.GradientStops = stops
+		s.GradientStopPos = pos
+		s.GradientRadial = true
+		s.Background = stops[0]
+		return
+	}
+	stops, pos, angle := parseLinearGradient(g, rt)
 	if len(stops) == 0 {
 		return
 	}
 	s.GradientStops = stops
+	s.GradientStopPos = pos
 	s.GradientAngle = angle
+	s.GradientRadial = false
 	s.Background = stops[0]
 }
 
-// parseLinearGradient extracts colour stops and a rough angle from a CSS
-// linear-gradient() string. Unknown colours are skipped; needs ≥1 valid stop.
-func parseLinearGradient(g string, rt *runtime.Runtime) (stops []color.RGBA, angle float64) {
+// parseLinearGradient extracts colour stops (with optional % positions) and a
+// rough angle from a CSS linear-gradient() string.
+func parseLinearGradient(g string, rt *runtime.Runtime) (stops []color.RGBA, pos []float64, angle float64) {
 	g = strings.TrimSpace(g)
 	angle = 180 // default "to bottom"
 	if !strings.HasPrefix(g, "linear-gradient(") || !strings.HasSuffix(g, ")") {
 		if c := resolveColor(g, rt); c.A > 0 {
-			return []color.RGBA{c}, angle
+			return []color.RGBA{c}, nil, angle
 		}
-		return nil, angle
+		return nil, nil, angle
 	}
 	inner := strings.TrimSpace(g[len("linear-gradient(") : len(g)-1])
 	// Split on commas not inside parentheses (var(...)).
 	parts := splitCSSList(inner)
 	if len(parts) == 0 {
-		return nil, angle
+		return nil, nil, angle
 	}
 	start := 0
 	first := strings.TrimSpace(parts[0])
@@ -933,21 +960,111 @@ func parseLinearGradient(g string, rt *runtime.Runtime) (stops []color.RGBA, ang
 			start = 1
 		}
 	}
-	for _, p := range parts[start:] {
-		p = strings.TrimSpace(p)
-		// Drop trailing percentage: "#fff 50%" → "#fff"
-		if i := strings.LastIndexAny(p, " \t"); i > 0 {
-			if strings.HasSuffix(strings.TrimSpace(p[i:]), "%") {
-				p = strings.TrimSpace(p[:i])
-			}
-		}
-		if c := resolveColor(p, rt); c.A > 0 || c.R|c.G|c.B != 0 {
-			// Accept fully transparent only if explicitly #...00; still keep
-			// opaque and semi-opaque stops.
-			stops = append(stops, c)
+	stops, pos = parseGradientStops(parts[start:], rt)
+	return stops, pos, angle
+}
+
+// parseRadialGradient extracts colour stops from radial-gradient(...). Shape
+// keywords (circle/ellipse/at ...) are skipped; fill is always centered.
+func parseRadialGradient(g string, rt *runtime.Runtime) (stops []color.RGBA, pos []float64) {
+	g = strings.TrimSpace(g)
+	if !strings.HasPrefix(g, "radial-gradient(") || !strings.HasSuffix(g, ")") {
+		return nil, nil
+	}
+	inner := strings.TrimSpace(g[len("radial-gradient(") : len(g)-1])
+	parts := splitCSSList(inner)
+	start := 0
+	if len(parts) > 0 {
+		first := strings.ToLower(strings.TrimSpace(parts[0]))
+		// Skip leading shape/position descriptors that are not colours.
+		if strings.HasPrefix(first, "circle") || strings.HasPrefix(first, "ellipse") ||
+			strings.HasPrefix(first, "closest-") || strings.HasPrefix(first, "farthest-") ||
+			strings.HasPrefix(first, "at ") {
+			start = 1
 		}
 	}
-	return stops, angle
+	return parseGradientStops(parts[start:], rt)
+}
+
+// parseGradientStops parses "#fff 0%, #000 100%" style stop lists into colours
+// and 0..1 positions. When no stop has a %, pos is nil (even spacing).
+func parseGradientStops(parts []string, rt *runtime.Runtime) (stops []color.RGBA, pos []float64) {
+	var rawPos []float64
+	anyPos := false
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		colPart := p
+		var stopP float64 = -1
+		if i := strings.LastIndexAny(p, " \t"); i > 0 {
+			tail := strings.TrimSpace(p[i:])
+			if strings.HasSuffix(tail, "%") {
+				if f, err := strconv.ParseFloat(strings.TrimSuffix(tail, "%"), 64); err == nil {
+					stopP = f / 100
+					colPart = strings.TrimSpace(p[:i])
+					anyPos = true
+				}
+			}
+		}
+		c := resolveColor(colPart, rt)
+		if c.A == 0 && c.R|c.G|c.B == 0 && !strings.Contains(colPart, "transparent") {
+			// Skip unresolvable non-colours (leftover descriptors).
+			if !strings.HasPrefix(colPart, "#") && !strings.HasPrefix(colPart, "rgb") &&
+				!strings.HasPrefix(colPart, "var(") {
+				continue
+			}
+		}
+		stops = append(stops, c)
+		rawPos = append(rawPos, stopP)
+	}
+	if len(stops) == 0 {
+		return nil, nil
+	}
+	if !anyPos {
+		return stops, nil
+	}
+	// Fill missing positions: first 0, last 1, interpolate gaps (CSS rules).
+	pos = make([]float64, len(stops))
+	copy(pos, rawPos)
+	if pos[0] < 0 {
+		pos[0] = 0
+	}
+	if pos[len(pos)-1] < 0 {
+		pos[len(pos)-1] = 1
+	}
+	// Forward: clamp non-decreasing.
+	for i := 1; i < len(pos); i++ {
+		if pos[i] >= 0 && pos[i] < pos[i-1] {
+			pos[i] = pos[i-1]
+		}
+	}
+	// Fill runs of -1 between known positions.
+	i := 0
+	for i < len(pos) {
+		if pos[i] >= 0 {
+			i++
+			continue
+		}
+		j := i
+		for j < len(pos) && pos[j] < 0 {
+			j++
+		}
+		lo, hi := 0.0, 1.0
+		if i > 0 {
+			lo = pos[i-1]
+		}
+		if j < len(pos) {
+			hi = pos[j]
+		}
+		span := j - i + 1
+		for k := i; k < j; k++ {
+			pos[k] = lo + (hi-lo)*float64(k-i+1)/float64(span)
+		}
+		i = j
+	}
+	return stops, pos
 }
 
 // splitCSSList splits on top-level commas (not inside parentheses).
@@ -1030,6 +1147,7 @@ var canvasStyleKeys = map[string]bool{
 	"x": true, "y": true, "left": true, "top": true,
 	"fontSize": true, "fontWeight": true, "textAlign": true,
 	"letterSpacing": true, "lineHeight": true, "fontStyle": true,
+	"textOverflow": true, // "ellipsis" single-line truncate
 	"borderRadius": true, "strokeWidth": true, "borderWidth": true,
 	"opacity": true, "disabled": true, "disabledOpacity": true,
 	// Declarative interaction effects (any node; resolved generically by

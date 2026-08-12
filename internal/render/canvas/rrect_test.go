@@ -60,6 +60,43 @@ func TestRRectCornerAntialiasing(t *testing.T) {
 	}
 }
 
+func TestRRectShadowXOffset(t *testing.T) {
+	// Shadow offset to the right should darken pixels right of the box, not left.
+	img := renderRRect(t, image.Pt(80, 60), op.RRectOp{
+		Rect: image.Rect(20, 10, 50, 40), Radius: 2,
+		Fill:       color.RGBA{255, 255, 255, 255},
+		Shadow:     color.RGBA{0, 0, 0, 180},
+		ShadowBlur: 6,
+		ShadowX:    10,
+		ShadowY:    0,
+	})
+	// Right of shape (x=58): shadow present (darker than white).
+	rRight, _, _, _ := img.At(58, 25).RGBA()
+	// Left of shape (x=12): little/no shadow.
+	rLeft, _, _, _ := img.At(12, 25).RGBA()
+	if rRight>>8 >= 250 {
+		t.Errorf("expected shadow to the right of the box, R=%d", rRight>>8)
+	}
+	if rLeft>>8 < rRight>>8 {
+		t.Errorf("shadow should be stronger on the right (left R=%d right R=%d)", rLeft>>8, rRight>>8)
+	}
+}
+
+func TestRRectRadialGradient(t *testing.T) {
+	img := renderRRect(t, image.Pt(40, 40), op.RRectOp{
+		Rect: image.Rect(4, 4, 36, 36), Radius: 0,
+		Fill:           color.RGBA{0, 0, 0, 255},
+		GradientStops:  []color.RGBA{{255, 0, 0, 255}, {0, 0, 255, 255}},
+		GradientRadial: true,
+	})
+	// Center should be closer to red; near corner closer to blue.
+	c := img.RGBAAt(20, 20)
+	e := img.RGBAAt(6, 6)
+	if c.R <= e.R {
+		t.Errorf("radial center should be redder than edge: center=%v edge=%v", c, e)
+	}
+}
+
 func TestRRectShadowIsSmoothNotStepped(t *testing.T) {
 	img := renderRRect(t, image.Pt(60, 60), op.RRectOp{
 		Rect: image.Rect(10, 10, 40, 40), Radius: 4,

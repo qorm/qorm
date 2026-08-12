@@ -233,19 +233,20 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 			s := matrixScale(currentMatrix)
 			radius := clamp01(o.Radius*s/math.Min(hw, hh)) * math.Min(hw, hh)
 			shadowBlur := o.ShadowBlur * s
+			shadowX := o.ShadowX * s
 			shadowY := o.ShadowY * s
 			strokeWidth := o.StrokeWidth * s
 			cx := float64(rect.Min.X) + hw
 			cy := float64(rect.Min.Y) + hh
 
 			// Iteration bounds: the fill's ~1px AA band lives just outside
-			// Rect; the shadow extends ShadowBlur px beyond its ShadowY offset.
+			// Rect; the shadow extends ShadowBlur px beyond its (X,Y) offset.
 			minX, minY := float64(rect.Min.X)-1, float64(rect.Min.Y)-1
 			maxX, maxY := float64(rect.Max.X)+1, float64(rect.Max.Y)+1
 			if o.Shadow.A > 0 {
-				minX = math.Min(minX, float64(rect.Min.X)-shadowBlur-1)
+				minX = math.Min(minX, float64(rect.Min.X)+shadowX-shadowBlur-1)
 				minY = math.Min(minY, float64(rect.Min.Y)+shadowY-shadowBlur-1)
-				maxX = math.Max(maxX, float64(rect.Max.X)+shadowBlur+1)
+				maxX = math.Max(maxX, float64(rect.Max.X)+shadowX+shadowBlur+1)
 				maxY = math.Max(maxY, float64(rect.Max.Y)+shadowY+shadowBlur+1)
 			}
 			b := image.Rect(int(math.Floor(minX)), int(math.Floor(minY)), int(math.Ceil(maxX)), int(math.Ceil(maxY)))
@@ -257,6 +258,17 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 				break
 			}
 
+			// Precompute frosted backdrop for the rect once (separable blur)
+			// so every pixel shares the same high-quality frost sample map.
+			var frostBuf *image.RGBA
+			if o.BackdropBlur > 0 {
+				rBlur := int(math.Ceil(o.BackdropBlur * s))
+				if rBlur < 1 {
+					rBlur = 1
+				}
+				frostBuf = sampleBoxBlurRegion(img, b, rBlur)
+			}
+
 			for y := b.Min.Y; y < b.Max.Y; y++ {
 				for x := b.Min.X; x < b.Max.X; x++ {
 					clipCov := clipCoverage(float64(x)+0.5, float64(y)+0.5, clips)
@@ -265,7 +277,7 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 					}
 					px, py := float64(x)+0.5, float64(y)+0.5
 					if o.Shadow.A > 0 {
-						d := sdRoundBox(px, py, cx, cy+shadowY, hw, hh, radius)
+						d := sdRoundBox(px, py, cx+shadowX, cy+shadowY, hw, hh, radius)
 						var cov float64
 						if shadowBlur > 0 {
 							// Smoothstep falloff over the blur width: zero slope
@@ -285,8 +297,8 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 					if cov := clamp01(0.5 - d); cov > 0 {
 						// Optional frosted backdrop: blur pixels already under
 						// this rect, then tint.
-						if o.BackdropBlur > 0 {
-							frost := sampleBoxBlur(img, x, y, int(math.Ceil(o.BackdropBlur*s)))
+						if frostBuf != nil {
+							frost := frostBuf.RGBAAt(x-b.Min.X, y-b.Min.Y)
 							if o.BackdropTint.A > 0 {
 								frost = blendOverColor(frost, o.BackdropTint)
 							}
@@ -294,7 +306,11 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 						}
 						fill := o.Fill
 						if len(o.GradientStops) >= 2 {
-							fill = sampleLinearGradient(o.GradientStops, o.GradientAngle, px, py, float64(rect.Min.X), float64(rect.Min.Y), float64(rect.Dx()), float64(rect.Dy()))
+							if o.GradientRadial {
+								fill = sampleRadialGradient(o.GradientStops, o.GradientStopPos, px, py, float64(rect.Min.X), float64(rect.Min.Y), float64(rect.Dx()), float64(rect.Dy()))
+							} else {
+								fill = sampleLinearGradient(o.GradientStops, o.GradientStopPos, o.GradientAngle, px, py, float64(rect.Min.X), float64(rect.Min.Y), float64(rect.Dx()), float64(rect.Dy()))
+							}
 						}
 						if fill.A > 0 {
 							blendOver(img, x, y, withOpacity(fill, cov*clipCov*currentOpacity))
@@ -338,7 +354,8 @@ func matrixScale(m geom.Matrix) float64 {
 
 // sampleLinearGradient interpolates stops along a CSS-angle axis through the
 // rect. CSS: 0deg = to top, 90deg = to right (converted to math radians).
-func sampleLinearGradient(stops []color.RGBA, angle, px, py, ox, oy, w, h float64) color.RGBA {
+// stopPos is optional 0..1 positions (same length as stops); nil = even.
+func sampleLinearGradient(stops []color.RGBA, stopPos []float64, angle, px, py, ox, oy, w, h float64) color.RGBA {
 	if len(stops) == 0 {
 		return color.RGBA{}
 	}
@@ -369,16 +386,76 @@ func sampleLinearGradient(stops []color.RGBA, angle, px, py, ox, oy, w, h float6
 	t := ((px-cx)*dx + (py-cy)*dy) / half
 	// Map [-1,1] → [0,1]
 	t = (t + 1) / 2
+	return sampleGradientT(stops, stopPos, t)
+}
+
+// sampleRadialGradient interpolates stops by distance from the box center
+// to the farther corner (CSS circle farthest-corner approximation).
+func sampleRadialGradient(stops []color.RGBA, stopPos []float64, px, py, ox, oy, w, h float64) color.RGBA {
+	if len(stops) == 0 {
+		return color.RGBA{}
+	}
+	if len(stops) == 1 {
+		return stops[0]
+	}
+	if w <= 0 || h <= 0 {
+		return stops[0]
+	}
+	cx, cy := ox+w/2, oy+h/2
+	// Radius to farthest corner.
+	r := math.Hypot(w/2, h/2)
+	if r < 1e-6 {
+		return stops[0]
+	}
+	t := math.Hypot(px-cx, py-cy) / r
+	return sampleGradientT(stops, stopPos, t)
+}
+
+// sampleGradientT maps t∈[0,1] onto stops (even spacing or explicit positions).
+func sampleGradientT(stops []color.RGBA, stopPos []float64, t float64) color.RGBA {
 	if t < 0 {
 		t = 0
 	}
 	if t > 1 {
 		t = 1
 	}
-	pos := t * float64(len(stops)-1)
+	n := len(stops)
+	if n < 2 {
+		return stops[0]
+	}
+	// Explicit positions.
+	if len(stopPos) == n {
+		// Ensure monotonic positions.
+		pos := make([]float64, n)
+		copy(pos, stopPos)
+		for i := 1; i < n; i++ {
+			if pos[i] < pos[i-1] {
+				pos[i] = pos[i-1]
+			}
+		}
+		if t <= pos[0] {
+			return stops[0]
+		}
+		if t >= pos[n-1] {
+			return stops[n-1]
+		}
+		for i := 0; i < n-1; i++ {
+			if t >= pos[i] && t <= pos[i+1] {
+				span := pos[i+1] - pos[i]
+				f := 0.0
+				if span > 1e-9 {
+					f = (t - pos[i]) / span
+				}
+				return lerpRGBA(stops[i], stops[i+1], f)
+			}
+		}
+		return stops[n-1]
+	}
+	// Even spacing.
+	pos := t * float64(n-1)
 	i := int(pos)
-	if i >= len(stops)-1 {
-		return stops[len(stops)-1]
+	if i >= n-1 {
+		return stops[n-1]
 	}
 	f := pos - float64(i)
 	return lerpRGBA(stops[i], stops[i+1], f)
@@ -418,6 +495,87 @@ func sampleBoxBlur(img *image.RGBA, x, y, radius int) color.RGBA {
 		return color.RGBA{}
 	}
 	return color.RGBA{uint8(r / n), uint8(g / n), uint8(bl / n), uint8(a / n)}
+}
+
+// sampleBoxBlurRegion returns a separable (H then V) box-blur of img over
+// region, as a new RGBA with origin at (0,0) = region.Min. Much smoother frost
+// than a single-pixel sampleBoxBlur, at O(n·radius) instead of O(n·radius²).
+func sampleBoxBlurRegion(img *image.RGBA, region image.Rectangle, radius int) *image.RGBA {
+	region = region.Intersect(img.Bounds())
+	if region.Empty() || radius < 1 {
+		out := image.NewRGBA(image.Rect(0, 0, region.Dx(), region.Dy()))
+		for y := region.Min.Y; y < region.Max.Y; y++ {
+			for x := region.Min.X; x < region.Max.X; x++ {
+				out.SetRGBA(x-region.Min.X, y-region.Min.Y, img.RGBAAt(x, y))
+			}
+		}
+		return out
+	}
+	w, h := region.Dx(), region.Dy()
+	// Expand source sample for blur kernel.
+	src := img.Bounds()
+	// Horizontal pass into tmp (same size as region).
+	tmp := image.NewRGBA(image.Rect(0, 0, w, h))
+	out := image.NewRGBA(image.Rect(0, 0, w, h))
+	for y := 0; y < h; y++ {
+		sy := region.Min.Y + y
+		for x := 0; x < w; x++ {
+			var r, g, bl, a, n uint32
+			for dx := -radius; dx <= radius; dx++ {
+				xx := region.Min.X + x + dx
+				if xx < src.Min.X || xx >= src.Max.X {
+					continue
+				}
+				c := img.RGBAAt(xx, sy)
+				r += uint32(c.R)
+				g += uint32(c.G)
+				bl += uint32(c.B)
+				a += uint32(c.A)
+				n++
+			}
+			if n == 0 {
+				continue
+			}
+			tmp.SetRGBA(x, y, color.RGBA{uint8(r / n), uint8(g / n), uint8(bl / n), uint8(a / n)})
+		}
+	}
+	// Vertical pass tmp → out.
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			var r, g, bl, a, n uint32
+			for dy := -radius; dy <= radius; dy++ {
+				yy := y + dy
+				if yy < 0 || yy >= h {
+					// Clamp to edge of tmp (approximation outside region).
+					cy := yy
+					if cy < 0 {
+						cy = 0
+					}
+					if cy >= h {
+						cy = h - 1
+					}
+					c := tmp.RGBAAt(x, cy)
+					r += uint32(c.R)
+					g += uint32(c.G)
+					bl += uint32(c.B)
+					a += uint32(c.A)
+					n++
+					continue
+				}
+				c := tmp.RGBAAt(x, yy)
+				r += uint32(c.R)
+				g += uint32(c.G)
+				bl += uint32(c.B)
+				a += uint32(c.A)
+				n++
+			}
+			if n == 0 {
+				continue
+			}
+			out.SetRGBA(x, y, color.RGBA{uint8(r / n), uint8(g / n), uint8(bl / n), uint8(a / n)})
+		}
+	}
+	return out
 }
 
 // blendOverColor composites src over dst (both straight alpha).

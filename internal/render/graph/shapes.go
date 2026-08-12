@@ -84,7 +84,11 @@ type Rect struct {
 
 	ShadowColor color.RGBA
 	ShadowBlur  float64
+	ShadowX     float64
 	ShadowY     float64
+	// GradientStopPos optional 0..1 positions; empty = even spacing.
+	GradientStopPos []float64
+	GradientRadial  bool
 }
 
 func NewRect() *Rect {
@@ -113,8 +117,9 @@ func (r *Rect) Draw(ctx *Context) {
 	// Rounded, shadowed, gradient, or frosted: take the per-pixel SDF path.
 	if r.BorderRadius > 0 || r.ShadowColor.A > 0 || hasGrad || hasFrost {
 		ctx.RRectEx(rect, r.BorderRadius, r.Fill, r.Stroke, r.StrokeWidth,
-			r.ShadowColor, r.ShadowBlur, r.ShadowY,
-			r.GradientStops, r.GradientAngle, r.BackdropBlur, r.BackdropTint)
+			r.ShadowColor, r.ShadowBlur, r.ShadowX, r.ShadowY,
+			r.GradientStops, r.GradientStopPos, r.GradientAngle, r.GradientRadial,
+			r.BackdropBlur, r.BackdropTint)
 		ctx.Restore()
 		return
 	}
