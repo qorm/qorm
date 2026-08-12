@@ -826,6 +826,32 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 	group.DropShadowBlur = ln.Style.DropShadowBlur
 	group.DropShadowColor = ln.Style.DropShadowColor
 	group.MixBlendMode = ln.Style.MixBlendMode
+	if ln.Style.MaskFade != "" {
+		group.MaskFade = ln.Style.MaskFade
+		group.MaskFadeSize = ln.Style.MaskFadeSize
+		if group.MaskFadeSize <= 0 {
+			group.MaskFadeSize = 48
+		}
+	}
+	// Propagate scroll-snap style keys onto the model Style map so the scroll
+	// path can read them without re-parsing (author may only set NodeStyle via
+	// cascade). Prefer existing author keys.
+	if ln.Style.ScrollSnapType != "" && ln.Node != nil {
+		if ln.Node.Style == nil {
+			ln.Node.Style = map[string]any{}
+		}
+		if _, ok := ln.Node.Style["scrollSnapType"]; !ok {
+			ln.Node.Style["scrollSnapType"] = ln.Style.ScrollSnapType
+		}
+	}
+	if ln.Style.ScrollSnapAlign != "" && ln.Node != nil {
+		if ln.Node.Style == nil {
+			ln.Node.Style = map[string]any{}
+		}
+		if _, ok := ln.Node.Style["scrollSnapAlign"]; !ok {
+			ln.Node.Style["scrollSnapAlign"] = ln.Style.ScrollSnapAlign
+		}
+	}
 
 	if ln.Node.OnPress != nil {
 		group.OnPress = ln.Node.OnPress

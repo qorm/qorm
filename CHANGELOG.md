@@ -7,6 +7,13 @@ All notable changes to QORM are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Canvas scroll-snap**: `scrollSnapType` (`y mandatory` / `x proximity` /
+  `both mandatory`, …) on scroll viewports and `scrollSnapAlign`
+  (`start` / `center` / `end`) on children — snaps after coast or drag
+  release (carousel / pageview / picker parity with HTML).
+- **Canvas mask fade**: `maskFade` (`top`|`bottom`|`left`|`right`) +
+  `maskFadeSize`, or `maskImage: linear-gradient(to bottom, …)` — soft edge
+  dissolve on a subtree layer (list/carousel edges).
 - **Canvas text decoration & transform**: `textDecoration` (`underline` /
   `line-through` / `overline`), `textTransform` (`uppercase` / `lowercase` /
   `capitalize`), and multi-line **`lineClamp`** (ellipsis on the last kept line).

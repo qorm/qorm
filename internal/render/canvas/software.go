@@ -535,6 +535,10 @@ type layerParams struct {
 	dropX, dropY, dropBlur               float64
 	dropColor                            color.RGBA
 	blend                                string
+	maskFade                             string
+	maskFadeSize                         float64
+	// maskBounds is the alpha AABB of the layer (for edge fade).
+	maskMinX, maskMinY, maskMaxX, maskMaxY int
 }
 
 func layerParamsFromOp(o op.LayerOp, matrixScale float64) layerParams {
@@ -546,17 +550,72 @@ func layerParamsFromOp(o op.LayerOp, matrixScale float64) layerParams {
 	if opac <= 0 {
 		opac = 1
 	}
+	fade := strings.ToLower(strings.TrimSpace(o.MaskFade))
+	fs := o.MaskFadeSize * matrixScale
+	if fade != "" && fs <= 0 {
+		fs = 48 * matrixScale
+	}
 	return layerParams{
 		blur: o.Blur * matrixScale, brightness: b, contrast: c, saturate: s,
 		grayscale: o.Grayscale, hueRotate: o.HueRotate, opacity: opac,
 		dropX: o.DropShadowX * matrixScale, dropY: o.DropShadowY * matrixScale,
 		dropBlur: o.DropShadowBlur * matrixScale, dropColor: o.DropShadowColor,
 		blend: strings.ToLower(strings.TrimSpace(o.BlendMode)),
+		maskFade: fade, maskFadeSize: fs,
+	}
+}
+
+// maskAlpha returns 0..1 fade factor for a screen pixel under maskFade.
+func (p layerParams) maskAlpha(x, y int) float64 {
+	if p.maskFade == "" || p.maskFadeSize < 0.5 {
+		return 1
+	}
+	band := p.maskFadeSize
+	switch p.maskFade {
+	case "bottom":
+		// Fully opaque above (maxY-band), fade to 0 at maxY.
+		d := float64(p.maskMaxY - y)
+		if d >= band {
+			return 1
+		}
+		if d <= 0 {
+			return 0
+		}
+		return d / band
+	case "top":
+		d := float64(y - p.maskMinY)
+		if d >= band {
+			return 1
+		}
+		if d <= 0 {
+			return 0
+		}
+		return d / band
+	case "right":
+		d := float64(p.maskMaxX - x)
+		if d >= band {
+			return 1
+		}
+		if d <= 0 {
+			return 0
+		}
+		return d / band
+	case "left":
+		d := float64(x - p.maskMinX)
+		if d >= band {
+			return 1
+		}
+		if d <= 0 {
+			return 0
+		}
+		return d / band
+	default:
+		return 1
 	}
 }
 
 // endLayerComposite applies CSS filter (drop-shadow, blur, color matrix,
-// opacity) then blends onto dst with mix-blend-mode.
+// opacity, edge mask) then blends onto dst with mix-blend-mode.
 func endLayerComposite(dst, src *image.RGBA, p layerParams) {
 	if dst == nil || src == nil {
 		return
@@ -565,6 +624,9 @@ func endLayerComposite(dst, src *image.RGBA, p layerParams) {
 	if region.Empty() {
 		return
 	}
+	p.maskMinX, p.maskMinY = region.Min.X, region.Min.Y
+	p.maskMaxX, p.maskMaxY = region.Max.X, region.Max.Y
+
 	// Drop-shadow first (under content): blur source alpha, tint, offset.
 	if p.dropColor.A > 0 && (p.dropBlur > 0 || p.dropX != 0 || p.dropY != 0) {
 		compositeDropShadow(dst, src, region, p)
@@ -572,6 +634,7 @@ func endLayerComposite(dst, src *image.RGBA, p layerParams) {
 
 	needColor := p.brightness != 1 || p.contrast != 1 || p.saturate != 1 ||
 		p.grayscale > 0 || p.hueRotate != 0 || p.opacity != 1
+	needMask := p.maskFade != "" && p.maskFadeSize > 0.5
 	r := int(math.Ceil(p.blur))
 	if r > 24 {
 		r = 24
@@ -580,6 +643,15 @@ func endLayerComposite(dst, src *image.RGBA, p layerParams) {
 	paint := func(c color.RGBA, x, y int) {
 		if needColor {
 			c = applyFilterColorEx(c, p)
+		}
+		if needMask {
+			a := p.maskAlpha(x, y)
+			if a <= 0 {
+				return
+			}
+			if a < 1 {
+				c = withOpacity(c, a)
+			}
 		}
 		if p.blend != "" && p.blend != "normal" {
 			blendModeOver(dst, x, y, c, p.blend)
@@ -590,7 +662,7 @@ func endLayerComposite(dst, src *image.RGBA, p layerParams) {
 
 	if r < 1 {
 		region = region.Intersect(src.Bounds()).Intersect(dst.Bounds())
-		if !needColor && (p.blend == "" || p.blend == "normal") {
+		if !needColor && !needMask && (p.blend == "" || p.blend == "normal") {
 			compositeLayer(dst, src, region)
 			return
 		}

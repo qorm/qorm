@@ -4,6 +4,8 @@ import (
 	"image"
 	"image/color"
 	"math"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/qorm/qorm/internal/model"
@@ -480,11 +482,17 @@ func (e *Engine) scrollViewport(vp *graph.Group, m *model.Node, dx, dy float64) 
 // px per ideal frame (~16.7ms at 60fps) and the timestamp of the last scroll
 // event (so the deceleration phase knows the elapsed time for frame-rate
 // independent friction). Spring is true while rubber-band overscroll is
-// easing back into the hard clamp range after a drag release.
+// easing back into the hard clamp range after a drag release. Snap is true
+// while easing to a scroll-snap target after coast/release (CSS scroll-snap).
 type ScrollMomentum struct {
 	VX, VY   float64   // velocity in physical px per ideal frame (~16.7ms)
 	Active   bool      // momentum phase is in flight
 	Spring   bool      // overscroll spring-back (ignores velocity, lerps to clamp)
+	Snap     bool      // scroll-snap settle toward SnapTo*
+	SnapToX  float64
+	SnapToY  float64
+	HasSnapX bool
+	HasSnapY bool
 	LastTime time.Time // last scroll-event timestamp for this viewport
 }
 
@@ -572,6 +580,45 @@ func (e *Engine) applyScrollMomentum(now time.Time) bool {
 				mom.Spring = false
 				mom.Active = false
 				mom.VX, mom.VY = 0, 0
+				// After spring-back, still may need scroll-snap (rare).
+				if e.tryArmScrollSnap(m, &pos, &mom) {
+					any = true
+				}
+			} else {
+				any = true
+			}
+			e.Inter.ScrollOffsets[m] = pos
+			e.Inter.ScrollMomentum[m] = mom
+			continue
+		}
+
+		// CSS scroll-snap settle: lerp toward the nearest snap target.
+		if mom.Snap {
+			const snap = 0.4
+			t := 1 - math.Pow(1-snap, frames)
+			if t > 1 {
+				t = 1
+			}
+			if mom.HasSnapX {
+				pos.X += (mom.SnapToX - pos.X) * t
+			}
+			if mom.HasSnapY {
+				pos.Y += (mom.SnapToY - pos.Y) * t
+			}
+			mom.LastTime = now
+			doneX := !mom.HasSnapX || math.Abs(pos.X-mom.SnapToX) < 0.5
+			doneY := !mom.HasSnapY || math.Abs(pos.Y-mom.SnapToY) < 0.5
+			if doneX && doneY {
+				if mom.HasSnapX {
+					pos.X = mom.SnapToX
+				}
+				if mom.HasSnapY {
+					pos.Y = mom.SnapToY
+				}
+				mom.Snap = false
+				mom.Active = false
+				mom.VX, mom.VY = 0, 0
+				mom.HasSnapX, mom.HasSnapY = false, false
 			} else {
 				any = true
 			}
@@ -592,16 +639,25 @@ func (e *Engine) applyScrollMomentum(now time.Time) bool {
 
 		// Stop when velocity is imperceptible.
 		if math.Abs(mom.VX) < momentumStopThreshold && math.Abs(mom.VY) < momentumStopThreshold {
-			mom.Active = false
 			mom.VX, mom.VY = 0, 0
-			e.Inter.ScrollMomentum[m] = mom
 			// If we stopped while overscrolled (rare), snap into spring.
 			if pos.X < 0 || pos.Y < 0 {
 				mom.Spring = true
 				mom.Active = true
 				e.Inter.ScrollMomentum[m] = mom
+				e.Inter.ScrollOffsets[m] = pos
 				any = true
+				continue
 			}
+			// CSS scroll-snap: ease to nearest snap point when configured.
+			if e.tryArmScrollSnap(m, &pos, &mom) {
+				e.Inter.ScrollOffsets[m] = pos
+				e.Inter.ScrollMomentum[m] = mom
+				any = true
+				continue
+			}
+			mom.Active = false
+			e.Inter.ScrollMomentum[m] = mom
 			continue
 		}
 
@@ -859,6 +915,7 @@ func (e *Engine) endScrollDrag() {
 	if overX || overY {
 		mom.Spring = true
 		mom.Active = true
+		mom.Snap = false
 		mom.VX, mom.VY = 0, 0
 		mom.LastTime = time.Now()
 		e.Inter.ScrollMomentum[m] = mom
@@ -870,9 +927,248 @@ func (e *Engine) endScrollDrag() {
 		mom.VX, mom.VY = d.MomVX, d.MomVY
 		mom.Active = true
 		mom.Spring = false
+		mom.Snap = false
 		mom.LastTime = time.Now()
 		e.Inter.ScrollMomentum[m] = mom
+		return
 	}
+	// No coast: still may need scroll-snap settle.
+	if e.tryArmScrollSnap(m, &pos, &mom) {
+		e.Inter.ScrollOffsets[m] = pos
+		e.Inter.ScrollMomentum[m] = mom
+	}
+}
+
+// --- CSS scroll-snap (scrollSnapType / scrollSnapAlign) ---
+
+// scrollSnapConfig reads the viewport's scroll-snap policy from style or props.
+// Returns axis ("x","y","both","") and whether snapping is mandatory.
+func scrollSnapConfig(m *model.Node) (axis string, mandatory bool) {
+	if m == nil {
+		return "", false
+	}
+	raw := ""
+	if m.Style != nil {
+		if s, ok := m.Style["scrollSnapType"].(string); ok {
+			raw = s
+		}
+	}
+	if raw == "" && m.Props != nil {
+		if s, ok := m.Props["scrollSnapType"].(string); ok {
+			raw = s
+		}
+	}
+	raw = strings.ToLower(strings.TrimSpace(raw))
+	if raw == "" || raw == "none" {
+		return "", false
+	}
+	// Tokenize so "proximity" does not match axis "y" via substring search.
+	hasX, hasY, hasBoth := false, false, false
+	sawMode := false
+	mandatory = true // CSS default when only axis is given is often mandatory in apps
+	for _, tok := range strings.Fields(raw) {
+		switch tok {
+		case "x":
+			hasX = true
+		case "y":
+			hasY = true
+		case "both", "block", "inline":
+			// block≈y, inline≈x in horizontal-tb; treat both as both for simplicity.
+			if tok == "both" {
+				hasBoth = true
+			} else if tok == "block" {
+				hasY = true
+			} else {
+				hasX = true
+			}
+		case "mandatory":
+			mandatory = true
+			sawMode = true
+		case "proximity":
+			mandatory = false
+			sawMode = true
+		}
+	}
+	if !sawMode && strings.Contains(raw, "proximity") {
+		mandatory = false
+	}
+	switch {
+	case hasBoth || (hasX && hasY):
+		axis = "both"
+	case hasX:
+		axis = "x"
+	case hasY:
+		axis = "y"
+	default:
+		// Axis omitted ("mandatory" alone) → vertical lists.
+		axis = "y"
+	}
+	return axis, mandatory
+}
+
+// scrollSnapAlignOf returns a child's align (start/center/end/none).
+// Empty means "start" when the parent snaps (pragmatic JSON default).
+func scrollSnapAlignOf(n *model.Node) string {
+	if n == nil {
+		return "start"
+	}
+	raw := ""
+	if n.Style != nil {
+		if s, ok := n.Style["scrollSnapAlign"].(string); ok {
+			raw = s
+		}
+	}
+	if raw == "" && n.Props != nil {
+		if s, ok := n.Props["scrollSnapAlign"].(string); ok {
+			raw = s
+		}
+	}
+	raw = strings.ToLower(strings.TrimSpace(raw))
+	switch raw {
+	case "none":
+		return "none"
+	case "center", "end", "start":
+		return raw
+	default:
+		return "start"
+	}
+}
+
+// collectSnapOffsets returns sorted unique scroll offsets for the axis
+// ('x' or 'y') from content children of the viewport.
+func collectSnapOffsets(vp *graph.Group, axis byte) []float64 {
+	content := scrollContentOf(vp)
+	if content == nil {
+		return nil
+	}
+	maxX, maxY := scrollRange(vp)
+	vpW, vpH := vp.Base().Width, vp.Base().Height
+	var pts []float64
+	for _, ch := range content.Children {
+		b := ch.Base()
+		if b.NoHit || b.Width <= 0 || b.Height <= 0 {
+			continue
+		}
+		align := "start"
+		if b.Model != nil {
+			align = scrollSnapAlignOf(b.Model)
+			if align == "none" {
+				continue
+			}
+		}
+		var off float64
+		if axis == 'y' {
+			switch align {
+			case "center":
+				off = b.Y + b.Height/2 - vpH/2
+			case "end":
+				off = b.Y + b.Height - vpH
+			default:
+				off = b.Y
+			}
+			if off < 0 {
+				off = 0
+			}
+			if off > maxY {
+				off = maxY
+			}
+		} else {
+			switch align {
+			case "center":
+				off = b.X + b.Width/2 - vpW/2
+			case "end":
+				off = b.X + b.Width - vpW
+			default:
+				off = b.X
+			}
+			if off < 0 {
+				off = 0
+			}
+			if off > maxX {
+				off = maxX
+			}
+		}
+		pts = append(pts, off)
+	}
+	if len(pts) == 0 {
+		return nil
+	}
+	sort.Float64s(pts)
+	// Dedupe nearby points.
+	out := pts[:1]
+	for _, p := range pts[1:] {
+		if p-out[len(out)-1] > 0.5 {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// nearestSnap picks the closest snap offset; for proximity, returns ok=false
+// when the nearest is farther than thresh.
+func nearestSnap(cur float64, pts []float64, mandatory bool, thresh float64) (float64, bool) {
+	if len(pts) == 0 {
+		return cur, false
+	}
+	best, bestD := pts[0], math.Abs(pts[0]-cur)
+	for _, p := range pts[1:] {
+		d := math.Abs(p - cur)
+		if d < bestD {
+			best, bestD = p, d
+		}
+	}
+	if !mandatory && bestD > thresh {
+		return cur, false
+	}
+	if bestD < 0.5 {
+		return best, false // already there
+	}
+	return best, true
+}
+
+// tryArmScrollSnap configures mom for a snap settle when the viewport
+// declares scrollSnapType. Returns true when snap was armed.
+func (e *Engine) tryArmScrollSnap(m *model.Node, pos *ScrollPos, mom *ScrollMomentum) bool {
+	axis, mandatory := scrollSnapConfig(m)
+	if axis == "" {
+		return false
+	}
+	g := e.findGroupByModel(m)
+	if g == nil {
+		return false
+	}
+	vp, ok := g.(*graph.Group)
+	if !ok {
+		return false
+	}
+	threshX := vp.Base().Width * 0.35
+	threshY := vp.Base().Height * 0.35
+	armed := false
+	if axis == "x" || axis == "both" {
+		if pts := collectSnapOffsets(vp, 'x'); len(pts) > 0 {
+			if t, ok := nearestSnap(pos.X, pts, mandatory, threshX); ok {
+				mom.SnapToX, mom.HasSnapX = t, true
+				armed = true
+			}
+		}
+	}
+	if axis == "y" || axis == "both" {
+		if pts := collectSnapOffsets(vp, 'y'); len(pts) > 0 {
+			if t, ok := nearestSnap(pos.Y, pts, mandatory, threshY); ok {
+				mom.SnapToY, mom.HasSnapY = t, true
+				armed = true
+			}
+		}
+	}
+	if !armed {
+		return false
+	}
+	mom.Snap = true
+	mom.Active = true
+	mom.Spring = false
+	mom.VX, mom.VY = 0, 0
+	mom.LastTime = time.Now()
+	return true
 }
 
 // firePullRefresh dispatches onRefresh on the scroll node, a wrapping

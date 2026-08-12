@@ -203,6 +203,8 @@ func (o *Ops) Fingerprint() uint64 {
 			writeF64(t.DropShadowBlur)
 			writeColor(t.DropShadowColor)
 			writeStr(t.BlendMode)
+			writeStr(t.MaskFade)
+			writeF64(t.MaskFadeSize)
 		case EndLayerOp:
 			writeU8(15)
 		default:
@@ -370,6 +372,9 @@ type LayerOp struct {
 	// BlendMode is CSS mix-blend-mode when compositing onto the parent
 	// ("normal", "multiply", "screen", "overlay", "darken", "lighten").
 	BlendMode string
+	// MaskFade soft-fades one edge of the layer ("top"|"bottom"|"left"|"right").
+	MaskFade     string
+	MaskFadeSize float64 // screen px of the fade band
 }
 
 func (LayerOp) isOp() {}

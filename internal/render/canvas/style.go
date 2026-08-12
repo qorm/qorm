@@ -212,6 +212,16 @@ type NodeStyle struct {
 	// LayoutMotion enables FLIP layout animation when the node moves/resizes
 	// between frames (requires transition + a stable id).
 	LayoutMotion bool
+	// ScrollSnapType is CSS scroll-snap-type on a scroll viewport
+	// ("y mandatory", "x proximity", "both mandatory", …).
+	ScrollSnapType string
+	// ScrollSnapAlign is CSS scroll-snap-align on a snap child
+	// ("start" | "center" | "end" | "none").
+	ScrollSnapAlign string
+	// MaskFade is a soft edge fade mask on the subtree: "top"|"bottom"|"left"|
+	// "right" (competitive list/carousel edge dissolve). MaskFadeSize is px.
+	MaskFade     string
+	MaskFadeSize float64
 }
 
 // scaleBy multiplies every pixel-valued field by f (a device-pixel ratio), so
@@ -250,6 +260,7 @@ func (s *NodeStyle) scaleBy(f int) {
 	s.DropShadowBlur *= float64(f)
 	s.OutlineWidth *= float64(f)
 	s.OutlineOffset *= float64(f)
+	s.MaskFadeSize *= float64(f)
 }
 
 func evalStyleProp(val any, rt *runtime.Runtime, sc ...*listScope) any {
@@ -1085,6 +1096,37 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 			s.LayoutMotion = t == "true" || t == "1" || t == "flip"
 		}
 	}
+	if v := esp(style["scrollSnapType"]); v != nil {
+		if str, ok := v.(string); ok {
+			s.ScrollSnapType = strings.ToLower(strings.TrimSpace(str))
+		}
+	}
+	if v := esp(style["scrollSnapAlign"]); v != nil {
+		if str, ok := v.(string); ok {
+			s.ScrollSnapAlign = strings.ToLower(strings.TrimSpace(str))
+		}
+	}
+	if v := esp(style["maskFade"]); v != nil {
+		if str, ok := v.(string); ok {
+			s.MaskFade = strings.ToLower(strings.TrimSpace(str))
+		}
+	}
+	if v := esp(style["maskFadeSize"]); v != nil {
+		switch t := v.(type) {
+		case float64:
+			s.MaskFadeSize = t
+		case int:
+			s.MaskFadeSize = float64(t)
+		case string:
+			s.MaskFadeSize = parseCSSPx(t)
+		}
+	}
+	// CSS mask-image: linear-gradient(to bottom, black, transparent) → maskFade.
+	if v := esp(style["maskImage"]); v != nil {
+		if str, ok := v.(string); ok {
+			applyMaskImage(s, str)
+		}
+	}
 
 	// HTML "gradient" / background linear-gradient(...): parse multi-stop
 	// fills for the software rasterizer; fall back to first-stop solid.
@@ -1204,6 +1246,34 @@ func parseConicGradient(g string, rt *runtime.Runtime) (stops []color.RGBA, pos 
 		pos = nil
 	}
 	return stops, pos, angle
+}
+
+// applyMaskImage maps a simple CSS mask-image linear-gradient to maskFade.
+// Supported: linear-gradient(to bottom|top|left|right, … transparent …).
+func applyMaskImage(s *NodeStyle, raw string) {
+	raw = strings.ToLower(strings.TrimSpace(raw))
+	if !strings.Contains(raw, "linear-gradient") {
+		return
+	}
+	switch {
+	case strings.Contains(raw, "to bottom") || strings.Contains(raw, "to top"):
+		if strings.Contains(raw, "to top") {
+			s.MaskFade = "top"
+		} else {
+			s.MaskFade = "bottom"
+		}
+	case strings.Contains(raw, "to right") || strings.Contains(raw, "to left"):
+		if strings.Contains(raw, "to left") {
+			s.MaskFade = "left"
+		} else {
+			s.MaskFade = "right"
+		}
+	default:
+		s.MaskFade = "bottom"
+	}
+	if s.MaskFadeSize <= 0 {
+		s.MaskFadeSize = 48
+	}
 }
 
 // parseOutlineShorthand parses "2px solid #f00" / "2px #f00" into outline fields.
@@ -1637,6 +1707,8 @@ var canvasStyleKeys = map[string]bool{
 	"overflow":       true, // "hidden" clips children (rounded via borderRadius)
 	"mixBlendMode":   true,
 	"layoutMotion":   true, // FLIP layout animation (default on with transition)
+	"scrollSnapType": true, "scrollSnapAlign": true,
+	"maskFade": true, "maskFadeSize": true, "maskImage": true,
 	// Spacer / simple widgets.
 	"size": true,
 }

@@ -24,6 +24,9 @@ type Group struct {
 	DropShadowColor                          color.RGBA
 	// MixBlendMode is CSS mix-blend-mode when compositing the layer.
 	MixBlendMode string
+	// MaskFade soft-fades one edge ("top"|"bottom"|"left"|"right").
+	MaskFade     string
+	MaskFadeSize float64
 }
 
 // NewGroup creates a new Group node
@@ -81,6 +84,9 @@ func (g *Group) hasFilter() bool {
 	if g.MixBlendMode != "" && g.MixBlendMode != "normal" {
 		return true
 	}
+	if g.MaskFade != "" && g.MaskFadeSize > 0 {
+		return true
+	}
 	b, c, s, o := g.FilterBrightness, g.FilterContrast, g.FilterSaturate, g.FilterOpacity
 	if b == 0 && c == 0 && s == 0 && o == 0 && g.FilterBlur == 0 && g.FilterGrayscale == 0 {
 		return false // unset zero-value group
@@ -112,6 +118,7 @@ func (g *Group) Draw(ctx *Context) {
 			Grayscale: g.FilterGrayscale, HueRotate: g.FilterHueRotate, Opacity: o,
 			DropShadowX: g.DropShadowX, DropShadowY: g.DropShadowY, DropShadowBlur: g.DropShadowBlur,
 			DropShadowColor: g.DropShadowColor, BlendMode: g.MixBlendMode,
+			MaskFade: g.MaskFade, MaskFadeSize: g.MaskFadeSize,
 		})
 	}
 
