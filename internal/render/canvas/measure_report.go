@@ -6,6 +6,7 @@ import (
 	"image"
 	"image/color"
 	"strings"
+	"time"
 
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/render/graph"
@@ -102,6 +103,8 @@ type measureSnap struct {
 	absX, absY, w, h                   int
 	fs, fw, pad, br                    int
 	opacity                            float64
+	entranceOp                         float64 // 1 when settled; multiplies style opacity
+	animating                          bool
 	textAlign                          string
 	color, bg                          color.RGBA
 	strokeW                            float64
@@ -120,12 +123,22 @@ func collectLayoutSnaps(ln *LayoutNode, out map[string]measureSnap) {
 		if op <= 0 {
 			op = 1
 		}
+		entOp := 1.0
+		anim := false
+		if ln.EntranceActive {
+			anim = true
+			entOp = ln.EntranceOpacity
+			if entOp <= 0 {
+				entOp = 0
+			}
+		}
 		out[id] = measureSnap{
 			id: id, typ: ln.Node.Type,
 			absX: ln.AbsX, absY: ln.AbsY, w: ln.Width, h: ln.Height,
 			fs: s.FontSize, fw: s.FontWeight, pad: s.Padding,
-			br: int(s.BorderRadius), opacity: op, textAlign: s.TextAlign,
-			color: s.Color, bg: s.Background,
+			br: int(s.BorderRadius), opacity: op, entranceOp: entOp, animating: anim,
+			textAlign: s.TextAlign,
+			color:     s.Color, bg: s.Background,
 			strokeW: s.StrokeWidth, stroke: s.StrokeColor,
 			marginT: s.MarginTop, marginB: s.MarginBot,
 			marginL: s.MarginLeft, marginR: s.MarginRight,
@@ -135,6 +148,27 @@ func collectLayoutSnaps(ln *LayoutNode, out map[string]measureSnap) {
 	for _, c := range ln.Children {
 		collectLayoutSnaps(c, out)
 	}
+}
+
+// effectiveOpacity multiplies style opacity by entrance fade (HTML-like
+// computed opacity for visibility).
+func effectiveOpacity(styleOp, entranceOp float64, graphOp float64) float64 {
+	op := styleOp
+	if op <= 0 {
+		op = 1
+	}
+	if entranceOp > 0 && entranceOp < 1 {
+		op *= entranceOp
+	} else if entranceOp == 0 && styleOp > 0 {
+		// Explicit zero entrance (delay window of a fade).
+		op = 0
+	}
+	// Graph opacity already includes entrance when applied; prefer the lower
+	// of the two so we never over-claim visibility.
+	if graphOp > 0 && graphOp < op {
+		op = graphOp
+	}
+	return op
 }
 
 func measureRowFromGraph(m *model.Node, n graph.Node, b *graph.BaseNode, sn measureSnap, scale int, logical bool, rt *runtime.Runtime) map[string]any {
@@ -150,13 +184,15 @@ func measureRowFromGraph(m *model.Node, n graph.Node, b *graph.BaseNode, sn meas
 		sf := float64(scale)
 		x, y, w, h = x/sf, y/sf, w/sf, h/sf
 	}
-	op := b.Opacity
-	if op <= 0 && sn.opacity > 0 {
-		op = sn.opacity
+	styleOp, entOp := 1.0, 1.0
+	if sn.id != "" {
+		styleOp, entOp = sn.opacity, sn.entranceOp
+		if entOp <= 0 && !sn.animating {
+			entOp = 1
+		}
 	}
-	if op <= 0 {
-		op = 1
-	}
+	op := effectiveOpacity(styleOp, entOp, b.Opacity)
+	// HTML: visible only when size and opacity are non-trivial.
 	vis := w > 0.5 && h > 0.5 && op > 0.01
 	row := map[string]any{
 		"id":       m.ID,
@@ -174,10 +210,11 @@ func measureRowFromGraph(m *model.Node, n graph.Node, b *graph.BaseNode, sn meas
 		"scale":    scale,
 		"logical":  logical,
 	}
+	if sn.animating {
+		row["animating"] = true
+	}
 	if sn.id != "" {
 		enrichStyle(row, sn, scale, logical)
-	} else {
-		// Minimal style from graph opacity only.
 	}
 	// a11y-ish props mirrored from HTML measure.
 	if raw, ok := m.Prop("ariaLabel"); ok {
@@ -198,13 +235,21 @@ func measureRowFromSnap(id string, sn measureSnap, scale int, logical bool, rt *
 		sf := float64(scale)
 		x, y, w, h = x/sf, y/sf, w/sf, h/sf
 	}
+	entOp := sn.entranceOp
+	if entOp <= 0 && !sn.animating {
+		entOp = 1
+	}
+	op := effectiveOpacity(sn.opacity, entOp, 0)
 	row := map[string]any{
 		"id": id, "tag": "canvas", "type": sn.typ,
 		"x": roundPx(x), "y": roundPx(y), "w": roundPx(w), "h": roundPx(h),
-		"visible": w > 0.5 && h > 0.5 && sn.opacity > 0.01,
+		"visible": w > 0.5 && h > 0.5 && op > 0.01,
 		"text":    "", "display": "block",
-		"opacity": fmt.Sprintf("%.3g", sn.opacity),
+		"opacity": fmt.Sprintf("%.3g", op),
 		"scale":   scale, "logical": logical,
+	}
+	if sn.animating {
+		row["animating"] = true
 	}
 	enrichStyle(row, sn, scale, logical)
 	return row
@@ -302,8 +347,14 @@ func measureTextOf(n *model.Node, rt *runtime.Runtime) string {
 
 // MeasureScene is a headless one-shot: layout+paint into an offscreen buffer
 // and return CollectMeasure rows in LOGICAL CSS px (scale-independent), which
-// is what agent checks and design tokens expect.
+// is what agent checks and design tokens expect. Entrance animations are
+// force-settled so CLI/MCP snapshots are deterministic (no mid-fade boxes).
 func MeasureScene(rt *runtime.Runtime, width, height, scale int) []byte {
+	return MeasureSceneOpts(rt, width, height, scale, MeasureOpts{Logical: true})
+}
+
+// MeasureSceneOpts is MeasureScene with Logical/physical control.
+func MeasureSceneOpts(rt *runtime.Runtime, width, height, scale int, opts MeasureOpts) []byte {
 	if rt == nil {
 		return []byte("[]")
 	}
@@ -318,8 +369,26 @@ func MeasureScene(rt *runtime.Runtime, width, height, scale int) []byte {
 	}
 	e := NewEngine(rt, SoftwareRenderer{})
 	surf := NewHeadlessSurface(image.Pt(width*scale, height*scale))
-	// Drive a couple of frames so entrance clocks settle enough for boxes.
 	e.DrawFrame(surf)
+	e.SettleEntrances()
 	e.DrawFrame(surf)
-	return e.CollectMeasureOpts(MeasureOpts{Logical: true})
+	return e.CollectMeasureOpts(opts)
+}
+
+// SettleEntrances rewinds every entrance clock so the next layout frame paints
+// fully settled geometry/opacity. Used by MeasureScene for deterministic
+// agent verification; live hosts leave entrances alone.
+func (e *Engine) SettleEntrances() {
+	if e == nil || e.Inter.Entrance == nil {
+		return
+	}
+	past := time.Now().Add(-time.Hour)
+	for k, st := range e.Inter.Entrance {
+		if st == nil {
+			continue
+		}
+		st.start = past
+		e.Inter.Entrance[k] = st
+	}
+	e.dirty.Store(true)
 }

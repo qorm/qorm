@@ -580,6 +580,7 @@ func cmdVerify(args []string) int {
 func cmdMeasure(args []string) int {
 	var in, out string
 	width := 400
+	physical := false
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--width":
@@ -587,6 +588,9 @@ func cmdMeasure(args []string) int {
 				i++
 				width = atoiOr(args[i], 400)
 			}
+		case "--physical":
+			// Device pixels instead of logical CSS px (HiDPI / canvas scale).
+			physical = true
 		case "-o", "--out":
 			if i+1 < len(args) {
 				i++
@@ -600,7 +604,7 @@ func cmdMeasure(args []string) int {
 		fmt.Fprintln(os.Stderr, "error: missing <app-dir>")
 		return 2
 	}
-	if err := runMeasure(in, out, width); err != nil {
+	if err := runMeasure(in, out, width, physical); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
@@ -611,6 +615,7 @@ func cmdCheck(args []string) int {
 	var in, checks, out string
 	audit := false
 	width := 400
+	physical := false
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--width":
@@ -618,6 +623,8 @@ func cmdCheck(args []string) int {
 				i++
 				width = atoiOr(args[i], 400)
 			}
+		case "--physical":
+			physical = true
 		case "--audit":
 			audit = true
 		case "--checks":
@@ -635,10 +642,10 @@ func cmdCheck(args []string) int {
 		}
 	}
 	if in == "" || (checks == "" && !audit) {
-		fmt.Fprintln(os.Stderr, "usage: qorm check <app-dir> (--checks checks.json | --audit) [--width N] [-o report.json]")
+		fmt.Fprintln(os.Stderr, "usage: qorm check <app-dir> (--checks checks.json | --audit) [--width N] [--physical] [-o report.json]")
 		return 2
 	}
-	if err := runCheck(in, checks, out, audit, width); err != nil {
+	if err := runCheck(in, checks, out, audit, width, physical); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}

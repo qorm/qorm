@@ -66,7 +66,10 @@ func measureRows(appDir string, width int, use func(rt *qrt.Runtime, url string,
 }
 
 // runMeasure prints the complete intent+result report.
-func runMeasure(appDir, out string, width int) error {
+// physical is accepted for CLI parity with the pure-Go path (WebView always
+// reports CSS px, so the flag is ignored here).
+func runMeasure(appDir, out string, width int, physical bool) error {
+	_ = physical
 	return measureRows(appDir, width, func(rt *qrt.Runtime, _ string, measured []byte) {
 		report, _ := measure.Report(rt, measured)
 		if out != "" {
@@ -80,7 +83,8 @@ func runMeasure(appDir, out string, width int) error {
 
 // runCheck measures the app and evaluates the checks against the rendered
 // reality, printing a precise pass/fail report.
-func runCheck(appDir, checksPath, out string, audit bool, width int) error {
+func runCheck(appDir, checksPath, out string, audit bool, width int, physical bool) error {
+	_ = physical
 	var checks []byte
 	if !audit {
 		var err error

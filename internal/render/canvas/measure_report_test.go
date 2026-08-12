@@ -104,6 +104,64 @@ func TestCollectMeasureLogicalHiDPI(t *testing.T) {
 	}
 }
 
+func TestMeasureSceneSettlesEntrance(t *testing.T) {
+	// A long fade entrance must not leave the node invisible after MeasureScene.
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{
+		{Type: "card", ID: "c", Props: map[string]any{"animation": "fade", "duration": 5000.0},
+			Style: map[string]any{"width": 80.0, "height": 40.0, "background": "#00ff00"}},
+	}}
+	rt := runtime.New(&model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}})
+	raw := MeasureScene(rt, 200, 200, 1)
+	var rows []map[string]any
+	if err := json.Unmarshal(raw, &rows); err != nil {
+		t.Fatal(err)
+	}
+	var card map[string]any
+	for _, r := range rows {
+		if r["id"] == "c" {
+			card = r
+		}
+	}
+	if card == nil {
+		t.Fatal("missing card row")
+	}
+	if card["visible"] != true {
+		t.Errorf("settled measure must mark entrance node visible, got %v opacity=%v animating=%v",
+			card["visible"], card["opacity"], card["animating"])
+	}
+	if card["animating"] == true {
+		t.Error("MeasureScene must settle entrances so animating is false")
+	}
+}
+
+func TestCollectMeasureEntranceInvisible(t *testing.T) {
+	// Mid-fade (without settle): opacity gate makes visible=false at t≈0.
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{
+		{Type: "card", ID: "c", Props: map[string]any{"animation": "fade", "duration": 5000.0},
+			Style: map[string]any{"width": 80.0, "height": 40.0, "background": "#00ff00"}},
+	}}
+	rt := runtime.New(&model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}})
+	e := NewEngine(rt, SoftwareRenderer{})
+	surf := NewHeadlessSurface(image.Pt(200, 200))
+	e.DrawFrame(surf) // entrance just started
+	raw := e.CollectMeasureOpts(MeasureOpts{Logical: true})
+	var rows []map[string]any
+	_ = json.Unmarshal(raw, &rows)
+	var card map[string]any
+	for _, r := range rows {
+		if r["id"] == "c" {
+			card = r
+		}
+	}
+	if card == nil {
+		t.Fatal("missing card")
+	}
+	// At t=0 of a fade, opacity is 0 → not visible; animating true.
+	if card["animating"] != true {
+		t.Errorf("live mid-entrance should set animating, row=%v", card)
+	}
+}
+
 func TestCollectMeasureEnrichedStyles(t *testing.T) {
 	root := &model.Node{Type: "column", ID: "box", Style: map[string]any{
 		"width": 120.0, "height": 60.0, "background": "#112233",

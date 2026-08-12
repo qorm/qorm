@@ -7,6 +7,10 @@ All notable changes to QORM are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Canvas measure settle + visibility**: `MeasureScene` force-settles entrance
+  clocks for deterministic CLI/MCP snapshots; live rows report effective
+  opacity (style × entrance fade), `animating`, and HTML-like `visible`
+  (size + opacity > 0.01). `qorm measure --physical` opts into device pixels.
 - **Canvas measure depth**: CollectMeasure enriches rows with HTML-parity
   style fields (color, background, fontSize/Weight, padding, margin,
   borderRadius, border, overflowX/Y), reports a `__stage` frame, and supports

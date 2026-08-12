@@ -14,7 +14,8 @@ import (
 // WebView) and returns HTML-compatible measurement rows from the graph.
 // This is the default-build path for `qorm measure` / `qorm check` so agents
 // can verify pure-Go canvas reality, not only the desktop WebView path.
-func measureRowsCanvas(appDir string, width int) (measured []byte, err error) {
+// logical=true reports CSS px (default); false keeps physical device px.
+func measureRowsCanvas(appDir string, width int, logical bool) (measured []byte, err error) {
 	rt, err := loadRuntime(appDir, "", "")
 	if err != nil {
 		return nil, err
@@ -31,12 +32,13 @@ func measureRowsCanvas(appDir string, width int) (measured []byte, err error) {
 	if width <= 0 {
 		width = 400
 	}
-	return canvas.MeasureScene(rt, width, h, 1), nil
+	return canvas.MeasureSceneOpts(rt, width, h, 1, canvas.MeasureOpts{Logical: logical}), nil
 }
 
 // runMeasure prints the intent+result report from the pure-Go canvas layout.
-func runMeasure(appDir, out string, width int) error {
-	measured, err := measureRowsCanvas(appDir, width)
+// physical=true keeps device pixels; default is logical CSS px.
+func runMeasure(appDir, out string, width int, physical bool) error {
+	measured, err := measureRowsCanvas(appDir, width, !physical)
 	if err != nil {
 		return err
 	}
@@ -60,8 +62,8 @@ func runMeasure(appDir, out string, width int) error {
 }
 
 // runCheck evaluates checks (or audit) against pure-Go canvas measurements.
-func runCheck(appDir, checksPath, out string, audit bool, width int) error {
-	measured, err := measureRowsCanvas(appDir, width)
+func runCheck(appDir, checksPath, out string, audit bool, width int, physical bool) error {
+	measured, err := measureRowsCanvas(appDir, width, !physical)
 	if err != nil {
 		return err
 	}
