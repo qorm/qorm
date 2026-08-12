@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/qorm/internal/render/graph"
 	"github.com/qorm/qorm/internal/runtime"
 	"github.com/qorm/qorm/internal/theme"
 )
@@ -114,5 +115,40 @@ func TestEllipsizeTextTruncates(t *testing.T) {
 	}
 	if len([]rune(s)) >= len([]rune(long)) {
 		t.Fatalf("expected fewer runes, got %q", s)
+	}
+}
+
+func TestMultilineEllipsisInLayout(t *testing.T) {
+	// Tall text forced into a short box with textOverflow:ellipsis should
+	// only paint as many lines as height allows.
+	long := strings.Repeat("line of wrapping prose ", 20)
+	txt := &model.Node{Type: "text", ID: "p", Props: map[string]any{"text": long},
+		Style: map[string]any{
+			"fontSize": 14.0, "width": 120.0, "height": 36.0, // ~2 lines at 14*1.2
+			"textOverflow": "ellipsis",
+		}}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{txt}}
+	e, surf := wrapEngine(t, root, 200, 200)
+	e.DrawFrame(surf)
+	g := e.findGroupByModel(txt)
+	if g == nil {
+		t.Fatal("missing text group")
+	}
+	nText := 0
+	var walk func(n graph.Node)
+	walk = func(n graph.Node) {
+		if n == nil {
+			return
+		}
+		if _, ok := n.(*graph.Text); ok {
+			nText++
+		}
+		for _, c := range n.Base().Children {
+			walk(c)
+		}
+	}
+	walk(g)
+	if nText < 1 || nText > 2 {
+		t.Fatalf("expected 1–2 text lines for height 36, got %d", nText)
 	}
 }

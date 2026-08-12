@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/qorm/qorm/internal/geom"
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/op"
 	"github.com/qorm/qorm/internal/runtime"
@@ -57,6 +58,56 @@ func TestRRectCornerAntialiasing(t *testing.T) {
 	// The body is fully opaque.
 	if got := img.RGBAAt(20, 20); got != (color.RGBA{255, 0, 0, 255}) {
 		t.Errorf("body = %v, want opaque fill", got)
+	}
+}
+
+func TestRRectRotatedKeepsCorners(t *testing.T) {
+	// A square with large radius, rotated 45° about its center, must not paint
+	// a filled axis-aligned diamond AABB — the centre stays fill, far AABB
+	// corners stay background.
+	const size = 80
+	img := image.NewRGBA(image.Rect(0, 0, size, size))
+	ops := &op.Ops{}
+	// Local 40×40 rrect, then rotate 45° about its centre (20,20), then
+	// translate to canvas centre (40,40).
+	// Matrix: T(40,40) · R(π/4) · T(-20,-20) applied as local→screen.
+	// Ops apply as Scale then Rotate then Translate when recorded via graph;
+	// here we post-multiply: start Identity, Translate, Rotate, Translate.
+	// Software: currentMatrix = currentMatrix.Multiply(o.M) so later ops apply first
+	// to the point. Graph: Translate(X,Y).Rotate.Scale.Scale so point: Scale → Rotate → Translate.
+	// Emulate: T(cx,cy) * R * T(-hw,-hh) * localRect(0,0,40,40)
+	cx, cy, half := 40.0, 40.0, 20.0
+	ang := math.Pi / 4
+	// Build matrix as Identity.Translate(cx,cy).Rotate(ang).Translate(-half,-half)
+	// Multiply order left-to-right means apply rightmost first to points.
+	m := geom.Identity().Translate(cx, cy).Rotate(ang).Translate(-half, -half)
+	ops.Add(op.TransformOp{M: m})
+	ops.Add(op.RRectOp{
+		Rect: image.Rect(0, 0, 40, 40), Radius: 12,
+		Fill: color.RGBA{255, 0, 0, 255},
+	})
+	SoftwareRenderer{}.Render(ops, img)
+
+	// Center of canvas should be red (inside rotated square).
+	if got := img.RGBAAt(40, 40); got.R < 200 {
+		t.Errorf("center = %v, want red fill", got)
+	}
+	// Far corner of AABB (top-left of canvas) must stay background white —
+	// axis-aligned SDF on the AABB would incorrectly fill toward corners.
+	if got := img.RGBAAt(2, 2); got != (color.RGBA{255, 255, 255, 255}) {
+		t.Errorf("far AABB corner = %v, want background (rotated rrect leak)", got)
+	}
+	// Mid-top of canvas is outside a 40×40 square rotated 45° about centre
+	// (half-diagonal ~28px; distance to mid-top is 35px). Must stay white —
+	// axis-aligned SDF on the AABB would paint a diamond that reaches here.
+	if got := img.RGBAAt(40, 5); got.R > 200 && got.G < 50 {
+		t.Errorf("mid-top = %v, should be outside rotated square (background)", got)
+	}
+	if got := img.RGBAAt(40, 5); got != (color.RGBA{255, 255, 255, 255}) {
+		// Soft AA near edge is OK; pure red fill is not.
+		if got.R > 240 && got.G < 30 {
+			t.Errorf("mid-top filled solid red = %v", got)
+		}
 	}
 }
 

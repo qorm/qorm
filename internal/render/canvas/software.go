@@ -222,34 +222,44 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 				}
 			}
 		case op.RRectOp:
-			rect := transformRect(currentMatrix, o.Rect)
-			hw, hh := float64(rect.Dx())/2, float64(rect.Dy())/2
-			if hw <= 0 || hh <= 0 {
+			// Local geometry (author space). Sampling in local space after
+			// inverse-transform keeps rounded corners correct under rotation
+			// and skew — transforming the AABB then using an axis-aligned SDF
+			// would draw a fat axis-aligned capsule instead of a rotated rrect.
+			lw := float64(o.Rect.Dx())
+			lh := float64(o.Rect.Dy())
+			if lw <= 0 || lh <= 0 {
 				break
 			}
-			// Radius, stroke and shadow are authored in local units: scale them
-			// with the matrix (a zoomed board) so proportions survive, the way
-			// a CSS border/radius does under transform.
+			hw, hh := lw/2, lh/2
 			s := matrixScale(currentMatrix)
-			radius := clamp01(o.Radius*s/math.Min(hw, hh)) * math.Min(hw, hh)
-			shadowBlur := o.ShadowBlur * s
-			shadowX := o.ShadowX * s
-			shadowY := o.ShadowY * s
-			strokeWidth := o.StrokeWidth * s
-			cx := float64(rect.Min.X) + hw
-			cy := float64(rect.Min.Y) + hh
-
-			// Iteration bounds: the fill's ~1px AA band lives just outside
-			// Rect; the shadow extends ShadowBlur px beyond its (X,Y) offset.
-			minX, minY := float64(rect.Min.X)-1, float64(rect.Min.Y)-1
-			maxX, maxY := float64(rect.Max.X)+1, float64(rect.Max.Y)+1
-			if o.Shadow.A > 0 {
-				minX = math.Min(minX, float64(rect.Min.X)+shadowX-shadowBlur-1)
-				minY = math.Min(minY, float64(rect.Min.Y)+shadowY-shadowBlur-1)
-				maxX = math.Max(maxX, float64(rect.Max.X)+shadowX+shadowBlur+1)
-				maxY = math.Max(maxY, float64(rect.Max.Y)+shadowY+shadowBlur+1)
+			if s < 1e-9 {
+				s = 1
 			}
-			b := image.Rect(int(math.Floor(minX)), int(math.Floor(minY)), int(math.Ceil(maxX)), int(math.Ceil(maxY)))
+			// Local radius/stroke/shadow (author units); coverage AA uses screen
+			// distance ≈ local_d * s.
+			radius := o.Radius
+			if radius > math.Min(hw, hh) {
+				radius = math.Min(hw, hh)
+			}
+			shadowBlurL := o.ShadowBlur
+			shadowXL, shadowYL := o.ShadowX, o.ShadowY
+			strokeWidthL := o.StrokeWidth
+			cxL := float64(o.Rect.Min.X) + hw
+			cyL := float64(o.Rect.Min.Y) + hh
+
+			// Expand local bounds for AA band + shadow, then map to screen AABB.
+			padL := 1.0/s + 1.0
+			if o.Shadow.A > 0 {
+				padL = math.Max(padL, math.Abs(shadowXL)+shadowBlurL+1.0/s+1)
+				padL = math.Max(padL, math.Abs(shadowYL)+shadowBlurL+1.0/s+1)
+			}
+			if strokeWidthL > 0 {
+				padL = math.Max(padL, strokeWidthL+1.0/s)
+			}
+			localBox := geom.NewBBox(float64(o.Rect.Min.X)-padL, float64(o.Rect.Min.Y)-padL, lw+2*padL, lh+2*padL)
+			sb := currentMatrix.TransformBBox(localBox)
+			b := image.Rect(int(math.Floor(sb.MinX)), int(math.Floor(sb.MinY)), int(math.Ceil(sb.MaxX)), int(math.Ceil(sb.MaxY)))
 			b = b.Intersect(img.Bounds())
 			if len(clips) > 0 {
 				b = b.Intersect(clipBounds(clips, img))
@@ -258,8 +268,8 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 				break
 			}
 
-			// Precompute frosted backdrop for the rect once (separable blur)
-			// so every pixel shares the same high-quality frost sample map.
+			inv, invOK := currentMatrix.Invert()
+			// Precompute frosted backdrop once for the screen bounds.
 			var frostBuf *image.RGBA
 			if o.BackdropBlur > 0 {
 				rBlur := int(math.Ceil(o.BackdropBlur * s))
@@ -269,6 +279,10 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 				frostBuf = sampleBoxBlurRegion(img, b, rBlur)
 			}
 
+			// Screen-space shadow blur for smoothstep (local blur × scale).
+			shadowBlurS := shadowBlurL * s
+			strokeWidthS := strokeWidthL * s
+
 			for y := b.Min.Y; y < b.Max.Y; y++ {
 				for x := b.Min.X; x < b.Max.X; x++ {
 					clipCov := clipCoverage(float64(x)+0.5, float64(y)+0.5, clips)
@@ -276,27 +290,37 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 						continue
 					}
 					px, py := float64(x)+0.5, float64(y)+0.5
+					// Map screen pixel → local author space.
+					lx, ly := px, py
+					if invOK {
+						lp := inv.TransformPoint(geom.Point{X: px, Y: py})
+						lx, ly = lp.X, lp.Y
+					} else {
+						// Non-invertible: fall back to axis-aligned AABB path.
+						rect := transformRect(currentMatrix, o.Rect)
+						lx = (px - float64(rect.Min.X)) * lw / math.Max(1, float64(rect.Dx()))
+						ly = (py - float64(rect.Min.Y)) * lh / math.Max(1, float64(rect.Dy()))
+						lx += float64(o.Rect.Min.X)
+						ly += float64(o.Rect.Min.Y)
+					}
 					if o.Shadow.A > 0 {
-						d := sdRoundBox(px, py, cx+shadowX, cy+shadowY, hw, hh, radius)
+						dL := sdRoundBox(lx, ly, cxL+shadowXL, cyL+shadowYL, hw, hh, radius)
+						dS := dL * s
 						var cov float64
-						if shadowBlur > 0 {
-							// Smoothstep falloff over the blur width: zero slope
-							// at both ends, so the shadow melts out instead of
-							// stepping like the old concentric-rect fake.
-							t := clamp01(1 - d/shadowBlur)
+						if shadowBlurS > 0 {
+							t := clamp01(1 - dS/shadowBlurS)
 							cov = t * t * (3 - 2*t)
 						} else {
-							cov = clamp01(0.5 - d)
+							cov = clamp01(0.5 - dS)
 						}
 						if cov > 0 {
 							blendOver(img, x, y, withOpacity(o.Shadow, cov*clipCov*currentOpacity))
 						}
 					}
-					d := sdRoundBox(px, py, cx, cy, hw, hh, radius)
+					dL := sdRoundBox(lx, ly, cxL, cyL, hw, hh, radius)
+					dS := dL * s
 					// ~1px coverage band at the boundary = antialiased edge.
-					if cov := clamp01(0.5 - d); cov > 0 {
-						// Optional frosted backdrop: blur pixels already under
-						// this rect, then tint.
+					if cov := clamp01(0.5 - dS); cov > 0 {
 						if frostBuf != nil {
 							frost := frostBuf.RGBAAt(x-b.Min.X, y-b.Min.Y)
 							if o.BackdropTint.A > 0 {
@@ -306,20 +330,21 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 						}
 						fill := o.Fill
 						if len(o.GradientStops) >= 2 {
+							// Gradients authored in local box space.
+							lox, loy := float64(o.Rect.Min.X), float64(o.Rect.Min.Y)
 							if o.GradientRadial {
-								fill = sampleRadialGradient(o.GradientStops, o.GradientStopPos, px, py, float64(rect.Min.X), float64(rect.Min.Y), float64(rect.Dx()), float64(rect.Dy()))
+								fill = sampleRadialGradient(o.GradientStops, o.GradientStopPos, lx, ly, lox, loy, lw, lh)
 							} else {
-								fill = sampleLinearGradient(o.GradientStops, o.GradientStopPos, o.GradientAngle, px, py, float64(rect.Min.X), float64(rect.Min.Y), float64(rect.Dx()), float64(rect.Dy()))
+								fill = sampleLinearGradient(o.GradientStops, o.GradientStopPos, o.GradientAngle, lx, ly, lox, loy, lw, lh)
 							}
 						}
 						if fill.A > 0 {
 							blendOver(img, x, y, withOpacity(fill, cov*clipCov*currentOpacity))
 						}
 					}
-					if o.Stroke.A > 0 && strokeWidth > 0 {
-						// Stroke sits INSIDE the boundary (CSS border-box):
-						// outer AA at d≈0, inner AA at d≈-width.
-						if cov := clamp01(0.5-d) * clamp01(0.5+d+strokeWidth); cov > 0 {
+					if o.Stroke.A > 0 && strokeWidthS > 0 {
+						// Stroke sits INSIDE the boundary (CSS border-box).
+						if cov := clamp01(0.5-dS) * clamp01(0.5+dS+strokeWidthS); cov > 0 {
 							blendOver(img, x, y, withOpacity(o.Stroke, cov*clipCov*currentOpacity))
 						}
 					}

@@ -7,6 +7,10 @@ All notable changes to QORM are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Canvas rotated RRect sampling**: rounded rects, strokes, shadows and
+  gradients sample in **local space** via inverse transform, so rotation/skew
+  keep correct corners (no axis-aligned AABB SDF smear). Multi-line
+  **`textOverflow: ellipsis`** caps lines to box height and ellipsizes the last.
 - **Canvas rendering quality**: `boxShadowX` end-to-end (style → graph →
   RRectOp SDF); **radial-gradient** fills; linear/radial **stop percentages**
   (`#fff 0%, #000 100%`); separable **backdrop frost** blur (H then V);

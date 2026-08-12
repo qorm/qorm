@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/color"
 	"math"
+	"strings"
 	"time"
 
 	flexlayout "github.com/qorm/qorm/internal/layout"
@@ -912,7 +913,28 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 			// Folded block text (wrap.go): one graph text per line, all
 			// left-aligned at the box origin — a wrapped paragraph has no
 			// centre alignment in v1.
-			for i, line := range ln.Wrapped {
+			lines := ln.Wrapped
+			// Multi-line ellipsis: when the box height cannot fit all folded
+			// lines, keep the first maxLines and ellipsize the last.
+			if ln.Style.TextOverflow == "ellipsis" && ln.Height > 0 && txtH > 0 {
+				maxLines := ln.Height / txtH
+				if maxLines < 1 {
+					maxLines = 1
+				}
+				if len(lines) > maxLines {
+					kept := make([]string, maxLines)
+					copy(kept, lines[:maxLines-1])
+					// Last line: prefix of the remaining text, ellipsized to width.
+					rest := strings.Join(lines[maxLines-1:], "")
+					if ln.Width > 0 {
+						kept[maxLines-1] = ellipsizeText(rest, float64(fs), ls, ln.Width)
+					} else {
+						kept[maxLines-1] = ellipsizeText(rest, float64(fs), ls, int(MeasureTextTracking(lines[maxLines-1], float64(fs), ls)))
+					}
+					lines = kept
+				}
+			}
+			for i, line := range lines {
 				textNode := graph.NewText()
 				textNode.X = 0
 				textNode.Y = float64(i * txtH)
