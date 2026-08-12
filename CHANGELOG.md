@@ -6,6 +6,12 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+- **Canvas rendering quality**: `boxShadowX` end-to-end (style → graph →
+  RRectOp SDF); **radial-gradient** fills; linear/radial **stop percentages**
+  (`#fff 0%, #000 100%`); separable **backdrop frost** blur (H then V);
+  single-line **`textOverflow: ellipsis`** when text exceeds the box width.
+
 ## [v0.8.9] - 2026-08-12
 
 ### Added
