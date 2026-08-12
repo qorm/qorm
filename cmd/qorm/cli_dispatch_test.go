@@ -284,19 +284,21 @@ func TestCLIDispatch(t *testing.T) {
 		}
 	})
 
-	t.Run("pure-build measure/check/preview refuse", func(t *testing.T) {
-		for _, args := range [][]string{
-			{"measure", counter},
-			{"check", counter, "--audit"},
-			{"preview", counter},
-		} {
-			_, errOut, code := runQORM(t, bin, nil, args...)
-			if code != 1 {
-				t.Errorf("qorm %v: exit = %d, want 1", args, code)
-			}
-			if !strings.Contains(errOut, "-tags desktop") {
-				t.Errorf("qorm %v: stderr = %q, should name the missing tag", args, errOut)
-			}
+	t.Run("pure-build measure/check work; preview still needs desktop", func(t *testing.T) {
+		// Canvas headless measure/audit work without WebView.
+		if _, errOut, code := runQORM(t, bin, nil, "measure", counter); code != 0 {
+			t.Errorf("qorm measure: exit = %d, stderr %q", code, errOut)
+		}
+		if _, errOut, code := runQORM(t, bin, nil, "check", counter, "--audit"); code != 0 {
+			t.Errorf("qorm check --audit: exit = %d, stderr %q", code, errOut)
+		}
+		// Preview still requires the desktop WebView host.
+		_, errOut, code := runQORM(t, bin, nil, "preview", counter)
+		if code != 1 {
+			t.Errorf("qorm preview: exit = %d, want 1", code)
+		}
+		if !strings.Contains(errOut, "-tags desktop") {
+			t.Errorf("qorm preview: stderr = %q, should name the missing tag", errOut)
 		}
 	})
 
