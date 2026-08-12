@@ -48,7 +48,15 @@ func (fakeTextarea) HandlePointer(n *model.Node, rt *runtime.Runtime, p PointerI
 // textarea bound to state.note.
 func textareaEditFixture(t *testing.T) (*Engine, *HeadlessSurface, *model.Node) {
 	t.Helper()
+	prev, had := LookupWidget("textarea")
 	RegisterWidget("textarea", fakeTextarea{})
+	t.Cleanup(func() {
+		if had {
+			RegisterWidget("textarea", prev)
+		} else {
+			UnregisterWidget("textarea")
+		}
+	})
 	ta := &model.Node{Type: "textarea", ID: "ta", Value: "{{state.note}}"}
 	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{ta}}
 	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}}
@@ -68,7 +76,15 @@ func TestEditableTypeGate(t *testing.T) {
 	if got := editableType("textarea"); got != registered {
 		t.Errorf("editableType(textarea) = %v, want the registry membership %v", got, registered)
 	}
+	prev, had := LookupWidget("textarea")
 	RegisterWidget("textarea", fakeTextarea{})
+	t.Cleanup(func() {
+		if had {
+			RegisterWidget("textarea", prev)
+		} else {
+			UnregisterWidget("textarea")
+		}
+	})
 	if !editableType("textarea") {
 		t.Error("a registered textarea must qualify")
 	}

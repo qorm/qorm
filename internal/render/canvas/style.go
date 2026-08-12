@@ -184,11 +184,22 @@ type NodeStyle struct {
 	FilterBrightness float64
 	FilterContrast   float64
 	FilterSaturate   float64
+	FilterGrayscale  float64 // 0..1
+	FilterHueRotate  float64 // degrees
+	FilterOpacity    float64 // 1 = identity
+	// Drop-shadow filter (CSS filter: drop-shadow(...)).
+	DropShadowX, DropShadowY, DropShadowBlur float64
+	DropShadowColor                          color.RGBA
+	// MixBlendMode is CSS mix-blend-mode (multiply/screen/overlay/…).
+	MixBlendMode string
 	// BoxShadowInset is CSS box-shadow: inset (inner shadow on the chrome).
 	BoxShadowInset bool
 	// Overflow "hidden" clips children to the box (optional rounded clip via
 	// BorderRadius). Empty / "visible" = no clip. Scroll viewports clip always.
 	Overflow string
+	// LayoutMotion enables FLIP layout animation when the node moves/resizes
+	// between frames (requires transition + a stable id).
+	LayoutMotion bool
 }
 
 // scaleBy multiplies every pixel-valued field by f (a device-pixel ratio), so
@@ -222,6 +233,9 @@ func (s *NodeStyle) scaleBy(f int) {
 	s.TextShadowX *= float64(f)
 	s.TextShadowY *= float64(f)
 	s.FilterBlur *= float64(f)
+	s.DropShadowX *= float64(f)
+	s.DropShadowY *= float64(f)
+	s.DropShadowBlur *= float64(f)
 }
 
 func evalStyleProp(val any, rt *runtime.Runtime, sc ...*listScope) any {
@@ -466,7 +480,7 @@ func parseStyle(n *model.Node, rt *runtime.Runtime, sc ...*listScope) NodeStyle 
 	s := NodeStyle{
 		Opacity: 1, EffectiveScale: 1,
 		// CSS filter color multipliers: 1 = identity (0 would mean black/flat).
-		FilterBrightness: 1, FilterContrast: 1, FilterSaturate: 1,
+		FilterBrightness: 1, FilterContrast: 1, FilterSaturate: 1, FilterOpacity: 1,
 	}
 
 	// Apply Theme Defaults
@@ -997,6 +1011,19 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 			s.Overflow = strings.ToLower(strings.TrimSpace(str))
 		}
 	}
+	if v := esp(style["mixBlendMode"]); v != nil {
+		if str, ok := v.(string); ok {
+			s.MixBlendMode = strings.ToLower(strings.TrimSpace(str))
+		}
+	}
+	if v := esp(style["layoutMotion"]); v != nil {
+		switch t := v.(type) {
+		case bool:
+			s.LayoutMotion = t
+		case string:
+			s.LayoutMotion = t == "true" || t == "1" || t == "flip"
+		}
+	}
 
 	// HTML "gradient" / background linear-gradient(...): parse multi-stop
 	// fills for the software rasterizer; fall back to first-stop solid.
@@ -1308,7 +1335,60 @@ func applyCSSFilterString(s *NodeStyle, raw string) {
 			if f, ok := parseFilterNumber(arg, true); ok {
 				s.FilterSaturate = f
 			}
+		case "grayscale":
+			if f, ok := parseFilterNumber(arg, true); ok {
+				s.FilterGrayscale = clamp01(f)
+			}
+		case "hue-rotate":
+			// "90deg" or "90"
+			arg = strings.TrimSuffix(strings.TrimSpace(arg), "deg")
+			if f, err := strconv.ParseFloat(strings.TrimSpace(arg), 64); err == nil {
+				s.FilterHueRotate = f
+			}
+		case "opacity":
+			if f, ok := parseFilterNumber(arg, true); ok {
+				s.FilterOpacity = f
+			}
+		case "drop-shadow":
+			parseDropShadowArgs(s, arg)
 		}
+	}
+}
+
+// parseDropShadowArgs parses CSS drop-shadow() args: offset-x offset-y blur color
+// (e.g. "2px 4px 6px #000" or "2 4 6 rgba(...)").
+func parseDropShadowArgs(s *NodeStyle, arg string) {
+	parts := strings.Fields(arg)
+	if len(parts) < 2 {
+		return
+	}
+	// Last token that looks like a color goes to DropShadowColor; numbers to offsets.
+	var nums []float64
+	var colorStr string
+	for _, p := range parts {
+		pl := strings.ToLower(p)
+		if strings.HasPrefix(pl, "#") || strings.HasPrefix(pl, "rgb") || strings.HasPrefix(pl, "var(") ||
+			pl == "black" || pl == "white" || pl == "red" || pl == "transparent" {
+			colorStr = p
+			continue
+		}
+		if f, ok := parseFilterNumber(p, false); ok {
+			nums = append(nums, f)
+		}
+	}
+	if len(nums) >= 1 {
+		s.DropShadowX = nums[0]
+	}
+	if len(nums) >= 2 {
+		s.DropShadowY = nums[1]
+	}
+	if len(nums) >= 3 {
+		s.DropShadowBlur = nums[2]
+	}
+	if colorStr != "" {
+		s.DropShadowColor = resolveColor(colorStr, nil)
+	} else if s.DropShadowColor.A == 0 {
+		s.DropShadowColor = color.RGBA{0, 0, 0, 128}
 	}
 }
 
@@ -1400,6 +1480,8 @@ var canvasStyleKeys = map[string]bool{
 	"filter": true, "blur": true, "filterBlur": true,
 	"boxShadowInset": true, // CSS box-shadow: inset
 	"overflow":       true, // "hidden" clips children (rounded via borderRadius)
+	"mixBlendMode":   true,
+	"layoutMotion":   true, // FLIP layout animation (default on with transition)
 	// Spacer / simple widgets.
 	"size": true,
 }

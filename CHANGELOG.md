@@ -7,6 +7,15 @@ All notable changes to QORM are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Canvas full CSS filter + blend**: `grayscale()`, `hue-rotate()`,
+  `opacity()`, `drop-shadow(x y blur color)` on the filter stack; **mix-blend-
+  mode** (`multiply` / `screen` / `overlay` / `darken` / `lighten`) when
+  compositing offscreen layers.
+- **Canvas dirty-region redraw**: engine unions changed layout boxes and
+  re-rasters only that pad-expanded region (full frame when color-only or
+  dirty > 75% of stage). `QORM_FULL_RASTER=1` forces full frames.
+- **Canvas FLIP layout motion**: set `layoutMotion: true` with `transition` +
+  stable `id` to ease absolute position/size jumps (shared-element style).
 - **Canvas CSS filter stack**: `filter: "blur(8px) brightness(1.2) contrast(0.9)
   saturate(0)"` — offscreen layer with **3-pass Gaussian-approx blur** plus
   brightness / contrast / saturate color matrix (percent or unitless). Still

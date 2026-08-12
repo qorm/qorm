@@ -172,6 +172,14 @@ func (o *Ops) Fingerprint() uint64 {
 			writeF64(t.Brightness)
 			writeF64(t.Contrast)
 			writeF64(t.Saturate)
+			writeF64(t.Grayscale)
+			writeF64(t.HueRotate)
+			writeF64(t.Opacity)
+			writeF64(t.DropShadowX)
+			writeF64(t.DropShadowY)
+			writeF64(t.DropShadowBlur)
+			writeColor(t.DropShadowColor)
+			writeStr(t.BlendMode)
 		case EndLayerOp:
 			writeU8(15)
 		default:
@@ -306,16 +314,28 @@ func (RRectOp) isOp() {}
 
 // LayerOp begins an offscreen layer. Subsequent ops draw into a transparent
 // buffer until EndLayerOp; the layer is then filtered and composited onto the
-// parent target (CSS filter on a group).
+// parent target (CSS filter + mix-blend-mode on a group).
 type LayerOp struct {
 	// Blur is the Gaussian-approx radius in screen pixels (3 stacked box blurs).
 	Blur float64
-	// Brightness multiplies RGB (1 = identity; 0 = black). 0 means unset → 1.
+	// Brightness multiplies RGB (1 = identity; 0 = black).
 	Brightness float64
-	// Contrast scales about mid-gray (1 = identity). 0 means unset → 1.
+	// Contrast scales about mid-gray (1 = identity).
 	Contrast float64
-	// Saturate scales chroma (1 = identity; 0 = grayscale). 0 means unset → 1.
+	// Saturate scales chroma (1 = identity; 0 = grayscale).
 	Saturate float64
+	// Grayscale 0..1 (0 = identity, 1 = full gray). CSS grayscale().
+	Grayscale float64
+	// HueRotate degrees. CSS hue-rotate().
+	HueRotate float64
+	// Opacity multiplies layer alpha (1 = identity). CSS filter: opacity().
+	Opacity float64
+	// Drop-shadow (CSS filter: drop-shadow): offset + blur + color of alpha.
+	DropShadowX, DropShadowY, DropShadowBlur float64
+	DropShadowColor                          color.RGBA
+	// BlendMode is CSS mix-blend-mode when compositing onto the parent
+	// ("normal", "multiply", "screen", "overlay", "darken", "lighten").
+	BlendMode string
 }
 
 func (LayerOp) isOp() {}

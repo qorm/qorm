@@ -5,14 +5,16 @@ import (
 	"image/color"
 	"image/draw"
 	"math"
+	"strings"
 
 	"github.com/qorm/qorm/internal/geom"
 	"github.com/qorm/qorm/internal/op"
 )
 
 // SoftwareRenderer is the CPU rasterizer: a flat interpreter over the display
-// list drawing into an image.RGBA. Stateless — all pipeline state is scoped to
-// a single Render call.
+// list drawing into an image.RGBA. Pipeline state is scoped to a single Render
+// call. Dirty, when non-empty, limits the clear + paint to that rect (engine
+// partial redraw); empty Dirty means full-frame clear and raster.
 //
 // Buffer convention: the target image.RGBA holds STRAIGHT (non-premultiplied)
 // RGBA bytes — every write goes through blendOver (or the opaque fast path,
@@ -23,12 +25,25 @@ import (
 //
 // Remaining limits (later milestones): the 5x7 bitmap font has no
 // shaping/kerning/wrapping.
-type SoftwareRenderer struct{}
+type SoftwareRenderer struct {
+	// Dirty limits rasterization to a sub-rect. Empty = full frame.
+	Dirty image.Rectangle
+}
 
 // Render implements Renderer.
-func (SoftwareRenderer) Render(ops *op.Ops, target *image.RGBA) {
-	// Every frame starts from a clean white background (opaque → straight).
-	draw.Draw(target, target.Bounds(), &image.Uniform{color.RGBA{255, 255, 255, 255}}, image.Point{}, draw.Src)
+func (r SoftwareRenderer) Render(ops *op.Ops, target *image.RGBA) {
+	bounds := target.Bounds()
+	dirty := r.Dirty.Intersect(bounds)
+	full := dirty.Empty()
+	if full {
+		dirty = bounds
+		// Every full frame starts from a clean white background.
+		draw.Draw(target, bounds, &image.Uniform{color.RGBA{255, 255, 255, 255}}, image.Point{}, draw.Src)
+	} else {
+		// Partial redraw: only the dirty rect is reset to white; the rest of
+		// the buffer keeps the previous frame's pixels.
+		draw.Draw(target, dirty, &image.Uniform{color.RGBA{255, 255, 255, 255}}, image.Point{}, draw.Src)
+	}
 
 	// Pipeline state. Clips form a stack so nested containers intersect
 	// (Save/Restore snapshot the stack; a ClipOp pushes on top). The transform
@@ -40,17 +55,19 @@ func (SoftwareRenderer) Render(ops *op.Ops, target *image.RGBA) {
 	// offscreen buffer until EndLayerOp filters and composites it back.
 	img := target
 	type layerFrame struct {
-		parent     *image.RGBA
-		blur       float64
-		brightness float64
-		contrast   float64
-		saturate   float64
+		parent *image.RGBA
+		params layerParams
 	}
 	var layers []layerFrame
 
 	currentColor := color.RGBA{0, 0, 0, 255}
 	currentMatrix := geom.Identity()
 	var clips []op.ClipOp
+	// Partial redraw: seed the clip stack with the dirty rect in screen space
+	// so every paint path (text/RRect/image) naturally skips outside pixels.
+	if !full {
+		clips = []op.ClipOp{{Rect: dirty}}
+	}
 	currentOpacity := 1.0
 	currentStrokeWidth := 0.0
 
@@ -66,21 +83,13 @@ func (SoftwareRenderer) Render(ops *op.Ops, target *image.RGBA) {
 	for _, operation := range ops.Operations() {
 		switch o := operation.(type) {
 		case op.LayerOp:
-			// Offscreen layer for CSS filter (blur + color matrix).
-			// Blur is authored in design px (already × DPR); multiply by the
-			// current matrix scale so a zoomed board softens in screen space.
-			blur := o.Blur
-			if ms := matrixScale(currentMatrix); ms > 1e-9 {
-				blur *= ms
+			// Offscreen layer for CSS filter + blend.
+			ms := matrixScale(currentMatrix)
+			if ms < 1e-9 {
+				ms = 1
 			}
-			b, c, s := o.Brightness, o.Contrast, o.Saturate
-			// Unset (all zero from BeginLayer blur-only) → identity.
-			if b == 0 && c == 0 && s == 0 {
-				b, c, s = 1, 1, 1
-			}
-			layers = append(layers, layerFrame{
-				parent: img, blur: blur, brightness: b, contrast: c, saturate: s,
-			})
+			p := layerParamsFromOp(o, ms)
+			layers = append(layers, layerFrame{parent: img, params: p})
 			img = image.NewRGBA(target.Bounds()) // transparent
 		case op.EndLayerOp:
 			if len(layers) == 0 {
@@ -88,7 +97,7 @@ func (SoftwareRenderer) Render(ops *op.Ops, target *image.RGBA) {
 			}
 			frame := layers[len(layers)-1]
 			layers = layers[:len(layers)-1]
-			endLayerComposite(frame.parent, img, frame.blur, frame.brightness, frame.contrast, frame.saturate)
+			endLayerComposite(frame.parent, img, frame.params)
 			img = frame.parent
 		case op.ColorOp:
 			currentColor = o.Color
@@ -472,9 +481,36 @@ func (SoftwareRenderer) Render(ops *op.Ops, target *image.RGBA) {
 	}
 }
 
-// endLayerComposite applies CSS filter (3-pass Gaussian-approx blur + color
-// matrix) then blends non-zero pixels onto dst.
-func endLayerComposite(dst, src *image.RGBA, blurPx, brightness, contrast, saturate float64) {
+// layerParams is the resolved CSS filter + blend state for one offscreen layer.
+type layerParams struct {
+	blur, brightness, contrast, saturate float64
+	grayscale, hueRotate, opacity        float64
+	dropX, dropY, dropBlur               float64
+	dropColor                            color.RGBA
+	blend                                string
+}
+
+func layerParamsFromOp(o op.LayerOp, matrixScale float64) layerParams {
+	b, c, s := o.Brightness, o.Contrast, o.Saturate
+	if b == 0 && c == 0 && s == 0 {
+		b, c, s = 1, 1, 1
+	}
+	opac := o.Opacity
+	if opac <= 0 {
+		opac = 1
+	}
+	return layerParams{
+		blur: o.Blur * matrixScale, brightness: b, contrast: c, saturate: s,
+		grayscale: o.Grayscale, hueRotate: o.HueRotate, opacity: opac,
+		dropX: o.DropShadowX * matrixScale, dropY: o.DropShadowY * matrixScale,
+		dropBlur: o.DropShadowBlur * matrixScale, dropColor: o.DropShadowColor,
+		blend: strings.ToLower(strings.TrimSpace(o.BlendMode)),
+	}
+}
+
+// endLayerComposite applies CSS filter (drop-shadow, blur, color matrix,
+// opacity) then blends onto dst with mix-blend-mode.
+func endLayerComposite(dst, src *image.RGBA, p layerParams) {
 	if dst == nil || src == nil {
 		return
 	}
@@ -482,30 +518,46 @@ func endLayerComposite(dst, src *image.RGBA, blurPx, brightness, contrast, satur
 	if region.Empty() {
 		return
 	}
-	needColor := brightness != 1 || contrast != 1 || saturate != 1
-	r := int(math.Ceil(blurPx))
-	if r > 24 {
-		r = 24 // keep 60fps on large layers
+	// Drop-shadow first (under content): blur source alpha, tint, offset.
+	if p.dropColor.A > 0 && (p.dropBlur > 0 || p.dropX != 0 || p.dropY != 0) {
+		compositeDropShadow(dst, src, region, p)
 	}
+
+	needColor := p.brightness != 1 || p.contrast != 1 || p.saturate != 1 ||
+		p.grayscale > 0 || p.hueRotate != 0 || p.opacity != 1
+	r := int(math.Ceil(p.blur))
+	if r > 24 {
+		r = 24
+	}
+
+	paint := func(c color.RGBA, x, y int) {
+		if needColor {
+			c = applyFilterColorEx(c, p)
+		}
+		if p.blend != "" && p.blend != "normal" {
+			blendModeOver(dst, x, y, c, p.blend)
+		} else {
+			blendOver(dst, x, y, c)
+		}
+	}
+
 	if r < 1 {
-		if !needColor {
+		region = region.Intersect(src.Bounds()).Intersect(dst.Bounds())
+		if !needColor && (p.blend == "" || p.blend == "normal") {
 			compositeLayer(dst, src, region)
 			return
 		}
-		// Color-only filter: walk region.
-		region = region.Intersect(src.Bounds()).Intersect(dst.Bounds())
 		for y := region.Min.Y; y < region.Max.Y; y++ {
 			for x := region.Min.X; x < region.Max.X; x++ {
 				c := src.RGBAAt(x, y)
 				if c.A == 0 {
 					continue
 				}
-				blendOver(dst, x, y, applyFilterColor(c, brightness, contrast, saturate))
+				paint(c, x, y)
 			}
 		}
 		return
 	}
-	// Expand for blur kernel (3-pass needs ~3r pad); zero-pad OOB.
 	pad := r * 3
 	if pad > 48 {
 		pad = 48
@@ -519,10 +571,52 @@ func endLayerComposite(dst, src *image.RGBA, blurPx, brightness, contrast, satur
 			if c.A == 0 {
 				continue
 			}
-			if needColor {
-				c = applyFilterColor(c, brightness, contrast, saturate)
+			paint(c, region.Min.X+x, region.Min.Y+y)
+		}
+	}
+}
+
+// compositeDropShadow paints a soft alpha silhouette of src under the content.
+func compositeDropShadow(dst, src *image.RGBA, content image.Rectangle, p layerParams) {
+	r := int(math.Ceil(p.dropBlur))
+	if r > 20 {
+		r = 20
+	}
+	pad := r + int(math.Ceil(math.Abs(p.dropX))) + int(math.Ceil(math.Abs(p.dropY))) + 1
+	region := image.Rect(content.Min.X-pad, content.Min.Y-pad, content.Max.X+pad, content.Max.Y+pad).Intersect(src.Bounds())
+	if region.Empty() {
+		return
+	}
+	// Build alpha-only silhouette in drop color.
+	sil := image.NewRGBA(image.Rect(0, 0, region.Dx(), region.Dy()))
+	for y := region.Min.Y; y < region.Max.Y; y++ {
+		for x := region.Min.X; x < region.Max.X; x++ {
+			a := src.RGBAAt(x, y).A
+			if a == 0 {
+				continue
 			}
-			blendOver(dst, region.Min.X+x, region.Min.Y+y, c)
+			sc := p.dropColor
+			sc.A = uint8(uint32(sc.A) * uint32(a) / 255)
+			sil.SetRGBA(x-region.Min.X, y-region.Min.Y, sc)
+		}
+	}
+	local := image.Rect(0, 0, region.Dx(), region.Dy())
+	var shadow *image.RGBA
+	if r >= 1 {
+		shadow = gaussianBlurApprox(sil, local, r)
+	} else {
+		shadow = sil
+	}
+	ox := int(math.Round(p.dropX))
+	oy := int(math.Round(p.dropY))
+	bw, bh := shadow.Bounds().Dx(), shadow.Bounds().Dy()
+	for y := 0; y < bh; y++ {
+		for x := 0; x < bw; x++ {
+			c := shadow.RGBAAt(x, y)
+			if c.A == 0 {
+				continue
+			}
+			blendOver(dst, region.Min.X+x+ox, region.Min.Y+y+oy, c)
 		}
 	}
 }
@@ -555,39 +649,111 @@ func boxBlurRegionLocal(img *image.RGBA, region image.Rectangle, radius int) *im
 	return boxBlurRegionZeroPad(img, region, radius)
 }
 
-// applyFilterColor implements CSS filter brightness/contrast/saturate on a
-// straight-alpha pixel. Factors of 1 leave the channel unchanged.
+// applyFilterColor is the classic 3-param path (tests / callers).
 func applyFilterColor(c color.RGBA, brightness, contrast, saturate float64) color.RGBA {
+	return applyFilterColorEx(c, layerParams{
+		brightness: brightness, contrast: contrast, saturate: saturate, opacity: 1,
+	})
+}
+
+// applyFilterColorEx implements CSS filter color ops + opacity on a
+// straight-alpha pixel.
+func applyFilterColorEx(c color.RGBA, p layerParams) color.RGBA {
 	if c.A == 0 {
 		return c
 	}
 	rf, gf, bf := float64(c.R)/255, float64(c.G)/255, float64(c.B)/255
-	// brightness(): multiply
-	if brightness != 1 {
-		rf *= brightness
-		gf *= brightness
-		bf *= brightness
+	if p.brightness != 1 {
+		rf *= p.brightness
+		gf *= p.brightness
+		bf *= p.brightness
 	}
-	// contrast(): scale about 0.5
-	if contrast != 1 {
-		rf = (rf-0.5)*contrast + 0.5
-		gf = (gf-0.5)*contrast + 0.5
-		bf = (bf-0.5)*contrast + 0.5
+	if p.contrast != 1 {
+		rf = (rf-0.5)*p.contrast + 0.5
+		gf = (gf-0.5)*p.contrast + 0.5
+		bf = (bf-0.5)*p.contrast + 0.5
 	}
-	// saturate(): lerp toward Rec.709 luminance
-	if saturate != 1 {
-		// clamp chroma scale
+	if p.saturate != 1 {
 		y := 0.2126*rf + 0.7152*gf + 0.0722*bf
-		rf = y + (rf-y)*saturate
-		gf = y + (gf-y)*saturate
-		bf = y + (bf-y)*saturate
+		rf = y + (rf-y)*p.saturate
+		gf = y + (gf-y)*p.saturate
+		bf = y + (bf-y)*p.saturate
+	}
+	if p.grayscale > 0 {
+		y := 0.2126*rf + 0.7152*gf + 0.0722*bf
+		g := clamp01(p.grayscale)
+		rf = rf*(1-g) + y*g
+		gf = gf*(1-g) + y*g
+		bf = bf*(1-g) + y*g
+	}
+	if p.hueRotate != 0 {
+		rf, gf, bf = hueRotateRGB(rf, gf, bf, p.hueRotate)
+	}
+	a := c.A
+	if p.opacity != 1 {
+		a = uint8(clamp01(float64(a)/255*p.opacity) * 255)
 	}
 	return color.RGBA{
 		R: uint8(clamp01(rf) * 255),
 		G: uint8(clamp01(gf) * 255),
 		B: uint8(clamp01(bf) * 255),
-		A: c.A,
+		A: a,
 	}
+}
+
+// hueRotateRGB rotates hue by deg degrees (CSS hue-rotate / SVG matrix).
+func hueRotateRGB(r, g, b, deg float64) (float64, float64, float64) {
+	rad := deg * math.Pi / 180
+	cos, sin := math.Cos(rad), math.Sin(rad)
+	rr := r*(0.213+0.787*cos-0.213*sin) + g*(0.715-0.715*cos-0.715*sin) + b*(0.072-0.072*cos+0.928*sin)
+	gg := r*(0.213-0.213*cos+0.143*sin) + g*(0.715+0.285*cos+0.140*sin) + b*(0.072-0.072*cos-0.283*sin)
+	bb := r*(0.213-0.213*cos-0.787*sin) + g*(0.715-0.715*cos+0.715*sin) + b*(0.072+0.928*cos+0.072*sin)
+	return rr, gg, bb
+}
+
+// blendModeOver composites src over dst with a CSS mix-blend-mode.
+func blendModeOver(dst *image.RGBA, x, y int, src color.RGBA, mode string) {
+	if src.A == 0 {
+		return
+	}
+	if x < dst.Bounds().Min.X || y < dst.Bounds().Min.Y || x >= dst.Bounds().Max.X || y >= dst.Bounds().Max.Y {
+		return
+	}
+	db := dst.RGBAAt(x, y)
+	// Blend RGB in straight space, then alpha-composite result over backdrop.
+	sr, sg, sb := float64(src.R)/255, float64(src.G)/255, float64(src.B)/255
+	dr, dg, dbv := float64(db.R)/255, float64(db.G)/255, float64(db.B)/255
+	var br, bg, bb float64
+	switch mode {
+	case "multiply":
+		br, bg, bb = sr*dr, sg*dg, sb*dbv
+	case "screen":
+		br, bg, bb = 1-(1-sr)*(1-dr), 1-(1-sg)*(1-dg), 1-(1-sb)*(1-dbv)
+	case "darken":
+		br, bg, bb = math.Min(sr, dr), math.Min(sg, dg), math.Min(sb, dbv)
+	case "lighten":
+		br, bg, bb = math.Max(sr, dr), math.Max(sg, dg), math.Max(sb, dbv)
+	case "overlay":
+		br, bg, bb = overlayChan(dr, sr), overlayChan(dg, sg), overlayChan(dbv, sb)
+	default:
+		blendOver(dst, x, y, src)
+		return
+	}
+	// Mix blended RGB with source alpha, then over-composite onto backdrop.
+	blended := color.RGBA{
+		R: uint8(clamp01(br) * 255),
+		G: uint8(clamp01(bg) * 255),
+		B: uint8(clamp01(bb) * 255),
+		A: src.A,
+	}
+	blendOver(dst, x, y, blended)
+}
+
+func overlayChan(b, s float64) float64 {
+	if b < 0.5 {
+		return 2 * b * s
+	}
+	return 1 - 2*(1-b)*(1-s)
 }
 
 // alphaBounds returns the tight AABB of non-zero-alpha pixels in img.

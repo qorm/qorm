@@ -5,17 +5,25 @@ import (
 	"image/color"
 
 	"github.com/qorm/qorm/internal/geom"
+	"github.com/qorm/qorm/internal/op"
 )
 
 // Group represents a container node
 type Group struct {
 	BaseNode
-	// CSS filter on the whole subtree (offscreen LayerOp). Blur is px;
-	// Brightness/Contrast/Saturate are multipliers (1 = identity).
+	// CSS filter on the whole subtree (offscreen LayerOp).
 	FilterBlur       float64
 	FilterBrightness float64
 	FilterContrast   float64
 	FilterSaturate   float64
+	FilterGrayscale  float64 // 0..1
+	FilterHueRotate  float64 // degrees
+	FilterOpacity    float64 // 1 = identity; 0 = unset when all other zero
+	// Drop-shadow filter (not box-shadow).
+	DropShadowX, DropShadowY, DropShadowBlur float64
+	DropShadowColor                          color.RGBA
+	// MixBlendMode is CSS mix-blend-mode when compositing the layer.
+	MixBlendMode string
 }
 
 // NewGroup creates a new Group node
@@ -62,16 +70,26 @@ func (g *Group) HitTest(p geom.Point) Node {
 	return g.BaseNode.HitTest(p)
 }
 
-// hasFilter reports whether any CSS filter is active on this group.
-// Color factors default to 1 (identity) from parseStyle; a zeroed Group
-// (all color 0) is treated as no color filter.
+// hasFilter reports whether any CSS filter / blend needs an offscreen layer.
 func (g *Group) hasFilter() bool {
-	if g.FilterBlur > 0 {
+	if g.FilterBlur > 0 || g.FilterGrayscale > 0 || g.FilterHueRotate != 0 {
 		return true
 	}
-	b, c, s := g.FilterBrightness, g.FilterContrast, g.FilterSaturate
-	if b == 0 && c == 0 && s == 0 {
+	if g.DropShadowColor.A > 0 && (g.DropShadowBlur > 0 || g.DropShadowX != 0 || g.DropShadowY != 0) {
+		return true
+	}
+	if g.MixBlendMode != "" && g.MixBlendMode != "normal" {
+		return true
+	}
+	b, c, s, o := g.FilterBrightness, g.FilterContrast, g.FilterSaturate, g.FilterOpacity
+	if b == 0 && c == 0 && s == 0 && o == 0 && g.FilterBlur == 0 && g.FilterGrayscale == 0 {
 		return false // unset zero-value group
+	}
+	if o > 0 && o != 1 {
+		return true
+	}
+	if b == 0 && c == 0 && s == 0 {
+		return false
 	}
 	return b != 1 || c != 1 || s != 1
 }
@@ -82,11 +100,19 @@ func (g *Group) Draw(ctx *Context) {
 
 	useLayer := g.hasFilter()
 	if useLayer {
-		b, c, s := g.FilterBrightness, g.FilterContrast, g.FilterSaturate
+		b, c, s, o := g.FilterBrightness, g.FilterContrast, g.FilterSaturate, g.FilterOpacity
 		if b == 0 && c == 0 && s == 0 {
 			b, c, s = 1, 1, 1
 		}
-		ctx.BeginLayerFilter(g.FilterBlur, b, c, s)
+		if o <= 0 {
+			o = 1
+		}
+		ctx.BeginLayerEx(op.LayerOp{
+			Blur: g.FilterBlur, Brightness: b, Contrast: c, Saturate: s,
+			Grayscale: g.FilterGrayscale, HueRotate: g.FilterHueRotate, Opacity: o,
+			DropShadowX: g.DropShadowX, DropShadowY: g.DropShadowY, DropShadowBlur: g.DropShadowBlur,
+			DropShadowColor: g.DropShadowColor, BlendMode: g.MixBlendMode,
+		})
 	}
 
 	ctx.Save()

@@ -117,11 +117,12 @@ func TestPosTransitionTweens(t *testing.T) {
 	if !running {
 		t.Fatal("pos transition must be in flight right after retarget")
 	}
-	if cur.PosX <= 0 || cur.PosX >= 100 {
-		t.Errorf("mid PosX = %v, want between 0 and 100", cur.PosX)
+	// t may be ~0 on a fast clock (still running); must not have landed on the target yet.
+	if cur.PosX >= 100 {
+		t.Errorf("mid PosX = %v, want still short of 100", cur.PosX)
 	}
-	if cur.PosY <= 0 || cur.PosY >= 50 {
-		t.Errorf("mid PosY = %v, want between 0 and 50", cur.PosY)
+	if cur.PosY >= 50 {
+		t.Errorf("mid PosY = %v, want still short of 50", cur.PosY)
 	}
 }
 

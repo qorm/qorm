@@ -776,6 +776,28 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 		group.ScaleY = sy
 		group.Rotation = entRot
 	}
+	// FLIP layout motion: when transition + layoutMotion, ease absolute
+	// box jumps (shared-element style) instead of snapping.
+	if ln.Style.LayoutMotion && ln.Node != nil && ln.Node.ID != "" && ln.Style.Transition > 0 {
+		flipKey := ln.Node.ID
+		if ln.ItemIndex != 0 {
+			flipKey += fmt.Sprintf("@%d", ln.ItemIndex)
+		}
+		fdx, fdy, fsx, fsy, flipRun := applyLayoutFLIP(flipKey,
+			float64(ln.AbsX), float64(ln.AbsY), float64(ln.Width), float64(ln.Height),
+			ln.Style.Transition, ln.Style.TransitionEasing)
+		if flipRun {
+			ln.NeedsRedraw = true
+			group.X += fdx
+			group.Y += fdy
+			if fsx > 0 {
+				group.ScaleX *= fsx
+			}
+			if fsy > 0 {
+				group.ScaleY *= fsy
+			}
+		}
+	}
 	if items != nil && ln.ItemScope != nil {
 		// Repeat instance root: record the dispatch sidecar (index for
 		// identity, vars for handler argument evaluation).
@@ -794,6 +816,14 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 	group.FilterBrightness = ln.Style.FilterBrightness
 	group.FilterContrast = ln.Style.FilterContrast
 	group.FilterSaturate = ln.Style.FilterSaturate
+	group.FilterGrayscale = ln.Style.FilterGrayscale
+	group.FilterHueRotate = ln.Style.FilterHueRotate
+	group.FilterOpacity = ln.Style.FilterOpacity
+	group.DropShadowX = ln.Style.DropShadowX
+	group.DropShadowY = ln.Style.DropShadowY
+	group.DropShadowBlur = ln.Style.DropShadowBlur
+	group.DropShadowColor = ln.Style.DropShadowColor
+	group.MixBlendMode = ln.Style.MixBlendMode
 
 	if ln.Node.OnPress != nil {
 		group.OnPress = ln.Node.OnPress

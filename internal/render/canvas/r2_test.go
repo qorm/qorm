@@ -122,6 +122,8 @@ func TestDeclarativeInteractionEffects(t *testing.T) {
 // transition "0.1s" the hover background tweens from the base toward the
 // hover color (the engine keeps animating), then lands.
 func TestDeclarativeInteractionTransition(t *testing.T) {
+	// Clear shared tween state so count>1 re-runs start from a cold clock.
+	delete(globalAnimStates, "b1")
 	box := &model.Node{Type: "box", ID: "b1",
 		Style: map[string]any{"width": 100.0, "height": 50.0, "background": "#ff0000",
 			"hoverBackground": "#00ff00", "transition": "0.1s"}}

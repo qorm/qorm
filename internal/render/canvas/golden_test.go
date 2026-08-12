@@ -100,6 +100,15 @@ func settleGoldenFrames(t *testing.T, e *Engine, surf *HeadlessSurface) {
 	t.Fatal("engine did not settle: still dirty or animating after 6s")
 }
 
+// resetGoldenGlobals clears process-wide canvas state so suite order and
+// -count>1 cannot leak mid-flight styles, image cache, or FLIP into golden
+// hashes.
+func resetGoldenGlobals() {
+	globalAnimStates = make(map[string]*AnimState)
+	globalFLIP = make(map[string]*flipState)
+	ResetImageCache()
+}
+
 // captureGoldenFrame settles the engine, forces one full repaint of the
 // settled state (a mid-frame physics dispatch writes state after layout, so
 // the settle loop's own last frame can predate it — the forced repaint is the
@@ -108,6 +117,11 @@ func settleGoldenFrames(t *testing.T, e *Engine, surf *HeadlessSurface) {
 func captureGoldenFrame(t *testing.T, e *Engine, surf *HeadlessSurface) goldenFrame {
 	t.Helper()
 	settleGoldenFrames(t, e, surf)
+	// Force a full-frame re-raster for the hash (no ops-fingerprint skip,
+	// no dirty-region partial): partial redraw + shared process state must
+	// never make goldens non-deterministic.
+	e.hasOpsFP = false
+	e.lastNodeRects = nil
 	e.MarkDirty()
 	e.DrawFrame(surf)
 	src := surf.Frame()
@@ -121,17 +135,22 @@ func captureGoldenFrame(t *testing.T, e *Engine, surf *HeadlessSurface) goldenFr
 // end-to-end tests do.
 func newGoldenEngine(t *testing.T, dir string) (*Engine, *HeadlessSurface) {
 	t.Helper()
+	// Isolate each golden scenario from process-wide tween/image state left
+	// by earlier scenarios (or earlier tests in the suite / -count>1).
+	resetGoldenGlobals()
 	app, err := loader.LoadDir(dir)
 	if err != nil {
 		t.Fatalf("load %s: %v", dir, err)
 	}
 	rt := runtime.New(app)
+	// Fresh theme pointer every time (GetDefault builds a new value).
 	rt.Theme = theme.GetDefault()
 	return NewEngine(rt, SoftwareRenderer{}), NewHeadlessSurface(goldenSize)
 }
 
 func TestGoldenFrames(t *testing.T) {
 	requireGoldenFontStack(t)
+	resetGoldenGlobals()
 
 	// Resolve the baseline dir BEFORE chdir: themes/<name>.json and the
 	// examples must load from the repo root (counter ships no own themes/, so

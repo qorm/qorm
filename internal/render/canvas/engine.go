@@ -175,6 +175,9 @@ type Engine struct {
 	lastOpsFP   uint64
 	hasOpsFP    bool
 	lastBufSize image.Point
+	// lastNodeRects maps layout identity → previous absolute box for dirty
+	// region partial redraw (union of old∪new for changed nodes).
+	lastNodeRects map[string]image.Rectangle
 
 	// lastPtr/hasPtr track the pointer's rest position from every
 	// HandlePointer call: ScrollInput carries no coordinates, so wheel and
@@ -360,7 +363,7 @@ func (e *Engine) RenderInto(size image.Point, scale int, target *image.RGBA) (bo
 	// cursor the same way. The textarea's caret is static, so it does not
 	// waste frames; both settle as soon as the session closes.
 	stillAnimating := needsRedraw || e.sceneAnimating() || e.timersPending() ||
-		e.hasScrollMomentum() || e.hasBoardMomentum() ||
+		e.hasScrollMomentum() || e.hasBoardMomentum() || flipStillRunning() ||
 		(e.Inter.Input != nil && e.Inter.Input.Node.Type == "input")
 	e.animating.Store(stillAnimating)
 
@@ -380,19 +383,137 @@ func (e *Engine) RenderInto(size image.Point, scale int, target *image.RGBA) (bo
 		return true, st
 	}
 
+	// Dirty-region partial redraw (SoftwareRenderer.Dirty): when layout boxes
+	// moved, only re-raster the pad-expanded union. Empty Dirty = full frame.
+	dirty := e.computeDirtyRect(layoutRoot, target.Bounds())
 	t1 := time.Now()
-	e.Renderer.Render(&e.ops, target)
+	switch r := e.Renderer.(type) {
+	case SoftwareRenderer:
+		r.Dirty = dirty
+		r.Render(&e.ops, target)
+	case *SoftwareRenderer:
+		r.Dirty = dirty
+		r.Render(&e.ops, target)
+	default:
+		e.Renderer.Render(&e.ops, target)
+	}
 	st.Render = time.Since(t1)
 	e.lastOpsFP = fp
 	e.hasOpsFP = true
 	e.lastBufSize = bufSize
+	e.snapshotNodeRects(layoutRoot)
 
 	st.Total = time.Since(start)
 	if e.StatsEnabled {
-		fmt.Fprintf(os.Stderr, "[qorm frame] layout+record=%s render=%s total=%s\n",
-			st.LayoutRecord, st.Render, st.Total)
+		extra := ""
+		if !dirty.Empty() {
+			extra = fmt.Sprintf(" dirty=%v", dirty)
+		}
+		fmt.Fprintf(os.Stderr, "[qorm frame] layout+record=%s render=%s total=%s%s\n",
+			st.LayoutRecord, st.Render, st.Total, extra)
 	}
 	return true, st
+}
+
+// computeDirtyRect returns the screen-space region that must be re-rasterized.
+// Empty means "full frame" (SoftwareRenderer treats empty Dirty as full).
+// Set QORM_FULL_RASTER=1 to always full-frame (debugging / golden isolation).
+func (e *Engine) computeDirtyRect(root *LayoutNode, bounds image.Rectangle) image.Rectangle {
+	if os.Getenv("QORM_FULL_RASTER") == "1" {
+		return image.Rectangle{}
+	}
+	if e.lastNodeRects == nil || root == nil || e.lastBufSize != bounds.Size() {
+		return image.Rectangle{} // full
+	}
+	var dirty image.Rectangle
+	var walk func(ln *LayoutNode)
+	walk = func(ln *LayoutNode) {
+		if ln == nil || ln.Node == nil {
+			return
+		}
+		key := ln.Node.ID
+		if key == "" {
+			key = fmt.Sprintf("_%p", ln.Node)
+		}
+		if ln.ItemIndex != 0 {
+			key += fmt.Sprintf("@%d", ln.ItemIndex)
+		}
+		cur := image.Rect(ln.AbsX, ln.AbsY, ln.AbsX+ln.Width, ln.AbsY+ln.Height)
+		if prev, ok := e.lastNodeRects[key]; ok {
+			if prev != cur {
+				dirty = dirty.Union(prev).Union(cur)
+			}
+		} else {
+			// New node — mark its box dirty.
+			dirty = dirty.Union(cur)
+		}
+		for _, c := range ln.Children {
+			walk(c)
+		}
+	}
+	walk(root)
+	// Nodes removed this frame: their previous rects must clear.
+	seen := map[string]bool{}
+	var mark func(ln *LayoutNode)
+	mark = func(ln *LayoutNode) {
+		if ln == nil || ln.Node == nil {
+			return
+		}
+		key := ln.Node.ID
+		if key == "" {
+			key = fmt.Sprintf("_%p", ln.Node)
+		}
+		if ln.ItemIndex != 0 {
+			key += fmt.Sprintf("@%d", ln.ItemIndex)
+		}
+		seen[key] = true
+		for _, c := range ln.Children {
+			mark(c)
+		}
+	}
+	mark(root)
+	for k, prev := range e.lastNodeRects {
+		if !seen[k] {
+			dirty = dirty.Union(prev)
+		}
+	}
+	if dirty.Empty() {
+		// Ops fingerprint changed but layout boxes did not (text/color only).
+		// Fall back to full redraw — partial would miss in-box content changes.
+		return image.Rectangle{}
+	}
+	// Pad for shadows / blur / AA.
+	const pad = 24
+	dirty = image.Rect(dirty.Min.X-pad, dirty.Min.Y-pad, dirty.Max.X+pad, dirty.Max.Y+pad).Intersect(bounds)
+	// If dirty covers most of the stage, full redraw is cheaper/simpler.
+	if dirty.Dx()*dirty.Dy() > bounds.Dx()*bounds.Dy()*3/4 {
+		return image.Rectangle{}
+	}
+	return dirty
+}
+
+// snapshotNodeRects stores this frame's absolute boxes for the next dirty pass.
+func (e *Engine) snapshotNodeRects(root *LayoutNode) {
+	next := make(map[string]image.Rectangle)
+	var walk func(ln *LayoutNode)
+	walk = func(ln *LayoutNode) {
+		if ln == nil || ln.Node == nil {
+			return
+		}
+		key := ln.Node.ID
+		if key == "" {
+			key = fmt.Sprintf("_%p", ln.Node)
+		}
+		if ln.ItemIndex != 0 {
+			key += fmt.Sprintf("@%d", ln.ItemIndex)
+		}
+		next[key] = image.Rect(ln.AbsX, ln.AbsY, ln.AbsX+ln.Width, ln.AbsY+ln.Height)
+		for _, c := range ln.Children {
+			walk(c)
+		}
+	}
+	walk(root)
+	e.lastNodeRects = next
 }
 
 // sceneAnimating reports whether any VISIBLE mounted node is a registered

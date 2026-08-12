@@ -55,6 +55,17 @@ func RegisterWidget(typ string, w Widget) {
 	widgets[typ] = w
 }
 
+// UnregisterWidget removes a type from the registry (tests restoring a
+// temporary mock). No-op when typ is empty or not registered.
+func UnregisterWidget(typ string) {
+	if typ == "" {
+		return
+	}
+	widgetsMu.Lock()
+	defer widgetsMu.Unlock()
+	delete(widgets, typ)
+}
+
 // LookupWidget finds a registered widget by scene type.
 func LookupWidget(typ string) (Widget, bool) {
 	widgetsMu.RLock()
