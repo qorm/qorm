@@ -7,6 +7,10 @@ All notable changes to QORM are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Canvas searchbar**: single-line edit session + filtered results overlay;
+  `onSelect` receives `{label}`; typing uses the shared input session.
+- **Canvas checkboxlisttile / radiolisttile**: list rows with leading
+  checkbox or radio (group selection via bound `value`).
 - **Canvas text styles**: `letterSpacing`, `lineHeight` (multiplier or px), and
   `fontStyle: italic|oblique` (faux-italic) flow through measure/wrap/draw;
   tracking is shared by MeasureTextTracking and the rasterizer.

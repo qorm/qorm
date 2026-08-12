@@ -91,14 +91,14 @@ var htmlOnlyCoreAllowlist = map[string]string{
 	"rating":           "HTML-only; examples/customwidget registers canvas rating in middle layer",
 	"refreshindicator": "canvas port pending",
 	"richtext":         "canvas port pending",
-	"searchbar":        "canvas port pending",
-	"selectabletext":   "canvas port pending",
-	"textformfield":    "canvas port pending (input/textarea exist)",
-	"transform":        "canvas port pending",
-	"tree":             "canvas port pending",
+	"selectabletext": "canvas port pending",
+	"textformfield":  "canvas port pending (input/textarea exist)",
+	"transform":      "canvas port pending",
+	"tree":           "canvas port pending",
 	// Ported to canvas — removed from allowlist:
 	// activityindicator, animatedcontainer, aspectratio, circularprogress,
-	// ignorepointer, skeleton, tag, fab, switchlisttile.
+	// ignorepointer, skeleton, tag, fab, switchlisttile, searchbar,
+	// checkboxlisttile, radiolisttile.
 }
 
 // canvasOnlyAllowlist: RegisterWidget names with no HTML switch case. Empty

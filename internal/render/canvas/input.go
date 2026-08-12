@@ -329,11 +329,14 @@ func editableType(typ string) bool {
 	if typ == "input" {
 		return true
 	}
-	if typ != "textarea" {
+	// Registered single-line/multi-line editors share the InputState session.
+	switch typ {
+	case "textarea", "searchbar":
+		_, ok := LookupWidget(typ)
+		return ok
+	default:
 		return false
 	}
-	_, ok := LookupWidget(typ)
-	return ok
 }
 
 // syncEditSession opens an edit session when focus rests on an enabled input
