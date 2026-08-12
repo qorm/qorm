@@ -27,7 +27,9 @@ func UpdateAndGetAnimatedStyle(id string, target NodeStyle, rt *runtime.Runtime)
 // resolver's transition half) and a caller-chosen key: disambiguate repeat
 // instances that share a template ID, or their tweens would fight. duration
 // <= 0 falls back to the theme's "normal" motion token (250ms / easeOutCubic).
-// Returns the interpolated style and whether a redraw is still needed.
+// target.TransitionEasing selects a named curve ("spring", "easeOut", …);
+// empty uses the theme standard easing. Returns the interpolated style and
+// whether a redraw is still needed.
 func UpdateAndGetAnimatedStyleD(key string, target NodeStyle, rt *runtime.Runtime, duration time.Duration) (NodeStyle, bool) {
 	if key == "" {
 		return target, false
@@ -48,7 +50,7 @@ func UpdateAndGetAnimatedStyleD(key string, target NodeStyle, rt *runtime.Runtim
 		state = &AnimState{
 			TargetStyle:  target,
 			CurrentStyle: target,
-			Controller:   anim.NewController(d, th.Easing("standard")),
+			Controller:   anim.NewController(d, resolveTransitionCurve(target.TransitionEasing, th)),
 		}
 		// Push it immediately to finished
 		state.Controller.StartTime = time.Now().Add(-1 * time.Second)
@@ -77,6 +79,16 @@ func UpdateAndGetAnimatedStyleD(key string, target NodeStyle, rt *runtime.Runtim
 	}
 
 	if targetChanged {
+		// Refresh duration/easing so a new transition style (e.g. spring)
+		// takes effect on the next press/hover retarget.
+		if duration > 0 {
+			state.Controller.Duration = duration
+		}
+		var th *theme.Theme
+		if rt != nil {
+			th = rt.Theme
+		}
+		state.Controller.Curve = resolveTransitionCurve(target.TransitionEasing, th)
 		state.TargetStyle = target
 		state.Controller.Reset()
 	}
@@ -110,4 +122,15 @@ func UpdateAndGetAnimatedStyleD(key string, target NodeStyle, rt *runtime.Runtim
 
 	state.CurrentStyle = current
 	return current, true // Needs redraw
+}
+
+// resolveTransitionCurve picks a named easing for declarative transitions.
+// Unknown/empty names fall back to the theme standard curve (easeOutCubic).
+func resolveTransitionCurve(name string, th *theme.Theme) anim.Curve {
+	if name != "" {
+		if c, ok := anim.CurveByName(name); ok {
+			return c
+		}
+	}
+	return th.Easing("standard")
 }

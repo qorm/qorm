@@ -20,13 +20,22 @@ var KnownStyleKeys = map[string]bool{
 	// board's coordinate model; the canvas renderer treats left/top as aliases
 	// and position:absolute as out-of-flow.
 	"x": true, "y": true,
-	"cursor": true, "transition": true,
+	"cursor": true, "transition": true, "transitionEasing": true,
 	"padding": true, "margin": true,
 	// Text (textCSS).
 	"color": true, "fontSize": true, "fontWeight": true, "fontFamily": true,
 	"lineHeight": true, "letterSpacing": true, "fontStyle": true,
 	"textDecoration": true, "textTransform": true, "lineClamp": true,
-	"textAlign": true,
+	"textAlign": true, "textOverflow": true,
+	// Glyph outline / drop shadow (canvas; CSS text-stroke / text-shadow).
+	"textStrokeColor": true, "textStrokeWidth": true,
+	"textShadowColor": true, "textShadowBlur": true,
+	"textShadowX": true, "textShadowY": true,
+	// Box chrome (canvas RRect path).
+	"strokeColor": true, "strokeWidth": true,
+	"boxShadowColor": true, "boxShadowBlur": true,
+	"boxShadowX": true, "boxShadowY": true,
+	"pressedBackground": true, "hoverScale": true,
 	// Pseudo-state (pseudoStateCSS). Each key emits a CSS custom property into
 	// the node's inline style; the HTML shell (internal/server/server.go) carries
 	// the matching fixed :hover / :active / :focus-within rules that consume it,

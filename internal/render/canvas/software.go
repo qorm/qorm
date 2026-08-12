@@ -171,8 +171,68 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 			// Sub-1 scale is legal — the rasterizer box-filters the bitmap
 			// glyphs down instead of clamping (which overflowed a zoomed-out
 			// board's cards with full-size text).
-			scale := o.Scale * matrixScale(currentMatrix)
-			DrawTextTracking(img, o.Text, pos, withOpacity(currentColor, currentOpacity), scale, o.Weight, o.LetterSpacing, o.Italic, clips)
+			ms := matrixScale(currentMatrix)
+			scale := o.Scale * ms
+			fill := withOpacity(currentColor, currentOpacity)
+			// Decorations under the fill (CSS paint order: shadow → stroke → fill).
+			if o.ShadowColor.A > 0 {
+				sc := withOpacity(o.ShadowColor, currentOpacity)
+				sx := int(math.Round(o.ShadowX * ms))
+				sy := int(math.Round(o.ShadowY * ms))
+				blur := o.ShadowBlur * ms
+				if blur > 0.5 {
+					// Soft shadow: a small grid of offset passes with falloff.
+					// Cap samples so large blur stays cheap at 60fps.
+					r := int(math.Ceil(blur))
+					if r > 4 {
+						r = 4
+					}
+					for dy := -r; dy <= r; dy++ {
+						for dx := -r; dx <= r; dx++ {
+							dist := math.Hypot(float64(dx), float64(dy))
+							if dist > blur+0.5 {
+								continue
+							}
+							fall := 1 - dist/(blur+0.5)
+							fall = fall * fall
+							if fall <= 0 {
+								continue
+							}
+							DrawTextTracking(img, o.Text,
+								image.Pt(pos.X+sx+dx, pos.Y+sy+dy),
+								withOpacity(sc, fall*0.55), scale, o.Weight, o.LetterSpacing, o.Italic, clips)
+						}
+					}
+				} else {
+					DrawTextTracking(img, o.Text, image.Pt(pos.X+sx, pos.Y+sy),
+						sc, scale, o.Weight, o.LetterSpacing, o.Italic, clips)
+				}
+			}
+			if o.StrokeColor.A > 0 && o.StrokeWidth > 0 {
+				sc := withOpacity(o.StrokeColor, currentOpacity)
+				w := o.StrokeWidth * ms
+				r := int(math.Ceil(w))
+				if r < 1 {
+					r = 1
+				}
+				if r > 4 {
+					r = 4
+				}
+				ww := w * w
+				for dy := -r; dy <= r; dy++ {
+					for dx := -r; dx <= r; dx++ {
+						if dx == 0 && dy == 0 {
+							continue
+						}
+						if float64(dx*dx+dy*dy) > ww+0.75 {
+							continue
+						}
+						DrawTextTracking(img, o.Text, image.Pt(pos.X+dx, pos.Y+dy),
+							sc, scale, o.Weight, o.LetterSpacing, o.Italic, clips)
+					}
+				}
+			}
+			DrawTextTracking(img, o.Text, pos, fill, scale, o.Weight, o.LetterSpacing, o.Italic, clips)
 		case op.ImageOp:
 			if o.Src == nil {
 				break

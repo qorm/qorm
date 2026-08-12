@@ -166,6 +166,18 @@ type NodeStyle struct {
 	// TextOverflow "ellipsis" truncates single-line text with "…" when it
 	// exceeds the laid-out width (CSS text-overflow:ellipsis + nowrap).
 	TextOverflow string
+	// Text stroke / shadow (CSS -webkit-text-stroke / text-shadow analogues).
+	// Distinct from box StrokeColor (border) and BoxShadow* (drop shadow on
+	// the chrome). Zero alpha skips the layer in the software text path.
+	TextStrokeColor color.RGBA
+	TextStrokeWidth float64
+	TextShadowColor color.RGBA
+	TextShadowBlur  float64
+	TextShadowX     float64
+	TextShadowY     float64
+	// TransitionEasing names an anim curve ("spring", "easeOut", …) for
+	// declarative transitions; empty uses the theme standard easing.
+	TransitionEasing string
 }
 
 // scaleBy multiplies every pixel-valued field by f (a device-pixel ratio), so
@@ -193,6 +205,11 @@ func (s *NodeStyle) scaleBy(f int) {
 	s.FontSize *= f
 	s.BorderRadius *= float64(f)
 	s.StrokeWidth *= float64(f)
+	s.LetterSpacing *= float64(f)
+	s.TextStrokeWidth *= float64(f)
+	s.TextShadowBlur *= float64(f)
+	s.TextShadowX *= float64(f)
+	s.TextShadowY *= float64(f)
 }
 
 func evalStyleProp(val any, rt *runtime.Runtime, sc ...*listScope) any {
@@ -223,11 +240,6 @@ func evalStyleProp(val any, rt *runtime.Runtime, sc ...*listScope) any {
 	return val
 }
 
-// applyInteractiveOverlay layers the theme ComponentStyles interactive-state
-// fields (pressedBackgroundColor / hoveredBackgroundColor / pressedOpacity)
-// over the resolved style when the node is Pressed/Hovered. Pressed wins over
-// hovered for the background; opacity applies in either state. This is what
-// makes the theme's interactive keys live — previously they were dead fields.
 // parseCSSDuration parses a CSS-style duration ("0.2s", "200ms") or plain
 // milliseconds.
 func parseCSSDuration(s string) (time.Duration, error) {
@@ -812,7 +824,8 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 	}
 
 	// The declarative transition duration: CSS spellings ("0.2s", "200ms")
-	// or a plain number of milliseconds.
+	// or a plain number of milliseconds. Optional second token is the easing
+	// name ("0.3s spring", "200ms easeOut").
 	if v := esp(style["transition"]); v != nil {
 		switch t := v.(type) {
 		case float64:
@@ -820,9 +833,65 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 				s.Transition = time.Duration(t) * time.Millisecond
 			}
 		case string:
-			if d, err := parseCSSDuration(t); err == nil && d > 0 {
-				s.Transition = d
+			parts := strings.Fields(t)
+			if len(parts) >= 1 {
+				if d, err := parseCSSDuration(parts[0]); err == nil && d > 0 {
+					s.Transition = d
+				}
 			}
+			if len(parts) >= 2 {
+				s.TransitionEasing = parts[1]
+			}
+		}
+	}
+	if te, ok := esp(style["transitionEasing"]).(string); ok && te != "" {
+		s.TransitionEasing = te
+	}
+	// Text decorations (outline + drop shadow on glyphs, not the box).
+	if sc, ok := esp(style["textStrokeColor"]).(string); ok {
+		s.TextStrokeColor = resolveColor(sc, rt)
+	}
+	if tw := esp(style["textStrokeWidth"]); tw != nil {
+		switch v := tw.(type) {
+		case float64:
+			s.TextStrokeWidth = v
+		case int:
+			s.TextStrokeWidth = float64(v)
+		case string:
+			s.TextStrokeWidth = parseCSSPx(v)
+		}
+	}
+	if sc, ok := esp(style["textShadowColor"]).(string); ok {
+		s.TextShadowColor = resolveColor(sc, rt)
+	}
+	if v := esp(style["textShadowBlur"]); v != nil {
+		switch t := v.(type) {
+		case float64:
+			s.TextShadowBlur = t
+		case int:
+			s.TextShadowBlur = float64(t)
+		case string:
+			s.TextShadowBlur = parseCSSPx(t)
+		}
+	}
+	if v := esp(style["textShadowX"]); v != nil {
+		switch t := v.(type) {
+		case float64:
+			s.TextShadowX = t
+		case int:
+			s.TextShadowX = float64(t)
+		case string:
+			s.TextShadowX = parseCSSPx(t)
+		}
+	}
+	if v := esp(style["textShadowY"]); v != nil {
+		switch t := v.(type) {
+		case float64:
+			s.TextShadowY = t
+		case int:
+			s.TextShadowY = float64(t)
+		case string:
+			s.TextShadowY = parseCSSPx(t)
 		}
 	}
 
@@ -1156,8 +1225,13 @@ var canvasStyleKeys = map[string]bool{
 	"hoverOpacity": true, "pressedOpacity": true,
 	"pressedScale": true, "hoverScale": true,
 	"transition":     true, // animates interaction effect changes ("0.2s")
+	"transitionEasing": true, // "spring", "easeOut", …
 	"boxShadowColor": true, "boxShadowBlur": true,
 	"boxShadowX": true, "boxShadowY": true,
+	// Glyph decorations (distinct from box border / box-shadow).
+	"textStrokeColor": true, "textStrokeWidth": true,
+	"textShadowColor": true, "textShadowBlur": true,
+	"textShadowX": true, "textShadowY": true,
 	// Spacer / simple widgets.
 	"size": true,
 }

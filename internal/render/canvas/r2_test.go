@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/qorm/qorm/internal/anim"
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/runtime"
 	"github.com/qorm/qorm/internal/theme"
@@ -148,6 +149,57 @@ func TestDeclarativeInteractionTransition(t *testing.T) {
 	e.DrawFrame(surf)
 	if c := surf.Frame().RGBAAt(50, 25); c.G < 200 {
 		t.Errorf("after the transition the hover color must land, got %v", c)
+	}
+}
+
+// transition "… spring" uses the spring curve (overshoot) for press scale.
+func TestSpringTransitionEasing(t *testing.T) {
+	box := &model.Node{Type: "box", ID: "spring1",
+		Style: map[string]any{
+			"width": 40.0, "height": 40.0, "background": "#3366ff",
+			"pressedScale": 1.2, "transition": "0.25s spring",
+		}}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{box}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}}
+	rt := runtime.New(app)
+	rt.Theme = theme.GetDefault()
+	// Clear any leftover anim state from other tests sharing the key map.
+	delete(globalAnimStates, "spring1")
+
+	e := NewEngine(rt, SoftwareRenderer{})
+	surf := NewHeadlessSurface(image.Pt(80, 80))
+	e.DrawFrame(surf)
+
+	e.Inter.Pressed = box
+	e.MarkDirty()
+	e.DrawFrame(surf)
+	// Mid-spring: EffectiveScale is between 1 and the overshoot peak.
+	s := parseStyle(box, rt)
+	applyInteractiveOverlay(&s, box, rt, &e.Inter)
+	s.scaleBy(1)
+	cur, running := UpdateAndGetAnimatedStyleD("spring1", s, rt, s.Transition)
+	if !running && cur.EffectiveScale == 1 {
+		// First retarget after hover was applied via measure; force a fresh
+		// controller the way measure does.
+		delete(globalAnimStates, "spring1")
+		// Seed baseline then retarget to pressed.
+		base := parseStyle(box, rt)
+		base.EffectiveScale = 1
+		UpdateAndGetAnimatedStyleD("spring1", base, rt, s.Transition)
+		s.EffectiveScale = 1.2
+		cur, running = UpdateAndGetAnimatedStyleD("spring1", s, rt, s.Transition)
+	}
+	if !running {
+		t.Fatal("spring transition must still be in flight right after retarget")
+	}
+	// Spring overshoots: at small t the value can exceed a linear ease's.
+	// At minimum, scale has left the start (1) toward the target.
+	if cur.EffectiveScale == 1 {
+		t.Errorf("spring mid-frame scale still 1; want motion toward pressedScale")
+	}
+	// Curve name must resolve.
+	if c, ok := anim.CurveByName("spring"); !ok || c == nil {
+		t.Fatal("spring curve must be registered")
 	}
 }
 

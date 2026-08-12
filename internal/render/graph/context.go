@@ -95,6 +95,14 @@ func (c *Context) DrawTextWeighted(text string, pos image.Point, scale float64, 
 
 // DrawTextTracking is DrawTextWeighted with letter-spacing and optional italic.
 func (c *Context) DrawTextTracking(text string, pos image.Point, scale float64, weight int, letterSpacing float64, italic bool) {
+	c.DrawTextDecorated(text, pos, scale, weight, letterSpacing, italic,
+		color.RGBA{}, 0, color.RGBA{}, 0, 0, 0)
+}
+
+// DrawTextDecorated is DrawTextTracking plus optional stroke outline and drop
+// shadow (CSS text-stroke / text-shadow analogues). Zero alpha skips a layer.
+func (c *Context) DrawTextDecorated(text string, pos image.Point, scale float64, weight int, letterSpacing float64, italic bool,
+	stroke color.RGBA, strokeWidth float64, shadow color.RGBA, shadowBlur, shadowX, shadowY float64) {
 	c.ops.Add(op.TextOp{
 		Text:          text,
 		Pos:           pos,
@@ -102,6 +110,12 @@ func (c *Context) DrawTextTracking(text string, pos image.Point, scale float64, 
 		Weight:        weight,
 		LetterSpacing: letterSpacing,
 		Italic:        italic,
+		StrokeColor:   stroke,
+		StrokeWidth:   strokeWidth,
+		ShadowColor:   shadow,
+		ShadowBlur:    shadowBlur,
+		ShadowX:       shadowX,
+		ShadowY:       shadowY,
 	})
 }
 

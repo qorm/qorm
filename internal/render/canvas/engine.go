@@ -170,6 +170,11 @@ type Engine struct {
 	lastScale  int         // device-pixel ratio used for last layout
 	lastSize   image.Point // physical stage size of last layout
 	lastRoot   *model.Node
+	// lastOpsFP / lastBufSize skip software raster when a dirty frame
+	// produces an identical display list into the same buffer size.
+	lastOpsFP   uint64
+	hasOpsFP    bool
+	lastBufSize image.Point
 
 	// lastPtr/hasPtr track the pointer's rest position from every
 	// HandlePointer call: ScrollInput carries no coordinates, so wheel and
@@ -345,16 +350,6 @@ func (e *Engine) RenderInto(size image.Point, scale int, target *image.RGBA) (bo
 
 	e.physics(rootNode)
 
-	t1 := time.Now()
-	e.Renderer.Render(&e.ops, target)
-	st.Render = time.Since(t1)
-
-	st.Total = time.Since(start)
-	if e.StatsEnabled {
-		fmt.Fprintf(os.Stderr, "[qorm frame] layout+record=%s render=%s total=%s\n",
-			st.LayoutRecord, st.Render, st.Total)
-	}
-
 	// dirty was consumed at the top of the frame; animation keeps the loop
 	// ticking until the tweens settle (no separate timer goroutine — the host
 	// polls). Registered AnimatedWidgets (spinner) never settle on their own,
@@ -364,9 +359,39 @@ func (e *Engine) RenderInto(size image.Point, scale int, target *image.RGBA) (bo
 	// caret can blink (input.go caretVisible) — the browser repaints its text
 	// cursor the same way. The textarea's caret is static, so it does not
 	// waste frames; both settle as soon as the session closes.
-	e.animating.Store(needsRedraw || e.sceneAnimating() || e.timersPending() ||
+	stillAnimating := needsRedraw || e.sceneAnimating() || e.timersPending() ||
 		e.hasScrollMomentum() || e.hasBoardMomentum() ||
-		(e.Inter.Input != nil && e.Inter.Input.Node.Type == "input"))
+		(e.Inter.Input != nil && e.Inter.Input.Node.Type == "input")
+	e.animating.Store(stillAnimating)
+
+	// Skip software raster when the display list is identical to the last
+	// frame and the buffer size matches. Layout still ran (physics, timers,
+	// graph for hit-testing). Still return true so the host Presents — the
+	// buffer already holds the correct pixels; MarkDirty / animating loops
+	// keep their present contract without re-rasterizing.
+	fp := e.ops.Fingerprint()
+	bufSize := target.Bounds().Size()
+	if e.hasOpsFP && fp == e.lastOpsFP && bufSize == e.lastBufSize {
+		st.Total = time.Since(start)
+		if e.StatsEnabled {
+			fmt.Fprintf(os.Stderr, "[qorm frame] layout+record=%s render=skipped total=%s\n",
+				st.LayoutRecord, st.Total)
+		}
+		return true, st
+	}
+
+	t1 := time.Now()
+	e.Renderer.Render(&e.ops, target)
+	st.Render = time.Since(t1)
+	e.lastOpsFP = fp
+	e.hasOpsFP = true
+	e.lastBufSize = bufSize
+
+	st.Total = time.Since(start)
+	if e.StatsEnabled {
+		fmt.Fprintf(os.Stderr, "[qorm frame] layout+record=%s render=%s total=%s\n",
+			st.LayoutRecord, st.Render, st.Total)
+	}
 	return true, st
 }
 

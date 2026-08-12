@@ -7,6 +7,16 @@ All notable changes to QORM are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Canvas text stroke + text shadow**: declarative `textStrokeColor` /
+  `textStrokeWidth` and `textShadowColor` / `textShadowBlur` / `textShadowX` /
+  `textShadowY` flow style → graph Text → `TextOp` → software multi-pass
+  (shadow → stroke → fill). Distinct from box border / box-shadow.
+- **Canvas spring transitions**: `transition: "0.3s spring"` (or
+  `transitionEasing: "spring"`) drives press/hover scale and color tweens with
+  the underdamped spring curve (overshoot then settle).
+- **Canvas ops fingerprint skip**: identical display lists reuse the prior
+  pixel buffer (no re-raster) while still Presenting — cheaper static frames
+  and spurious `RequestDraw` without breaking the present contract.
 - **Canvas rotated RRect sampling**: rounded rects, strokes, shadows and
   gradients sample in **local space** via inverse transform, so rotation/skew
   keep correct corners (no axis-aligned AABB SDF smear). Multi-line

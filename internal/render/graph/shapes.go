@@ -149,6 +149,13 @@ type Text struct {
 	LetterSpacing float64 // CSS letter-spacing in px (0 = default)
 	Italic        bool    // faux-italic second pass when true
 	Fill          color.RGBA
+	// Optional CSS-like decorations (software draws shadow → stroke → fill).
+	StrokeColor color.RGBA
+	StrokeWidth float64
+	ShadowColor color.RGBA
+	ShadowBlur  float64
+	ShadowX     float64
+	ShadowY     float64
 }
 
 func NewText() *Text {
@@ -169,7 +176,8 @@ func (t *Text) Draw(ctx *Context) {
 	ctx.Save()
 	ctx.Transform(localTransform(&t.BaseNode))
 	ctx.Fill(t.Fill)
-	ctx.DrawTextTracking(t.Content, image.Point{0, 0}, t.FontSize/10.0, t.FontWeight, t.LetterSpacing, t.Italic)
+	ctx.DrawTextDecorated(t.Content, image.Point{0, 0}, t.FontSize/10.0, t.FontWeight, t.LetterSpacing, t.Italic,
+		t.StrokeColor, t.StrokeWidth, t.ShadowColor, t.ShadowBlur, t.ShadowX, t.ShadowY)
 	ctx.Restore()
 }
 

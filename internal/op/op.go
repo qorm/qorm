@@ -1,8 +1,12 @@
 package op
 
 import (
+	"encoding/binary"
+	"hash/fnv"
 	"image"
 	"image/color"
+	"math"
+	"unsafe"
 
 	"github.com/qorm/qorm/internal/geom"
 )
@@ -30,6 +34,138 @@ func (o *Ops) Add(op Op) {
 // Operations returns the underlying slice of operations.
 func (o *Ops) Operations() []Op {
 	return o.ops
+}
+
+// Fingerprint returns a stable 64-bit content hash of the display list.
+// Used by the canvas engine to skip software rasterization when a dirty
+// frame produces an identical op stream (static UI with spurious redraws).
+func (o *Ops) Fingerprint() uint64 {
+	h := fnv.New64a()
+	var buf [16]byte
+	writeU8 := func(v uint8) {
+		buf[0] = v
+		_, _ = h.Write(buf[:1])
+	}
+	writeU32 := func(v uint32) {
+		binary.LittleEndian.PutUint32(buf[:4], v)
+		_, _ = h.Write(buf[:4])
+	}
+	writeU64 := func(v uint64) {
+		binary.LittleEndian.PutUint64(buf[:8], v)
+		_, _ = h.Write(buf[:8])
+	}
+	writeF64 := func(v float64) {
+		writeU64(math.Float64bits(v))
+	}
+	writeColor := func(c color.RGBA) {
+		buf[0], buf[1], buf[2], buf[3] = c.R, c.G, c.B, c.A
+		_, _ = h.Write(buf[:4])
+	}
+	writeRect := func(r image.Rectangle) {
+		writeU32(uint32(r.Min.X))
+		writeU32(uint32(r.Min.Y))
+		writeU32(uint32(r.Max.X))
+		writeU32(uint32(r.Max.Y))
+	}
+	writePt := func(p image.Point) {
+		writeU32(uint32(p.X))
+		writeU32(uint32(p.Y))
+	}
+	writeStr := func(s string) {
+		writeU32(uint32(len(s)))
+		_, _ = h.Write([]byte(s))
+	}
+	for _, operation := range o.ops {
+		switch t := operation.(type) {
+		case ColorOp:
+			writeU8(1)
+			writeColor(t.Color)
+		case OpacityOp:
+			writeU8(2)
+			writeF64(t.Alpha)
+		case StrokeOp:
+			writeU8(3)
+			writeF64(t.Width)
+		case TransformOp:
+			writeU8(4)
+			writeF64(t.M.A)
+			writeF64(t.M.B)
+			writeF64(t.M.C)
+			writeF64(t.M.D)
+			writeF64(t.M.E)
+			writeF64(t.M.F)
+		case ClipOp:
+			writeU8(5)
+			writeRect(t.Rect)
+			writeF64(t.Radius)
+		case SaveOp:
+			writeU8(6)
+		case RestoreOp:
+			writeU8(7)
+		case PaintOp:
+			writeU8(8)
+		case StrokePaintOp:
+			writeU8(9)
+		case TextOp:
+			writeU8(10)
+			writeStr(t.Text)
+			writePt(t.Pos)
+			writeF64(t.Scale)
+			writeU32(uint32(t.Weight))
+			writeF64(t.LetterSpacing)
+			if t.Italic {
+				writeU8(1)
+			} else {
+				writeU8(0)
+			}
+			writeColor(t.StrokeColor)
+			writeF64(t.StrokeWidth)
+			writeColor(t.ShadowColor)
+			writeF64(t.ShadowBlur)
+			writeF64(t.ShadowX)
+			writeF64(t.ShadowY)
+		case ImageOp:
+			writeU8(11)
+			// Pointer identity + dest; pixel content is assumed stable for the
+			// life of a cached *image.RGBA in the graph.
+			writeU64(uint64(uintptr(unsafe.Pointer(t.Src))))
+			writeRect(t.Dest)
+		case RRectOp:
+			writeU8(12)
+			writeRect(t.Rect)
+			writeF64(t.Radius)
+			writeColor(t.Fill)
+			writeU32(uint32(len(t.GradientStops)))
+			for _, c := range t.GradientStops {
+				writeColor(c)
+			}
+			writeU32(uint32(len(t.GradientStopPos)))
+			for _, p := range t.GradientStopPos {
+				writeF64(p)
+			}
+			writeF64(t.GradientAngle)
+			if t.GradientRadial {
+				writeU8(1)
+			} else {
+				writeU8(0)
+			}
+			writeF64(t.BackdropBlur)
+			writeColor(t.BackdropTint)
+			writeColor(t.Stroke)
+			writeF64(t.StrokeWidth)
+			writeColor(t.Shadow)
+			writeF64(t.ShadowBlur)
+			writeF64(t.ShadowX)
+			writeF64(t.ShadowY)
+		case RectOp:
+			writeU8(13)
+			writeRect(t.Rect)
+			writeF64(t.Radius)
+		default:
+			writeU8(255)
+		}
+	}
+	return h.Sum64()
 }
 
 // ColorOp sets the current fill color.
@@ -60,6 +196,13 @@ type TextOp struct {
 	LetterSpacing float64
 	// Italic requests a light faux-italic second pass in the rasterizer.
 	Italic bool
+	// Optional CSS-like text decorations (drawn under the fill).
+	StrokeColor color.RGBA
+	StrokeWidth float64
+	ShadowColor color.RGBA
+	ShadowBlur  float64
+	ShadowX     float64
+	ShadowY     float64
 }
 
 func (TextOp) isOp() {}

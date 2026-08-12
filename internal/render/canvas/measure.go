@@ -944,6 +944,7 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 				textNode.FontWeight = ln.Style.FontWeight
 				textNode.LetterSpacing = ls
 				textNode.Italic = italic
+				applyTextDecor(textNode, ln.Style)
 				group.AddChild(textNode)
 			}
 		} else {
@@ -967,6 +968,7 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 			textNode.FontWeight = ln.Style.FontWeight
 			textNode.LetterSpacing = ls
 			textNode.Italic = italic
+			applyTextDecor(textNode, ln.Style)
 			group.AddChild(textNode)
 		}
 	}
@@ -1231,4 +1233,15 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 	}
 
 	return group
+}
+
+// applyTextDecor copies glyph stroke/shadow fields from NodeStyle onto a
+// graph text node (software paints shadow → stroke → fill).
+func applyTextDecor(t *graph.Text, s NodeStyle) {
+	t.StrokeColor = s.TextStrokeColor
+	t.StrokeWidth = s.TextStrokeWidth
+	t.ShadowColor = s.TextShadowColor
+	t.ShadowBlur = s.TextShadowBlur
+	t.ShadowX = s.TextShadowX
+	t.ShadowY = s.TextShadowY
 }
