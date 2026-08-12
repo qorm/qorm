@@ -804,7 +804,7 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 		group.AddChild(newClipNode(float64(ln.Width), float64(ln.Height)))
 	}
 
-	hasBg := ln.Style.Background.A > 0
+	hasBg := ln.Style.Background.A > 0 || len(ln.Style.GradientStops) >= 2 || ln.Style.BackdropBlur > 0
 	hasStroke := ln.Style.StrokeColor.A > 0 && ln.Style.StrokeWidth > 0
 	hasShadow := ln.Style.BoxShadowColor.A > 0
 
@@ -815,6 +815,10 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 		bg.Width = float64(ln.Width)
 		bg.Height = float64(ln.Height)
 		bg.Fill = ln.Style.Background
+		bg.GradientStops = ln.Style.GradientStops
+		bg.GradientAngle = ln.Style.GradientAngle
+		bg.BackdropBlur = ln.Style.BackdropBlur
+		bg.BackdropTint = ln.Style.BackdropTint
 		bg.BorderRadius = float64(ln.Style.BorderRadius)
 
 		if hasStroke {

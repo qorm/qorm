@@ -331,7 +331,7 @@ func editableType(typ string) bool {
 	}
 	// Registered single-line/multi-line editors share the InputState session.
 	switch typ {
-	case "textarea", "searchbar":
+	case "textarea", "searchbar", "textformfield":
 		_, ok := LookupWidget(typ)
 		return ok
 	default:

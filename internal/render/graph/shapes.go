@@ -69,10 +69,14 @@ func (g *Group) Draw(ctx *Context) {
 // Rect represents a rectangular shape (with optional border radius)
 type Rect struct {
 	BaseNode
-	Fill         color.RGBA
-	Stroke       color.RGBA
-	StrokeWidth  float64
-	BorderRadius float64
+	Fill          color.RGBA
+	GradientStops []color.RGBA
+	GradientAngle float64
+	BackdropBlur  float64
+	BackdropTint  color.RGBA
+	Stroke        color.RGBA
+	StrokeWidth   float64
+	BorderRadius  float64
 
 	ShadowColor color.RGBA
 	ShadowBlur  float64
@@ -91,7 +95,9 @@ func (r *Rect) Base() *BaseNode { return &r.BaseNode }
 func (r *Rect) Draw(ctx *Context) {
 	r.UpdateGlobalTransform()
 
-	if r.Fill.A == 0 && r.Stroke.A == 0 {
+	hasGrad := len(r.GradientStops) >= 2
+	hasFrost := r.BackdropBlur > 0
+	if r.Fill.A == 0 && r.Stroke.A == 0 && !hasGrad && !hasFrost {
 		return // nothing to draw
 	}
 
@@ -100,12 +106,11 @@ func (r *Rect) Draw(ctx *Context) {
 
 	rect := image.Rect(0, 0, int(r.Width), int(r.Height))
 
-	// Rounded and/or shadowed: take the per-pixel SDF path — antialiased
-	// corners and a smooth shadow falloff (the old 3-concentric-rect shadow
-	// and binary clip edges looked stepped/jagged).
-	if r.BorderRadius > 0 || r.ShadowColor.A > 0 {
-		ctx.RRect(rect, r.BorderRadius, r.Fill, r.Stroke, r.StrokeWidth,
-			r.ShadowColor, r.ShadowBlur, r.ShadowY)
+	// Rounded, shadowed, gradient, or frosted: take the per-pixel SDF path.
+	if r.BorderRadius > 0 || r.ShadowColor.A > 0 || hasGrad || hasFrost {
+		ctx.RRectEx(rect, r.BorderRadius, r.Fill, r.Stroke, r.StrokeWidth,
+			r.ShadowColor, r.ShadowBlur, r.ShadowY,
+			r.GradientStops, r.GradientAngle, r.BackdropBlur, r.BackdropTint)
 		ctx.Restore()
 		return
 	}

@@ -114,9 +114,16 @@ func (c *Context) DrawImage(src *image.RGBA, dest image.Rectangle) {
 // and drop shadow (see op.RRectOp) — per-pixel SDF coverage instead of the
 // binary clip+paint path, so corners and shadow falloff render smoothly.
 func (c *Context) RRect(r image.Rectangle, radius float64, fill, stroke color.RGBA, strokeWidth float64, shadow color.RGBA, shadowBlur, shadowY float64) {
+	c.RRectEx(r, radius, fill, stroke, strokeWidth, shadow, shadowBlur, shadowY, nil, 0, 0, color.RGBA{})
+}
+
+// RRectEx is RRect plus linear gradient stops and optional backdrop frost.
+func (c *Context) RRectEx(r image.Rectangle, radius float64, fill, stroke color.RGBA, strokeWidth float64, shadow color.RGBA, shadowBlur, shadowY float64, grad []color.RGBA, gradAngle, backdropBlur float64, backdropTint color.RGBA) {
 	c.ops.Add(op.RRectOp{
 		Rect: r, Radius: radius,
 		Fill: fill, Stroke: stroke, StrokeWidth: strokeWidth,
 		Shadow: shadow, ShadowBlur: shadowBlur, ShadowY: shadowY,
+		GradientStops: grad, GradientAngle: gradAngle,
+		BackdropBlur: backdropBlur, BackdropTint: backdropTint,
 	})
 }

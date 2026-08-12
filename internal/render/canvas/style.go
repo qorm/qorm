@@ -79,8 +79,20 @@ func parseColor(c string) color.RGBA {
 }
 
 type NodeStyle struct {
-	Background  color.RGBA
-	Color       color.RGBA
+	Background color.RGBA
+	Color      color.RGBA
+	// GradientStops, when len>=2, paints a linear gradient fill (see
+	// software RRect path) instead of solid Background. AngleDeg is CSS
+	// degrees (0 = to top, 90 = to right); only 0/90/180/270 are rasterized
+	// as axis-aligned for v1 (other angles snap to nearest axis).
+	GradientStops []color.RGBA
+	GradientAngle float64
+	// BackdropBlur is CSS backdrop-filter blur radius in px; when >0 the
+	// software path frosts the pixels under the fill before compositing
+	// Background / gradient (plus optional BackdropTint).
+	BackdropBlur float64
+	BackdropTint color.RGBA
+
 	Padding     int
 	MarginTop   int
 	MarginBot   int
@@ -849,14 +861,117 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 		s.BoxShadowY = i
 	}
 
-	// HTML "gradient" style key (linear-gradient(...)): the software
-	// rasterizer paints a solid fill, so resolve to the first colour stop
-	// (same as resolveColor on a background that is a gradient string).
+	// HTML "gradient" / background linear-gradient(...): parse multi-stop
+	// fills for the software rasterizer; fall back to first-stop solid.
 	if g, ok := esp(style["gradient"]).(string); ok && g != "" {
-		if c := resolveColor(g, rt); c.A > 0 {
-			s.Background = c
+		applyGradientString(s, g, rt)
+	}
+	if bg, ok := esp(style["background"]).(string); ok && strings.HasPrefix(strings.TrimSpace(bg), "linear-gradient") {
+		applyGradientString(s, bg, rt)
+	}
+	if bb := esp(style["backdropBlur"]); bb != nil {
+		switch v := bb.(type) {
+		case float64:
+			s.BackdropBlur = v
+		case int:
+			s.BackdropBlur = float64(v)
+		case string:
+			s.BackdropBlur = parseCSSPx(v)
 		}
 	}
+	if bt, ok := esp(style["backdropTint"]).(string); ok && bt != "" {
+		s.BackdropTint = resolveColor(bt, rt)
+	}
+}
+
+// applyGradientString parses a CSS linear-gradient(...) into s.GradientStops
+// and sets Background to the first stop for solid fallbacks.
+func applyGradientString(s *NodeStyle, g string, rt *runtime.Runtime) {
+	stops, angle := parseLinearGradient(g, rt)
+	if len(stops) == 0 {
+		return
+	}
+	s.GradientStops = stops
+	s.GradientAngle = angle
+	s.Background = stops[0]
+}
+
+// parseLinearGradient extracts colour stops and a rough angle from a CSS
+// linear-gradient() string. Unknown colours are skipped; needs ≥1 valid stop.
+func parseLinearGradient(g string, rt *runtime.Runtime) (stops []color.RGBA, angle float64) {
+	g = strings.TrimSpace(g)
+	angle = 180 // default "to bottom"
+	if !strings.HasPrefix(g, "linear-gradient(") || !strings.HasSuffix(g, ")") {
+		if c := resolveColor(g, rt); c.A > 0 {
+			return []color.RGBA{c}, angle
+		}
+		return nil, angle
+	}
+	inner := strings.TrimSpace(g[len("linear-gradient(") : len(g)-1])
+	// Split on commas not inside parentheses (var(...)).
+	parts := splitCSSList(inner)
+	if len(parts) == 0 {
+		return nil, angle
+	}
+	start := 0
+	first := strings.TrimSpace(parts[0])
+	if strings.HasPrefix(first, "to ") {
+		switch strings.TrimSpace(strings.TrimPrefix(first, "to ")) {
+		case "top":
+			angle = 0
+		case "right":
+			angle = 90
+		case "bottom":
+			angle = 180
+		case "left":
+			angle = 270
+		}
+		start = 1
+	} else if strings.HasSuffix(first, "deg") {
+		if f, err := strconv.ParseFloat(strings.TrimSuffix(first, "deg"), 64); err == nil {
+			angle = f
+			start = 1
+		}
+	}
+	for _, p := range parts[start:] {
+		p = strings.TrimSpace(p)
+		// Drop trailing percentage: "#fff 50%" → "#fff"
+		if i := strings.LastIndexAny(p, " \t"); i > 0 {
+			if strings.HasSuffix(strings.TrimSpace(p[i:]), "%") {
+				p = strings.TrimSpace(p[:i])
+			}
+		}
+		if c := resolveColor(p, rt); c.A > 0 || c.R|c.G|c.B != 0 {
+			// Accept fully transparent only if explicitly #...00; still keep
+			// opaque and semi-opaque stops.
+			stops = append(stops, c)
+		}
+	}
+	return stops, angle
+}
+
+// splitCSSList splits on top-level commas (not inside parentheses).
+func splitCSSList(s string) []string {
+	var out []string
+	depth := 0
+	start := 0
+	for i, r := range s {
+		switch r {
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+		case ',':
+			if depth == 0 {
+				out = append(out, s[start:i])
+				start = i + 1
+			}
+		}
+	}
+	out = append(out, s[start:])
+	return out
 }
 
 // clamp01 constrains an author opacity to [0,1] (CSS clamps likewise).
@@ -903,6 +1018,7 @@ func lineHeightMult(lh float64, fontSize int) float64 {
 // scene (backdropBlur, fontFamily, letterSpacing, …).
 var canvasStyleKeys = map[string]bool{
 	"background": true, "color": true, "gradient": true,
+	"backdropBlur": true, "backdropTint": true,
 	"strokeColor": true, "borderColor": true,
 	"padding": true, "gap": true, "margin": true,
 	"width": true, "height": true,

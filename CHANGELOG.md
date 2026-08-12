@@ -7,6 +7,12 @@ All notable changes to QORM are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Canvas multi-stop linear gradients + backdrop frost**: `gradient` /
+  `background: linear-gradient(...)` paints axis-aligned multi-stop fills;
+  `backdropBlur` (+ optional `backdropTint`) frosts pixels under the node.
+- **Canvas field / textformfield / richtext / carousel**: labelled field
+  wrapper, form field with edit session, span-based richtext, and a
+  swipe/tap carousel with optional indicators.
 - **Canvas searchbar**: single-line edit session + filtered results overlay;
   `onSelect` receives `{label}`; typing uses the shared input session.
 - **Canvas checkboxlisttile / radiolisttile**: list rows with leading

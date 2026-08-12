@@ -281,10 +281,23 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 						}
 					}
 					d := sdRoundBox(px, py, cx, cy, hw, hh, radius)
-					if o.Fill.A > 0 {
-						// ~1px coverage band at the boundary = antialiased edge.
-						if cov := clamp01(0.5 - d); cov > 0 {
-							blendOver(img, x, y, withOpacity(o.Fill, cov*clipCov*currentOpacity))
+					// ~1px coverage band at the boundary = antialiased edge.
+					if cov := clamp01(0.5 - d); cov > 0 {
+						// Optional frosted backdrop: blur pixels already under
+						// this rect, then tint.
+						if o.BackdropBlur > 0 {
+							frost := sampleBoxBlur(img, x, y, int(math.Ceil(o.BackdropBlur*s)))
+							if o.BackdropTint.A > 0 {
+								frost = blendOverColor(frost, o.BackdropTint)
+							}
+							blendOver(img, x, y, withOpacity(frost, cov*clipCov*currentOpacity))
+						}
+						fill := o.Fill
+						if len(o.GradientStops) >= 2 {
+							fill = sampleLinearGradient(o.GradientStops, o.GradientAngle, px, py, float64(rect.Min.X), float64(rect.Min.Y), float64(rect.Dx()), float64(rect.Dy()))
+						}
+						if fill.A > 0 {
+							blendOver(img, x, y, withOpacity(fill, cov*clipCov*currentOpacity))
 						}
 					}
 					if o.Stroke.A > 0 && strokeWidth > 0 {
@@ -321,6 +334,112 @@ func transformRect(m geom.Matrix, r image.Rectangle) image.Rectangle {
 // yields z (rotation is never emitted, so A is the scale itself).
 func matrixScale(m geom.Matrix) float64 {
 	return math.Hypot(m.A, m.B)
+}
+
+// sampleLinearGradient interpolates stops along an axis snapped from CSS angle.
+// t∈[0,1] along the gradient axis inside the rect.
+func sampleLinearGradient(stops []color.RGBA, angle, px, py, ox, oy, w, h float64) color.RGBA {
+	if len(stops) == 0 {
+		return color.RGBA{}
+	}
+	if len(stops) == 1 {
+		return stops[0]
+	}
+	// Snap to nearest axis: 0/180 vertical, 90/270 horizontal.
+	a := math.Mod(angle, 360)
+	if a < 0 {
+		a += 360
+	}
+	var t float64
+	switch {
+	case a < 45 || a >= 315: // to top
+		if h > 0 {
+			t = 1 - (py-oy)/h
+		}
+	case a < 135: // to right
+		if w > 0 {
+			t = (px - ox) / w
+		}
+	case a < 225: // to bottom
+		if h > 0 {
+			t = (py - oy) / h
+		}
+	default: // to left
+		if w > 0 {
+			t = 1 - (px-ox)/w
+		}
+	}
+	if t < 0 {
+		t = 0
+	}
+	if t > 1 {
+		t = 1
+	}
+	pos := t * float64(len(stops)-1)
+	i := int(pos)
+	if i >= len(stops)-1 {
+		return stops[len(stops)-1]
+	}
+	f := pos - float64(i)
+	return lerpRGBA(stops[i], stops[i+1], f)
+}
+
+func lerpRGBA(a, b color.RGBA, t float64) color.RGBA {
+	return color.RGBA{
+		R: uint8(float64(a.R)*(1-t) + float64(b.R)*t + 0.5),
+		G: uint8(float64(a.G)*(1-t) + float64(b.G)*t + 0.5),
+		B: uint8(float64(a.B)*(1-t) + float64(b.B)*t + 0.5),
+		A: uint8(float64(a.A)*(1-t) + float64(b.A)*t + 0.5),
+	}
+}
+
+// sampleBoxBlur averages the neighborhood of (x,y) already painted in img.
+func sampleBoxBlur(img *image.RGBA, x, y, radius int) color.RGBA {
+	if img == nil || radius < 1 {
+		return img.RGBAAt(x, y)
+	}
+	b := img.Bounds()
+	var r, g, bl, a, n uint32
+	for dy := -radius; dy <= radius; dy++ {
+		for dx := -radius; dx <= radius; dx++ {
+			xx, yy := x+dx, y+dy
+			if xx < b.Min.X || yy < b.Min.Y || xx >= b.Max.X || yy >= b.Max.Y {
+				continue
+			}
+			c := img.RGBAAt(xx, yy)
+			r += uint32(c.R)
+			g += uint32(c.G)
+			bl += uint32(c.B)
+			a += uint32(c.A)
+			n++
+		}
+	}
+	if n == 0 {
+		return color.RGBA{}
+	}
+	return color.RGBA{uint8(r / n), uint8(g / n), uint8(bl / n), uint8(a / n)}
+}
+
+// blendOverColor composites src over dst (both straight alpha).
+func blendOverColor(dst, src color.RGBA) color.RGBA {
+	if src.A == 0 {
+		return dst
+	}
+	if src.A == 255 {
+		return src
+	}
+	sa := float64(src.A) / 255
+	da := float64(dst.A) / 255
+	outA := sa + da*(1-sa)
+	if outA <= 0 {
+		return color.RGBA{}
+	}
+	return color.RGBA{
+		R: uint8((float64(src.R)*sa + float64(dst.R)*da*(1-sa)) / outA),
+		G: uint8((float64(src.G)*sa + float64(dst.G)*da*(1-sa)) / outA),
+		B: uint8((float64(src.B)*sa + float64(dst.B)*da*(1-sa)) / outA),
+		A: uint8(outA * 255),
+	}
 }
 
 // withOpacity returns c with its alpha multiplied by op (straight color).

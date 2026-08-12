@@ -121,14 +121,21 @@ func (ImageOp) isOp() {}
 // current transformed coordinate space; the shadow is the same shape offset
 // by ShadowY with a smoothstep falloff over ShadowBlur pixels.
 type RRectOp struct {
-	Rect        image.Rectangle
-	Radius      float64
-	Fill        color.RGBA
-	Stroke      color.RGBA
-	StrokeWidth float64
-	Shadow      color.RGBA
-	ShadowBlur  float64
-	ShadowY     float64
+	Rect   image.Rectangle
+	Radius float64
+	Fill   color.RGBA
+	// GradientStops when len>=2 paints a linear fill (Fill is first-stop fallback).
+	GradientStops []color.RGBA
+	// GradientAngle CSS degrees; rasterizer snaps to axis-aligned for v1.
+	GradientAngle float64
+	// BackdropBlur px: frost pixels already in the buffer under the rect.
+	BackdropBlur float64
+	BackdropTint color.RGBA
+	Stroke       color.RGBA
+	StrokeWidth  float64
+	Shadow       color.RGBA
+	ShadowBlur   float64
+	ShadowY      float64
 }
 
 func (RRectOp) isOp() {}

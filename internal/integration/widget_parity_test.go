@@ -78,10 +78,8 @@ var htmlOnlyCoreAllowlist = map[string]string{
 	"actionsheet":      "canvas sheet/bottomsheet only; dedicated action sheet pending",
 	"alertdialog":      "dedicated alert dialog pending (modal/alert exist)",
 	"autocomplete":     "canvas port pending",
-	"carousel":         "canvas port pending",
 	"descriptions":     "canvas port pending",
 	"dropdownbutton":   "canvas select/dropdown cover the common case",
-	"field":            "canvas port pending (input/textarea exist)",
 	"materialstepper":  "canvas port pending (steps exists)",
 	"monthview":        "canvas port pending",
 	"motion":           "canvas port pending (entrance/transition styles cover some cases)",
@@ -90,15 +88,13 @@ var htmlOnlyCoreAllowlist = map[string]string{
 	"rangeslider":      "canvas port pending (slider exists)",
 	"rating":           "HTML-only; examples/customwidget registers canvas rating in middle layer",
 	"refreshindicator": "canvas port pending",
-	"richtext":         "canvas port pending",
-	"selectabletext": "canvas port pending",
-	"textformfield":  "canvas port pending (input/textarea exist)",
-	"transform":      "canvas port pending",
-	"tree":           "canvas port pending",
-	// Ported to canvas — removed from allowlist:
+	"selectabletext":   "canvas port pending",
+	"transform":        "canvas port pending",
+	"tree":             "canvas port pending",
+	// Ported to canvas — removed from allowlist (see widgets/*.go):
 	// activityindicator, animatedcontainer, aspectratio, circularprogress,
 	// ignorepointer, skeleton, tag, fab, switchlisttile, searchbar,
-	// checkboxlisttile, radiolisttile.
+	// checkboxlisttile, radiolisttile, field, textformfield, richtext, carousel.
 }
 
 // canvasOnlyAllowlist: RegisterWidget names with no HTML switch case. Empty

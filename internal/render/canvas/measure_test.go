@@ -481,13 +481,13 @@ func TestWarnUnsupportedStyleKeys(t *testing.T) {
 	// one-shot warn path stays covered (gradient/flexGrow are supported now).
 	mk := func() *model.Node {
 		return &model.Node{Type: "column", ID: "root", Children: []*model.Node{
-			{Type: "text", ID: "a", Style: map[string]any{"backdropBlur": 12.0, "fontFamily": "Comic Sans", "fontSize": 14.0}},
-			{Type: "text", ID: "b", Style: map[string]any{"backdropBlur": 8.0}},
+			{Type: "text", ID: "a", Style: map[string]any{"fontFamily": "Comic Sans", "textDecoration": "underline", "fontSize": 14.0}},
+			{Type: "text", ID: "b", Style: map[string]any{"fontFamily": "Papyrus"}},
 		}}
 	}
 	layoutScene(mk(), testRuntime(nil), image.Pt(100, 100))
 	out := buf.String()
-	for _, key := range []string{`"backdropBlur"`, `"fontFamily"`} {
+	for _, key := range []string{`"fontFamily"`, `"textDecoration"`} {
 		if !strings.Contains(out, key) {
 			t.Errorf("unsupported key %s must warn, got:\n%s", key, out)
 		}
@@ -498,8 +498,8 @@ func TestWarnUnsupportedStyleKeys(t *testing.T) {
 	if !strings.Contains(out, `node id: "a"`) {
 		t.Errorf("warning must name the node, got:\n%s", out)
 	}
-	if c := strings.Count(out, `"backdropBlur"`); c != 1 {
-		t.Errorf("backdropBlur warned %d times, want 1 (one-shot per key per scene)", c)
+	if c := strings.Count(out, `"fontFamily"`); c != 1 {
+		t.Errorf("fontFamily warned %d times, want 1 (one-shot per key per scene)", c)
 	}
 
 	// Same scene tree (same root pointer, as the engine reuses it across
@@ -514,7 +514,7 @@ func TestWarnUnsupportedStyleKeys(t *testing.T) {
 
 	// A different scene root re-arms the same key.
 	layoutScene(mk(), testRuntime(nil), image.Pt(100, 100))
-	if !strings.Contains(buf.String(), `"backdropBlur"`) {
+	if !strings.Contains(buf.String(), `"fontFamily"`) {
 		t.Error("a new scene tree must re-arm the warning")
 	}
 }
