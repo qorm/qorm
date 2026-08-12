@@ -1,0 +1,11 @@
+{
+  "type": "action",
+  "id": "toggle_blend",
+  "steps": [
+    {
+      "type": "state.set",
+      "path": "blendOn",
+      "value": "{{ !state.blendOn }}"
+    }
+  ]
+}

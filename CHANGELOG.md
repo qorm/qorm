@@ -7,6 +7,10 @@ All notable changes to QORM are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Example `examples/canvas-fx`**: runnable showcase for scroll-snap, mask
+  fade, conic-gradient, outline, text decoration/transform, CSS filter,
+  mix-blend-mode, and FLIP layout motion — covered by
+  `TestCanvasFxExample*` headless canvas tests + `qorm measure`.
 - **Canvas scroll-snap**: `scrollSnapType` (`y mandatory` / `x proximity` /
   `both mandatory`, …) on scroll viewports and `scrollSnapAlign`
   (`start` / `center` / `end`) on children — snaps after coast or drag

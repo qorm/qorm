@@ -1,0 +1,382 @@
+{
+  "type": "scene",
+  "id": "main",
+  "root": {
+    "type": "scroll",
+    "id": "stage",
+    "style": {
+      "width": "fill",
+      "height": "fill",
+      "background": "#0f1115",
+      "padding": 16,
+      "gap": 20
+    },
+    "layout": { "width": "fill", "height": "fill" },
+    "children": [
+      {
+        "type": "column",
+        "id": "body",
+        "style": { "gap": 18, "width": "fill" },
+        "layout": { "width": "fill" },
+        "children": [
+          {
+            "type": "text",
+            "id": "title",
+            "text": "Canvas FX",
+            "style": {
+              "fontSize": 28,
+              "fontWeight": 800,
+              "color": "#ffffff",
+              "textDecoration": "underline",
+              "letterSpacing": 1
+            }
+          },
+          {
+            "type": "text",
+            "id": "subtitle",
+            "text": "snap · mask · conic · outline · filter · flip",
+            "style": {
+              "fontSize": 13,
+              "color": "#9aa3b2",
+              "textTransform": "uppercase",
+              "letterSpacing": 1.5
+            }
+          },
+
+          {
+            "type": "text",
+            "id": "h_snap",
+            "text": "1. Scroll snap (drag the pager)",
+            "style": { "fontSize": 15, "fontWeight": 700, "color": "#e8ecf4" }
+          },
+          {
+            "type": "scroll",
+            "id": "snap_strip",
+            "style": {
+              "width": "fill",
+              "height": 120,
+              "scrollSnapType": "y mandatory",
+              "borderRadius": 14,
+              "background": "#1a1f2b"
+            },
+            "layout": { "width": "fill" },
+            "children": [
+              {
+                "type": "box",
+                "id": "page_a",
+                "style": {
+                  "width": "fill",
+                  "height": 120,
+                  "background": "linear-gradient(180deg, #007aff, #5ac8fa)",
+                  "scrollSnapAlign": "start",
+                  "padding": 16
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "Page A — release to snap",
+                    "style": { "fontSize": 18, "fontWeight": 800, "color": "#ffffff" }
+                  }
+                ]
+              },
+              {
+                "type": "box",
+                "id": "page_b",
+                "style": {
+                  "width": "fill",
+                  "height": 120,
+                  "background": "linear-gradient(180deg, #34c759, #30d158)",
+                  "scrollSnapAlign": "start",
+                  "padding": 16
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "Page B",
+                    "style": { "fontSize": 18, "fontWeight": 800, "color": "#ffffff" }
+                  }
+                ]
+              },
+              {
+                "type": "box",
+                "id": "page_c",
+                "style": {
+                  "width": "fill",
+                  "height": 120,
+                  "background": "linear-gradient(180deg, #ff9f0a, #ffd60a)",
+                  "scrollSnapAlign": "start",
+                  "padding": 16
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "Page C",
+                    "style": { "fontSize": 18, "fontWeight": 800, "color": "#1d1d1f" }
+                  }
+                ]
+              }
+            ]
+          },
+
+          {
+            "type": "text",
+            "id": "h_conic",
+            "text": "2. Conic gradient + outline",
+            "style": { "fontSize": 15, "fontWeight": 700, "color": "#e8ecf4" }
+          },
+          {
+            "type": "row",
+            "id": "conic_row",
+            "style": { "gap": 16 },
+            "layout": { "align": "center" },
+            "children": [
+              {
+                "type": "box",
+                "id": "conic_disc",
+                "style": {
+                  "width": 96,
+                  "height": 96,
+                  "borderRadius": 48,
+                  "background": "conic-gradient(from 0deg, #ff3b30, #ff9f0a, #34c759, #007aff, #af52de, #ff3b30)",
+                  "outline": "3px solid #ffffff",
+                  "outlineOffset": 4
+                }
+              },
+              {
+                "type": "column",
+                "style": { "gap": 6, "flexGrow": 1 },
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "conic-gradient medal",
+                    "style": { "fontSize": 14, "fontWeight": 600, "color": "#ffffff" }
+                  },
+                  {
+                    "type": "text",
+                    "text": "outline sits outside the border box — focus-ring style without layout shift.",
+                    "style": { "fontSize": 12, "color": "#9aa3b2", "lineClamp": 3, "width": 220 }
+                  }
+                ]
+              }
+            ]
+          },
+
+          {
+            "type": "text",
+            "id": "h_mask",
+            "text": "3. Mask fade (edge dissolve)",
+            "style": { "fontSize": 15, "fontWeight": 700, "color": "#e8ecf4" }
+          },
+          {
+            "type": "box",
+            "id": "mask_panel",
+            "style": {
+              "width": "fill",
+              "height": 88,
+              "borderRadius": 12,
+              "background": "linear-gradient(90deg, #5e5ce6, #bf5af2)",
+              "padding": 14,
+              "maskFade": "right",
+              "maskFadeSize": 72
+            },
+            "layout": { "width": "fill" },
+            "children": [
+              {
+                "type": "text",
+                "text": "Long row that softens on the right edge…",
+                "style": {
+                  "fontSize": 15,
+                  "fontWeight": 600,
+                  "color": "#ffffff",
+                  "textTransform": "capitalize"
+                }
+              }
+            ]
+          },
+
+          {
+            "type": "text",
+            "id": "h_filter",
+            "text": "4. CSS filter stack",
+            "style": { "fontSize": 15, "fontWeight": 700, "color": "#e8ecf4" }
+          },
+          {
+            "type": "row",
+            "id": "filter_row",
+            "style": { "gap": 12 },
+            "children": [
+              {
+                "type": "box",
+                "id": "filter_card",
+                "style": {
+                  "width": 160,
+                  "height": 72,
+                  "borderRadius": 12,
+                  "background": "#ff375f",
+                  "padding": 12,
+                  "filter": "{{ state.filterOn ? \"saturate(0.3) brightness(1.15)\" : \"none\" }}"
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "{{ state.filterOn ? \"filtered\" : \"raw\" }}",
+                    "style": {
+                      "fontSize": 16,
+                      "fontWeight": 700,
+                      "color": "#ffffff",
+                      "textTransform": "uppercase"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "id": "btn_filter",
+                "text": "Toggle filter",
+                "onPress": { "type": "invoke", "name": "toggle_filter" },
+                "style": {
+                  "background": "#2c3344",
+                  "color": "#ffffff",
+                  "padding": 12,
+                  "borderRadius": 10,
+                  "fontWeight": 600,
+                  "pressedScale": 0.96,
+                  "transition": "0.2s spring"
+                }
+              }
+            ]
+          },
+
+          {
+            "type": "text",
+            "id": "h_blend",
+            "text": "5. Mix-blend-mode",
+            "style": { "fontSize": 15, "fontWeight": 700, "color": "#e8ecf4" }
+          },
+          {
+            "type": "box",
+            "id": "blend_stage",
+            "style": {
+              "width": "fill",
+              "height": 100,
+              "borderRadius": 12,
+              "background": "#1c7c54",
+              "padding": 0
+            },
+            "layout": { "width": "fill" },
+            "children": [
+              {
+                "type": "box",
+                "id": "blend_overlay",
+                "style": {
+                  "width": 140,
+                  "height": 70,
+                  "x": 40,
+                  "y": 15,
+                  "borderRadius": 10,
+                  "background": "#ff9f0a",
+                  "mixBlendMode": "{{ state.blendOn ? \"multiply\" : \"normal\" }}",
+                  "padding": 10
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "multiply",
+                    "style": { "fontSize": 13, "fontWeight": 700, "color": "#1d1d1f" }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "button",
+            "id": "btn_blend",
+            "text": "Toggle blend",
+            "onPress": { "type": "invoke", "name": "toggle_blend" },
+            "style": {
+              "background": "#2c3344",
+              "color": "#ffffff",
+              "padding": 12,
+              "borderRadius": 10,
+              "fontWeight": 600
+            }
+          },
+
+          {
+            "type": "text",
+            "id": "h_flip",
+            "text": "6. FLIP layout motion",
+            "style": { "fontSize": 15, "fontWeight": 700, "color": "#e8ecf4" }
+          },
+          {
+            "type": "box",
+            "id": "flip_stage",
+            "style": {
+              "width": "fill",
+              "height": 80,
+              "borderRadius": 12,
+              "background": "#1a1f2b"
+            },
+            "layout": { "width": "fill" },
+            "children": [
+              {
+                "type": "box",
+                "id": "flip_chip",
+                "style": {
+                  "width": 72,
+                  "height": 40,
+                  "x": "{{ state.flipLeft ? 16 : 280 }}",
+                  "y": 20,
+                  "borderRadius": 20,
+                  "background": "#0a84ff",
+                  "transition": "0.35s spring",
+                  "layoutMotion": true,
+                  "padding": 8
+                },
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "GO",
+                    "style": {
+                      "fontSize": 14,
+                      "fontWeight": 800,
+                      "color": "#ffffff",
+                      "textAlign": "center"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "button",
+            "id": "btn_flip",
+            "text": "Move chip (FLIP)",
+            "onPress": { "type": "invoke", "name": "toggle_flip" },
+            "style": {
+              "background": "#0a84ff",
+              "color": "#ffffff",
+              "padding": 14,
+              "borderRadius": 12,
+              "fontWeight": 700,
+              "pressedScale": 0.94,
+              "transition": "0.25s spring"
+            }
+          },
+
+          {
+            "type": "text",
+            "id": "footer",
+            "text": "Run: go run ./cmd/qorm run examples/canvas-fx",
+            "style": {
+              "fontSize": 11,
+              "color": "#6b7280",
+              "fontStyle": "italic",
+              "textDecoration": "overline"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

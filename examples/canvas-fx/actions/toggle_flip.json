@@ -1,0 +1,11 @@
+{
+  "type": "action",
+  "id": "toggle_flip",
+  "steps": [
+    {
+      "type": "state.set",
+      "path": "flipLeft",
+      "value": "{{ !state.flipLeft }}"
+    }
+  ]
+}
