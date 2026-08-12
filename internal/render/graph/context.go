@@ -53,6 +53,12 @@ func (c *Context) ClipRRect(r image.Rectangle, radius float64) {
 	c.ops.Add(op.ClipOp{Rect: r, Radius: radius})
 }
 
+// ClipEllipse sets an elliptical clip centered in r (CSS clip-path: ellipse /
+// circle). rx/ry are radii in the current local coordinate space.
+func (c *Context) ClipEllipse(r image.Rectangle, rx, ry float64) {
+	c.ops.Add(op.ClipOp{Rect: r, EllipseRX: rx, EllipseRY: ry})
+}
+
 // Fill sets the current fill color.
 func (c *Context) Fill(color color.RGBA) {
 	c.ops.Add(op.ColorOp{Color: color})

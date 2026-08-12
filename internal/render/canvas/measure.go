@@ -833,6 +833,12 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 			group.MaskFadeSize = 48
 		}
 	}
+	if ln.Style.LayerCache && ln.Node != nil && ln.Node.ID != "" {
+		// Static layer cache: key by id + content fingerprint (size + filters
+		// + first line of text). Invalidates when any of those change.
+		group.LayerCacheKey = ln.Node.ID
+		group.LayerCacheFP = layerContentFP(ln)
+	}
 	// Propagate scroll-snap style keys onto the model Style map so the scroll
 	// path can read them without re-parsing (author may only set NodeStyle via
 	// cascade). Prefer existing author keys.
@@ -889,6 +895,12 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 		// (scroll.go).
 		group.Clip = true
 		group.AddChild(newClipNode(float64(ln.Width), float64(ln.Height)))
+	} else if ln.Style.ClipPath != "" {
+		// CSS clip-path (circle / ellipse / inset) — paint clip + HitTest box.
+		group.Clip = true
+		if cn := clipNodeFromPath(ln.Style.ClipPath, float64(ln.Width), float64(ln.Height)); cn != nil {
+			group.AddChild(cn)
+		}
 	} else if ln.Style.Overflow == "hidden" || ln.Style.Overflow == "clip" {
 		// CSS overflow:hidden — clip children to the box; borderRadius makes
 		// a rounded clip so card chrome matches the painted fill.
@@ -1328,6 +1340,53 @@ func applyTextDecor(t *graph.Text, s NodeStyle) {
 	t.Underline = strings.Contains(dec, "underline")
 	t.LineThrough = strings.Contains(dec, "line-through")
 	t.Overline = strings.Contains(dec, "overline")
+}
+
+// clipNodeFromPath builds a paint-time clip leaf from CSS clip-path.
+func clipNodeFromPath(raw string, w, h float64) *clipNode {
+	kind, rx, ry, inset, rad, ok := parseClipPath(raw, w, h)
+	if !ok {
+		return nil
+	}
+	switch kind {
+	case "ellipse":
+		return newClipEllipse(w, h, rx, ry)
+	case "inset":
+		c := newClipNodeR(float64(inset.Dx()), float64(inset.Dy()), rad)
+		c.X = float64(inset.Min.X)
+		c.Y = float64(inset.Min.Y)
+		return c
+	default:
+		return nil
+	}
+}
+
+// layerContentFP is a cheap content fingerprint for static layer cache keys.
+func layerContentFP(ln *LayoutNode) uint64 {
+	if ln == nil {
+		return 0
+	}
+	// FNV-1a over size, style filters, and text.
+	h := uint64(14695981039346656037)
+	mix := func(v uint64) {
+		h ^= v
+		h *= 1099511628211
+	}
+	mix(uint64(ln.Width))
+	mix(uint64(ln.Height))
+	mix(uint64(ln.Style.FilterBlur * 1000))
+	mix(uint64(ln.Style.FilterBrightness * 1000))
+	mix(uint64(ln.Style.FilterSaturate * 1000))
+	mix(uint64(ln.Style.MaskFadeSize * 100))
+	for _, r := range ln.Text {
+		mix(uint64(r))
+	}
+	for _, c := range ln.Children {
+		if c != nil {
+			mix(layerContentFP(c))
+		}
+	}
+	return h
 }
 
 // applyTextTransform implements CSS text-transform on a display string.

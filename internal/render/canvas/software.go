@@ -6,6 +6,7 @@ import (
 	"image/draw"
 	"math"
 	"strings"
+	"sync"
 
 	"github.com/qorm/qorm/internal/geom"
 	"github.com/qorm/qorm/internal/op"
@@ -15,6 +16,10 @@ import (
 // list drawing into an image.RGBA. Pipeline state is scoped to a single Render
 // call. Dirty, when non-empty, limits the clear + paint to that rect (engine
 // partial redraw); empty Dirty means full-frame clear and raster.
+//
+// LayerCache reuses static offscreen layers (LayerOp.CacheKey + CacheFP) so
+// expensive filter/mask groups skip re-drawing children when content is
+// unchanged. Safe across frames; clear with ResetLayerCache.
 //
 // Buffer convention: the target image.RGBA holds STRAIGHT (non-premultiplied)
 // RGBA bytes — every write goes through blendOver (or the opaque fast path,
@@ -28,6 +33,27 @@ import (
 type SoftwareRenderer struct {
 	// Dirty limits rasterization to a sub-rect. Empty = full frame.
 	Dirty image.Rectangle
+}
+
+// layerCacheEntry stores a tight offscreen layer for CacheKey reuse.
+type layerCacheEntry struct {
+	fp     uint64
+	origin image.Point
+	pix    *image.RGBA
+	// Full target size when cached (must match to reuse).
+	tw, th int
+}
+
+var (
+	layerCacheMu sync.Mutex
+	layerCache   = map[string]*layerCacheEntry{}
+)
+
+// ResetLayerCache drops all static layer bitmaps (tests / scene switches).
+func ResetLayerCache() {
+	layerCacheMu.Lock()
+	layerCache = map[string]*layerCacheEntry{}
+	layerCacheMu.Unlock()
 }
 
 // Render implements Renderer.
@@ -80,15 +106,25 @@ func (r SoftwareRenderer) Render(ops *op.Ops, target *image.RGBA) {
 	}
 	var stack []state
 
-	for _, operation := range ops.Operations() {
+	opsList := ops.Operations()
+	for i := 0; i < len(opsList); i++ {
+		operation := opsList[i]
 		switch o := operation.(type) {
 		case op.LayerOp:
-			// Offscreen layer for CSS filter + blend.
+			// Offscreen layer for CSS filter + blend (+ optional static cache).
 			ms := matrixScale(currentMatrix)
 			if ms < 1e-9 {
 				ms = 1
 			}
 			p := layerParamsFromOp(o, ms)
+			p.cacheKey = o.CacheKey
+			p.cacheFP = o.CacheFP
+			// Cache hit: skip children ops through matching EndLayer and
+			// re-composite the stored layer buffer.
+			if o.CacheKey != "" && blitLayerCache(o.CacheKey, o.CacheFP, img, target.Bounds().Size(), p) {
+				i = skipLayerOps(opsList, i)
+				continue
+			}
 			layers = append(layers, layerFrame{parent: img, params: p})
 			img = image.NewRGBA(target.Bounds()) // transparent
 		case op.EndLayerOp:
@@ -97,6 +133,10 @@ func (r SoftwareRenderer) Render(ops *op.Ops, target *image.RGBA) {
 			}
 			frame := layers[len(layers)-1]
 			layers = layers[:len(layers)-1]
+			// Store pre-filter layer pixels for static reuse.
+			if frame.params.cacheKey != "" {
+				storeLayerCache(frame.params.cacheKey, frame.params.cacheFP, img, target.Bounds().Size())
+			}
 			endLayerComposite(frame.parent, img, frame.params)
 			img = frame.parent
 		case op.ColorOp:
@@ -110,7 +150,14 @@ func (r SoftwareRenderer) Render(ops *op.Ops, target *image.RGBA) {
 		case op.ClipOp:
 			pushed := o
 			pushed.Rect = transformRect(currentMatrix, o.Rect)
-			pushed.Radius = o.Radius * matrixScale(currentMatrix)
+			s := matrixScale(currentMatrix)
+			pushed.Radius = o.Radius * s
+			// Ellipse radii scale with the uniform matrix scale; center is
+			// the transformed rect center (AABB after transform).
+			if o.EllipseRX > 0 && o.EllipseRY > 0 {
+				pushed.EllipseRX = o.EllipseRX * s
+				pushed.EllipseRY = o.EllipseRY * s
+			}
 			clips = append(clips, pushed)
 		case op.SaveOp:
 			stack = append(stack, state{
@@ -539,6 +586,8 @@ type layerParams struct {
 	maskFadeSize                         float64
 	// maskBounds is the alpha AABB of the layer (for edge fade).
 	maskMinX, maskMinY, maskMaxX, maskMaxY int
+	cacheKey                               string
+	cacheFP                                uint64
 }
 
 func layerParamsFromOp(o op.LayerOp, matrixScale float64) layerParams {
@@ -1324,14 +1373,29 @@ func clipBounds(clips []op.ClipOp, img *image.RGBA) image.Rectangle {
 // clipCoverage returns the combined coverage of the active clips at a pixel
 // centre. Clip rects are already in screen space (ClipOp transforms them
 // at emit time). Rectangular clips remain exact; rounded clips use the same
-// signed distance field as RRectOp, giving image/text content a soft one-pixel
-// edge instead of the visibly jagged binary corner produced by inAllClips.
+// signed distance field as RRectOp; ellipse/circle clips use an ellipse SDF.
 func clipCoverage(px, py float64, clips []op.ClipOp) float64 {
 	coverage := 1.0
 	for _, c := range clips {
 		if px < float64(c.Rect.Min.X) || px >= float64(c.Rect.Max.X) ||
 			py < float64(c.Rect.Min.Y) || py >= float64(c.Rect.Max.Y) {
 			return 0
+		}
+		if c.EllipseRX > 0 && c.EllipseRY > 0 {
+			cx := float64(c.Rect.Min.X) + float64(c.Rect.Dx())/2
+			cy := float64(c.Rect.Min.Y) + float64(c.Rect.Dy())/2
+			// Ellipse SDF (Inigo Quilez): approximate coverage band.
+			nx := (px - cx) / c.EllipseRX
+			ny := (py - cy) / c.EllipseRY
+			// Outside unit circle → 0; soft edge near boundary.
+			d := math.Hypot(nx, ny) - 1
+			// Convert normalized distance to ~px: scale by min radius.
+			d *= math.Min(c.EllipseRX, c.EllipseRY)
+			coverage *= clamp01(0.5 - d)
+			if coverage <= 0 {
+				return 0
+			}
+			continue
 		}
 		if c.Radius <= 0 {
 			continue
@@ -1349,6 +1413,73 @@ func clipCoverage(px, py float64, clips []op.ClipOp) float64 {
 		}
 	}
 	return coverage
+}
+
+// skipLayerOps returns the index of the EndLayerOp matching the LayerOp at i.
+func skipLayerOps(ops []op.Op, i int) int {
+	depth := 1
+	for j := i + 1; j < len(ops); j++ {
+		switch ops[j].(type) {
+		case op.LayerOp:
+			depth++
+		case op.EndLayerOp:
+			depth--
+			if depth == 0 {
+				return j
+			}
+		}
+	}
+	return len(ops) - 1
+}
+
+func storeLayerCache(key string, fp uint64, layer *image.RGBA, size image.Point) {
+	if key == "" || layer == nil {
+		return
+	}
+	region := alphaBounds(layer)
+	if region.Empty() {
+		return
+	}
+	pix := image.NewRGBA(image.Rect(0, 0, region.Dx(), region.Dy()))
+	for y := region.Min.Y; y < region.Max.Y; y++ {
+		for x := region.Min.X; x < region.Max.X; x++ {
+			pix.SetRGBA(x-region.Min.X, y-region.Min.Y, layer.RGBAAt(x, y))
+		}
+	}
+	layerCacheMu.Lock()
+	layerCache[key] = &layerCacheEntry{
+		fp: fp, origin: region.Min, pix: pix, tw: size.X, th: size.Y,
+	}
+	layerCacheMu.Unlock()
+}
+
+func blitLayerCache(key string, fp uint64, parent *image.RGBA, size image.Point, p layerParams) bool {
+	if key == "" {
+		return false
+	}
+	layerCacheMu.Lock()
+	e, ok := layerCache[key]
+	layerCacheMu.Unlock()
+	if !ok || e == nil || e.fp != fp || e.tw != size.X || e.th != size.Y || e.pix == nil {
+		return false
+	}
+	// Rebuild full-size transparent buffer and paste cached pixels.
+	tmp := image.NewRGBA(image.Rect(0, 0, size.X, size.Y))
+	for y := 0; y < e.pix.Bounds().Dy(); y++ {
+		for x := 0; x < e.pix.Bounds().Dx(); x++ {
+			c := e.pix.RGBAAt(x, y)
+			if c.A == 0 {
+				continue
+			}
+			xx, yy := e.origin.X+x, e.origin.Y+y
+			if xx < 0 || yy < 0 || xx >= size.X || yy >= size.Y {
+				continue
+			}
+			tmp.SetRGBA(xx, yy, c)
+		}
+	}
+	endLayerComposite(parent, tmp, p)
+	return true
 }
 
 // sampleBilinear samples straight-alpha RGBA in premultiplied space. Doing

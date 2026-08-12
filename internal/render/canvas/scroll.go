@@ -47,9 +47,12 @@ func isScrollType(t string) bool { return t == "scroll" || t == "scrollview" }
 // has no clip notion of its own: mounted first, its ClipOp covers every
 // sibling drawn after it, and the parent group's Restore pops it.
 // Radius > 0 emits a rounded clip (overflow:hidden + borderRadius).
+// EllipseRX/RY > 0 emits an elliptical clip (clip-path: circle/ellipse).
 type clipNode struct {
 	graph.BaseNode
-	Radius float64
+	Radius           float64
+	EllipseRX        float64
+	EllipseRY        float64
 }
 
 func newClipNode(w, h float64) *clipNode {
@@ -65,6 +68,12 @@ func newClipNodeR(w, h, radius float64) *clipNode {
 	return c
 }
 
+func newClipEllipse(w, h, rx, ry float64) *clipNode {
+	c := newClipNodeR(w, h, 0)
+	c.EllipseRX, c.EllipseRY = rx, ry
+	return c
+}
+
 func (c *clipNode) Base() *graph.BaseNode { return &c.BaseNode }
 
 // Draw emits the clip rect. No Save/Translate of its own: the parent group
@@ -72,6 +81,10 @@ func (c *clipNode) Base() *graph.BaseNode { return &c.BaseNode }
 // the siblings' own Save/Restore pairs.
 func (c *clipNode) Draw(ctx *graph.Context) {
 	r := image.Rect(0, 0, int(c.Width), int(c.Height))
+	if c.EllipseRX > 0 && c.EllipseRY > 0 {
+		ctx.ClipEllipse(r, c.EllipseRX, c.EllipseRY)
+		return
+	}
 	if c.Radius > 0 {
 		ctx.ClipRRect(r, c.Radius)
 		return

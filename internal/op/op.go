@@ -98,6 +98,8 @@ func (o *Ops) Fingerprint() uint64 {
 			writeU8(5)
 			writeRect(t.Rect)
 			writeF64(t.Radius)
+			writeF64(t.EllipseRX)
+			writeF64(t.EllipseRY)
 		case SaveOp:
 			writeU8(6)
 		case RestoreOp:
@@ -205,6 +207,8 @@ func (o *Ops) Fingerprint() uint64 {
 			writeStr(t.BlendMode)
 			writeStr(t.MaskFade)
 			writeF64(t.MaskFadeSize)
+			writeStr(t.CacheKey)
+			writeU64(t.CacheFP)
 		case EndLayerOp:
 			writeU8(15)
 		default:
@@ -270,10 +274,15 @@ type TransformOp struct {
 
 func (TransformOp) isOp() {}
 
-// ClipOp sets a clipping boundary.
+// ClipOp sets a clipping boundary. Rect is always the AABB (for bounds
+// intersection). When EllipseRX and EllipseRY are both > 0, the clip is an
+// axis-aligned ellipse centered in Rect (CSS clip-path: circle/ellipse).
+// Otherwise Radius > 0 is a rounded rect; Radius == 0 is a hard rect.
 type ClipOp struct {
-	Rect   image.Rectangle
-	Radius float64
+	Rect             image.Rectangle
+	Radius           float64
+	EllipseRX        float64 // screen px; with EllipseRY > 0 enables ellipse clip
+	EllipseRY        float64
 }
 
 func (ClipOp) isOp() {}
@@ -375,6 +384,10 @@ type LayerOp struct {
 	// MaskFade soft-fades one edge of the layer ("top"|"bottom"|"left"|"right").
 	MaskFade     string
 	MaskFadeSize float64 // screen px of the fade band
+	// CacheKey when non-empty enables static layer reuse: identical content
+	// (CacheFP) skips re-drawing children and re-composites the cached buffer.
+	CacheKey string
+	CacheFP  uint64
 }
 
 func (LayerOp) isOp() {}

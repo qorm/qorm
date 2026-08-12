@@ -2,8 +2,10 @@ package canvas
 
 import (
 	"fmt"
+	"image"
 	"image/color"
 	"io"
+	"math"
 	"os"
 	"sort"
 	"strconv"
@@ -222,6 +224,12 @@ type NodeStyle struct {
 	// "right" (competitive list/carousel edge dissolve). MaskFadeSize is px.
 	MaskFade     string
 	MaskFadeSize float64
+	// ClipPath is CSS clip-path: "circle(50%)", "ellipse(50% 40%)",
+	// "inset(10px)" / "inset(10% round 12px)".
+	ClipPath string
+	// LayerCache enables static offscreen reuse for filter/mask groups
+	// (software LayerOp.CacheKey). Content fingerprint invalidates the cache.
+	LayerCache bool
 }
 
 // scaleBy multiplies every pixel-valued field by f (a device-pixel ratio), so
@@ -1127,6 +1135,19 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 			applyMaskImage(s, str)
 		}
 	}
+	if v := esp(style["clipPath"]); v != nil {
+		if str, ok := v.(string); ok {
+			s.ClipPath = strings.TrimSpace(str)
+		}
+	}
+	if v := esp(style["layerCache"]); v != nil {
+		switch t := v.(type) {
+		case bool:
+			s.LayerCache = t
+		case string:
+			s.LayerCache = t == "true" || t == "1"
+		}
+	}
 
 	// HTML "gradient" / background linear-gradient(...): parse multi-stop
 	// fills for the software rasterizer; fall back to first-stop solid.
@@ -1246,6 +1267,105 @@ func parseConicGradient(g string, rt *runtime.Runtime) (stops []color.RGBA, pos 
 		pos = nil
 	}
 	return stops, pos, angle
+}
+
+// parseClipPath decodes CSS clip-path into ellipse radii or inset rect+radius
+// relative to a box of size (w,h). Returns ok=false when unsupported.
+// For circle/ellipse, rx/ry are set and inset is the full box.
+// For inset, out is the inset rectangle in local coords and radius is corner r.
+func parseClipPath(raw string, w, h float64) (kind string, rx, ry float64, inset image.Rectangle, radius float64, ok bool) {
+	raw = strings.TrimSpace(strings.ToLower(raw))
+	if raw == "" || raw == "none" {
+		return "", 0, 0, image.Rectangle{}, 0, false
+	}
+	// circle(50%) / circle(40px)
+	if strings.HasPrefix(raw, "circle(") {
+		inner := strings.TrimSuffix(strings.TrimPrefix(raw, "circle("), ")")
+		inner = strings.TrimSpace(strings.Split(inner, " at ")[0])
+		r := parseClipLength(inner, math.Min(w, h))
+		if r <= 0 {
+			r = math.Min(w, h) / 2
+		}
+		// CSS % for circle is relative to sqrt((w^2+h^2)/2); we use min side.
+		return "ellipse", r, r, image.Rect(0, 0, int(w), int(h)), 0, true
+	}
+	// ellipse(50% 40%)
+	if strings.HasPrefix(raw, "ellipse(") {
+		inner := strings.TrimSuffix(strings.TrimPrefix(raw, "ellipse("), ")")
+		inner = strings.TrimSpace(strings.Split(inner, " at ")[0])
+		parts := strings.Fields(inner)
+		if len(parts) >= 2 {
+			rx = parseClipLength(parts[0], w)
+			ry = parseClipLength(parts[1], h)
+		} else if len(parts) == 1 {
+			rx = parseClipLength(parts[0], w)
+			ry = rx
+		}
+		if rx <= 0 {
+			rx = w / 2
+		}
+		if ry <= 0 {
+			ry = h / 2
+		}
+		return "ellipse", rx, ry, image.Rect(0, 0, int(w), int(h)), 0, true
+	}
+	// inset(10px) / inset(10% 20px) / inset(10px round 12px)
+	if strings.HasPrefix(raw, "inset(") {
+		inner := strings.TrimSuffix(strings.TrimPrefix(raw, "inset("), ")")
+		round := 0.0
+		if i := strings.Index(inner, "round"); i >= 0 {
+			round = parseClipLength(strings.TrimSpace(inner[i+5:]), math.Min(w, h))
+			inner = strings.TrimSpace(inner[:i])
+		}
+		parts := strings.Fields(inner)
+		var t, rgt, b, l float64
+		switch len(parts) {
+		case 1:
+			t = parseClipLength(parts[0], h)
+			rgt, b, l = t, t, t
+			// horizontal % uses w
+			if strings.HasSuffix(parts[0], "%") {
+				rgt = parseClipLength(parts[0], w)
+				l = rgt
+			}
+		case 2:
+			t = parseClipLength(parts[0], h)
+			b = t
+			rgt = parseClipLength(parts[1], w)
+			l = rgt
+		case 3:
+			t = parseClipLength(parts[0], h)
+			rgt = parseClipLength(parts[1], w)
+			b = parseClipLength(parts[2], h)
+			l = rgt
+		case 4:
+			t = parseClipLength(parts[0], h)
+			rgt = parseClipLength(parts[1], w)
+			b = parseClipLength(parts[2], h)
+			l = parseClipLength(parts[3], w)
+		}
+		inset = image.Rect(int(l), int(t), int(w-rgt), int(h-b))
+		if inset.Dx() < 0 {
+			inset.Max.X = inset.Min.X
+		}
+		if inset.Dy() < 0 {
+			inset.Max.Y = inset.Min.Y
+		}
+		return "inset", 0, 0, inset, round, true
+	}
+	return "", 0, 0, image.Rectangle{}, 0, false
+}
+
+func parseClipLength(s string, ref float64) float64 {
+	s = strings.TrimSpace(s)
+	if strings.HasSuffix(s, "%") {
+		f, err := strconv.ParseFloat(strings.TrimSpace(strings.TrimSuffix(s, "%")), 64)
+		if err != nil {
+			return 0
+		}
+		return ref * f / 100
+	}
+	return parseCSSPx(s)
 }
 
 // applyMaskImage maps a simple CSS mask-image linear-gradient to maskFade.
@@ -1709,6 +1829,7 @@ var canvasStyleKeys = map[string]bool{
 	"layoutMotion":   true, // FLIP layout animation (default on with transition)
 	"scrollSnapType": true, "scrollSnapAlign": true,
 	"maskFade": true, "maskFadeSize": true, "maskImage": true,
+	"clipPath": true, "layerCache": true,
 	// Spacer / simple widgets.
 	"size": true,
 }

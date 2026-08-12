@@ -7,10 +7,16 @@ All notable changes to QORM are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Canvas clip-path**: `clipPath: "circle(50%)"` / `"ellipse(50% 40%)"` /
+  `"inset(10px round 12px)"` — elliptical and inset clips with soft AA edges;
+  works with overflow:hidden-style hit clipping.
+- **Canvas layerCache**: `layerCache: true` on filter/mask groups reuses the
+  offscreen layer bitmap when content fingerprint is unchanged (static blur
+  panels skip re-raster of children).
 - **Example `examples/canvas-fx`**: runnable showcase for scroll-snap, mask
   fade, conic-gradient, outline, text decoration/transform, CSS filter,
-  mix-blend-mode, and FLIP layout motion — covered by
-  `TestCanvasFxExample*` headless canvas tests + `qorm measure`.
+  mix-blend-mode, FLIP, clip-path, and layerCache — covered by
+  `TestCanvasFx*` / `TestClip*` / `TestLayerCache*` + `qorm measure`.
 - **Canvas scroll-snap**: `scrollSnapType` (`y mandatory` / `x proximity` /
   `both mandatory`, …) on scroll viewports and `scrollSnapAlign`
   (`start` / `center` / `end`) on children — snaps after coast or drag

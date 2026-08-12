@@ -40,6 +40,7 @@ var KnownStyleKeys = map[string]bool{
 	"overflow": true, "mixBlendMode": true, "layoutMotion": true,
 	"scrollSnapType": true, "scrollSnapAlign": true,
 	"maskFade": true, "maskFadeSize": true, "maskImage": true,
+	"clipPath": true, "layerCache": true,
 	"pressedBackground": true, "hoverScale": true,
 	// Pseudo-state (pseudoStateCSS). Each key emits a CSS custom property into
 	// the node's inline style; the HTML shell (internal/server/server.go) carries

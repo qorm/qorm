@@ -27,6 +27,9 @@ type Group struct {
 	// MaskFade soft-fades one edge ("top"|"bottom"|"left"|"right").
 	MaskFade     string
 	MaskFadeSize float64
+	// LayerCacheKey/FP enable software static layer reuse (LayerOp.CacheKey).
+	LayerCacheKey string
+	LayerCacheFP  uint64
 }
 
 // NewGroup creates a new Group node
@@ -87,6 +90,9 @@ func (g *Group) hasFilter() bool {
 	if g.MaskFade != "" && g.MaskFadeSize > 0 {
 		return true
 	}
+	if g.LayerCacheKey != "" {
+		return true // offscreen layer even without filter effects
+	}
 	b, c, s, o := g.FilterBrightness, g.FilterContrast, g.FilterSaturate, g.FilterOpacity
 	if b == 0 && c == 0 && s == 0 && o == 0 && g.FilterBlur == 0 && g.FilterGrayscale == 0 {
 		return false // unset zero-value group
@@ -119,6 +125,7 @@ func (g *Group) Draw(ctx *Context) {
 			DropShadowX: g.DropShadowX, DropShadowY: g.DropShadowY, DropShadowBlur: g.DropShadowBlur,
 			DropShadowColor: g.DropShadowColor, BlendMode: g.MixBlendMode,
 			MaskFade: g.MaskFade, MaskFadeSize: g.MaskFadeSize,
+			CacheKey: g.LayerCacheKey, CacheFP: g.LayerCacheFP,
 		})
 	}
 

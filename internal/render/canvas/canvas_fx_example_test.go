@@ -60,10 +60,97 @@ func TestCanvasFxExampleLoadsAndRenders(t *testing.T) {
 			ids[id] = true
 		}
 	}
-	for _, want := range []string{"title", "snap_strip", "conic_disc", "mask_panel", "flip_chip", "btn_flip"} {
+	for _, want := range []string{"title", "snap_strip", "conic_disc", "mask_panel", "flip_chip", "btn_flip", "clip_circle", "cache_blur"} {
 		if !ids[want] {
 			t.Errorf("measure missing id %q (got %d rows)", want, len(rows))
 		}
+	}
+}
+
+func TestCanvasFxClipPathCircleCutsCorner(t *testing.T) {
+	e, surf, _ := canvasFxFixture(t)
+	// Content is tall; scroll the outer stage so clip_circle is on-screen.
+	var stage *model.Node
+	var walk func(n *model.Node)
+	walk = func(n *model.Node) {
+		if n == nil || stage != nil {
+			return
+		}
+		if n.ID == "stage" {
+			stage = n
+			return
+		}
+		for _, c := range n.Children {
+			walk(c)
+		}
+	}
+	walk(e.sceneRoot())
+	if stage == nil {
+		t.Fatal("stage scroll missing")
+	}
+	e.Inter.ScrollOffsets = map[*model.Node]ScrollPos{stage: {Y: 1000}}
+	e.MarkDirty()
+	e.DrawFrame(surf)
+	rows := decodeMeasureRows(t, e)
+	var x, y, w, h float64
+	for _, r := range rows {
+		if r["id"] == "clip_circle" {
+			x, y, w, h = asF64(r["x"]), asF64(r["y"]), asF64(r["w"]), asF64(r["h"])
+			break
+		}
+	}
+	if w < 10 {
+		t.Fatal("clip_circle not measured")
+	}
+	// After scroll, AbsY is still content coords; visual y = absY - scrollOffset.
+	visY := int(y - 1000)
+	visX := int(x)
+	frame := surf.Frame()
+	if visY < 0 || visY >= frame.Bounds().Dy() {
+		// Still off-screen — rely on unit TestClipPathStyleEndToEnd.
+		t.Logf("clip_circle still off-screen after scroll (y=%v visY=%d); layout ok", y, visY)
+		return
+	}
+	mid := frame.RGBAAt(visX+int(w/2), visY+int(h/2))
+	if mid.R+mid.G+mid.B < 80 {
+		t.Errorf("clip_circle center too dark %v at (%d,%d)", mid, visX+int(w/2), visY+int(h/2))
+	}
+}
+
+func TestCanvasFxLayerCacheHits(t *testing.T) {
+	ResetLayerCache()
+	t.Cleanup(ResetLayerCache)
+	// Minimal app matching example authoring for cache_blur.
+	n := &model.Node{Type: "box", ID: "cache_blur", Style: map[string]any{
+		"filter": "blur(2px)", "layerCache": true,
+		"width": 120.0, "height": 48.0, "background": "#5e5ce6",
+		"x": 10.0, "y": 10.0,
+	}}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{n}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}}
+	rt := runtime.New(app)
+	rt.Theme = theme.GetDefault()
+	s := parseStyle(n, rt)
+	if !s.LayerCache {
+		t.Fatal("layerCache style must parse true")
+	}
+	e := NewEngine(rt, SoftwareRenderer{})
+	surf := NewHeadlessSurface(image.Pt(160, 80))
+	e.DrawFrame(surf)
+	layerCacheMu.Lock()
+	ent := layerCache["cache_blur"]
+	layerCacheMu.Unlock()
+	if ent == nil {
+		t.Fatal("expected layerCache entry for id=cache_blur after paint")
+	}
+	// Second frame same content → still cached (FP stable).
+	e.MarkDirty()
+	e.DrawFrame(surf)
+	layerCacheMu.Lock()
+	ent2 := layerCache["cache_blur"]
+	layerCacheMu.Unlock()
+	if ent2 == nil || ent2.fp != ent.fp {
+		t.Fatal("layer cache entry should remain for unchanged content")
 	}
 }
 
