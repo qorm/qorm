@@ -1640,7 +1640,7 @@ func (s *SelectableText) sessionFor(n *model.Node) *canvas.InputState {
 	return inter.Input
 }
 
-func (SelectableText) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
+func (*SelectableText) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, scale int) (w, h int) {
 	if scale < 1 {
 		scale = 1
 	}
