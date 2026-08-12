@@ -34,7 +34,8 @@ var KnownStyleKeys = map[string]bool{
 	// Box chrome (canvas RRect path).
 	"strokeColor": true, "strokeWidth": true,
 	"boxShadowColor": true, "boxShadowBlur": true,
-	"boxShadowX": true, "boxShadowY": true,
+	"boxShadowX": true, "boxShadowY": true, "boxShadowInset": true,
+	"filter": true, "blur": true, "filterBlur": true,
 	"pressedBackground": true, "hoverScale": true,
 	// Pseudo-state (pseudoStateCSS). Each key emits a CSS custom property into
 	// the node's inline style; the HTML shell (internal/server/server.go) carries

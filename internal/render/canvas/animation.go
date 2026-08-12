@@ -74,7 +74,9 @@ func UpdateAndGetAnimatedStyleD(key string, target NodeStyle, rt *runtime.Runtim
 		state.TargetStyle.Width != target.Width ||
 		state.TargetStyle.Height != target.Height ||
 		state.TargetStyle.Opacity != target.Opacity ||
-		state.TargetStyle.EffectiveScale != target.EffectiveScale {
+		state.TargetStyle.EffectiveScale != target.EffectiveScale ||
+		state.TargetStyle.PosX != target.PosX ||
+		state.TargetStyle.PosY != target.PosY {
 		targetChanged = true
 	}
 
@@ -119,6 +121,10 @@ func UpdateAndGetAnimatedStyleD(key string, target NodeStyle, rt *runtime.Runtim
 	current.BorderRadius = anim.Float64Tween(state.CurrentStyle.BorderRadius, state.TargetStyle.BorderRadius).Lerp(t)
 	current.Opacity = anim.Float64Tween(state.CurrentStyle.Opacity, state.TargetStyle.Opacity).Lerp(t)
 	current.EffectiveScale = anim.Float64Tween(state.CurrentStyle.EffectiveScale, state.TargetStyle.EffectiveScale).Lerp(t)
+	// Absolute position (board / left-top): tween so x/y changes with
+	// transition animate instead of snapping (layout motion).
+	current.PosX = anim.Float64Tween(state.CurrentStyle.PosX, state.TargetStyle.PosX).Lerp(t)
+	current.PosY = anim.Float64Tween(state.CurrentStyle.PosY, state.TargetStyle.PosY).Lerp(t)
 
 	state.CurrentStyle = current
 	return current, true // Needs redraw

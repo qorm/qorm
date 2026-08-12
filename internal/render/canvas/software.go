@@ -26,9 +26,9 @@ import (
 type SoftwareRenderer struct{}
 
 // Render implements Renderer.
-func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
+func (SoftwareRenderer) Render(ops *op.Ops, target *image.RGBA) {
 	// Every frame starts from a clean white background (opaque → straight).
-	draw.Draw(img, img.Bounds(), &image.Uniform{color.RGBA{255, 255, 255, 255}}, image.Point{}, draw.Src)
+	draw.Draw(target, target.Bounds(), &image.Uniform{color.RGBA{255, 255, 255, 255}}, image.Point{}, draw.Src)
 
 	// Pipeline state. Clips form a stack so nested containers intersect
 	// (Save/Restore snapshot the stack; a ClipOp pushes on top). The transform
@@ -36,6 +36,15 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 	// their integer coordinates into screen space (matrixScale reads the
 	// uniform scale so stroke widths, text font scale and corner radii follow
 	// a zoomed board).
+	// img is the active draw target — LayerOp redirects to a transparent
+	// offscreen buffer until EndLayerOp blurs and composites it back.
+	img := target
+	type layerFrame struct {
+		parent *image.RGBA
+		blur   float64
+	}
+	var layers []layerFrame
+
 	currentColor := color.RGBA{0, 0, 0, 255}
 	currentMatrix := geom.Identity()
 	var clips []op.ClipOp
@@ -53,6 +62,24 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 
 	for _, operation := range ops.Operations() {
 		switch o := operation.(type) {
+		case op.LayerOp:
+			// Offscreen layer for filter: blur() (and future group filters).
+			// Blur is authored in design px (already × DPR); multiply by the
+			// current matrix scale so a zoomed board softens in screen space.
+			blur := o.Blur
+			if ms := matrixScale(currentMatrix); ms > 1e-9 {
+				blur *= ms
+			}
+			layers = append(layers, layerFrame{parent: img, blur: blur})
+			img = image.NewRGBA(target.Bounds()) // transparent
+		case op.EndLayerOp:
+			if len(layers) == 0 {
+				break
+			}
+			frame := layers[len(layers)-1]
+			layers = layers[:len(layers)-1]
+			endLayerComposite(frame.parent, img, frame.blur)
+			img = frame.parent
 		case op.ColorOp:
 			currentColor = o.Color
 		case op.OpacityOp:
@@ -363,7 +390,8 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 						lx += float64(o.Rect.Min.X)
 						ly += float64(o.Rect.Min.Y)
 					}
-					if o.Shadow.A > 0 {
+					// Outer drop shadow (under fill).
+					if o.Shadow.A > 0 && !o.ShadowInset {
 						dL := sdRoundBox(lx, ly, cxL+shadowXL, cyL+shadowYL, hw, hh, radius)
 						dS := dL * s
 						var cov float64
@@ -402,6 +430,26 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 							blendOver(img, x, y, withOpacity(fill, cov*clipCov*currentOpacity))
 						}
 					}
+					// Inset shadow sits on top of the fill (CSS paint order).
+					// Soft exterior of the offset shape × original interior
+					// (CSS box-shadow: inset; zero offset yields an inner rim).
+					if o.Shadow.A > 0 && o.ShadowInset {
+						inside := clamp01(0.5 - dS)
+						if inside > 0 {
+							dOff := sdRoundBox(lx-shadowXL, ly-shadowYL, cxL, cyL, hw, hh, radius) * s
+							var rim float64
+							if shadowBlurS > 0 {
+								// 0 deep inside offset shape (−blur), 1 at/outside edge.
+								t := clamp01((dOff + shadowBlurS) / shadowBlurS)
+								rim = t * t * (3 - 2*t)
+							} else if dOff > 0 {
+								rim = 1
+							}
+							if cov := rim * inside; cov > 0.02 {
+								blendOver(img, x, y, withOpacity(o.Shadow, cov*clipCov*currentOpacity))
+							}
+						}
+					}
 					if o.Stroke.A > 0 && strokeWidthS > 0 {
 						// Stroke sits INSIDE the boundary (CSS border-box).
 						if cov := clamp01(0.5-dS) * clamp01(0.5+dS+strokeWidthS); cov > 0 {
@@ -412,6 +460,161 @@ func (SoftwareRenderer) Render(ops *op.Ops, img *image.RGBA) {
 			}
 		}
 	}
+}
+
+// endLayerComposite blurs src (optional) and blends non-zero pixels onto dst.
+// Used by op.EndLayerOp for CSS filter: blur() group layers.
+func endLayerComposite(dst, src *image.RGBA, blurPx float64) {
+	if dst == nil || src == nil {
+		return
+	}
+	region := alphaBounds(src)
+	if region.Empty() {
+		return
+	}
+	r := int(math.Ceil(blurPx))
+	if r > 24 {
+		r = 24 // keep 60fps on large layers
+	}
+	if r < 1 {
+		compositeLayer(dst, src, region)
+		return
+	}
+	// Expand for blur kernel; zero-pad outside content (filter blur, not frost).
+	region = image.Rect(region.Min.X-r, region.Min.Y-r, region.Max.X+r, region.Max.Y+r).Intersect(src.Bounds())
+	blurred := boxBlurRegionZeroPad(src, region, r)
+	bw, bh := blurred.Bounds().Dx(), blurred.Bounds().Dy()
+	for y := 0; y < bh; y++ {
+		for x := 0; x < bw; x++ {
+			c := blurred.RGBAAt(x, y)
+			if c.A == 0 {
+				continue
+			}
+			blendOver(dst, region.Min.X+x, region.Min.Y+y, c)
+		}
+	}
+}
+
+// alphaBounds returns the tight AABB of non-zero-alpha pixels in img.
+func alphaBounds(img *image.RGBA) image.Rectangle {
+	b := img.Bounds()
+	minX, minY := b.Max.X, b.Max.Y
+	maxX, maxY := b.Min.X, b.Min.Y
+	found := false
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			if img.RGBAAt(x, y).A == 0 {
+				continue
+			}
+			found = true
+			if x < minX {
+				minX = x
+			}
+			if y < minY {
+				minY = y
+			}
+			if x+1 > maxX {
+				maxX = x + 1
+			}
+			if y+1 > maxY {
+				maxY = y + 1
+			}
+		}
+	}
+	if !found {
+		return image.Rectangle{}
+	}
+	return image.Rect(minX, minY, maxX, maxY)
+}
+
+func compositeLayer(dst, src *image.RGBA, region image.Rectangle) {
+	region = region.Intersect(src.Bounds()).Intersect(dst.Bounds())
+	for y := region.Min.Y; y < region.Max.Y; y++ {
+		for x := region.Min.X; x < region.Max.X; x++ {
+			c := src.RGBAAt(x, y)
+			if c.A == 0 {
+				continue
+			}
+			blendOver(dst, x, y, c)
+		}
+	}
+}
+
+// boxBlurRegionZeroPad is a separable box blur treating out-of-bounds as
+// transparent (correct for filter:blur of isolated content).
+func boxBlurRegionZeroPad(img *image.RGBA, region image.Rectangle, radius int) *image.RGBA {
+	region = region.Intersect(img.Bounds())
+	w, h := region.Dx(), region.Dy()
+	out := image.NewRGBA(image.Rect(0, 0, w, h))
+	if region.Empty() || radius < 1 {
+		for y := 0; y < h; y++ {
+			for x := 0; x < w; x++ {
+				out.SetRGBA(x, y, img.RGBAAt(region.Min.X+x, region.Min.Y+y))
+			}
+		}
+		return out
+	}
+	tmp := image.NewRGBA(image.Rect(0, 0, w, h))
+	src := img.Bounds()
+	// Horizontal pass.
+	for y := 0; y < h; y++ {
+		sy := region.Min.Y + y
+		for x := 0; x < w; x++ {
+			var rSum, gSum, bSum, aSum, n uint32
+			for dx := -radius; dx <= radius; dx++ {
+				xx := region.Min.X + x + dx
+				if xx < src.Min.X || xx >= src.Max.X || sy < src.Min.Y || sy >= src.Max.Y {
+					n++ // transparent pad
+					continue
+				}
+				c := img.RGBAAt(xx, sy)
+				rSum += uint32(c.R) * uint32(c.A)
+				gSum += uint32(c.G) * uint32(c.A)
+				bSum += uint32(c.B) * uint32(c.A)
+				aSum += uint32(c.A)
+				n++
+			}
+			if n == 0 || aSum == 0 {
+				continue
+			}
+			// Un-premultiply average.
+			tmp.SetRGBA(x, y, color.RGBA{
+				uint8(rSum / aSum),
+				uint8(gSum / aSum),
+				uint8(bSum / aSum),
+				uint8(aSum / n),
+			})
+		}
+	}
+	// Vertical pass.
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			var rSum, gSum, bSum, aSum, n uint32
+			for dy := -radius; dy <= radius; dy++ {
+				yy := y + dy
+				if yy < 0 || yy >= h {
+					n++
+					continue
+				}
+				c := tmp.RGBAAt(x, yy)
+				rSum += uint32(c.R) * uint32(c.A)
+				gSum += uint32(c.G) * uint32(c.A)
+				bSum += uint32(c.B) * uint32(c.A)
+				aSum += uint32(c.A)
+				n++
+			}
+			if n == 0 || aSum == 0 {
+				continue
+			}
+			out.SetRGBA(x, y, color.RGBA{
+				uint8(rSum / aSum),
+				uint8(gSum / aSum),
+				uint8(bSum / aSum),
+				uint8(aSum / n),
+			})
+		}
+	}
+	return out
 }
 
 // transformPoint maps an integer op coordinate through the current matrix,

@@ -178,6 +178,10 @@ type NodeStyle struct {
 	// TransitionEasing names an anim curve ("spring", "easeOut", …) for
 	// declarative transitions; empty uses the theme standard easing.
 	TransitionEasing string
+	// FilterBlur is CSS filter: blur(Npx) on the node subtree (offscreen layer).
+	FilterBlur float64
+	// BoxShadowInset is CSS box-shadow: inset (inner shadow on the chrome).
+	BoxShadowInset bool
 }
 
 // scaleBy multiplies every pixel-valued field by f (a device-pixel ratio), so
@@ -210,6 +214,7 @@ func (s *NodeStyle) scaleBy(f int) {
 	s.TextShadowBlur *= float64(f)
 	s.TextShadowX *= float64(f)
 	s.TextShadowY *= float64(f)
+	s.FilterBlur *= float64(f)
 }
 
 func evalStyleProp(val any, rt *runtime.Runtime, sc ...*listScope) any {
@@ -938,6 +943,45 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 	} else if i, ok := bsy.(int); ok {
 		s.BoxShadowY = i
 	}
+	if v := esp(style["boxShadowInset"]); v != nil {
+		switch t := v.(type) {
+		case bool:
+			s.BoxShadowInset = t
+		case string:
+			s.BoxShadowInset = t == "true" || t == "inset" || t == "1"
+		case float64:
+			s.BoxShadowInset = t != 0
+		}
+	}
+
+	// CSS filter: blur(Npx) — also accepts numeric blur / filterBlur keys.
+	if v := esp(style["filter"]); v != nil {
+		if str, ok := v.(string); ok {
+			if b, ok := parseCSSFilterBlur(str); ok {
+				s.FilterBlur = b
+			}
+		}
+	}
+	if v := esp(style["blur"]); v != nil {
+		switch t := v.(type) {
+		case float64:
+			s.FilterBlur = t
+		case int:
+			s.FilterBlur = float64(t)
+		case string:
+			s.FilterBlur = parseCSSPx(t)
+		}
+	}
+	if v := esp(style["filterBlur"]); v != nil {
+		switch t := v.(type) {
+		case float64:
+			s.FilterBlur = t
+		case int:
+			s.FilterBlur = float64(t)
+		case string:
+			s.FilterBlur = parseCSSPx(t)
+		}
+	}
 
 	// HTML "gradient" / background linear-gradient(...): parse multi-stop
 	// fills for the software rasterizer; fall back to first-stop solid.
@@ -1184,6 +1228,29 @@ func parseCSSPx(s string) float64 {
 	return f
 }
 
+// parseCSSFilterBlur extracts the first blur() radius from a CSS filter
+// string (e.g. "blur(8px)", "blur(4)"). Returns ok=false when no blur is found.
+func parseCSSFilterBlur(s string) (float64, bool) {
+	s = strings.TrimSpace(strings.ToLower(s))
+	const prefix = "blur("
+	i := strings.Index(s, prefix)
+	if i < 0 {
+		return 0, false
+	}
+	rest := s[i+len(prefix):]
+	j := strings.IndexByte(rest, ')')
+	if j < 0 {
+		return 0, false
+	}
+	inner := strings.TrimSpace(rest[:j])
+	inner = strings.TrimSuffix(inner, "px")
+	f, err := strconv.ParseFloat(strings.TrimSpace(inner), 64)
+	if err != nil || f < 0 {
+		return 0, false
+	}
+	return f, true
+}
+
 // lineHeightMult returns the effective line-box multiplier for text layout.
 // Unitless author values in (0, 4] are treated as multipliers; larger values
 // are treated as absolute px and converted using fontSize (CSS-ish heuristic).
@@ -1232,6 +1299,9 @@ var canvasStyleKeys = map[string]bool{
 	"textStrokeColor": true, "textStrokeWidth": true,
 	"textShadowColor": true, "textShadowBlur": true,
 	"textShadowX": true, "textShadowY": true,
+	// CSS filter: blur on the node subtree (offscreen layer).
+	"filter": true, "blur": true, "filterBlur": true,
+	"boxShadowInset": true, // CSS box-shadow: inset
 	// Spacer / simple widgets.
 	"size": true,
 }

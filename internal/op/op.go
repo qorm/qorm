@@ -157,10 +157,20 @@ func (o *Ops) Fingerprint() uint64 {
 			writeF64(t.ShadowBlur)
 			writeF64(t.ShadowX)
 			writeF64(t.ShadowY)
+			if t.ShadowInset {
+				writeU8(1)
+			} else {
+				writeU8(0)
+			}
 		case RectOp:
 			writeU8(13)
 			writeRect(t.Rect)
 			writeF64(t.Radius)
+		case LayerOp:
+			writeU8(14)
+			writeF64(t.Blur)
+		case EndLayerOp:
+			writeU8(15)
 		default:
 			writeU8(255)
 		}
@@ -285,9 +295,26 @@ type RRectOp struct {
 	ShadowBlur   float64
 	ShadowX      float64
 	ShadowY      float64
+	// ShadowInset draws the shadow inside the shape (CSS box-shadow: inset).
+	ShadowInset bool
 }
 
 func (RRectOp) isOp() {}
+
+// LayerOp begins an offscreen layer. Subsequent ops draw into a transparent
+// buffer until EndLayerOp; the layer is then optionally blurred and composited
+// onto the parent target (CSS filter: blur() on a group).
+type LayerOp struct {
+	// Blur is the Gaussian-approx box blur radius in screen pixels.
+	Blur float64
+}
+
+func (LayerOp) isOp() {}
+
+// EndLayerOp closes the most recent LayerOp: blur + composite onto parent.
+type EndLayerOp struct{}
+
+func (EndLayerOp) isOp() {}
 
 // OpacityOp sets the current opacity.
 type OpacityOp struct {

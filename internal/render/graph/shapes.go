@@ -10,6 +10,9 @@ import (
 // Group represents a container node
 type Group struct {
 	BaseNode
+	// FilterBlur is CSS filter: blur(Npx) on the whole subtree — recorded as
+	// a LayerOp so the software path can offscreen-blur then composite.
+	FilterBlur float64
 }
 
 // NewGroup creates a new Group node
@@ -60,6 +63,10 @@ func (g *Group) HitTest(p geom.Point) Node {
 func (g *Group) Draw(ctx *Context) {
 	g.UpdateGlobalTransform()
 
+	if g.FilterBlur > 0 {
+		ctx.BeginLayer(g.FilterBlur)
+	}
+
 	ctx.Save()
 	ctx.Opacity(g.Opacity)
 	ctx.Transform(localTransform(&g.BaseNode))
@@ -68,6 +75,10 @@ func (g *Group) Draw(ctx *Context) {
 	g.DrawChildren(ctx)
 
 	ctx.Restore()
+
+	if g.FilterBlur > 0 {
+		ctx.EndLayer()
+	}
 }
 
 // Rect represents a rectangular shape (with optional border radius)
@@ -86,6 +97,8 @@ type Rect struct {
 	ShadowBlur  float64
 	ShadowX     float64
 	ShadowY     float64
+	// ShadowInset is CSS box-shadow: inset (inner shadow).
+	ShadowInset bool
 	// GradientStopPos optional 0..1 positions; empty = even spacing.
 	GradientStopPos []float64
 	GradientRadial  bool
@@ -119,7 +132,7 @@ func (r *Rect) Draw(ctx *Context) {
 		ctx.RRectEx(rect, r.BorderRadius, r.Fill, r.Stroke, r.StrokeWidth,
 			r.ShadowColor, r.ShadowBlur, r.ShadowX, r.ShadowY,
 			r.GradientStops, r.GradientStopPos, r.GradientAngle, r.GradientRadial,
-			r.BackdropBlur, r.BackdropTint)
+			r.BackdropBlur, r.BackdropTint, r.ShadowInset)
 		ctx.Restore()
 		return
 	}

@@ -7,6 +7,14 @@ All notable changes to QORM are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Canvas filter blur**: CSS `filter: "blur(8px)"` (or `blur` / `filterBlur`)
+  draws the node subtree into an offscreen layer, separable box-blurs it, and
+  composites back — true group blur, not backdrop frost.
+- **Canvas inset box-shadow**: `boxShadowInset: true` paints CSS
+  `box-shadow: inset` on the chrome RRect (soft inner rim + offset).
+- **Canvas position transitions**: absolute `x`/`y` (and left/top) tween when
+  `transition` is set, so board / free-position layout motion eases instead of
+  snapping.
 - **Canvas text stroke + text shadow**: declarative `textStrokeColor` /
   `textStrokeWidth` and `textShadowColor` / `textShadowBlur` / `textShadowX` /
   `textShadowY` flow style → graph Text → `TextOp` → software multi-pass

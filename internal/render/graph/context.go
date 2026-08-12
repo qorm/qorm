@@ -128,16 +128,28 @@ func (c *Context) DrawImage(src *image.RGBA, dest image.Rectangle) {
 // and drop shadow (see op.RRectOp) — per-pixel SDF coverage instead of the
 // binary clip+paint path, so corners and shadow falloff render smoothly.
 func (c *Context) RRect(r image.Rectangle, radius float64, fill, stroke color.RGBA, strokeWidth float64, shadow color.RGBA, shadowBlur, shadowY float64) {
-	c.RRectEx(r, radius, fill, stroke, strokeWidth, shadow, shadowBlur, 0, shadowY, nil, nil, 0, false, 0, color.RGBA{})
+	c.RRectEx(r, radius, fill, stroke, strokeWidth, shadow, shadowBlur, 0, shadowY, nil, nil, 0, false, 0, color.RGBA{}, false)
 }
 
-// RRectEx is RRect plus gradient stops (linear or radial) and optional frost.
-func (c *Context) RRectEx(r image.Rectangle, radius float64, fill, stroke color.RGBA, strokeWidth float64, shadow color.RGBA, shadowBlur, shadowX, shadowY float64, grad []color.RGBA, gradPos []float64, gradAngle float64, gradRadial bool, backdropBlur float64, backdropTint color.RGBA) {
+// RRectEx is RRect plus gradient stops (linear or radial), optional frost, and
+// inset (inner) shadow.
+func (c *Context) RRectEx(r image.Rectangle, radius float64, fill, stroke color.RGBA, strokeWidth float64, shadow color.RGBA, shadowBlur, shadowX, shadowY float64, grad []color.RGBA, gradPos []float64, gradAngle float64, gradRadial bool, backdropBlur float64, backdropTint color.RGBA, shadowInset bool) {
 	c.ops.Add(op.RRectOp{
 		Rect: r, Radius: radius,
 		Fill: fill, Stroke: stroke, StrokeWidth: strokeWidth,
 		Shadow: shadow, ShadowBlur: shadowBlur, ShadowX: shadowX, ShadowY: shadowY,
+		ShadowInset:   shadowInset,
 		GradientStops: grad, GradientStopPos: gradPos, GradientAngle: gradAngle, GradientRadial: gradRadial,
 		BackdropBlur: backdropBlur, BackdropTint: backdropTint,
 	})
+}
+
+// BeginLayer starts an offscreen layer (see op.LayerOp). Must pair with EndLayer.
+func (c *Context) BeginLayer(blur float64) {
+	c.ops.Add(op.LayerOp{Blur: blur})
+}
+
+// EndLayer closes the current offscreen layer and composites it.
+func (c *Context) EndLayer() {
+	c.ops.Add(op.EndLayerOp{})
 }

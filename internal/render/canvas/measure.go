@@ -789,6 +789,10 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 		// like CSS opacity:0).
 		group.Opacity = ln.Style.Opacity
 	}
+	if ln.Style.FilterBlur > 0 {
+		// CSS filter: blur() — offscreen layer in graph.Group.Draw.
+		group.FilterBlur = ln.Style.FilterBlur
+	}
 
 	if ln.Node.OnPress != nil {
 		group.OnPress = ln.Node.OnPress
@@ -857,6 +861,7 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 			bg.ShadowBlur = float64(ln.Style.BoxShadowBlur)
 			bg.ShadowX = float64(ln.Style.BoxShadowX)
 			bg.ShadowY = float64(ln.Style.BoxShadowY)
+			bg.ShadowInset = ln.Style.BoxShadowInset
 		}
 
 		group.AddChild(bg)
