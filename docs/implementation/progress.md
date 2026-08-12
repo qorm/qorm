@@ -44,7 +44,8 @@
 | field / textformfield / richtext(wrap) / carousel | 🟢 |
 | multi-stop CSS-angle gradient + backdropBlur | 🟢 |
 | rangeslider / pageview / tree / autocomplete | 🟢 |
-| parity allowlist 收缩 | 🟢 剩余: actionsheet, alertdialog, descriptions, dropdownbutton, materialstepper, monthview, motion, picker, rating, refreshindicator, selectabletext, transform |
+| remaining: actionsheet/alertdialog/descriptions/dropdownbutton/materialstepper/monthview/motion/picker/rating/refreshindicator/selectabletext/transform | 🟢 |
+| parity allowlist 收缩 | 🟢 核心 example 类型 allowlist 已清空 |
 | 测试 widgets/canvas/integration | 🟢 |
 
 ## 变更日志

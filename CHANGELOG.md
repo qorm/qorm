@@ -7,6 +7,12 @@ All notable changes to QORM are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Canvas remaining catalog ports**: `actionsheet`, `alertdialog`,
+  `descriptions`, `dropdownbutton` (Select alias), `materialstepper`,
+  `monthview` (calendar grid + events), `motion` (entrance container),
+  `picker` (option wheel), `rating` (stars/dots + tap), `refreshindicator`
+  (pull-to-refresh), `selectabletext`, and `transform` (rotate/scale/translate).
+  HTML↔canvas parity allowlist is empty for core example types.
 - **Canvas rangeslider / pageview / tree / autocomplete**: dual-thumb range
   control (low/high bindings), one-page-at-a-time pageview with tap navigation,
   hierarchical tree with expand/collapse (bound `data`, per-node `expanded`),

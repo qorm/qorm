@@ -74,24 +74,15 @@ var canvasEngineNativeTypes = map[string]bool{
 // today (they still lay out as generic boxes). Reason is for humans; the key is
 // what the harness checks. Remove an entry when canvas gains real support —
 // a stale entry fails the reverse check once the type is canvas-known.
+// htmlOnlyCoreAllowlist is empty when every HTML-switch ∩ example type has a
+// canvas RegisterWidget / engine-native path. Keep the map for the harness
+// reverse-check and re-add entries only with a non-empty reason.
 var htmlOnlyCoreAllowlist = map[string]string{
-	"actionsheet":      "canvas sheet/bottomsheet only; dedicated action sheet pending",
-	"alertdialog":      "dedicated alert dialog pending (modal/alert exist)",
-	"descriptions":     "canvas port pending",
-	"dropdownbutton":   "canvas select/dropdown cover the common case",
-	"materialstepper":  "canvas port pending (steps exists)",
-	"monthview":        "canvas port pending",
-	"motion":           "canvas port pending (entrance/transition styles cover some cases)",
-	"picker":           "canvas port pending (date/time pickers exist)",
-	"rating":           "HTML-only; examples/customwidget registers canvas rating in middle layer",
-	"refreshindicator": "canvas port pending",
-	"selectabletext":   "canvas port pending",
-	"transform":        "canvas port pending",
-	// Ported to canvas — removed from allowlist (see widgets/*.go):
-	// activityindicator, animatedcontainer, aspectratio, circularprogress,
-	// ignorepointer, skeleton, tag, fab, switchlisttile, searchbar,
-	// checkboxlisttile, radiolisttile, field, textformfield, richtext, carousel,
-	// rangeslider, pageview, tree, autocomplete.
+	// Ported to canvas — see widgets/*.go (remaining_widgets.go, more_widgets.go, …):
+	// actionsheet, alertdialog, descriptions, dropdownbutton, materialstepper,
+	// monthview, motion, picker, rating, refreshindicator, selectabletext, transform,
+	// rangeslider, pageview, tree, autocomplete, field, textformfield, richtext,
+	// carousel, searchbar, fab, …
 }
 
 // canvasOnlyAllowlist: RegisterWidget names with no HTML switch case. Empty

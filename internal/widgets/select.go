@@ -26,6 +26,8 @@ func init() {
 	}
 	canvas.RegisterWidget("select", w)
 	canvas.RegisterWidget("dropdown", w)
+	// Flutter DropdownButton: same control with a Material-flavoured name.
+	canvas.RegisterWidget("dropdownbutton", w)
 }
 
 // Select is the single-value picker box: the selected option's label (or the
