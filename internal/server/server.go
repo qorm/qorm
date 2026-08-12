@@ -291,6 +291,19 @@ func (s *Server) SetCanvasHost(v bool) {
 	s.mu.Unlock()
 }
 
+// SetMeasure installs a layout self-report payload (same JSON array shape as
+// POST /measure from the HTML client). The pure-Go canvas host pushes
+// CollectMeasure rows here every frame so qorm_measure / GET /measure work
+// without a browser DOM.
+func (s *Server) SetMeasure(body []byte) {
+	if s == nil {
+		return
+	}
+	s.measureMu.Lock()
+	s.measure = append([]byte(nil), body...)
+	s.measureMu.Unlock()
+}
+
 // SetMarshal installs the canvas host's render-thread serializer (typically
 // engine.EnqueueMutation). nil (the default) runs work inline on the caller's
 // goroutine — correct for the browser host, where s.mu alone serializes state.

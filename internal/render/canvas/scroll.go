@@ -603,6 +603,10 @@ func (e *Engine) applyScrollMomentum(now time.Time) bool {
 
 // handleScrollDrag processes one pointer event against an armed or active
 // ScrollDrag. Returns true when the event was consumed (caller must return).
+//
+// When Pending under an InteractiveWidget capture (list tile, button inside
+// a scroll), a drag past slop on the scroll's dominant axis STEALS the
+// stream so list rows scroll instead of only responding to taps.
 func (e *Engine) handleScrollDrag(p PointerInput) bool {
 	d := &e.Inter.ScrollDrag
 	switch {
@@ -613,8 +617,8 @@ func (e *Engine) handleScrollDrag(p PointerInput) bool {
 			e.dirty.Store(true)
 			return true
 		}
-		// Pending only (tap): clear without consuming so generic release
-		// can still fire onPress / swipe.
+		// Pending only (tap): clear without consuming so the widget/generic
+		// release can still fire onPress / swipe.
 		e.Inter.ScrollDrag = ScrollDragState{}
 		return false
 	case p.Type == PointerMove && p.Buttons > 0:
@@ -623,13 +627,36 @@ func (e *Engine) handleScrollDrag(p PointerInput) bool {
 			return false
 		}
 		if d.Pending {
-			if math.Hypot(p.X-d.StartX, p.Y-d.StartY) < scrollDragSlop {
+			adx := math.Abs(p.X - d.StartX)
+			ady := math.Abs(p.Y - d.StartY)
+			if math.Hypot(adx, ady) < scrollDragSlop {
 				d.LastX, d.LastY = p.X, p.Y
-				return false // still a tap candidate
+				return false // still a tap / widget candidate
 			}
+			// Axis lock: only steal when travel matches the viewport's
+			// overflow axis (vertical list + vertical drag, etc.). A
+			// horizontal swipe on a vertical scroller leaves the child
+			// (swipeactions, slider) alone.
+			maxX, maxY := 0.0, 0.0
+			if g := e.findGroupByModel(d.Node); g != nil {
+				if vp, ok := g.(*graph.Group); ok {
+					maxX, maxY = scrollRange(vp)
+				}
+			}
+			const dominance = 1.15
+			if maxY > 0 && maxX <= 0 && ady < adx*dominance {
+				e.Inter.ScrollDrag = ScrollDragState{} // horizontal → child wins
+				return false
+			}
+			if maxX > 0 && maxY <= 0 && adx < ady*dominance {
+				e.Inter.ScrollDrag = ScrollDragState{} // vertical → child wins
+				return false
+			}
+			// Both axes scrollable, or matching axis: steal.
 			d.Pending = false
 			d.Active = true
-			// Steal any generic press capture so pressables don't fire on release.
+			// Steal InteractiveWidget / generic capture so pressables don't
+			// fire on release after a scroll gesture.
 			e.Inter.Pressed = nil
 			e.Inter.PressedItem = 0
 			e.Inter.PressedScope = nil
@@ -661,12 +688,31 @@ func (e *Engine) handleScrollDrag(p PointerInput) bool {
 		e.dirty.Store(true)
 		return true
 	default:
-		// A fresh press while pending/active drops the drag state.
-		if p.Type == PointerPress {
-			e.Inter.ScrollDrag = ScrollDragState{}
-		}
+		// PointerPress is handled by armScrollDragFromHit; do not clear here.
 		return false
 	}
+}
+
+// armScrollDragFromHit arms a pending touch-drag when the press is over a
+// scroll viewport (including presses that land on InteractiveWidget children).
+func (e *Engine) armScrollDragFromHit(hit graph.Node) {
+	if _, m := scrollAncestor(hit); m != nil {
+		if e.Inter.ScrollMomentum != nil {
+			if mom, ok := e.Inter.ScrollMomentum[m]; ok {
+				mom.Active, mom.Spring = false, false
+				mom.VX, mom.VY = 0, 0
+				e.Inter.ScrollMomentum[m] = mom
+			}
+		}
+		// LastX/Y filled by the caller with the press coordinates.
+		e.Inter.ScrollDrag.Node = m
+		e.Inter.ScrollDrag.Pending = true
+		e.Inter.ScrollDrag.Active = false
+		e.Inter.ScrollDrag.MomVX, e.Inter.ScrollDrag.MomVY = 0, 0
+		e.Inter.ScrollDrag.MomLast = time.Now()
+		return
+	}
+	e.Inter.ScrollDrag = ScrollDragState{}
 }
 
 // endScrollDrag finishes a touch-drag: seeds coast velocity and/or a spring

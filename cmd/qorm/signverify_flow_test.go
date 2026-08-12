@@ -662,13 +662,9 @@ func TestDesktopOnlyCommandsRefuseInPureBuild(t *testing.T) {
 	if code := cmdMeasure(nil); code != 2 {
 		t.Errorf("measure no args: exit = %d, want 2", code)
 	}
-	errOut := captureStderr(t, func() {
-		if code := cmdMeasure([]string{app}); code != 1 {
-			t.Errorf("measure pure build: exit = %d, want 1", code)
-		}
-	})
-	if !strings.Contains(errOut, "-tags desktop") {
-		t.Errorf("measure stderr = %q, should name the missing tag", errOut)
+	// Pure-Go canvas measure is supported (no WebView required).
+	if code := cmdMeasure([]string{app}); code != 0 {
+		t.Errorf("measure pure-Go canvas: exit = %d, want 0", code)
 	}
 
 	if code := cmdCheck(nil); code != 2 {
@@ -677,8 +673,9 @@ func TestDesktopOnlyCommandsRefuseInPureBuild(t *testing.T) {
 	if code := cmdCheck([]string{app}); code != 2 {
 		t.Errorf("check without --checks/--audit: exit = %d, want 2", code)
 	}
-	if code := cmdCheck([]string{app, "--audit"}); code != 1 {
-		t.Errorf("check pure build: exit = %d, want 1", code)
+	// Static audit works on pure-Go canvas; interactive flows still need desktop.
+	if code := cmdCheck([]string{app, "--audit"}); code != 0 {
+		t.Errorf("check --audit pure-Go canvas: exit = %d, want 0", code)
 	}
 
 	if code := cmdPreview(nil); code != 2 {

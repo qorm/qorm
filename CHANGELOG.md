@@ -7,11 +7,19 @@ All notable changes to QORM are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
+- **Canvas scroll steals from list rows**: a vertical drag that starts on an
+  InteractiveWidget inside a scroll viewport (checkbox/listtile/…) activates
+  scroll after slop and axis lock — list rows scroll instead of trapping the
+  gesture. Horizontal-dominant travel leaves the child (slider/swipe) alone.
+- **Canvas-native measure (agent ground truth)**: `Engine.CollectMeasure` and
+  headless `MeasureScene` emit HTML-compatible measurement rows from the pure-
+  Go graph. `qorm measure` / `qorm check --audit` work without `-tags desktop`;
+  the native canvas host pushes rows to `/measure` every frame for MCP
+  `qorm_measure` / `qorm_check_layout`.
 - **Canvas touch-drag scroll + rubber-band**: finger/pointer drag on `scroll` /
-  `scrollview` (when no InteractiveWidget claims the press) with slop, content-
-  follows-finger deltas, rubber-band overscroll, spring settle, and coast
-  momentum. Pull past the top threshold fires `onRefresh` on the scroll node
-  or a wrapping `refreshindicator`.
+  `scrollview` with slop, content-follows-finger deltas, rubber-band
+  overscroll, spring settle, and coast momentum. Pull past the top threshold
+  fires `onRefresh` on the scroll node or a wrapping `refreshindicator`.
 - **Canvas refreshindicator polish**: rubber pull height, 8-spoke spinner,
   700ms busy phase (`AnimatedWidget`), softer arm slop so taps pass through.
 - **Canvas entrance motion (competitive)**: entrance effects now drive real

@@ -180,6 +180,9 @@ func runCanvasWindow(srv *server.Server, ln net.Listener, title string, hooks *c
 			if rendered, _ := eng.RenderInto(app.Pt(physW, physH), scale, win.Backbuffer()); rendered {
 				win.PresentImage()
 			}
+			// Feed agent measurement from the live graph (HTML path POSTs the
+			// same shape from the browser; canvas has no DOM).
+			srv.SetMeasure(eng.CollectMeasure())
 		}
 		// The overlay host syncs its platform views against the graph the
 		// frame above (re)built — also on idle ticks, so an unchanged scene

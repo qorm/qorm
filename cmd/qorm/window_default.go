@@ -22,15 +22,8 @@ func launchWindow(_ *server.Server, _ net.Listener, _, _ string) bool {
 // window only exists in a `-tags desktop` binary.
 func runLogWindow(_, _ string) {}
 
-// runMeasure needs the native WebView; only the -tags desktop build can render
-// and self-measure the app.
-func runMeasure(_, _ string, _ int) error {
-	return fmt.Errorf("measure needs a -tags desktop build (native WebView)")
-}
-
-func runCheck(_, _, _ string, _ bool, _ int) error {
-	return fmt.Errorf("check needs a -tags desktop build (native WebView)")
-}
+// runMeasure / runCheck for pure-Go builds live in measure_pure.go (canvas
+// headless layout). Interactive check flows and preview still need desktop.
 
 func runPreview(_ string, _ int, _, _ string) error {
 	return fmt.Errorf("preview needs a -tags desktop build (native WebView)")

@@ -19,13 +19,7 @@ func launchWindow(srv *server.Server, ln net.Listener, _, title string) bool {
 
 func runLogWindow(_, _ string) {}
 
-func runMeasure(_, _ string, _ int) error {
-	return fmt.Errorf("measure needs a -tags desktop build (native WebView) or full canvas implementation")
-}
-
-func runCheck(_, _, _ string, _ bool, _ int) error {
-	return fmt.Errorf("check needs a -tags desktop build (native WebView)")
-}
+// runMeasure / runCheck: measure_pure.go (pure-Go canvas headless).
 
 func runPreview(_ string, _ int, _, _ string) error {
 	return fmt.Errorf("preview needs a -tags desktop build (native WebView)")
