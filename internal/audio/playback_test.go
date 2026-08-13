@@ -45,6 +45,19 @@ func TestStdoutSinkSFXDoesNotReplaceMusic(t *testing.T) {
 	if err := sink.Play(music, true); err != nil {
 		t.Skipf("afplay/aplay: %v", err)
 	}
+	// Headless CI has the audio tool but no device: the music process dies
+	// almost immediately (and the sink stops respawning — see playMusic).
+	// Give it time to declare itself; the slot invariant below only means
+	// something while music actually plays.
+	time.Sleep(150 * time.Millisecond)
+	sink.mu.Lock()
+	musicDone := sink.musicDone
+	sink.mu.Unlock()
+	select {
+	case <-musicDone:
+		t.Skipf("music process exited immediately — no audio device on this host")
+	default:
+	}
 	sink.mu.Lock()
 	musicCmd := sink.music
 	sink.mu.Unlock()

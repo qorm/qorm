@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 )
 
 // Sound is a decoded WAV: PCM samples + format headers, ready to hand to a
@@ -268,11 +269,20 @@ func (s *StdoutSink) playMusic(snd *Sound, path string) error {
 	s.musicDone = done
 	s.mu.Unlock()
 
+	start := time.Now()
 	go func() { _ = cmd.Wait(); close(done) }()
 	go func() {
 		<-done
 		s.mu.Lock()
 		still := s.music == cmd
+		// A music process that dies almost immediately means the sink is
+		// broken (no audio device — headless CI, muted containers). The loop
+		// is implemented as respawn-on-exit, so re-playing here would churn
+		// out failing processes forever. Real tracks play for seconds, so a
+		// sub-500ms lifetime is the signal to stop, not loop.
+		if still && time.Since(start) < 500*time.Millisecond {
+			still = false
+		}
 		s.mu.Unlock()
 		if still {
 			_ = s.Play(snd, true)
