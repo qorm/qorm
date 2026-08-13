@@ -23,7 +23,11 @@
       "tintHex": "string",
       "xformRot": "number",
       "xformScale": "number",
-      "xformFlip": "boolean"
+      "xformFlip": "boolean",
+      "zFront": "boolean",
+      "skewDeg": "number",
+      "blendExtra": "string",
+      "originSpin": "number"
     },
     "initial": {
       "flipLeft": true,
@@ -43,6 +47,10 @@
       "xformRot": 0,
       "xformScale": 1,
       "xformFlip": false,
+      "zFront": true,
+      "skewDeg": 0,
+      "blendExtra": "difference",
+      "originSpin": 25,
       "staggerItems": [
         { "c": "#ff9f0a" },
         { "c": "#30d158" },

@@ -37,6 +37,8 @@ Permission requirements
 
 - JSON 必须保持有效。
 - 必须使用 `type` 字段来区分文件语义。
+- 侧滚关卡用 `board` + `tilemap`，不要用 `list` 铺整张地图。
+- 不要对 60fps 物理的 `x`/`y` 做 `layoutMotion` / transition。
 - 不得凭空添加 Host Capabilities。
 - 修改后,必须执行 validate。
 

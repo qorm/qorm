@@ -6,6 +6,63 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+### Changed
+- **Mario is NES 1-1 at 2x, not a generic platformer**: 32 px tiles with a
+  24×32 (big 24×64) hitbox; walk/run/jump/gravity are 2x SMB numbers;
+  camera dead-zone + `cameraLockLeft` (no scroll back); HUD overlays the
+  512×480 playfield (MARIO / COIN / WORLD / TIME); `?` blocks are coins
+  except one mushroom; Koopa stomps into a kickable shell. Side-panel HUD,
+  16 px hitbox-in-32 px-world, and 1x gravity in a 2x stage are gone.
+- **Mario canvas frames stay on budget**: one `viewTiles` list (not one
+  list per tile kind), skip rebuild while the camera column is unchanged,
+  `fill`+index instead of `push`. Engine: axis-aligned `RRectOp` / nearest
+  `ImageOp` blit via Pix (sky + tiles); board lists frustum-cull off-camera
+  items at measure so far goombas are not laid out.
+- **Mario R rewinds the camera**: board `cameraResetToken` (Mario binds
+  `state.cameraGen`) snaps follow-cam past `cameraLockLeft` / dead-zone
+  sticky pan so restart is not stuck mid-level.
+- **Native audio + keys**: OS key-repeat no longer re-fires scene actions
+  (jump/restart). `StdoutSink` keeps looping music in its own `afplay`
+  slot so `playSound` cannot kill BGM or hitch the frame.
+- **Mario Super form**: mushroom pickup stands him up 32px so the 64px
+  hitbox is not buried in the floor (that cancelled jumps). Dedicated
+  32x64 sprites (`mario_big*.png`) instead of `cover`-cropping a 32x32
+  square. `viewTiles` keeps a 4-column slack so running does not rebuild
+  the tile list every column; board pan is integer.
+- **Canvas `tilemap`**: bakes a char-grid + atlas into one world bitmap
+  (cached until rows/bump change). Mario paints the whole 1-1 layer as a
+  single image and pans it — no per-tile list on the hot path.
+- **Board dirty rects follow the camera**: pan/zoom is a content
+  transform, so layout AbsX never moved and a walk only redrew Mario —
+  the world stayed on the previous frame. Camera motion now forces a
+  full-frame raster.
+- **Board scenes always full-frame**: enemy motion with a still camera
+  used world-space dirty rects and strobed. Super Mario is unstuck from
+  the floor every tick (and on jump); physics uses a fixed 1/60 dt.
+- **Mario jump height**: standing jump 540 px/s, hold gravity 1040
+  (about 4.4 tiles), fall 2080 (tap still ~2 tiles). Old 480/1120/3150
+  peaked at ~3.2 / 1.1 tiles and missed the row-9 `?`.
+- **Agent skill / MCP docs**: skill lists the full MCP tool surface
+  (`qorm_validate`, `qorm_window`, `qorm_a11y_tree`, …); documents
+  `tilemap`, board camera (`cameraLockLeft` / `cameraResetToken`),
+  qscript audio, and game motion rules. `api/props.md` board/tilemap
+  props regenerated from render. `docs/styles.md` (EN/ZH) now has the
+  side-scroller + tilemap section.
+
+### Added
+- **Canvas stacking / skew / blend extras**: `zIndex` now sorts sibling paint
+  and hit order on canvas (`0` = auto; already in `KnownStyleKeys` for HTML);
+  `skewX` / `skewY` (degrees; layout box unchanged; graph shear);
+  `mixBlendMode` `difference` / `exclusion` / `color-dodge` / `color-burn` /
+  `hard-light` (plus the existing five). Showcase sections 23–25 in
+  `examples/canvas-fx`.
+- **Canvas transform-origin / clip polygon / plus-lighter**: style
+  `transformOrigin` (CSS `center`, `left top`, `50% 0`, `12px 8px`; default
+  center) pivots rotate/scale/flip/skew; `clipPath` `polygon(...)` (optional
+  `evenodd` / `nonzero`); `mixBlendMode` `plus-lighter` / `lighter` (additive;
+  `lighter` is the Porter-Duff alias). Showcase sections 26–28 in
+  `examples/canvas-fx`.
+
 ## [v0.8.10] - 2026-08-12
 
 ### Added

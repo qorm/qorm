@@ -314,6 +314,9 @@ func Audit(rt *qrt.Runtime, measured []byte) ([]byte, error) {
 		}
 	}
 	scrollTypes := map[string]bool{"pageview": true, "carousel": true, "scroll": true, "table": true, "badge": true}
+	// World-space layers (board tilemap) are larger than the viewport
+	// by design; the camera pans them.
+	worldTypes := map[string]bool{"tilemap": true, "board": true}
 	exempt := map[string]bool{}
 	if root := rt.App.EntryRoot(); root != nil {
 		hscrollDescendants(root, false, exempt)
@@ -339,7 +342,7 @@ func Audit(rt *qrt.Runtime, measured []byte) ([]byte, error) {
 			add("zero-size", fmt.Sprintf("%gx%g", w, h))
 		}
 		fixed := fmt.Sprint(r["position"]) == "fixed"
-		if !scrollTypes[typ] && !exempt[id] && !fixed {
+		if !scrollTypes[typ] && !worldTypes[typ] && !exempt[id] && !fixed {
 			if ov, _ := r["overflowX"].(bool); ov {
 				add("x-overflow", "content wider than box")
 			}

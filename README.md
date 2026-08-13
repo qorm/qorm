@@ -102,14 +102,17 @@ are generated from the code and kept in sync by tests.
   verify-before-activate delivery and one-command rollback.
 - **Design verification**: The agent proves its edits by measuring real rendered geometry with `qorm measure` / `qorm check`, verifying layout geometry quantitatively.
 
-## What's new in 0.8.10
+## What's new in 0.8.11
 
-Canvas is a 2D game-engine-class renderer now: declarative `fx` / `timeline` /
-path follow / stagger / yoyo, plus `tint`, `invert()`/`sepia()`,
-`imageRendering: pixelated`, and persistent `rotate`/`scale`/`flipX`.
+Side-scrollers get a real world plane: `tilemap` bakes a char-grid + atlas
+into one bitmap; the `board` camera follows with `cameraLockLeft` and
+`cameraResetToken` (restart actually rewinds). Mario is NES World 1-1 at 2x
+(512×480, Super form, original WAV). Extra canvas style: `zIndex`,
+`skewX`/`skewY`, `transformOrigin`, `clipPath: polygon(...)`, and
+`mixBlendMode` `plus-lighter`. Skill / MCP docs list the full tool surface.
 
 Play it: [qorm.com/games](https://qorm.com/games/) (Tetris, 2048, Raiden, Mario)
-or `go run ./cmd/qorm run examples/tetris`. Showcase:
+or `go run ./cmd/qorm run examples/mario`. Showcase:
 `examples/canvas-fx`. Docs: [styles](docs/styles.md) ·
 [animation](api/animation.md) · [props](api/props.md).
 

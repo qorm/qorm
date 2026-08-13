@@ -249,6 +249,27 @@ func winSFX() []float64 {
 	return mix(concat(parts...))
 }
 
+func bumpSFX() []float64 {
+	return adsr(squareWave(0.06, 110), 0.002, 0.04)
+}
+
+func powerupSFX() []float64 {
+	return mix(concat(
+		adsr(triangleWave(0.07, freq(72)), 0.004, 0.03),
+		adsr(triangleWave(0.07, freq(76)), 0.004, 0.03),
+		adsr(triangleWave(0.10, freq(79)), 0.004, 0.05),
+		adsr(triangleWave(0.16, freq(84)), 0.004, 0.07),
+	))
+}
+
+func powerdownSFX() []float64 {
+	return mix(concat(
+		adsr(squareWave(0.08, freq(67)), 0.004, 0.04),
+		adsr(squareWave(0.10, freq(64)), 0.004, 0.05),
+		adsr(squareWave(0.16, freq(60)), 0.004, 0.08),
+	))
+}
+
 // musicLoop: a simple 4-bar overworld-style melody. CC0 — original composition.
 // Bass: root-fifth pattern under a 16-note lead. Loops seamlessly.
 func musicLoop() []float64 {
@@ -299,6 +320,11 @@ func main() {
 		{"death.wav", deathSFX},
 		{"win.wav", winSFX},
 		{"music.wav", musicLoop},
+		{"bump.wav", bumpSFX},
+		{"powerup.wav", powerupSFX},
+		{"powerup_appear.wav", coinSFX},
+		{"powerdown.wav", powerdownSFX},
+		{"1up.wav", coinSFX},
 	}
 	for _, f := range files {
 		path := filepath.Join(outdir, f.name)

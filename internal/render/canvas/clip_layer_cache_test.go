@@ -12,16 +12,16 @@ import (
 )
 
 func TestParseClipPathCircleEllipseInset(t *testing.T) {
-	kind, rx, ry, _, _, ok := parseClipPath("circle(50%)", 100, 80)
+	kind, rx, ry, _, _, _, _, ok := parseClipPath("circle(50%)", 100, 80)
 	if !ok || kind != "ellipse" || rx != 40 || ry != 40 {
 		// min(100,80)*0.5 = 40
 		t.Fatalf("circle(50%%) = %s rx=%v ry=%v ok=%v", kind, rx, ry, ok)
 	}
-	kind, rx, ry, _, _, ok = parseClipPath("ellipse(50% 25%)", 100, 80)
+	kind, rx, ry, _, _, _, _, ok = parseClipPath("ellipse(50% 25%)", 100, 80)
 	if !ok || kind != "ellipse" || rx != 50 || ry != 20 {
 		t.Fatalf("ellipse = %s rx=%v ry=%v", kind, rx, ry)
 	}
-	kind, _, _, inset, rad, ok := parseClipPath("inset(10px round 5px)", 100, 100)
+	kind, _, _, inset, rad, _, _, ok := parseClipPath("inset(10px round 5px)", 100, 100)
 	if !ok || kind != "inset" || inset != (image.Rectangle{Min: image.Pt(10, 10), Max: image.Pt(90, 90)}) || rad != 5 {
 		t.Fatalf("inset = %s %v rad=%v", kind, inset, rad)
 	}

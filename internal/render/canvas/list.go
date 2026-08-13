@@ -2,6 +2,8 @@ package canvas
 
 import (
 	"fmt"
+	"image"
+	"math"
 	"os"
 	"sync"
 
@@ -149,7 +151,7 @@ func isIdent(s string) bool {
 // order. A conditionally hidden template (if/visible/show, when) yields no
 // instance for that item — the same shape the HTML path produces when
 // node() drops it.
-func measureListItems(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, root *model.Node, sc *listScope) []*LayoutNode {
+func measureListItems(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, root *model.Node, sc *listScope, underBoard bool) []*LayoutNode {
 	items := listData(n, rt, sc)
 	if len(items) == 0 {
 		return nil
@@ -164,10 +166,26 @@ func measureListItems(n *model.Node, rt *runtime.Runtime, inter *Interaction, sc
 	}
 	alias, idxKey, firstKey, lastKey := listAliasNames(as)
 	outer := evalCtxScope(rt, sc)
+	// Board frustum: skip items whose data x/y sits outside the camera
+	// so a mario/raiden tile list does not measure hundreds of off-screen
+	// images every frame. Only applies under a board (HUD lists are safe).
+	cull := underBoard && inter != nil && inter.Board.Active
+	var cullMinX, cullMaxX, cullMinY, cullMaxY float64
+	if cull {
+		cullMinX, cullMaxX, cullMinY, cullMaxY = boardWorldCull(inter, rt)
+	}
 	out := make([]*LayoutNode, 0, len(items))
 	for i, it := range items {
+		if cull {
+			if box, ok := itemWorldBox(it, n.Template, scale); ok {
+				if float64(box.Max.X) < cullMinX || float64(box.Min.X) > cullMaxX ||
+					float64(box.Max.Y) < cullMinY || float64(box.Min.Y) > cullMaxY {
+					continue
+				}
+			}
+		}
 		vars := itemVars(outer, alias, idxKey, firstKey, lastKey, it, i, len(items))
-		cln := measure(n.Template, rt, inter, scale, root, &listScope{vars: vars, index: i})
+		cln := measure(n.Template, rt, inter, scale, root, &listScope{vars: vars, index: i}, underBoard)
 		if cln == nil {
 			continue
 		}
@@ -177,6 +195,72 @@ func measureListItems(n *model.Node, rt *runtime.Runtime, inter *Interaction, sc
 		out = append(out, cln)
 	}
 	return out
+}
+
+// boardWorldCull returns the board-space AABB (physical px) that can reach
+// the surface, with a margin so sprites do not pop at the edge.
+func boardWorldCull(inter *Interaction, rt *runtime.Runtime) (minX, maxX, minY, maxY float64) {
+	z := 1.0
+	if inter != nil && inter.Board.Zoom > 0 {
+		z = inter.Board.Zoom
+	}
+	vw, vh := 512.0, 480.0
+	if rt != nil && rt.Viewport.W > 0 && rt.Viewport.H > 0 {
+		vw = float64(rt.Viewport.W)
+		vh = float64(rt.Viewport.H)
+	}
+	var panX, panY float64
+	if inter != nil {
+		panX, panY = inter.Board.PanX, inter.Board.PanY
+	}
+	const margin = 64.0
+	minX = (-panX)/z - margin
+	minY = (-panY)/z - margin
+	maxX = (-panX+vw)/z + margin
+	maxY = (-panY+vh)/z + margin
+	return
+}
+
+func listItemsAllAbs(kids []*LayoutNode) bool {
+	if len(kids) == 0 {
+		return false
+	}
+	for _, c := range kids {
+		if c == nil || !c.Style.HasPos {
+			return false
+		}
+	}
+	return true
+}
+
+// itemWorldBox reads x/y (and optional width/height) from a list item so
+// the board frustum can decide before a full measure. Bindings on the
+// template size fall back to a 32px tile.
+func itemWorldBox(it any, tmpl *model.Node, scale int) (image.Rectangle, bool) {
+	m, ok := it.(map[string]any)
+	if !ok {
+		return image.Rectangle{}, false
+	}
+	x, okx := toFloatAny(m["x"])
+	y, oky := toFloatAny(m["y"])
+	if !okx || !oky {
+		return image.Rectangle{}, false
+	}
+	w, h := 32.0, 32.0
+	if tmpl != nil && tmpl.Style != nil {
+		if v, ok := parseStyleNumber(tmpl.Style["width"]); ok && v > 0 {
+			w = v
+		}
+		if v, ok := parseStyleNumber(tmpl.Style["height"]); ok && v > 0 {
+			h = v
+		}
+	}
+	if scale < 1 {
+		scale = 1
+	}
+	sf := float64(scale)
+	return image.Rect(int(math.Floor(x*sf)), int(math.Floor(y*sf)),
+		int(math.Ceil((x+w)*sf)), int(math.Ceil((y+h)*sf))), true
 }
 
 // listWarn* implement the one-shot item-cap warning, keyed by the scene root

@@ -25,6 +25,9 @@ state.filterOn = !state.filterOn
 
 端到端示例:[`examples/canvas-fx`](https://github.com/qorm/qorm/tree/main/examples/canvas-fx)。共享游戏核心:
 [`examples/tetris`](https://github.com/qorm/qorm/tree/main/examples/tetris)(`actions/*.qs` + `styles/app.qss`)。
+横版:在这里写物理 `x`/`y`,用 `board` 镜头 + `tilemap` 跟随——见
+[样式 — 瓦片世界](styles.md#横版与瓦片世界board--tilemap) 与
+[`examples/mario`](https://github.com/qorm/qorm/tree/main/examples/mario)。
 
 ## 语句
 

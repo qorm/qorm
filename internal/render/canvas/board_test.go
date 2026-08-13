@@ -230,6 +230,59 @@ func TestBoardCullsOffscreenChildren(t *testing.T) {
 	}
 }
 
+// Follow-cam / drag pan is a transform, not a layout-box move. Dirty
+// tracking that only unions AbsX would leave the world frozen while the
+// sprite slides — the hitch Mario showed when walking.
+func TestBoardPanRepaintsWorldPixels(t *testing.T) {
+	e, s, _ := boardFixture(t)
+	e.DrawFrame(s)
+	// n1 is yellow at board (100,50) 60x40. Sample its interior.
+	before := s.Frame().RGBAAt(120, 70)
+	if before.R < 200 || before.G < 180 {
+		t.Fatalf("expected yellow note at (120,70), got %v", before)
+	}
+	e.Inter.Board.PanX = -80
+	e.MarkDirty()
+	e.DrawFrame(s)
+	after := s.Frame().RGBAAt(120, 70)
+	if after == before {
+		t.Fatal("after pan the old note pixel must be cleared (full-frame dirty)")
+	}
+	moved := s.Frame().RGBAAt(40, 70) // 120-80
+	if moved.R < 200 || moved.G < 180 {
+		t.Fatalf("note should now sit at (40,70), got %v", moved)
+	}
+}
+
+// A board list with absolute x/y items only records instances inside the
+// camera frustum. Far tiles stay in state but never enter the graph.
+func TestBoardListFrustumCullsItems(t *testing.T) {
+	tmpl := &model.Node{Type: "box", ID: "tile",
+		Style: map[string]any{
+			"x": "{{item.x}}", "y": "{{item.y}}",
+			"width": 32.0, "height": 32.0, "background": "#FF0000",
+		}}
+	list := &model.Node{Type: "list", ID: "tiles", Data: "{{state.items}}", Template: tmpl}
+	root := &model.Node{Type: "board", ID: "world",
+		Style:    map[string]any{"width": 400.0, "height": 400.0, "background": "#111111"},
+		Children: []*model.Node{list}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}}
+	rt := runtime.New(app)
+	rt.Theme = theme.GetDefault()
+	rt.State["items"] = []any{
+		map[string]any{"x": 40.0, "y": 40.0},
+		map[string]any{"x": 8000.0, "y": 40.0},
+	}
+	e := NewEngine(rt, SoftwareRenderer{})
+	s := NewHeadlessSurface(image.Pt(400, 400))
+	e.DrawFrame(s)
+
+	inst := instanceGroups(t, e, tmpl)
+	if len(inst) != 1 {
+		t.Fatalf("board list instances = %d, want 1 (far item culled)", len(inst))
+	}
+}
+
 // The board zoom clamps to the [0.25, 4] range regardless of gesture size.
 func TestBoardZoomClamped(t *testing.T) {
 	e, s, _ := boardFixture(t)
@@ -294,6 +347,69 @@ func TestBoardCameraFollow(t *testing.T) {
 	e.DrawFrame(surf)
 	if got, want := e.Inter.Board.PanX, -64.0; got != want {
 		t.Errorf("after move PanX = %v, want %v (cameraCenter, cell=32, target x=320)", got, want)
+	}
+}
+
+// NES side-scrollers never rewind the camera. cameraLockLeft keeps the
+// furthest-right pan once the player has walked past the dead zone.
+func TestBoardCameraLockLeft(t *testing.T) {
+	root := &model.Node{Type: "board", ID: "board",
+		Style: map[string]any{"background": "#000000"},
+		Props: map[string]any{
+			"cameraTarget":   "{{state.player}}",
+			"cameraCenter":   true,
+			"cameraCell":     32.0,
+			"cameraLockLeft": true,
+		},
+	}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}}
+	rt := runtime.New(app)
+	rt.Theme = theme.GetDefault()
+	rt.State["player"] = map[string]any{"x": 400.0, "y": 384.0}
+	surf := NewHeadlessSurface(image.Pt(512, 480))
+	e := NewEngine(rt, SoftwareRenderer{})
+	e.DrawFrame(surf)
+	rightPan := e.Inter.Board.PanX
+	if rightPan >= 0 {
+		t.Fatalf("expected a negative pan after walking right, got %v", rightPan)
+	}
+	rt.State["player"] = map[string]any{"x": 80.0, "y": 384.0}
+	e.MarkDirty()
+	e.DrawFrame(surf)
+	if e.Inter.Board.PanX != rightPan {
+		t.Errorf("lock-left: PanX = %v after walking back, want %v", e.Inter.Board.PanX, rightPan)
+	}
+}
+
+// cameraResetToken changing must rewind lock-left (Mario R / restart).
+func TestBoardCameraResetTokenRewindsLockLeft(t *testing.T) {
+	root := &model.Node{Type: "board", ID: "board",
+		Style: map[string]any{"background": "#000000"},
+		Props: map[string]any{
+			"cameraTarget":     "{{state.player}}",
+			"cameraCenter":     "x",
+			"cameraDeadZone":   160.0,
+			"cameraLockLeft":   true,
+			"cameraResetToken": "{{state.cameraGen}}",
+		},
+	}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}}
+	rt := runtime.New(app)
+	rt.Theme = theme.GetDefault()
+	rt.State["player"] = map[string]any{"x": 400.0, "y": 384.0}
+	rt.State["cameraGen"] = 0.0
+	surf := NewHeadlessSurface(image.Pt(512, 480))
+	e := NewEngine(rt, SoftwareRenderer{})
+	e.DrawFrame(surf)
+	if e.Inter.Board.PanX >= 0 {
+		t.Fatalf("expected scrolled pan, got %v", e.Inter.Board.PanX)
+	}
+	rt.State["player"] = map[string]any{"x": 32.0, "y": 384.0}
+	rt.State["cameraGen"] = 1.0
+	e.MarkDirty()
+	e.DrawFrame(surf)
+	if e.Inter.Board.PanX < -1 {
+		t.Errorf("after reset token, PanX = %v, want ~0 (camera back at start)", e.Inter.Board.PanX)
 	}
 }
 

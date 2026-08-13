@@ -190,6 +190,42 @@ func TestEngineKeyDownDispatch(t *testing.T) {
 	}
 }
 
+// OS key-repeat is extra KeyDown with no KeyUp. Scene bindings must fire once.
+func TestHandleKeyIgnoresRepeat(t *testing.T) {
+	root := &model.Node{Type: "column", ID: "root"}
+	app := &model.App{
+		Entry:  "main",
+		Scenes: map[string]*model.Node{"main": root},
+		SceneKeys: map[string]map[string]string{
+			"main": {"r": "bump"},
+		},
+		SceneKeyReleases: map[string]map[string]string{
+			"main": {"r": "noop"},
+		},
+		Actions: map[string]*model.Action{
+			"bump": {ID: "bump", Script: "state.n = state.n + 1"},
+			"noop": {ID: "noop", Script: ""},
+		},
+	}
+	rt := runtime.New(app)
+	rt.Theme = theme.GetDefault()
+	rt.State["n"] = 0.0
+	e := NewEngine(rt, SoftwareRenderer{})
+	surf := NewHeadlessSurface(image.Pt(80, 80))
+	e.DrawFrame(surf)
+	e.HandleKey(KeyInput{Key: "r", Down: true})
+	e.HandleKey(KeyInput{Key: "r", Down: true}) // OS repeat
+	e.HandleKey(KeyInput{Key: "r", Down: true})
+	if got := rt.State["n"]; got != 1.0 {
+		t.Fatalf("keydown+repeats n = %v, want 1 (repeat swallowed)", got)
+	}
+	e.HandleKey(KeyInput{Key: "r", Down: false})
+	e.HandleKey(KeyInput{Key: "r", Down: true})
+	if got := rt.State["n"]; got != 2.0 {
+		t.Fatalf("after release+press n = %v, want 2", got)
+	}
+}
+
 // At device scale 2 the same logical design must occupy twice the physical
 // pixels: the layout DPI plumbing multiplies design pixels by Scale() while
 // the surface reports physical dimensions. (Scale 1 must stay bit-identical.)

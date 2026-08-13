@@ -28,7 +28,7 @@
           {
             "type": "text",
             "id": "subtitle",
-            "text": "snap · mask · chrome · frost · press · qss · qs",
+            "text": "snap · mask · chrome · stack · skew · blend · qss · qs",
             "class": "subtitle"
           },
 
@@ -1066,13 +1066,229 @@
 
           {
             "type": "text",
+            "id": "h_zindex",
+            "text": "23. zIndex stacking",
+            "class": "heading"
+          },
+          {
+            "type": "row",
+            "id": "z_row",
+            "style": { "gap": 12 },
+            "layout": { "align": "center" },
+            "children": [
+              {
+                "type": "box",
+                "id": "z_stack",
+                "style": {
+                  "width": 120,
+                  "height": 80,
+                  "borderRadius": 10,
+                  "background": "#1a1f2b"
+                },
+                "children": [
+                  {
+                    "type": "box",
+                    "id": "z_back",
+                    "class": "zBack",
+                    "style": { "x": 4, "y": 8 },
+                    "children": [
+                      {
+                        "type": "text",
+                        "text": "back",
+                        "style": { "fontSize": 12, "fontWeight": 800, "color": "#ffffff" }
+                      }
+                    ]
+                  },
+                  {
+                    "type": "box",
+                    "id": "z_front",
+                    "class": "zFront",
+                    "style": { "x": 36, "y": 24 },
+                    "children": [
+                      {
+                        "type": "text",
+                        "text": "front",
+                        "style": { "fontSize": 12, "fontWeight": 800, "color": "#ffffff" }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "id": "btn_zswap",
+                "text": "Swap zIndex",
+                "class": "springBtn",
+                "onPress": { "type": "invoke", "name": "toggle_zswap" },
+                "style": { "background": "#2c3344", "padding": 10 }
+              }
+            ]
+          },
+
+          {
+            "type": "text",
+            "id": "h_skew",
+            "text": "24. skewX / skewY",
+            "class": "heading"
+          },
+          {
+            "type": "row",
+            "id": "skew_row",
+            "style": { "gap": 12 },
+            "layout": { "align": "center" },
+            "children": [
+              {
+                "type": "box",
+                "id": "skew_card",
+                "class": "skewCard",
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "{{ state.skewDeg }}deg",
+                    "style": { "fontSize": 13, "fontWeight": 800, "color": "#ffffff" }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "id": "btn_skew",
+                "text": "Step skew",
+                "class": "springBtn",
+                "onPress": { "type": "invoke", "name": "toggle_skew" },
+                "style": { "background": "#bf5af2", "padding": 10 }
+              }
+            ]
+          },
+
+          {
+            "type": "text",
+            "id": "h_blend_extra",
+            "text": "25. mix-blend difference / color-dodge",
+            "class": "heading"
+          },
+          {
+            "type": "box",
+            "id": "blend_extra_stage",
+            "style": {
+              "width": "fill",
+              "height": 88,
+              "borderRadius": 12,
+              "background": "linear-gradient(90deg, #ff375f, #ffd60a, #30d158, #0a84ff)",
+              "padding": 12
+            },
+            "layout": { "width": "fill" },
+            "children": [
+              {
+                "type": "box",
+                "id": "blend_extra",
+                "class": "blendExtra",
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "{{ state.blendExtra }}",
+                    "style": { "fontSize": 13, "fontWeight": 800, "color": "#1d1d1f" }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "button",
+            "id": "btn_blend_extra",
+            "text": "Cycle blend",
+            "class": "springBtn",
+            "onPress": { "type": "invoke", "name": "cycle_blend_extra" },
+            "style": { "background": "#2c3344" }
+          },
+
+          {
+            "type": "text",
+            "id": "h_origin",
+            "text": "26. transformOrigin (center vs 0 0)",
+            "class": "heading"
+          },
+          {
+            "type": "row",
+            "id": "origin_row",
+            "style": { "gap": 20 },
+            "layout": { "align": "center" },
+            "children": [
+              {
+                "type": "box",
+                "id": "origin_center",
+                "class": "originBox"
+              },
+              {
+                "type": "box",
+                "id": "origin_corner",
+                "class": "originBox originCorner"
+              },
+              {
+                "type": "button",
+                "id": "btn_origin",
+                "text": "Toggle spin",
+                "class": "springBtn",
+                "onPress": { "type": "invoke", "name": "toggle_origin" },
+                "style": { "background": "#0a84ff", "padding": 10 }
+              }
+            ]
+          },
+
+          {
+            "type": "text",
+            "id": "h_poly",
+            "text": "27. clip-path polygon()",
+            "class": "heading"
+          },
+          {
+            "type": "box",
+            "id": "poly_clip",
+            "class": "polyClip"
+          },
+
+          {
+            "type": "text",
+            "id": "h_plus_lighter",
+            "text": "28. mix-blend plus-lighter",
+            "class": "heading"
+          },
+          {
+            "type": "box",
+            "id": "plus_lighter_stage",
+            "style": {
+              "width": "fill",
+              "height": 88,
+              "borderRadius": 12,
+              "background": "linear-gradient(90deg, #ff375f, #ffd60a, #30d158, #0a84ff)",
+              "padding": 12
+            },
+            "layout": { "width": "fill" },
+            "children": [
+              {
+                "type": "box",
+                "id": "plus_lighter",
+                "class": "plusLighter",
+                "children": [
+                  {
+                    "type": "text",
+                    "text": "plus-lighter",
+                    "style": { "fontSize": 13, "fontWeight": 800, "color": "#1d1d1f" }
+                  }
+                ]
+              }
+            ]
+          },
+
+          {
+            "type": "text",
             "id": "footer",
-            "text": "chrome · frost · tint · pixel · fx — api/animation.md · docs/styles.md",
+            "text": "origin · poly · plus-lighter",
             "style": {
               "fontSize": 11,
               "color": "#6b7280",
               "fontStyle": "italic",
               "width": "fill",
+              "textOverflow": "ellipsis",
               "textDecoration": "overline"
             }
           }

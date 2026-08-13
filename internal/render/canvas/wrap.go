@@ -170,7 +170,12 @@ func heightsFromChildren(ln *LayoutNode) {
 		return
 	}
 	switch ln.Node.Type {
-	case "grid", "gridview", "stack":
+	case "grid", "gridview", "stack", "board":
+		return
+	}
+	// Absolutely positioned list items (mario/raiden tiles) are not a
+	// column; re-summing them would make the list N×tileH tall.
+	if (ln.Node.Type == "list" || ln.Node.Type == "gridview") && listItemsAllAbs(ln.Children) {
 		return
 	}
 	isRow := ln.Node.Type == "row"

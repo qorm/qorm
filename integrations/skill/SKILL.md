@@ -31,11 +31,23 @@ Don't reinvent behaviour — reach for these load-clean shapes (full recipes in 
 
 ## Drive a live app over MCP
 
-`qorm mcp <app-dir>` (or the `/mcp` endpoint of a running `qorm run`) exposes:
-- Understand: `qorm_inspect`, `qorm_get_node`, `qorm_query`, `qorm_list_actions`, `qorm_render_html`, `qorm_activity` (what the human just did in the shared session).
-- Operate: `qorm_dispatch` (run an action), `qorm_set_state`.
-- Design (review-bound): `qorm_preview_patch` → `qorm_apply_patch` (must carry the preview's `previewToken`); `qorm_undo`, `qorm_diff`.
-- Reason without side effects: `qorm_simulate_action`.
+`qorm mcp <app-dir>` (or `/mcp` on a running `qorm run`) exposes the same
+tool list as [docs/agent/mcp-tools.md](../../docs/agent/mcp-tools.md)
+(auto-generated from `internal/mcp/tools.go`):
+
+- **Understand**: `qorm_inspect`, `qorm_get_node`, `qorm_query`,
+  `qorm_source_location`, `qorm_list_actions`, `qorm_render_html`,
+  `qorm_capture_subtree`, `qorm_a11y_tree`, `qorm_capabilities`,
+  `qorm_activity` (shared session: what the human just did),
+  `qorm_export_scene`, `qorm_export_bundle`.
+- **Operate**: `qorm_dispatch`, `qorm_set_state`.
+- **Window** (desktop): `qorm_window` (move / open / close / eval / tile /
+  focus / minimize / pin).
+- **Design** (review-bound): `qorm_preview_patch` → `qorm_apply_patch`
+  (must carry the preview's `previewToken`); `qorm_undo`, `qorm_diff`.
+- **Verify**: `qorm_measure`, `qorm_check_layout`, `qorm_assert`,
+  `qorm_validate`.
+- **No side effects**: `qorm_simulate_action`.
 
 ## Always self-verify
 
@@ -59,8 +71,9 @@ Before starting work on a QORM app, check for and apply framework updates:
 
 ## Canvas engine (native desktop window)
 
-On `-tags desktop`, the app opens as a standalone native window with a pure-Go
-software renderer — no browser engine. The same JSON scene runs identically:
+macOS **default** `qorm run` (no `-tags desktop`) is the pure-Go software
+canvas window. `-tags desktop` is the **native WebView** (HTML), not canvas.
+Games WASM uses `-tags qorm_canvas`. Same JSON scene, same state/actions:
 
 - **Layout**: identical to the HTML path (same measure/layout pipeline).
 - **Interaction**: full keyboard navigation (Tab/Shift-Tab, Enter/Space, Escape,
@@ -70,7 +83,8 @@ software renderer — no browser engine. The same JSON scene runs identically:
 - **Widgets**: all 80+ widgets work, including overlay panels (drawer, menu,
   modal, snackbar, tooltip) and interactive controls (switch, slider, checkbox,
   select, textarea, draggable).
-- **Build**: `go run -tags desktop ./cmd/qorm run <app>`.
+- **Run canvas**: `go run ./cmd/qorm run <app>` (macOS default). WebView:
+  `go run -tags desktop ./cmd/qorm run <app>`.
 
 ### Declarative interaction & canvas effects (any node)
 
@@ -87,10 +101,12 @@ These style keys work on ANY node — no per-widget logic needed:
 | `filter` / `blur` / `filterBlur` | CSS filter stack (incl. `invert()` / `sepia()`) / group blur |
 | `tint` | RGB modulate (Godot modulate / Phaser tint) |
 | `imageRendering` | `pixelated` = nearest-neighbour (pixel art) |
-| `rotate` / `scale` / `scaleX` / `scaleY` / `flipX` / `flipY` | Persistent transform; layout box unchanged |
-| `mixBlendMode` | `multiply` / `screen` / `overlay` / `darken` / `lighten` |
+| `rotate` / `scale` / `scaleX` / `scaleY` / `flipX` / `flipY` / `skewX` / `skewY` | Persistent transform (skew in degrees; graph shear); layout box unchanged |
+| `transformOrigin` | CSS pivot for rotate/scale/flip/skew: `center`, `left top`, `50% 0`, `12px 8px` (default center) |
+| `zIndex` | Sibling paint + hit order (canvas; `0` = auto). HTML already emitted CSS `z-index` |
+| `mixBlendMode` | `multiply` / `screen` / `overlay` / `darken` / `lighten` / `difference` / `exclusion` / `color-dodge` / `color-burn` / `hard-light` / `plus-lighter` / `lighter` |
 | `maskFade` / `maskFadeSize` / `maskImage` | Soft edge dissolve |
-| `clipPath` | `circle()` / `ellipse()` / `inset(… round …)` |
+| `clipPath` | `circle()` / `ellipse()` / `inset(… round …)` / `polygon(...)` |
 | `layerCache` | Reuse offscreen layer when content fingerprint unchanged |
 | `scrollSnapType` / `scrollSnapAlign` | Scroll-snap on viewports / children |
 | `textStroke*` / `textShadow*` | Glyph outline and drop shadow |
@@ -104,8 +120,51 @@ These style keys work on ANY node — no per-widget logic needed:
 | `animation` + `curve` | Entrance effects; `curve` uses game-engine easings (`backOut`, `elastic`, `bounce`, …) |
 
 Runnable showcase: `examples/canvas-fx` (structure in `scenes/`, style in
-`styles/app.qss`, logic in `actions/*.qs`, game FX section 9). Full key list:
-`api/props.md`, `api/animation.md`, and `docs/styles.md`.
+`styles/app.qss`, logic in `actions/*.qs`). Games:
+`examples/mario` · `examples/raiden` · `examples/tetris` · `examples/g2048`.
+Full key list: `api/props.md`, `api/animation.md`, `docs/styles.md`.
+
+### Side-scrollers and tile worlds (board + tilemap)
+
+Use a `board` as the **world plane** (not a `row`/`column` of tiles):
+
+| Prop | Meaning |
+|---|---|
+| `cameraTarget` | `{{state.player}}` object with `x`/`y` in px |
+| `cameraCenter` | `true` / `"x"` / `"y"` |
+| `cameraCell` + `cameraViewport` | e.g. `32` and `16` → 512 px wide follow window |
+| `cameraDeadZone` | px; NES-style left band before the camera scrolls |
+| `cameraLockLeft` | never scroll back (SMB). Pair with `cameraResetToken` |
+| `cameraResetToken` | bump `{{state.cameraGen}}` on restart so lock-left rewinds |
+| `cameraMax` | `{ "x": (levelW - viewportW) * cell }` |
+| `disablePan` | no user drag-to-pan (games) |
+
+`tilemap` bakes a char-grid + atlas into **one** world bitmap (do not
+`list` hundreds of tile images every frame):
+
+```json
+{ "type": "tilemap", "id": "tiles",
+  "rows": "{{state.rows}}", "cell": 32,
+  "bumpX": "{{state.bumpCX}}", "bumpY": "{{state.bumpCY}}", "bumpT": "{{state.bumpT}}",
+  "atlas": { "1": "assets/ground.png", "2": "assets/brick.png" },
+  "style": { "x": 0, "y": 0 } }
+```
+
+Actors (player, enemies) stay as `image` / `list` children **on the same
+board**, with absolute `x`/`y`. HUD lives **outside** the board (stack overlay).
+
+**Game motion rules (do not ignore):**
+- Do **not** tween physics `x`/`y` or put `layoutMotion` on 60 fps movers.
+- Puzzle boards (Tetris / 2048): local FX only — never shake the whole grid.
+- Hold-to-move keys need `keyReleases` (and a no-op keyup for one-shots
+  like restart so OS key-repeat does not re-fire).
+- Drive style from qscript via `state` + `{{bindings}}` / QSS — do not
+  assign style objects in qs.
+- Audio: `playSound(src)` / `playMusic(src)` / `stopMusic()`; WAV under
+  the app dir. Native SFX do not kill looping BGM.
+- Pixel art: `imageRendering: pixelated` (QSS `image { … }` is enough).
+- Super-size sprites need their own bitmap (do not `cover`-crop a square
+  into a tall box). Grow/shrink must keep feet on the ground.
 
 ### Style system
 
@@ -132,8 +191,9 @@ When `steps` arrays get too long, write `actions/<id>.qs`:
 - `state.x = <expr>` reads and writes state
 - `args.name` accesses action arguments
 - Full expression language: arithmetic, comparisons, ternary, builtins
+- Audio builtins: `playSound` / `playMusic` / `stopMusic`
 - Compile errors name file and line
-- See `examples/tetris` for a game written entirely in qscript
+- See `examples/tetris` / `examples/mario` for games written in qscript
 
 ### Text input editing (canvas backend)
 
@@ -167,3 +227,6 @@ check, plus, minus, trash, copy, info, chevron-right, chevron-down, and 47 more
 - Don't add emoji to UI/code/docs — use the built-in icon font (66 icons).
 - Don't skip verification — always run `qorm_check_layout` after edits.
 - Don't guess what a widget supports — check the [widget catalog](api/widgets.md) (auto-generated, canonical).
+- Don't tween physics `x`/`y` or `layoutMotion` a 60 fps sprite.
+- Don't `list` a whole tile level — use `tilemap`.
+- Don't confuse `-tags desktop` (WebView/HTML) with the default macOS canvas window.

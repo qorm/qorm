@@ -28,3 +28,43 @@ func TestStdoutSinkPlaysAndStops(t *testing.T) {
 		t.Errorf("Stop: %v", err)
 	}
 }
+
+// One-shot SFX must not replace the looping music process. Mario jump used
+// to kill BGM because StdoutSink had a single afplay slot.
+func TestStdoutSinkSFXDoesNotReplaceMusic(t *testing.T) {
+	dir := filepath.Join("..", "..", "examples", "mario")
+	music, err := LoadSound(dir, "audio/music.wav")
+	if err != nil {
+		t.Skipf("mario music.wav: %v", err)
+	}
+	sfx, err := LoadSound(dir, "audio/jump.wav")
+	if err != nil {
+		t.Skipf("mario jump.wav: %v", err)
+	}
+	sink := &StdoutSink{}
+	if err := sink.Play(music, true); err != nil {
+		t.Skipf("afplay/aplay: %v", err)
+	}
+	sink.mu.Lock()
+	musicCmd := sink.music
+	sink.mu.Unlock()
+	if musicCmd == nil {
+		t.Fatal("loop play did not start a music process")
+	}
+	if err := sink.Play(sfx, false); err != nil {
+		t.Fatalf("sfx play: %v", err)
+	}
+	sink.mu.Lock()
+	still := sink.music == musicCmd
+	nsfx := len(sink.sfx)
+	sink.mu.Unlock()
+	if !still {
+		t.Error("oneshot SFX replaced the music process")
+	}
+	if nsfx == 0 {
+		t.Error("oneshot SFX did not start an sfx process")
+	}
+	if err := sink.Stop(); err != nil {
+		t.Errorf("Stop: %v", err)
+	}
+}

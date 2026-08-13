@@ -95,14 +95,16 @@ QORM 为 AI 智能体而生：只需**给你的 Agent 一句话**，就能自动
 - **签名包 + 热更新**: 基于 ed25519 签名及内容寻址的工件,本地校验完整性防篡改,支持高可靠热更新与快速回滚。
 - **设计验证**: 智能体通过 `qorm measure` / `qorm check` 测量实际渲染几何与像素约束，以客观数据验证修改效果。
 
-## 0.8.10 新内容
+## 0.8.11 新内容
 
-Canvas 现在是一套 2D 游戏引擎级渲染器:声明式 `fx` / `timeline` / 路径跟随 /
-stagger / yoyo,以及 `tint`、`invert()`/`sepia()`、`imageRendering: pixelated`
-和持久 `rotate`/`scale`/`flipX`。
+横版有了真正的世界平面:`tilemap` 把字符网格 + 图集烘焙成一张位图;`board`
+镜头用 `cameraLockLeft` 与 `cameraResetToken` 跟随(重开真的会回到起点)。
+Mario 是 NES 1-1 两倍缩放(512×480、变身、原创 WAV)。canvas 样式补上
+`zIndex`、`skewX`/`skewY`、`transformOrigin`、`clipPath: polygon(...)`、
+`mixBlendMode` `plus-lighter`。Skill / MCP 文档列出完整工具面。
 
 在线玩:[qorm.com/games](https://qorm.com/games/)(俄罗斯方块、2048、Raiden、Mario)
-或 `go run ./cmd/qorm run examples/tetris`。展示:`examples/canvas-fx`。
+或 `go run ./cmd/qorm run examples/mario`。展示:`examples/canvas-fx`。
 文档:[样式](docs/zh/styles.md) · [动画](api/zh/animation.md) ·
 [属性](api/zh/props.md)。
 

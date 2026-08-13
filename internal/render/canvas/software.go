@@ -158,6 +158,32 @@ func (r SoftwareRenderer) Render(ops *op.Ops, target *image.RGBA) {
 				pushed.EllipseRX = o.EllipseRX * s
 				pushed.EllipseRY = o.EllipseRY * s
 			}
+			if len(o.Poly) >= 3 {
+				screen := make([]geom.Point, len(o.Poly))
+				minX, minY := math.Inf(1), math.Inf(1)
+				maxX, maxY := math.Inf(-1), math.Inf(-1)
+				for i, p := range o.Poly {
+					q := currentMatrix.TransformPoint(p)
+					screen[i] = q
+					if q.X < minX {
+						minX = q.X
+					}
+					if q.Y < minY {
+						minY = q.Y
+					}
+					if q.X > maxX {
+						maxX = q.X
+					}
+					if q.Y > maxY {
+						maxY = q.Y
+					}
+				}
+				pushed.Poly = screen
+				pushed.Rect = image.Rect(
+					int(math.Floor(minX)), int(math.Floor(minY)),
+					int(math.Ceil(maxX)), int(math.Ceil(maxY)),
+				)
+			}
 			clips = append(clips, pushed)
 		case op.SaveOp:
 			stack = append(stack, state{
@@ -186,7 +212,7 @@ func (r SoftwareRenderer) Render(ops *op.Ops, target *image.RGBA) {
 			if r.Empty() {
 				break
 			}
-			if paintColor.A == 255 && len(clips) == 1 && clips[0].Radius <= 0 {
+			if paintColor.A == 255 && len(clips) == 1 && clips[0].Radius <= 0 && len(clips[0].Poly) < 3 {
 				// Opaque, single rectangular clip: straight == premultiplied,
 				// so the vectorized draw is correct and fast.
 				draw.Draw(img, r, &image.Uniform{paintColor}, image.Point{}, draw.Src)
@@ -217,7 +243,7 @@ func (r SoftwareRenderer) Render(ops *op.Ops, target *image.RGBA) {
 			// A sub-pixel stroke (zoom < 1x) falls through to the SDF branch,
 			// whose float coverage renders it as a faint band — the integer
 			// edge path below would draw a zero-width (invisible) border.
-			if w >= 1 && paintColor.A == 255 && len(clips) == 1 && inner.Radius <= 0 {
+			if w >= 1 && paintColor.A == 255 && len(clips) == 1 && inner.Radius <= 0 && len(inner.Poly) < 3 {
 				// Opaque rectangular outline: four edges.
 				draw.Draw(img, image.Rect(r.Min.X, r.Min.Y, r.Max.X, r.Min.Y+w).Intersect(img.Bounds()), &image.Uniform{paintColor}, image.Point{}, draw.Src)
 				draw.Draw(img, image.Rect(r.Min.X, r.Max.Y-w, r.Max.X, r.Max.Y).Intersect(img.Bounds()), &image.Uniform{paintColor}, image.Point{}, draw.Src)
@@ -380,6 +406,13 @@ func (r SoftwareRenderer) Render(ops *op.Ops, target *image.RGBA) {
 			// thumbnails and object-fit images. Pixelated always nearest-neighbour
 			// (CSS image-rendering: pixelated) even when dest != src size.
 			bilinear := !o.Pixelated && (sw != dw || sh != dh)
+			// Fast path: nearest-neighbour + axis-aligned rect clips. A mario
+			// tile layer is ~80 sprites × 32² (× HiDPI); the per-pixel
+			// clipCoverage + RGBAAt/SetRGBA loop is what made the game hitch.
+			if !bilinear && clipsAreSimpleRects(clips) {
+				blitImageNearest(img, o.Src, dest, r, currentOpacity)
+				break
+			}
 			for y := r.Min.Y; y < r.Max.Y; y++ {
 				for x := r.Min.X; x < r.Max.X; x++ {
 					cov := clipCoverage(float64(x)+0.5, float64(y)+0.5, clips)
@@ -405,6 +438,25 @@ func (r SoftwareRenderer) Render(ops *op.Ops, target *image.RGBA) {
 				}
 			}
 		case op.RRectOp:
+			// Fast fill: axis-aligned, sharp corners, no shadow/stroke/gradient.
+			// The sky behind a 512×480 mario stage is one of these; at HiDPI
+			// that is ~1M SDF samples per frame if we take the slow path.
+			if rrectFastFillOK(o, currentMatrix, clips) {
+				dest := transformRect(currentMatrix, o.Rect)
+				fr := dest.Intersect(img.Bounds())
+				if len(clips) > 0 {
+					fr = fr.Intersect(clipBounds(clips, img))
+				}
+				fill := withOpacity(o.Fill, currentOpacity)
+				if !fr.Empty() && fill.A > 0 {
+					if fill.A == 255 {
+						fillRectOpaque(img, fr, fill)
+					} else {
+						fillRectBlend(img, fr, fill)
+					}
+				}
+				break
+			}
 			// Local geometry (author space). Sampling in local space after
 			// inverse-transform keeps rounded corners correct under rotation
 			// and skew — transforming the AABB then using an axis-aligned SDF
@@ -928,6 +980,20 @@ func blendModeOver(dst *image.RGBA, x, y int, src color.RGBA, mode string) {
 		br, bg, bb = math.Max(sr, dr), math.Max(sg, dg), math.Max(sb, dbv)
 	case "overlay":
 		br, bg, bb = overlayChan(dr, sr), overlayChan(dg, sg), overlayChan(dbv, sb)
+	case "difference":
+		br, bg, bb = math.Abs(sr-dr), math.Abs(sg-dg), math.Abs(sb-dbv)
+	case "exclusion":
+		br, bg, bb = sr+dr-2*sr*dr, sg+dg-2*sg*dg, sb+dbv-2*sb*dbv
+	case "color-dodge":
+		br, bg, bb = dodgeChan(dr, sr), dodgeChan(dg, sg), dodgeChan(dbv, sb)
+	case "color-burn":
+		br, bg, bb = burnChan(dr, sr), burnChan(dg, sg), burnChan(dbv, sb)
+	case "hard-light":
+		// Overlay with src/backdrop swapped (overlayChan(Cs, Cb)).
+		br, bg, bb = overlayChan(sr, dr), overlayChan(sg, dg), overlayChan(sb, dbv)
+	case "plus-lighter", "lighter":
+		// CSS plus-lighter (lighter is the Porter-Duff alias): min(1, Cs+Cb).
+		br, bg, bb = math.Min(1, sr+dr), math.Min(1, sg+dg), math.Min(1, sb+dbv)
 	default:
 		blendOver(dst, x, y, src)
 		return
@@ -947,6 +1013,28 @@ func overlayChan(b, s float64) float64 {
 		return 2 * b * s
 	}
 	return 1 - 2*(1-b)*(1-s)
+}
+
+// dodgeChan is CSS color-dodge: Cs=src, Cb=dst.
+func dodgeChan(cb, cs float64) float64 {
+	if cb == 0 {
+		return 0
+	}
+	if cs == 1 {
+		return 1
+	}
+	return math.Min(1, cb/(1-cs))
+}
+
+// burnChan is CSS color-burn: Cs=src, Cb=dst.
+func burnChan(cb, cs float64) float64 {
+	if cb == 1 {
+		return 1
+	}
+	if cs == 0 {
+		return 0
+	}
+	return 1 - math.Min(1, (1-cb)/cs)
 }
 
 // alphaBounds returns the tight AABB of non-zero-alpha pixels in img.
@@ -1398,13 +1486,20 @@ func clipBounds(clips []op.ClipOp, img *image.RGBA) image.Rectangle {
 // clipCoverage returns the combined coverage of the active clips at a pixel
 // centre. Clip rects are already in screen space (ClipOp transforms them
 // at emit time). Rectangular clips remain exact; rounded clips use the same
-// signed distance field as RRectOp; ellipse/circle clips use an ellipse SDF.
+// signed distance field as RRectOp; ellipse/circle clips use an ellipse SDF;
+// polygon clips (Poly len>=3) are binary point-in-polygon.
 func clipCoverage(px, py float64, clips []op.ClipOp) float64 {
 	coverage := 1.0
 	for _, c := range clips {
 		if px < float64(c.Rect.Min.X) || px >= float64(c.Rect.Max.X) ||
 			py < float64(c.Rect.Min.Y) || py >= float64(c.Rect.Max.Y) {
 			return 0
+		}
+		if len(c.Poly) >= 3 {
+			if !pointInPolygon(px, py, c.Poly, c.EvenOdd) {
+				return 0
+			}
+			continue
 		}
 		if c.EllipseRX > 0 && c.EllipseRY > 0 {
 			cx := float64(c.Rect.Min.X) + float64(c.Rect.Dx())/2
@@ -1438,6 +1533,44 @@ func clipCoverage(px, py float64, clips []op.ClipOp) float64 {
 		}
 	}
 	return coverage
+}
+
+// pointInPolygon reports whether (px, py) is inside poly. evenOdd selects
+// the even-odd fill rule; false uses nonzero winding.
+func pointInPolygon(px, py float64, poly []geom.Point, evenOdd bool) bool {
+	n := len(poly)
+	if n < 3 {
+		return false
+	}
+	if evenOdd {
+		inside := false
+		for i, j := 0, n-1; i < n; j, i = i, i+1 {
+			yi, yj := poly[i].Y, poly[j].Y
+			if (yi > py) != (yj > py) {
+				xi, xj := poly[i].X, poly[j].X
+				xint := (xj-xi)*(py-yi)/(yj-yi) + xi
+				if px < xint {
+					inside = !inside
+				}
+			}
+		}
+		return inside
+	}
+	wn := 0
+	for i, j := 0, n-1; i < n; j, i = i, i+1 {
+		yi, yj := poly[i].Y, poly[j].Y
+		xi, xj := poly[i].X, poly[j].X
+		// isLeft(j→i, p) = (xi-xj)*(py-yj) - (px-xj)*(yi-yj)
+		cross := (xi-xj)*(py-yj) - (px-xj)*(yi-yj)
+		if yj <= py {
+			if yi > py && cross > 0 {
+				wn++
+			}
+		} else if yi <= py && cross < 0 {
+			wn--
+		}
+	}
+	return wn != 0
 }
 
 // skipLayerOps returns the index of the EndLayerOp matching the LayerOp at i.
@@ -1585,4 +1718,153 @@ func sdRoundBox(px, py, cx, cy, hw, hh, r float64) float64 {
 	ox := math.Max(qx, 0)
 	oy := math.Max(qy, 0)
 	return math.Min(math.Max(qx, qy), 0) + math.Hypot(ox, oy) - r
+}
+
+// clipsAreSimpleRects reports whether every clip is an axis-aligned box
+// (no radius, ellipse, or polygon). Those can be applied by intersecting
+// destination rects instead of a per-pixel coverage walk.
+func clipsAreSimpleRects(clips []op.ClipOp) bool {
+	for _, c := range clips {
+		if c.Radius > 0 || c.EllipseRX > 0 || c.EllipseRY > 0 || len(c.Poly) >= 3 {
+			return false
+		}
+	}
+	return true
+}
+
+// matrixAxisAligned reports a translate+scale matrix with no rotation or skew.
+func matrixAxisAligned(m geom.Matrix) bool {
+	const eps = 1e-9
+	return math.Abs(m.B) < eps && math.Abs(m.C) < eps && math.Abs(m.A) > eps && math.Abs(m.D) > eps
+}
+
+func rrectFastFillOK(o op.RRectOp, m geom.Matrix, clips []op.ClipOp) bool {
+	if o.Radius > 0 {
+		return false
+	}
+	if o.Shadow.A > 0 || o.Stroke.A > 0 || (o.Outline.A > 0 && o.OutlineWidth > 0) {
+		return false
+	}
+	if len(o.GradientStops) >= 2 || o.BackdropBlur > 0 {
+		return false
+	}
+	if o.Rect.Dx() <= 0 || o.Rect.Dy() <= 0 {
+		return false
+	}
+	return matrixAxisAligned(m) && clipsAreSimpleRects(clips)
+}
+
+func fillRectOpaque(img *image.RGBA, r image.Rectangle, c color.RGBA) {
+	r = r.Intersect(img.Bounds())
+	if r.Empty() {
+		return
+	}
+	row := make([]byte, r.Dx()*4)
+	for i := 0; i < len(row); i += 4 {
+		row[i] = c.R
+		row[i+1] = c.G
+		row[i+2] = c.B
+		row[i+3] = c.A
+	}
+	minX, minY := img.Rect.Min.X, img.Rect.Min.Y
+	for y := r.Min.Y; y < r.Max.Y; y++ {
+		off := (y-minY)*img.Stride + (r.Min.X-minX)*4
+		copy(img.Pix[off:off+len(row)], row)
+	}
+}
+
+func fillRectBlend(img *image.RGBA, r image.Rectangle, c color.RGBA) {
+	r = r.Intersect(img.Bounds())
+	if r.Empty() || c.A == 0 {
+		return
+	}
+	if c.A == 255 {
+		fillRectOpaque(img, r, c)
+		return
+	}
+	for y := r.Min.Y; y < r.Max.Y; y++ {
+		for x := r.Min.X; x < r.Max.X; x++ {
+			blendOver(img, x, y, c)
+		}
+	}
+}
+
+// blitImageNearest copies src into dest with nearest-neighbour sampling,
+// already clipped to r. Uses the Pix slice (no per-pixel RGBAAt/SetRGBA).
+func blitImageNearest(dst, src *image.RGBA, dest, r image.Rectangle, opacity float64) {
+	if dst == nil || src == nil {
+		return
+	}
+	r = r.Intersect(dest).Intersect(dst.Bounds())
+	if r.Empty() {
+		return
+	}
+	sb := src.Bounds()
+	sw, sh := sb.Dx(), sb.Dy()
+	dw, dh := dest.Dx(), dest.Dy()
+	if sw <= 0 || sh <= 0 || dw <= 0 || dh <= 0 {
+		return
+	}
+	if opacity <= 0 {
+		return
+	}
+	if opacity > 1 {
+		opacity = 1
+	}
+	srcPix, srcStride := src.Pix, src.Stride
+	dstPix, dstStride := dst.Pix, dst.Stride
+	srcMinX, srcMinY := sb.Min.X, sb.Min.Y
+	dstMinX, dstMinY := dst.Rect.Min.X, dst.Rect.Min.Y
+	for y := r.Min.Y; y < r.Max.Y; y++ {
+		sy := srcMinY + (y-dest.Min.Y)*sh/dh
+		if sy < srcMinY {
+			sy = srcMinY
+		} else if sy >= srcMinY+sh {
+			sy = srcMinY + sh - 1
+		}
+		sRow := (sy - srcMinY) * srcStride
+		dOff := (y-dstMinY)*dstStride + (r.Min.X-dstMinX)*4
+		for x := r.Min.X; x < r.Max.X; x++ {
+			sx := srcMinX + (x-dest.Min.X)*sw/dw
+			if sx < srcMinX {
+				sx = srcMinX
+			} else if sx >= srcMinX+sw {
+				sx = srcMinX + sw - 1
+			}
+			sOff := sRow + (sx-srcMinX)*4
+			sr, sg, sbv, sa := srcPix[sOff], srcPix[sOff+1], srcPix[sOff+2], srcPix[sOff+3]
+			if opacity < 1 {
+				sa = uint8(float64(sa) * opacity)
+			}
+			if sa == 0 {
+				dOff += 4
+				continue
+			}
+			if sa == 255 {
+				dstPix[dOff] = sr
+				dstPix[dOff+1] = sg
+				dstPix[dOff+2] = sbv
+				dstPix[dOff+3] = 255
+				dOff += 4
+				continue
+			}
+			dr, dg, db, da := dstPix[dOff], dstPix[dOff+1], dstPix[dOff+2], dstPix[dOff+3]
+			a := uint32(sa)
+			da32 := uint32(da)
+			outA := a + da32*(255-a)/255
+			if outA == 0 {
+				dstPix[dOff] = 0
+				dstPix[dOff+1] = 0
+				dstPix[dOff+2] = 0
+				dstPix[dOff+3] = 0
+			} else {
+				inv := (255 - a)
+				dstPix[dOff] = uint8((uint32(sr)*a + uint32(dr)*da32*inv/255) / outA)
+				dstPix[dOff+1] = uint8((uint32(sg)*a + uint32(dg)*da32*inv/255) / outA)
+				dstPix[dOff+2] = uint8((uint32(sbv)*a + uint32(db)*da32*inv/255) / outA)
+				dstPix[dOff+3] = uint8(outA)
+			}
+			dOff += 4
+		}
+	}
 }

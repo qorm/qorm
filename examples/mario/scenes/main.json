@@ -21,16 +21,17 @@
     "up": "stopJump",
     "w": "stopJump",
     "space": "stopJump",
-    "shift": "runOff"
+    "shift": "runOff",
+    "r": "restartArm"
   },
   "swipes": {
     "up": "jump"
   },
   "root": {
-    "type": "row",
+    "type": "stack",
     "id": "root",
     "style": {
-      "width": 1024,
+      "width": 512,
       "height": 480,
       "background": "#000000"
     },
@@ -47,7 +48,9 @@
         "cameraCenter": "x",
         "cameraCell": 32,
         "cameraViewport": 16,
-        "cameraDeadZone": 192,
+        "cameraDeadZone": 160,
+        "cameraLockLeft": true,
+        "cameraResetToken": "{{state.cameraGen}}",
         "cameraMax": {
           "x": 6240
         },
@@ -61,20 +64,47 @@
             "if": "{{ state.status == 'playing' || (state.status == 'dead' && !state.deathDone) }}"
           },
           {
+            "type": "tilemap",
+            "id": "tiles",
+            "rows": "{{state.rows}}",
+            "cell": 32,
+            "bumpX": "{{state.bumpCX}}",
+            "bumpY": "{{state.bumpCY}}",
+            "bumpT": "{{state.bumpT}}",
+            "atlas": {
+              "1": "assets/ground.png",
+              "2": "assets/brick.png",
+              "3": "assets/coin.png",
+              "4": "assets/flag.png",
+              "5": "assets/pipe_top.png",
+              "6": "assets/pipe_body.png",
+              "7": "assets/question.png",
+              "q": "assets/question.png",
+              "8": "assets/used.png",
+              "b": "assets/stair.png",
+              "c": "assets/castle.png",
+              "d": "assets/cloud.png",
+              "e": "assets/bush.png",
+              "h": "assets/hill.png"
+            },
+            "style": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
             "type": "image",
             "id": "mario",
-            "src": "{{ !state.mario.alive ? \"assets/mario_jump.png\" : (!state.mario.onGround ? \"assets/mario_jump.png\" : (state.mario.walkPhase > 3 && state.mario.walkPhase < 12 ? \"assets/mario_walk.png\" : \"assets/mario.png\")) }}",
-            "if": "{{ state.mario.invuln == 0 || mod(state.mario.invuln, 4) < 2 }}",
-            "fx": "{{ !state.mario.alive ? \"knockback\" : \"none\" }}",
-            "fxToken": "{{ state.fxDeath }}",
-            "fxDuration": 400,
-            "fxIntensity": 8,
+            "src": "{{ !state.mario.alive || !state.mario.onGround ? (state.mario.big ? \"assets/mario_big_jump.png\" : \"assets/mario_jump.png\") : (state.mario.walkPhase > 3 && state.mario.walkPhase < 12 ? (state.mario.big ? \"assets/mario_big_walk.png\" : \"assets/mario_walk.png\") : (state.mario.big ? \"assets/mario_big.png\" : \"assets/mario.png\")) }}",
+            "if": "{{ state.mario.invuln == 0 || mod(state.mario.invuln, 8) < 4 }}",
+            "fit": "fill",
             "style": {
-              "x": "{{state.mario.x - 8}}",
-              "y": "{{state.mario.y - (state.mario.big ? 16 : 8)}}",
-              "width": "{{ state.mario.big ? 40 : 32 }}",
-              "height": "{{ state.mario.big ? 48 : 32 }}",
-              "flipX": "{{ state.mario.dir < 0 }}"
+              "x": "{{ state.mario.x - 4 }}",
+              "y": "{{ state.mario.y }}",
+              "width": 32,
+              "height": "{{ state.mario.big ? 64 : 32 }}",
+              "flipX": "{{ state.mario.dir < 0 }}",
+              "imageRendering": "pixelated"
             }
           },
           {
@@ -85,13 +115,14 @@
             "renderItem": {
               "type": "image",
               "id": "goomba",
-              "src": "{{ g.squash > 0 ? \"assets/goomba.png\" : (g.walkPhase > 7 ? \"assets/goomba_walk.png\" : \"assets/goomba.png\") }}",
+              "src": "{{ g.walkPhase > 7 ? \"assets/goomba_walk.png\" : \"assets/goomba.png\" }}",
               "if": "{{g.alive}}",
               "style": {
-                "x": "{{g.x - 8}}",
-                "y": "{{g.squash > 0 ? g.y + 12 : g.y - 8}}",
+                "x": "{{g.x}}",
+                "y": "{{ g.squash > 0 ? g.y + 16 : g.y }}",
                 "width": 32,
-                "height": "{{ g.squash > 0 ? 12 : 32 }}"
+                "height": "{{ g.squash > 0 ? 16 : 32 }}",
+                "flipX": "{{ g.vx > 0 }}"
               }
             }
           },
@@ -104,398 +135,105 @@
               "type": "image",
               "id": "powerup",
               "src": "assets/mushroom.png",
-              "if": "{{p.alive && !p.dead}}",
-              "fx": "float",
-              "fxDuration": 1400,
-              "fxIntensity": 2,
+              "if": "{{p.alive}}",
               "style": {
-                "x": "{{p.x - 8}}",
-                "y": "{{p.y - 8}}",
+                "x": "{{p.x}}",
+                "y": "{{p.y}}",
                 "width": 32,
                 "height": 32
               }
             }
-          },
+          }
+        ]
+      },
+      {
+        "type": "row",
+        "id": "hud",
+        "style": {
+          "x": 0,
+          "y": 0,
+          "width": 512,
+          "height": 40,
+          "padding": 6,
+          "gap": 24
+        },
+        "children": [
           {
-            "type": "list",
-            "id": "ground-tiles",
-            "data": "{{state.viewTiles}}",
-            "as": "tile",
-            "renderItem": {
-              "type": "image",
-              "id": "ground-tile",
-              "src": "assets/ground.png",
-              "if": "{{tile.kind == '1'}}",
-              "style": {
-                "x": "{{tile.x}}",
-                "y": "{{tile.y}}",
-                "width": 32,
-                "height": 32
-              }
-            }
-          },
-          {
-            "type": "list",
-            "id": "brick-tiles",
-            "data": "{{state.viewTiles}}",
-            "as": "tile",
-            "renderItem": {
-              "type": "image",
-              "id": "brick-tile",
-              "src": "assets/brick.png",
-              "if": "{{tile.kind == '2'}}",
-              "style": {
-                "x": "{{tile.x}}",
-                "y": "{{tile.y}}",
-                "width": 32,
-                "height": 32
-              }
-            }
-          },
-          {
-            "type": "list",
-            "id": "coin-tiles",
-            "data": "{{state.viewTiles}}",
-            "as": "tile",
-            "renderItem": {
-              "type": "image",
-              "id": "coin-tile",
-              "src": "assets/coin.png",
-              "if": "{{tile.kind == '3'}}",
-              "fx": "float",
-              "fxDuration": 700,
-              "fxIntensity": 2,
-              "style": {
-                "x": "{{tile.x}}",
-                "y": "{{tile.y}}",
-                "width": 32,
-                "height": 32
-              }
-            }
-          },
-          {
-            "type": "list",
-            "id": "flag-tiles",
-            "data": "{{state.viewTiles}}",
-            "as": "tile",
-            "renderItem": {
-              "type": "image",
-              "id": "flag-tile",
-              "src": "assets/flag.png",
-              "if": "{{tile.kind == '4'}}",
-              "style": {
-                "x": "{{tile.x}}",
-                "y": "{{tile.y}}",
-                "width": 32,
-                "height": 32
-              }
-            }
-          },
-          {
-            "type": "list",
-            "id": "pipe-top-tiles",
-            "data": "{{state.viewTiles}}",
-            "as": "tile",
-            "renderItem": {
-              "type": "image",
-              "id": "pipe-top-tile",
-              "src": "assets/pipe_top.png",
-              "if": "{{tile.kind == '5'}}",
-              "style": {
-                "x": "{{tile.x}}",
-                "y": "{{tile.y}}",
-                "width": 32,
-                "height": 32
-              }
-            }
-          },
-          {
-            "type": "list",
-            "id": "pipe-body-tiles",
-            "data": "{{state.viewTiles}}",
-            "as": "tile",
-            "renderItem": {
-              "type": "image",
-              "id": "pipe-body-tile",
-              "src": "assets/pipe_body.png",
-              "if": "{{tile.kind == '6'}}",
-              "style": {
-                "x": "{{tile.x}}",
-                "y": "{{tile.y}}",
-                "width": 32,
-                "height": 32
-              }
-            }
-          },
-          {
-            "type": "list",
-            "id": "question-tiles",
-            "data": "{{state.viewTiles}}",
-            "as": "tile",
-            "renderItem": {
-              "type": "image",
-              "id": "question-tile",
-              "src": "{{ tile.kind == '8' ? \"assets/used.png\" : \"assets/question.png\" }}",
-              "if": "{{tile.kind == '7' || tile.kind == '8'}}",
-              "style": {
-                "x": "{{tile.x}}",
-                "y": "{{tile.y}}",
-                "width": 32,
-                "height": 32
-              }
-            }
-          },
-          {
-            "type": "list",
-            "id": "stair-tiles",
-            "data": "{{state.viewTiles}}",
-            "as": "tile",
-            "renderItem": {
-              "type": "image",
-              "id": "stair-tile",
-              "src": "assets/stair.png",
-              "if": "{{tile.kind == 'b'}}",
-              "style": {
-                "x": "{{tile.x}}",
-                "y": "{{tile.y}}",
-                "width": 32,
-                "height": 32
-              }
-            }
-          },
-          {
-            "type": "list",
-            "id": "cloud-tiles",
-            "data": "{{state.viewTiles}}",
-            "as": "tile",
-            "renderItem": {
-              "type": "image",
-              "id": "cloud-tile",
-              "src": "assets/cloud.png",
-              "if": "{{tile.kind == 'd'}}",
-              "style": {
-                "x": "{{tile.x}}",
-                "y": "{{tile.y}}",
-                "width": 32,
-                "height": 32
-              }
-            }
-          },
-          {
-            "type": "list",
-            "id": "bush-tiles",
-            "data": "{{state.viewTiles}}",
-            "as": "tile",
-            "renderItem": {
-              "type": "image",
-              "id": "bush-tile",
-              "src": "assets/bush.png",
-              "if": "{{tile.kind == 'e'}}",
-              "style": {
-                "x": "{{tile.x}}",
-                "y": "{{tile.y}}",
-                "width": 32,
-                "height": 32
-              }
-            }
-          },
-          {
-            "type": "list",
-            "id": "hill-tiles",
-            "data": "{{state.viewTiles}}",
-            "as": "tile",
-            "renderItem": {
-              "type": "image",
-              "id": "hill-tile",
-              "src": "assets/hill.png",
-              "if": "{{tile.kind == 'h'}}",
-              "style": {
-                "x": "{{tile.x}}",
-                "y": "{{tile.y}}",
-                "width": 32,
-                "height": 32
-              }
-            }
-          },
-          {
-            "type": "list",
-            "id": "castle-tiles",
-            "data": "{{state.viewTiles}}",
-            "as": "tile",
-            "renderItem": {
-              "type": "image",
-              "id": "castle-tile",
-              "src": "assets/castle.png",
-              "if": "{{tile.kind == 'c'}}",
-              "style": {
-                "x": "{{tile.x}}",
-                "y": "{{tile.y}}",
-                "width": 32,
-                "height": 32
-              }
-            }
+            "type": "column",
+            "style": { "gap": 0 },
+            "children": [
+              { "type": "text", "id": "hud-title", "text": "MARIO", "style": { "fontSize": 11, "fontWeight": 800, "color": "#ffffff", "letterSpacing": 1 } },
+              { "type": "text", "id": "hud-score-value", "text": "{{ state.score }}", "style": { "fontSize": 13, "fontWeight": 700, "color": "#ffffff" } }
+            ]
           },
           {
             "type": "column",
-            "id": "deadOverlay",
-            "if": "{{ state.status == 'dead' && state.deathDone }}",
-            "animation": "pop",
-            "duration": 420,
-            "curve": "backOut",
-            "layout": {
-              "align": "center",
-              "justify": "center"
-            },
-            "style": {
-              "x": 160,
-              "y": 160,
-              "width": 192,
-              "height": 128,
-              "background": "#000000cc",
-              "borderRadius": 12,
-              "padding": 16,
-              "gap": 8
-            },
+            "style": { "gap": 0 },
             "children": [
-              {
-                "type": "text",
-                "text": "GAME OVER",
-                "style": {
-                  "fontSize": 20,
-                  "fontWeight": 800,
-                  "color": "#ffffff",
-                  "textAlign": "center"
-                }
-              },
-              {
-                "type": "text",
-                "text": "Press R to restart",
-                "style": {
-                  "fontSize": 12,
-                  "color": "#aaaaaa",
-                  "textAlign": "center"
-                }
-              }
+              { "type": "text", "id": "hud-coin-label", "text": "COIN", "style": { "fontSize": 11, "fontWeight": 800, "color": "#ffffff" } },
+              { "type": "text", "id": "hud-coin-value", "text": "x{{ state.coins }}", "style": { "fontSize": 13, "fontWeight": 700, "color": "#f8d878" } }
+            ]
+          },
+          {
+            "type": "column",
+            "style": { "gap": 0 },
+            "children": [
+              { "type": "text", "id": "hud-world-label", "text": "WORLD", "style": { "fontSize": 11, "fontWeight": 800, "color": "#ffffff" } },
+              { "type": "text", "id": "hud-world-value", "text": "1-1", "style": { "fontSize": 13, "fontWeight": 700, "color": "#ffffff" } }
+            ]
+          },
+          {
+            "type": "column",
+            "style": { "gap": 0 },
+            "children": [
+              { "type": "text", "id": "hud-time-label", "text": "TIME", "style": { "fontSize": 11, "fontWeight": 800, "color": "#ffffff" } },
+              { "type": "text", "id": "hud-time-value", "text": "{{ floor(state.timeLeft) }}", "style": { "fontSize": 13, "fontWeight": 700, "color": "#ffffff" } }
             ]
           }
         ]
       },
       {
-        "type": "view",
-        "id": "hud",
+        "type": "column",
+        "id": "deadOverlay",
+        "if": "{{ state.status == 'dead' && state.deathDone }}",
+        "animation": "pop",
+        "duration": 420,
+        "curve": "backOut",
         "style": {
-          "width": 512,
-          "height": 480,
-          "background": "#000000",
-          "padding": 32,
-          "color": "#FFFFFF",
-          "fontSize": 28
+          "x": 160,
+          "y": 176,
+          "width": 192,
+          "height": 100,
+          "background": "#000000cc",
+          "borderRadius": 4,
+          "padding": 12,
+          "gap": 6
         },
         "children": [
-          {
-            "type": "text",
-            "id": "hud-title",
-            "text": "MARIO",
-            "style": {
-              "fontSize": 36,
-              "color": "#FFFFFF",
-              "fontWeight": 800
-            }
-          },
-          {
-            "type": "text",
-            "id": "hud-score-label",
-            "text": "SCORE",
-            "style": {
-              "fontSize": 18,
-              "color": "#888888"
-            }
-          },
-          {
-            "type": "text",
-            "id": "hud-score-value",
-            "text": "{{ state.score }}",
-            "style": {
-              "fontSize": 32,
-              "color": "#FFFFFF"
-            }
-          },
-          {
-            "type": "text",
-            "id": "hud-coin-label",
-            "text": "COINS",
-            "style": {
-              "fontSize": 18,
-              "color": "#888888"
-            }
-          },
-          {
-            "type": "text",
-            "id": "hud-coin-value",
-            "text": "x{{ state.coins }}",
-            "fx": "{{ state.fxCoin > 0 ? \"punch\" : \"none\" }}",
-            "fxToken": "{{ state.fxCoin }}",
-            "fxDuration": 220,
-            "fxIntensity": 0.18,
-            "style": {
-              "fontSize": 32,
-              "color": "#F8B800"
-            }
-          },
-          {
-            "type": "text",
-            "id": "hud-world-label",
-            "text": "WORLD",
-            "style": {
-              "fontSize": 18,
-              "color": "#888888"
-            }
-          },
-          {
-            "type": "text",
-            "id": "hud-world-value",
-            "text": "1-1",
-            "style": {
-              "fontSize": 32,
-              "color": "#FFFFFF"
-            }
-          },
-          {
-            "type": "text",
-            "id": "hud-time-label",
-            "text": "TIME",
-            "style": {
-              "fontSize": 18,
-              "color": "#888888"
-            }
-          },
-          {
-            "type": "text",
-            "id": "hud-time-value",
-            "text": "{{ floor(state.timeLeft) }}",
-            "style": {
-              "fontSize": 32,
-              "color": "#FFFFFF"
-            }
-          },
-          {
-            "type": "text",
-            "id": "hud-lives-label",
-            "text": "LIVES",
-            "style": {
-              "fontSize": 18,
-              "color": "#888888"
-            }
-          },
-          {
-            "type": "text",
-            "id": "hud-lives-value",
-            "text": "x{{ state.lives }}",
-            "style": {
-              "fontSize": 32,
-              "color": "#E40058"
-            }
-          }
+          { "type": "text", "text": "GAME OVER", "style": { "fontSize": 16, "fontWeight": 800, "color": "#ffffff", "textAlign": "center" } },
+          { "type": "text", "text": "PRESS R", "style": { "fontSize": 11, "color": "#cccccc", "textAlign": "center" } }
+        ]
+      },
+      {
+        "type": "column",
+        "id": "wonOverlay",
+        "if": "{{ state.status == 'won' }}",
+        "animation": "pop",
+        "duration": 420,
+        "curve": "backOut",
+        "style": {
+          "x": 160,
+          "y": 176,
+          "width": 192,
+          "height": 100,
+          "background": "#000000cc",
+          "borderRadius": 4,
+          "padding": 12,
+          "gap": 6
+        },
+        "children": [
+          { "type": "text", "text": "COURSE CLEAR", "style": { "fontSize": 16, "fontWeight": 800, "color": "#ffffff", "textAlign": "center" } },
+          { "type": "text", "text": "PRESS R", "style": { "fontSize": 11, "color": "#cccccc", "textAlign": "center" } }
         ]
       }
     ]

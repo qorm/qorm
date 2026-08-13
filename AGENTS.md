@@ -134,12 +134,19 @@ rasterizer.
 - `layoutMotion`: FLIP ease of absolute position/size (stable `id` +
   `transition`).
 - `filter` / `blur` / `mixBlendMode` / `maskFade` / `clipPath` / `layerCache`:
-  CSS filter stack (incl. `invert()` / `sepia()`), blend modes, soft masks,
-  clip-path, offscreen layer reuse.
+  CSS filter stack (incl. `invert()` / `sepia()`), blend modes (`multiply` /
+  `screen` / `overlay` / `darken` / `lighten` / `difference` / `exclusion` /
+  `color-dodge` / `color-burn` / `hard-light` / `plus-lighter` / `lighter`),
+  soft masks, clip-path (`circle` / `ellipse` / `inset` / `polygon`),
+  offscreen layer reuse.
 - `tint`: RGB modulate on the subtree (Godot modulate / Phaser tint).
 - `imageRendering: pixelated`: nearest-neighbour even on fractional scales.
-- `rotate` / `scale` / `scaleX` / `scaleY` / `flipX` / `flipY`: persistent
-  visual transform; layout box unchanged.
+- `rotate` / `scale` / `scaleX` / `scaleY` / `flipX` / `flipY` / `skewX` /
+  `skewY` / `transformOrigin`: persistent visual transform (skew is degrees,
+  graph shear; origin is CSS `center` / `left top` / `50% 0` / `12px 8px`,
+  default center); layout box unchanged.
+- `zIndex`: sibling paint + hit order (canvas; `0` = auto). Already in
+  `KnownStyleKeys` (HTML `z-index`); canvas now sorts paint/hit.
 - `scrollSnapType` / `scrollSnapAlign`: scroll-snap after coast/drag release.
 - Text: `textStroke*` / `textShadow*` / `textDecoration` / `textTransform` /
   `lineClamp` / `textOverflow`.
@@ -161,8 +168,14 @@ rasterizer.
   [api/props.md](api/props.md), [api/animation.md](api/animation.md).
 
 **Widgets:** 80+ registered (`internal/widgets`), 28 interactive (custom
-HandlePointer), 5 overlay (drawer, menu, modal, snackbar, tooltip). The
-canonical showcase is `examples/widget-showcase`.
+HandlePointer), 5 overlay (drawer, menu, modal, snackbar, tooltip), plus
+engine `tilemap` (baked char-grid world bitmap). The canonical showcase is
+`examples/widget-showcase`; side-scrollers are `examples/mario`.
+
+**Board camera (side-scrollers):** `cameraTarget` / `cameraCenter` /
+`cameraCell` / `cameraViewport` / `cameraDeadZone` / `cameraLockLeft` /
+`cameraResetToken` / `cameraMax` / `disablePan`. Restart must bump
+`cameraResetToken` or lock-left will not rewind. Do not tween physics `x`/`y`.
 
 **Style system:** ~90 keys in `render.KnownStyleKeys` (box/text/chrome/
 filter/mask/snap/motion/pseudo/backdrop). Theme cascade: default ← QSS type
@@ -173,5 +186,5 @@ reports unknown keys once per scene.
 subset, ~3.4MB), unified bitmap icon font on U+E000+ PUA (66 glyphs: 18
 hand-crafted + 47 auto-generated via `tools/genicons`).
 
-**Testing:** 229 canvas tests, 114 widget tests. Run: `go test
+**Testing:** 407 canvas tests, 121 widget tests. Run: `go test
 ./internal/render/canvas/... ./internal/widgets/...`.

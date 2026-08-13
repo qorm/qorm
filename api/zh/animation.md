@@ -91,7 +91,8 @@ state.hits = state.hits + 1
 | `burst` | 爆炸包 | 径向位移 + 缩放 + 闪烁(无多 sprite 粒子系统) |
 
 可与入场 `animation`、`transition` / 弹簧按压、FLIP、以及样式 `rotate` /
-`scale` / `flipX` 叠加——偏移走同一套变换通道。持久样式变换不改变布局盒。
+`scale` / `flipX` / `skewX` / `skewY` 叠加——偏移走同一套变换通道(枢轴:样式
+`transformOrigin`,默认中心)。持久样式变换不改变布局盒。
 
 可运行:[`examples/canvas-fx`](https://github.com/qorm/qorm/tree/main/examples/canvas-fx)(FX 段)。完整游戏:
 [`examples/tetris`](https://github.com/qorm/qorm/tree/main/examples/tetris)(局部消行闪白 + SINGLE/DOUBLE/TRIPLE/TETRIS

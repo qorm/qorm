@@ -34,6 +34,12 @@ Full pure-Go canvas visual + **game-engine motion** stack demo.
 | 20 | tint modulate | `.tintCard` + `cycle_tint.qs` (Godot modulate / Phaser tint) |
 | 21 | rotate / scale / flip | `.xformBox` + `nudge_xform.qs` / `bump_scale.qs` |
 | 22 | pixelated image | `pixel_img` (`imageRendering: pixelated`) vs `smooth_img` |
+| 23 | zIndex stacking | `z_back` / `z_front` + `toggle_zswap.qs` (QSS swaps `zIndex`) |
+| 24 | skewX / skewY | `.skewCard` + `toggle_skew.qs` (`0` → `12` → `24` → `0`) |
+| 25 | mix-blend extra | `.blendExtra` + `cycle_blend_extra.qs` (`difference` / `color-dodge` / `multiply`) |
+| 26 | transformOrigin | `origin_center` (default) / `origin_corner` (`0 0`) + `toggle_origin.qs` |
+| 27 | clip-path polygon | `poly_clip` — `polygon(50% 0%, 100% 100%, 0% 100%)` |
+| 28 | mix-blend plus-lighter | `plus_lighter` over a colorful stage |
 
 ## Game motion quick ref
 

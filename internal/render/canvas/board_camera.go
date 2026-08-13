@@ -1,9 +1,11 @@
 package canvas
 
 import (
+	"fmt"
 	"image"
 	"math"
 	"strconv"
+	"strings"
 
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/runtime"
@@ -23,6 +25,7 @@ import (
 // camera by passing `cameraCell: <px>` and (optionally) `cameraCenter: true`.
 //
 // Props:
+//   - cameraResetToken: {{state.cameraGen}} // bump to rewind lock-left
 //   - cameraTarget    : {{state.player}}    // an object {x, y} in PHYSICAL px
 //     // (the same coordinate space the
 //     // rest of the app uses — the
@@ -57,6 +60,13 @@ func applyBoardCamera(n *model.Node, rt *runtime.Runtime, inter *Interaction, sc
 	}
 	if inter.Board.Panning {
 		return // a manual drag is in flight — follow mode yields
+	}
+	// cameraResetToken: bump on restart so lock-left / dead-zone sticky
+	// pan cannot leave the player off the left of the screen.
+	snapReset := false
+	if tok := evalCameraResetToken(n, rt); tok != "" && tok != inter.Board.lastResetToken {
+		inter.Board.lastResetToken = tok
+		snapReset = true
 	}
 	raw, ok := n.Prop("cameraTarget")
 	if !ok {
@@ -140,6 +150,15 @@ func applyBoardCamera(n *model.Node, rt *runtime.Runtime, inter *Interaction, sc
 			dz = v
 		}
 	}
+	lockLeft := false
+	if raw, ok := n.Prop("cameraLockLeft"); ok {
+		switch v := raw.(type) {
+		case bool:
+			lockLeft = v
+		case string:
+			lockLeft = v == "true" || v == "1" || v == "right"
+		}
+	}
 	// cameraMax bounds the camera's resolved pan in PHYSICAL px — without
 	// it, the engine will follow the target past the right edge of the
 	// level and start showing empty space (the same way a side-scroller
@@ -190,6 +209,9 @@ func applyBoardCamera(n *model.Node, rt *runtime.Runtime, inter *Interaction, sc
 			// third-of-screen line, then follow that line for the rest of
 			// the level" — the canonical side-scroller feel.
 			curP := inter.Board.PanX
+			if snapReset {
+				curP = 0
+			}
 			if cx+curP > dz {
 				desiredX = dz - cx
 			} else {
@@ -216,8 +238,18 @@ func applyBoardCamera(n *model.Node, rt *runtime.Runtime, inter *Interaction, sc
 				desiredY = -maxY
 			}
 		}
-		inter.Board.PanX = desiredX
-		inter.Board.PanY = desiredY
+		// cameraLockLeft (NES SMB): once the camera has scrolled right,
+		// it never scrolls back. PanX is 0 at the origin and more
+		// negative as the world slides left; refusing a greater (less
+		// negative) desiredX keeps the left edge locked.
+		// A cameraResetToken change (restart) is an explicit rewind.
+		if lockLeft && !snapReset && desiredX > inter.Board.PanX {
+			desiredX = inter.Board.PanX
+		}
+		// Integer pan: sub-pixel board translate dirties the whole
+		// stage every frame and takes the slow image path.
+		inter.Board.PanX = math.Round(desiredX)
+		inter.Board.PanY = math.Round(desiredY)
 	} else {
 		// No centering: pin the camera to the world origin (top-left) and
 		// let the target move freely inside the viewport. This is the
@@ -306,6 +338,32 @@ func toFloatAny(v any) (float64, bool) {
 
 // runtimeEvalCtx builds the map runtime.EvalBinding expects. The camera
 // target only needs `state`, so the cheaper path is enough here.
+func evalCameraResetToken(n *model.Node, rt *runtime.Runtime) string {
+	if n == nil {
+		return ""
+	}
+	raw, ok := n.Prop("cameraResetToken")
+	if !ok || raw == nil {
+		return ""
+	}
+	switch v := raw.(type) {
+	case string:
+		if strings.Contains(v, "{{") && rt != nil {
+			ev := runtime.EvalBinding(v, runtimeEvalCtx(rt))
+			if ev == nil {
+				return ""
+			}
+			return fmt.Sprint(ev)
+		}
+		return v
+	default:
+		if f, ok := toFloatAny(v); ok {
+			return strconv.FormatFloat(f, 'f', -1, 64)
+		}
+		return fmt.Sprint(v)
+	}
+}
+
 func runtimeEvalCtx(rt *runtime.Runtime) map[string]any {
 	if rt == nil {
 		return nil

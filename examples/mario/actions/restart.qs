@@ -4,17 +4,16 @@
 # points here, so first load opens ready to play.
 
 state.rows = concat(state.rows0)
-# Mario (16px tall) starts standing on top of the 2-row ground at
-# rows 13-14 (y=416), so his y = 416 - 16 = 400. The starting x=32
-# is cell 1 in the NES 1-1 layout — the camera-relative "mario at
-# the left edge of the world" position from the original.
-state.mario = { x: 32.0, y: 400.0, vx: 0.0, vy: 0.0, onGround: true, big: false, alive: true, dir: 1 }
+# Small Mario is 32 px tall (2x NES). Ground top is row 13 (y=416),
+# so standing y = 416 - 32 = 384. x=32 is one tile in from the left.
+state.mario = { x: 32.0, y: 384.0, vx: 0.0, vy: 0.0, onGround: true, big: false, alive: true, dir: 1, walkPhase: 0, invuln: 0 }
+# NES 1-1 pacing: goombas first, then a green Koopa. vx is 2x NES walk.
 state.goombas = [
-  { x: 560.0,  y: 400.0, vx: -16.0, alive: true, walkPhase: 0 },
-  { x: 736.0,  y: 400.0, vx: -16.0, alive: true, walkPhase: 0 },
-  { x: 912.0,  y: 400.0, vx: -16.0, alive: true, walkPhase: 0 },
-  { x: 1216.0, y: 400.0, vx: -16.0, alive: true, walkPhase: 0 },
-  { x: 1504.0, y: 400.0, vx: -16.0, alive: true, walkPhase: 0 }
+  { x: 704.0,  y: 384.0, vx: -32.0, alive: true, walkPhase: 0, type: "goomba", shell: false, squash: 0 },
+  { x: 864.0,  y: 384.0, vx: -32.0, alive: true, walkPhase: 0, type: "goomba", shell: false, squash: 0 },
+  { x: 1408.0, y: 384.0, vx: -32.0, alive: true, walkPhase: 0, type: "koopa", shell: false, squash: 0 },
+  { x: 2112.0, y: 384.0, vx: -32.0, alive: true, walkPhase: 0, type: "goomba", shell: false, squash: 0 },
+  { x: 2304.0, y: 384.0, vx: -32.0, alive: true, walkPhase: 0, type: "goomba", shell: false, squash: 0 }
 ]
 state.powerups = []
 state.particles = []
@@ -36,16 +35,10 @@ state.fxHurt = 0
 state.bumpT = 0
 state.bumpCX = 0
 state.bumpCY = 0
+state.tilesDirty = true
+state.viewX0 = -1
+# Bump so cameraLockLeft / dead-zone sticky pan rewind to the start.
+state.cameraGen = state.cameraGen + 1
 playMusic("audio/music.wav")
-# Compute the initial camera + visible tiles so the first frame
-# (before any client has connected and the 16ms timer starts firing)
-# already has the right camera position. Without this the cameraX /
-# cameraY fallback in the renderer would be 0/0 and the mario sprite
-# would render at his raw world position — clipped off the left edge
-# of the 512x480 stage.
-buildViewTiles()
-let camX = state.mario.x - 8 * state.cellSize
-let camY = state.mario.y - 6 * state.cellSize
-if (camX < 0) { camX = 0 }
-state.cameraX = 0 - camX
-state.cameraY = 0 - camY
+state.cameraX = 0
+state.cameraY = 0

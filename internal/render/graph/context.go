@@ -3,6 +3,7 @@ package graph
 import (
 	"image"
 	"image/color"
+	"math"
 
 	"github.com/qorm/qorm/internal/geom"
 	"github.com/qorm/qorm/internal/op"
@@ -57,6 +58,40 @@ func (c *Context) ClipRRect(r image.Rectangle, radius float64) {
 // circle). rx/ry are radii in the current local coordinate space.
 func (c *Context) ClipEllipse(r image.Rectangle, rx, ry float64) {
 	c.ops.Add(op.ClipOp{Rect: r, EllipseRX: rx, EllipseRY: ry})
+}
+
+// ClipPolygon sets a polygonal clip (CSS clip-path: polygon()). pts are in
+// the current local coordinate space. evenOdd selects the even-odd fill rule;
+// false is nonzero (CSS default).
+func (c *Context) ClipPolygon(pts []geom.Point, evenOdd bool) {
+	if len(pts) < 3 {
+		return
+	}
+	minX, minY := pts[0].X, pts[0].Y
+	maxX, maxY := minX, minY
+	for _, p := range pts[1:] {
+		if p.X < minX {
+			minX = p.X
+		}
+		if p.Y < minY {
+			minY = p.Y
+		}
+		if p.X > maxX {
+			maxX = p.X
+		}
+		if p.Y > maxY {
+			maxY = p.Y
+		}
+	}
+	poly := append([]geom.Point(nil), pts...)
+	c.ops.Add(op.ClipOp{
+		Rect: image.Rect(
+			int(math.Floor(minX)), int(math.Floor(minY)),
+			int(math.Ceil(maxX)), int(math.Ceil(maxY)),
+		),
+		Poly:    poly,
+		EvenOdd: evenOdd,
+	})
 }
 
 // Fill sets the current fill color.

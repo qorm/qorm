@@ -133,6 +133,7 @@ Each widget lists its **canonical name** first; the rest are equivalent aliases.
 | `text` | — | `text` |
 | `textarea` | — | `textarea` |
 | `textformfield` | — | `textFormField` |
+| `tilemap` | — | `tilemap` |
 | `timeline` | — | `timeline` |
 | `timepicker` | cupertinotimepicker | `timepicker` |
 | `timer` | — | `timer` |

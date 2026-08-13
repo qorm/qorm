@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/qorm/qorm/internal/geom"
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/render/graph"
 )
@@ -48,11 +49,14 @@ func isScrollType(t string) bool { return t == "scroll" || t == "scrollview" }
 // sibling drawn after it, and the parent group's Restore pops it.
 // Radius > 0 emits a rounded clip (overflow:hidden + borderRadius).
 // EllipseRX/RY > 0 emits an elliptical clip (clip-path: circle/ellipse).
+// Poly (len>=3) emits a polygonal clip (clip-path: polygon()).
 type clipNode struct {
 	graph.BaseNode
 	Radius    float64
 	EllipseRX float64
 	EllipseRY float64
+	Poly      []geom.Point
+	EvenOdd   bool
 }
 
 func newClipNode(w, h float64) *clipNode {
@@ -74,12 +78,26 @@ func newClipEllipse(w, h, rx, ry float64) *clipNode {
 	return c
 }
 
+func newClipPolygon(w, h float64, pts [][2]float64, evenOdd bool) *clipNode {
+	c := newClipNodeR(w, h, 0)
+	c.Poly = make([]geom.Point, len(pts))
+	for i, p := range pts {
+		c.Poly[i] = geom.Point{X: p[0], Y: p[1]}
+	}
+	c.EvenOdd = evenOdd
+	return c
+}
+
 func (c *clipNode) Base() *graph.BaseNode { return &c.BaseNode }
 
 // Draw emits the clip rect. No Save/Translate of its own: the parent group
 // already established the local coordinate space, and the clip must outlive
 // the siblings' own Save/Restore pairs.
 func (c *clipNode) Draw(ctx *graph.Context) {
+	if len(c.Poly) >= 3 {
+		ctx.ClipPolygon(c.Poly, c.EvenOdd)
+		return
+	}
 	r := image.Rect(0, 0, int(c.Width), int(c.Height))
 	if c.EllipseRX > 0 && c.EllipseRY > 0 {
 		ctx.ClipEllipse(r, c.EllipseRX, c.EllipseRY)

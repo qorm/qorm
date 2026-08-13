@@ -1,26 +1,14 @@
-# lib.qs — the mavis core. Reserved `type:"scriptlib"`, spliced ahead
-# of every action's body. Keep this file to fn definitions + comments;
-# top-level statements here would run before every action.
+# lib.qs — NES Super Mario Bros. World 1-1 at 2x scale.
+# Tile = 32 px (2x the NES 16 px). Small Mario hitbox 24x32; big 24x64.
+# Physics numbers are 2x NES (px/frame at 60 Hz, converted with dt).
 #
-# World is a levelW × levelH grid of 32-px cells, kept as 211-char strings
-# in `state.rows` (row 0 = top, row levelH-1 = ground). Mario sprite is
-# 16×16, AABB-centered in the 32-px cell. Tile glyphs:
-#   .  air
-#   1  ground (solid, indestructible)
-#   2  brick (solid; small mario nudges, big mario breaks)
-#   3  coin (pickup)
-#   4  flag pole
-#   5  pipe top (solid, indestructible)
-#   6  pipe body (solid)
-#   7  question block (solid; first hit → powerup, then '8' used)
-#   8  used question block (solid, inert)
-#   b  stair (solid)
-#   d  cloud, e  bush, h  hill (non-solid decoration; mario passes through)
-#
-# Physics: mario.x/y are physical px. The engine's timer is 16ms (60fps)
-# and computes dt from wall-clock so the world is frame-rate independent.
-
-# ----- Tile helpers ----------------------------------------------------------
+# Tiles:
+#   . air
+#   1 ground   2 brick   3 coin   4 flag
+#   5 pipe top 6 pipe body
+#   7 coin ?-block   q mushroom ?-block   8 used
+#   b stair   c castle
+#   d cloud   e bush   h hill
 
 fn tileAt(x, y) {
   if (x < 0 || x >= state.levelW || y < 0 || y >= state.levelH) { return "." }
@@ -30,30 +18,44 @@ fn tileAt(x, y) {
 fn setTile(x, y, ch) {
   let row = at(state.rows, y)
   state.rows[y] = substring(row, 0, x) + ch + substring(row, x + 1)
+  state.tilesDirty = true
+}
+
+fn tileSrc(ch) {
+  if (ch == "1") { return "assets/ground.png" }
+  if (ch == "2") { return "assets/brick.png" }
+  if (ch == "3") { return "assets/coin.png" }
+  if (ch == "4") { return "assets/flag.png" }
+  if (ch == "5") { return "assets/pipe_top.png" }
+  if (ch == "6") { return "assets/pipe_body.png" }
+  if (ch == "7") { return "assets/question.png" }
+  if (ch == "q") { return "assets/question.png" }
+  if (ch == "8") { return "assets/used.png" }
+  if (ch == "b") { return "assets/stair.png" }
+  if (ch == "c") { return "assets/castle.png" }
+  if (ch == "d") { return "assets/cloud.png" }
+  if (ch == "e") { return "assets/bush.png" }
+  if (ch == "h") { return "assets/hill.png" }
+  return "assets/ground.png"
 }
 
 fn isSolid(t) {
-  return t == "1" || t == "2" || t == "5" || t == "6" || t == "7" || t == "8" || t == "b" || t == "c"
+  return t == "1" || t == "2" || t == "5" || t == "6" || t == "7" || t == "q" || t == "8" || t == "b" || t == "c"
 }
 
-fn isDecorative(t) {
-  return t == "d" || t == "e" || t == "h"
+fn marioW() { return 24 }
+fn marioH() {
+  if (state.mario.big) { return 64 }
+  return 32
 }
 
-# ----- AABB collision (one axis at a time) ----------------------------------
-# resolveAxis returns [newPos, hitSolid] after sliding past the solid
-# cells the sprite would otherwise overlap. Called once per axis: horizontal
-# then vertical, with the OTHER axis's already-resolved coordinate. This
-# is the standard platformer trick — without per-axis resolution the sprite
-# can catch on a corner.
-fn resolveAxis(pos, delta, fixedLo, fixedHi, isVert) {
+# Per-axis AABB slide. isVert=true uses pos as Y and fixed as X range.
+fn resolveAxis(pos, delta, fixedLo, fixedHi, isVert, span) {
   let cell = state.cellSize
-  let marioW = 16
-  let marioH = 16
   if (delta == 0) { return [pos, false] }
   let newPos = pos + delta
   let lo = newPos
-  let hi = newPos + (isVert ? marioH : marioW) - 0.01
+  let hi = newPos + span - 0.01
   let c0 = floor(lo / cell)
   let c1 = floor(hi / cell)
   let co0 = floor(fixedLo / cell)
@@ -66,20 +68,12 @@ fn resolveAxis(pos, delta, fixedLo, fixedHi, isVert) {
       if (isVert) {
         if (isSolid(tileAt(cy, cx))) {
           hit = true
-          if (delta > 0) {
-            newPos = cx * cell - marioH
-          } else {
-            newPos = (cx + 1) * cell
-          }
+          if (delta > 0) { newPos = cx * cell - span } else { newPos = (cx + 1) * cell }
         }
       } else {
         if (isSolid(tileAt(cx, cy))) {
           hit = true
-          if (delta > 0) {
-            newPos = cx * cell - marioW
-          } else {
-            newPos = (cx + 1) * cell
-          }
+          if (delta > 0) { newPos = cx * cell - span } else { newPos = (cx + 1) * cell }
         }
       }
       cy = cy + 1
@@ -89,9 +83,8 @@ fn resolveAxis(pos, delta, fixedLo, fixedHi, isVert) {
   return [newPos, hit]
 }
 
-# ----- Game rules ------------------------------------------------------------
-
 fn win() {
+  if (state.status == "won") { return }
   state.status = "won"
   stopMusic()
   playSound("audio/win.wav")
@@ -101,86 +94,91 @@ fn lose() {
   if (state.status == "dead") { return }
   state.status = "dead"
   state.mario.alive = false
-  state.mario.vy = -300
+  state.mario.vy = 0 - 480
   state.mario.onGround = false
-  state.deathTimer = 60
+  state.deathTimer = 90
   state.fxDeath = state.fxDeath + 1
   stopMusic()
   playSound("audio/death.wav")
 }
 
-# ----- Main physics step -----------------------------------------------------
-# physicsStep advances the world by one tick. The tick is driven by a 16-ms
-# timer (60 fps) declared in scenes/main.json.
 fn physicsStep() {
   if (state.status == "won") { return }
-  let now = num(now())
-  let dt = (now - state.lastTickMs) / 1000
-  if (dt <= 0 || dt > 0.1) { dt = 1 / 60 }
-  state.lastTickMs = now
+  # Fixed 1/60. Wall-clock dt made enemies stutter whenever a frame
+  # ran long (dirty-rect misses, audio, …).
+  let dt = 1 / 60
+  state.lastTickMs = num(now())
+  unstickMario()
 
-  # lose() sets status=dead immediately; keep ticking so the NES bounce
-  # (upward vy, then free-fall) can play and deathDone can arm the overlay.
   if (state.status == "dead" || !state.mario.alive) {
-    state.mario.vy = state.mario.vy + 800 * dt
+    state.mario.vy = state.mario.vy + 3150 * dt
+    if (state.mario.vy > 480) { state.mario.vy = 480 }
     state.mario.y = state.mario.y + state.mario.vy * dt
     state.deathTimer = state.deathTimer - 1
     if (state.deathTimer <= 0) { state.deathDone = true }
     return
   }
 
-  # Timer countdown
-  state.timeLeft = state.timeLeft - dt
-  if (state.timeLeft <= 0) { state.timeLeft = 0
+  # NES TIME ticks ~2.5/s (400 ≈ 160 s of play).
+  state.timeLeft = state.timeLeft - dt * 2.5
+  if (state.timeLeft <= 0) {
+    state.timeLeft = 0
     lose()
+    return
   }
 
   if (state.mario.invuln > 0) { state.mario.invuln = state.mario.invuln - 1 }
   if (state.bumpT > 0) { state.bumpT = state.bumpT - 1 }
 
-  # Horizontal: input → acceleration, friction when no key is held.
   let k = state.keys
-  let ax = 0
-  if (k.left && !k.right) { ax = -1200 }
-  if (k.right && !k.left) { ax = 1200 }
-  state.mario.vx = state.mario.vx + ax * dt
-  if (ax == 0) {
-    state.mario.vx = state.mario.vx * 0.85
-    if (abs(state.mario.vx) < 4) { state.mario.vx = 0 }
+  let acc = 166
+  let maxVx = 187
+  if (k.run) {
+    acc = 396
+    maxVx = 307
   }
-  let maxVx = 120
-  if (k.run) { maxVx = 180 }
+  let ax = 0
+  if (k.left && !k.right) { ax = 0 - acc }
+  if (k.right && !k.left) { ax = acc }
+
+  if (ax != 0 && state.mario.vx != 0 && (ax > 0) != (state.mario.vx > 0)) {
+    # Skid: reverse direction while moving.
+    state.mario.vx = state.mario.vx + ax * 2 * dt
+  } else if (ax != 0) {
+    state.mario.vx = state.mario.vx + ax * dt
+  } else {
+    let dec = 367 * dt
+    if (state.mario.vx > dec) { state.mario.vx = state.mario.vx - dec } else {
+      if (state.mario.vx < 0 - dec) { state.mario.vx = state.mario.vx + dec } else { state.mario.vx = 0 }
+    }
+  }
   if (state.mario.vx > maxVx) { state.mario.vx = maxVx }
   if (state.mario.vx < 0 - maxVx) { state.mario.vx = 0 - maxVx }
   if (state.mario.vx != 0) { state.mario.dir = state.mario.vx > 0 ? 1 : 0 - 1 }
 
-  # Vertical: gravity, reduced while jump is held.
   if (!state.mario.onGround) {
-    let g = 1400
-    if (k.jumpHold && state.mario.vy < 0) { g = 500 }
+    # 2x NES: hold ~4.4 tiles, tap ~2.2. Old 1120/3150 was 3.2 / 1.1 tiles
+    # and a tap could not reach a ? block (96px above small Mario's head).
+    let g = 2080
+    if (k.jumpHold && state.mario.vy < 0) { g = 1040 }
     state.mario.vy = state.mario.vy + g * dt
-    if (state.mario.vy > 600) { state.mario.vy = 600 }
+    if (state.mario.vy > 560) { state.mario.vy = 560 }
   }
 
-  # Apply movement one axis at a time, with collision.
   let cell = state.cellSize
-  let mW = 16
-  let mH = 16
-  # Walk animation phase (cycles 0..3 every 8 frames when on ground moving)
-  if (state.mario.onGround && state.mario.vx != 0) {
+  let mW = marioW()
+  let mH = marioH()
+  if (state.mario.onGround && abs(state.mario.vx) > 8) {
     state.mario.walkPhase = (state.mario.walkPhase + 1) % 16
   } else {
-    state.mario.walkPhase = 0
+    if (state.mario.onGround) { state.mario.walkPhase = 0 }
   }
 
-  # Horizontal pass.
-  let dx = state.mario.vx * dt
-  let horizRes = resolveAxis(state.mario.x, dx, state.mario.y, state.mario.y + mH, false)
+  let horizRes = resolveAxis(state.mario.x, state.mario.vx * dt, state.mario.y, state.mario.y + mH, false, mW)
   state.mario.x = at(horizRes, 0)
   if (at(horizRes, 1)) { state.mario.vx = 0 }
-  # Vertical pass.
-  let dy = state.mario.vy * dt
-  let vertRes = resolveAxis(state.mario.y, dy, state.mario.x, state.mario.x + mW, true)
+
+  let vertRes = resolveAxis(state.mario.y, state.mario.vy * dt, state.mario.x, state.mario.x + mW, true, mH)
   state.mario.y = at(vertRes, 0)
   if (at(vertRes, 1)) {
     if (state.mario.vy > 0) {
@@ -190,83 +188,66 @@ fn physicsStep() {
     }
     state.mario.vy = 0
   } else {
-    let footCx = floor((state.mario.x + 8) / cell)
+    let footCx = floor((state.mario.x + mW / 2) / cell)
+    # Pixel just below the exclusive AABB bottom — the ground cell.
     let footCy = floor((state.mario.y + mH) / cell)
     if (isSolid(tileAt(footCx, footCy))) {
       state.mario.onGround = true
+      state.mario.y = footCy * cell - mH
+      state.mario.vy = 0
     } else {
       state.mario.onGround = false
     }
   }
 
-  # Clamp to level bounds.
   if (state.mario.x < 0) { state.mario.x = 0
     state.mario.vx = 0 }
-  if (state.mario.x > (state.levelW - 1) * cell) { state.mario.x = (state.levelW - 1) * cell
+  let maxX = state.levelW * cell - mW
+  if (state.mario.x > maxX) { state.mario.x = maxX
     state.mario.vx = 0 }
-
-  # Out-of-world fall = death.
   if (state.mario.y > state.levelH * cell) { lose() }
 
-  # Coin + flag pickup: check the cell at mario's center.
-  let mcx = floor((state.mario.x + mW / 2) / cell)
-  let mcyCenter = floor((state.mario.y + mH / 2) / cell)
-  let mcyHead = floor(state.mario.y / cell) - 1
-  let mcyFoot = floor((state.mario.y + mH) / cell)
-  let collected = false
-  let tCenter = tileAt(mcx, mcyCenter)
-  let tHead = tileAt(mcx, mcyHead)
-  let tFoot = tileAt(mcx, mcyFoot)
-  if (tCenter == "3" || tHead == "3" || tFoot == "3") {
-    let cy = tCenter == "3" ? mcyCenter : (tHead == "3" ? mcyHead : mcyFoot)
-    setTile(mcx, cy, ".")
-    state.coins = state.coins + 1
-    state.score = state.score + 200
-    state.fxCoin = state.fxCoin + 1
-    playSound("audio/coin.wav")
-    if (state.coins >= 100) {
-      state.coins = state.coins - 100
-      state.lives = state.lives + 1
-      playSound("audio/1up.wav")
-    }
-  }
-  if (tCenter == "4" || tHead == "4" || tFoot == "4" || tCenter == "c" || tHead == "c" || tFoot == "c") { win() }
-
-  # Enemy interaction.
-  stepGoombas(dt)
+  collectTiles()
+  stepEnemies(dt)
   touchEnemies()
   stepPowerups(dt)
-
-  # Camera follow (writes state.cameraX/Y for buildViewTiles; the canvas
-  # engine computes its own PanX from mario, so both renderers stay in
-  # sync). Center on mario, clamp to the level bounds so the camera
-  # never shows sky past the left/right edge of the level.
-  let halfW = floor(state.viewportW / 2) * cell
-  let halfH = floor(state.viewportH / 2) * cell
-  let camX = state.mario.x - halfW
-  let camY = state.mario.y - halfH
-  let maxCamX = max(0, (state.levelW - state.viewportW) * cell)
-  let maxCamY = max(0, (state.levelH - state.viewportH) * cell)
-  if (camX < 0) { camX = 0 }
-  if (camX > maxCamX) { camX = maxCamX }
-  if (camY < 0) { camY = 0 }
-  if (camY > maxCamY) { camY = maxCamY }
-  state.cameraX = 0 - camX
-  state.cameraY = 0 - camY
-
-  # Flatten the visible viewport into a list the scene renders.
-  buildViewTiles()
 }
 
-# bumpBelow handles mario bonking a block from below. The block cell is one
-# row above mario's head; identify it, then spawn a powerup (from a `7`
-# question block on the first hit) or destroy it (brick, if big).
+fn collectTiles() {
+  let cell = state.cellSize
+  let mW = marioW()
+  let mH = marioH()
+  let mcx = floor((state.mario.x + mW / 2) / cell)
+  let mcyCenter = floor((state.mario.y + mH / 2) / cell)
+  let mcyHead = floor(state.mario.y / cell)
+  let mcyFoot = floor((state.mario.y + mH - 1) / cell)
+  let spots = [mcyCenter, mcyHead, mcyFoot]
+  let i = 0
+  while (i < 3) {
+    let cy = at(spots, i)
+    let t = tileAt(mcx, cy)
+    if (t == "3") {
+      setTile(mcx, cy, ".")
+      state.coins = state.coins + 1
+      state.score = state.score + 200
+      state.fxCoin = state.fxCoin + 1
+      playSound("audio/coin.wav")
+      if (state.coins >= 100) {
+        state.coins = state.coins - 100
+        state.lives = state.lives + 1
+        playSound("audio/1up.wav")
+      }
+    }
+    if (t == "4" || t == "c") { win() }
+    i = i + 1
+  }
+}
+
 fn bumpBelow() {
   let cell = state.cellSize
-  let mH = 16
   let mcy = floor((state.mario.y - 1) / cell)
   let mcx0 = floor(state.mario.x / cell)
-  let mcx1 = floor((state.mario.x + 16 - 1) / cell)
+  let mcx1 = floor((state.mario.x + marioW() - 1) / cell)
   let c = mcx0
   while (c <= mcx1) {
     let t = tileAt(c, mcy)
@@ -280,37 +261,44 @@ fn bumpBelow() {
       } else {
         playSound("audio/bump.wav")
       }
-    } else if (t == "7") {
-      setTile(c, mcy, "8")
-      state.bumpCX = c
-      state.bumpCY = mcy
-      state.bumpT = 8
-      spawnMushroom(c, mcy)
-      state.score = state.score + 200
-      playSound("audio/powerup_appear.wav")
-    } else if (t == "8") {
-      state.bumpCX = c
-      state.bumpCY = mcy
-      state.bumpT = 8
-      playSound("audio/bump.wav")
+    } else {
+      if (t == "7") {
+        setTile(c, mcy, "8")
+        state.bumpCX = c
+        state.bumpCY = mcy
+        state.bumpT = 8
+        state.coins = state.coins + 1
+        state.score = state.score + 200
+        state.fxCoin = state.fxCoin + 1
+        playSound("audio/coin.wav")
+      } else {
+        if (t == "q") {
+          setTile(c, mcy, "8")
+          state.bumpCX = c
+          state.bumpCY = mcy
+          state.bumpT = 8
+          spawnMushroom(c, mcy)
+          playSound("audio/powerup_appear.wav")
+        } else {
+          if (t == "8") {
+            state.bumpCX = c
+            state.bumpCY = mcy
+            state.bumpT = 8
+            playSound("audio/bump.wav")
+          }
+        }
+      }
     }
     c = c + 1
   }
 }
 
 fn spawnMushroom(cx, cy) {
-  let p = { x: num(cx) * state.cellSize,
-            y: num(cy) * state.cellSize,
-            vx: 60,
-            type: "mushroom",
-            alive: true,
-            dead: false }
+  let p = { x: num(cx) * state.cellSize, y: num(cy) * state.cellSize - 32, vx: 60, type: "mushroom", alive: true }
   state.powerups = push(state.powerups, p)
 }
 
-# stepGoombas walks every live goomba. Each one moves along its platform
-# and turns at walls / ledges.
-fn stepGoombas(dt) {
+fn stepEnemies(dt) {
   let cell = state.cellSize
   let g = 0
   while (g < len(state.goombas)) {
@@ -324,43 +312,45 @@ fn stepGoombas(dt) {
       continue
     }
     e.walkPhase = (e.walkPhase + 1) % 16
+    if (e.shell && e.vx == 0) { g = g + 1
+      continue }
     let nx = e.x + e.vx * dt
-    # Check the cell in front of the goomba, in the goomba's body row.
-    # Using the goomba's BOTTOM row (y+cell)/cell would always be the ground
-    # row, so the wall check fires every frame and the goomba oscillates
-    # in place. The body row is floor(y/cell) — for a 32-px goomba at y=400
-    # (sitting on the row-13 ground) the body is in row 12, and a wall at
-    # row 12 actually blocks horizontal motion.
     let dir = e.vx < 0 ? 0 - 1 : 1
-    let aheadX = floor((e.x + (dir > 0 ? cell - 1 : 0)) / cell) + dir
-    let aheadY = floor(e.y / cell)
-    let wallAhead = isSolid(tileAt(aheadX, aheadY))
-    if (wallAhead) {
+    let aheadX = floor((e.x + (dir > 0 ? 31 : 0)) / cell) + dir
+    let aheadY = floor((e.y + 16) / cell)
+    if (isSolid(tileAt(aheadX, aheadY))) {
       e.vx = 0 - e.vx
-    } else if (e.x >= 0 && e.x < state.levelW * cell) {
-      e.x = nx
     } else {
-      e.vx = 0 - e.vx
+      e.x = nx
     }
-    # Settle vertically onto the platform below.
-    let ey = e.y
-    let bottomCX = floor((e.x + cell / 2) / cell)
-    let bottomCY = floor((ey + cell) / cell)
+    let bottomCX = floor((e.x + 16) / cell)
+    let bottomCY = floor((e.y + 32) / cell)
     if (!isSolid(tileAt(bottomCX, bottomCY))) {
-      # No platform directly below — goomba falls.
-      ey = ey + 80 * dt
+      e.y = e.y + 240 * dt
     }
-    e.y = ey
-    # Remove goombas that fell off the world.
     if (e.y > state.levelH * cell) { e.alive = false }
+    # Moving shell hits other enemies.
+    if (e.shell && abs(e.vx) > 10) {
+      let h = 0
+      while (h < len(state.goombas)) {
+        let o = at(state.goombas, h)
+        if (h != g && o.alive && o.squash == 0) {
+          if (e.x < o.x + 32 && e.x + 32 > o.x && e.y < o.y + 32 && e.y + 32 > o.y) {
+            o.alive = false
+            state.score = state.score + 100
+            playSound("audio/stomp.wav")
+          }
+        }
+        h = h + 1
+      }
+    }
     g = g + 1
   }
 }
 
 fn touchEnemies() {
-  let cell = state.cellSize
-  let mW = 16
-  let mH = 16
+  let mW = marioW()
+  let mH = marioH()
   let mx = state.mario.x
   let my = state.mario.y
   let g = 0
@@ -368,35 +358,39 @@ fn touchEnemies() {
     let e = at(state.goombas, g)
     if (!e.alive || e.squash > 0) { g = g + 1
       continue }
-    if (mx < e.x + cell && mx + mW > e.x && my < e.y + cell && my + mH > e.y) {
-      # Stomp: mario falling onto goomba from above.
-      if (state.mario.vy > 0 && my + mH - e.y < cell / 2) {
-        e.squash = 10
-        e.vx = 0
-        state.score = state.score + 100
-        state.mario.vy = -240
-        state.fxStomp = state.fxStomp + 1
+    if (mx < e.x + 32 && mx + mW > e.x && my < e.y + 32 && my + mH > e.y) {
+      if (e.shell && e.vx == 0) {
+        e.vx = state.mario.dir * 320
         playSound("audio/stomp.wav")
       } else {
-        hurtMario()
-        g = len(state.goombas)
+        if (state.mario.vy > 40 && my + mH - e.y < 20) {
+          if (e.type == "koopa" && !e.shell) {
+            e.shell = true
+            e.vx = 0
+            e.type = "shell"
+          } else {
+            e.squash = 12
+            e.vx = 0
+          }
+          state.score = state.score + 100
+          state.mario.vy = 0 - 240
+          state.fxStomp = state.fxStomp + 1
+          playSound("audio/stomp.wav")
+        } else {
+          if (!(e.shell && abs(e.vx) < 10)) { hurtMario() }
+        }
       }
     }
     g = g + 1
   }
-  # Powerup pickup.
   let p = 0
   while (p < len(state.powerups)) {
     let u = at(state.powerups, p)
-    if (!u.alive) { p = p + 1
-      continue }
-    if (mx < u.x + cell && mx + mW > u.x && my < u.y + cell && my + mH > u.y) {
+    if (u.alive && mx < u.x + 32 && mx + mW > u.x && my < u.y + 32 && my + mH > u.y) {
       u.alive = false
-      if (u.type == "mushroom") {
-        state.mario.big = true
-        state.score = state.score + 1000
-        playSound("audio/powerup.wav")
-      }
+      growMario()
+      state.score = state.score + 1000
+      playSound("audio/powerup.wav")
     }
     p = p + 1
   }
@@ -409,32 +403,50 @@ fn stepPowerups(dt) {
     let u = at(state.powerups, p)
     if (!u.alive) { p = p + 1
       continue }
-    if (u.type == "mushroom") {
-      let nx = u.x + u.vx * dt
-      let dir = u.vx < 0 ? 0 - 1 : 1
-      let ax = floor((nx + (dir > 0 ? cell : 0)) / cell) + dir
-      let ay = floor((u.y + cell - 1) / cell)
-      if (isSolid(tileAt(ax, ay))) {
-        u.vx = 0 - u.vx
-      } else {
-        u.x = nx
-      }
-      # Settle onto platform.
-      let uy = u.y
-      let cy = floor((u.x + cell / 2) / cell)
-      while (!isSolid(tileAt(cy, floor((uy + cell) / cell))) && uy < state.levelH * cell) {
-        uy = uy + 2
-      }
-      u.y = uy
-    }
+    let nx = u.x + u.vx * dt
+    let dir = u.vx < 0 ? 0 - 1 : 1
+    let ax = floor((nx + (dir > 0 ? 32 : 0)) / cell) + dir
+    let ay = floor((u.y + 24) / cell)
+    if (isSolid(tileAt(ax, ay))) { u.vx = 0 - u.vx } else { u.x = nx }
+    let cy = floor((u.x + 16) / cell)
+    if (!isSolid(tileAt(cy, floor((u.y + 32) / cell)))) { u.y = u.y + 240 * dt }
     p = p + 1
   }
 }
 
+fn unstickMario() {
+  if (!state.mario.alive) { return }
+  let cell = state.cellSize
+  let cx = floor((state.mario.x + marioW() / 2) / cell)
+  let mH = marioH()
+  let i = 0
+  while (i < 4) {
+    let inside = floor((state.mario.y + mH - 1) / cell)
+    if (!isSolid(tileAt(cx, inside))) { return }
+    state.mario.y = inside * cell - mH
+    state.mario.vy = 0
+    state.mario.onGround = true
+    i = i + 1
+  }
+}
+
+fn growMario() {
+  if (state.mario.big) { return }
+  state.mario.big = true
+  unstickMario()
+}
+
+fn shrinkMario() {
+  if (!state.mario.big) { return }
+  state.mario.big = false
+  state.mario.y = state.mario.y + 32
+}
+
 fn hurtMario() {
+  if (state.mario.invuln > 0) { return }
   if (state.mario.big) {
-    state.mario.big = false
-    state.mario.invuln = 30
+    shrinkMario()
+    state.mario.invuln = 120
     state.fxHurt = state.fxHurt + 1
     playSound("audio/powerdown.wav")
   } else {
@@ -442,35 +454,52 @@ fn hurtMario() {
   }
 }
 
-# buildViewTiles flattens the visible viewport (camera-followed) into
-# state.viewTiles — a list of {x, y, kind} the scene's tile lists render.
 fn buildViewTiles() {
   let cell = state.cellSize
   let vw = state.viewportW
-  let vh = state.viewportH
-  let camX = max(0, min(state.levelW * cell, state.mario.x - vw / 2 * cell))
-  let camY = max(0, min(state.levelH * cell, state.mario.y - vh / 2 * cell))
-  let x0 = max(0, floor(camX / cell) - 1)
-  let y0 = max(0, floor(camY / cell) - 1)
-  let x1 = min(state.levelW, x0 + vw + 2)
-  let y1 = min(state.levelH, y0 + vh + 2)
-  let tiles = []
-  let y = y0
-  while (y < y1) {
+  let camX = max(0, state.mario.x - 5 * cell)
+  let need0 = max(0, floor(camX / cell) - 1)
+  let need1 = min(state.levelW, need0 + vw + 3)
+  # Keep a 4-column slack so running does not rebuild every tile column
+  # (that hitch is what made the board feel stuck while the camera moved).
+  if (len(state.viewTiles) > 0 && state.bumpT == 0 && state.viewBump == 0 && state.tilesDirty != true && need0 >= state.viewX0 && need1 <= state.viewX1) {
+    return
+  }
+  let slop = 4
+  let x0 = max(0, need0 - slop)
+  let x1 = min(state.levelW, need1 + slop)
+  let n = 0
+  let y = 0
+  while (y < state.levelH) {
+    let row = at(state.rows, y)
+    let x = x0
+    while (x < x1) {
+      if (charAt(row, x) != ".") { n = n + 1 }
+      x = x + 1
+    }
+    y = y + 1
+  }
+  let tiles = fill(n, 0)
+  let i = 0
+  y = 0
+  while (y < state.levelH) {
     let row = at(state.rows, y)
     let x = x0
     while (x < x1) {
       let ch = charAt(row, x)
       if (ch != ".") {
         let ty = num(y) * cell
-        if (state.bumpT > 0 && x == state.bumpCX && y == state.bumpCY) {
-          ty = ty - 6
-        }
-        tiles = push(tiles, { x: num(x) * cell, y: ty, kind: ch })
+        if (state.bumpT > 0 && x == state.bumpCX && y == state.bumpCY) { ty = ty - 6 }
+        tiles[i] = { x: num(x) * cell, y: ty, kind: ch, src: tileSrc(ch) }
+        i = i + 1
       }
       x = x + 1
     }
     y = y + 1
   }
   state.viewTiles = tiles
+  state.viewX0 = x0
+  state.viewX1 = x1
+  state.viewBump = state.bumpT
+  state.tilesDirty = false
 }

@@ -20,6 +20,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 const size = 24
@@ -327,14 +328,69 @@ func main() {
 		if err := writeSprite(filepath.Join(out, name+".png"), px); err != nil {
 			log.Fatalf("%s: %v", name, err)
 		}
-		log.Printf("wrote %s.png (%dx%d)", name, size, size)
+		log.Printf("wrote %s.png (32x32)", name)
+	}
+	// Super Mario is a real 32x64 sprite (not a 32x32 stretched by cover).
+	for name, src := range map[string]sprite{
+		"mario_big":      sprites["mario"],
+		"mario_big_walk": sprites["mario_walk"],
+		"mario_big_jump": sprites["mario_jump"],
+	} {
+		rows := bigMarioRows(src)
+		if err := writeSpriteSize(filepath.Join(out, name+".png"), rows, 32, 64); err != nil {
+			log.Fatalf("%s: %v", name, err)
+		}
+		log.Printf("wrote %s.png (32x64)", name)
 	}
 }
 
-func writeSprite(path string, px sprite) error {
-	img := image.NewRGBA(image.Rect(0, 0, size, size))
-	for y, row := range px {
-		for x := 0; x < len(row) && x < size; x++ {
+func padRow(s string, w int) string {
+	if len(s) >= w {
+		return s[:w]
+	}
+	return s + strings.Repeat(".", w-len(s))
+}
+
+// bigMarioRows turns a 24px small-Mario map into a 32x64 Super Mario:
+// same head, longer torso with buttons, longer legs. Stretching the 32x32
+// PNG with object-fit:cover cropped him into a square.
+func bigMarioRows(s sprite) []string {
+	const w, h = 32, 64
+	out := make([]string, 0, h)
+	blank := strings.Repeat(".", w)
+	for i := 0; i < 4; i++ {
+		out = append(out, blank)
+	}
+	for i := 0; i <= 11; i++ {
+		out = append(out, padRow(s[i], w))
+	}
+	for i := 12; i <= 17; i++ {
+		out = append(out, padRow(s[i], w))
+	}
+	body := padRow(`...RRRRRRRRRRRRRRRRRRRR...`, w)
+	btns := padRow(`...RRRRRYRRRRRRRYRRRRR...`, w)
+	for i := 0; i < 26; i++ {
+		if i == 8 || i == 9 {
+			out = append(out, btns)
+		} else {
+			out = append(out, body)
+		}
+	}
+	for i := 19; i <= 23; i++ {
+		out = append(out, padRow(s[i], w))
+		out = append(out, padRow(s[i], w))
+	}
+	for len(out) < h {
+		out = append(out, blank)
+	}
+	return out[:h]
+}
+
+func writeSpriteSize(path string, rows []string, w, h int) error {
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	for y := 0; y < h && y < len(rows); y++ {
+		row := rows[y]
+		for x := 0; x < w && x < len(row); x++ {
 			c, ok := palette[pixel(row[x])]
 			if !ok {
 				continue
@@ -348,4 +404,13 @@ func writeSprite(path string, px sprite) error {
 	}
 	defer f.Close()
 	return png.Encode(f, img)
+}
+
+func writeSprite(path string, px sprite) error {
+	rows := make([]string, size)
+	for i := range rows {
+		rows[i] = px[i]
+	}
+	// Checked-in small sprites are 32x32 (24px art + pad), not 24x24.
+	return writeSpriteSize(path, rows, 32, 32)
 }

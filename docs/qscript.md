@@ -26,6 +26,9 @@ state.filterOn = !state.filterOn
 
 End-to-end: [`examples/canvas-fx`](https://github.com/qorm/qorm/tree/main/examples/canvas-fx). Shared game core in
 [`examples/tetris`](https://github.com/qorm/qorm/tree/main/examples/tetris) (`actions/*.qs` + `styles/app.qss`).
+Side-scrollers: write physics `x`/`y` here, follow with a `board` camera +
+`tilemap` — see [styles — tile worlds](styles.md#side-scrollers-and-tile-worlds-board--tilemap)
+and [`examples/mario`](https://github.com/qorm/qorm/tree/main/examples/mario).
 
 ## Statements
 

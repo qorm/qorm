@@ -184,10 +184,10 @@ HTML 与 canvas 共同生效的包括盒模型、文字颜色/字号/字重、�
 |---|---|
 | `filter` | CSS 滤镜栈:`blur()` `brightness()` `contrast()` `saturate()` `grayscale()` `hue-rotate()` `opacity()` `drop-shadow()` `invert()` `sepia()` |
 | `blur` / `filterBlur` | 组模糊半径简写(px) |
-| `mixBlendMode` | 离屏层合成时:`multiply` / `screen` / `overlay` / `darken` / `lighten` |
+| `mixBlendMode` | 离屏层合成时:`multiply` / `screen` / `overlay` / `darken` / `lighten` / `difference` / `exclusion` / `color-dodge` / `color-burn` / `hard-light` / `plus-lighter` / `lighter`(`lighter` 是 `plus-lighter` 的 Porter-Duff 别名:`min(1, Cs+Cb)`) |
 | `maskFade` + `maskFadeSize` | 边缘软溶解(`top` / `bottom` / `left` / `right`) |
 | `maskImage` | 如 `linear-gradient(to bottom, black, transparent)` |
-| `clipPath` | `circle(50%)` / `ellipse(50% 40%)` / `inset(10px round 12px)` |
+| `clipPath` | `circle(50%)` / `ellipse(50% 40%)` / `inset(10px round 12px)` / `polygon(50% 0%, 100% 100%, 0% 100%)`(可选 `evenodd` / `nonzero` 填充规则) |
 | `layerCache` | 内容指纹未变时复用离屏位图 |
 | `overflow: "hidden"` | 子节点裁到盒子(有 `borderRadius` 时圆角裁剪) |
 | `tint` | 子树离屏层 RGB 调制(Godot `modulate` / Phaser tint)。alpha 为 0 表示关闭 |
@@ -205,15 +205,39 @@ HTML 与 canvas 共同生效的包括盒模型、文字颜色/字号/字重、�
     "scaleX": 1,
     "scaleY": 1,
     "flipX": true,
-    "flipY": false
+    "flipY": false,
+    "skewX": 12,
+    "skewY": 0,
+    "transformOrigin": "left top"
   }
 }
 ```
 
-- `rotate` — 绕节点中心的角度(度)
+- `rotate` — 绕 `transformOrigin` 的角度(度;默认中心)
 - `scale` / `scaleX` / `scaleY` — 0 表示未设置(按 1)
 - `flipX` / `flipY` — 对应轴取负
+- `skewX` / `skewY` — 剪切角(度;CSS skew;图剪切)。布局盒不变
+- `transformOrigin` — rotate / scale / flip / skew 的 CSS 枢轴:`center`、`left top`、`50% 0`、`12px 8px`。空 / 省略 = 中心。布局盒不变
 - 与入场 `animation`、`fx`、以及 `pressedScale` / `hoverScale` 叠加
+
+### 层叠(`zIndex`, canvas)
+
+`zIndex` 早已在 `render.KnownStyleKeys` 中(HTML 发出 CSS `z-index`)。canvas 后端现在实现它:兄弟节点的**绘制与命中顺序**。
+
+```json
+{
+  "type": "stack",
+  "children": [
+    { "id": "z_back", "type": "box", "style": { "zIndex": 1, "background": "#0a84ff" } },
+    { "id": "z_front", "type": "box", "style": { "zIndex": 2, "background": "#ff375f" } }
+  ]
+}
+```
+
+- `0`(或缺省 / `"auto"`) = auto——同 z 兄弟按文档顺序(后者绘制并命中在上)
+- 数值大的绘制(与命中)在上;负值画在 auto 兄弟后面
+- 布局盒不变——只改兄弟绘制/命中顺序
+- Measure 报告数字 `zIndex`,为 0 时报告 `"auto"`
 
 ### 滚动吸附
 
@@ -315,6 +339,56 @@ state.hits = state.hits + 1
 
 当 `layoutMotion` 为真、节点有稳定 `id` 且设置了 `transition` 时,绝对位置/
 尺寸跳变会缓动而非瞬切(共享元素风格)。演示:`examples/canvas-fx` 的 FLIP 芯片。
+
+### 横版与瓦片世界(`board` + `tilemap`)
+
+把 `board` 当**世界平面**,不要用 `row`/`column`/`list` 铺整张地图。引擎镜头
+跟随目标;`tilemap` 把字符网格 + 图集烘焙成**一张**世界位图(`rows` 或 bump
+变化前会缓存)。
+
+```json
+{
+  "type": "board",
+  "cameraTarget": "{{ state.mario }}",
+  "cameraCenter": "x",
+  "cameraCell": 32,
+  "cameraViewport": 16,
+  "cameraDeadZone": 160,
+  "cameraLockLeft": true,
+  "cameraResetToken": "{{ state.cameraGen }}",
+  "cameraMax": { "x": 6240 },
+  "disablePan": true,
+  "children": [
+    {
+      "type": "tilemap",
+      "id": "tiles",
+      "rows": "{{ state.rows }}",
+      "cell": 32,
+      "bumpX": "{{ state.bumpCX }}",
+      "bumpY": "{{ state.bumpCY }}",
+      "bumpT": "{{ state.bumpT }}",
+      "atlas": { "1": "assets/ground.png", "2": "assets/brick.png" }
+    }
+  ]
+}
+```
+
+| 属性 | 含义 |
+|---|---|
+| `cameraTarget` | 带 `x`/`y`(px)的对象,通常是 `{{state.player}}` |
+| `cameraCenter` | `true` / `"x"` / `"y"` |
+| `cameraCell` + `cameraViewport` | 例如 `32` 与 `16` → 512 px 跟随窗口 |
+| `cameraDeadZone` | 像素;镜头滚动前的 NES 式左侧空档 |
+| `cameraLockLeft` | 永不回滚(SMB)。必须搭配 `cameraResetToken` |
+| `cameraResetToken` | 重开时递增 `{{state.cameraGen}}`,否则 lock-left 不会回到起点 |
+| `cameraMax` | `{ "x": (关卡宽 - 视口宽) * cell }` |
+| `disablePan` | 禁止玩家拖动画布(游戏) |
+
+角色仍是同一 `board` 上带绝对 `x`/`y` 的 `image` / `list`。HUD 放在 board
+**外面**(stack 叠加)。不要给物理 `x`/`y` 做补间,也不要对 60fps 移动体开
+`layoutMotion`。像素画:设 `imageRendering: pixelated`(QSS `image { … }`
+即可)。范例:[`examples/mario`](https://github.com/qorm/qorm/tree/main/examples/mario)。
+属性:[board / tilemap](/api/zh/props.md)。
 
 ## 诊断
 

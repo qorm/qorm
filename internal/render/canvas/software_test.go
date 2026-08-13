@@ -324,6 +324,37 @@ func TestImageFractionalResizeUsesBilinearSampling(t *testing.T) {
 	}
 }
 
+func TestRRectFastFillOpaque(t *testing.T) {
+	ops := &op.Ops{}
+	fill := color.RGBA{10, 20, 200, 255}
+	ops.Add(op.RRectOp{Rect: image.Rect(8, 6, 40, 30), Fill: fill})
+	img := Rasterize(ops, image.Pt(48, 36))
+	if got := img.RGBAAt(20, 16); got != fill {
+		t.Fatalf("fast fill interior = %v, want %v", got, fill)
+	}
+	if got := img.RGBAAt(0, 0); got == fill {
+		t.Fatalf("outside fast fill = %v, leaked fill", got)
+	}
+}
+
+func TestImageNearestFastBlitMatchesSlow(t *testing.T) {
+	src := image.NewRGBA(image.Rect(0, 0, 4, 4))
+	for y := 0; y < 4; y++ {
+		for x := 0; x < 4; x++ {
+			src.SetRGBA(x, y, color.RGBA{uint8(x * 60), uint8(y * 60), 180, 255})
+		}
+	}
+	// Pixelated 2x scale: dest 8×8. Fast path and the coverage loop must
+	// agree on a texel centre.
+	ops := &op.Ops{}
+	ops.Add(op.ImageOp{Src: src, Dest: image.Rect(0, 0, 8, 8), Pixelated: true})
+	img := Rasterize(ops, image.Pt(8, 8))
+	want := src.RGBAAt(1, 2)
+	if got := img.RGBAAt(3, 5); got != want {
+		t.Fatalf("nearest blit (3,5) = %v, want src(1,2)=%v", got, want)
+	}
+}
+
 func TestCircleUsesAntialiasedRRectPath(t *testing.T) {
 	c := graph.NewCircle()
 	c.X, c.Y, c.Radius = 4, 4, 8

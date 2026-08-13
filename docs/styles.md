@@ -194,10 +194,10 @@ node (inline `style` or QSS). Runnable showcase: [`examples/canvas-fx`](https://
 |---|---|
 | `filter` | CSS filter stack: `blur()` `brightness()` `contrast()` `saturate()` `grayscale()` `hue-rotate()` `opacity()` `drop-shadow()` `invert()` `sepia()` |
 | `blur` / `filterBlur` | Shorthand group blur radius (px) |
-| `mixBlendMode` | `multiply` / `screen` / `overlay` / `darken` / `lighten` when compositing the offscreen layer |
+| `mixBlendMode` | `multiply` / `screen` / `overlay` / `darken` / `lighten` / `difference` / `exclusion` / `color-dodge` / `color-burn` / `hard-light` / `plus-lighter` / `lighter` when compositing the offscreen layer (`lighter` is the Porter-Duff alias of `plus-lighter`: `min(1, Cs+Cb)`) |
 | `maskFade` + `maskFadeSize` | Soft edge dissolve (`top` / `bottom` / `left` / `right`) |
 | `maskImage` | e.g. `linear-gradient(to bottom, black, transparent)` |
-| `clipPath` | `circle(50%)` / `ellipse(50% 40%)` / `inset(10px round 12px)` |
+| `clipPath` | `circle(50%)` / `ellipse(50% 40%)` / `inset(10px round 12px)` / `polygon(50% 0%, 100% 100%, 0% 100%)` (optional `evenodd` / `nonzero` fill-rule) |
 | `layerCache` | Reuse the offscreen layer bitmap when content fingerprint is unchanged |
 | `overflow: "hidden"` | Clip children to the box (rounded when `borderRadius` is set) |
 | `tint` | RGB modulate on the subtree layer (Godot `modulate` / Phaser tint). Zero alpha = off |
@@ -215,15 +215,39 @@ Persistent visual transform — layout box is unchanged (Godot `rotation` / `sca
     "scaleX": 1,
     "scaleY": 1,
     "flipX": true,
-    "flipY": false
+    "flipY": false,
+    "skewX": 12,
+    "skewY": 0,
+    "transformOrigin": "left top"
   }
 }
 ```
 
-- `rotate` — degrees about the node center
+- `rotate` — degrees about `transformOrigin` (default center)
 - `scale` / `scaleX` / `scaleY` — 0 means unset (treated as 1)
 - `flipX` / `flipY` — negate the matching axis
+- `skewX` / `skewY` — shear angles in degrees (CSS skew; graph shear). Layout box is unchanged
+- `transformOrigin` — CSS pivot for rotate / scale / flip / skew: `center`, `left top`, `50% 0`, `12px 8px`. Empty / omitted = center. Layout box is unchanged
 - Composes with entrance `animation`, `fx`, and `pressedScale` / `hoverScale`
+
+### Stacking (`zIndex`, canvas)
+
+`zIndex` was already in `render.KnownStyleKeys` (HTML emits CSS `z-index`). The canvas backend now implements it: sibling **paint and hit order**.
+
+```json
+{
+  "type": "stack",
+  "children": [
+    { "id": "z_back", "type": "box", "style": { "zIndex": 1, "background": "#0a84ff" } },
+    { "id": "z_front", "type": "box", "style": { "zIndex": 2, "background": "#ff375f" } }
+  ]
+}
+```
+
+- `0` (or omitted / `"auto"`) = auto — document order among equal-z siblings (later paints and hits on top)
+- Higher paints (and hit-tests) above lower; negatives paint behind auto siblings
+- Layout boxes are unchanged — only sibling paint/hit order
+- Measure reports the numeric `zIndex`, or `"auto"` when 0
 
 ### Scroll snap
 
@@ -326,6 +350,57 @@ Also: `path` steps (polyline / cubic + `orient`), `timelineOnComplete`, list
 When `layoutMotion` is true, the node has a stable `id`, and `transition` is
 set, absolute position/size jumps ease instead of snapping (shared-element
 style). Demo: `examples/canvas-fx` "FLIP" chip.
+
+### Side-scrollers and tile worlds (`board` + `tilemap`)
+
+Use a `board` as the **world plane**, not a `row`/`column`/`list` of tiles.
+The engine camera follows a target; `tilemap` bakes a char-grid + atlas into
+**one** world bitmap (cached until `rows` or a bump changes).
+
+```json
+{
+  "type": "board",
+  "cameraTarget": "{{ state.mario }}",
+  "cameraCenter": "x",
+  "cameraCell": 32,
+  "cameraViewport": 16,
+  "cameraDeadZone": 160,
+  "cameraLockLeft": true,
+  "cameraResetToken": "{{ state.cameraGen }}",
+  "cameraMax": { "x": 6240 },
+  "disablePan": true,
+  "children": [
+    {
+      "type": "tilemap",
+      "id": "tiles",
+      "rows": "{{ state.rows }}",
+      "cell": 32,
+      "bumpX": "{{ state.bumpCX }}",
+      "bumpY": "{{ state.bumpCY }}",
+      "bumpT": "{{ state.bumpT }}",
+      "atlas": { "1": "assets/ground.png", "2": "assets/brick.png" }
+    }
+  ]
+}
+```
+
+| Prop | Meaning |
+|---|---|
+| `cameraTarget` | Object with `x`/`y` in px (usually `{{state.player}}`) |
+| `cameraCenter` | `true` / `"x"` / `"y"` |
+| `cameraCell` + `cameraViewport` | e.g. `32` and `16` → 512 px follow window |
+| `cameraDeadZone` | px; NES-style left band before the camera scrolls |
+| `cameraLockLeft` | never scroll back (SMB). Pair with `cameraResetToken` |
+| `cameraResetToken` | bump `{{state.cameraGen}}` on restart so lock-left rewinds |
+| `cameraMax` | `{ "x": (levelW - viewportW) * cell }` |
+| `disablePan` | no user drag-to-pan (games) |
+
+Actors stay as `image` / `list` children **on the same board** with absolute
+`x`/`y`. HUD lives **outside** the board (stack overlay). Do **not** tween
+physics `x`/`y` or put `layoutMotion` on 60 fps movers. Pixel art: set
+`imageRendering: pixelated` (a QSS `image { … }` rule is enough). Canonical
+app: [`examples/mario`](https://github.com/qorm/qorm/tree/main/examples/mario).
+Props: [board / tilemap](/api/props.md).
 
 ## Diagnostics
 

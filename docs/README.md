@@ -45,7 +45,7 @@ Sprint analysis, progress, and audit logs for multi-agent workstreams (not the p
 - [First scene](tutorials/first-scene.md) · [First action](tutorials/first-action.md) · [First component](tutorials/first-component.md) · [First platform pack](tutorials/first-platform-pack.md)
 - [Expressions](expressions.md) — the `{{ … }}` language: scopes, operators, index access, and every builtin function
 - [QScript](qscript.md) — the `.qs` scripting language: `let`, `if`, `for`, `while`, `fn`, `call()`, and the shared `lib.qs`
-- [QSS & canvas styles](styles.md) — stylesheets plus declarative canvas effects (filter, mask, snap, FLIP, spring, `fx` / `timeline`, tint, pixelated, rotate/scale/flip)
+- [QSS & canvas styles](styles.md) — stylesheets plus declarative canvas effects (filter, mask, snap, FLIP, spring, `fx` / `timeline`, tint, pixelated, rotate/scale/flip/skew, `board` camera + `tilemap`)
 
 ## Reference
 

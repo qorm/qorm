@@ -759,6 +759,8 @@ func (r *renderer) renderInner(n *model.Node) {
 		r.textFormField(n)
 	case "circularprogress", "circularprogressindicator":
 		r.circularProgress(n)
+	case "tilemap":
+		r.tilemap(n)
 	case "board":
 		r.board(n)
 	case "row", "column", "columns", "stack", "vstack", "hstack", "zstack", "absolute",

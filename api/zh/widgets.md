@@ -133,6 +133,7 @@
 | `text` | — | `text` |
 | `textarea` | — | `textarea` |
 | `textformfield` | — | `textFormField` |
+| `tilemap` | — | `tilemap` |
 | `timeline` | — | `timeline` |
 | `timepicker` | cupertinotimepicker | `timepicker` |
 | `timer` | — | `timer` |

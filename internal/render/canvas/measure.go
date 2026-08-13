@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/color"
 	"math"
+	"sort"
 	"strings"
 	"time"
 
@@ -79,6 +80,12 @@ type LayoutNode struct {
 	// event sidecar, EvalVars is for prop evaluation (widgets' formCtx merge).
 	EvalVars map[string]any
 
+	// UnderBoard is true when this node is a board or lives under one. List
+	// items with absolute x/y then frustum-cull against the camera so a
+	// side-scroller does not measure/record tiles and sprites the window
+	// cannot see.
+	UnderBoard bool
+
 	// Wrapped holds a text node's folded lines when the single-line measure
 	// exceeded the container's available width (wrap.go). Nil = unwrapped.
 	Wrapped []string
@@ -91,7 +98,7 @@ type LayoutNode struct {
 // the device-pixel ratio: design pixels are multiplied by it so the resulting
 // geometry is in physical pixels (HiDPI). Pass 1 for logical == physical.
 func Measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int) *LayoutNode {
-	return measure(n, rt, inter, scale, n, nil)
+	return measure(n, rt, inter, scale, n, nil, false)
 }
 
 // MeasureScoped is Measure with a list-instance scope: widgets that measure
@@ -99,13 +106,13 @@ func Measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int) 
 // registry passes them, or bindings like {{item.label}} evaluate empty
 // (the scope never reaches the plain entry).
 func MeasureScoped(n *model.Node, rt *runtime.Runtime, inter *Interaction, vars map[string]any, scale int) *LayoutNode {
-	return measure(n, rt, inter, scale, n, &listScope{vars: vars})
+	return measure(n, rt, inter, scale, n, &listScope{vars: vars}, false)
 }
 
 // measure is the recursive body of Measure; root identifies the scene tree
 // for the one-shot unsupported-style-key warnings, and sc carries the repeat
 // scope when measuring inside a list item (nil outside lists, list.go).
-func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, root *model.Node, sc *listScope) *LayoutNode {
+func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, root *model.Node, sc *listScope, underBoard bool) *LayoutNode {
 	if n == nil {
 		return nil
 	}
@@ -139,7 +146,7 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 		}
 		if depth < maxCompDepth {
 			clone, vars := instantiateComponent(n, rt.App.Components[name], name, evalCtxScope(rt, sc), rt)
-			return measure(clone, rt, inter, scale, root, &listScope{vars: vars, index: idx, compDepth: depth + 1})
+			return measure(clone, rt, inter, scale, root, &listScope{vars: vars, index: idx, compDepth: depth + 1}, underBoard)
 		}
 	}
 
@@ -164,10 +171,12 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 		style, needsRedraw = UpdateAndGetAnimatedStyleD(key, style, rt, style.Transition)
 	}
 
+	childBoard := underBoard || n.Type == "board"
 	ln := &LayoutNode{
 		Node:        n,
 		Style:       style,
 		NeedsRedraw: needsRedraw,
+		UnderBoard:  childBoard,
 	}
 	if sc != nil {
 		ln.ItemIndex = sc.index
@@ -263,7 +272,7 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 		// — each item instantiates one measured subtree under its item scope.
 		// gridview repeats the same way (render_widgets.go gridView); the grid
 		// branches below lay the items out in columns.
-		for _, cln := range measureListItems(n, rt, inter, scale, root, sc) {
+		for _, cln := range measureListItems(n, rt, inter, scale, root, sc, childBoard) {
 			if cln.NeedsRedraw {
 				ln.NeedsRedraw = true
 			}
@@ -271,7 +280,7 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 		}
 	} else {
 		for _, child := range n.Children {
-			if cln := measure(child, rt, inter, scale, root, sc); cln != nil {
+			if cln := measure(child, rt, inter, scale, root, sc, childBoard); cln != nil {
 				if cln.NeedsRedraw {
 					ln.NeedsRedraw = true
 				}
@@ -355,6 +364,17 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 				if r > 0 {
 					contentH += style.Gap
 				}
+			}
+		}
+	} else if (n.Type == "list" || n.Type == "gridview") && listItemsAllAbs(ln.Children) {
+		// Board tile/sprite lists are absolutely positioned: do not stack
+		// them as a column (N×tileH tall). Size is the union of children.
+		for _, child := range ln.Children {
+			if cw := child.Width + child.Style.MarginLeft + child.Style.MarginRight; cw > contentW {
+				contentW = cw
+			}
+			if ch := child.Height + child.Style.MarginTop + child.Style.MarginBot; ch > contentH {
+				contentH = ch
 			}
 		}
 	} else {
@@ -576,7 +596,7 @@ func truthy(v any) bool {
 
 // isStackType reports the layer-container spellings (the types the HTML path
 // marks position:relative, render_style.go:115): children share one origin
-// and paint in declaration order, later siblings on top.
+// and paint by zIndex then declaration order (later equal-z siblings on top).
 func isStackType(t string) bool { return t == "stack" || t == "absolute" }
 
 // gridColumns reads a grid's column count from the `columns` prop (HTML:
@@ -814,22 +834,26 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 	totalScaleX := entScale * pressScale * styleScaleX
 	totalScaleY := entScale * pressScale * styleScaleY
 	totalRot := entRot + ln.Style.Rotate*math.Pi/180
-	if totalScaleX != 1 || totalScaleY != 1 || totalRot != 0 || entDX != 0 || entDY != 0 {
-		// Pivot scale+rotation about the node center so pop/spin/rotate look
-		// like CSS transform-origin:center (see entrance.go). Independent
-		// ScaleX/ScaleY (incl. negative flip) share that pivot.
-		cx := float64(ln.Width) / 2
-		cy := float64(ln.Height) / 2
+	// Canvas-only: CSS skewX/skewY (degrees) → graph shear (radians).
+	skewX := ln.Style.SkewX * math.Pi / 180
+	skewY := ln.Style.SkewY * math.Pi / 180
+	if totalScaleX != 1 || totalScaleY != 1 || totalRot != 0 || entDX != 0 || entDY != 0 || skewX != 0 || skewY != 0 {
+		// Pivot scale+rotation about transform-origin (default center) so
+		// pop/spin/rotate match CSS. Independent ScaleX/ScaleY (incl. negative
+		// flip) share that pivot. Layout box is unchanged.
+		ox, oy := parseTransformOrigin(ln.Style.TransformOrigin, float64(ln.Width), float64(ln.Height))
 		sx, sy := totalScaleX, totalScaleY
 		cos, sin := math.Cos(totalRot), math.Sin(totalRot)
-		scx, scy := sx*cx, sy*cy
+		scx, scy := sx*ox, sy*oy
 		rx := cos*scx - sin*scy
 		ry := sin*scx + cos*scy
-		group.X = float64(x) + entDX + cx - rx
-		group.Y = float64(y) + entDY + cy - ry
+		group.X = float64(x) + entDX + ox - rx
+		group.Y = float64(y) + entDY + oy - ry
 		group.ScaleX = sx
 		group.ScaleY = sy
 		group.Rotation = totalRot
+		group.SkewX = skewX
+		group.SkewY = skewY
 	}
 	// FLIP layout motion: when transition + layoutMotion, ease absolute
 	// box jumps (shared-element style) instead of snapping.
@@ -952,7 +976,7 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 		group.Clip = true
 		group.AddChild(newClipNode(float64(ln.Width), float64(ln.Height)))
 	} else if ln.Style.ClipPath != "" {
-		// CSS clip-path (circle / ellipse / inset) — paint clip + HitTest box.
+		// CSS clip-path (circle / ellipse / inset / polygon) — paint clip + HitTest box.
 		group.Clip = true
 		if cn := clipNodeFromPath(ln.Style.ClipPath, float64(ln.Width), float64(ln.Height)); cn != nil {
 			group.AddChild(cn)
@@ -1221,13 +1245,29 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 	// each default-case child takes its resolved box — align-items, the six
 	// justify values, wrap, and flex-grow all live in the engine now.
 	var flexRects []flexlayout.Rect
-	if !isStack && !isGrid && !isBoard && len(ln.Children) > 0 {
+	runFlex := !isStack && !isGrid && !isBoard && len(ln.Children) > 0
+	if runFlex && listItemsAllAbs(ln.Children) {
+		// Absolutely positioned children do not participate in flex. A
+		// board tile/sprite list is all HasPos — skip the O(n) flex
+		// solve that would otherwise run every frame for hundreds of tiles.
+		runFlex = false
+	}
+	if runFlex {
 		lines := flexlayout.Flex(float64(innerW), float64(innerH), flexStyle(ln, rt), flexChildren(ln, rt))
 		for _, line := range lines {
 			flexRects = append(flexRects, line.Rects...)
 		}
 	}
 
+	// Widget children from this loop only: clip/bg/scrollbars/focus rings
+	// stay in the order they were already AddChild'd. Sorted by zIndex
+	// (canvas-only; 0 = auto) so lower paints first and Group.HitTest
+	// (reverse walk) still matches paint order.
+	type zChild struct {
+		z int
+		n graph.Node
+	}
+	var zKids []zChild
 	for i, child := range ln.Children {
 		// CSS align-items does NOT inherit into a child's align-self (that is
 		// what the removed "inherit parent alignItems" line did — a template
@@ -1259,12 +1299,12 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 			switch {
 			case isStack:
 				// Layered: every child gets the full content box at the same
-				// origin; declaration order is the z-order (later siblings paint
-				// — and hit-test — on top). The child's own align/justify (the
-				// stack's, inherited) positions it inside the box. HTML places
-				// such children with position+top/left (render_style.go:293),
-				// which canvas does not implement — those keys warn as
-				// unsupported instead of degrading silently.
+				// origin. zIndex (then document order) is the paint/hit order
+				// — later equal-z siblings paint on top. The child's own
+				// align/justify (the stack's, inherited) positions it inside
+				// the box. HTML places such children with position+top/left
+				// (render_style.go:293), which canvas does not implement —
+				// those keys warn as unsupported instead of degrading silently.
 				if child.Style.Justify == "" {
 					child.Style.Justify = ln.Style.Justify
 				}
@@ -1332,6 +1372,15 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 		if isBoard && inter != nil && inter.Board.Active && !isList && !boardChildVisible(cbounds, inter, bounds) {
 			continue
 		}
+		// List/stack children under a board are not direct board kids, so
+		// the cull above never sees them. Use the surface viewport (not
+		// the list's own box) so off-camera tiles and sprites skip record.
+		if !isBoard && ln.UnderBoard && child.Style.HasPos && inter != nil && inter.Board.Active && rt != nil {
+			screen := image.Rect(0, 0, rt.Viewport.W, rt.Viewport.H)
+			if screen.Dx() > 0 && screen.Dy() > 0 && !boardChildVisible(cbounds, inter, screen) {
+				continue
+			}
+		}
 
 		childAbsOrigin := image.Pt(ln.AbsX, ln.AbsY)
 		if isScroll {
@@ -1344,8 +1393,12 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 		}
 		childNode := performLayout(child, cbounds, childAbsOrigin, inter, rt, scale, items, overlays)
 		if childNode != nil {
-			sink.AddChild(childNode)
+			zKids = append(zKids, zChild{z: child.Style.ZIndex, n: childNode})
 		}
+	}
+	sort.SliceStable(zKids, func(i, j int) bool { return zKids[i].z < zKids[j].z })
+	for _, zc := range zKids {
+		sink.AddChild(zc.n)
 	}
 
 	if content != nil {
@@ -1403,7 +1456,7 @@ func applyTextDecor(t *graph.Text, s NodeStyle) {
 
 // clipNodeFromPath builds a paint-time clip leaf from CSS clip-path.
 func clipNodeFromPath(raw string, w, h float64) *clipNode {
-	kind, rx, ry, inset, rad, ok := parseClipPath(raw, w, h)
+	kind, rx, ry, inset, rad, poly, evenOdd, ok := parseClipPath(raw, w, h)
 	if !ok {
 		return nil
 	}
@@ -1415,6 +1468,8 @@ func clipNodeFromPath(raw string, w, h float64) *clipNode {
 		c.X = float64(inset.Min.X)
 		c.Y = float64(inset.Min.Y)
 		return c
+	case "polygon":
+		return newClipPolygon(w, h, poly, evenOdd)
 	default:
 		return nil
 	}

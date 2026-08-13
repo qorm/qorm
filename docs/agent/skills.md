@@ -14,7 +14,7 @@ session start.
 | `layout-debugging` | Diagnose and fix layout issues: measure rendered positions with `qorm_measure`, compare against expected bounds, identify overflow/clipping/z-index problems, and apply targeted patches. Uses the verification pipeline to confirm fixes. |
 | `agent-patch` | Design and apply structural patches to a live app: use `qorm_query` to find target nodes, `qorm_preview_patch` to preview changes safely, `qorm_diff` to review the structural impact, and `qorm_apply_patch` to commit — with the preview token binding every apply to a prior review. |
 | `platform-porting` | Adapt a QORM app for a new platform: audit capabilities with `qorm_capabilities`, add platform-specific style overrides (safe-area insets, native font stacks, platform-correct spacing), and stamp the capability manifest so the runtime gates what the platform actually provides. |
-| `motion-design` | Add declarative animations and transitions: entrance effects via the `animation` prop (fade, slide, bounce, shake, pulse, spin), interaction transitions via `transition: "0.2s"` on pressed/hover scale + background + opacity, animated widgets (spinner, switch, animatedOpacity), and theme-level motion tokens. |
+| `motion-design` | Add declarative animations and transitions: entrance `animation` + `curve`, `transition` / spring / FLIP `layoutMotion`, `fx`+`fxToken`, `timeline`+`timelineToken` (path/yoyo/onComplete), `stagger`, QSS-driven canvas filters/tint/pixelated. Games: `board` camera + `tilemap`; never tween physics `x`/`y`. |
 | `host-capability-check` | Audit which hardware/native capabilities are available on the current host: camera, biometrics, GPS, accelerometer, clipboard, Bluetooth, battery, brightness control, and more — cross-referenced against the platform support matrix so the agent knows what will actually work. |
 | `mobile-adaptation` | Adapt a desktop-first QORM app for mobile: responsive breakpoints (`sm`/`md`/`lg`), touch-friendly hit targets, bottom navigation patterns, safe-area handling, and viewport-aware `when` branches that swap layouts at device widths. |
 
@@ -40,7 +40,8 @@ Purpose: let the agent create or modify scene JSON.
 Rules:
 - Use the canonical widget names from the [widget catalog](/api/widgets.md).
 - Prefer `column`/`row` for layout, `scroll` for scrollable content, `box` for
-  card/surface containers.
+  card/surface containers, `board` + `tilemap` for side-scrollers (not a
+  `list` of every tile).
 - Wire state with `{{ state.x }}` bindings; use `if`/`visible`/`show` for
   conditional nodes.
 - `onPress` names an action in `actions/`; `onChange` fires on input/select
@@ -99,11 +100,11 @@ absolute-positioned nodes overlapping, `gap`/`padding` collapsing.
    long, write an `actions/<id>.qs` file — `let`/`if`/`for in`/`while`/`fn`
    are easier to read and maintain than nested step arrays.
 
-8. **Respect the canvas engine.** On `-tags desktop`, the app renders in a
-   native window with a software renderer. All interaction features work:
-   keyboard navigation, scroll momentum, text editing, animated transitions,
-   disabled dimming. The same JSON runs identically on the HTML path — test
-   both.
+8. **Respect the canvas engine.** macOS default `qorm run` is the software
+   canvas window (`-tags desktop` is WebView/HTML). Games WASM needs
+   `-tags qorm_canvas`. Use `board` camera props + `tilemap` for large
+   worlds; `playSound` / `playMusic` from qscript; do not tween physics
+   `x`/`y`. Showcase: `examples/canvas-fx`, `examples/mario`.
 
 9. **Don't guess capabilities.** Run `qorm_capabilities` to see what the host
    actually provides. A capability that exists on iOS may not exist on desktop.

@@ -198,6 +198,10 @@ type BoardState struct {
 	PanMomVX, PanMomVY float64
 	PanMomActive       bool
 	PanMomLast         time.Time
+	// lastResetToken is the last seen cameraResetToken. A change (restart)
+	// snaps the follow camera even when cameraLockLeft would refuse to
+	// scroll back.
+	lastResetToken string
 }
 
 // The board zoom range (0.25x–4x). The sub-1 floor is real only because the

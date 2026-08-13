@@ -42,7 +42,11 @@ var KnownStyleKeys = map[string]bool{
 	"imageRendering": true, "image-rendering": true,
 	"rotate": true, "scale": true, "scaleX": true, "scaleY": true,
 	"flipX": true, "flipY": true,
-	"overflow": true, "mixBlendMode": true, "layoutMotion": true,
+	// Canvas-only visual skew (degrees → graph Skew radians). HTML ignores these.
+	"skewX": true, "skewY": true,
+	// CSS transform-origin (canvas rotate/scale/skew pivot; empty = center).
+	"transformOrigin": true,
+	"overflow":        true, "mixBlendMode": true, "layoutMotion": true,
 	"scrollSnapType": true, "scrollSnapAlign": true,
 	"maskFade": true, "maskFadeSize": true, "maskImage": true,
 	"clipPath": true, "layerCache": true,

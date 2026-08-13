@@ -94,8 +94,8 @@ state.hits = state.hits + 1
 | `burst` | explosion pack | Radial knock + scale + flash (no multi-sprite emitter) |
 
 Composable with entrance `animation`, `transition` / spring press, FLIP, and
-style `rotate` / `scale` / `flipX` — offsets stack on the same transform
-channels. Persistent style transform does not change the layout box.
+style `rotate` / `scale` / `flipX` / `skewX` / `skewY` — offsets stack on the same transform
+channels (pivot: style `transformOrigin`, default center). Persistent style transform does not change the layout box.
 
 Runnable: [`examples/canvas-fx`](https://github.com/qorm/qorm/tree/main/examples/canvas-fx) (FX section). Live
 games: [`examples/tetris`](https://github.com/qorm/qorm/tree/main/examples/tetris) (local clear flash +

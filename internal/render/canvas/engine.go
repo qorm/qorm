@@ -178,6 +178,13 @@ type Engine struct {
 	// lastNodeRects maps layout identity → previous absolute box for dirty
 	// region partial redraw (union of old∪new for changed nodes).
 	lastNodeRects map[string]image.Rectangle
+	// lastBoardPan* detect follow-cam motion for dirty-rect (world AbsX
+	// does not move when only the board transform changes).
+	lastBoardPanX, lastBoardPanY, lastBoardZoom float64
+
+	// heldKeys swallows OS key-repeat (extra KeyDown with no KeyUp) so
+	// scene bindings like jump / restart fire once per physical press.
+	heldKeys map[string]bool
 
 	// lastPtr/hasPtr track the pointer's rest position from every
 	// HandlePointer call: ScrollInput carries no coordinates, so wheel and
@@ -322,6 +329,7 @@ func (e *Engine) RenderInto(size image.Point, scale int, target *image.RGBA) (bo
 		e.Inter = Interaction{}
 		e.lastRoot = root
 		e.timers = nil
+		e.heldKeys = nil
 	}
 
 	// Scene timers (the native scheduler for the declarative timer node):
@@ -428,6 +436,16 @@ func (e *Engine) computeDirtyRect(root *LayoutNode, bounds image.Rectangle) imag
 	}
 	if e.lastNodeRects == nil || root == nil || e.lastBufSize != bounds.Size() {
 		return image.Rectangle{} // full
+	}
+	// Board children live in WORLD space; the camera is a content transform.
+	// Partial dirty uses AbsX as if it were screen-space, so a walking
+	// goomba (or a panning camera) only refreshes the wrong rectangle and
+	// the sprite strobes. Any live board frame is a full raster.
+	if e.Inter.Board.Active {
+		e.lastBoardPanX = e.Inter.Board.PanX
+		e.lastBoardPanY = e.Inter.Board.PanY
+		e.lastBoardZoom = e.Inter.Board.Zoom
+		return image.Rectangle{}
 	}
 	var dirty image.Rectangle
 	var walk func(ln *LayoutNode)
@@ -1332,6 +1350,23 @@ func (e *Engine) HandleKey(k KeyInput) bool {
 	rt := e.RT
 	if rt == nil || e.graphRoot == nil {
 		return false
+	}
+	// OS key-repeat is extra KeyDown with no KeyUp. Hold-to-move keys
+	// (those with a keyReleases binding) must not re-fire — Mario jump
+	// would stack SFX. Discrete keys (Tetris slide) still want repeat.
+	if k.Down {
+		if e.heldKeys[k.Key] {
+			if _, hold := rt.KeyReleaseAction(k.Key); hold {
+				return true
+			}
+		} else {
+			if e.heldKeys == nil {
+				e.heldKeys = map[string]bool{}
+			}
+			e.heldKeys[k.Key] = true
+		}
+	} else {
+		delete(e.heldKeys, k.Key)
 	}
 	handled := false
 	if k.Down {

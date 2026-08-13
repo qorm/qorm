@@ -39,6 +39,12 @@ func LoadSound(baseDir, src string) (*Sound, error) {
 	if err != nil {
 		return nil, err
 	}
+	soundCacheMu.Lock()
+	if cached, ok := soundCache[path]; ok {
+		soundCacheMu.Unlock()
+		return cached, nil
+	}
+	soundCacheMu.Unlock()
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("audio: open %q: %w", src, err)
@@ -59,12 +65,16 @@ func LoadSound(baseDir, src string) (*Sound, error) {
 	if err != nil {
 		return nil, fmt.Errorf("audio: read samples from %q: %w", src, err)
 	}
-	return &Sound{
+	snd := &Sound{
 		SampleRate:    dec.sampleRate,
 		Channels:      dec.numChannels,
 		BitsPerSample: dec.bitsPerSample,
 		Samples:       samples,
-	}, nil
+	}
+	soundCacheMu.Lock()
+	soundCache[path] = snd
+	soundCacheMu.Unlock()
+	return snd, nil
 }
 
 // Player writes samples to a platform-specific output. The default sink is a
@@ -77,6 +87,9 @@ type Player interface {
 var (
 	sinkMu sync.RWMutex
 	sink   Player = nopSink{}
+
+	soundCacheMu sync.Mutex
+	soundCache   = map[string]*Sound{}
 )
 
 // RegisterSink installs the platform audio sink. Pass nil to restore the
@@ -209,92 +222,122 @@ func resolveSrc(baseDir, src string) (string, error) {
 
 // StdoutSink plays WAV files via the host's audio tool. macOS's `afplay`
 // takes a file path, not stdin — so we write a temp .wav and feed that path
-// to the tool. Loop=true replays the file; Stop() kills the current process
-// and cleans up the temp file.
+// to the tool. Loop=true is the music slot; one-shots use a separate SFX
+// slot so jump/coin cannot kill the BGM (the previous single-process sink
+// made every playSound restart music and hitch the frame).
 type StdoutSink struct {
 	Cmd string // override; defaults to per-OS best guess
 	mu  sync.Mutex
-	cur *exec.Cmd
-	tmp string
-	// done is closed when the current process exits naturally (so the loop
-	// goroutine can decide whether to relaunch). Stop() does NOT close it —
-	// closing is the signal "exit was natural, user did not stop us".
-	done chan struct{}
+
+	music     *exec.Cmd
+	musicTmp  string
+	musicDone chan struct{}
+
+	sfx    []*exec.Cmd
+	sfxTmp []string
 }
+
+const maxSFX = 4
 
 // Play implements Player.
 func (s *StdoutSink) Play(snd *Sound, loop bool) error {
-	s.mu.Lock()
-	// Tear down any previous playback without going through Stop()'s
-	// lock-releasing dance (we already hold the lock).
-	if s.cur != nil {
-		_ = s.cur.Process.Kill()
-		_, _ = s.cur.Process.Wait()
-		s.cur = nil
-	}
-	if s.tmp != "" {
-		os.Remove(s.tmp)
-		s.tmp = ""
-	}
-	// afplay needs a real file path; aplay/paplay can take stdin but a file
-	// is simpler and works everywhere. Write the full WAV (header + samples).
-	path, err := writeTempWAV(snd)
+	path, err := cachedTempWAV(snd)
 	if err != nil {
+		return err
+	}
+	if loop {
+		return s.playMusic(snd, path)
+	}
+	return s.playSFX(path)
+}
+
+func (s *StdoutSink) playMusic(snd *Sound, path string) error {
+	s.mu.Lock()
+	s.killLocked(s.music)
+	s.music = nil
+	s.musicTmp = ""
+	cmd := s.cmd()
+	cmd.Args = append(cmd.Args, path)
+	if err := cmd.Start(); err != nil {
 		s.mu.Unlock()
 		return err
+	}
+	s.music = cmd
+	s.musicTmp = path
+	done := make(chan struct{})
+	s.musicDone = done
+	s.mu.Unlock()
+
+	go func() { _ = cmd.Wait(); close(done) }()
+	go func() {
+		<-done
+		s.mu.Lock()
+		still := s.music == cmd
+		s.mu.Unlock()
+		if still {
+			_ = s.Play(snd, true)
+		}
+	}()
+	return nil
+}
+
+func (s *StdoutSink) playSFX(path string) error {
+	s.mu.Lock()
+	s.reapSFXLocked()
+	if len(s.sfx) >= maxSFX {
+		s.killLocked(s.sfx[0])
+		s.sfx = s.sfx[1:]
+		s.sfxTmp = s.sfxTmp[1:]
 	}
 	cmd := s.cmd()
 	cmd.Args = append(cmd.Args, path)
 	if err := cmd.Start(); err != nil {
-		os.Remove(path)
 		s.mu.Unlock()
 		return err
 	}
-	s.tmp = path
-	s.cur = cmd
-	done := make(chan struct{})
-	s.done = done
+	s.sfx = append(s.sfx, cmd)
+	s.sfxTmp = append(s.sfxTmp, path)
 	s.mu.Unlock()
-
-	// Wait for the process to exit (natural or killed), OUTSIDE the lock.
-	go func() {
-		_ = cmd.Wait()
-		close(done)
-	}()
-
-	if loop {
-		go func() {
-			<-done
-			// Relaunch only if the user did not call Stop() — check whether
-			// s.cur is still us. Use a brief lock peek; the relaunch itself
-			// goes through Play() which is reentrant.
-			s.mu.Lock()
-			stillCur := s.cur == cmd
-			s.mu.Unlock()
-			if stillCur {
-				_ = s.Play(snd, true)
-			}
-		}()
-	}
+	go func() { _ = cmd.Wait() }()
 	return nil
 }
 
-// Stop implements Player.
+func (s *StdoutSink) killLocked(cmd *exec.Cmd) {
+	if cmd == nil || cmd.Process == nil {
+		return
+	}
+	_ = cmd.Process.Kill()
+	_, _ = cmd.Process.Wait()
+}
+
+func (s *StdoutSink) reapSFXLocked() {
+	live := s.sfx[:0]
+	liveT := s.sfxTmp[:0]
+	for i, c := range s.sfx {
+		if c == nil || c.ProcessState != nil {
+			continue
+		}
+		live = append(live, c)
+		if i < len(s.sfxTmp) {
+			liveT = append(liveT, s.sfxTmp[i])
+		}
+	}
+	s.sfx = live
+	s.sfxTmp = liveT
+}
+
+// Stop implements Player — stops music and every in-flight one-shot.
 func (s *StdoutSink) Stop() error {
 	s.mu.Lock()
-	cmd := s.cur
-	s.cur = nil
-	tmp := s.tmp
-	s.tmp = ""
+	s.killLocked(s.music)
+	s.music = nil
+	s.musicTmp = ""
+	for _, c := range s.sfx {
+		s.killLocked(c)
+	}
+	s.sfx = nil
+	s.sfxTmp = nil
 	s.mu.Unlock()
-
-	if cmd != nil {
-		_ = cmd.Process.Kill()
-		_, _ = cmd.Process.Wait()
-	}
-	if tmp != "" {
-		os.Remove(tmp)
-	}
 	return nil
 }
 
@@ -309,6 +352,46 @@ func (s *StdoutSink) cmd() *exec.Cmd {
 		}
 	}
 	return exec.Command("true") // sink that does nothing
+}
+
+var (
+	wavTmpMu sync.Mutex
+	wavTmp   = map[string]string{} // content key → temp path (process lifetime)
+)
+
+func cachedTempWAV(snd *Sound) (string, error) {
+	if snd == nil {
+		return "", fmt.Errorf("audio: nil sound")
+	}
+	key := fmt.Sprintf("%d-%d-%d-%d-%x", snd.SampleRate, snd.Channels, snd.BitsPerSample, len(snd.Samples), samplesPrefix(snd.Samples))
+	wavTmpMu.Lock()
+	if p, ok := wavTmp[key]; ok {
+		wavTmpMu.Unlock()
+		return p, nil
+	}
+	wavTmpMu.Unlock()
+	path, err := writeTempWAV(snd)
+	if err != nil {
+		return "", err
+	}
+	wavTmpMu.Lock()
+	wavTmp[key] = path
+	wavTmpMu.Unlock()
+	return path, nil
+}
+
+func samplesPrefix(b []byte) uint32 {
+	var h uint32 = 2166136261
+	n := len(b)
+	if n > 64 {
+		n = 64
+	}
+	for i := 0; i < n; i++ {
+		h ^= uint32(b[i])
+		h *= 16777619
+	}
+	h ^= uint32(len(b))
+	return h
 }
 
 // writeTempWAV writes a full RIFF/WAVE file (header + PCM samples) to a

@@ -100,6 +100,16 @@ func (o *Ops) Fingerprint() uint64 {
 			writeF64(t.Radius)
 			writeF64(t.EllipseRX)
 			writeF64(t.EllipseRY)
+			writeU32(uint32(len(t.Poly)))
+			for _, p := range t.Poly {
+				writeF64(p.X)
+				writeF64(p.Y)
+			}
+			if t.EvenOdd {
+				writeU8(1)
+			} else {
+				writeU8(0)
+			}
 		case SaveOp:
 			writeU8(6)
 		case RestoreOp:
@@ -283,7 +293,9 @@ type TransformOp struct {
 func (TransformOp) isOp() {}
 
 // ClipOp sets a clipping boundary. Rect is always the AABB (for bounds
-// intersection). When EllipseRX and EllipseRY are both > 0, the clip is an
+// intersection). When Poly has 3+ points, the clip is that polygon (local
+// coords at emit; the rasterizer transforms them to screen space).
+// When EllipseRX and EllipseRY are both > 0, the clip is an
 // axis-aligned ellipse centered in Rect (CSS clip-path: circle/ellipse).
 // Otherwise Radius > 0 is a rounded rect; Radius == 0 is a hard rect.
 type ClipOp struct {
@@ -291,6 +303,8 @@ type ClipOp struct {
 	Radius    float64
 	EllipseRX float64 // screen px; with EllipseRY > 0 enables ellipse clip
 	EllipseRY float64
+	Poly      []geom.Point // local coords; screen-space after ClipOp transform
+	EvenOdd   bool         // CSS fill-rule evenodd; default nonzero
 }
 
 func (ClipOp) isOp() {}

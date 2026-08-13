@@ -4,8 +4,15 @@
 # "variable jump height" trick (a tap gives a short hop, a hold gives a
 # full jump).
 
-if (state.status == "playing" && state.mario.onGround && state.mario.alive) {
-  state.mario.vy = -480
+if (state.status == "playing" && state.mario.alive && !state.keys.jumpHold) {
+  unstickMario()
+}
+if (state.status == "playing" && state.mario.onGround && state.mario.alive && !state.keys.jumpHold) {
+  let spd = abs(state.mario.vx)
+  let jv = 540
+  if (spd > 140) { jv = 580 }
+  if (spd > 240) { jv = 620 }
+  state.mario.vy = 0 - jv
   state.mario.onGround = false
   state.keys.jump = true
   state.keys.jumpHold = true

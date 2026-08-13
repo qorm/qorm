@@ -21,7 +21,7 @@ GAME_SIZES = {
     "tetris": (420, 680),
     "g2048": (420, 680),
     "raiden": (320, 560),
-    "mario": (1024, 480),
+    "mario": (512, 480),
 }
 CYCLES = 6  # 6 full rotations = 24 game switches
 SHOT_DIR = Path("/tmp/stability")

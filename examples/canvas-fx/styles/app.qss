@@ -226,3 +226,74 @@
   height: 64
   imageRendering: auto
 }
+
+# 23. zIndex stacking — qs toggles state.zFront → the two boxes swap order
+.zBack {
+  width: 80
+  height: 56
+  borderRadius: 8
+  background: #ff375f
+  padding: 10
+  zIndex: {{ state.zFront ? 1 : 2 }}
+}
+
+.zFront {
+  width: 80
+  height: 56
+  borderRadius: 8
+  background: #0a84ff
+  padding: 10
+  zIndex: {{ state.zFront ? 2 : 1 }}
+}
+
+# 24. skewX / skewY — layout box stays 120x72; qs steps state.skewDeg
+.skewCard {
+  width: 120
+  height: 72
+  borderRadius: 12
+  background: #bf5af2
+  padding: 12
+  skewX: {{ state.skewDeg }}
+  skewY: 0
+}
+
+# 25. extra mix-blend-mode — difference / color-dodge / multiply
+.blendExtra {
+  width: 148
+  height: 64
+  borderRadius: 10
+  background: #ff9f0a
+  mixBlendMode: {{ state.blendExtra }}
+  padding: 10
+}
+
+# 26. transformOrigin — default center vs 0 0 (top-left). qs toggles rotate.
+.originBox {
+  width: 48
+  height: 48
+  borderRadius: 6
+  background: #0a84ff
+  rotate: {{ state.originSpin }}
+}
+
+.originCorner {
+  transformOrigin: "0 0"
+}
+
+# 27. clip-path polygon() — triangle from the box
+.polyClip {
+  width: 88
+  height: 88
+  background: linear-gradient(135deg, #ff375f, #ff9f0a)
+  clipPath: "polygon(50% 0%, 100% 100%, 0% 100%)"
+}
+
+# 28. mix-blend plus-lighter over a colorful stage
+.plusLighter {
+  width: 148
+  height: 64
+  borderRadius: 10
+  background: #64d2ff
+  mixBlendMode: plus-lighter
+  padding: 10
+}

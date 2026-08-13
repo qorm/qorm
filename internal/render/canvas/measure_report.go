@@ -111,6 +111,7 @@ type measureSnap struct {
 	stroke                             color.RGBA
 	marginT, marginB, marginL, marginR int
 	contentW, contentH                 int // scroll overflow
+	zIndex                             int // 0 = CSS auto
 }
 
 func collectLayoutSnaps(ln *LayoutNode, out map[string]measureSnap) {
@@ -143,6 +144,7 @@ func collectLayoutSnaps(ln *LayoutNode, out map[string]measureSnap) {
 			marginT: s.MarginTop, marginB: s.MarginBot,
 			marginL: s.MarginLeft, marginR: s.MarginRight,
 			contentW: ln.ContentW, contentH: ln.ContentH,
+			zIndex: s.ZIndex,
 		}
 	}
 	for _, c := range ln.Children {
@@ -302,7 +304,11 @@ func enrichStyle(row map[string]any, sn measureSnap, scale int, logical bool) {
 	if sn.contentH > sn.h {
 		row["overflowY"] = true
 	}
-	row["zIndex"] = "auto"
+	if sn.zIndex != 0 {
+		row["zIndex"] = sn.zIndex
+	} else {
+		row["zIndex"] = "auto"
+	}
 }
 
 func cssRGBA(c color.RGBA) string {

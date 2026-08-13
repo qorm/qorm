@@ -137,11 +137,14 @@ type NodeStyle struct {
 	// final draw (measure.go); float here is the contract, int is the
 	// pixel. Old examples that pass integer x/y keep integer values
 	// end-to-end — the change is a strict superset.
-	PosX, PosY    float64
-	HasPos        bool
-	Align         string
-	AlignSelf     string // CSS align-self (style/layout alignSelf) — distinct from Align (align-items)
-	Justify       string
+	PosX, PosY float64
+	HasPos     bool
+	Align      string
+	AlignSelf  string // CSS align-self (style/layout alignSelf) — distinct from Align (align-items)
+	Justify    string
+	// ZIndex is CSS z-index among siblings (canvas-only paint/hit order).
+	// 0 = auto / default; negative values paint behind auto siblings.
+	ZIndex        int
 	FontSize      int
 	FontWeight    int
 	TextAlign     string
@@ -222,6 +225,12 @@ type NodeStyle struct {
 	Rotate                float64
 	Scale, ScaleX, ScaleY float64
 	FlipX, FlipY          bool
+	// SkewX/SkewY are CSS skew angles in degrees (canvas-only). 0 = unset.
+	// performLayout converts to graph.BaseNode radians; layout box is unchanged.
+	SkewX, SkewY float64
+	// TransformOrigin is the raw CSS transform-origin (empty = center). Parsed
+	// at layout time against the laid-out width/height.
+	TransformOrigin string
 	// Drop-shadow filter (CSS filter: drop-shadow(...)).
 	DropShadowX, DropShadowY, DropShadowBlur float64
 	DropShadowColor                          color.RGBA
@@ -246,7 +255,7 @@ type NodeStyle struct {
 	MaskFade     string
 	MaskFadeSize float64
 	// ClipPath is CSS clip-path: "circle(50%)", "ellipse(50% 40%)",
-	// "inset(10px)" / "inset(10% round 12px)".
+	// "inset(10px)" / "inset(10% round 12px)", "polygon(50% 0%, …)".
 	ClipPath string
 	// LayerCache enables static offscreen reuse for filter/mask groups
 	// (software LayerOp.CacheKey). Content fingerprint invalidates the cache.
@@ -790,22 +799,14 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 	// as float64 (see PosX/PosY doc) so a 60fps physics tick can land
 	// between pixels; the renderer rounds at draw time.
 	for _, key := range []string{"x", "left"} {
-		v := esp(style[key])
-		if f, ok := v.(float64); ok {
+		if f, ok := toFloatAny(esp(style[key])); ok {
 			s.PosX = f
-			s.HasPos = true
-		} else if i, ok := v.(int); ok {
-			s.PosX = float64(i)
 			s.HasPos = true
 		}
 	}
 	for _, key := range []string{"y", "top"} {
-		v := esp(style[key])
-		if f, ok := v.(float64); ok {
+		if f, ok := toFloatAny(esp(style[key])); ok {
 			s.PosY = f
-			s.HasPos = true
-		} else if i, ok := v.(int); ok {
-			s.PosY = float64(i)
 			s.HasPos = true
 		}
 	}
@@ -1236,6 +1237,27 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 			s.FlipY = b
 		}
 	}
+	if v := esp(style["skewX"]); v != nil {
+		if f, ok := parseStyleAngleDeg(v); ok {
+			s.SkewX = f
+		}
+	}
+	if v := esp(style["skewY"]); v != nil {
+		if f, ok := parseStyleAngleDeg(v); ok {
+			s.SkewY = f
+		}
+	}
+	if v := esp(style["transformOrigin"]); v != nil {
+		if str, ok := v.(string); ok {
+			s.TransformOrigin = strings.TrimSpace(str)
+		}
+	}
+	// Canvas-only stacking. 0 / "auto" / unparseable stay 0 (CSS auto).
+	if v := esp(style["zIndex"]); v != nil {
+		if f, ok := parseStyleNumber(v); ok {
+			s.ZIndex = int(f)
+		}
+	}
 
 	// HTML "gradient" / background linear-gradient(...): parse multi-stop
 	// fills for the software rasterizer; fall back to first-stop solid.
@@ -1357,14 +1379,15 @@ func parseConicGradient(g string, rt *runtime.Runtime) (stops []color.RGBA, pos 
 	return stops, pos, angle
 }
 
-// parseClipPath decodes CSS clip-path into ellipse radii or inset rect+radius
-// relative to a box of size (w,h). Returns ok=false when unsupported.
-// For circle/ellipse, rx/ry are set and inset is the full box.
+// parseClipPath decodes CSS clip-path into ellipse radii, inset rect+radius,
+// or polygon points relative to a box of size (w,h). Returns ok=false when
+// unsupported. For circle/ellipse, rx/ry are set and inset is the full box.
 // For inset, out is the inset rectangle in local coords and radius is corner r.
-func parseClipPath(raw string, w, h float64) (kind string, rx, ry float64, inset image.Rectangle, radius float64, ok bool) {
+// For polygon, poly is local-space vertices; evenOdd is the optional fill-rule.
+func parseClipPath(raw string, w, h float64) (kind string, rx, ry float64, inset image.Rectangle, radius float64, poly [][2]float64, evenOdd bool, ok bool) {
 	raw = strings.TrimSpace(strings.ToLower(raw))
 	if raw == "" || raw == "none" {
-		return "", 0, 0, image.Rectangle{}, 0, false
+		return "", 0, 0, image.Rectangle{}, 0, nil, false, false
 	}
 	// circle(50%) / circle(40px)
 	if strings.HasPrefix(raw, "circle(") {
@@ -1375,7 +1398,7 @@ func parseClipPath(raw string, w, h float64) (kind string, rx, ry float64, inset
 			r = math.Min(w, h) / 2
 		}
 		// CSS % for circle is relative to sqrt((w^2+h^2)/2); we use min side.
-		return "ellipse", r, r, image.Rect(0, 0, int(w), int(h)), 0, true
+		return "ellipse", r, r, image.Rect(0, 0, int(w), int(h)), 0, nil, false, true
 	}
 	// ellipse(50% 40%)
 	if strings.HasPrefix(raw, "ellipse(") {
@@ -1395,7 +1418,7 @@ func parseClipPath(raw string, w, h float64) (kind string, rx, ry float64, inset
 		if ry <= 0 {
 			ry = h / 2
 		}
-		return "ellipse", rx, ry, image.Rect(0, 0, int(w), int(h)), 0, true
+		return "ellipse", rx, ry, image.Rect(0, 0, int(w), int(h)), 0, nil, false, true
 	}
 	// inset(10px) / inset(10% 20px) / inset(10px round 12px)
 	if strings.HasPrefix(raw, "inset(") {
@@ -1439,9 +1462,119 @@ func parseClipPath(raw string, w, h float64) (kind string, rx, ry float64, inset
 		if inset.Dy() < 0 {
 			inset.Max.Y = inset.Min.Y
 		}
-		return "inset", 0, 0, inset, round, true
+		return "inset", 0, 0, inset, round, nil, false, true
 	}
-	return "", 0, 0, image.Rectangle{}, 0, false
+	// polygon(50% 0%, 100% 100%, 0% 100%)
+	// polygon(evenodd, 0 0, 100% 0, 50% 100%)
+	if strings.HasPrefix(raw, "polygon(") {
+		inner := strings.TrimSuffix(strings.TrimPrefix(raw, "polygon("), ")")
+		inner = strings.TrimSpace(inner)
+		if inner == "" {
+			return "", 0, 0, image.Rectangle{}, 0, nil, false, false
+		}
+		segs := strings.Split(inner, ",")
+		pts := make([][2]float64, 0, len(segs))
+		for i, seg := range segs {
+			seg = strings.TrimSpace(seg)
+			if seg == "" {
+				continue
+			}
+			if i == 0 && (seg == "evenodd" || seg == "nonzero") {
+				evenOdd = seg == "evenodd"
+				continue
+			}
+			fields := strings.Fields(seg)
+			if len(fields) < 2 {
+				return "", 0, 0, image.Rectangle{}, 0, nil, false, false
+			}
+			pts = append(pts, [2]float64{
+				parseClipLength(fields[0], w),
+				parseClipLength(fields[1], h),
+			})
+		}
+		if len(pts) < 3 {
+			return "", 0, 0, image.Rectangle{}, 0, nil, false, false
+		}
+		return "polygon", 0, 0, image.Rect(0, 0, int(w), int(h)), 0, pts, evenOdd, true
+	}
+	return "", 0, 0, image.Rectangle{}, 0, nil, false, false
+}
+
+// parseTransformOrigin maps CSS transform-origin to a local pivot (ox, oy)
+// in a box of size (w, h). Empty / "center" is the box center.
+func parseTransformOrigin(raw string, w, h float64) (ox, oy float64) {
+	ox, oy = w/2, h/2
+	raw = strings.ToLower(strings.TrimSpace(raw))
+	if raw == "" || raw == "center" || raw == "center center" {
+		return ox, oy
+	}
+	parts := strings.Fields(raw)
+	if len(parts) == 0 {
+		return ox, oy
+	}
+	if len(parts) > 2 {
+		parts = parts[:2]
+	}
+	originKeyword := func(tok string, ref float64) (float64, bool) {
+		switch tok {
+		case "left", "top":
+			return 0, true
+		case "right", "bottom":
+			return ref, true
+		case "center":
+			return ref / 2, true
+		}
+		return 0, false
+	}
+	originLength := func(tok string, ref float64) float64 {
+		if strings.HasSuffix(tok, "%") {
+			f, err := strconv.ParseFloat(strings.TrimSpace(strings.TrimSuffix(tok, "%")), 64)
+			if err != nil {
+				return ref / 2
+			}
+			return ref * f / 100
+		}
+		return parseCSSPx(tok)
+	}
+	isX := func(s string) bool { return s == "left" || s == "right" }
+	isY := func(s string) bool { return s == "top" || s == "bottom" }
+
+	if len(parts) == 1 {
+		tok := parts[0]
+		if isY(tok) {
+			oy, _ = originKeyword(tok, h)
+			return ox, oy
+		}
+		if v, ok := originKeyword(tok, w); ok {
+			ox = v
+			return ox, oy
+		}
+		ox = originLength(tok, w)
+		return ox, oy
+	}
+
+	a, b := parts[0], parts[1]
+	// CSS allows "top left" (vertical then horizontal) when both are keywords.
+	if (isY(a) && (isX(b) || b == "center")) || (isX(b) && (isY(a) || a == "center")) {
+		if v, ok := originKeyword(a, h); ok {
+			oy = v
+		}
+		if v, ok := originKeyword(b, w); ok {
+			ox = v
+		}
+		return ox, oy
+	}
+	if v, ok := originKeyword(a, w); ok {
+		ox = v
+	} else {
+		ox = originLength(a, w)
+	}
+	if v, ok := originKeyword(b, h); ok {
+		oy = v
+	} else {
+		oy = originLength(b, h)
+	}
+	return ox, oy
 }
 
 func parseClipLength(s string, ref float64) float64 {
@@ -2004,6 +2137,8 @@ var canvasStyleKeys = map[string]bool{
 	"minWidth": true, "maxWidth": true, "minHeight": true, "maxHeight": true,
 	// Flex (read by flex.go from style; listed so they do not false-warn).
 	"flexGrow": true, "flexShrink": true, "alignSelf": true,
+	// Canvas-only sibling paint/hit order (HTML already emits CSS z-index).
+	"zIndex": true,
 	// Absolute positioning (the infinite-canvas board's coordinate model):
 	// x/y are native, left/top the HTML aliases.
 	"x": true, "y": true, "left": true, "top": true,
@@ -2035,11 +2170,13 @@ var canvasStyleKeys = map[string]bool{
 	"imageRendering": true, "image-rendering": true,
 	"rotate": true, "scale": true, "scaleX": true, "scaleY": true,
 	"flipX": true, "flipY": true,
-	"boxShadowInset": true, // CSS box-shadow: inset
-	"overflow":       true, // "hidden" clips children (rounded via borderRadius)
-	"mixBlendMode":   true,
-	"layoutMotion":   true, // FLIP layout animation (default on with transition)
-	"scrollSnapType": true, "scrollSnapAlign": true,
+	"skewX": true, "skewY": true, // canvas-only; degrees → graph radians
+	"transformOrigin": true, // CSS transform-origin; empty = center
+	"boxShadowInset":  true, // CSS box-shadow: inset
+	"overflow":        true, // "hidden" clips children (rounded via borderRadius)
+	"mixBlendMode":    true,
+	"layoutMotion":    true, // FLIP layout animation (default on with transition)
+	"scrollSnapType":  true, "scrollSnapAlign": true,
 	"maskFade": true, "maskFadeSize": true, "maskImage": true,
 	"clipPath": true, "layerCache": true,
 	// Spacer / simple widgets.

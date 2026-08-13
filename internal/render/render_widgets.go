@@ -112,6 +112,17 @@ func (r *renderer) container(n *model.Node) {
 //
 // disablePan is interaction-only on canvas and ignored here.
 func (r *renderer) board(n *model.Node) {
+	// Documented board camera / input props (also read by
+	// resolveHTMLBoardCamera / canvas applyBoardCamera).
+	_, _ = n.Prop("cameraTarget")
+	_, _ = n.Prop("cameraCenter")
+	_, _ = n.Prop("cameraCell")
+	_, _ = n.Prop("cameraViewport")
+	_, _ = n.Prop("cameraDeadZone")
+	_, _ = n.Prop("cameraLockLeft")
+	_, _ = n.Prop("cameraResetToken")
+	_, _ = n.Prop("cameraMax")
+	_, _ = n.Prop("disablePan")
 	bg := r.containerCSS(n)
 	a := r.a11y(n)
 	if n.ID == r.rootID && !strings.Contains(a, "role=") {
@@ -147,6 +158,20 @@ func (r *renderer) board(n *model.Node) {
 		r.node(c)
 	}
 	r.sb.WriteString(`</div></div>`)
+}
+
+// tilemap is a baked world bitmap on canvas. HTML paints a positioned
+// placeholder so the type is not "unknown"; games use the canvas host.
+func (r *renderer) tilemap(n *model.Node) {
+	_, _ = n.Prop("rows")
+	_, _ = n.Prop("cell")
+	_, _ = n.Prop("tileSize")
+	_, _ = n.Prop("atlas")
+	_, _ = n.Prop("bumpX")
+	_, _ = n.Prop("bumpY")
+	_, _ = n.Prop("bumpT")
+	fmt.Fprintf(&r.sb, `<div id=%q data-qorm-tilemap="1" style=%q%s></div>`,
+		attrID(n.ID), r.containerCSS(n), r.a11y(n))
 }
 
 func (r *renderer) text(n *model.Node) {
