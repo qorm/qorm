@@ -28,16 +28,17 @@ Every node object may carry these top-level keys:
 | `condition` | string | `when` nodes only: `{{ … }}` expression over `viewport.width` / `viewport.height` / `viewport.orientation` selecting `then` (truthy) or `else`; an unknown viewport (server first frame) is falsy |
 | `then` | node | `when` nodes only: subtree rendered when `condition` is truthy |
 | `else` | node | `when` nodes only: subtree rendered otherwise (unlike the `if` prop, which hides one node, `when` swaps two alternative subtrees) |
+| `d` | string | SVG path data string for vector paths |
 | `…` | any | any other key is a widget-specific **prop** (table below) |
 
 ## Common style props
 
 Read by the shared renderer, so they work on any node that draws a box:
 
-- **Box (`style`)** — `width` `height` `minWidth` `maxWidth` `minHeight` `maxHeight` `padding` `margin` `gap` `background` `gradient` (linear / radial / **conic**, canvas) `borderRadius` `borderWidth` `borderColor` `shadow` `opacity` `aspectRatio` `flexGrow` `flexShrink` `alignSelf` `zIndex` (canvas: sibling paint + hit order; `0` = auto) `position` `top` `right` `bottom` `left` `x` `y` (canvas absolute aliases for left/top) `cursor` `overflow` (`hidden` clips children; rounded when `borderRadius` set, canvas) `transition` `transitionEasing` `transitionYoyo` `transitionLoop` `transitionRepeat` (DOTween-style SetLoops on property tweens, canvas)
+- **Box (`style`)** — `width` `height` `minWidth` `maxWidth` `minHeight` `maxHeight` `padding` `margin` `gap` `background` `gradient` (linear / radial / **conic**, canvas) `radialGradient` `borderRadius` `borderWidth` `borderColor` `shadow` `opacity` `aspectRatio` `flexGrow` `flexShrink` `alignSelf` `zIndex` (canvas: sibling paint + hit order; `0` = auto) `position` `top` `right` `bottom` `left` `x` `y` (canvas absolute aliases for left/top) `cursor` `overflow` (`hidden` clips children; rounded when `borderRadius` set, canvas) `transition` `transitionEasing` `transitionYoyo` `transitionLoop` `transitionRepeat` (DOTween-style SetLoops on property tweens, canvas)
 - **Text (`style`)** — `color` `fontSize` `fontWeight` `fontFamily` `lineHeight` `letterSpacing` `fontStyle` `textDecoration` (`underline` / `line-through` / `overline`) `textTransform` (`uppercase` / `lowercase` / `capitalize`) `textAlign` `textOverflow` (`ellipsis`) `lineClamp` `textStrokeColor` `textStrokeWidth` `textShadowColor` `textShadowBlur` `textShadowX` `textShadowY` (stroke/shadow: canvas)
-- **Chrome / shadow (`style`, canvas)** — `strokeColor` `strokeWidth` `outline` `outlineColor` `outlineWidth` `outlineOffset` `boxShadowColor` `boxShadowBlur` `boxShadowX` `boxShadowY` `boxShadowInset` (CSS inset box-shadow)
-- **Filter / mask / clip (`style`, canvas)** — `filter` (`blur()` `brightness()` `contrast()` `saturate()` `grayscale()` `hue-rotate()` `opacity()` `drop-shadow()` `invert()` `sepia()`) `blur` `filterBlur` (shortcuts) `tint` (RGB modulate, canvas) `imageRendering` (`pixelated` nearest-neighbour, canvas) `mixBlendMode` (`multiply` / `screen` / `overlay` / `darken` / `lighten` / `difference` / `exclusion` / `color-dodge` / `color-burn` / `hard-light` / `plus-lighter` / `lighter`) `maskFade` (`top` / `bottom` / `left` / `right`) `maskFadeSize` `maskImage` `clipPath` (`circle()` / `ellipse()` / `inset(… round …)` / `polygon(...)`) `layerCache` (reuse offscreen bitmap when content fingerprint is unchanged)
+- **Chrome / shadow (`style`, canvas)** — `strokeColor` `strokeWidth` `strokeDasharray` `strokeDashoffset` `outline` `outlineColor` `outlineWidth` `outlineOffset` `boxShadowColor` `boxShadowBlur` `boxShadowX` `boxShadowY` `boxShadowInset` (CSS inset box-shadow)
+- **Filter / mask / clip (`style`, canvas)** — `filter` (`blur()` `brightness()` `contrast()` `saturate()` `grayscale()` `hue-rotate()` `opacity()` `drop-shadow()` `invert()` `sepia()`) `blur` `filterBlur` `contrast` `hue-rotate` (shortcuts) `dropShadowX` `dropShadowY` `dropShadowBlur` `dropShadowColor` (drop-shadow properties) `tint` (RGB modulate, canvas) `imageRendering` (`pixelated` nearest-neighbour, canvas) `mixBlendMode` (`multiply` / `screen` / `overlay` / `darken` / `lighten` / `difference` / `exclusion` / `color-dodge` / `color-burn` / `hard-light` / `plus-lighter` / `lighter`) `maskFade` (`top` / `bottom` / `left` / `right`) `maskFadeSize` `maskImage` `clipPath` (`circle()` / `ellipse()` / `inset(… round …)` / `polygon(...)`) `layerCache` (reuse offscreen bitmap when content fingerprint is unchanged)
 - **Scroll snap (`style`, canvas)** — `scrollSnapType` (`x|y|both` + `mandatory|proximity`, on scroll viewports) `scrollSnapAlign` (`start` / `center` / `end`, on children)
 - **Layout motion (`style`, canvas)** — `layoutMotion` (FLIP ease of absolute position/size when set with `transition` + stable `id`) — pair with `transition: "0.3s"` or `"0.3s spring"` / `transitionEasing: "spring"`
 - **Transform (`style`, canvas)** — `rotate` (degrees) `scale` `scaleX` `scaleY` (0 = unset → 1) `flipX` `flipY` `skewX` `skewY` (degrees; graph shear) `transformOrigin` (CSS pivot: `center`, `left top`, `50% 0`, `12px 8px`; default center) — layout box unchanged; composes with entrance/`fx`/press scale
@@ -46,6 +47,13 @@ Read by the shared renderer, so they work on any node that draws a box:
 - **Backdrop (`style`)** — `backdropBlur` (frosted-glass radius in px, capped at 120; `0` turns the frost off on `appbar` / `largetitle`, which are frosted by default) `backdropTint` (the translucent fill the blur shows through; a browser without `backdrop-filter` falls back to a solid panel)
 - **Layout (`layout`)** — `width` `height` `align` `justify` (`wrap` on containers, `columns` on `grid`, `orientation` on `scroll`)
 - **Accessibility (top-level)** — `role` `ariaLabel` `title` `tooltip`
+
+Canvas geometry details: `aspectRatio` is width/height and derives the missing
+axis only when exactly one positive numeric `width`/`height` is explicit.
+`position: "absolute"` is out of flow; `right`/`bottom` anchor a box to the
+parent content edge when no `left`/`x` or `top`/`y` is set. `cursor` accepts
+`pointer`, `text`, `not-allowed`, and `default` (plus `hand`, `ibeam`,
+`forbidden`, `arrow` aliases), through the same QSS/inline cascade.
 
 ## Per-widget props
 

@@ -284,7 +284,7 @@ func nodeDisabled(m *model.Node, rt *runtime.Runtime) bool {
 	if m == nil {
 		return false
 	}
-	switch t := evalStyleProp(m.Style["disabled"], rt).(type) {
+	switch t := resolvedAuthorStyleProp(m, "disabled", rt).(type) {
 	case bool:
 		return t
 	case float64:

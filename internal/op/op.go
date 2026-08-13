@@ -366,9 +366,11 @@ type RRectOp struct {
 	// BackdropBlur px: frost pixels already in the buffer under the rect.
 	BackdropBlur float64
 	BackdropTint color.RGBA
-	Stroke       color.RGBA
-	StrokeWidth  float64
-	Shadow       color.RGBA
+	Stroke           color.RGBA
+	StrokeWidth      float64
+	StrokeDasharray  []float64
+	StrokeDashoffset float64
+	Shadow           color.RGBA
 	ShadowBlur   float64
 	ShadowX      float64
 	ShadowY      float64

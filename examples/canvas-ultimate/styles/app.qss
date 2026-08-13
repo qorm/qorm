@@ -1,0 +1,130 @@
+# QORM Canvas Ultimate Premium Theme
+
+.background-video {
+    position: "absolute";
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: "fill";
+    height: "fill";
+}
+
+.glass-overlay {
+    position: "absolute";
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    backdropBlur: 24;
+    background: "rgba(10, 15, 30, 0.4)";
+}
+
+.layout-wrapper {
+    width: "fill";
+    height: "fill";
+    gap: 40;
+}
+
+# Sidebar Navigation
+.sidebar {
+    width: 280;
+    height: "fill";
+    backdropBlur: 40;
+    background: "rgba(255, 255, 255, 0.05)";
+    borderWidth: 1;
+    borderColor: "rgba(255, 255, 255, 0.1)";
+    borderRadius: 32;
+    gap: 12;
+    boxShadowColor: "rgba(0, 0, 0, 0.3)";
+    boxShadowY: 10;
+    boxShadowBlur: 40;
+    transition: "0.8s spring";
+}
+
+.logo-text {
+    fontSize: 36;
+    fontWeight: "900";
+    color: "white";
+    textShadowColor: "rgba(255, 255, 255, 0.2)";
+    textShadowBlur: 20;
+}
+
+.nav-item {
+    background: "transparent";
+    borderRadius: 16;
+    cursor: "pointer";
+    transition: "0.4s spring";
+    hoverBackground: "rgba(255, 255, 255, 0.1)";
+    hoverScale: 1.03;
+    pressedScale: 0.96;
+}
+
+.active {
+    background: "rgba(255, 255, 255, 0.15)";
+    borderWidth: 1;
+    borderColor: "rgba(255, 255, 255, 0.25)";
+    boxShadowColor: "rgba(255, 255, 255, 0.15)";
+    boxShadowBlur: 20;
+}
+
+.nav-text {
+    color: "white";
+    fontSize: 16;
+    fontWeight: "600";
+}
+
+# Main Content Area
+.main-area {
+    width: "fill";
+    height: "fill";
+    gap: 60;
+}
+
+.hero-richtext {
+    textShadowColor: "rgba(0,0,0,0.5)";
+    textShadowBlur: 20;
+    textShadowY: 8;
+}
+
+# Glass Cards
+.cards-container {
+    gap: 32;
+}
+
+.glass-card {
+    backdropBlur: 30;
+    background: "rgba(255, 255, 255, 0.06)";
+    borderWidth: 1;
+    borderColor: "rgba(255, 255, 255, 0.15)";
+    borderRadius: 32;
+    gap: 20;
+    width: 260;
+    transition: "0.5s spring";
+    hoverScale: 1.08;
+    hoverBackground: "rgba(255, 255, 255, 0.12)";
+    pressedScale: 0.94;
+    cursor: "pointer";
+    boxShadowColor: "rgba(0, 0, 0, 0.3)";
+    boxShadowY: 15;
+    boxShadowBlur: 30;
+}
+
+.card-icon {
+    color: "#00FFC2";
+}
+
+.card-title {
+    color: "rgba(255, 255, 255, 0.9)";
+    fontSize: 18;
+    fontWeight: "600";
+}
+
+# WebView specific styling
+.webview-container {
+    overflow: "hidden";
+    gap: 0;
+}
+
+.webview-title {
+}

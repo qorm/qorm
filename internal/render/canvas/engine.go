@@ -208,6 +208,19 @@ type Engine struct {
 	// inner "name" differs from its file name would otherwise reload — and
 	// re-log — every frame.
 	themeLoaded string
+
+	// HumanAction receives the top-level action name dispatched while a native
+	// input handler is on the stack. Runtime.DispatchObserver catches both the
+	// engine's own dispatch path and InteractiveWidgets that call rt.Dispatch
+	// directly; timers/physics/onComplete run outside this scope and are not
+	// attributed to the human.
+	HumanAction func(action string)
+	humanInput  int
+	// HumanPresence receives privacy-safe focus / text-entry labels from the
+	// native canvas host. Password contents never enter this callback.
+	HumanPresence func(element string)
+	lastPresence  string
+	inspectNodeID string
 }
 
 // mutation is one queued external state change (HTTP/MCP handler work) plus
@@ -222,6 +235,7 @@ func NewEngine(rt *runtime.Runtime, r Renderer) *Engine {
 		r = SoftwareRenderer{}
 	}
 	e := &Engine{RT: rt, Renderer: r, StatsEnabled: os.Getenv("QORM_FRAME_STATS") == "1"}
+	e.installDispatchObserver(rt)
 	e.dirty.Store(true) // the first frame always renders
 	return e
 }
@@ -230,6 +244,48 @@ func NewEngine(rt *runtime.Runtime, r Renderer) *Engine {
 // from any goroutine (atomic store; never locks — see Engine comment).
 func (e *Engine) MarkDirty()   { e.dirty.Store(true) }
 func (e *Engine) RequestDraw() { e.dirty.Store(true) }
+
+// SetRuntime swaps the live app runtime. Canvas hosts call it on the render
+// thread (normally from Server.OnStateChange inside an EnqueueMutation) when a
+// hot reload replaces the runtime pointer. A plain state commit passes the
+// same pointer and therefore preserves interaction; a real swap yields a new
+// scene-root pointer, which RenderInto's existing root-change guard safely
+// clears focus, scroll and other model-pointer state before layout.
+func (e *Engine) SetRuntime(rt *runtime.Runtime) {
+	e.RT = rt
+	e.installDispatchObserver(rt)
+	e.dirty.Store(true)
+}
+
+// SetHumanActionSink installs native-input activity attribution.
+func (e *Engine) SetHumanActionSink(fn func(action string)) { e.HumanAction = fn }
+
+// SetHumanPresenceSink installs native focus / typing presence reporting.
+func (e *Engine) SetHumanPresenceSink(fn func(element string)) { e.HumanPresence = fn }
+
+// SetInspectNode selects the node outlined by the native DevTool inspector.
+// The canvas HTTP host calls this on the render thread through its mutation
+// queue, so the id and display list remain single-threaded engine state.
+func (e *Engine) SetInspectNode(id string) {
+	e.inspectNodeID = id
+	e.dirty.Store(true)
+}
+
+func (e *Engine) installDispatchObserver(rt *runtime.Runtime) {
+	if rt == nil {
+		return
+	}
+	rt.DispatchObserver = func(action string) {
+		if e.humanInput > 0 && e.HumanAction != nil && action != "" {
+			e.HumanAction(action)
+		}
+	}
+}
+
+func (e *Engine) beginHumanInput() func() {
+	e.humanInput++
+	return func() { e.humanInput-- }
+}
 
 // Dirty reports whether a redraw is pending (input or state change).
 func (e *Engine) Dirty() bool { return e.dirty.Load() }
@@ -288,14 +344,17 @@ func (e *Engine) drainMutations() {
 // called from the main thread.
 func (e *Engine) RenderInto(size image.Point, scale int, target *image.RGBA) (bool, FrameStats) {
 	var st FrameStats
-	rt := e.RT
-	if rt == nil || rt.App == nil || target == nil {
+	if target == nil {
 		return false, st
 	}
 
 	// Frame boundary: apply queued external mutations on this (render) thread,
 	// before resolveTheme/layout read rt.State for the new frame.
 	e.drainMutations()
+	rt := e.RT
+	if rt == nil || rt.App == nil {
+		return false, st
+	}
 
 	// Scene enter hooks drain here too — the runtime marks pendingEnter on
 	// creation/navigation and each host picks its drain point (the server
@@ -327,6 +386,10 @@ func (e *Engine) RenderInto(size image.Point, scale int, target *image.RGBA) (bo
 	root := e.sceneRoot()
 	if root != e.lastRoot {
 		e.Inter = Interaction{}
+		if e.lastPresence != "" && e.HumanPresence != nil {
+			e.lastPresence = ""
+			e.HumanPresence("")
+		}
 		e.lastRoot = root
 		e.timers = nil
 		e.heldKeys = nil
@@ -357,6 +420,7 @@ func (e *Engine) RenderInto(size image.Point, scale int, target *image.RGBA) (bo
 	e.lastScale = scale
 	e.lastSize = size
 	e.itemInstances = instances
+	e.appendInspectOverlay()
 	st.LayoutRecord = time.Since(t0)
 
 	e.physics(rootNode)
@@ -586,6 +650,8 @@ func (e *Engine) DrawFrame(s Surface) FrameStats {
 // It updates interaction state and dispatches handlers; the return reports
 // whether visuals changed and the host should DrawFrame.
 func (e *Engine) HandlePointer(p PointerInput) bool {
+	defer e.beginHumanInput()()
+	defer e.notifyHumanPresence()
 	rt := e.RT
 	if rt == nil || e.graphRoot == nil {
 		return false
@@ -757,6 +823,12 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 	if e.Inter.Pressed != nil {
 		if w, ok := LookupWidget(e.Inter.Pressed.Type); ok {
 			if iw, yes := w.(InteractiveWidget); yes {
+				if nodeDisabled(e.Inter.Pressed, rt) {
+					e.Inter.Pressed = nil
+					e.Inter.PressedScope = nil
+					e.dirty.Store(true)
+					return true
+				}
 				frame := image.Rectangle{}
 				if g := e.findGroupByModel(e.Inter.Pressed); g != nil {
 					b := g.GetBBox()
@@ -788,7 +860,18 @@ func (e *Engine) HandlePointer(p PointerInput) bool {
 		// A press on an interactive widget focuses it (pointer semantics, no
 		// ring) — the keyboard seam (KeyWidget) and the edit-session funnel
 		// both hang off this identity. Disabled widgets take no focus.
-		if p.Type == PointerPress && !nodeDisabled(m, rt) {
+		if nodeDisabled(m, rt) {
+			// Disabled is semantic for every registered widget too. Individual
+			// widget implementations historically reread inline style only; gate
+			// here using the full QSS cascade so they cannot dispatch or write
+			// bound state through a disabled class.
+			hoverMoved := p.Type == PointerMove && p.Buttons == 0 && e.updateHover(hit)
+			if hoverMoved {
+				e.dirty.Store(true)
+			}
+			return hoverMoved
+		}
+		if p.Type == PointerPress {
 			e.Inter.Focused = m
 			e.Inter.FocusVisible = false
 			// The repeat-instance scope (for a widget press inside a list):
@@ -1240,6 +1323,7 @@ func (e *Engine) updateHover(hit graph.Node) bool {
 // consumed delta requests a redraw; a gesture over no viewport — or one with
 // nothing left to consume — reports no change. Vertical only for now.
 func (e *Engine) HandleScroll(s ScrollInput) bool {
+	defer e.beginHumanInput()()
 	rt := e.RT
 	if rt == nil || e.graphRoot == nil || !e.hasPtr {
 		return false
@@ -1347,6 +1431,8 @@ func clampFloat(v, lo, hi float64) float64 {
 // onKeyDown / onKeyUp (focused node first, bubbling to the scene root).
 // Always returns true — focus/ring/activation visuals may have changed.
 func (e *Engine) HandleKey(k KeyInput) bool {
+	defer e.beginHumanInput()()
+	defer e.notifyHumanPresence()
 	rt := e.RT
 	if rt == nil || e.graphRoot == nil {
 		return false

@@ -63,6 +63,34 @@ func runMeasure(appDir, out string, width int, physical bool) error {
 
 // runCheck evaluates checks (or audit) against pure-Go canvas measurements.
 func runCheck(appDir, checksPath, out string, audit bool, width int, physical bool) error {
+	var checks []byte
+	if !audit {
+		var err error
+		checks, err = os.ReadFile(checksPath)
+		if err != nil {
+			return err
+		}
+		if isFlow(checks) {
+			rt, err := loadRuntime(appDir, "", "")
+			if err != nil {
+				return err
+			}
+			h := 820
+			if rt.App != nil {
+				if rt.App.Window.Height > 0 {
+					h = rt.App.Window.Height
+				}
+				if width <= 0 && rt.App.Window.Width > 0 {
+					width = rt.App.Window.Width
+				}
+			}
+			report, err := evalCanvasFlow(rt, width, h, !physical, checks)
+			if err != nil {
+				return err
+			}
+			return writeCanvasCheckReport(appDir, out, report)
+		}
+	}
 	measured, err := measureRowsCanvas(appDir, width, !physical)
 	if err != nil {
 		return err
@@ -75,20 +103,15 @@ func runCheck(appDir, checksPath, out string, audit bool, width int, physical bo
 	if audit {
 		report, err = measure.Audit(rt, measured)
 	} else {
-		checks, rerr := os.ReadFile(checksPath)
-		if rerr != nil {
-			return rerr
-		}
-		// Multi-step interaction flows still need a live window; pure measure
-		// only supports static check lists (same as a single-shot eval).
-		if isFlow(checks) {
-			return fmt.Errorf("interactive check flows need -tags desktop (WebView); static checks work on pure-Go canvas")
-		}
 		report, err = measure.Eval(rt, measured, checks)
 	}
 	if err != nil {
 		return err
 	}
+	return writeCanvasCheckReport(appDir, out, report)
+}
+
+func writeCanvasCheckReport(appDir, out string, report []byte) error {
 	if out != "" {
 		if err := os.WriteFile(out, report, 0o644); err != nil {
 			return err

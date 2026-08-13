@@ -12,7 +12,7 @@ Prerequisite: `qorm` on PATH — `go install github.com/qorm/qorm/cmd/qorm@lates
 ## MCP tools the server exposes
 
 `qorm_inspect` · `qorm_get_node` · `qorm_query` · `qorm_source_location` ·
-`qorm_list_actions` · `qorm_render_html` · `qorm_capture_subtree` ·
+`qorm_list_actions` · `qorm_render_html` · `qorm_capture_subtree` · `qorm_capture_canvas` ·
 `qorm_a11y_tree` · `qorm_capabilities` · `qorm_activity` ·
 `qorm_export_scene` · `qorm_export_bundle` · `qorm_dispatch` ·
 `qorm_set_state` · `qorm_simulate_action` · `qorm_assert` ·
@@ -45,6 +45,12 @@ Merge the `mcpServers` block into `~/.codeium/windsurf/mcp_config.json`.
 ### Any other MCP client
 Run `qorm mcp <app-dir>` and speak MCP (JSON-RPC 2.0) over stdio. A live
 `qorm run` also serves the same tools over HTTP at `/mcp`.
+
+For `qorm_measure` and `qorm_check_layout`, connect to that running HTTP MCP
+session: the active native canvas window exports its retained render graph, or
+a browser/WebView reports its DOM. A standalone stdio `qorm mcp` process has no
+rendering host. For one-shot verification without a window, run `qorm measure
+<app>` or `qorm check <app> --audit`; the default build uses the pure-Go canvas.
 
 ## The skill
 

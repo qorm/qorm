@@ -1,0 +1,8 @@
+{
+  "type": "action",
+  "id": "hero_move",
+  "steps": [
+    { "type": "state.set", "path": "hero.x", "value": "{{ state.heroOx + (x - state.heroSx) }}" },
+    { "type": "state.set", "path": "hero.y", "value": "{{ state.heroOy + (y - state.heroSy) }}" }
+  ]
+}

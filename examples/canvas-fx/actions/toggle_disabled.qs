@@ -1,0 +1,1 @@
+state.demoDisabled = !state.demoDisabled

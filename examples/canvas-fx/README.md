@@ -20,7 +20,7 @@ Full pure-Go canvas visual + **game-engine motion** stack demo.
 | 6 | FLIP layoutMotion | `.flipChip` + `toggle_flip.qs` |
 | 7 | clip-path | `.clipCircle` / `.clipInset` |
 | 8 | layerCache | `.cacheBlur` |
-| 9 | Game FX | `fx` + `fxToken` — hit/shake/punch/float/**burst** |
+| 9 | Game FX | `fx` + `fxToken` — hit/shake/punch/float/burst/flash/wobble/knockback |
 | 10 | Timeline + onComplete | Append/Join/wait; `timelineOnComplete` → `timeline_done.qs` |
 | 11 | Path follow (polyline) | `path` + `orient` on `path_dot` |
 | 12 | Stagger list | `stagger: 80` on list `renderItem` |
@@ -40,6 +40,7 @@ Full pure-Go canvas visual + **game-engine motion** stack demo.
 | 26 | transformOrigin | `origin_center` (default) / `origin_corner` (`0 0`) + `toggle_origin.qs` |
 | 27 | clip-path polygon | `poly_clip` — `polygon(50% 0%, 100% 100%, 0% 100%)` |
 | 28 | mix-blend plus-lighter | `plus_lighter` over a colorful stage |
+| 29 | Opacity pseudo-state + disabled input | `.opacityProbe` shows hover/press/focus; `.disabledProbe` blocks dispatch and dims |
 
 ## Game motion quick ref
 
@@ -66,4 +67,13 @@ Docs: [api/animation.md](../../api/animation.md) · [docs/styles.md](../../docs/
 go run ./cmd/qorm run examples/canvas-fx
 go test ./internal/render/canvas/ -run 'TestCanvasFx' -count=1 -v
 go run ./cmd/qorm measure examples/canvas-fx
+go run ./cmd/qorm check examples/canvas-fx --audit
+go run ./cmd/qorm check examples/canvas-fx --checks examples/canvas-fx/checks/a11y.json
+go run ./cmd/qorm check examples/canvas-fx --checks examples/canvas-fx/checks/interactive.json
 ```
+
+The targeted check distinguishes an accessible name derived from visible text
+or `alt` from an explicit `ariaLabel`, and verifies WCAG contrast only where the
+canvas can resolve a reliable solid foreground/background pair. Gradient,
+raster, blend, filter, mask, and translucent-effect paths report contrast as
+unavailable instead of assuming a passing ratio.

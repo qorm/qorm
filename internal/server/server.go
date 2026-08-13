@@ -47,9 +47,10 @@ type Server struct {
 	// revisions so POST /event can resolve its handler index against the frame
 	// the browser was actually showing. Cleared whenever the runtime is swapped
 	// (hot reload / OTA): a table from a previous app must never resolve.
-	handlerHist []handlerFrame
-	rev         atomic.Int64 // bumped on every mutation; drives browser live-sync
-	agent       *mcp.Server  // MCP handler sharing rt + mu
+	handlerHist   []handlerFrame
+	rev           atomic.Int64              // bumped on every mutation; drives browser live-sync
+	agent         *mcp.Server               // MCP handler sharing rt + mu
+	canvasCapture mcp.CanvasCaptureProvider // last presented native-canvas frame, when hosted
 
 	// canvasHost marks the server as embedded in the native canvas window:
 	// the HTTP listener is never served in that mode, so frame() skips the
@@ -108,6 +109,12 @@ type Server struct {
 	WindowOp    func(id, op string)             // focus/minimize/pin/unpin/close
 	WindowOpen  func(id, url string, w, h int)  // open a secondary window
 	WindowEval  func(id, js string)             // push JS to a window (window-to-window comms)
+	// OnInspectNode mirrors DevTool component-tree hover into a native canvas
+	// host. HTML clients continue to consume the same id over SSE.
+	OnInspectNode func(id string)
+	// CanvasDiagnostics returns the latest native frame timings. It is set
+	// before the HTTP server starts and invoked on the canvas render thread.
+	CanvasDiagnostics func() map[string]any
 
 	// OnStateChange is called whenever the runtime state updates, passing the live runtime.
 	// Used by the Canvas kernel to re-layout and re-render.
@@ -222,6 +229,9 @@ func (s *Server) initAgent() {
 		defer s.measureMu.Unlock()
 		return s.measure
 	})
+	if s.canvasCapture != nil {
+		s.agent.SetCanvasCaptureProvider(s.canvasCapture)
+	}
 	// Let the agent read the shared activity log, so it can see what the human
 	// just did in the live app and respond — the reverse of the human's "AI
 	// edited" toast.
@@ -560,6 +570,23 @@ func (s *Server) logEvent(source, detail string) {
 	s.actMu.Unlock()
 }
 
+// RecordHumanDispatch records an action invoked from a native window input.
+// Browser input records the same detail in serveEvent; this exported seam lets
+// the canvas host feed the shared DevTool/MCP activity stream without exposing
+// the rest of the activity log internals.
+func (s *Server) RecordHumanDispatch(action string) {
+	if action != "" {
+		s.logEvent("human", "dispatch "+action)
+	}
+}
+
+// RecordHumanPresence accepts the same privacy-safe element spelling as the
+// browser /presence endpoint. Native canvas uses it for focus and text-entry
+// context; password fields send a "(hidden)" marker, never their value.
+func (s *Server) RecordHumanPresence(element string) {
+	s.recordHumanPresence(element)
+}
+
 // serveLog returns activity entries after ?since=<seq> as JSON.
 func (s *Server) serveLog(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
@@ -630,7 +657,12 @@ func (s *Server) servePresence(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	el := strings.TrimSpace(p.Element)
+	s.recordHumanPresence(p.Element)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) recordHumanPresence(element string) {
+	el := strings.TrimSpace(element)
 	// Cap the stored label at focusMaxRunes RUNES (not bytes), so truncation
 	// lands on a rune boundary and never splits a multi-byte UTF-8 sequence
 	// into invalid bytes for a non-ASCII label.
@@ -650,7 +682,6 @@ func (s *Server) servePresence(w http.ResponseWriter, r *http.Request) {
 		s.humanTypingAt = time.Now()
 	}
 	s.actMu.Unlock()
-	w.WriteHeader(http.StatusNoContent)
 }
 
 // serveViewport records the browser client's viewport size (POST {w,h}) and
@@ -1001,6 +1032,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/dev/state", blockCrossOrigin(s.serveDevState))
 	mux.HandleFunc("/dev/tree", blockCrossOrigin(s.serveDevTree))
 	mux.HandleFunc("/dev/highlight", blockCrossOrigin(s.serveDevHighlight))
+	mux.HandleFunc("/dev/canvas", blockCrossOrigin(s.serveDevCanvas))
 	// Static asset serve: /assets/* and /themes/* and /locales/* are read from
 	// the app's directory tree (qorm.json "id" is the bundle root). Without
 	// this an image widget's `src: "assets/mario.png"` 404s in the browser
@@ -1024,6 +1056,14 @@ func (s *Server) Handler() http.Handler {
 // exists, it falls back to the entry. A parse failure never reaches here — the
 // caller keeps the current app on error (reload-by-inaction).
 func (s *Server) Reload(next *runtime.Runtime) {
+	s.marshalWork(func() { s.reload(next) })
+}
+
+// reload is Reload's render-thread body. Reload itself must not inspect or
+// copy Runtime.State on the file-watcher goroutine in a canvas host: pointer
+// input and rendering own that map on the main thread. Browser hosts have no
+// marshal hook, so marshalWork invokes this body inline as before.
+func (s *Server) reload(next *runtime.Runtime) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if old := s.rt; old != nil && next != nil {

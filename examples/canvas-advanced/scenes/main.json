@@ -1,0 +1,163 @@
+{
+  "type": "scene",
+  "id": "main",
+  "root": {
+    "type": "stack",
+    "id": "root",
+    "style": { "width": "fill", "height": "fill", "background": "#1a1a24" },
+    "children": [
+      {
+        "type": "board",
+        "id": "world",
+        "style": { "width": "fill", "height": "fill", "background": "radial-gradient(circle at 50% 50%, #2a2a35, #1a1a24)" },
+        "cameraTarget": "{{state.cameraLock ? 'hero' : null}}",
+        "cameraCenter": "xy",
+        "children": [
+          {
+            "type": "richtext",
+            "id": "rich_text",
+            "style": { "x": 50, "y": 50, "width": 400, "background": "rgba(0,0,0,0.5)", "padding": 16, "borderRadius": 12 },
+            "spans": [
+              { "text": "This is a ", "style": { "color": "#fff", "fontSize": 18 } },
+              { "text": "complex", "style": { "color": "#ff007f", "fontWeight": 800, "fontSize": 24, "textShadowBlur": 8, "textShadowColor": "#ff007f" } },
+              { "text": " mixed-style ", "style": { "color": "#fff", "fontSize": 18 } },
+              { "text": "RichText", "style": { "color": "#00ffff", "fontStyle": "italic", "fontSize": 22 } },
+              { "text": " paragraph.", "style": { "color": "#ccc", "fontSize": 16 } }
+            ]
+          },
+          {
+            "type": "path",
+            "id": "morph_path",
+            "d": "{{ state.pathMorphed ? 'M 50 150 Q 100 50 150 150 T 250 150' : 'M 50 100 Q 100 200 150 100 T 250 100' }}",
+            "style": {
+              "x": 50, "y": 200,
+              "width": 300, "height": 300,
+              "background": "transparent",
+              "strokeColor": "#00ff7f",
+              "strokeWidth": 6,
+              "transition": "0.4s spring"
+            }
+          },
+          {
+            "type": "box",
+            "id": "blend_node",
+            "style": {
+              "x": 200, "y": 150,
+              "width": 250, "height": 250,
+              "background": "#00ffff",
+              "mixBlendMode": "screen",
+              "clipPath": "polygon(50% 0%, 100% 100%, 0% 100%)",
+              "filter": "{{ state.filterOn ? 'blur(8px) hue-rotate(90deg)' : 'none' }}"
+            }
+          },
+          {
+            "type": "box",
+            "id": "path_node",
+            "timeline": [
+              { "path": [[100, 500], [300, 400], [500, 600], [700, 300]], "duration": 2000, "ease": "easeInOut", "orient": true, "cubic": true },
+              { "wait": 500 },
+              { "scale": 1.5, "rotate": 180, "duration": 500, "ease": "backOut" },
+              { "scale": 1.0, "rotate": 0, "duration": 500, "ease": "bounce" },
+              { "path": [[700, 300], [100, 500]], "duration": 1500, "ease": "sineInOut" }
+            ],
+            "timelineToken": "{{state.tlPlay}}",
+            "style": {
+              "x": 100, "y": 500,
+              "width": 80, "height": 80,
+              "borderRadius": 16,
+              "background": "#00ff7f"
+
+            },
+            "children": [
+              { "type": "text", "text": "GO", "style": { "color": "#000", "fontSize": 18, "fontWeight": 800, "textAlign": "center", "lineHeight": 80 } }
+            ]
+          },
+          {
+            "type": "box",
+            "id": "drag_note",
+            "style": {
+              "x": "{{state.dragX}}", "y": "{{state.dragY}}",
+              "width": 240, "height": 160,
+              "background": "#ffea00",
+              "borderRadius": 12,
+              "padding": 16,
+
+              "maskFade": "bottom",
+              "maskFadeSize": 40,
+              "hoverScale": 1.05,
+              "pressedScale": 0.95,
+              "transition": "0.2s spring"
+            },
+            "onTouchStart": { "name": "drag_start" },
+            "onTouchMove": { "name": "drag_move" },
+            "children": [
+              { "type": "text", "text": "Draggable Note", "style": { "color": "#000", "fontSize": 18, "fontWeight": 800 } },
+              { "type": "text", "text": "Momentum pan the board by dragging empty space. Drag me to move me.", "style": { "color": "#333", "fontSize": 14, "margin": {"top": 8} } }
+            ]
+          },
+          {
+            "type": "box",
+            "id": "hero",
+            "class": "heroNode",
+            "fx": "{{state.fxMode}}",
+            "fxToken": "{{state.heroFxToken}}",
+            "fxDuration": 500,
+            "style": {
+              "x": "{{state.hero.x}}", "y": "{{state.hero.y}}",
+              "width": 120, "height": 120,
+              "borderRadius": 60,
+              "background": "linear-gradient(135deg, #ff007f, #7f00ff)",
+
+              "hoverScale": 1.1,
+              "pressedScale": 0.9,
+              "transition": "0.3s spring"
+            },
+            "onTouchStart": { "name": "hero_start" },
+            "onTouchMove": { "name": "hero_move" },
+            "onPress": { "type": "invoke", "name": "trigger_hero_fx" },
+            "children": [
+              { "type": "text", "text": "HERO", "style": { "color": "#fff", "fontSize": 20, "fontWeight": 800, "textAlign": "center", "lineHeight": 120 } }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "row",
+        "id": "hud",
+        "style": {
+          "x": 0, "y": 0,
+          "width": "fill",
+          "padding": 16,
+          "gap": 12,
+          "background": "linear-gradient(180deg, rgba(0,0,0,0.8), rgba(0,0,0,0))"
+        },
+        "children": [
+          {
+            "type": "button",
+            "text": "{{ state.cameraLock ? 'Unlock Camera' : 'Lock on Hero' }}",
+            "style": { "background": "#444", "color": "#fff", "padding": "8px 16px", "borderRadius": 8 },
+            "onPress": { "type": "invoke", "name": "toggle_camera" }
+          },
+          {
+            "type": "button",
+            "text": "Timeline Anim",
+            "style": { "background": "#444", "color": "#fff", "padding": "8px 16px", "borderRadius": 8 },
+            "onPress": { "type": "invoke", "name": "play_tl" }
+          },
+          {
+            "type": "button",
+            "text": "Toggle Filter",
+            "style": { "background": "#444", "color": "#fff", "padding": "8px 16px", "borderRadius": 8 },
+            "onPress": { "type": "invoke", "name": "toggle_filter" }
+          },
+          {
+            "type": "button",
+            "text": "Morph Path",
+            "style": { "background": "#444", "color": "#fff", "padding": "8px 16px", "borderRadius": 8 },
+            "onPress": { "type": "invoke", "name": "toggle_path" }
+          }
+        ]
+      }
+    ]
+  }
+}

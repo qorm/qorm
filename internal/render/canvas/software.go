@@ -606,7 +606,15 @@ func (r SoftwareRenderer) Render(ops *op.Ops, target *image.RGBA) {
 					if o.Stroke.A > 0 && strokeWidthS > 0 {
 						// Stroke sits INSIDE the boundary (CSS border-box).
 						if cov := clamp01(0.5-dS) * clamp01(0.5+dS+strokeWidthS); cov > 0 {
-							blendOver(img, x, y, withOpacity(o.Stroke, cov*clipCov*currentOpacity))
+							if len(o.StrokeDasharray) > 0 {
+								tArc := roundBoxArcLength(lx, ly, cxL, cyL, hw, hh, radius) * s
+								if !isDashOn(tArc, o.StrokeDasharray, o.StrokeDashoffset*s) {
+									cov = 0
+								}
+							}
+							if cov > 0 {
+								blendOver(img, x, y, withOpacity(o.Stroke, cov*clipCov*currentOpacity))
+							}
 						}
 					}
 					// CSS outline: ring OUTSIDE the border box (offset + width).
@@ -1867,4 +1875,61 @@ func blitImageNearest(dst, src *image.RGBA, dest, r image.Rectangle, opacity flo
 			dOff += 4
 		}
 	}
+}
+
+func roundBoxArcLength(px, py, cx, cy, hw, hh, r float64) float64 {
+	x := px - cx
+	y := py - cy
+	iw := math.Max(0, hw-r)
+	ih := math.Max(0, hh-r)
+
+	distT := math.Abs(y + hh)
+	distB := math.Abs(y - hh)
+	distL := math.Abs(x + hw)
+	distR := math.Abs(x - hw)
+	minD := distT
+	if distB < minD { minD = distB }
+	if distL < minD { minD = distL }
+	if distR < minD { minD = distR }
+
+	if minD == distT {
+		return x + iw
+	} else if minD == distR {
+		return 2*iw + math.Pi/2*r + (y + ih)
+	} else if minD == distB {
+		return 2*iw + 2*ih + math.Pi*r + (iw - x)
+	} else {
+		return 4*iw + 2*ih + 3*math.Pi/2*r + (ih - y)
+	}
+}
+
+func isDashOn(t float64, dashes []float64, offset float64) bool {
+	if len(dashes) == 0 {
+		return true
+	}
+	sum := 0.0
+	for _, d := range dashes {
+		sum += d
+	}
+	if sum == 0 {
+		return true
+	}
+	if len(dashes)%2 != 0 {
+		sum *= 2
+	}
+
+	t = math.Mod(t+offset, sum)
+	if t < 0 {
+		t += sum
+	}
+
+	acc := 0.0
+	for i := 0; i < len(dashes)*2; i++ {
+		d := dashes[i%len(dashes)]
+		acc += d
+		if t < acc {
+			return i%2 == 0
+		}
+	}
+	return false
 }

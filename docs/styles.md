@@ -104,13 +104,34 @@ defaults do.
 
 ## Accepted style keys
 
-The loader whitelist is `render.KnownStyleKeys` (~90 keys). Unknown keys are
+The loader whitelist is `render.KnownStyleKeys` (~100 keys). Unknown keys are
 load-time **warnings** (the app still runs). The full group list lives in the
 auto-generated [common style props](/api/props.md#common-style-props).
 
 Keys that both HTML and canvas apply include box model, text color/size/weight,
 pseudo-state (`hover*` / `pressed*` / `disabled*`), and `backdropBlur` /
 `backdropTint`. Canvas-only visual effects (software raster) are listed below.
+
+For flex sizing, `width: "fill"` / `height: "fill"` is accepted in inline
+style, QSS, and the node's `layout` object. Canvas resolves it to the containing
+content-box size minus that child's margins, including when the parent's
+cross-axis alignment is not stretch. HTML emits `100%`; normal CSS sizing and
+margin rules then apply. Numeric sizes remain pixels.
+
+Canvas also resolves CSS-style geometry from either inline `style` or QSS:
+
+- `aspectRatio` is width/height. When exactly one positive numeric axis is
+  explicit, Canvas derives the other (`width: 120; aspectRatio: 1.5` gives
+  height 80). With both axes or neither axis explicit, authored/intrinsic size
+  remains authoritative; min/max constraints are applied afterward.
+- `position: "absolute"` removes the node from container flow. Use `left`/`top`
+  (or Canvas aliases `x`/`y`) to anchor from the leading edges, or `right` /
+  `bottom` to anchor from the parent's content box. An explicit leading-axis
+  value wins over its trailing anchor.
+- `cursor` maps `pointer` (or `hand`), `text` (or `ibeam`), `not-allowed` (or
+  `forbidden`), and `default` (or `arrow`) to native cursors. The full QSS
+  cascade is honored; absent an authored value, Canvas derives pointer/text/
+  disabled cursors from the hovered widget.
 
 ## Canvas visual effects
 
@@ -136,8 +157,8 @@ node (inline `style` or QSS). Runnable showcase: [`examples/canvas-fx`](https://
 }
 ```
 
-- `strokeColor` / `strokeWidth` — vector stroke on the box RRect (distinct from
-  CSS border).
+- `strokeColor` / `strokeWidth` / `strokeDasharray` / `strokeDashoffset` — vector stroke on the box RRect (distinct from
+  CSS border). `strokeDasharray` and `strokeDashoffset` allow dashed strokes.
 - `boxShadowInset: true` — CSS inset box-shadow (inner rim).
 - `outline*` — outer ring outside the border box (focus-style chrome).
 
@@ -174,6 +195,8 @@ node (inline `style` or QSS). Runnable showcase: [`examples/canvas-fx`](https://
 - `linear-gradient(...)` and `radial-gradient(...)` (stop percentages supported)
 - `conic-gradient(from 0deg, #f00, #00f)` — sweep from box center (canvas)
 
+Additionally, the `radialGradient` property can be used as a standalone style key.
+
 ### Filters, blend, mask, clip
 
 ```json
@@ -194,6 +217,8 @@ node (inline `style` or QSS). Runnable showcase: [`examples/canvas-fx`](https://
 |---|---|
 | `filter` | CSS filter stack: `blur()` `brightness()` `contrast()` `saturate()` `grayscale()` `hue-rotate()` `opacity()` `drop-shadow()` `invert()` `sepia()` |
 | `blur` / `filterBlur` | Shorthand group blur radius (px) |
+| `contrast` / `hue-rotate` | Shorthand standalone filter properties |
+| `dropShadowX` / `Y` / `Blur` / `Color` | Direct properties for applying a drop-shadow filter |
 | `mixBlendMode` | `multiply` / `screen` / `overlay` / `darken` / `lighten` / `difference` / `exclusion` / `color-dodge` / `color-burn` / `hard-light` / `plus-lighter` / `lighter` when compositing the offscreen layer (`lighter` is the Porter-Duff alias of `plus-lighter`: `min(1, Cs+Cb)`) |
 | `maskFade` + `maskFadeSize` | Soft edge dissolve (`top` / `bottom` / `left` / `right`) |
 | `maskImage` | e.g. `linear-gradient(to bottom, black, transparent)` |
@@ -270,13 +295,23 @@ On a `scroll` / `scrollview` viewport:
   "style": {
     "pressedScale": 0.96,
     "hoverScale": 1.02,
+    "hoverColor": "var(--label)",
+    "hoverOpacity": 0.9,
     "pressedBackground": "var(--accent)",
+    "pressedOpacity": 0.8,
+    "focusBorderColor": "var(--accent)",
     "transition": "0.3s spring",
     "transitionEasing": "spring"
   }
 }
 ```
 
+- `hoverBackground` / `pressedBackground`, `hoverColor`, and
+  `hoverOpacity` / `pressedOpacity` come from the full QSS cascade (type <
+  class < id < inline), not only inline style
+- `focusBorderColor` colors the native canvas focus ring
+- `disabled: true` prevents pointer/keyboard activation and uses
+  `disabledOpacity` (default 0.5) plus the not-allowed cursor
 - `transition: "0.2s"` / `"200ms"` — ease interaction and absolute `x`/`y` moves
 - `transition: "0.3s spring"` or `transitionEasing: "spring"` — underdamped
   spring (overshoot then settle) on the canvas path

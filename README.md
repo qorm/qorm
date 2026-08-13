@@ -15,7 +15,7 @@ while you collaborate on the same live runtime in real time — user actions are
 shot` captured each frame via WebKit. No browser automation; see
 [`scripts/record-demo.sh`](scripts/record-demo.sh).</sub>
 
-<p align="center"><b><a href="https://qorm.com/demo/">Live demo</a> — the counter app as an offline PWA (Go → WASM), running entirely in your browser.</b></p>
+<p align="center"><b><a href="https://qorm.com/games/">Live demo</a> — Play retro games (Tetris, Mario, etc.) as an offline PWA (Go → WASM), rendered via our pure-Go Canvas engine entirely in your browser.</b></p>
 
 ### The same app, packaged for iOS
 

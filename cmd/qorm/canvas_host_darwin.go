@@ -4,11 +4,13 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"net"
 	"net/http"
 	"time"
 
 	"github.com/qorm/qorm/internal/app"
+	"github.com/qorm/qorm/internal/mcp"
 	"github.com/qorm/qorm/internal/qscript"
 	"github.com/qorm/qorm/internal/render/canvas"
 	"github.com/qorm/qorm/internal/runtime"
@@ -77,6 +79,9 @@ func runCanvasWindow(srv *server.Server, ln net.Listener, title string, hooks *c
 
 	win := app.NewWindow(title, ww, hh)
 	eng := canvas.NewEngine(srv.Runtime(), canvas.SoftwareRenderer{})
+	eng.SetHumanActionSink(srv.RecordHumanDispatch)
+	eng.SetHumanPresenceSink(srv.RecordHumanPresence)
+	srv.OnInspectNode = eng.SetInspectNode
 
 	// The HTTP middleware (marshalToMain) cannot reach the two state-touching
 	// paths below — the async-http completion goroutine (server.spawn) and the
@@ -106,15 +111,37 @@ func runCanvasWindow(srv *server.Server, ln net.Listener, title string, hooks *c
 	// An external (MCP) state change flags a redraw; the main loop renders it.
 	// Runs on the main thread inside a marshalled mutation (atomic store, so it
 	// would be safe from any goroutine regardless).
-	srv.OnStateChange = func(_ *runtime.Runtime) { eng.RequestDraw() }
-
-	go func() { _ = http.Serve(ln, marshalToMain(eng, srv.Handler())) }()
+	srv.OnStateChange = func(rt *runtime.Runtime) { eng.SetRuntime(rt) }
 
 	scale := win.Scale()
 	physW, physH := ww*scale, hh*scale
 	s := float64(scale)
 	lastResize := time.Now()
 	cursorHint := canvas.CursorArrow
+	var lastFrame canvas.FrameStats
+	framePresented := false
+	presentedW, presentedH, presentedScale := 0, 0, 0
+	srv.CanvasDiagnostics = func() map[string]any {
+		return map[string]any{
+			"host": "canvas", "width": physW, "height": physH, "scale": scale,
+			"layoutMs":  durationMS(lastFrame.LayoutRecord),
+			"renderMs":  durationMS(lastFrame.Render),
+			"presentMs": durationMS(lastFrame.Present),
+			"totalMs":   durationMS(lastFrame.Total),
+		}
+	}
+	srv.SetCanvasCaptureProvider(func(id string) (mcp.CanvasCapture, error) {
+		if !framePresented {
+			return mcp.CanvasCapture{}, fmt.Errorf("no canvas frame has been presented yet")
+		}
+		bounds := win.Backbuffer().Bounds()
+		if bounds.Dx() != presentedW || bounds.Dy() != presentedH {
+			return mcp.CanvasCapture{}, fmt.Errorf("canvas surface changed since the last presented frame; retry after render")
+		}
+		return encodeLiveCanvasCapture(win.Backbuffer(), presentedScale, eng.CollectMeasure(), id)
+	})
+
+	go func() { _ = http.Serve(ln, marshalToMain(eng, srv.Handler())) }()
 
 	// app.Run's loop delivers events here AND, when idle, returns so we can
 	// render. We drive the engine from this same (main) thread.
@@ -177,8 +204,14 @@ func runCanvasWindow(srv *server.Server, ln net.Listener, title string, hooks *c
 		// queued external mutation, or an in-flight tween). Single buffer,
 		// single thread → no race, no flicker.
 		if eng.Dirty() || eng.Animating() {
-			if rendered, _ := eng.RenderInto(app.Pt(physW, physH), scale, win.Backbuffer()); rendered {
+			if rendered, stats := eng.RenderInto(app.Pt(physW, physH), scale, win.Backbuffer()); rendered {
+				presentAt := time.Now()
 				win.PresentImage()
+				framePresented = true
+				presentedW, presentedH, presentedScale = physW, physH, scale
+				stats.Present = time.Since(presentAt)
+				stats.Total += stats.Present
+				lastFrame = stats
 			}
 			// Feed agent measurement from the live graph (HTML path POSTs the
 			// same shape from the browser; canvas has no DOM). Logical CSS px
@@ -196,6 +229,8 @@ func runCanvasWindow(srv *server.Server, ln net.Listener, title string, hooks *c
 	// exit the process (the HTTP goroutine dies with it — no idle spinning).
 	return true
 }
+
+func durationMS(d time.Duration) float64 { return float64(d) / float64(time.Millisecond) }
 
 // marshalToMain routes every HTTP request through the engine's mutation
 // queue, so the whole handler — dispatch, state reads, MCP tools, dev

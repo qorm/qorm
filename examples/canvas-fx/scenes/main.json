@@ -101,6 +101,8 @@
               {
                 "type": "box",
                 "id": "conic_disc",
+                "role": "img",
+                "ariaLabel": "Conic gradient color wheel",
                 "style": {
                   "width": 96,
                   "height": 96,
@@ -456,6 +458,38 @@
                     "style": { "background": "#ff9f0a", "padding": 8, "color": "#1d1d1f" }
                   }
                 ]
+              }
+            ]
+          },
+          {
+            "type": "row",
+            "id": "gamefx_more",
+            "style": { "gap": 6, "width": "fill" },
+            "layout": { "width": "fill" },
+            "children": [
+              {
+                "type": "button",
+                "id": "btn_flash",
+                "text": "Flash",
+                "class": "springBtn",
+                "onPress": { "type": "invoke", "name": "set_fx_flash" },
+                "style": { "background": "#ffd60a", "padding": 8, "color": "#1d1d1f", "flexGrow": 1 }
+              },
+              {
+                "type": "button",
+                "id": "btn_wobble",
+                "text": "Wobble",
+                "class": "springBtn",
+                "onPress": { "type": "invoke", "name": "set_fx_wobble" },
+                "style": { "background": "#bf5af2", "padding": 8, "flexGrow": 1 }
+              },
+              {
+                "type": "button",
+                "id": "btn_knockback",
+                "text": "Knockback",
+                "class": "springBtn",
+                "onPress": { "type": "invoke", "name": "set_fx_knockback" },
+                "style": { "background": "#ff375f", "padding": 8, "flexGrow": 1 }
               }
             ]
           },
@@ -1035,6 +1069,7 @@
                     "type": "image",
                     "id": "pixel_img",
                     "src": "assets/checker.png",
+                    "alt": "Pixelated checker sample",
                     "class": "pixelImg"
                   },
                   {
@@ -1052,6 +1087,7 @@
                     "type": "image",
                     "id": "smooth_img",
                     "src": "assets/checker.png",
+                    "alt": "Smooth checker sample",
                     "class": "smoothImg"
                   },
                   {
@@ -1281,8 +1317,85 @@
 
           {
             "type": "text",
+            "id": "h_pseudo",
+            "text": "29. Opacity pseudo-state + disabled input",
+            "class": "heading"
+          },
+          {
+            "type": "column",
+            "id": "pseudo_state_panel",
+            "class": "pseudoPanel",
+            "children": [
+              {
+                "type": "text",
+                "id": "pseudo_status",
+                "text": "active: {{ state.pseudoPresses }} · disabled attempts: {{ state.disabledPresses }}",
+                "style": { "fontSize": 12, "color": "#9aa3b2", "width": "fill" }
+              },
+              {
+                "type": "row",
+                "id": "pseudo_controls",
+                "style": { "gap": 8, "width": "fill" },
+                "layout": { "width": "fill" },
+                "children": [
+                  {
+                    "type": "button",
+                    "id": "btn_pseudo_opacity",
+                    "text": "Hover / press",
+                    "class": "opacityProbe",
+                    "onPress": { "type": "invoke", "name": "press_pseudo" }
+                  },
+                  {
+                    "type": "button",
+                    "id": "btn_disabled_probe",
+                    "text": "{{ state.demoDisabled ? \"Disabled\" : \"Enabled\" }}",
+                    "class": "disabledProbe",
+                    "onPress": { "type": "invoke", "name": "press_disabled" }
+                  }
+                ]
+              },
+              {
+                "type": "button",
+                "id": "btn_toggle_disabled",
+                "text": "{{ state.demoDisabled ? \"Enable probe\" : \"Disable probe\" }}",
+                "class": "springBtn",
+                "onPress": { "type": "invoke", "name": "toggle_disabled" },
+                "style": { "background": "#2c3344", "padding": 10, "width": "fill" }
+              }
+            ]
+          },
+
+          {
+            "type": "text",
+            "id": "h_new_fx",
+            "text": "30. radialGradient, hue-rotate, strokeDasharray",
+            "class": "heading"
+          },
+          {
+            "type": "box",
+            "id": "new_fx_card",
+            "class": "newFxCard",
+            "children": [
+              {
+                "type": "text",
+                "text": "WOW",
+                "style": { "fontSize": 18, "fontWeight": 800, "color": "#ffffff" }
+              }
+            ]
+          },
+          {
+            "type": "button",
+            "id": "btn_new_fx",
+            "text": "Toggle New FX",
+            "class": "springBtn",
+            "onPress": { "type": "invoke", "name": "toggle_new_fx" },
+            "style": { "background": "#ff9f0a", "color": "#1d1d1f" }
+          },
+
+          {
+            "type": "text",
             "id": "footer",
-            "text": "origin · poly · plus-lighter",
+            "text": "origin · poly · plus-lighter · pseudo-state",
             "style": {
               "fontSize": 11,
               "color": "#6b7280",

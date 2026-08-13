@@ -27,7 +27,10 @@
       "zFront": "boolean",
       "skewDeg": "number",
       "blendExtra": "string",
-      "originSpin": "number"
+      "originSpin": "number",
+      "demoDisabled": "boolean",
+      "pseudoPresses": "number",
+      "disabledPresses": "number"
     },
     "initial": {
       "flipLeft": true,
@@ -51,6 +54,9 @@
       "skewDeg": 0,
       "blendExtra": "difference",
       "originSpin": 25,
+      "demoDisabled": true,
+      "pseudoPresses": 0,
+      "disabledPresses": 0,
       "staggerItems": [
         { "c": "#ff9f0a" },
         { "c": "#30d158" },

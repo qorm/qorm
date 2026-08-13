@@ -99,7 +99,7 @@ func TestCollectDocsSkipsFixturesAndNestedProjects(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "qorm.json"), `{"type": "app", "id": "c"}`)
 	writeFile(t, filepath.Join(dir, "scenes", "deep", "s.json"), `{"type": "scene", "id": "s"}`)
 	// Reserved directory names are never walked.
-	for _, skip := range []string{"node_modules", "src", "target", "assets", ".git", "qorm_standalone"} {
+	for _, skip := range []string{"node_modules", "src", "target", "assets", "checks", ".git", "qorm_standalone"} {
 		writeFile(t, filepath.Join(dir, skip, "hidden.json"), `{"type": "scene", "id": "hidden"}`)
 	}
 	// Fixtures and junk are filtered file-by-file.

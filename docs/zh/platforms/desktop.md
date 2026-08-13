@@ -26,11 +26,12 @@ qorm app (JSON) / qorm.bundle.json
   ↓
 Go Runtime (loader + state + action + i18n, pure Go)
   ↓
-Desktop Host Adapter (cmd/qorm window_desktop.go desktopHardware*)
-  ↓
-Rendered to HTML/CSS
-  ↓
-Native WebView (-tags desktop: WKWebView / WebView2 / WebKitGTK)
+由构建标签/平台选择渲染宿主
+  ├─ 纯 Go 保留模式 canvas(macOS 默认,无 `desktop` 标签)
+  │    度量 → 布局 → 显示列表 → 软件光栅
+  ├─ 原生 WebView(`-tags desktop`)
+  │    HTML/CSS → WKWebView / WebView2 / WebKitGTK
+  └─ 浏览器回退(其他无标签桌面平台)
 ```
 
 ## 特性
@@ -73,7 +74,20 @@ system.automation
 
 ## 渲染
 
-当前唯一的渲染路径是 `internal/render` 生成的 HTML/CSS,由原生 WebView 渲染显示。GPU-first 渲染(Display List、Render Graph、文本缓存、纹理图集)属于 roadmap(见 `planning/`)。
+桌面端在同一 JSON/状态/动作模型之上有两个具体渲染器:
+
+- macOS 默认无标签 `qorm run` 打开纯 Go 保留模式软件 canvas,支持原生输入、
+  滚动、文本编辑、QSS 和视觉效果,并把实时渲染图导出给 MCP 测量。
+  原生指针/键盘输入分发的动作也会以人类身份进入共享 DevTool 和
+  `qorm_activity` 事件流,并提供隐私安全的 focus/typing presence。DevTool
+  组件树悬停会高亮对应原生节点。
+- `-tags desktop` 选择平台 WebView 中的 HTML 路径
+  (WKWebView/WebView2/WebKitGTK),它不是 canvas 渲染器。
+
+两者共享应用模型,但不共享布局/绘制实现,所以应验证目标后端:默认
+`qorm measure` / 静态 `qorm check` 使用无窗口 canvas;`-tags desktop`
+二进制度量 WebView/DOM。参见[验证](../verification.md)与
+[QSS / canvas 效果](../styles.md)。
 
 ## 开发工具
 
@@ -85,7 +99,9 @@ qorm build
 qorm preview
 qorm measure
 qorm check
+qorm shot
 ```
 
-见 [CLI 参考](/api/zh/cli.md)。桌面端 inspect / validate / profile 工具链属
-路线图规划——见 `planning/`。
+见 [CLI 参考](/api/zh/cli.md)。DevTool 组件树可悬停高亮原生 Canvas 节点;
+`GET /dev/canvas` 返回物理视口及最新 layout/render/present/total 帧耗时。
+MCP 可用 `qorm_capture_canvas` 获取最近实际呈现的原生像素。

@@ -96,12 +96,29 @@ state.filterOn = !state.filterOn
 
 ## 可接受的样式键
 
-加载器白名单是 `render.KnownStyleKeys`(约 90 个键)。未知键是加载期**警告**
+加载器白名单是 `render.KnownStyleKeys`(约 100 个键)。未知键是加载期**警告**
 (应用仍会运行)。完整分组列表见自动生成的[通用样式属性](/api/zh/props.md#通用样式属性)。
 
 HTML 与 canvas 共同生效的包括盒模型、文字颜色/字号/字重、伪状态
 (`hover*` / `pressed*` / `disabled*`)、以及 `backdropBlur` / `backdropTint`。
 仅 canvas(软件光栅)的视觉效果见下。
+
+在 flex 尺寸中,内联样式、QSS 和节点 `layout` 对象都接受
+`width: "fill"` / `height: "fill"`。Canvas 将它解析为父容器内容盒减去
+该子节点 margin,即使父容器交叉轴对齐不是 stretch 也一样。HTML 发出
+`100%`,随后按常规 CSS 尺寸与 margin 规则处理。数字尺寸仍是像素。
+
+Canvas 还会从内联 `style` 或 QSS 解析 CSS 式几何:
+
+- `aspectRatio` 表示宽/高。恰好一个正数轴显式设置时,Canvas 推导另一个轴
+  (`width: 120; aspectRatio: 1.5` 得到高度 80)。两轴都显式设置或都未设置时,
+  作者尺寸/固有尺寸保持权威;之后再应用 min/max 约束。
+- `position: "absolute"` 让节点脱离容器流。用 `left`/`top`(或 Canvas 别名
+  `x`/`y`)从起始边锚定,或用 `right`/`bottom` 从父内容盒的尾边锚定。同一轴上,
+  显式的起始边值优先于尾边锚点。
+- `cursor` 把 `pointer`(或 `hand`)、`text`(或 `ibeam`)、`not-allowed`(或
+  `forbidden`)和 `default`(或 `arrow`)映射到原生光标。完整 QSS 级联生效;
+  未显式设置时,Canvas 按悬停组件推导 pointer/text/disabled 光标。
 
 ## Canvas 视觉效果
 
@@ -260,13 +277,23 @@ HTML 与 canvas 共同生效的包括盒模型、文字颜色/字号/字重、�
   "style": {
     "pressedScale": 0.96,
     "hoverScale": 1.02,
+    "hoverColor": "var(--label)",
+    "hoverOpacity": 0.9,
     "pressedBackground": "var(--accent)",
+    "pressedOpacity": 0.8,
+    "focusBorderColor": "var(--accent)",
     "transition": "0.3s spring",
     "transitionEasing": "spring"
   }
 }
 ```
 
+- `hoverBackground` / `pressedBackground`、`hoverColor` 与
+  `hoverOpacity` / `pressedOpacity` 使用完整 QSS 级联(类型 < class < id < 内联),
+  不仅限内联样式
+- `focusBorderColor` 设置原生 canvas 焦点环颜色
+- `disabled: true` 阻止指针/键盘激活,并使用 `disabledOpacity`
+  (默认 0.5)和禁止光标
 - `transition: "0.2s"` / `"200ms"` —— 缓动交互效果与绝对 `x`/`y` 位移
 - `transition: "0.3s spring"` 或 `transitionEasing: "spring"` —— canvas 路径上
   的欠阻尼弹簧(过冲后回落)

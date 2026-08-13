@@ -1,5 +1,7 @@
 package canvas
 
+import "strings"
+
 // CursorHint tells the host which mouse cursor to show over the currently
 // hovered node — the native window's counterpart of the browser's automatic
 // cursor styles (I-beam over text fields, pointing hand over pressables).
@@ -24,6 +26,20 @@ func (e *Engine) CursorHint() CursorHint {
 	}
 	if nodeDisabled(m, e.RT) {
 		return CursorNotAllowed
+	}
+	// An author cursor overrides the widget-derived default. Resolve through
+	// the complete QSS cascade so class/id rules behave like inline style.
+	if authored, ok := resolvedAuthorStyleProp(m, "cursor", e.RT).(string); ok {
+		switch strings.ToLower(strings.TrimSpace(authored)) {
+		case "pointer", "hand":
+			return CursorPointer
+		case "text", "ibeam":
+			return CursorText
+		case "not-allowed", "forbidden":
+			return CursorNotAllowed
+		case "default", "arrow":
+			return CursorArrow
+		}
 	}
 	switch m.Type {
 	case "input", "textarea", "searchfield":

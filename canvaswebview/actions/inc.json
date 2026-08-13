@@ -1,0 +1,7 @@
+{
+  "type": "action",
+  "id": "inc",
+  "steps": [
+    { "type": "state.set", "path": "count", "value": "{{ count + 1 }}" }
+  ]
+}

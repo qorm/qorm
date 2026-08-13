@@ -1,0 +1,14 @@
+{
+  "type": "app",
+  "id": "canvaswebview",
+  "name": "canvaswebview",
+  "entry": "main",
+  "version": "0.1.0",
+  "globalState": {
+    "schema": { "count": "number" },
+    "initial": { "count": 0 }
+  },
+  "platforms": {
+    "desktop": { "window": { "width": 420, "height": 640, "title": "QORM App" } }
+  }
+}

@@ -66,6 +66,12 @@ type Runtime struct {
 	// callDepth counts nested Dispatch calls (the `invoke` step, onEnter
 	// chains), capped at maxInvokeDepth so action recursion cannot hang.
 	callDepth int
+	// DispatchObserver is a host-only notification for the name of each
+	// top-level dispatch. Nested invoke/call actions are intentionally omitted:
+	// one human interaction is one activity entry. New and Clone leave it nil;
+	// a UI host installs it explicitly for attribution while it knows the
+	// dispatch originated from human input.
+	DispatchObserver func(name string)
 
 	// Commit is the HOST's frame sink: the `render` step calls it to publish an
 	// intermediate frame in the middle of an action, so a loading state written
@@ -1250,6 +1256,9 @@ const BuiltinSort = "__sort"
 func (r *Runtime) Dispatch(name string, args map[string]any) {
 	if r.callDepth >= maxInvokeDepth {
 		return
+	}
+	if r.callDepth == 0 && r.DispatchObserver != nil {
+		r.DispatchObserver(name)
 	}
 	// The intermediate-frame budget is per top-level INTERACTION: nested invokes
 	// share the outer dispatch's allowance, so a recursive action cannot reset

@@ -56,10 +56,19 @@ func TestActivityLogAndConsole(t *testing.T) {
 			t.Errorf("console page missing %q", m)
 		}
 	}
+	rr4 := httptest.NewRecorder()
+	s.serveLogWindow(rr4, httptest.NewRequest(http.MethodGet, "/logwindow", nil))
+	for _, m := range []string{"/dev/canvas", "Canvas frame"} {
+		if !strings.Contains(rr4.Body.String(), m) {
+			t.Errorf("DevTool log window missing %q", m)
+		}
+	}
 }
 
 func TestDevtoolEndpoints(t *testing.T) {
 	s := consoleServer()
+	var inspected string
+	s.OnInspectNode = func(id string) { inspected = id }
 
 	// Test 1: GET /dev/state
 	rr1 := httptest.NewRecorder()
@@ -112,5 +121,34 @@ func TestDevtoolEndpoints(t *testing.T) {
 	s.serveDevHighlight(rr4, req4)
 	if rr4.Code != http.StatusOK {
 		t.Fatalf("POST /dev/highlight returned status %d", rr4.Code)
+	}
+	if inspected != "root" {
+		t.Fatalf("native inspect callback = %q, want root", inspected)
+	}
+
+	// Test 5: GET /dev/canvas exposes the host's latest timing snapshot.
+	s.CanvasDiagnostics = func() map[string]any {
+		return map[string]any{"host": "canvas", "totalMs": 1.25}
+	}
+	rr5 := httptest.NewRecorder()
+	s.serveDevCanvas(rr5, httptest.NewRequest(http.MethodGet, "/dev/canvas", nil))
+	var diag map[string]any
+	if err := json.Unmarshal(rr5.Body.Bytes(), &diag); err != nil {
+		t.Fatalf("JSON decode canvas diagnostics: %v", err)
+	}
+	if diag["host"] != "canvas" || diag["totalMs"] != 1.25 {
+		t.Fatalf("canvas diagnostics = %#v", diag)
+	}
+}
+
+func TestRecordHumanPresenceUsesBrowserPrivacyRules(t *testing.T) {
+	s := consoleServer()
+	s.RecordHumanPresence("Password = (hidden)")
+	s.RecordHumanPresence("Email = ada@example.test")
+	s.actMu.Lock()
+	focus, typing, filled := s.humanFocus, s.humanTyping, s.humanFilled
+	s.actMu.Unlock()
+	if focus != "Email = ada@example.test" || typing != focus || filled != "Password" {
+		t.Fatalf("native presence focus=%q typing=%q filled=%q", focus, typing, filled)
 	}
 }

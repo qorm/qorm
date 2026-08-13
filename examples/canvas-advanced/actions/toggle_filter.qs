@@ -1,0 +1,1 @@
+state.filterOn = !state.filterOn

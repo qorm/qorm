@@ -1,6 +1,7 @@
 package canvas
 
 import (
+	"encoding/json"
 	"fmt"
 	"image"
 	"image/color"
@@ -10,9 +11,82 @@ import (
 	"time"
 
 	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/qorm/internal/render/graph"
 	"github.com/qorm/qorm/internal/runtime"
 	"github.com/qorm/qorm/internal/theme"
 )
+
+type observerDispatchWidget struct{}
+
+func (observerDispatchWidget) Measure(*model.Node, *runtime.Runtime, map[string]any, int) (int, int) {
+	return 40, 40
+}
+func (observerDispatchWidget) Record(ln *LayoutNode, _ *runtime.Runtime, _ int) graph.Node {
+	r := graph.NewRect()
+	r.Width, r.Height = float64(ln.Width), float64(ln.Height)
+	r.Fill = color.RGBA{20, 20, 20, 255}
+	return r
+}
+func (observerDispatchWidget) HandlePointer(_ *model.Node, rt *runtime.Runtime, p PointerInput, _ *Interaction, _ image.Rectangle) bool {
+	if p.Type == PointerPress {
+		rt.Dispatch("widget-action", nil) // deliberately bypass Engine.dispatch
+		return true
+	}
+	return false
+}
+
+func measuredIDs(t *testing.T, e *Engine) map[string]bool {
+	t.Helper()
+	var rows []map[string]any
+	if err := json.Unmarshal(e.CollectMeasure(), &rows); err != nil {
+		t.Fatal(err)
+	}
+	out := map[string]bool{}
+	for _, row := range rows {
+		if id, _ := row["id"].(string); id != "" {
+			out[id] = true
+		}
+	}
+	return out
+}
+
+func TestQueuedRuntimeSwapTakesEffectBeforeFrameSnapshot(t *testing.T) {
+	oldRoot := &model.Node{Type: "column", ID: "old-root"}
+	oldRT := runtime.New(&model.App{Entry: "main", Scenes: map[string]*model.Node{"main": oldRoot}})
+	newRoot := &model.Node{Type: "column", ID: "new-root", Children: []*model.Node{{Type: "text", ID: "fresh", Text: "new"}}}
+	newRT := runtime.New(&model.App{Entry: "main", Scenes: map[string]*model.Node{"main": newRoot}})
+	e := NewEngine(oldRT, SoftwareRenderer{})
+	surf := NewHeadlessSurface(image.Pt(200, 100))
+	e.DrawFrame(surf)
+	e.Inter.Focused = oldRoot
+
+	done := make(chan struct{})
+	go func() { e.EnqueueMutation(func() { e.SetRuntime(newRT) }); close(done) }()
+	deadline := time.Now().Add(time.Second)
+	for !e.Dirty() && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	e.DrawFrame(surf)
+	<-done
+	ids := measuredIDs(t, e)
+	if !ids["new-root"] || !ids["fresh"] || ids["old-root"] {
+		t.Fatalf("runtime swap measure ids = %v", ids)
+	}
+	if e.Inter.Focused != nil {
+		t.Fatal("new scene root must clear model-pointer interaction")
+	}
+}
+
+func TestSetRuntimeSamePointerPreservesInteraction(t *testing.T) {
+	e, surf, btn := engineFixture(t)
+	e.DrawFrame(surf)
+	e.Inter.Focused = btn
+	e.SetRuntime(e.RT)
+	e.DrawFrame(surf)
+	if e.Inter.Focused != btn {
+		t.Fatal("same-runtime state notification reset interaction")
+	}
+}
 
 // engineFixture builds a headless engine around one centered button.
 func engineFixture(t *testing.T) (*Engine, *HeadlessSurface, *model.Node) {
@@ -171,6 +245,67 @@ func TestEngineEnterActivatesFocused(t *testing.T) {
 	if v := e.RT.State["pinged"]; v != "yes" {
 		t.Fatalf("Enter on focused button did not dispatch OnPress (state=%v)", v)
 	}
+}
+
+func TestHumanActionSinkAttributesNativeInputOnly(t *testing.T) {
+	t.Run("pointer keyboard and disabled", func(t *testing.T) {
+		e, surf, btn := engineFixture(t)
+		e.RT.App.Actions = map[string]*model.Action{
+			"tap": {ID: "tap"}, "key": {ID: "key"}, "timer": {ID: "timer"},
+		}
+		btn.OnPress = &model.Invoke{Name: "tap"}
+		var got []string
+		e.SetHumanActionSink(func(action string) { got = append(got, action) })
+		e.DrawFrame(surf)
+		cx, cy := buttonCenter(t, e, btn)
+		e.HandlePointer(PointerInput{Type: PointerPress, X: float64(cx), Y: float64(cy)})
+		if fmt.Sprint(got) != "[tap]" {
+			t.Fatalf("pointer activity = %v, want [tap]", got)
+		}
+
+		// A non-input dispatch (timer/physics/onComplete class) is not human.
+		e.RT.Dispatch("timer", nil)
+		if fmt.Sprint(got) != "[tap]" {
+			t.Fatalf("programmatic dispatch was attributed to human: %v", got)
+		}
+
+		btn.OnPress = &model.Invoke{Name: "key"}
+		e.Inter.Focused = btn
+		e.HandleKey(KeyInput{Key: "return", Down: true})
+		if fmt.Sprint(got) != "[tap key]" {
+			t.Fatalf("keyboard activity = %v, want [tap key]", got)
+		}
+
+		btn.Style = map[string]any{"disabled": true}
+		e.HandlePointer(PointerInput{Type: PointerPress, X: float64(cx), Y: float64(cy)})
+		if fmt.Sprint(got) != "[tap key]" {
+			t.Fatalf("disabled input emitted activity: %v", got)
+		}
+	})
+
+	t.Run("interactive widget direct runtime dispatch", func(t *testing.T) {
+		const typ = "observer-dispatch-widget"
+		RegisterWidget(typ, observerDispatchWidget{})
+		defer UnregisterWidget(typ)
+		n := &model.Node{Type: typ, ID: "w", Props: map[string]any{"class": "off"}}
+		rt := runtime.New(&model.App{Entry: "main", Scenes: map[string]*model.Node{"main": {Type: "column", Children: []*model.Node{n}}}, Actions: map[string]*model.Action{"widget-action": {ID: "widget-action"}}})
+		e := NewEngine(rt, SoftwareRenderer{})
+		surf := NewHeadlessSurface(image.Pt(100, 100))
+		var got []string
+		e.SetHumanActionSink(func(action string) { got = append(got, action) })
+		e.DrawFrame(surf)
+		e.HandlePointer(PointerInput{Type: PointerPress, X: 10, Y: 10})
+		if fmt.Sprint(got) != "[widget-action]" {
+			t.Fatalf("direct widget dispatch activity = %v", got)
+		}
+
+		rt.App.Styles = []model.StyleRule{{Kind: model.StyleRuleClass, Name: "off", Style: map[string]any{"disabled": true}}}
+		got = nil
+		e.HandlePointer(PointerInput{Type: PointerPress, X: 10, Y: 10})
+		if len(got) != 0 {
+			t.Fatalf("QSS-disabled interactive widget dispatched/logged: %v", got)
+		}
+	})
 }
 
 // onKeyDown on the focused node receives the pressed key: the engine seeds

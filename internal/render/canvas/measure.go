@@ -92,6 +92,8 @@ type LayoutNode struct {
 
 	// Retained mode scene graph node backing this layout
 	GraphNode graph.Node
+
+	RichTextSpans []graph.Span
 }
 
 // Measure does a bottom-up pass to calculate minimum content sizes. scale is
@@ -245,6 +247,85 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 			ln.Text = evalPropStrScope(t, rt, sc)
 		}
 		ln.Text = applyTextTransform(ln.Text, style.TextTransform)
+	} else if n.Type == "richtext" {
+		if spansRaw, ok := n.Prop("spans"); ok {
+			if spansList, ok := spansRaw.([]any); ok {
+				for _, spRaw := range spansList {
+					if spMap, ok := spRaw.(map[string]any); ok {
+						span := graph.Span{}
+						if text, ok := spMap["text"]; ok {
+							span.Content = evalPropStrScope(text, rt, sc)
+						} else if content, ok := spMap["content"]; ok {
+							span.Content = evalPropStrScope(content, rt, sc)
+						}
+						
+						fs2 := style.FontSize
+						if fs2 == 0 {
+							fs2 = 14
+						}
+						span.FontSize = float64(fs2)
+						if v, ok := spMap["fontSize"].(float64); ok {
+							span.FontSize = v
+						} else if v, ok := spMap["fontSize"].(int); ok {
+							span.FontSize = float64(v)
+						}
+						
+						span.Fill = style.Color
+						if c, ok := spMap["color"].(string); ok {
+							span.Fill = parseColor(c)
+						}
+						
+						span.FontWeight = style.FontWeight
+						if fw, ok := spMap["fontWeight"].(float64); ok {
+							span.FontWeight = int(fw)
+						} else if fw, ok := spMap["fontWeight"].(int); ok {
+							span.FontWeight = fw
+						}
+						
+						span.LetterSpacing = style.LetterSpacing
+						if ls, ok := spMap["letterSpacing"].(float64); ok {
+							span.LetterSpacing = ls
+						}
+						
+						span.StrokeColor = style.TextStrokeColor
+						if c, ok := spMap["textStrokeColor"].(string); ok {
+							span.StrokeColor = parseColor(c)
+						}
+						span.StrokeWidth = style.TextStrokeWidth
+						if w, ok := spMap["textStrokeWidth"].(float64); ok {
+							span.StrokeWidth = w
+						} else if w, ok := spMap["textStrokeWidth"].(int); ok {
+							span.StrokeWidth = float64(w)
+						}
+						
+						span.ShadowColor = style.TextShadowColor
+						if c, ok := spMap["textShadowColor"].(string); ok {
+							span.ShadowColor = parseColor(c)
+						}
+						span.ShadowBlur = style.TextShadowBlur
+						if b, ok := spMap["textShadowBlur"].(float64); ok {
+							span.ShadowBlur = b
+						} else if b, ok := spMap["textShadowBlur"].(int); ok {
+							span.ShadowBlur = float64(b)
+						}
+						span.ShadowX = style.TextShadowX
+						if x, ok := spMap["textShadowX"].(float64); ok {
+							span.ShadowX = x
+						} else if x, ok := spMap["textShadowX"].(int); ok {
+							span.ShadowX = float64(x)
+						}
+						span.ShadowY = style.TextShadowY
+						if y, ok := spMap["textShadowY"].(float64); ok {
+							span.ShadowY = y
+						} else if y, ok := spMap["textShadowY"].(int); ok {
+							span.ShadowY = float64(y)
+						}
+						
+						ln.RichTextSpans = append(ln.RichTextSpans, span)
+					}
+				}
+			}
+		}
 	} else if n.Type == "input" {
 		ln.Text, ln.Placeholder = inputDisplayText(n, rt, inter)
 		if s := editSession(inter, n); s != nil {
@@ -299,6 +380,15 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 	if n.Type == "text" {
 		contentW = int(MeasureTextTracking(ln.Text, float64(fs), style.LetterSpacing))
 		contentH = textLineHM(fs, style.LineHeight)
+	} else if n.Type == "richtext" {
+		for _, span := range ln.RichTextSpans {
+			w := int(MeasureTextTracking(span.Content, span.FontSize, span.LetterSpacing))
+			contentW += w
+			h := textLineHM(int(span.FontSize), style.LineHeight)
+			if h > contentH {
+				contentH = h
+			}
+		}
 	} else if n.Type == "button" {
 		contentW = int(MeasureTextTracking(ln.Text, float64(fs), style.LetterSpacing)) + 40*scale
 		contentH = textLineHM(fs, style.LineHeight) + 20*scale
@@ -420,6 +510,19 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 	ln.Height = contentH
 	if style.Height > 0 {
 		ln.Height = style.Height
+	}
+	// CSS aspect-ratio supplies the missing axis when exactly one dimension is
+	// authored. Both explicit axes remain authoritative; with neither explicit,
+	// intrinsic content remains authoritative.
+	if style.AspectRatio > 0 {
+		switch {
+		case style.Width > 0 && style.Height <= 0:
+			ln.Height = int(math.Round(float64(ln.Width) / style.AspectRatio))
+			ln.Style.Height = ln.Height // derived axis is definite for flex
+		case style.Height > 0 && style.Width <= 0:
+			ln.Width = int(math.Round(float64(ln.Height) * style.AspectRatio))
+			ln.Style.Width = ln.Width // derived axis is definite for flex
+		}
 	}
 	// Min/max constraints clamp the resolved box last (CSS order: content and
 	// explicit sizes first, then clamp).
@@ -1017,6 +1120,8 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 		if hasStroke {
 			bg.Stroke = ln.Style.StrokeColor
 			bg.StrokeWidth = ln.Style.StrokeWidth
+			bg.StrokeDasharray = ln.Style.StrokeDasharray
+			bg.StrokeDashoffset = ln.Style.StrokeDashoffset
 		}
 
 		if hasShadow {
@@ -1066,6 +1171,10 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 				}
 			}
 		}
+	} else if ln.Node.Type == "richtext" && len(ln.RichTextSpans) > 0 {
+		rtg := graph.NewRichText()
+		rtg.Spans = ln.RichTextSpans
+		group.AddChild(rtg)
 	} else if ln.Text != "" {
 		fs := ln.Style.FontSize
 		if fs == 0 {
@@ -1253,7 +1362,7 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 		runFlex = false
 	}
 	if runFlex {
-		lines := flexlayout.Flex(float64(innerW), float64(innerH), flexStyle(ln, rt), flexChildren(ln, rt))
+		lines := flexlayout.Flex(float64(innerW), float64(innerH), flexStyle(ln, rt), flexChildren(ln, rt, innerW, innerH))
 		for _, line := range lines {
 			flexRects = append(flexRects, line.Rects...)
 		}
@@ -1289,12 +1398,15 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 			// here because the rest of the layout pipeline (image.Rect,
 			// hit testing) is integer — the float survives only as the
 			// pre-round value, the pixel is the integer.
-			cbounds = image.Rect(
-				cx+int(math.Round(child.Style.PosX)),
-				cy+int(math.Round(child.Style.PosY)),
-				cx+int(math.Round(child.Style.PosX))+child.Width,
-				cy+int(math.Round(child.Style.PosY))+child.Height,
-			)
+			px, py := child.Style.PosX, child.Style.PosY
+			if child.Style.HasRight && !child.Style.HasPosX {
+				px = float64(innerW-child.Width) - child.Style.PosRight
+			}
+			if child.Style.HasBottom && !child.Style.HasPosY {
+				py = float64(innerH-child.Height) - child.Style.PosBottom
+			}
+			ix, iy := int(math.Round(px)), int(math.Round(py))
+			cbounds = image.Rect(cx+ix, cy+iy, cx+ix+child.Width, cy+iy+child.Height)
 		} else {
 			switch {
 			case isStack:
@@ -1432,6 +1544,9 @@ func performLayout(ln *LayoutNode, bounds image.Rectangle, absOrigin image.Point
 		ring.Height = float64(ln.Height + 6*s)
 		ring.BorderRadius = ln.Style.BorderRadius + 3*float64(s)
 		ring.Stroke = resolveFocusColor(rt)
+		if ln.Style.HasFocusBorderColor {
+			ring.Stroke = ln.Style.FocusBorderColor
+		}
 		ring.StrokeWidth = 2 * float64(s)
 		group.AddChild(ring)
 	}
@@ -1490,7 +1605,10 @@ func layerContentFP(ln *LayoutNode) uint64 {
 	mix(uint64(ln.Height))
 	mix(uint64(ln.Style.FilterBlur * 1000))
 	mix(uint64(ln.Style.FilterBrightness * 1000))
+	mix(uint64(ln.Style.FilterContrast * 1000))
 	mix(uint64(ln.Style.FilterSaturate * 1000))
+	mix(uint64(ln.Style.FilterGrayscale * 1000))
+	mix(uint64(ln.Style.FilterHueRotate * 1000))
 	mix(uint64(ln.Style.FilterInvert * 1000))
 	mix(uint64(ln.Style.FilterSepia * 1000))
 	mix(uint64(ln.Style.Tint.R)<<24 | uint64(ln.Style.Tint.G)<<16 | uint64(ln.Style.Tint.B)<<8 | uint64(ln.Style.Tint.A))

@@ -24,6 +24,7 @@
 | `/dev/state` | GET / POST | DevTools state inspector: read or write the live app state |
 | `/dev/tree` | GET | DevTools component tree: read the current scene's node tree JSON |
 | `/dev/highlight` | POST | DevTools highlight event: broadcast a node highlight inspect signal to all clients |
+| `/dev/canvas` | GET | Native Canvas diagnostics: read the latest frame timings and physical viewport |
 
 ## The `/events` stream
 

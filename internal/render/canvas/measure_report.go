@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"math"
 	"strings"
 	"time"
 
+	"github.com/qorm/qorm/internal/a11y"
 	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/render/graph"
 	"github.com/qorm/qorm/internal/runtime"
@@ -40,8 +42,9 @@ func (e *Engine) CollectMeasureOpts(opts MeasureOpts) []byte {
 	// Prefer LayoutNode Abs* (post-entrance, accurate) with style sidecar.
 	snaps := map[string]measureSnap{}
 	if e.layoutRoot != nil {
-		collectLayoutSnaps(e.layoutRoot, snaps)
+		collectLayoutSnaps(e.layoutRoot, snaps, contrastContext{reason: "no opaque ancestor background"})
 	}
+	root := e.sceneRoot()
 	var rows []map[string]any
 	seen := map[string]bool{}
 	var walk func(n graph.Node)
@@ -52,7 +55,7 @@ func (e *Engine) CollectMeasureOpts(opts MeasureOpts) []byte {
 		b := n.Base()
 		if m := b.Model; m != nil && m.ID != "" && !b.Overlay && !seen[m.ID] {
 			seen[m.ID] = true
-			row := measureRowFromGraph(m, n, b, snaps[m.ID], scale, opts.Logical, e.RT)
+			row := measureRowFromGraph(m, n, b, snaps[m.ID], measureSemanticFor(m, e.RT, m == root), scale, opts.Logical, e.RT)
 			rows = append(rows, row)
 		}
 		for _, c := range b.Children {
@@ -65,7 +68,7 @@ func (e *Engine) CollectMeasureOpts(opts MeasureOpts) []byte {
 		if seen[id] {
 			continue
 		}
-		rows = append(rows, measureRowFromSnap(id, sn, scale, opts.Logical, e.RT))
+		rows = append(rows, measureRowFromSnap(id, sn, measureSemanticFor(sn.node, e.RT, sn.node == root), scale, opts.Logical))
 	}
 	// Stage row for audit bounds (like measuring qorm-root).
 	if e.lastSize.X > 0 && e.lastSize.Y > 0 {
@@ -98,6 +101,7 @@ func (e *Engine) CollectMeasureOpts(opts MeasureOpts) []byte {
 }
 
 type measureSnap struct {
+	node                               *model.Node
 	id                                 string
 	typ                                string
 	absX, absY, w, h                   int
@@ -112,12 +116,28 @@ type measureSnap struct {
 	marginT, marginB, marginL, marginR int
 	contentW, contentH                 int // scroll overflow
 	zIndex                             int // 0 = CSS auto
+	contrastBG                         color.RGBA
+	contrastUnavailable                string
 }
 
-func collectLayoutSnaps(ln *LayoutNode, out map[string]measureSnap) {
+type contrastContext struct {
+	background   color.RGBA
+	reason       string // backdrop uncertainty; an opaque descendant can recover
+	effectReason string // subtree effect; remains through every descendant
+}
+
+func (c contrastContext) unavailableReason() string {
+	if c.effectReason != "" {
+		return c.effectReason
+	}
+	return c.reason
+}
+
+func collectLayoutSnaps(ln *LayoutNode, out map[string]measureSnap, inherited contrastContext) {
 	if ln == nil || ln.Node == nil {
 		return
 	}
+	ctx := contrastContextFor(ln.Node, ln.Style, inherited)
 	if id := ln.Node.ID; id != "" {
 		s := ln.Style
 		op := s.Opacity
@@ -134,7 +154,7 @@ func collectLayoutSnaps(ln *LayoutNode, out map[string]measureSnap) {
 			}
 		}
 		out[id] = measureSnap{
-			id: id, typ: ln.Node.Type,
+			node: ln.Node, id: id, typ: ln.Node.Type,
 			absX: ln.AbsX, absY: ln.AbsY, w: ln.Width, h: ln.Height,
 			fs: s.FontSize, fw: s.FontWeight, pad: s.Padding,
 			br: int(s.BorderRadius), opacity: op, entranceOp: entOp, animating: anim,
@@ -144,11 +164,219 @@ func collectLayoutSnaps(ln *LayoutNode, out map[string]measureSnap) {
 			marginT: s.MarginTop, marginB: s.MarginBot,
 			marginL: s.MarginLeft, marginR: s.MarginRight,
 			contentW: ln.ContentW, contentH: ln.ContentH,
-			zIndex: s.ZIndex,
+			zIndex:     s.ZIndex,
+			contrastBG: ctx.background, contrastUnavailable: ctx.unavailableReason(),
 		}
 	}
+	childCtx := ctx
+	if isStackType(ln.Node.Type) && len(ln.Children) > 1 {
+		// Siblings in a stack can paint beneath one another. Layout ancestry alone
+		// cannot identify the pixel behind a descendant, so a solid descendant
+		// must re-establish a known background before contrast is available.
+		childCtx.reason = "overlapping canvas content"
+	}
 	for _, c := range ln.Children {
-		collectLayoutSnaps(c, out)
+		collectLayoutSnaps(c, out, childCtx)
+	}
+}
+
+// contrastContextFor resolves the solid colour directly behind a node. It is
+// deliberately conservative: a reliable opaque descendant may recover from an
+// unknown ancestor, but gradients, raster content and subtree colour effects
+// make the final pixel unknowable from layout/style metadata and remain
+// unavailable. This is preferable to reporting a plausible-but-false WCAG pass.
+func contrastContextFor(n *model.Node, s NodeStyle, inherited contrastContext) contrastContext {
+	ctx := inherited
+	if len(s.GradientStops) >= 2 {
+		ctx.reason = "gradient background"
+	} else if s.Background.A == 255 {
+		ctx.background = s.Background
+		ctx.reason = ""
+	} else if s.Background.A > 0 {
+		if ctx.reason == "" {
+			ctx.background = compositeRGBA(s.Background, ctx.background)
+		} else {
+			ctx.reason = "translucent background without a known opaque backdrop"
+		}
+	}
+
+	if n != nil {
+		switch strings.ToLower(n.Type) {
+		case "image", "photo", "avatar", "video", "webview", "map", "tilemap":
+			ctx.reason = "raster or embedded content background"
+		}
+	}
+	if reason := contrastSubtreeEffectUnavailable(s); reason != "" {
+		ctx.effectReason = reason
+	}
+	return ctx
+}
+
+func contrastSubtreeEffectUnavailable(s NodeStyle) string {
+	if s.BackdropBlur > 0 {
+		return "backdrop blur"
+	}
+	if mode := strings.TrimSpace(strings.ToLower(s.MixBlendMode)); mode != "" && mode != "normal" {
+		return "blend mode"
+	}
+	if s.FilterBlur != 0 || nonIdentityFilter(s.FilterBrightness) || nonIdentityFilter(s.FilterContrast) ||
+		nonIdentityFilter(s.FilterSaturate) || s.FilterGrayscale != 0 || s.FilterHueRotate != 0 ||
+		s.FilterInvert != 0 || s.FilterSepia != 0 || nonIdentityFilter(s.FilterOpacity) {
+		return "colour-altering filter"
+	}
+	if s.Tint.A > 0 && (s.Tint.R != 255 || s.Tint.G != 255 || s.Tint.B != 255 || s.Tint.A != 255) {
+		return "subtree tint"
+	}
+	if s.Opacity > 0 && s.Opacity < 0.999 {
+		return "subtree opacity"
+	}
+	if s.MaskFade != "" {
+		return "soft mask"
+	}
+	return ""
+}
+
+func nonIdentityFilter(v float64) bool {
+	return v != 0 && math.Abs(v-1) > 0.0001
+}
+
+func compositeRGBA(fg, bg color.RGBA) color.RGBA {
+	a := float64(fg.A) / 255
+	return color.RGBA{
+		R: uint8(math.Round(float64(fg.R)*a + float64(bg.R)*(1-a))),
+		G: uint8(math.Round(float64(fg.G)*a + float64(bg.G)*(1-a))),
+		B: uint8(math.Round(float64(fg.B)*a + float64(bg.B)*(1-a))),
+		A: 255,
+	}
+}
+
+type measureSemantic struct {
+	role           string
+	accessibleName string
+	ariaLabel      string // explicit ariaLabel only; visible text is not an aria-label
+	state          map[string]any
+}
+
+// measureSemanticFor derives semantics from the model node that actually
+// produced this graph/layout row. Doing it per mounted node avoids an inactive
+// `when` branch with the same id overwriting the live branch's role/name/state.
+// A shallow copy lets the canonical a11y package map the widget role in O(1)
+// without recursively auditing the node's subtree for every measured row.
+func measureSemanticFor(n *model.Node, rt *runtime.Runtime, isRoot bool) measureSemantic {
+	if n == nil {
+		return measureSemantic{}
+	}
+	shallow := *n
+	shallow.Children = nil
+	shallow.Template = nil
+	shallow.Then = nil
+	shallow.Else = nil
+	role := ""
+	if tree := a11y.Build(&shallow); tree != nil && tree.Root != nil {
+		role = tree.Root.Role
+	}
+	if raw, ok := n.Prop("role"); ok {
+		if explicit := semanticString(raw, rt); explicit != "" {
+			role = explicit
+		}
+	}
+	if role == "" && isRoot {
+		role = "main"
+	}
+	aria := ""
+	if raw, ok := n.Prop("ariaLabel"); ok {
+		aria = semanticString(raw, rt)
+	}
+	return measureSemantic{
+		role: role, accessibleName: semanticName(n, aria, rt), ariaLabel: aria,
+		state: semanticState(n, role, rt),
+	}
+}
+
+func semanticName(n *model.Node, explicit string, rt *runtime.Runtime) string {
+	if explicit != "" {
+		return explicit
+	}
+	for _, raw := range []any{n.Label, n.Text, n.Placeholder} {
+		if s := semanticString(raw, rt); s != "" {
+			return s
+		}
+	}
+	for _, key := range []string{"alt", "tooltip", "title", "label"} {
+		if raw, ok := n.Prop(key); ok {
+			if s := semanticString(raw, rt); s != "" {
+				return s
+			}
+		}
+	}
+	return ""
+}
+
+func semanticState(n *model.Node, role string, rt *runtime.Runtime) map[string]any {
+	state := map[string]any{}
+	disabled := nodeDisabled(n, rt)
+	if raw, ok := n.Prop("disabled"); ok {
+		disabled = disabled || semanticTruthy(evalStyleProp(raw, rt))
+	}
+	state["disabled"] = disabled
+	if role == "checkbox" || role == "switch" || role == "radio" {
+		checked := false
+		if raw, ok := n.Prop("checked"); ok {
+			checked = semanticTruthy(evalStyleProp(raw, rt))
+		} else if n.Value != "" {
+			checked = semanticTruthy(evalStyleProp(n.Value, rt))
+		}
+		state["checked"] = checked
+	}
+	if raw, ok := n.Prop("required"); ok {
+		state["required"] = semanticTruthy(evalStyleProp(raw, rt))
+	}
+	if role == "textbox" && semanticSecureInput(n, rt) {
+		// Never export a credential through measure/MCP. The protected marker is
+		// useful semantic state; the actual value and even its length stay private.
+		state["protected"] = true
+	} else if role == "textbox" && n.Value != "" {
+		state["value"] = semanticString(n.Value, rt)
+	}
+	return state
+}
+
+func semanticSecureInput(n *model.Node, rt *runtime.Runtime) bool {
+	if secureInput(n) {
+		return true
+	}
+	for _, key := range []string{"secure", "password"} {
+		if raw, ok := n.Prop(key); ok && semanticTruthy(evalStyleProp(raw, rt)) {
+			return true
+		}
+	}
+	return false
+}
+
+func semanticString(raw any, rt *runtime.Runtime) string {
+	if raw == nil {
+		return ""
+	}
+	v := evalStyleProp(raw, rt)
+	if v == nil {
+		return ""
+	}
+	return strings.TrimSpace(fmt.Sprint(v))
+}
+
+func semanticTruthy(v any) bool {
+	switch x := v.(type) {
+	case bool:
+		return x
+	case float64:
+		return x != 0
+	case int:
+		return x != 0
+	case string:
+		x = strings.TrimSpace(strings.ToLower(x))
+		return x != "" && x != "false" && x != "0"
+	default:
+		return v != nil
 	}
 }
 
@@ -173,7 +401,7 @@ func effectiveOpacity(styleOp, entranceOp float64, graphOp float64) float64 {
 	return op
 }
 
-func measureRowFromGraph(m *model.Node, n graph.Node, b *graph.BaseNode, sn measureSnap, scale int, logical bool, rt *runtime.Runtime) map[string]any {
+func measureRowFromGraph(m *model.Node, n graph.Node, b *graph.BaseNode, sn measureSnap, sem measureSemantic, scale int, logical bool, rt *runtime.Runtime) map[string]any {
 	bb := n.GetBBox()
 	x, y := bb.MinX, bb.MinY
 	w, h := bb.MaxX-bb.MinX, bb.MaxY-bb.MinY
@@ -217,21 +445,14 @@ func measureRowFromGraph(m *model.Node, n graph.Node, b *graph.BaseNode, sn meas
 	}
 	if sn.id != "" {
 		enrichStyle(row, sn, scale, logical)
+		enrichContrast(row, sn)
 	}
-	// a11y-ish props mirrored from HTML measure.
-	if raw, ok := m.Prop("ariaLabel"); ok {
-		row["ariaLabel"] = fmt.Sprint(raw)
-	}
-	if raw, ok := m.Prop("role"); ok {
-		row["role"] = fmt.Sprint(raw)
-	} else {
-		row["role"] = ""
-	}
+	enrichSemantics(row, sem)
 	row["tabindex"] = ""
 	return row
 }
 
-func measureRowFromSnap(id string, sn measureSnap, scale int, logical bool, rt *runtime.Runtime) map[string]any {
+func measureRowFromSnap(id string, sn measureSnap, sem measureSemantic, scale int, logical bool) map[string]any {
 	x, y, w, h := float64(sn.absX), float64(sn.absY), float64(sn.w), float64(sn.h)
 	if logical && scale > 1 {
 		sf := float64(scale)
@@ -254,7 +475,66 @@ func measureRowFromSnap(id string, sn measureSnap, scale int, logical bool, rt *
 		row["animating"] = true
 	}
 	enrichStyle(row, sn, scale, logical)
+	enrichContrast(row, sn)
+	enrichSemantics(row, sem)
+	row["tabindex"] = ""
 	return row
+}
+
+func enrichSemantics(row map[string]any, sem measureSemantic) {
+	row["role"] = sem.role
+	row["accessibleName"] = sem.accessibleName
+	// Keep this field aligned with the DOM getAttribute("aria-label") report:
+	// it means an explicit ariaLabel, not a name obtained from visible text.
+	row["ariaLabel"] = sem.ariaLabel
+	row["semanticState"] = sem.state
+	for _, key := range []string{"disabled", "checked", "required", "value", "protected"} {
+		if value, ok := sem.state[key]; ok {
+			row[key] = value
+		}
+	}
+}
+
+func enrichContrast(row map[string]any, sn measureSnap) {
+	if sn.contrastUnavailable != "" {
+		row["contrastUnavailable"] = sn.contrastUnavailable
+		return
+	}
+	text, _ := row["text"].(string)
+	if strings.TrimSpace(text) == "" {
+		row["contrastUnavailable"] = "no rendered text foreground"
+		return
+	}
+	if sn.color.A == 0 {
+		row["contrastUnavailable"] = "foreground colour unavailable"
+		return
+	}
+	row["effectiveBackground"] = cssRGBA(sn.contrastBG)
+	foreground := sn.color
+	if foreground.A < 255 {
+		foreground = compositeRGBA(foreground, sn.contrastBG)
+	}
+	ratio := wcagContrast(foreground, sn.contrastBG)
+	row["contrast"] = math.Round(ratio*100) / 100
+}
+
+func wcagContrast(a, b color.RGBA) float64 {
+	la, lb := wcagLuminance(a), wcagLuminance(b)
+	if la < lb {
+		la, lb = lb, la
+	}
+	return (la + 0.05) / (lb + 0.05)
+}
+
+func wcagLuminance(c color.RGBA) float64 {
+	linear := func(v uint8) float64 {
+		x := float64(v) / 255
+		if x <= 0.03928 {
+			return x / 12.92
+		}
+		return math.Pow((x+0.055)/1.055, 2.4)
+	}
+	return 0.2126*linear(c.R) + 0.7152*linear(c.G) + 0.0722*linear(c.B)
 }
 
 func enrichStyle(row map[string]any, sn measureSnap, scale int, logical bool) {
@@ -327,6 +607,9 @@ func roundPx(v float64) float64 {
 
 func measureTextOf(n *model.Node, rt *runtime.Runtime) string {
 	if n == nil {
+		return ""
+	}
+	if semanticSecureInput(n, rt) {
 		return ""
 	}
 	var s string

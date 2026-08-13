@@ -5,19 +5,20 @@
 QORM 的目标是让 AI 能够**完整而精确地解释并验证**用户在应用中表达的一切——
 它的布局、样式、行为和翻译——使用框架本身,无需外部浏览器。
 
-机制如下:运行中的应用在它自己的运行时(浏览器或原生 WebView)中**自我测量**。
-一段小脚本遍历每个带 id 的元素,记录其 `getBoundingClientRect` 和计算样式,
-并将它们 POST 到 `/measure`。随后框架将那份真实的渲染结果与用户的**意图**
-(每个节点的类型、文本和状态绑定,来自应用 JSON)连接起来。于是对于每个组件,
-你都同时得到*用户所要求的*和*实际渲染出来的*。
+测量有两个来源,但输出同一种 JSON 形状:
 
-下面的一切都可以从 CLI(`-tags desktop` 构建,它驱动一个原生 WebView)
-和经由 MCP 的实时共享会话中运行。
+- 默认纯 Go CLI 在软件 canvas 中离屏渲染一次,然后从同一棵保留模式渲染图
+  导出布局和计算样式。该结果确定且不需要窗口或外部浏览器。
+- 实时宿主测量人正在看的内容。macOS 原生 canvas 窗口在渲染帧后导出其图;
+  浏览器/WebView 则遍历 DOM,记录 `getBoundingClientRect` 和计算样式,再 POST 到 `/measure`。
+
+框架把两种渲染结果与用户的**意图**(应用 JSON 中节点的类型、文本和状态绑定)
+连接起来。因此每个组件都同时给出*用户所要求的*和*所选后端实际渲染的*。
 
 ## `qorm measure`——读取真实渲染
 
 ```bash
-qorm measure <app-dir> [-o report.json]
+qorm measure <app-dir> [--width 400] [--physical] [-o report.json]
 ```
 
 渲染应用、自我测量,并每个组件打印一行,将意图与结果连接起来:
@@ -34,10 +35,15 @@ qorm measure <app-dir> [-o report.json]
 `fontSize`、`fontWeight`、`textAlign`、`padding`、`margin`、`borderRadius`、
 `border`、`opacity`、`zIndex`、`position`、`overflowX`。
 
+普通构建下,该命令按指定逻辑宽度进行无窗口纯 Go canvas 渲染(高度来自
+`qorm.json`,默认 820)。坐标默认是逻辑 CSS 像素;`--physical` 保留 canvas 设备像素。
+`-tags desktop` 构建则刻意走 HTML/WebView 路径;WebView 始终回报 CSS 像素,
+因此 `--physical` 在该路径无效。
+
 ## `qorm check --checks`——验证期望
 
 ```bash
-qorm check <app-dir> --checks checks.json [-o report.json]
+qorm check <app-dir> --checks checks.json [--width 400] [--physical] [-o report.json]
 ```
 
 `checks.json` 是一个 `{id, <assertion>…}` 的数组。每个断言都针对真实渲染进行验证;
@@ -58,9 +64,12 @@ qorm check <app-dir> --checks checks.json [-o report.json]
 | `hasAriaLabel: true` | 元素带有 `aria-label` |
 | `contrastRatio: <n>` | 文本/背景对比度至少为 `n`(WCAG AA:正文 4.5、大字号 3.0),针对有效背景色计算 |
 
-无障碍断言读取的是**渲染后**的 DOM,因此能捕捉渲染器隐式注入的 role 和 label,
-而不只是 JSON 里声明的。`focusTrap` 目前被刻意拒绝:焦点陷阱是动态的 Tab 键序行为,
-不是静态快照,验证工具绝不应为一个它实际做不到的检查背书。
+后端边界:几何、可见性、文本、溢出和上述盒模型/计算样式在两个来源都可用。
+HTML/WebView 的无障碍断言读取**渲染后的 DOM**,所以 `role` 可包含渲染器
+隐式注入的语义,`contrastRatio` 按有效背景计算。canvas 图当前回报作者显式声明的
+`role` / `ariaLabel`,尚不计算对比度;因此 `contrastRatio` 会明确报不可用,
+而不是静默通过。`focusTrap` 在所有后端都被刻意拒绝:它是动态 Tab 键序行为,
+不是静态快照。
 
 检查明确失败:无法识别的断言键(如拼写错误)会判定为失败,未被测量的
 `within`/`below` 目标 id 会以 'not found' 判定为失败 —— 绝不会有检查项被
@@ -87,7 +96,20 @@ qorm check <app-dir> --checks checks.json [-o report.json]
 ] }
 ```
 
-`do` 是 `{"dispatch": "<action>", "args": {…}}` 或 `{"setState": {"path": …, "value": …}}`。
+默认纯 Canvas 驱动器要求每一步的 `do` 恰好包含一个操作:
+
+- `{"dispatch":"<动作>", "args":{…}}`
+- `{"setState":{"path":…, "value":…}}`(或更短的 `state` 别名)
+- `{"press":"id"}` 或 `{"press":{"id":"id"}}`
+- `{"type":{"id":"field", "text":"hello", "clear":true}}`
+- `{"key":"Enter"}` 或 `{"key":{"key":"Tab", "id":"field",
+  "shift":false, "ctrl":false, "alt":false, "meta":false}}`
+- `{"scroll":{"id":"list", "dx":0, "dy":120, "ctrl":false}}`
+- `{"wait":250}`(毫秒)或 `{"wait":"250ms"}`(Go duration)
+
+press/type/key/scroll 驱动与原生窗口相同的保留图和输入处理器,并会先把目标
+滚动到可见。Canvas `wait` 确定性推进动画/定时器时钟,不会真实 sleep。
+`-tags desktop` 构建保留既有 WebView 步骤子集(`dispatch` 与 `setState`)。
 
 ## `qorm check --audit`——一次性回归
 
@@ -106,9 +128,24 @@ qorm check <app-dir> --audit
 - **`qorm_measure`**——完整的意图 + 渲染结果(如上)。
 - **`qorm_check_layout`**——传入 `checks`(与 `--checks` 相同的 schema),
   得到每项检查的通过/失败以及实际值。
+- **`qorm_capture_canvas`**——把原生 Canvas 宿主最近一次实际呈现的像素平面
+  捕获为 base64 PNG。传可选 `id` 时 PNG 仍是完整画布,`clip` 用物理像素定位该节点;
+  这不是隔离子树渲染。没有 Canvas 宿主/已呈现帧、节点不存在或不可见时会明确失败。
+  浏览器/WebView 会话不会伪造 Canvas 像素。
 
-两者都读取实时客户端的自我测量,因此智能体看到的正是人所看到的。
-工具描述中携带完整的断言列表。
+```text
+qorm_capture_canvas({})
+qorm_capture_canvas({"id":"card"})  # 完整 PNG + card 裁剪元数据
+```
+
+两者都读取当前宿主的最新测量,因此智能体看到的正是人所看到的:
+原生 canvas 窗口的当前保留渲染图,或浏览器/WebView 的当前 DOM。应连接运行中
+`qorm run` 会话的 HTTP `/mcp`。单独的 `qorm mcp <app>` stdio 服务没有渲染宿主,
+这两个工具会报测量不可用;无窗口 canvas 验证请用 CLI `qorm measure` / `qorm check`。
+
+若需要不依赖实时宿主的文件证据,用 `qorm shot <app> -o out.png` 通过同一个纯 Go
+Canvas 后端无窗口渲染(默认 `440x720`,安全上限为单边 4096 px、总计 16 MP)。若目标是
+隔离 HTML 而非原生像素,请使用 `qorm_capture_subtree`。
 
 ## 设备上实时调试
 
@@ -147,9 +184,10 @@ ALL-GREEN / 有回归 判定。无需外部浏览器。
 
 ## 说明
 
-- 测量需要应用在一个渲染运行时中运行。CLI 使用
-  `-tags desktop` 的 WebView(以无头方式运行);实时会话使用人所打开的任意
-  浏览器/WebView。
+- 默认 CLI 是离屏 canvas 渲染,也支持原生输入步骤流。只在明确需要
+  WebView/DOM 对等性时才使用 `-tags desktop` 构建。
+- 实时 MCP 测量需要活跃的渲染宿主。macOS 默认 `qorm run` canvas 窗口直接提供;
+  浏览器或 `-tags desktop` WebView 提供 DOM 测量。仅 stdio 的 `qorm mcp` 不提供。
 - `visible: false` + 零尺寸对于非活动 tab 内容、已关闭的
   覆盖层(`open:false` 的 modal/dialog/sheet)以及空的条件文本是正常的——
   审计只标记*可见*的组件。

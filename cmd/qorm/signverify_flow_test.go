@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"image/png"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -652,7 +653,7 @@ func TestCmdRunAndMCPFlagValidation(t *testing.T) {
 	}
 }
 
-func TestDesktopOnlyCommandsRefuseInPureBuild(t *testing.T) {
+func TestDesktopOnlyCommandsAndPureCanvasAlternatives(t *testing.T) {
 	dir := t.TempDir()
 	app := filepath.Join(dir, "app")
 	if code := cmdNew([]string{app}); code != 0 {
@@ -673,7 +674,7 @@ func TestDesktopOnlyCommandsRefuseInPureBuild(t *testing.T) {
 	if code := cmdCheck([]string{app}); code != 2 {
 		t.Errorf("check without --checks/--audit: exit = %d, want 2", code)
 	}
-	// Static audit works on pure-Go canvas; interactive flows still need desktop.
+	// Static audit works on pure-Go canvas without a desktop-tagged binary.
 	if code := cmdCheck([]string{app, "--audit"}); code != 0 {
 		t.Errorf("check --audit pure-Go canvas: exit = %d, want 0", code)
 	}
@@ -685,8 +686,19 @@ func TestDesktopOnlyCommandsRefuseInPureBuild(t *testing.T) {
 		t.Errorf("preview pure build: exit = %d, want 1", code)
 	}
 
-	if code := cmdShot([]string{app}); code != 2 {
-		t.Errorf("shot pure build: exit = %d, want 2", code)
+	shotPath := filepath.Join(dir, "app.png")
+	if code := cmdShot([]string{app, "-o", shotPath, "--width", "240", "--height", "360"}); code != 0 {
+		t.Errorf("shot pure build: exit = %d, want 0", code)
+	} else {
+		f, err := os.Open(shotPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cfg, decodeErr := png.DecodeConfig(f)
+		_ = f.Close()
+		if decodeErr != nil || cfg.Width != 240 || cfg.Height != 360 {
+			t.Errorf("shot PNG = %dx%d, %v; want 240x360", cfg.Width, cfg.Height, decodeErr)
+		}
 	}
 }
 

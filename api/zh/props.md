@@ -47,6 +47,12 @@
 - **Layout (`layout`)** — `width` `height` `align` `justify` (`wrap` on containers, `columns` on `grid`, `orientation` on `scroll`)
 - **Accessibility (top-level)** — `role` `ariaLabel` `title` `tooltip`
 
+Canvas 几何细节:`aspectRatio` 是宽/高,且仅在恰好一个正数 `width`/`height`
+显式设置时推导另一轴。`position: "absolute"` 会脱离布局流;未设置 `left`/`x`
+或 `top`/`y` 时,`right`/`bottom` 将盒子锚定到父内容边。`cursor` 经同一套
+QSS/内联级联接受 `pointer`、`text`、`not-allowed`、`default`(以及 `hand`、
+`ibeam`、`forbidden`、`arrow` 别名)。
+
 ## 各组件专有属性
 
 在上述通用样式属性之外,每个渲染器额外读取的专有键。由 `internal/render` 的 `node()` 分发自动抽取——`—` 表示该组件只接受通用属性。

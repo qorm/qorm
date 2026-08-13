@@ -75,6 +75,40 @@ func TestNoInteractionLeavesStyleAlone(t *testing.T) {
 	}
 }
 
+func TestQSSPseudoStateCascadeAndFocusBorder(t *testing.T) {
+	btn := newButton("b")
+	btn.Props["class"] = "probe"
+	rt := rtWithDefaultTheme(t)
+	rt.App.Styles = []model.StyleRule{
+		{Kind: model.StyleRuleClass, Name: "probe", Style: map[string]any{
+			"hoverBackground": "#112233", "hoverColor": "#abcdef", "hoverOpacity": 0.4,
+			"pressedBackground": "#334455", "pressedOpacity": 0.3,
+			"focusBorderColor": "#fedcba",
+		}},
+	}
+	btn.Style = map[string]any{"hoverOpacity": 0.6} // inline beats class
+
+	hover := Measure(btn, rt, &Interaction{Hovered: btn}, 1)
+	if hover.Style.Background != parseColor("#112233") || hover.Style.Color != parseColor("#abcdef") || hover.Style.Opacity != 0.6 {
+		t.Fatalf("QSS hover cascade = bg %v color %v opacity %v", hover.Style.Background, hover.Style.Color, hover.Style.Opacity)
+	}
+	pressed := Measure(btn, rt, &Interaction{Pressed: btn, Hovered: btn}, 1)
+	if pressed.Style.Background != parseColor("#334455") || pressed.Style.Opacity != 0.3 {
+		t.Fatalf("pressed must beat hover: bg %v opacity %v", pressed.Style.Background, pressed.Style.Opacity)
+	}
+	inter := &Interaction{Focused: btn, FocusVisible: true}
+	g := PerformLayout(Measure(btn, rt, inter, 1), image.Rect(0, 0, 200, 100), inter, rt, 1).(*graph.Group)
+	var ring *graph.Rect
+	for _, c := range g.Children {
+		if r, ok := c.(*graph.Rect); ok && r.NoHit {
+			ring = r
+		}
+	}
+	if ring == nil || ring.Stroke != parseColor("#fedcba") {
+		t.Fatalf("focus ring = %#v, want QSS focusBorderColor", ring)
+	}
+}
+
 func TestPerformLayoutStampsInteractionState(t *testing.T) {
 	rt := rtWithDefaultTheme(t)
 	btn := newButton("b")
@@ -213,6 +247,42 @@ func TestDisabledButtonDoesNotDispatch(t *testing.T) {
 	e.HandlePointer(PointerInput{Type: PointerRelease, X: float64(cx), Y: float64(cy)})
 	if v := e.RT.State["fired"]; v != "yes" {
 		t.Errorf("enabled button did not dispatch (fired=%v), want \"yes\"", v)
+	}
+}
+
+func TestQSSDisabledBindingBlocksInteractionAndDims(t *testing.T) {
+	e, surf, btn := engineFixture(t)
+	btn.Props["class"] = "disabled-probe"
+	e.RT.App.Styles = []model.StyleRule{{Kind: model.StyleRuleClass, Name: "disabled-probe", Style: map[string]any{
+		"disabled": "{{state.locked}}", "disabledOpacity": 0.25,
+	}}}
+	e.RT.State["locked"] = true
+	e.RT.App.Actions = map[string]*model.Action{
+		"fire": {ID: "fire", Steps: []model.Step{{Type: "state.set", Path: "fired", Value: "{{ 'yes' }}"}}},
+	}
+	btn.OnPress = &model.Invoke{Name: "fire"}
+
+	ln := Measure(btn, e.RT, nil, 1)
+	if ln.Style.Opacity != 0.25 {
+		t.Fatalf("QSS disabledOpacity = %v, want 0.25", ln.Style.Opacity)
+	}
+	if canPress(btn, e.RT) {
+		t.Fatal("QSS-disabled button must not be pressable")
+	}
+	if got := Focusables(e.RT.App.Scenes["main"], e.RT); len(got) != 0 {
+		t.Fatalf("QSS-disabled button remained focusable: %v", ids(got))
+	}
+	e.DrawFrame(surf)
+	cx, cy := buttonCenter(t, e, btn)
+	e.HandlePointer(PointerInput{Type: PointerPress, X: float64(cx), Y: float64(cy)})
+	e.HandlePointer(PointerInput{Type: PointerRelease, X: float64(cx), Y: float64(cy)})
+	if e.RT.State["fired"] != nil {
+		t.Fatal("QSS-disabled button dispatched")
+	}
+
+	e.RT.State["locked"] = false
+	if !canPress(btn, e.RT) || len(Focusables(e.RT.App.Scenes["main"], e.RT)) != 1 {
+		t.Fatal("button did not re-enable when the QSS binding flipped false")
 	}
 }
 

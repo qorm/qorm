@@ -2,6 +2,7 @@ package measure
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/qorm/qorm/internal/model"
@@ -67,6 +68,12 @@ func TestEvalA11yAriaLabel(t *testing.T) {
 	if rep := run(t, rt, unlabeled, []map[string]any{{"id": "email_field", "hasAriaLabel": true}}); rep["ok"] != false {
 		t.Error("unlabeled field should fail hasAriaLabel:true")
 	}
+	// Missing must mean false. fmt.Sprint(nil) is "<nil>" and used to make a
+	// canvas row without ariaLabel incorrectly pass this assertion.
+	missing := []map[string]any{{"id": "email_field", "accessibleName": "Email"}}
+	if rep := run(t, rt, missing, []map[string]any{{"id": "email_field", "hasAriaLabel": false}}); rep["ok"] != true {
+		t.Error("derived accessible name is not an explicit ariaLabel")
+	}
 }
 
 // TestEvalA11yContrast covers contrastRatio, including the unavailable case (P1.5).
@@ -84,6 +91,17 @@ func TestEvalA11yContrast(t *testing.T) {
 	if rep := run(t, rt, []map[string]any{{"id": "faint", "contrast": 0.0}},
 		[]map[string]any{{"id": "faint", "contrastRatio": 4.5}}); rep["ok"] != false {
 		t.Error("unavailable contrast must not pass")
+	}
+	// An intent-only fallback row has no rendered colours. It must not inherit a
+	// fabricated AA value merely because the node exists in source.
+	if rep := run(t, rt, nil, []map[string]any{{"id": "faint", "contrastRatio": 4.5}}); rep["ok"] != false {
+		t.Error("intent-only node must report contrast unavailable")
+	}
+	reasoned := run(t, rt, []map[string]any{{"id": "faint", "contrastUnavailable": "gradient background"}},
+		[]map[string]any{{"id": "faint", "contrastRatio": 4.5}})
+	fails, _ := firstResult(reasoned)["fails"].([]any)
+	if len(fails) == 0 || !strings.Contains(fails[0].(string), "gradient background") {
+		t.Errorf("unavailable reason should reach failure output: %v", firstResult(reasoned)["fails"])
 	}
 }
 

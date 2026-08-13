@@ -1,0 +1,20 @@
+{
+  "type": "scene",
+  "id": "main",
+  "root": {
+    "type": "column",
+    "id": "root",
+    "style": { "background": "#0F172A", "padding": 32, "gap": 16 },
+    "layout": { "width": "fill", "height": "fill", "align": "center", "justify": "center" },
+    "children": [
+      { "type": "text", "id": "title", "text": "canvaswebview",
+        "style": { "color": "#F8FAFC", "fontSize": 28, "fontWeight": 800, "textAlign": "center" } },
+      { "type": "text", "id": "count", "text": "Count: {{state.count}}",
+        "style": { "color": "#38BDF8", "fontSize": 18, "textAlign": "center" } },
+      { "type": "button", "id": "tap", "label": "Tap me",
+        "style": { "background": "#38BDF8", "color": "#0F172A", "fontSize": 16, "fontWeight": 700,
+                   "width": 160, "height": 48, "borderRadius": 24 },
+        "onPress": { "type": "invoke", "name": "inc", "args": { "count": "{{state.count}}" } } }
+    ]
+  }
+}

@@ -156,25 +156,23 @@ type Rect struct {
 	GradientStops []color.RGBA
 	GradientAngle float64
 	BackdropBlur  float64
-	BackdropTint  color.RGBA
+	BorderRadius  float64
 	Stroke        color.RGBA
 	StrokeWidth   float64
-	BorderRadius  float64
-
-	ShadowColor color.RGBA
-	ShadowBlur  float64
-	ShadowX     float64
-	ShadowY     float64
-	// ShadowInset is CSS box-shadow: inset (inner shadow).
-	ShadowInset bool
-	// GradientStopPos optional 0..1 positions; empty = even spacing.
-	GradientStopPos []float64
-	GradientRadial  bool
-	GradientConic   bool
-	// CSS outline (outside the border box).
+	StrokeDasharray  []float64
+	StrokeDashoffset float64
+	ShadowColor   color.RGBA
+	ShadowBlur    float64
+	ShadowX       float64
+	ShadowY       float64
+	ShadowInset   bool
 	OutlineColor  color.RGBA
 	OutlineWidth  float64
 	OutlineOffset float64
+	GradientStopPos []float64
+	GradientRadial  bool
+	GradientConic   bool
+	BackdropTint    color.RGBA
 }
 
 func NewRect() *Rect {
@@ -185,8 +183,12 @@ func NewRect() *Rect {
 
 func (r *Rect) Base() *BaseNode { return &r.BaseNode }
 
-// Draw renders the rectangle
+// Draw renders the shape to the given context
 func (r *Rect) Draw(ctx *Context) {
+	if r.Width <= 0 || r.Height <= 0 {
+		return
+	}
+
 	r.UpdateGlobalTransform()
 
 	hasGrad := len(r.GradientStops) >= 2
@@ -202,10 +204,11 @@ func (r *Rect) Draw(ctx *Context) {
 
 	// Rounded, shadowed, gradient, outlined, or frosted: per-pixel SDF path.
 	hasOutline := r.OutlineColor.A > 0 && r.OutlineWidth > 0
-	if r.BorderRadius > 0 || r.ShadowColor.A > 0 || hasGrad || hasFrost || hasOutline || r.GradientConic {
+	if r.BorderRadius > 0 || r.ShadowColor.A > 0 || hasGrad || hasFrost || hasOutline || r.GradientConic || len(r.StrokeDasharray) > 0 {
 		ctx.AddRRect(op.RRectOp{
 			Rect: rect, Radius: r.BorderRadius,
 			Fill: r.Fill, Stroke: r.Stroke, StrokeWidth: r.StrokeWidth,
+			StrokeDasharray: r.StrokeDasharray, StrokeDashoffset: r.StrokeDashoffset,
 			Shadow: r.ShadowColor, ShadowBlur: r.ShadowBlur, ShadowX: r.ShadowX, ShadowY: r.ShadowY,
 			ShadowInset:   r.ShadowInset,
 			GradientStops: r.GradientStops, GradientStopPos: r.GradientStopPos,
@@ -280,6 +283,69 @@ func (t *Text) Draw(ctx *Context) {
 		ShadowColor: t.ShadowColor, ShadowBlur: t.ShadowBlur, ShadowX: t.ShadowX, ShadowY: t.ShadowY,
 		Underline: t.Underline, LineThrough: t.LineThrough, Overline: t.Overline,
 	})
+	ctx.Restore()
+}
+
+// Span represents a styled segment of text within a RichText node
+type Span struct {
+	Content       string
+	FontSize      float64
+	FontWeight    int
+	LetterSpacing float64
+	Italic        bool
+	Fill          color.RGBA
+	StrokeColor   color.RGBA
+	StrokeWidth   float64
+	ShadowColor   color.RGBA
+	ShadowBlur    float64
+	ShadowX       float64
+	ShadowY       float64
+	Underline     bool
+	LineThrough   bool
+	Overline      bool
+	// Calculated positions during layout
+	X float64
+	Y float64
+}
+
+// RichText represents a text shape with multiple styled spans
+type RichText struct {
+	BaseNode
+	Spans []Span
+}
+
+func NewRichText() *RichText {
+	r := &RichText{}
+	r.Init(r)
+	return r
+}
+
+func (r *RichText) Base() *BaseNode { return &r.BaseNode }
+
+func (r *RichText) Draw(ctx *Context) {
+	r.UpdateGlobalTransform()
+
+	if len(r.Spans) == 0 {
+		return
+	}
+
+	ctx.Save()
+	ctx.Transform(localTransform(&r.BaseNode))
+	for _, span := range r.Spans {
+		if span.Content == "" {
+			continue
+		}
+		ctx.Save()
+		ctx.Fill(span.Fill)
+		ctx.AddText(op.TextOp{
+			Text: span.Content, Pos: image.Point{int(span.X), int(span.Y)}, Scale: span.FontSize / 10.0,
+			Weight: span.FontWeight, LetterSpacing: span.LetterSpacing, Italic: span.Italic,
+			StrokeColor: span.StrokeColor, StrokeWidth: span.StrokeWidth,
+			ShadowColor: span.ShadowColor, ShadowBlur: span.ShadowBlur, ShadowX: span.ShadowX, ShadowY: span.ShadowY,
+			Underline: span.Underline, LineThrough: span.LineThrough, Overline: span.Overline,
+		})
+		ctx.Restore()
+	}
 	ctx.Restore()
 }
 

@@ -23,7 +23,7 @@ func launchWindow(_ *server.Server, _ net.Listener, _, _ string) bool {
 func runLogWindow(_, _ string) {}
 
 // runMeasure / runCheck for pure-Go builds live in measure_pure.go (canvas
-// headless layout). Interactive check flows and preview still need desktop.
+// headless layout and interactive canvas check flows). Preview still needs desktop.
 
 func runPreview(_ string, _ int, _, _ string) error {
 	return fmt.Errorf("preview needs a -tags desktop build (native WebView)")

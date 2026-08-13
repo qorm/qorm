@@ -1,0 +1,16 @@
+{
+  "type": "app",
+  "id": "canvas-ultimate",
+  "name": "Canvas Ultimate",
+  "entry": "main",
+  "globalState": {
+    "schema": {
+      "tab": "string",
+      "morphToken": "number"
+    },
+    "initial": {
+      "tab": "video",
+      "morphToken": 0
+    }
+  }
+}

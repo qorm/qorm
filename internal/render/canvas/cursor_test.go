@@ -31,6 +31,10 @@ func TestCursorHintMapping(t *testing.T) {
 	if got := e.CursorHint(); got != CursorArrow {
 		t.Errorf("hover plain text: hint = %v, want Arrow", got)
 	}
+	root.Children[2].Style = map[string]any{"cursor": "pointer"}
+	if got := e.CursorHint(); got != CursorPointer {
+		t.Errorf("authored cursor: hint = %v, want Pointer", got)
+	}
 
 	// A link (no OnPress) still gets the pointing hand.
 	link := &model.Node{Type: "link", ID: "l"}

@@ -29,7 +29,7 @@ references below (the runnable sources are the contract).
 - [Actions & state](api/actions.md) — the step vocabulary, `script` actions in the qscript language (`actions/*.qs` + the shared `actions/lib.qs`), scene `keys`/`swipes`, `computed`.
 - [Expressions](docs/expressions.md) — the `{{ … }}` language: operators and every builtin (incl. the v2 array/string methods).
 - [Widget catalog](api/widgets.md) — every node `type` the renderer accepts (auto-generated from `internal/render`, guarded by `TestWidgetCatalogInSync`).
-- [Node & style props](api/props.md) — node schema + common style keys (~90; canvas filter/mask/snap/FLIP + game motion props).
+- [Node & style props](api/props.md) — node schema + common style keys (~100; canvas filter/mask/snap/FLIP + game motion props).
 - [QSS & canvas effects](docs/styles.md) — stylesheets + declarative canvas visual effects.
 - [Animation](api/animation.md) — entrance, spring, FLIP, `fx` (burst…), `timeline` (path/cubic/onComplete/yoyo/stagger), transitionYoyo.
 - [Capabilities](docs/platforms/capabilities.md) — built-in hardware/OS ops, callbacks, and platforms (auto-generated from `internal/capability`).
@@ -63,7 +63,7 @@ references below (the runnable sources are the contract).
 - [integrations/](integrations) — drop-in MCP config + per-agent setup (Claude Code/Desktop, Cursor, Windsurf) + a QORM **skill**.
 - [Agent skill](integrations/skill/SKILL.md) — runnable format, full MCP tool list, canvas FX, `board` camera + `tilemap`, game motion rules, self-verify.
 - [MCP tools](docs/agent/mcp-tools.md) — the Model Context Protocol surface to read/edit a live app.
-- [Verifying an app](docs/verification.md) — `qorm measure` / `qorm check` render the app and report real geometry, so you can self-verify your own edits against ground truth.
+- [Verifying an app](docs/verification.md) — default CLI `qorm shot` / `qorm measure` / static `qorm check` use deterministic headless canvas; live MCP reads the active canvas graph or browser/WebView DOM, and `qorm_capture_canvas` returns the native host's last-presented PNG pixels.
 - CLI: `qorm new | run | render | shot | measure | check | build | keygen | sign | verify | mcp | preview | package | docs | audit | updates | update | version` — full reference: [api/cli.md](api/cli.md).
 
 ## Trust & security

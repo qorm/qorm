@@ -128,7 +128,6 @@ func Eval(rt *qrt.Runtime, measured, checksJSON []byte) ([]byte, error) {
 					"x":          0.0,
 					"y":          0.0,
 					"overflowX":  false,
-					"contrast":   4.5,
 				}
 			}
 		}
@@ -216,7 +215,12 @@ func Eval(rt *qrt.Runtime, measured, checksJSON []byte) ([]byte, error) {
 						fails = append(fails, fmt.Sprintf("role=%q want %q", r["role"], want))
 					}
 				case "hasAriaLabel":
-					has := fmt.Sprint(r["ariaLabel"]) != ""
+					// This assertion is deliberately about an explicit aria-label,
+					// not an accessible name derived from visible text. A missing
+					// map key must be false (fmt.Sprint(nil) is the non-empty
+					// string "<nil>" and previously produced a false pass).
+					label, _ := r["ariaLabel"].(string)
+					has := strings.TrimSpace(label) != ""
 					if has != (want == true) {
 						fails = append(fails, fmt.Sprintf("hasAriaLabel=%v want %v", has, want))
 					}
@@ -225,8 +229,12 @@ func Eval(rt *qrt.Runtime, measured, checksJSON []byte) ([]byte, error) {
 					// background). WCAG AA: 4.5 for normal text, 3.0 for large text.
 					wv, _ := num(want)
 					got, ok := num(r["contrast"])
-					if !ok || got == 0 {
-						fails = append(fails, "contrastRatio unavailable (no client measurement)")
+					if !ok || got <= 0 {
+						reason, _ := r["contrastUnavailable"].(string)
+						if reason == "" {
+							reason = "no reliable rendered foreground/background measurement"
+						}
+						fails = append(fails, "contrastRatio unavailable ("+reason+")")
 					} else if got < wv {
 						fails = append(fails, fmt.Sprintf("contrastRatio=%.2f want >=%.2f", got, wv))
 					}
@@ -245,7 +253,10 @@ func Eval(rt *qrt.Runtime, measured, checksJSON []byte) ([]byte, error) {
 			}
 			res["actual"] = map[string]any{"x": r["x"], "y": r["y"], "w": r["w"], "h": r["h"],
 				"visible": r["visible"], "type": r["type"], "color": r["color"], "background": r["background"],
-				"role": r["role"], "ariaLabel": r["ariaLabel"], "contrast": r["contrast"]}
+				"effectiveBackground": r["effectiveBackground"],
+				"role":                r["role"], "accessibleName": r["accessibleName"], "ariaLabel": r["ariaLabel"],
+				"semanticState": r["semanticState"], "contrast": r["contrast"],
+				"contrastUnavailable": r["contrastUnavailable"]}
 		}
 		if len(fails) == 0 {
 			res["pass"] = true

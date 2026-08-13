@@ -1,14 +1,15 @@
 ---
 title: Human-AI collaboration on a live app
-description: A human and an AI agent on the same running QORM app at once, each seeing the other over the browser, MCP, and SSE.
+description: A human and an AI agent on the same running QORM app at once, each seeing the other through a native canvas or browser/WebView host, MCP, and the DevTool.
 ---
 
 # Human-AI collaboration on a live app
 
 QORM's premise: a person and an AI agent work on the **same running app at the
 same time**, and each sees the other. `qorm run` serves one live runtime over
-three channels — a browser for the human, MCP for the agent, and Server-Sent
-Events (SSE) to keep every viewer in sync.
+the human UI (native canvas on macOS by default, or browser/WebView), HTTP MCP
+for the agent, and the DevTool/activity stream. Browser/WebView viewers stay in
+sync over Server-Sent Events (SSE).
 
 ![A human and an AI agent on one live QORM app](agent/img/console.png)
 *One running app, two panes: the live UI on the left and the shared session log on the right.*
@@ -16,12 +17,15 @@ Events (SSE) to keep every viewer in sync.
 ## Start a shared session
 
 ```sh
-qorm run examples/counter          # browser UI + agent endpoint at /mcp
+qorm run examples/counter          # native/browser UI + agent endpoint at /mcp
 ```
 
-- **Human** — open the printed URL. Clicks POST `/event`; the UI updates live.
-- **AI** — connect over MCP: `qorm mcp examples/counter` (stdio), or POST JSON-RPC
-  to `http://127.0.0.1:PORT/mcp`. It shares the *same* runtime the browser renders.
+- **Human** — use the window QORM opens, or open the printed URL. Native canvas
+  dispatches directly; browser/WebView clicks POST `/event`.
+- **AI** — POST JSON-RPC to `http://127.0.0.1:PORT/mcp`. That HTTP endpoint
+  shares the *same* runtime as the human UI. `qorm mcp examples/counter` is a
+  separate stdio runtime and is useful for standalone tooling, not this live
+  shared-session loop.
 
 ## The loop — each sees the other
 
@@ -36,6 +40,9 @@ qorm run examples/counter          # browser UI + agent endpoint at /mcp
   `humanFilled` (which password fields they completed — by label only; a password
   value is **never** captured). So the agent collaborates in context — "the human is
   filling the email field" — instead of guessing from state.
+  Native canvas pointer/keyboard actions enter the same human `events` stream
+  and DevTool as browser/WebView actions. Canvas also reports privacy-safe
+  focus, typing, and hidden-field labels through the same presence model.
 - **The human sees what's shared.** The activity panel (a separate window the
   desktop app opens, or `/logwindow`) shows a *shared with the AI* line — the human's
   own focus and typed text, password fields marked *value hidden* — so it is

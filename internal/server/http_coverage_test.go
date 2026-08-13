@@ -520,7 +520,7 @@ func TestBlockCrossOriginGuard(t *testing.T) {
 	ts := httptest.NewServer(counterServer(t).Handler())
 	defer ts.Close()
 
-	for _, route := range []string{"/event", "/navigate", "/presence", "/viewport", "/window", "/mcp", "/update", "/rollback", "/dev/state", "/dev/tree", "/dev/highlight"} {
+	for _, route := range []string{"/event", "/navigate", "/presence", "/viewport", "/window", "/mcp", "/update", "/rollback", "/dev/state", "/dev/tree", "/dev/highlight", "/dev/canvas"} {
 		code, body := doJSON(t, http.MethodPost, ts.URL+route, "", "https://evil.example.com", `{}`)
 		if code != http.StatusForbidden || !strings.Contains(body, "cross-origin request rejected") {
 			t.Errorf("%s with a cross-origin Origin: want 403 cross-origin, got %d %q", route, code, body)

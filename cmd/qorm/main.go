@@ -118,12 +118,15 @@ usage:
                                                   a directory hot-reloads on file change — --no-watch disables it)
   qorm render <app-dir|scene.json|bundle> [-o out.html]
                                                   write a static HTML snapshot
-  qorm shot <app-dir> -o out.png [--html page.html] [--url URL] [--live "title"] [--width W --height H]
-                                                  rasterize an app/page/URL/live window to a PNG (macOS, -tags desktop)
-  qorm measure <app-dir> [--width N] [-o report.json]
-                                                  render + self-measure layout & styles (needs -tags desktop)
-  qorm check <app-dir> (--checks c.json | --audit) [--width N] [-o r.json]
-                                                  verify layout/styles/behaviour vs expectations (or generic audit)
+  qorm shot <app-dir> -o out.png [--width W --height H]
+                                                  render an app to PNG with headless pure Canvas
+  qorm shot --html page.html|--url URL|--live "title" -o out.png
+                                                  WebKit/window PNG capture (macOS, -tags desktop)
+  qorm measure <app-dir> [--width N] [--physical] [-o report.json]
+                                                  headless render + self-measure layout/styles (pure-Go canvas by default)
+  qorm check <app-dir> (--checks c.json | --audit) [--width N] [--physical] [-o r.json]
+                                                  verify layout/styles vs expectations (or generic audit;
+                                                  interactive flows drive the pure-Go canvas by default)
   qorm build <app-dir> -o app.qorm.bundle [--key priv.key] [--version V] [--require-capability camera,location]
                                                   compile (+optionally sign) a bundle; declared capabilities are
                                                   enforced at startup on the running platform

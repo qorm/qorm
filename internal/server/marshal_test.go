@@ -104,3 +104,32 @@ func TestEventsCatchUpIsMarshalled(t *testing.T) {
 		t.Errorf("catch-up snapshot missing from stream, got %q", body)
 	}
 }
+
+func TestReloadIsMarshalled(t *testing.T) {
+	s := marshalTestServer(t)
+	next := runtime.New(s.rt.App)
+	called := 0
+	s.SetMarshal(func(fn func()) {
+		called++
+		// Reload must not have swapped state before entering the serializer.
+		if s.Runtime() == next {
+			t.Fatal("Reload swapped runtime before marshal hook")
+		}
+		fn()
+	})
+	s.Reload(next)
+	if called != 1 {
+		t.Fatalf("marshal calls = %d, want 1", called)
+	}
+	if s.Runtime() != next {
+		t.Fatal("Reload did not install next runtime")
+	}
+}
+
+func TestRecordHumanDispatchUsesSharedActivityShape(t *testing.T) {
+	s := marshalTestServer(t)
+	s.RecordHumanDispatch("increment")
+	if len(s.activity) != 1 || s.activity[0].Source != "human" || s.activity[0].Detail != "dispatch increment" {
+		t.Fatalf("activity = %+v", s.activity)
+	}
+}

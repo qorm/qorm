@@ -1,0 +1,45 @@
+{
+  "type": "app",
+  "id": "canvas_advanced",
+  "name": "Canvas Advanced",
+  "entry": "main",
+  "theme": "auto",
+  "globalState": {
+    "schema": {
+      "cameraLock": "boolean",
+      "hero": {
+        "x": "number",
+        "y": "number"
+      },
+      "heroSx": "number",
+      "heroSy": "number",
+      "heroOx": "number",
+      "heroOy": "number",
+      "fxMode": "string",
+      "heroFxToken": "number",
+      "tlPlay": "number",
+      "dragX": "number",
+      "dragY": "number",
+      "dragSx": "number",
+      "dragSy": "number",
+      "dragOy": "number",
+      "filterOn": "boolean",
+      "pathMorphed": "boolean"
+    },
+    "initial": {
+      "cameraLock": false,
+      "hero": { "x": 500, "y": 400 },
+      "heroSx": 0, "heroSy": 0, "heroOx": 500, "heroOy": 400,
+      "fxMode": "wobble",
+      "heroFxToken": 0,
+      "tlPlay": 0,
+      "dragX": 450,
+      "dragY": 250,
+      "dragSx": 0,
+      "dragSy": 0,
+      "dragOy": 250,
+      "filterOn": true,
+      "pathMorphed": false
+    }
+  }
+}

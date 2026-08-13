@@ -1,6 +1,6 @@
 ---
 title: Interpreting & verifying a QORM app
-description: Interpret and verify a QORM app precisely: the running app measures its own render so qorm measure and qorm check report real geometry.
+description: Interpret and verify QORM precisely from the pure-Go canvas graph or a live browser/WebView DOM with qorm measure, qorm check, and MCP.
 ---
 
 # Interpreting & verifying a QORM app
@@ -9,20 +9,24 @@ QORM's goal is to let an AI **completely and precisely interpret and verify**
 everything a user expressed in an app — its layout, styles, behavior and
 translations — using the framework itself, with no external browser.
 
-The mechanism: the running app **measures itself** in its own runtime (browser
-or native WebView). A tiny script walks every element with an id, records its
-`getBoundingClientRect` and computed styles, and POSTs them to `/measure`. The
-framework then joins that real rendered result with the user's **intent** (each
-node's type, text, and state binding, from the app JSON). So for every component
-you get both *what the user asked for* and *what actually rendered*.
+There are two measurement sources with one JSON shape:
 
-Everything below works from the CLI (`-tags desktop` build, which drives a native
-WebView) and from the live shared session over MCP.
+- The default, pure-Go CLI renders once into the software canvas, then exports
+  geometry and computed styles from the same retained graph used for painting.
+  This is deterministic and needs no window or external browser.
+- A live host measures what the human is actually viewing. The native macOS
+  canvas window exports its graph after a rendered frame; browser/WebView hosts
+  walk the DOM with `getBoundingClientRect`, read computed styles, and POST the
+  result to `/measure`.
+
+The framework joins either rendered result with the user's **intent** (each
+node's type, text, and state binding from the app JSON). For every component you
+get both *what the user asked for* and *what the selected backend rendered*.
 
 ## `qorm measure` — read the real render
 
 ```bash
-qorm measure <app-dir> [-o report.json]
+qorm measure <app-dir> [--width 400] [--physical] [-o report.json]
 ```
 
 Renders the app, self-measures, and prints one row per component joining intent
@@ -40,10 +44,16 @@ Fields per component: `id`, `type`, `intent` (text/label/binding), `x y w h`,
 `fontSize`, `fontWeight`, `textAlign`, `padding`, `margin`, `borderRadius`,
 `border`, `opacity`, `zIndex`, `position`, `overflowX`.
 
+In a normal build this is a headless pure-Go canvas render at the requested
+logical width (height comes from `qorm.json`, default 820). Coordinates are
+logical CSS pixels by default; `--physical` keeps canvas device pixels. A
+`-tags desktop` build intentionally exercises the HTML/WebView path instead;
+WebView measurements are always CSS pixels, so `--physical` has no effect there.
+
 ## `qorm check --checks` — verify expectations
 
 ```bash
-qorm check <app-dir> --checks checks.json [-o report.json]
+qorm check <app-dir> --checks checks.json [--width 400] [--physical] [-o report.json]
 ```
 
 `checks.json` is an array of `{id, <assertion>…}`. Each assertion is verified
@@ -64,11 +74,14 @@ against the real render; the report gives per-check pass/fail with actual values
 | `hasAriaLabel: true` | the element exposes an `aria-label` |
 | `contrastRatio: <n>` | text/background contrast is at least `n` (WCAG AA: 4.5 normal, 3.0 large), computed against the effective background |
 
-Accessibility assertions read the **rendered** DOM, so they catch roles and
-labels the renderer injects implicitly — not just what the JSON declared.
-`focusTrap` is intentionally rejected for now: focus containment is a dynamic
-Tab-order behavior, not a static snapshot, and a verifier must never vouch for
-a check it cannot actually make.
+Backend boundary: geometry, visibility, text, overflow, and the listed computed
+box/style fields work on both measurement sources. On HTML/WebView, accessibility
+assertions read the **rendered DOM**, so `role` can include renderer-injected
+semantics and `contrastRatio` is computed against the effective background. The
+canvas graph currently reports author-supplied `role` / `ariaLabel`; it does not
+yet compute contrast, so `contrastRatio` fails as unavailable rather than
+silently passing. `focusTrap` is intentionally rejected on every backend:
+focus containment is dynamic Tab-order behavior, not a static snapshot.
 
 Checks fail loud: an unrecognised assertion key (e.g. a typo) fails, and a
 `within`/`below` target id that was not measured fails as 'not found' —
@@ -95,7 +108,21 @@ step applies an action, waits for the re-render + re-measure, then checks.
 ] }
 ```
 
-`do` is `{"dispatch": "<action>", "args": {…}}` or `{"setState": {"path": …, "value": …}}`.
+The default pure-Canvas driver accepts exactly one operation per step:
+
+- `{"dispatch":"<action>", "args":{…}}`
+- `{"setState":{"path":…, "value":…}}` (or the shorter `state` alias)
+- `{"press":"id"}` or `{"press":{"id":"id"}}`
+- `{"type":{"id":"field", "text":"hello", "clear":true}}`
+- `{"key":"Enter"}` or `{"key":{"key":"Tab", "id":"field",
+  "shift":false, "ctrl":false, "alt":false, "meta":false}}`
+- `{"scroll":{"id":"list", "dx":0, "dy":120, "ctrl":false}}`
+- `{"wait":250}` (milliseconds) or `{"wait":"250ms"}` (Go duration)
+
+Press/type/key/scroll drive the same retained graph and input handlers as the
+native window; targets are revealed before input. Canvas `wait` advances its
+animation/timer clocks deterministically and does not sleep. A `-tags desktop`
+build keeps the established WebView flow subset (`dispatch` and `setState`).
 
 ## `qorm check --audit` — one-shot regression
 
@@ -115,9 +142,28 @@ While a human runs the app, an agent on the same session can call:
 - **`qorm_measure`** — the complete intent + rendered result (as above).
 - **`qorm_check_layout`** — pass `checks` (same schema as `--checks`), get
   per-check pass/fail with actual values.
+- **`qorm_capture_canvas`** — capture the native Canvas host's actual last-presented
+  pixel plane as a base64 PNG. With optional `id`, the PNG remains the full
+  surface and `clip` locates that node in physical pixels; it is not an isolated
+  subtree render. It fails loudly when no Canvas host/frame exists or a node is
+  absent/invisible. Browser/WebView sessions do not synthesize Canvas pixels.
 
-Both read the live client's self-measurement, so the agent sees exactly what the
-human sees. The tool descriptions carry the full assertion list.
+```text
+qorm_capture_canvas({})
+qorm_capture_canvas({"id":"card"})  # full PNG + card clip metadata
+```
+
+Both read the active host's latest measurement, so the agent sees exactly what
+the human sees: the current retained graph in the native canvas window, or the
+current DOM in a browser/WebView. Use HTTP `/mcp` on the running `qorm run`
+session. A standalone `qorm mcp <app>` stdio server has no rendering host, so
+these two tools report measurement unavailable; use CLI `qorm measure` /
+`qorm check` for headless canvas verification.
+
+For a file artifact without a live host, `qorm shot <app> -o out.png` renders
+the same pure-Go Canvas backend headlessly (default `440x720`, 4096 px/edge and
+16 MP safety limits). Use `qorm_capture_subtree` when isolated HTML rather than
+native pixels is the intended evidence.
 
 ![QORM DevTool activity view of the shared session](assets/screenshots/logwindow.png)
 *In a shared session the agent reads the same live render you see; the DevTool interleaves both sides' activity.*
@@ -162,9 +208,12 @@ single ALL-GREEN / regressions verdict. No external browser.
 
 ## Notes
 
-- Measurement needs the app running in a rendering runtime. The CLI uses the
-  `-tags desktop` WebView (runs headlessly); the live session uses whatever
-  browser/WebView the human has open.
+- The default CLI is an offscreen canvas render, including native input step
+  flows. Build with `-tags desktop` only when you intentionally need WebView/
+  DOM parity.
+- Live MCP measurement needs an active rendering host. On macOS the default
+  `qorm run` canvas window supplies it directly; a browser or `-tags desktop`
+  WebView supplies DOM measurement. Stdio-only `qorm mcp` does not.
 - `visible: false` + zero size is normal for inactive tab content, closed
   overlays (modal/dialog/sheet with `open:false`), and empty conditional text —
   the audit only flags *visible* components.

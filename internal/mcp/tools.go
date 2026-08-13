@@ -57,6 +57,11 @@ func toolList() []tool {
 			InputSchema: obj(map[string]any{"id": strProp}, "id"),
 		},
 		{
+			Name:        "qorm_capture_canvas",
+			Description: "Capture the actual last-presented native Canvas pixel plane as a base64 PNG. Optional id still returns the full surface plus a physical-pixel clip rectangle for that node; it does not pretend to isolate or re-render the subtree. Fails loudly outside a running native Canvas host, before its first frame, for absent/invisible nodes, or when safety limits are exceeded. Read-only.",
+			InputSchema: obj(map[string]any{"id": strProp}),
+		},
+		{
 			Name:        "qorm_a11y_tree",
 			Description: "Derive the accessibility tree for the entry scene: every node's ARIA role, accessible name and semantic state (checked/disabled/required/value), plus an audit of accessibility issues — interactive controls and images that would reach a screen reader with no accessible name. Use it to check a11y coverage or find what to fix. Read-only.",
 			InputSchema: obj(nil),
@@ -93,7 +98,7 @@ func toolList() []tool {
 		},
 		{
 			Name:        "qorm_activity",
-			Description: "Read the shared session's live presence: returns {events:[who (human/agent) did what, oldest to newest], humanFocus:{element, secondsAgo}, humanTyping:{entry, secondsAgo}, humanFilled:{field, secondsAgo}, inflight:N} — so the agent sees what the human just did, the element they are on now, the text they last typed, AND which hidden (password) fields they filled (label only; a password value is never captured), and collaborates in context. `inflight` counts the background work the app still has open (async `http.*` requests plus waiting `delay` steps): 0 means the app has settled and what you read now is final, above 0 means a reply is still coming and the current frame is a loading state — read again before drawing conclusions. Only available in a running `qorm run` session. Read-only.",
+			Description: "Read the shared session's live presence: returns {events:[who (human/agent) did what, oldest to newest], humanFocus:{element, secondsAgo}, humanTyping:{entry, secondsAgo}, humanFilled:{field, secondsAgo}, inflight:N} — so the agent sees what the human just did, the element they are on now, the text they last typed, AND which hidden (password) fields they filled (label only; a password value is never captured), and collaborates in context. Browser/WebView events and native canvas pointer/keyboard actions enter the same human activity stream and DevTool; both hosts report privacy-safe focus/typing/filled presence, and neither captures password values. `inflight` counts the background work the app still has open (async `http.*` requests plus waiting `delay` steps): 0 means the app has settled and what you read now is final, above 0 means a reply is still coming and the current frame is a loading state — read again before drawing conclusions. Only available in a running `qorm run` session. Read-only.",
 			InputSchema: obj(nil),
 		},
 		{
@@ -168,12 +173,12 @@ func toolList() []tool {
 		// ---- interpret & verify the real rendered result ----
 		{
 			Name:        "qorm_measure",
-			Description: "INTERPRET the LIVE render precisely: returns every component joining what the user expressed (type, text, state binding) with how it actually rendered — x,y,w,h, visible, and computed color/background/fontSize/fontWeight/padding/borderRadius/border/opacity/zIndex/position/x-overflow — as measured by the running app in its own window. Requires the app to be open in a window/browser (it self-measures on load and after every change). Use to see exactly how the user's app rendered.",
+			Description: "INTERPRET the LIVE render precisely: returns every component joining what the user expressed (type, text, state binding) with how it actually rendered — x,y,w,h, visible, and computed color/background/fontSize/fontWeight/padding/borderRadius/border/opacity/zIndex/position/x-overflow. The active rendering host supplies the measurement: the native canvas window exports its retained render graph, while a browser/WebView reports its DOM. Requires a running app with a rendering window/client; `qorm mcp` over stdio alone has no render host. For a deterministic one-shot canvas measurement without a window, use CLI `qorm measure`. Use this tool to see exactly what the human's live host rendered.",
 			InputSchema: obj(nil),
 		},
 		{
 			Name:        "qorm_check_layout",
-			Description: "VERIFY the LIVE render against expectations; returns per-check pass/fail with actual values. `checks` is an array of {id, <assertions>}. Assertions: visible(bool) | type(widget-type string) | text(substring the component must contain, matched vs expressed OR rendered text) | noOverflow(bool, no horizontal overflow) | minW|maxW|minH|maxH(px number) | x|y(px number, ±3 tolerance) | within(id: this box must sit inside that id's box) | below(id: must start below that id) | backgroundNot|colorNot(substring that must be ABSENT — e.g. \"255, 255, 255\" to assert not-white in dark mode) | role(the rendered ARIA role string, incl. roles the renderer injects) | hasAriaLabel(bool) | contrastRatio(min WCAG ratio, e.g. 4.5 for AA normal text — computed against the effective background). Example: [{\"id\":\"wifi\",\"type\":\"switchlisttile\",\"visible\":true,\"within\":\"settings\"},{\"id\":\"chart\",\"noOverflow\":true}]. Fail-loud: an unrecognised assertion key (e.g. a typo) fails, and a within/below target id that was not measured fails as 'not found' — nothing silently passes. Requires the app open in a window (it self-measures). Optional viewportW/viewportH (px) set the runtime viewport before evaluating, so responsive `when` branches resolve as if the window were that size — note the measured rects still come from the client's REAL window (a live client also overwrites the viewport on its next load/resize).",
+			Description: "VERIFY the LIVE render against expectations; returns per-check pass/fail with actual values. `checks` is an array of {id, <assertions>}. Assertions: visible(bool) | type(widget-type string) | text(substring the component must contain, matched vs expressed OR rendered text) | noOverflow(bool, no horizontal overflow) | minW|maxW|minH|maxH(px number) | x|y(px number, ±3 tolerance) | within(id: this box must sit inside that id's box) | below(id: must start below that id) | backgroundNot|colorNot(substring that must be ABSENT — e.g. \"255, 255, 255\" to assert not-white in dark mode) | role(the rendered ARIA role string) | hasAriaLabel(bool) | contrastRatio(min WCAG ratio, e.g. 4.5 for AA normal text). Browser/WebView DOM reports include renderer-injected roles and computed contrast; the canvas graph currently reports author-supplied role/ariaLabel and makes contrastRatio fail as unavailable. Example: [{\"id\":\"wifi\",\"type\":\"switchlisttile\",\"visible\":true,\"within\":\"settings\"},{\"id\":\"chart\",\"noOverflow\":true}]. Fail-loud: an unrecognised assertion key (e.g. a typo) fails, and a within/below target id that was not measured fails as 'not found' — nothing silently passes. Requires a running app with a rendering window/client: native canvas checks use its retained render graph; browser/WebView checks use its DOM report. `qorm mcp` over stdio alone has no render host. Optional viewportW/viewportH (px) set the runtime viewport before evaluating, so responsive `when` branches resolve as if the window were that size — note the measured rects still come from the host's REAL window (a live browser client also overwrites the viewport on its next load/resize).",
 			InputSchema: obj(map[string]any{"checks": map[string]any{"type": "array"}, "viewportW": intProp, "viewportH": intProp}, "checks"),
 		},
 		{
@@ -327,6 +332,21 @@ func (s *Server) callTool(name string, args json.RawMessage) (string, error) {
 			"html":     res.HTML,
 			"unknowns": res.Unknown,
 		}), nil
+	case "qorm_capture_canvas":
+		var a struct {
+			ID string `json:"id"`
+		}
+		if err := decodeArgs(name, args, &a); err != nil {
+			return "", err
+		}
+		if s.canvasCapture == nil {
+			return "", fmt.Errorf("canvas pixel capture unavailable (requires a running native Canvas host with a presented frame)")
+		}
+		captured, err := s.canvasCapture(a.ID)
+		if err != nil {
+			return "", fmt.Errorf("canvas pixel capture: %w", err)
+		}
+		return canvasCaptureJSON(captured, a.ID)
 	case "qorm_a11y_tree":
 		return jsonPretty(a11y.Build(s.rt.App.EntryRoot())), nil
 	case "qorm_capabilities":

@@ -1,0 +1,32 @@
+{
+  "steps": [
+    {
+      "name": "press an offscreen effect control",
+      "do": { "press": "btn_pseudo_opacity" },
+      "checks": [
+        { "id": "pseudo_status", "text": "active: 1" }
+      ]
+    },
+    {
+      "name": "enable the disabled control",
+      "do": { "press": "btn_toggle_disabled" },
+      "checks": [
+        { "id": "btn_disabled_probe", "text": "Enabled" }
+      ]
+    },
+    {
+      "name": "press the newly enabled control",
+      "do": { "press": "btn_disabled_probe" },
+      "checks": [
+        { "id": "pseudo_status", "text": "disabled attempts: 1" }
+      ]
+    },
+    {
+      "name": "advance animation time without sleeping",
+      "do": { "wait": "250ms" },
+      "checks": [
+        { "id": "pseudo_state_panel", "visible": true }
+      ]
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 ---
 title: QORM Desktop Platform
-description: Build QORM as a native desktop app with the pure-Go core in a WebView, full host capabilities, and cross-compilation across OSes.
+description: Run QORM in the pure-Go native canvas or a tagged native WebView, with desktop host capabilities and cross-platform packaging.
 ---
 
 # QORM Desktop Platform
@@ -37,11 +37,12 @@ qorm app (JSON) / qorm.bundle.json
   ↓
 Go Runtime (loader + state + action + i18n, pure Go)
   ↓
-Desktop Host Adapter (cmd/qorm window_desktop.go desktopHardware*)
-  ↓
-Rendered to HTML/CSS
-  ↓
-Native WebView (-tags desktop: WKWebView / WebView2 / WebKitGTK)
+Render host selected by build/platform
+  ├─ Pure-Go retained canvas (macOS default, no `desktop` tag)
+  │    measure → layout → display list → software raster
+  ├─ Native WebView (`-tags desktop`)
+  │    HTML/CSS → WKWebView / WebView2 / WebKitGTK
+  └─ Browser fallback (other untagged desktop platforms)
 ```
 
 ## Features
@@ -84,9 +85,21 @@ system.automation
 
 ## Rendering
 
-Today desktop has a single render path: `internal/render` produces HTML/CSS,
-which the native WebView displays. A GPU-first renderer (display list, render
-graph, text cache, texture atlas) is roadmap work — see `planning/`.
+Desktop has two concrete renderers over the same JSON/state/action model:
+
+- On macOS, the default untagged `qorm run` opens the pure-Go retained-mode
+  software canvas. It supports native input, scrolling, text editing, QSS,
+  visual effects, and exports its live graph to MCP measurement. Actions from
+  native pointer/keyboard input are also attributed to the human in the shared
+  DevTool and `qorm_activity` event stream, with privacy-safe focus/typing
+  presence. DevTool tree hover highlights the matching native node.
+- `-tags desktop` selects the HTML path in a platform WebView
+  (WKWebView/WebView2/WebKitGTK). It is not the canvas renderer.
+
+The implementations share the app model but do not share layout/paint code, so
+verify the backend in scope: default `qorm measure` / static `qorm check` use
+headless canvas; a `-tags desktop` binary measures WebView/DOM. See
+[verification](/docs/verification.md) and [QSS / canvas effects](../styles.md).
 
 ## Development tools
 
@@ -98,7 +111,10 @@ qorm build
 qorm preview
 qorm measure
 qorm check
+qorm shot
 ```
 
-See [the CLI reference](/api/cli.md). A desktop inspect / validate / profile
-toolchain is roadmap work — see `planning/`.
+See [the CLI reference](/api/cli.md). The DevTool component tree can hover-
+highlight native Canvas nodes, and `GET /dev/canvas` reports the physical
+viewport plus latest layout/render/present/total frame timings. MCP can obtain
+the last-presented native pixels with `qorm_capture_canvas`.

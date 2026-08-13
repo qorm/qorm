@@ -1,0 +1,198 @@
+{
+  "type": "scene",
+  "id": "main",
+  "onEnter": "init",
+  "root": {
+    "type": "stack",
+    "layout": {
+      "width": "fill",
+      "height": "fill"
+    },
+    "children": [
+      {
+        "type": "video",
+        "src": "assets/video.mp4",
+        "loop": true,
+        "autoplay": true,
+        "layout": {
+          "width": "fill",
+          "height": "fill"
+        },
+        "class": "background-video",
+        "aria-label": "Looping cinematic background video"
+      },
+      {
+        "type": "stack",
+        "class": "glass-overlay",
+        "layout": {
+          "width": "fill",
+          "height": "fill"
+        }
+      },
+      {
+        "type": "row",
+        "class": "layout-wrapper",
+        "children": [
+          {
+            "type": "column",
+            "class": "sidebar",
+            "aria-label": "Sidebar navigation",
+            "children": [
+              {
+                "type": "text",
+                "text": "QORM OS",
+                "class": "logo-text",
+                "style": { "margin": { "top": 10, "bottom": 40 } }
+              },
+              {
+                "type": "button",
+                "class": "nav-item {{state.tab == 'video' ? 'active' : ''}}",
+                "onPress": { "name": "switchTab", "args": { "tab": "video" } },
+                "style": { "padding": { "top": 16, "bottom": 16, "right": 16, "left": 24 } },
+                "aria-label": "Video & Web Tab",
+                "children": [
+                  { "type": "text", "text": "Video & Web", "class": "nav-text" }
+                ]
+              },
+              {
+                "type": "button",
+                "class": "nav-item {{state.tab == 'typography' ? 'active' : ''}}",
+                "onPress": { "name": "switchTab", "args": { "tab": "typography" } },
+                "style": { "padding": { "top": 16, "bottom": 16, "right": 16, "left": 24 }, "margin": { "top": 8 } },
+                "aria-label": "Typography Feature Demo",
+                "children": [
+                  { "type": "text", "text": "Typography", "class": "nav-text" }
+                ]
+              },
+              {
+                "type": "button",
+                "class": "nav-item {{state.tab == 'vector' ? 'active' : ''}}",
+                "onPress": { "name": "switchTab", "args": { "tab": "vector" } },
+                "style": { "padding": { "top": 16, "bottom": 16, "right": 16, "left": 24 }, "margin": { "top": 8 } },
+                "aria-label": "Vector Graphics Demo",
+                "children": [
+                  { "type": "text", "text": "Vector Graphics", "class": "nav-text" }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "column",
+            "class": "main-area",
+            "layout": { "justify": "center" },
+            "children": [
+              {
+                "type": "column",
+                "if": "{{state.tab == 'video'}}",
+                "layout": { "align": "center", "justify": "center" },
+                "style": { "gap": 60, "width": "fill" },
+                "children": [
+                  {
+                    "type": "richtext",
+                    "class": "hero-richtext",
+                    "spans": [
+                      { "text": "Ultimate ", "color": "white", "fontWeight": 900, "fontSize": 84 },
+                      { "text": "Canvas ", "color": "#00FFC2", "fontWeight": 800, "fontSize": 84 },
+                      { "text": "Deep Dive  ", "color": "#E0B0FF", "fontWeight": 700, "fontSize": 84 },
+                      { "text": " Immersive 60FPS Native Video with WKWebView Layering", "color": "rgba(255,255,255,0.7)", "fontSize": 24, "fontWeight": 400 }
+                    ],
+                    "aria-label": "Ultimate Canvas Deep Dive, Immersive 60FPS Native Video with WKWebView Layering"
+                  },
+                  {
+                    "type": "row",
+                    "class": "cards-container",
+                    "children": [
+                      {
+                        "type": "column",
+                        "class": "glass-card webview-container",
+                        "layout": { "align": "center", "justify": "center" },
+                        "style": { "width": 400, "height": 300, "padding": 0 },
+                        "children": [
+                          {
+                            "type": "webview",
+                            "src": "https://qorm.dev",
+                            "style": {
+                              "width": "fill",
+                              "height": 220,
+                              "borderRadius": { "topLeft": 32, "topRight": 32 }
+                            },
+                            "aria-label": "Native WKWebView Overlay Demo"
+                          },
+                          {
+                            "type": "text",
+                            "text": "WKWebView Overlay",
+                            "class": "card-title webview-title",
+                            "style": { "padding": { "top": 24, "left": 24, "right": 24, "bottom": 24 } }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "column",
+                "if": "{{state.tab == 'typography'}}",
+                "layout": { "align": "center", "justify": "center" },
+                "style": { "gap": 40, "width": "fill" },
+                "children": [
+                  {
+                    "type": "richtext",
+                    "style": { "width": 800, "lineHeight": 1.4 },
+                    "spans": [
+                      { "text": "RichText ", "color": "white", "fontWeight": 900, "fontSize": 72, "textShadowColor": "#FF007F", "textShadowBlur": 30, "textShadowY": 10 },
+                      { "text": "Engine ", "color": "transparent", "fontWeight": 900, "fontSize": 72, "textStrokeWidth": 2, "textStrokeColor": "#00FFC2" },
+                      { "text": " Mix and match ", "color": "rgba(255,255,255,0.8)", "fontSize": 32 },
+                      { "text": "font sizes, ", "color": "#FFD700", "fontSize": 48, "fontWeight": 700 },
+                      { "text": "weights, ", "color": "#FF007F", "fontSize": 32, "fontWeight": 200 },
+                      { "text": "and colors ", "color": "#00FFC2", "fontSize": 32, "textShadowColor": "#00FFC2", "textShadowBlur": 10 },
+                      { "text": "in a single contiguous block with full wrapping and baseline alignment.", "color": "rgba(255,255,255,0.8)", "fontSize": 32 }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "column",
+                "if": "{{state.tab == 'vector'}}",
+                "layout": { "align": "center", "justify": "center" },
+                "style": { "gap": 60, "width": "fill" },
+                "children": [
+                  {
+                    "type": "richtext",
+                    "spans": [
+                      { "text": "Vector ", "color": "white", "fontWeight": 900, "fontSize": 64 },
+                      { "text": "Morphing", "color": "#FFD700", "fontWeight": 800, "fontSize": 64 }
+                    ]
+                  },
+                  {
+                    "type": "path",
+                    "style": {
+                      "width": 200,
+                      "height": 200,
+                      "transition": "0.6s spring",
+                      "filter": "drop-shadow(0px 10px 20px rgba(0,0,0,0.5))"
+                    },
+                    "fill": "{{ state.morphToken % 2 == 0 ? '#00FFC2' : '#FF007F' }}",
+                    "stroke": "white",
+                    "strokeWidth": 4,
+                    "d": "{{ state.morphToken % 2 == 0 ? 'M 100, 10 L 128, 65 L 190, 75 L 145, 118 L 155, 180 L 100, 150 L 45, 180 L 55, 118 L 10, 75 L 72, 65 Z' : 'M 100, 10 C 150, 10 190, 50 190, 100 C 190, 150 150, 190 100, 190 C 50, 190 10, 150 10, 100 C 10, 50 50, 10 100, 10 Z' }}"
+                  },
+                  {
+                    "type": "button",
+                    "class": "glass-card",
+                    "onPress": { "name": "triggerMorph" },
+                    "layout": { "align": "center", "justify": "center" },
+                    "style": { "padding": { "top": 16, "bottom": 16, "left": 40, "right": 40 }, "width": 200 },
+                    "children": [
+                      { "type": "text", "text": "Morph Shape", "class": "card-title" }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

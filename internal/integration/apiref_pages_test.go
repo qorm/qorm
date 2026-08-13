@@ -115,6 +115,8 @@ func TestAPIRefProps(t *testing.T) {
 		en.WriteString("- **" + g.group + "** — " + g.keys + "\n")
 		zh.WriteString("- **" + g.group + "** — " + g.keys + "\n")
 	}
+	en.WriteString("\nCanvas geometry details: `aspectRatio` is width/height and derives the missing\naxis only when exactly one positive numeric `width`/`height` is explicit.\n`position: \"absolute\"` is out of flow; `right`/`bottom` anchor a box to the\nparent content edge when no `left`/`x` or `top`/`y` is set. `cursor` accepts\n`pointer`, `text`, `not-allowed`, and `default` (plus `hand`, `ibeam`,\n`forbidden`, `arrow` aliases), through the same QSS/inline cascade.\n")
+	zh.WriteString("\nCanvas 几何细节:`aspectRatio` 是宽/高,且仅在恰好一个正数 `width`/`height`\n显式设置时推导另一轴。`position: \"absolute\"` 会脱离布局流;未设置 `left`/`x`\n或 `top`/`y` 时,`right`/`bottom` 将盒子锚定到父内容边。`cursor` 经同一套\nQSS/内联级联接受 `pointer`、`text`、`not-allowed`、`default`(以及 `hand`、\n`ibeam`、`forbidden`、`arrow` 别名)。\n")
 
 	en.WriteString("\n## Per-widget props\n\nThe widget-specific keys each renderer reads, on top of the common style props above. Auto-extracted from the `node()` switch in `internal/render` — a `—` means the widget takes only common props.\n\n| Widget | Props |\n|---|---|\n")
 	zh.WriteString("\n## 各组件专有属性\n\n在上述通用样式属性之外,每个渲染器额外读取的专有键。由 `internal/render` 的 `node()` 分发自动抽取——`—` 表示该组件只接受通用属性。\n\n| 组件 | 属性 |\n|---|---|\n")
@@ -264,6 +266,7 @@ var routeDocs = map[string]routeDoc{
 	"/dev/state":     {"GET / POST", "DevTools state inspector: read or write the live app state", "DevTools 状态检查器：读取或修改运行中的应用状态"},
 	"/dev/tree":      {"GET", "DevTools component tree: read the current scene's node tree JSON", "DevTools 组件树：读取当前场景的节点树 JSON"},
 	"/dev/highlight": {"POST", "DevTools highlight event: broadcast a node highlight inspect signal to all clients", "DevTools 高亮事件：向所有客户端广播节点高亮检查信号"},
+	"/dev/canvas":    {"GET", "Native Canvas diagnostics: read the latest frame timings and physical viewport", "原生 Canvas 诊断：读取最新帧耗时与物理视口"},
 }
 
 func TestAPIRefHTTP(t *testing.T) {

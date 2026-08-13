@@ -119,6 +119,9 @@ type NodeStyle struct {
 	Height    int
 	WidthRaw  string // "fill"
 	HeightRaw string // "fill"
+	// AspectRatio is the unitless preferred width/height ratio. When exactly
+	// one axis is explicit, measure derives the other like CSS aspect-ratio.
+	AspectRatio float64
 	// Min/MaxWidth/Height clamp the resolved size in measure (0 = unset),
 	// mirroring the CSS box resolution order (content/explicit first, then
 	// clamp).
@@ -137,11 +140,13 @@ type NodeStyle struct {
 	// final draw (measure.go); float here is the contract, int is the
 	// pixel. Old examples that pass integer x/y keep integer values
 	// end-to-end — the change is a strict superset.
-	PosX, PosY float64
-	HasPos     bool
-	Align      string
-	AlignSelf  string // CSS align-self (style/layout alignSelf) — distinct from Align (align-items)
-	Justify    string
+	PosX, PosY               float64
+	PosRight, PosBottom      float64
+	HasPos, HasPosX, HasPosY bool
+	HasRight, HasBottom      bool
+	Align                    string
+	AlignSelf                string // CSS align-self (style/layout alignSelf) — distinct from Align (align-items)
+	Justify                  string
 	// ZIndex is CSS z-index among siblings (canvas-only paint/hit order).
 	// 0 = auto / default; negative values paint behind auto siblings.
 	ZIndex        int
@@ -154,8 +159,10 @@ type NodeStyle struct {
 	BorderRadius  float64
 	Opacity       float64 // 1 = fully opaque; lowered by pressedOpacity theme state
 
-	StrokeColor color.RGBA
-	StrokeWidth float64
+	StrokeColor      color.RGBA
+	StrokeWidth      float64
+	StrokeDasharray  []float64
+	StrokeDashoffset float64
 
 	// Declarative interaction effects (the interaction-effect resolver in
 	// applyInteractiveOverlay + performLayout): any node can declare them, so
@@ -163,6 +170,19 @@ type NodeStyle struct {
 	// means "no effect" (a pressed/hovered scale of 0 is meaningless).
 	PressedScale float64 // scale the node to this factor while pressed
 	HoverScale   float64 // scale while hovered (pressed wins)
+	// Author pseudo-state declarations. The Has* bits distinguish an absent
+	// value from a deliberately transparent colour / zero opacity. Keeping
+	// these on NodeStyle (rather than rereading n.Style during interaction)
+	// makes QSS type/class/id rules participate in the same cascade as inline
+	// declarations.
+	HoverBackground, PressedBackground color.RGBA
+	HoverColor, FocusBorderColor       color.RGBA
+	HasHoverBackground                 bool
+	HasPressedBackground               bool
+	HasHoverColor                      bool
+	HasFocusBorderColor                bool
+	HoverOpacity, PressedOpacity       float64
+	HasHoverOpacity, HasPressedOpacity bool
 	// EffectiveScale is the resolved interaction scale (1 = no effect; set by
 	// applyInteractiveOverlay from the pressed/hover scale). It joins the
 	// transition tween so a node declaring `transition` animates its pressed
@@ -287,6 +307,10 @@ func (s *NodeStyle) scaleBy(f int) {
 	s.FontSize *= f
 	s.BorderRadius *= float64(f)
 	s.StrokeWidth *= float64(f)
+	s.StrokeDashoffset *= float64(f)
+	for i := range s.StrokeDasharray {
+		s.StrokeDasharray[i] *= float64(f)
+	}
 	s.LetterSpacing *= float64(f)
 	s.TextStrokeWidth *= float64(f)
 	s.TextShadowBlur *= float64(f)
@@ -357,7 +381,7 @@ func parseCSSDuration(s string) (time.Duration, error) {
 // evalColorStyle reads a node's declarative interaction color key (hover/
 // pressedBackground), evaluating bindings.
 func evalColorStyle(n *model.Node, key string, rt *runtime.Runtime) (color.RGBA, bool) {
-	v, ok := evalStyleProp(n.Style[key], rt).(string)
+	v, ok := resolvedAuthorStyleProp(n, key, rt).(string)
 	if !ok {
 		return color.RGBA{}, false
 	}
@@ -368,13 +392,39 @@ func evalColorStyle(n *model.Node, key string, rt *runtime.Runtime) (color.RGBA,
 // evalFloatStyle reads a node's declarative interaction float key (hover/
 // pressedOpacity), evaluating bindings.
 func evalFloatStyle(n *model.Node, key string, rt *runtime.Runtime) (float64, bool) {
-	switch v := evalStyleProp(n.Style[key], rt).(type) {
+	switch v := resolvedAuthorStyleProp(n, key, rt).(type) {
 	case float64:
 		return v, true
 	case int:
 		return float64(v), true
 	}
 	return 0, false
+}
+
+// resolvedAuthorStyleProp returns one fully-cascaded author style value:
+// type rule < class rules (class-list/declaration order) < id rule < inline.
+// It is for interaction semantics that must be queried without a LayoutNode
+// (disabled hit/focus/cursor checks). parseStyle remains the full visual
+// resolver. Values evaluate after the winning declaration is selected, just
+// like applyStyleProps.
+func resolvedAuthorStyleProp(n *model.Node, key string, rt *runtime.Runtime) any {
+	if n == nil {
+		return nil
+	}
+	var raw any
+	found := false
+	for _, rule := range matchingStyleRules(n, rt) {
+		if v, ok := rule[key]; ok {
+			raw, found = v, true
+		}
+	}
+	if v, ok := n.Style[key]; ok {
+		raw, found = v, true
+	}
+	if !found {
+		return nil
+	}
+	return evalStyleProp(raw, rt)
 }
 
 // applyInteractiveOverlay is the declarative interaction-effect resolver: any
@@ -385,20 +435,53 @@ func evalFloatStyle(n *model.Node, key string, rt *runtime.Runtime) (float64, bo
 // applied last so it beats hovered. The pressed/hover SCALE lands in
 // performLayout (it is a graph transform, not a style field).
 func applyInteractiveOverlay(s *NodeStyle, n *model.Node, rt *runtime.Runtime, inter *Interaction) {
-	if inter == nil || rt == nil || rt.Theme == nil || (inter.Pressed != n && inter.Hovered != n) {
+	if inter == nil || (inter.Pressed != n && inter.Hovered != n) {
 		return
+	}
+	// Preserve the direct helper contract used by widgets/tests: callers that
+	// pass a bare NodeStyle still receive author pseudo-state declarations.
+	// Normal Measure calls already populated the fields from the full cascade.
+	if !s.HasHoverBackground {
+		if c, ok := evalColorStyle(n, "hoverBackground", rt); ok {
+			s.HoverBackground, s.HasHoverBackground = c, true
+		}
+	}
+	if !s.HasPressedBackground {
+		if c, ok := evalColorStyle(n, "pressedBackground", rt); ok {
+			s.PressedBackground, s.HasPressedBackground = c, true
+		}
+	}
+	if !s.HasHoverColor {
+		if c, ok := evalColorStyle(n, "hoverColor", rt); ok {
+			s.HoverColor, s.HasHoverColor = c, true
+		}
+	}
+	if !s.HasHoverOpacity {
+		if o, ok := evalFloatStyle(n, "hoverOpacity", rt); ok {
+			s.HoverOpacity, s.HasHoverOpacity = clamp01(o), true
+		}
+	}
+	if !s.HasPressedOpacity {
+		if o, ok := evalFloatStyle(n, "pressedOpacity", rt); ok {
+			s.PressedOpacity, s.HasPressedOpacity = clamp01(o), true
+		}
 	}
 	if inter.Hovered == n {
 		// The theme component's hovered color is the baseline...
-		if comp, ok := rt.Theme.Components[n.Type]; ok && comp.HoveredBackgroundColor != "" {
-			s.Background = resolveColor(comp.HoveredBackgroundColor, rt)
+		if rt != nil && rt.Theme != nil {
+			if comp, ok := rt.Theme.Components[n.Type]; ok && comp.HoveredBackgroundColor != "" {
+				s.Background = resolveColor(comp.HoveredBackgroundColor, rt)
+			}
 		}
 		// ...and a per-node declaration wins over it.
-		if c, ok := evalColorStyle(n, "hoverBackground", rt); ok {
-			s.Background = c
+		if s.HasHoverBackground {
+			s.Background = s.HoverBackground
 		}
-		if o, ok := evalFloatStyle(n, "hoverOpacity", rt); ok && o >= 0 && o <= 1 {
-			s.Opacity = o
+		if s.HasHoverColor {
+			s.Color = s.HoverColor
+		}
+		if s.HasHoverOpacity {
+			s.Opacity = s.HoverOpacity
 		}
 		if s.HoverScale > 0 {
 			s.EffectiveScale = s.HoverScale
@@ -406,15 +489,19 @@ func applyInteractiveOverlay(s *NodeStyle, n *model.Node, rt *runtime.Runtime, i
 	}
 	// Pressed is applied LAST so it wins over hovered.
 	if inter.Pressed == n {
-		if c, ok := evalColorStyle(n, "pressedBackground", rt); ok {
-			s.Background = c
-		} else if comp, ok := rt.Theme.Components[n.Type]; ok && comp.PressedBackgroundColor != "" {
-			s.Background = resolveColor(comp.PressedBackgroundColor, rt)
+		if s.HasPressedBackground {
+			s.Background = s.PressedBackground
+		} else if rt != nil && rt.Theme != nil {
+			if comp, ok := rt.Theme.Components[n.Type]; ok && comp.PressedBackgroundColor != "" {
+				s.Background = resolveColor(comp.PressedBackgroundColor, rt)
+			}
 		}
-		if o, ok := evalFloatStyle(n, "pressedOpacity", rt); ok && o >= 0 && o <= 1 {
-			s.Opacity = o
-		} else if comp, ok := rt.Theme.Components[n.Type]; ok && comp.PressedOpacity != nil {
-			s.Opacity = *comp.PressedOpacity
+		if s.HasPressedOpacity {
+			s.Opacity = s.PressedOpacity
+		} else if rt != nil && rt.Theme != nil {
+			if comp, ok := rt.Theme.Components[n.Type]; ok && comp.PressedOpacity != nil {
+				s.Opacity = *comp.PressedOpacity
+			}
 		}
 		if s.PressedScale > 0 {
 			s.EffectiveScale = s.PressedScale
@@ -760,6 +847,22 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 	if sc, ok := esp(style["boxShadowColor"]).(string); ok {
 		s.BoxShadowColor = resolveColor(sc, rt)
 	}
+	if c, ok := esp(style["hoverBackground"]).(string); ok {
+		s.HoverBackground = resolveColor(c, rt)
+		s.HasHoverBackground = true
+	}
+	if c, ok := esp(style["pressedBackground"]).(string); ok {
+		s.PressedBackground = resolveColor(c, rt)
+		s.HasPressedBackground = true
+	}
+	if c, ok := esp(style["hoverColor"]).(string); ok {
+		s.HoverColor = resolveColor(c, rt)
+		s.HasHoverColor = true
+	}
+	if c, ok := esp(style["focusBorderColor"]).(string); ok {
+		s.FocusBorderColor = resolveColor(c, rt)
+		s.HasFocusBorderColor = true
+	}
 
 	// --- Numeric properties (float64 or int from JSON) ---
 	pad := esp(style["padding"])
@@ -793,6 +896,9 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 	} else if str, ok := height.(string); ok && str == "fill" {
 		s.HeightRaw = "fill"
 	}
+	if ratio, ok := toFloatAny(esp(style["aspectRatio"])); ok && ratio > 0 {
+		s.AspectRatio = ratio
+	}
 
 	// Absolute position: x/y (native) or left/top (HTML alias). Either key
 	// present marks the node positioned; the missing axis reads 0. Stored
@@ -802,13 +908,24 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 		if f, ok := toFloatAny(esp(style[key])); ok {
 			s.PosX = f
 			s.HasPos = true
+			s.HasPosX = true
 		}
 	}
 	for _, key := range []string{"y", "top"} {
 		if f, ok := toFloatAny(esp(style[key])); ok {
 			s.PosY = f
 			s.HasPos = true
+			s.HasPosY = true
 		}
+	}
+	if f, ok := toFloatAny(esp(style["right"])); ok {
+		s.PosRight, s.HasRight, s.HasPos = f, true, true
+	}
+	if f, ok := toFloatAny(esp(style["bottom"])); ok {
+		s.PosBottom, s.HasBottom, s.HasPos = f, true, true
+	}
+	if pos, ok := esp(style["position"]).(string); ok && strings.EqualFold(strings.TrimSpace(pos), "absolute") {
+		s.HasPos = true
 	}
 
 	// min/max size constraints (HTML: minWidth/maxWidth/minHeight/
@@ -954,6 +1071,14 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 	if f, ok := esp(style["hoverScale"]).(float64); ok && f > 0 {
 		s.HoverScale = f
 	}
+	if f, ok := parseStyleNumber(esp(style["hoverOpacity"])); ok {
+		s.HoverOpacity = clamp01(f)
+		s.HasHoverOpacity = true
+	}
+	if f, ok := parseStyleNumber(esp(style["pressedOpacity"])); ok {
+		s.PressedOpacity = clamp01(f)
+		s.HasPressedOpacity = true
+	}
 
 	// The declarative transition duration: CSS spellings ("0.2s", "200ms")
 	// or a plain number of milliseconds. Optional second token is the easing
@@ -1065,6 +1190,34 @@ func applyStyleProps(s *NodeStyle, style map[string]any, rt *runtime.Runtime, sc
 		s.StrokeWidth = f
 	} else if i, ok := bw.(int); ok {
 		s.StrokeWidth = float64(i)
+	}
+
+	if do := esp(style["strokeDashoffset"]); do != nil {
+		if f, ok := do.(float64); ok {
+			s.StrokeDashoffset = f
+		} else if i, ok := do.(int); ok {
+			s.StrokeDashoffset = float64(i)
+		} else if str, ok := do.(string); ok {
+			s.StrokeDashoffset = parseCSSPx(str)
+		}
+	}
+
+	if da := esp(style["strokeDasharray"]); da != nil {
+		if arr, ok := da.([]any); ok {
+			for _, v := range arr {
+				if f, ok := v.(float64); ok {
+					s.StrokeDasharray = append(s.StrokeDasharray, f)
+				} else if i, ok := v.(int); ok {
+					s.StrokeDasharray = append(s.StrokeDasharray, float64(i))
+				} else if str, ok := v.(string); ok {
+					s.StrokeDasharray = append(s.StrokeDasharray, parseCSSPx(str))
+				}
+			}
+		} else if str, ok := da.(string); ok {
+			for _, pt := range strings.Split(str, ",") {
+				s.StrokeDasharray = append(s.StrokeDasharray, parseCSSPx(strings.TrimSpace(pt)))
+			}
+		}
 	}
 
 	// opacity: element-level alpha, clamped to [0,1] like the browser
@@ -2135,13 +2288,15 @@ var canvasStyleKeys = map[string]bool{
 	"padding": true, "gap": true, "margin": true,
 	"width": true, "height": true,
 	"minWidth": true, "maxWidth": true, "minHeight": true, "maxHeight": true,
+	"aspectRatio": true,
 	// Flex (read by flex.go from style; listed so they do not false-warn).
 	"flexGrow": true, "flexShrink": true, "alignSelf": true,
 	// Canvas-only sibling paint/hit order (HTML already emits CSS z-index).
 	"zIndex": true,
+	"cursor": true, // consumed by Engine.CursorHint through the full cascade
 	// Absolute positioning (the infinite-canvas board's coordinate model):
 	// x/y are native, left/top the HTML aliases.
-	"x": true, "y": true, "left": true, "top": true,
+	"position": true, "x": true, "y": true, "left": true, "top": true, "right": true, "bottom": true,
 	"fontSize": true, "fontWeight": true, "textAlign": true,
 	"letterSpacing": true, "lineHeight": true, "fontStyle": true,
 	"textOverflow":   true, // "ellipsis" single-line truncate
@@ -2153,6 +2308,7 @@ var canvasStyleKeys = map[string]bool{
 	// Declarative interaction effects (any node; resolved generically by
 	// applyInteractiveOverlay + performLayout).
 	"hoverBackground": true, "pressedBackground": true,
+	"hoverColor": true, "focusBorderColor": true,
 	"hoverOpacity": true, "pressedOpacity": true,
 	"pressedScale": true, "hoverScale": true,
 	"transition":       true, // animates interaction effect changes ("0.2s")

@@ -2,16 +2,16 @@
 
 > Hand-written reference for the `qorm` binary (implemented in `cmd/qorm/`). Unlike the other pages here it is not generated — update it when the CLI changes.
 
-One binary is the whole toolchain: scaffold, run, render, measure, verify, sign, package, publish, and serve agents. Pure Go by default (cross-compiles everywhere); a `-tags desktop` build adds the native WebView that `shot` / `measure` / `check` / `preview` and `run --app` build on.
+One binary is the whole toolchain: scaffold, run, render, measure, verify, sign, package, publish, and serve agents. Pure Go by default (cross-compiles everywhere); the default `shot`, `measure`, and `check` paths use the headless software canvas. A macOS `-tags desktop` build adds WebKit page/URL/window capture, `preview`, WebView-backed check flows, and HTML-path measurement.
 
 | Command | What it does |
 |---|---|
 | [`new`](#new) | scaffold a runnable app |
 | [`run`](#run) | serve an app live (browser + agent share the runtime) |
 | [`render`](#render) | write a static HTML snapshot |
-| [`shot`](#shot) | rasterize an app / page / window to PNG (macOS, `-tags desktop`) |
-| [`measure`](#measure) | render + self-measure layout and styles (`-tags desktop`) |
-| [`check`](#check) | verify the render against expectations (`-tags desktop`) |
+| [`shot`](#shot) | render an app with pure Canvas, or capture a WebKit page/window, to PNG |
+| [`measure`](#measure) | render + self-measure canvas or WebView layout and styles |
+| [`check`](#check) | verify canvas or WebView render against expectations |
 | [`build`](#build) | compile (+ optionally sign) a bundle |
 | [`keygen`](#keygen) | generate an ed25519 signing keypair |
 | [`sign`](#sign) | sign an existing bundle |
@@ -93,9 +93,13 @@ qorm shot --url URL -o out.png
 qorm shot --live "window title" -o out.png
 ```
 
-Rasterizes to PNG via an offscreen WebKit WebView. **macOS + `-tags desktop` only** — any other build prints an error and exits `2`. Requires a GUI session and Screen Recording permission for the terminal (capture goes through the system `screencapture` tool). CSS animations are frozen at their final state before capture.
+App-directory capture works in the default build: QORM renders one deterministic, headless pure-Go Canvas frame, settles entrance effects, and encodes the actual software pixel buffer. It needs neither a WebView nor a GUI. Default size is `440x720`; default output is `<dir>.png`.
 
-- App directory: rendered, then captured (default `--width 440 --height 720`, default output `<dir>.png`).
+On the default Canvas path, the output argument is the exact path (relative paths are relative to the current working directory), must end in `.png`, and its parent directory must already exist. An existing regular file is replaced; symlinks, directories, and special files are rejected. Dimensions must be positive, no edge may exceed 4096 px, and the surface is capped at 16,777,216 pixels.
+
+A **macOS + `-tags desktop`** build instead uses WebKit for app-directory/HTML/URL capture and additionally supports live operating-system windows. Those modes require a GUI session; `--live` also needs Screen Recording permission. CSS animations are frozen at their final state before WebKit capture. Default builds reject `--html`, `--url`, and `--live` explicitly rather than silently substituting Canvas.
+
+- App directory: pure Canvas by default; WebKit in a macOS `-tags desktop` build (default `--width 440 --height 720`, default output `<dir>.png`).
 - `--html`: capture a static HTML file (default output `<name>.png`).
 - `--url`: capture a live URL — useful for server-backed pages like `/console` (default output `shot.png`).
 - `--live`: capture an already-running window whose title matches (exact title match preferred, then substring), without spinning up a new WebView (default output `shot.png`).
@@ -103,20 +107,22 @@ Rasterizes to PNG via an offscreen WebKit WebView. **macOS + `-tags desktop` onl
 ## measure
 
 ```
-qorm measure <app-dir> [--width N] [-o report.json]
+qorm measure <app-dir> [--width N] [--physical] [-o report.json]
 ```
 
-Renders the app in a native WebView, lets it self-measure, and prints one JSON row per node joining the **intent** (type / text / binding) with the **rendered result** (rect + computed styles) — to stdout, or to `-o`. Viewport width defaults to 400 (height is fixed at 820). **Needs a `-tags desktop` build**; other builds exit `1`. Report fields: see [Interpreting & verifying a QORM app](/docs/verification.html).
+The default build renders the app once with the headless pure-Go canvas and prints a JSON report joining each node's **intent** (type / text / binding) with the **rendered result** (rect + computed styles) — to stdout, or to `-o`. Viewport width defaults to 400; height comes from the manifest window and otherwise defaults to 820. Coordinates use logical CSS pixels; `--physical` keeps canvas device pixels.
+
+A `-tags desktop` build measures the HTML path in a native WebView instead. WebView reports CSS pixels, so `--physical` is accepted for CLI parity but has no effect. Report fields and backend boundaries: [Interpreting & verifying a QORM app](/docs/verification.html).
 
 ## check
 
 ```
-qorm check <app-dir> (--checks checks.json | --audit) [--width N] [-o report.json]
+qorm check <app-dir> (--checks checks.json | --audit) [--width N] [--physical] [-o report.json]
 ```
 
-Measures the app like [`measure`](#measure), then evaluates expectations against the real render. **Needs a `-tags desktop` build.**
+Measures the app like [`measure`](#measure), then evaluates expectations against that backend's render. Static checks and `--audit` work on the default pure-Go canvas path and the `-tags desktop` WebView path.
 
-- `--checks checks.json` — either an array of `{ "id": …, <assertion>… }` static checks (visible, text, geometry, contrast, ARIA, …), or a `{"steps":[…]}` flow object: each step applies `do.dispatch "<action>"` or `do.setState`, waits for the re-render + re-measure, then runs that step's checks — interaction testing.
+- `--checks checks.json` — either an array of `{ "id": …, <assertion>… }` static checks (visible, text, geometry, contrast, ARIA, …), or a `{"steps":[…]}` interaction flow. Default Canvas supports `dispatch`/`args`, `setState` (or `state`), `press`, `type`, `key`, `scroll`, and deterministic non-sleeping `wait`; see [verification](/docs/verification.html). A `-tags desktop` WebView flow keeps its `dispatch`/`setState` subset.
 - `--audit` — no authored checks: generic invariants over every visible component (non-zero size, no horizontal overflow, within the window).
 
 **Exit status:** `0` even when checks fail — pass/fail lives in the report's `ok` field. Non-zero only on runtime errors (bad checks JSON, load failure). Assertion schema and report format: [verification](/docs/verification.html).

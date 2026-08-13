@@ -14,6 +14,9 @@ behaviour). A pure-Go runtime renders it, signs it, and packages it everywhere.
 
 - Manifest: `{ "type":"app", "id":…, "entry":"main", "globalState":{ "schema":{…}, "initial":{…} } }`.
 - Text: the `text` field (NOT `value`); bind with `{{ state.x }}` — e.g. `{ "type":"text", "text":"Count: {{ state.count }}" }`.
+- RichText: the `richtext` widget takes a `spans` array (each with `text` and `style`).
+- Video: use `{ "type":"video", "src":"...", "loop":true, "autoplay":true, "muted":true }` for video playback or looping backgrounds.
+- Paths: the `path` widget takes a `d` property for SVG path data, which can morph with `transition` and state bindings.
 - Buttons: `"onPress":"increment"` (an action name; a string invokes it) — or `{ "name":…, "args":{…} }`.
 - Actions (`actions/<id>.json`): `{ "type":"action","id":…,"steps":[ { "type":"state.set","path":"count","value":"{{ state.count + 1 }}" } ] }`. Step types: `state.set/increment/toggle/append/...` and `http.get`.
 - Components: declared in `qorm.json` under `"components"`, referenced by a node whose `type` equals the component name; template uses `{{ prop.x }}` with a `{ "type":"slot" }` placeholder.
@@ -37,7 +40,7 @@ tool list as [docs/agent/mcp-tools.md](../../docs/agent/mcp-tools.md)
 
 - **Understand**: `qorm_inspect`, `qorm_get_node`, `qorm_query`,
   `qorm_source_location`, `qorm_list_actions`, `qorm_render_html`,
-  `qorm_capture_subtree`, `qorm_a11y_tree`, `qorm_capabilities`,
+  `qorm_capture_subtree`, `qorm_capture_canvas`, `qorm_a11y_tree`, `qorm_capabilities`,
   `qorm_activity` (shared session: what the human just did),
   `qorm_export_scene`, `qorm_export_bundle`.
 - **Operate**: `qorm_dispatch`, `qorm_set_state`.
@@ -48,11 +51,27 @@ tool list as [docs/agent/mcp-tools.md](../../docs/agent/mcp-tools.md)
 - **Verify**: `qorm_measure`, `qorm_check_layout`, `qorm_assert`,
   `qorm_validate`.
 - **No side effects**: `qorm_simulate_action`.
+- **Canvas Specifics**: To trigger visual effects (`fx` or `timeline`) over MCP, use `qorm_set_state` to increment the state bound to `fxToken` or `timelineToken`. To apply or test visual effects (`filter`, `maskFade`), use `qorm_preview_patch` to inject the style changes. Always verify Canvas specific UI with `qorm_capture_canvas`.
 
 ## Always self-verify
 
 After an edit, prove it against the rendered reality rather than assuming:
-- `qorm_measure` / `qorm_check_layout` (or the CLI `qorm measure` / `qorm check <app> --audit`) render the app and report real geometry + unknown-widget issues.
+- In a live `qorm run` session, use `qorm_inspect` for app/state/diagnostics,
+  then `qorm_measure` and `qorm_check_layout` over its HTTP `/mcp`. The macOS
+  canvas window supplies its retained render graph; browser/WebView hosts
+  supply their DOM report.
+- For native pixel evidence, call `qorm_capture_canvas`. It reads the last frame
+  actually presented by the live Canvas host. Optional `id` returns the full
+  surface PNG plus a physical-pixel `clip` (not an isolated subtree); absence of
+  a Canvas host/frame or an invisible/missing node is an error. For deterministic
+  offline pixels use `qorm shot <app> -o out.png` (headless pure Canvas).
+- A standalone stdio `qorm mcp <app>` has no rendering host, so live measure /
+  layout check is unavailable there. Use CLI `qorm measure <app>` /
+  `qorm check <app> --audit` for deterministic, headless canvas verification.
+- Default CLI `measure` / `check` is pure-Go canvas. Canvas `{"steps":[…]}`
+  flows can dispatch/set state, press, type, send keys, scroll, and advance
+  waits deterministically. Build with `-tags desktop` only when you need
+  WebView/DOM parity (that flow keeps its dispatch/setState subset).
 - `qorm_assert` checks state/text/node facts.
 
 ## Ship it
@@ -73,13 +92,24 @@ Before starting work on a QORM app, check for and apply framework updates:
 
 macOS **default** `qorm run` (no `-tags desktop`) is the pure-Go software
 canvas window. `-tags desktop` is the **native WebView** (HTML), not canvas.
-Games WASM uses `-tags qorm_canvas`. Same JSON scene, same state/actions:
+Games WASM uses `-tags qorm_canvas`. Both backends consume the same JSON,
+state, actions, QSS cascade, and widget model, but canvas layout/paint and HTML
+DOM/CSS are independent implementations — verify the backend you will ship:
 
-- **Layout**: identical to the HTML path (same measure/layout pipeline).
+- **Layout**: canvas uses its retained graph (`measure → layout → record →
+  raster`); HTML uses DOM/CSS. `qorm measure` selects canvas by default and
+  WebView when built with `-tags desktop`.
+  Inline/QSS `width: "fill"` / `height: "fill"` fills the containing content
+  box on canvas (minus child margins); HTML emits `100%`. Numeric sizes are
+  pixels.
 - **Interaction**: full keyboard navigation (Tab/Shift-Tab, Enter/Space, Escape,
   modifier keys), scroll viewports with momentum inertia, text editing with
   selection/clipboard/undo, animated pressed/hover transitions, disabled visual
   dimming.
+- **Shared activity**: actions dispatched through native canvas pointer or
+  keyboard input are attributed to `human` in the same DevTool and
+  `qorm_activity` event stream as browser/WebView actions. Canvas also reports
+  privacy-safe focus/typing/filled presence; password values are never sent.
 - **Widgets**: all 80+ widgets work, including overlay panels (drawer, menu,
   modal, snackbar, tooltip) and interactive controls (switch, slider, checkbox,
   select, textarea, draggable).
@@ -94,11 +124,15 @@ These style keys work on ANY node — no per-widget logic needed:
 |---|---|
 | `pressedScale` / `hoverScale` | Scale transform on press/hover |
 | `pressedBackground` / `hoverBackground` | Color swap on press/hover |
+| `hoverColor` / `focusBorderColor` | Hover text color / canvas focus-ring color (QSS cascade applies) |
 | `pressedOpacity` / `hoverOpacity` | Opacity change on press/hover |
 | `transition` | Duration (`"0.2s"`, `"200ms"`, `"0.3s spring"`) — interaction, x/y, FLIP |
 | `transitionEasing` | `"spring"` (underdamped) or named ease |
 | `layoutMotion` | FLIP ease of absolute position/size (needs stable `id` + `transition`) |
-| `filter` / `blur` / `filterBlur` | CSS filter stack (incl. `invert()` / `sepia()`) / group blur |
+| `aspectRatio` | Width/height; with exactly one explicit positive axis Canvas derives the other |
+| `position: absolute` + `left`/`top`/`right`/`bottom` | Out-of-flow placement; `x`/`y` alias left/top, and leading anchors win on the same axis |
+| `cursor` | QSS/inline native mapping: pointer, text, not-allowed, default (plus hand/ibeam/forbidden/arrow aliases) |
+| `filter` / `blur` / `filterBlur` | CSS filter stack (incl. `invert()` / `sepia()` / `hue-rotate()`) / group blur |
 | `tint` | RGB modulate (Godot modulate / Phaser tint) |
 | `imageRendering` | `pixelated` = nearest-neighbour (pixel art) |
 | `rotate` / `scale` / `scaleX` / `scaleY` / `flipX` / `flipY` / `skewX` / `skewY` | Persistent transform (skew in degrees; graph shear); layout box unchanged |
@@ -110,8 +144,9 @@ These style keys work on ANY node — no per-widget logic needed:
 | `layerCache` | Reuse offscreen layer when content fingerprint unchanged |
 | `scrollSnapType` / `scrollSnapAlign` | Scroll-snap on viewports / children |
 | `textStroke*` / `textShadow*` | Glyph outline and drop shadow |
-| `boxShadow*` / `outline*` | Box shadow (incl. inset) and outer outline |
-| `disabled` | Blocks pointer, dims to 50% opacity, shows not-allowed cursor |
+| `boxShadow*` / `outline*` / `stroke*` | Box shadow (incl. inset) and outer outline. `stroke*` supports `strokeDasharray` and `strokeDashoffset` |
+| `disabled` / `disabledOpacity` | Blocks pointer/keyboard activation, dims (default 50%), shows not-allowed cursor |
+| `aria-label` | Accessibility label read by screen readers (critical for A11y instrumentation) |
 | `fx` + `fxToken` | Game feedback (shake/punch/flash/hit/float/wobble/knockback/burst); bump token from qs |
 | `timeline` + `timelineToken` | Sequence: Append, Join, path/cubic, yoyo/loop |
 | `timelineOnComplete` / `onComplete` | Action when finite timeline finishes |
@@ -178,7 +213,8 @@ board**, with absolute `x`/`y`. HUD lives **outside** the board (stack overlay).
   `state.filterOn = !state.filterOn` + `.filterCard { filter: {{ state.filterOn ? "…" : "none" }} }`.
 - **Theme variables**: `var(--accent)`, `var(--label)`, etc. follow OS
   light/dark.
-- **~90 supported style keys** (`render.KnownStyleKeys`): box model, text
+- **Backgrounds**: supports solid colors, `linear-gradient(...)`, `radial-gradient(...)`, and `conic-gradient(...)`.
+- **~100 supported style keys** (`render.KnownStyleKeys`): box model, text
   (decoration/transform/clamp/stroke/shadow), chrome/shadow/outline, filter/
   mask/clip, scroll-snap, layout motion, interaction, backdrop — see
   [api/props.md](../../api/props.md) common style props.

@@ -157,3 +157,21 @@ func TestCloneHasNoHostHooks(t *testing.T) {
 		t.Errorf("a simulated dispatch must not publish frames to the live host: got %d", live)
 	}
 }
+
+func TestDispatchObserverTopLevelOnlyAndNotCloned(t *testing.T) {
+	app := renderApp()
+	app.Actions = map[string]*model.Action{
+		"outer": {ID: "outer", Steps: []model.Step{{Type: "invoke", Name: "inner"}}},
+		"inner": {ID: "inner"},
+	}
+	rt := New(app)
+	var got []string
+	rt.DispatchObserver = func(name string) { got = append(got, name) }
+	rt.Dispatch("outer", nil)
+	if len(got) != 1 || got[0] != "outer" {
+		t.Fatalf("DispatchObserver = %v, want the top-level action only", got)
+	}
+	if c := rt.Clone(); c.DispatchObserver != nil {
+		t.Fatal("Clone must not carry the host dispatch observer into a simulation")
+	}
+}

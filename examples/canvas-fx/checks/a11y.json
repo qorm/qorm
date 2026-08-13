@@ -1,0 +1,24 @@
+[
+  {
+    "id": "title",
+    "role": "text",
+    "hasAriaLabel": false,
+    "contrastRatio": 7
+  },
+  {
+    "id": "conic_disc",
+    "role": "img",
+    "hasAriaLabel": true
+  },
+  {
+    "id": "pixel_img",
+    "role": "img",
+    "hasAriaLabel": false
+  },
+  {
+    "id": "btn_flash",
+    "role": "button",
+    "hasAriaLabel": false,
+    "contrastRatio": 7
+  }
+]

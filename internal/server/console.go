@@ -212,6 +212,8 @@ const logWindowHTML = `<!doctype html>
   .node-type{color:#ffd60a;font-weight:bold;}
   .node-id{color:#30d158;font-size:11.5px;}
   .node-text{color:#7d8493;font-style:italic;}
+  .canvas-perf{display:none;margin:-4px 0 10px;padding:7px 9px;border:1px solid #263242;border-radius:6px;
+    background:#101722;color:#8fbce6;font:11.5px ui-monospace,monospace;}
   #panel-tree.active { display: flex; flex-direction: column; }
 
   /* Ctrl panel (Sticky at bottom) */
@@ -252,6 +254,7 @@ const logWindowHTML = `<!doctype html>
     <!-- Tree Panel -->
     <div class="tab-panel" id="panel-tree">
       <div class="tree-title" data-i18n="treeTitle">Rendered Component Architecture</div>
+      <div class="canvas-perf" id="canvas-perf"></div>
       <div id="tree-root" style="flex:1;overflow-y:auto;margin-bottom:12px;">Loading...</div>
       <div id="node-properties" style="height:180px;border-top:1px solid #22252d;padding-top:10px;font-size:12px;display:flex;flex-direction:column;overflow:hidden;">
         <div style="color:#7d8493;font-style:italic;" data-i18n="treeHint">Click a component node to inspect its properties.</div>
@@ -387,6 +390,15 @@ const logWindowHTML = `<!doctype html>
   // Tree Inspector Functions
   function loadTree() {
     var root = document.getElementById('tree-root');
+    var perf = document.getElementById('canvas-perf');
+    fetch('/dev/canvas').then(r => r.json()).then(function(d) {
+      if (!d || d.host !== 'canvas') { perf.style.display = 'none'; return; }
+      function ms(v){ return Number(v || 0).toFixed(2) + 'ms'; }
+      perf.textContent = 'Canvas frame  total ' + ms(d.totalMs) + '  layout ' + ms(d.layoutMs) +
+        '  raster ' + ms(d.renderMs) + '  present ' + ms(d.presentMs) +
+        '  viewport ' + (d.width || 0) + 'x' + (d.height || 0) + '@' + (d.scale || 1);
+      perf.style.display = 'block';
+    }).catch(function(){ perf.style.display = 'none'; });
     fetch('/dev/tree').then(r => r.json()).then(data => {
       root.innerHTML = '';
       root.appendChild(renderNode(data));
@@ -559,6 +571,9 @@ func (s *Server) serveDevHighlight(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	if s.OnInspectNode != nil {
+		s.OnInspectNode(req.ID)
+	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -581,4 +596,16 @@ func (s *Server) serveDevHighlight(w http.ResponseWriter, r *http.Request) {
 	s.subsMu.Unlock()
 
 	w.WriteHeader(http.StatusOK)
+}
+
+// serveDevCanvas exposes a small read-only native-frame snapshot for the
+// DevTool. Browser/WebView sessions return an empty object so the same console
+// UI works for both render hosts.
+func (s *Server) serveDevCanvas(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if s.CanvasDiagnostics == nil {
+		_ = json.NewEncoder(w).Encode(map[string]any{})
+		return
+	}
+	_ = json.NewEncoder(w).Encode(s.CanvasDiagnostics())
 }

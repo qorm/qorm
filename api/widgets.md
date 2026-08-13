@@ -151,3 +151,45 @@ Each widget lists its **canonical name** first; the rest are equivalent aliases.
 | `when` | — | `when` |
 | `wifi` | — | `hwList` |
 | `wrap` | — | `wrap` |
+
+## RichText Widget
+
+The `richtext` widget allows displaying mixed-style text within a single paragraph. It takes a `spans` array, where each span is an object containing `text` and `style`.
+
+```json
+{
+  "type": "richtext",
+  "spans": [
+    { "text": "Hello ", "style": { "color": "red" } },
+    { "text": "World", "style": { "fontWeight": "bold" } }
+  ]
+}
+```
+
+## Video Widget
+
+The `video` widget allows displaying video content. You can configure properties such as `src`, `loop`, `autoplay`, and `muted`.
+
+```json
+{
+  "type": "video",
+  "src": "https://www.w3schools.com/html/mov_bbb.mp4",
+  "loop": true,
+  "autoplay": true,
+  "muted": true
+}
+```
+
+## Accessibility (A11y)
+
+Canvas nodes support accessibility labels via the `aria-label` property. These are critical for making apps usable with screen readers. You can apply an `aria-label` to any interactive node or structural container to provide a descriptive label.
+
+```json
+{
+  "type": "button",
+  "aria-label": "Play the game",
+  "children": [
+    { "type": "icon", "props": { "icon": "play" } }
+  ]
+}
+```

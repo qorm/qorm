@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"errors"
+	"image/png"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -274,13 +275,23 @@ func TestCLIDispatch(t *testing.T) {
 		}
 	})
 
-	t.Run("shot refuses without the desktop tag", func(t *testing.T) {
-		_, errOut, code := runQORM(t, bin, nil, "shot", counter)
-		if code != 2 {
-			t.Fatalf("shot: exit = %d, want 2", code)
+	t.Run("shot renders pure canvas PNG", func(t *testing.T) {
+		shotPath := filepath.Join(work, "counter.png")
+		out, errOut, code := runQORM(t, bin, nil, "shot", counter, "-o", shotPath, "--width", "320", "--height", "480")
+		if code != 0 {
+			t.Fatalf("shot: exit = %d, stderr %q", code, errOut)
 		}
-		if !strings.Contains(errOut, "desktop") {
-			t.Errorf("shot stderr = %q, should mention the desktop tag", errOut)
+		f, err := os.Open(shotPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cfg, err := png.DecodeConfig(f)
+		_ = f.Close()
+		if err != nil || cfg.Width != 320 || cfg.Height != 480 {
+			t.Fatalf("shot PNG = %dx%d, %v; want 320x480", cfg.Width, cfg.Height, err)
+		}
+		if !strings.Contains(out, "pure Canvas") {
+			t.Errorf("shot stdout = %q, should identify the renderer", out)
 		}
 	})
 

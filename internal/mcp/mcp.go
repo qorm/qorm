@@ -11,9 +11,12 @@ package mcp
 
 import (
 	"bufio"
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image/png"
 	"io"
 	"sync"
 
@@ -46,17 +49,45 @@ type Server struct {
 	preview *previewState
 	history []*model.App // pre-images before each apply_patch, for undo
 
-	mu           *sync.Mutex   // guards rt during shared sessions
-	readOnly     bool          // reject mutating tools (qorm run --mcp-read-only)
-	afterMutate  func()        // called after a mutating tool (for live-sync)
-	bumped       bool          // current tool call already published (currentHTML drained a hook) — handleToolCall must not bump twice
-	measureProv  func() []byte // latest self-reported layout, if a live client is measuring
-	activityProv func() string // shared-session activity log JSON (who did what), if wired
-	windowMover  func(id string, x, y, w, h int)
-	windowOp     func(id, op string)
-	windowOpen   func(id, url string, w, h int)
-	windowEval   func(id, js string)
+	mu            *sync.Mutex   // guards rt during shared sessions
+	readOnly      bool          // reject mutating tools (qorm run --mcp-read-only)
+	afterMutate   func()        // called after a mutating tool (for live-sync)
+	bumped        bool          // current tool call already published (currentHTML drained a hook) — handleToolCall must not bump twice
+	measureProv   func() []byte // latest self-reported layout, if a live client is measuring
+	activityProv  func() string // shared-session activity log JSON (who did what), if wired
+	canvasCapture CanvasCaptureProvider
+	windowMover   func(id string, x, y, w, h int)
+	windowOp      func(id, op string)
+	windowOpen    func(id, url string, w, h int)
+	windowEval    func(id, js string)
 }
+
+const (
+	MaxCanvasCaptureDimension = 4096
+	MaxCanvasCapturePixels    = 16 * 1024 * 1024
+	MaxCanvasCapturePNGBytes  = 16 * 1024 * 1024
+)
+
+// CanvasCapture is the last presented native-canvas pixel plane. When a node
+// id was requested, Clip identifies that node inside the full-surface PNG; the
+// provider never implies that it isolated or re-rendered the subtree.
+type CanvasCapture struct {
+	PNG    []byte
+	Width  int
+	Height int
+	Scale  int
+	Clip   *CanvasCaptureRect
+}
+
+type CanvasCaptureRect struct {
+	X                int  `json:"x"`
+	Y                int  `json:"y"`
+	W                int  `json:"w"`
+	H                int  `json:"h"`
+	ClippedToSurface bool `json:"clippedToSurface,omitempty"`
+}
+
+type CanvasCaptureProvider func(id string) (CanvasCapture, error)
 
 const maxHistory = 50
 
@@ -89,6 +120,53 @@ func (s *Server) SetReadOnly(v bool) { s.readOnly = v }
 // SetMeasureProvider supplies the latest layout self-measurement (from a live
 // browser/WebView client), enabling the qorm_measure/qorm_check_layout tools.
 func (s *Server) SetMeasureProvider(f func() []byte) { s.measureProv = f }
+
+// SetCanvasCaptureProvider exposes the last frame actually presented by a
+// live native canvas host. Stdio and browser/WebView sessions leave it nil.
+func (s *Server) SetCanvasCaptureProvider(f CanvasCaptureProvider) { s.canvasCapture = f }
+
+func validateCanvasCapture(c CanvasCapture, needsClip bool) error {
+	if c.Width < 1 || c.Height < 1 || c.Width > MaxCanvasCaptureDimension || c.Height > MaxCanvasCaptureDimension || int64(c.Width)*int64(c.Height) > MaxCanvasCapturePixels {
+		return fmt.Errorf("canvas capture dimensions %dx%d exceed safety limits", c.Width, c.Height)
+	}
+	if c.Scale < 1 || c.Scale > 8 {
+		return fmt.Errorf("canvas capture scale %d is invalid", c.Scale)
+	}
+	if len(c.PNG) == 0 || len(c.PNG) > MaxCanvasCapturePNGBytes {
+		return fmt.Errorf("canvas capture PNG is empty or exceeds %d bytes", MaxCanvasCapturePNGBytes)
+	}
+	cfg, err := png.DecodeConfig(bytes.NewReader(c.PNG))
+	if err != nil || cfg.Width != c.Width || cfg.Height != c.Height {
+		return fmt.Errorf("canvas capture provider returned invalid PNG metadata")
+	}
+	if needsClip && c.Clip == nil {
+		return fmt.Errorf("canvas capture provider omitted requested node clip metadata")
+	}
+	if c.Clip != nil && (c.Clip.W < 1 || c.Clip.H < 1 || c.Clip.X < 0 || c.Clip.Y < 0 || c.Clip.X+c.Clip.W > c.Width || c.Clip.Y+c.Clip.H > c.Height) {
+		return fmt.Errorf("canvas capture provider returned an out-of-bounds node clip")
+	}
+	return nil
+}
+
+func canvasCaptureJSON(c CanvasCapture, id string) (string, error) {
+	if err := validateCanvasCapture(c, id != ""); err != nil {
+		return "", err
+	}
+	out := map[string]any{
+		"mimeType": "image/png", "encoding": "base64",
+		"pngBase64": base64.StdEncoding.EncodeToString(c.PNG),
+		"scope":     "full-surface", "source": "last-presented-canvas-frame",
+		"width": c.Width, "height": c.Height, "scale": c.Scale,
+		"logicalWidth": c.Width / c.Scale, "logicalHeight": c.Height / c.Scale,
+	}
+	if id != "" {
+		out["nodeId"] = id
+		out["clip"] = c.Clip
+		out["clipUnits"] = "physical-px"
+	}
+	b, err := json.MarshalIndent(out, "", "  ")
+	return string(b), err
+}
 
 // SetActivityProvider supplies the shared-session activity log (who did what),
 // enabling the qorm_activity tool so an agent can see the human's live actions.

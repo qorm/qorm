@@ -95,6 +95,37 @@ func childIDs(ln *LayoutNode) []string {
 	return ids
 }
 
+// fill is CSS 100%, not an intrinsic-size hint. It must resolve against the
+// containing content box on either flex axis, including when align is not the
+// default stretch (the canvas-fx snap pages exposed 237/88/87px widths before
+// this was fixed).
+func TestFillResolvesAgainstContainingFlexBox(t *testing.T) {
+	t.Run("column child widths", func(t *testing.T) {
+		root := &model.Node{Type: "column", ID: "root", Layout: map[string]any{"align": "center"}, Children: []*model.Node{
+			{Type: "box", ID: "a", Text: "a long intrinsic label", Style: map[string]any{"width": "fill", "height": 20.0}},
+			{Type: "box", ID: "b", Text: "b", Style: map[string]any{"width": "fill", "height": 20.0}},
+		}}
+		g := layoutScene(root, testRuntime(nil), image.Pt(300, 100))
+		for _, id := range []string{"a", "b"} {
+			if got := walkModel(g, id).Base().Width; got != 300 {
+				t.Errorf("%s width = %v, want containing width 300", id, got)
+			}
+		}
+	})
+	t.Run("row child heights", func(t *testing.T) {
+		root := &model.Node{Type: "row", ID: "root", Layout: map[string]any{"align": "center"}, Style: map[string]any{"height": 90.0}, Children: []*model.Node{
+			{Type: "box", ID: "a", Style: map[string]any{"width": 20.0, "height": "fill"}},
+			{Type: "box", ID: "b", Style: map[string]any{"width": 20.0, "height": "fill"}},
+		}}
+		g := layoutScene(root, testRuntime(nil), image.Pt(200, 90))
+		for _, id := range []string{"a", "b"} {
+			if got := walkModel(g, id).Base().Height; got != 90 {
+				t.Errorf("%s height = %v, want containing height 90", id, got)
+			}
+		}
+	})
+}
+
 // The canvas measure pass must honour the HTML conditional-rendering
 // semantics (render.go:782 visible): `if`/`visible`/`show` hide the whole
 // subtree, first key wins, same truthiness; flipping the state re-measures.
@@ -321,6 +352,40 @@ func TestAbsolutePositionXY(t *testing.T) {
 	gc := walkModel(g2, "c")
 	if gc == nil || gc.Base().X != 5 || gc.Base().Y != 6 {
 		t.Errorf("left/top alias: c at (%v,%v), want (5,6)", gc.Base().X, gc.Base().Y)
+	}
+}
+
+func TestAbsolutePositionRightBottomAndAspectRatio(t *testing.T) {
+	anchored := &model.Node{Type: "box", ID: "anchored", Style: map[string]any{
+		"position": "absolute", "right": 5.0, "bottom": 6.0,
+		"width": 30.0, "height": 20.0,
+	}}
+	ratioW := &model.Node{Type: "box", ID: "ratio-w", Style: map[string]any{
+		"width": 120.0, "aspectRatio": 1.5,
+	}}
+	ratioH := &model.Node{Type: "box", ID: "ratio-h", Style: map[string]any{
+		"height": 90.0, "aspectRatio": 2.0,
+	}}
+	root := &model.Node{Type: "column", ID: "root",
+		Style:    map[string]any{"width": 200.0, "height": 200.0},
+		Children: []*model.Node{anchored, ratioW, ratioH}}
+	g := layoutScene(root, testRuntime(nil), image.Pt(200, 200))
+	ga := walkModel(g, "anchored")
+	if ga == nil {
+		t.Fatal("right/bottom anchored child did not render")
+	}
+	if ga.Base().X != 165 || ga.Base().Y != 174 {
+		t.Fatalf("right/bottom anchor at (%v,%v), want (165,174)", ga.Base().X, ga.Base().Y)
+	}
+	gw, gh := walkModel(g, "ratio-w"), walkModel(g, "ratio-h")
+	if gw == nil || gh == nil {
+		t.Fatal("aspect-ratio children did not render")
+	}
+	if gw.Base().Width != 120 || gw.Base().Height != 80 {
+		t.Fatalf("width-driven ratio box = %vx%v, want 120x80", gw.Base().Width, gw.Base().Height)
+	}
+	if gh == nil || gh.Base().Width != 180 || gh.Base().Height != 90 {
+		t.Fatalf("height-driven ratio box = %vx%v, want 180x90", gh.Base().Width, gh.Base().Height)
 	}
 }
 

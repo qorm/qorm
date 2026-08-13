@@ -1,0 +1,10 @@
+{
+  "type": "action",
+  "id": "hero_start",
+  "steps": [
+    { "type": "state.set", "path": "heroSx", "value": "{{ x }}" },
+    { "type": "state.set", "path": "heroSy", "value": "{{ y }}" },
+    { "type": "state.set", "path": "heroOx", "value": "{{ state.hero.x }}" },
+    { "type": "state.set", "path": "heroOy", "value": "{{ state.hero.y }}" }
+  ]
+}

@@ -13,7 +13,11 @@ package canvas
 // is CSS-greedy: words on spaces; an over-long word — and CJK text, which
 // has no spaces — hard-breaks between runes.
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/qorm/qorm/internal/render/graph"
+)
 
 // ellipsizeText truncates text to fit availW, appending "…" when needed.
 // Returns the original string when it already fits or availW is unbounded.
@@ -155,6 +159,81 @@ func wrapTree(ln *LayoutNode, availW int) {
 				// folded line count (measure had it at one line).
 				c.Width = cAvail
 				c.Height = len(lines) * textLineHM(fs, c.Style.LineHeight)
+			}
+		} else if c.Node.Type == "richtext" && !isRow && !isGrid && c.Style.Width <= 0 && c.Style.WidthRaw != "fill" {
+			var newSpans []graph.Span
+			var currentLine []graph.Span
+			var curW float64
+			var maxH int
+			var curY float64
+
+			flushLine := func() {
+				if len(currentLine) == 0 {
+					return
+				}
+				for _, sp := range currentLine {
+					h := textLineHM(int(sp.FontSize), c.Style.LineHeight)
+					sp.Y = curY + float64(maxH-h)
+					newSpans = append(newSpans, sp)
+				}
+				curY += float64(maxH)
+				currentLine = nil
+				curW = 0
+				maxH = 0
+			}
+
+			pushSpanPart := func(sp graph.Span, content string) {
+				if content == "" {
+					return
+				}
+				w := MeasureTextTracking(content, sp.FontSize, sp.LetterSpacing)
+				sp.Content = content
+				sp.X = curW
+				h := textLineHM(int(sp.FontSize), c.Style.LineHeight)
+				if h > maxH {
+					maxH = h
+				}
+				currentLine = append(currentLine, sp)
+				curW += float64(w)
+			}
+
+			for _, span := range c.RichTextSpans {
+				words := splitWords(span.Content)
+				for _, word := range words {
+					ww := MeasureTextTracking(word, span.FontSize, span.LetterSpacing)
+					if curW+float64(ww) > float64(cAvail) && curW > 0 {
+						flushLine()
+						word = strings.TrimLeft(word, " ")
+						ww = MeasureTextTracking(word, span.FontSize, span.LetterSpacing)
+					}
+					if float64(ww) > float64(cAvail) {
+						var curWord strings.Builder
+						var wW float64
+						for _, r := range word {
+							rw := MeasureTextTracking(string(r), span.FontSize, span.LetterSpacing)
+							if curW+wW+float64(rw) > float64(cAvail) && (curW > 0 || wW > 0) {
+								pushSpanPart(span, curWord.String())
+								flushLine()
+								curWord.Reset()
+								wW = 0
+							}
+							curWord.WriteRune(r)
+							wW += float64(rw)
+						}
+						if curWord.Len() > 0 {
+							pushSpanPart(span, curWord.String())
+						}
+					} else {
+						pushSpanPart(span, word)
+					}
+				}
+			}
+			flushLine()
+
+			if len(newSpans) > 0 {
+				c.RichTextSpans = newSpans
+				c.Width = cAvail
+				c.Height = int(curY)
 			}
 		}
 		wrapTree(c, cAvail)

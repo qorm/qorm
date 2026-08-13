@@ -79,7 +79,7 @@ func flexJustify(s string) flexlayout.Justify {
 // "fill") pass as 0 — that is the value align-items:stretch stretches (CSS
 // only stretches auto cross sizes); explicit sizes pass through. spacer and
 // flexGrow become flex-grow; margins ride on both axes.
-func flexChildren(ln *LayoutNode, rt *runtime.Runtime) []flexlayout.Child {
+func flexChildren(ln *LayoutNode, rt *runtime.Runtime, innerW, innerH int) []flexlayout.Child {
 	row := ln.Node.Type == "row"
 	out := make([]flexlayout.Child, len(ln.Children))
 	for i, c := range ln.Children {
@@ -90,14 +90,35 @@ func flexChildren(ln *LayoutNode, rt *runtime.Runtime) []flexlayout.Child {
 			MarginL:   float64(c.Style.MarginLeft),
 			AlignSelf: flexAlignSelf(c.Style.AlignSelf),
 		}
+		// width/height:"fill" is the canvas spelling of CSS 100%: resolve it
+		// against the containing content box even when align-items is not
+		// stretch. Passing the intrinsic size here made identically styled QSS
+		// pages take their text widths (for example 237/88/87px in a vertical
+		// snap viewport) instead of one shared viewport width.
+		if c.Style.WidthRaw == "fill" {
+			ch.W = float64(innerW - c.Style.MarginLeft - c.Style.MarginRight)
+			if ch.W < 0 {
+				ch.W = 0
+			}
+		}
+		if c.Style.HeightRaw == "fill" {
+			ch.H = float64(innerH - c.Style.MarginTop - c.Style.MarginBot)
+			if ch.H < 0 {
+				ch.H = 0
+			}
+		}
 		if row {
-			ch.W = float64(c.Width)
-			if c.Style.Height != 0 || c.Style.HeightRaw == "fill" || !stretchable(ln, c) {
+			if c.Style.WidthRaw != "fill" {
+				ch.W = float64(c.Width)
+			}
+			if c.Style.HeightRaw != "fill" && (c.Style.Height != 0 || !stretchable(ln, c)) {
 				ch.H = float64(c.Height) // sized (explicit or non-stretch align): keep
 			}
 		} else {
-			ch.H = float64(c.Height)
-			if c.Style.Width != 0 || c.Style.WidthRaw == "fill" || !stretchable(ln, c) {
+			if c.Style.HeightRaw != "fill" {
+				ch.H = float64(c.Height)
+			}
+			if c.Style.WidthRaw != "fill" && (c.Style.Width != 0 || !stretchable(ln, c)) {
 				ch.W = float64(c.Width)
 			}
 		}

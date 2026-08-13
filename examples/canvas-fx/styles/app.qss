@@ -297,3 +297,50 @@
   mixBlendMode: plus-lighter
   padding: 10
 }
+
+# 29. Opacity pseudo-state and disabled interaction gate.
+.pseudoPanel {
+  width: fill
+  gap: 10
+  padding: 12
+  borderRadius: 14
+  background: #1a1f2b
+}
+
+.opacityProbe {
+  flexGrow: 1
+  padding: 12
+  borderRadius: 10
+  background: #0a84ff
+  color: #ffffff
+  fontWeight: 700
+  hoverOpacity: 0.72
+  pressedOpacity: 0.38
+  focusBorderColor: #64d2ff
+}
+
+.disabledProbe {
+  flexGrow: 1
+  padding: 12
+  borderRadius: 10
+  background: #30d158
+  color: #0a1a0a
+  fontWeight: 700
+  disabled: {{ state.demoDisabled }}
+  disabledOpacity: 0.28
+}
+
+# 30. New FX: radialGradient, hue-rotate, strokeDasharray
+.newFxCard {
+  width: 100%
+  height: 80
+  borderRadius: 16
+  background: radial-gradient(circle at 50% 50%, #ff375f, #5e5ce6)
+  padding: 16
+  filter: {{ state.newFxOn ? "hue-rotate(180deg) saturate(1.5)" : "none" }}
+  strokeColor: #30d158
+  strokeWidth: 4
+  strokeDasharray: "8 4"
+  strokeDashoffset: {{ state.newFxOn ? 48 : 0 }}
+  transition: 0.8s spring
+}

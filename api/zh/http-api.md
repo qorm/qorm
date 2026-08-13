@@ -24,6 +24,7 @@
 | `/dev/state` | GET / POST | DevTools 状态检查器：读取或修改运行中的应用状态 |
 | `/dev/tree` | GET | DevTools 组件树：读取当前场景的节点树 JSON |
 | `/dev/highlight` | POST | DevTools 高亮事件：向所有客户端广播节点高亮检查信号 |
+| `/dev/canvas` | GET | 原生 Canvas 诊断：读取最新帧耗时与物理视口 |
 
 ## `/events` 事件流
 

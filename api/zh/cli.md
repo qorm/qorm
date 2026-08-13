@@ -2,16 +2,16 @@
 
 > `qorm` 二进制的手工编写参考(实现于 `cmd/qorm/`)。与本站其他页面不同,本页不是生成的——CLI 变化时请同步更新本页。
 
-一个二进制即是完整工具链:脚手架、运行、渲染、度量、验证、签名、打包、发布,以及面向智能体的服务。默认纯 Go 构建(可交叉编译到各平台);`-tags desktop` 构建额外提供原生 WebView,`shot` / `measure` / `check` / `preview` 与 `run --app` 都依赖它。
+一个二进制即是完整工具链:脚手架、运行、渲染、度量、验证、签名、打包、发布,以及面向智能体的服务。默认纯 Go 构建(可交叉编译到各平台);`shot`、`measure` 和 `check` 默认使用无窗口软件 canvas。macOS `-tags desktop` 构建额外提供 WebKit 页面/URL/窗口捕获、`preview`、WebView 步骤流以及 HTML 路径度量。
 
 | 命令 | 作用 |
 |---|---|
 | [`new`](#new) | 生成可运行的应用脚手架 |
 | [`run`](#run) | 实时运行应用(浏览器与智能体共享同一运行时) |
 | [`render`](#render) | 输出静态 HTML 快照 |
-| [`shot`](#shot) | 把应用 / 页面 / 窗口栅格化为 PNG(macOS,`-tags desktop`) |
-| [`measure`](#measure) | 渲染并自我度量布局与样式(`-tags desktop`) |
-| [`check`](#check) | 对照期望验证渲染结果(`-tags desktop`) |
+| [`shot`](#shot) | 用纯 Canvas 渲染应用,或把 WebKit 页面/窗口捕获为 PNG |
+| [`measure`](#measure) | 渲染并自我度量 canvas 或 WebView 布局与样式 |
+| [`check`](#check) | 对照期望验证 canvas 或 WebView 渲染结果 |
 | [`build`](#build) | 编译(并可选签名)捆绑包 |
 | [`keygen`](#keygen) | 生成 ed25519 签名密钥对 |
 | [`sign`](#sign) | 为已有捆绑包签名 |
@@ -93,9 +93,13 @@ qorm shot --url URL -o out.png
 qorm shot --live "窗口标题" -o out.png
 ```
 
-经离屏 WebKit WebView 栅格化为 PNG。**仅 macOS + `-tags desktop`**——其他构建打印错误并以 `2` 退出。需要 GUI 会话,且终端需有"屏幕录制"权限(截图经由系统 `screencapture` 工具)。捕获前 CSS 动画被冻结在最终状态。
+应用目录捕获在默认构建即可使用:QORM 用无窗口纯 Go Canvas 渲染一个确定性帧,先让入场效果稳定,再编码实际的软件像素缓冲区;不依赖 WebView 或 GUI。默认尺寸为 `440x720`,默认输出为 `<目录>.png`。
 
-- 应用目录:先渲染再捕获(默认 `--width 440 --height 720`,默认输出 `<目录>.png`)。
+在默认 Canvas 路径中,输出参数就是精确文件路径(相对路径相对于当前工作目录),必须以 `.png` 结尾,且父目录必须已存在。已有普通文件会被替换;符号链接、目录和特殊文件会被拒绝。宽高必须为正,单边不超过 4096 px,总表面不超过 16,777,216 像素。
+
+**macOS + `-tags desktop`** 构建对应用目录/HTML/URL 改走 WebKit,并额外支持实时系统窗口。它们需要 GUI 会话;`--live` 还需要“屏幕录制”权限。WebKit 捕获前会把 CSS 动画冻结到最终状态。默认构建会明确拒绝 `--html`、`--url` 与 `--live`,不会悄悄用 Canvas 代替。
+
+- 应用目录:默认用纯 Canvas;macOS `-tags desktop` 构建用 WebKit(默认 `--width 440 --height 720`,默认输出 `<目录>.png`)。
 - `--html`:捕获静态 HTML 文件(默认输出 `<名称>.png`)。
 - `--url`:捕获实时 URL——适用于 `/console` 这类依赖服务端的页面(默认输出 `shot.png`)。
 - `--live`:按标题捕获一个已在运行的窗口(先精确匹配标题,再子串匹配),不启动新的 WebView(默认输出 `shot.png`)。
@@ -103,20 +107,22 @@ qorm shot --live "窗口标题" -o out.png
 ## measure
 
 ```
-qorm measure <app-dir> [--width N] [-o report.json]
+qorm measure <app-dir> [--width N] [--physical] [-o report.json]
 ```
 
-在原生 WebView 中渲染应用,让它自我度量,然后每个节点输出一行 JSON,把**意图**(类型 / 文本 / 绑定)与**渲染结果**(矩形 + 计算样式)对应起来——打到 stdout,或写入 `-o`。视口宽度默认 400(高度固定 820)。**需要 `-tags desktop` 构建**;其他构建以 `1` 退出。报告字段见[解读与验证 QORM 应用](/docs/zh/verification.html)。
+默认构建用无窗口纯 Go canvas 渲染应用一次,然后输出一份 JSON 报告,把每个节点的**意图**(类型 / 文本 / 绑定)与**渲染结果**(矩形 + 计算样式)对应起来——打到 stdout,或写入 `-o`。视口宽度默认 400;高度来自 manifest 窗口,否则默认 820。坐标默认用逻辑 CSS 像素;`--physical` 保留 canvas 设备像素。
+
+`-tags desktop` 构建改为在原生 WebView 中度量 HTML 路径。WebView 回报 CSS 像素,因此 `--physical` 仅为 CLI 兼容保留,没有效果。报告字段和后端边界见[解读与验证 QORM 应用](/docs/zh/verification.html)。
 
 ## check
 
 ```
-qorm check <app-dir> (--checks checks.json | --audit) [--width N] [-o report.json]
+qorm check <app-dir> (--checks checks.json | --audit) [--width N] [--physical] [-o report.json]
 ```
 
-像 [`measure`](#measure) 一样度量应用,再对照真实渲染评估期望。**需要 `-tags desktop` 构建。**
+像 [`measure`](#measure) 一样度量应用,再对照该后端的渲染评估期望。静态检查和 `--audit` 同时支持默认纯 Go canvas 与 `-tags desktop` WebView 路径。
 
-- `--checks checks.json`——可以是 `{ "id": …, <断言>… }` 静态检查数组(可见性、文本、几何、对比度、ARIA 等),也可以是 `{"steps":[…]}` 流程对象:每一步先执行 `do.dispatch "<动作>"` 或 `do.setState`,等待重渲染与重度量,再执行该步的检查——即交互测试。
+- `--checks checks.json`——可以是 `{ "id": …, <断言>… }` 静态检查数组(可见性、文本、几何、对比度、ARIA 等),也可以是 `{"steps":[…]}` 交互流程。默认 Canvas 支持 `dispatch`/`args`、`setState`(或 `state`)、`press`、`type`、`key`、`scroll` 以及不 sleep 的确定性 `wait`;详见[验证](/docs/zh/verification.html)。`-tags desktop` WebView 流程保留 `dispatch`/`setState` 子集。
 - `--audit`——无需手写检查:对每个**可见**组件验证通用不变量(尺寸非零、无水平溢出、在窗口内)。
 
 **退出状态:** 即使检查失败也是 `0`——通过与否在报告的 `ok` 字段中。只有运行时错误(检查 JSON 非法、加载失败)才非零。断言模式与报告格式见[验证](/docs/zh/verification.html)。
