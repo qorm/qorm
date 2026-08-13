@@ -1,6 +1,6 @@
 # 实施进度
 
-> 主控同步 · 更新：2026-08-13 **窗口建设完善轮 · 对抗复审 + CI 修复波**
+> 主控同步 · 更新：2026-08-13 **v0.9.2 发布（窗口建设完善轮收官）**
 
 ## 窗口建设完善轮（2026-08-13）
 
@@ -42,13 +42,13 @@ CI 变红触发排查，两个失败都是真实缺陷，按根因修复而非�
 | `ae6e98f` | genicons 生成器静默失败：写盘用仓库相对路径但 go:generate 在包目录执行，错误被吞 → 6 个马里奥图标（brick/coin/flag/goomba/ground/mario）从未进入 canvas 位图字体。加 `-o` flag + 写失败即报错；重新生成 47 → 53 字形，与 `widgets.IconSet()` 完全一致 |
 | `39a2995` | **SKILL/MCP/文档/API 完全同步**：skills.md 记载了 7 个从未存在的技能文件 → 重写为真实的单一 SKILL.md（含 4 条工作流）；图标数 66 → 53、组件数 80+ → 146、样式键 ~90 → 108（SKILL.md / claude-pack.md / AGENTS.md 三处）；doc.go 中文版补 qorm_validate 缺失译文、修复 qorm_query 半角病句、补齐 activity/capabilities 漏句；生成的 mcp-tools.md（en+zh）新增「工具分类」+「示例」两节，由 TestMCPDocInSync 永久守护。审计：四个面（mcp-tools en+zh、SKILL.md、integrations/README.md）均为 25/25 工具，零多余零遗漏 |
 
-遗留待决：v0.9.1 tag 的 release workflow 在修复前已失败，tag 不可移动 —— GitHub Release 的二进制产物需等下一个 tag（如 v0.9.2）或接受缺失。
+遗留已闭环：v0.9.1 tag 的 release workflow 在修复前失败、tag 不可移动 —— 由 **v0.9.2** 补齐（release 工作流绿，6 平台二进制 + SHA256SUMS 全部产出）。
 
 ## 当前状态
 
 | 项 | 状态 | 证据 |
 |----|------|------|
-| **v0.9.1 发布** | 🟢 | tag `v0.9.1` → `347e07a` · main push 对齐 · 官网 deploy（v0.9.1 戳记 + 首页 200） |
+| **v0.9.2 发布** | 🟢 | tag `v0.9.2` → `7f938bb` · main push 对齐 · release 工作流绿（6 平台二进制 + SHA256SUMS）· 官网 deploy（v0.9.2 戳记 + 首页 200） |
 | G0 基线修复 | 🟢 | `0fd604d` 删除 62df1ca 残留 11 文件；`go build ./...` 恢复 |
 | G1 测试基线 | 🟢 | path widget 全栈落地 · video 测试修正 · 文档生成器手写段保护 |
 | G2 安全残留 | 🟢 | 两 token LAN 门禁 · computed 动态 key 拒载 · WASM OTA 吊销 · bundle 版本提示 |
@@ -100,8 +100,8 @@ CI 变红触发排查，两个失败都是真实缺陷，按根因修复而非�
 
 | 项 | 状态 |
 |----|------|
-| 上一版 | **v0.9.0**（2026-08-13 早段 tag，canvas-ultimate） |
-| 本版 | **v0.9.1**（2026-08-13）：changelog 归档 `9b0e643` · version bump `347e07a` · annotated tag · main+tag push · 官网 deploy（wasm 同源重建防漂移 · 109 页 · sitemap 104） |
+| 上一版 | **v0.9.1**（2026-08-13）：qorm test MVP · path widget · LAN 双 token 门禁（**GitHub Release 无二进制产物**——release.yml 在 cross-compile 修复前失败，tag 不可移动） |
+| 本版 | **v0.9.2**（2026-08-13）：changelog 归档 `014d5fc` · version bump `7f938bb` · annotated tag · main+tag push · **release 工作流绿，6 平台二进制 + SHA256SUMS 补齐** · 官网 deploy（wasm 同源重建防漂移 · 109 页 · sitemap 104 · 首页 v0.9.2 戳记 200） |
 
 ## 链接
 
@@ -128,3 +128,4 @@ CI 变红触发排查，两个失败都是真实缺陷，按根因修复而非�
 | 2026-08-13 | 窗口建设完善轮：qorm.config.json `window` 块 + resizable/title 落地 + MCP inspect 可见 + SKILL/文档补齐 |
 | 2026-08-13 | 对抗复审 + CI 修复波：Windows chromeless×resizable/尺寸几何、macOS fixed 窗口状态恢复、两处编译错、config 0=fluid 覆盖 |
 | 2026-08-13 | CI build·vet·test 根因修复（audio sink 重生风暴护栏）+ README 去版本信息（en+zh） |
+| 2026-08-13 | **v0.9.2 发布**：changelog 归档 + bump + annotated tag + push；release 工作流绿（6 平台二进制补齐 v0.9.1 缺失）；官网 deploy 并验证首页 v0.9.2 |
