@@ -29,7 +29,13 @@ func TestRaidenPerf(t *testing.T) {
 	dur := time.Since(start)
 	msPerFrame := float64(dur) / float64(30) / 1e6
 	t.Logf("30 frames in %v = %.1f ms/frame (%.0f fps)", dur, msPerFrame, 30*float64(time.Second)/float64(dur))
-	if msPerFrame > 50 {
+	if raceEnabled {
+		// Race instrumentation slows the software rasterizer several-fold
+		// (observed ~2x on CI), so the production frame budget is meaningless
+		// under `go test -race`. The logic checks below still run — they are
+		// what the race pass is for.
+		t.Logf("race detector on: skipping the 50 ms/frame budget (measured %.1f ms/frame)", msPerFrame)
+	} else if msPerFrame > 50 {
 		t.Errorf("frame time %.1f ms exceeds 50ms limit (rendering too slow)", msPerFrame)
 	}
 	bullets, _ := rt.State["bullets"].([]any)
