@@ -1,12 +1,12 @@
 # 实施进度
 
-> 主控同步 · 更新：2026-08-13 **第三轮 · v0.9.0 后续修复波**
+> 主控同步 · 更新：2026-08-13 **v0.9.1 已发布**
 
 ## 当前状态
 
 | 项 | 状态 | 证据 |
 |----|------|------|
-| v0.9.0 发布 | 🟢 | CHANGELOG [v0.9.0] 段 + compare 链接（tag/推送待发布流程） |
+| **v0.9.1 发布** | 🟢 | tag `v0.9.1` → `347e07a` · main push 对齐 · 官网 deploy（v0.9.1 戳记 + 首页 200） |
 | G0 基线修复 | 🟢 | `0fd604d` 删除 62df1ca 残留 11 文件；`go build ./...` 恢复 |
 | G1 测试基线 | 🟢 | path widget 全栈落地 · video 测试修正 · 文档生成器手写段保护 |
 | G2 安全残留 | 🟢 | 两 token LAN 门禁 · computed 动态 key 拒载 · WASM OTA 吊销 · bundle 版本提示 |
@@ -58,8 +58,8 @@
 
 | 项 | 状态 |
 |----|------|
-| 上一版 | **v0.8.8**（2026-08-12 tag + 官网部署） |
-| 本版 | v0.9.0 已载入 CHANGELOG；tag/推送/部署**待用户**（本地分支规则） |
+| 上一版 | **v0.9.0**（2026-08-13 早段 tag，canvas-ultimate） |
+| 本版 | **v0.9.1**（2026-08-13）：changelog 归档 `9b0e643` · version bump `347e07a` · annotated tag · main+tag push · 官网 deploy（wasm 同源重建防漂移 · 109 页 · sitemap 104） |
 
 ## 链接
 
@@ -82,3 +82,4 @@
 | 2026-08-13 | 主控直修两轮 P1 + 链镜发现的 mount_scene 空转洞（`MarkPendingEnter`） |
 | 2026-08-13 | 对抗复审三轮：双镜 pass；残留债全部归档 audit-log |
 | 2026-08-13 | 全量门禁绿：build · test · race · wasm · coverage gate · `qorm test` 4/4 |
+| 2026-08-13 | **v0.9.1 发布**：changelog 归档 + version bump + annotated tag + push + 官网部署 |
