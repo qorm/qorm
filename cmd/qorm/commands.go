@@ -429,8 +429,16 @@ func splitCapabilityList(s string) []string {
 // the spec's minimal JSON report goes to stdout verbatim — nothing else — so
 // the output is machine-parseable (`qorm test app | jq .status`). Exit 0 iff
 // every test passed, 1 on any failure/error (and when the app cannot load or
-// has no tests: a run that tests nothing must not report green).
+// has no tests: a run that tests nothing must not report green). Flags are
+// not parsed in the MVP: a spec-suggested flag like --target/--report must be
+// named as an unsupported flag instead of being misread as a file path.
 func cmdTest(args []string) int {
+	for _, a := range args {
+		if strings.HasPrefix(a, "-") {
+			fmt.Fprintf(os.Stderr, "error: unsupported flag %q: the qorm test MVP takes only an app directory and test file paths (--target/--report are deferred)\n", a)
+			return 1
+		}
+	}
 	dir := ""
 	var files []string
 	for _, a := range args {

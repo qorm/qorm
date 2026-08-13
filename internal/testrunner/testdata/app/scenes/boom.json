@@ -1,0 +1,16 @@
+{
+  "type": "scene",
+  "id": "boom",
+  "onEnter": "boom",
+  "root": {
+    "type": "column",
+    "id": "root",
+    "children": [
+      {
+        "type": "text",
+        "id": "status_text",
+        "text": "{{state.status}}"
+      }
+    ]
+  }
+}

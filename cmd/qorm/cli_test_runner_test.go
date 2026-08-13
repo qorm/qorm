@@ -47,6 +47,26 @@ func TestCLITestRunner(t *testing.T) {
 	}
 }
 
+// TestCLITestRunnerUnsupportedFlag drives the flag-rejection path: the spec
+// suggests --target/--report, which the MVP does not implement, so any
+// argument starting with '-' must be named as an unsupported flag (error on
+// stderr, non-zero exit) instead of being misread as a file path.
+func TestCLITestRunnerUnsupportedFlag(t *testing.T) {
+	bin := buildQORMBinary(t)
+	for _, flag := range []string{"--target", "--report"} {
+		out, errOut, code := runQORM(t, bin, nil, "test", flag, "web")
+		if code == 0 {
+			t.Errorf("qorm test %s web: exit = 0, want non-zero (flags are unsupported in the qorm test MVP)", flag)
+		}
+		if !strings.Contains(errOut, "unsupported flag") || !strings.Contains(errOut, flag) {
+			t.Errorf("qorm test %s web: stderr = %q, want an unsupported-flag error naming %s", flag, errOut, flag)
+		}
+		if strings.TrimSpace(out) != "" {
+			t.Errorf("qorm test %s web: stdout = %q, want nothing (the error belongs on stderr)", flag, out)
+		}
+	}
+}
+
 // TestCLITestRunnerExplicitFile runs a single designated test document and
 // checks the runner honours the explicit-file spelling (`qorm test path.json`).
 func TestCLITestRunnerExplicitFile(t *testing.T) {

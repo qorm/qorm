@@ -42,11 +42,11 @@ func TestRunDiscoverAll(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
-	if report.Tests != 5 {
-		t.Fatalf("tests = %d, want 5", report.Tests)
+	if report.Tests != 6 {
+		t.Fatalf("tests = %d, want 6", report.Tests)
 	}
-	if report.Passed != 1 || report.Failed != 4 {
-		t.Fatalf("passed/failed = %d/%d, want 1/4 (fail.json, bad_selector.json, scene_missing.json, unknown_step.json)", report.Passed, report.Failed)
+	if report.Passed != 1 || report.Failed != 5 {
+		t.Fatalf("passed/failed = %d/%d, want 1/5 (fail.json, bad_selector.json, scene_missing.json, unknown_step.json, onenter_error.json)", report.Passed, report.Failed)
 	}
 	if report.Status != StatusFailed {
 		t.Fatalf("status = %q, want failed", report.Status)
@@ -57,8 +57,8 @@ func TestRunDiscoverAll(t *testing.T) {
 			errStatus++
 		}
 	}
-	if errStatus != 2 {
-		t.Errorf("error-statused tests = %d, want 2 (scene_missing + unknown_step)", errStatus)
+	if errStatus != 3 {
+		t.Errorf("error-statused tests = %d, want 3 (scene_missing + unknown_step + onenter_error)", errStatus)
 	}
 }
 
@@ -93,6 +93,36 @@ func TestRunFailingTestReportsFailures(t *testing.T) {
 	f2 := r.Failures[1]
 	if f2.Assert != "text_equals" || f2.Expected != "unexpected" || f2.Actual != "1" {
 		t.Errorf("failure 1 = %+v, want text_equals on number with actual \"1\"", f2)
+	}
+}
+
+func TestRunOnEnterScriptErrorFailsTest(t *testing.T) {
+	// The boom scene's onEnter fires a script action that raises a qscript
+	// runtime error. The error must not be swallowed: the test errors out and
+	// the run fails (exit-1 semantics), with the script failure named on the
+	// result — a scene whose enter hook crashes must never report green.
+	report, err := Run(fixture, []string{filepath.Join(fixture, "tests", "onenter_error.json")})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if report.Status != StatusFailed {
+		t.Fatalf("status = %q, want failed (an onEnter script error must fail the run)", report.Status)
+	}
+	if report.Tests != 1 || report.Passed != 0 || report.Failed != 1 {
+		t.Fatalf("tests/passed/failed = %d/%d/%d, want 1/0/1", report.Tests, report.Passed, report.Failed)
+	}
+	r := report.Results[0]
+	if r.ID != "fixture_onenter_error" {
+		t.Errorf("result id = %q, want fixture_onenter_error", r.ID)
+	}
+	if r.Status != StatusError {
+		t.Fatalf("test status = %q, want error (the enter hook crashed)", r.Status)
+	}
+	if len(r.Errors) != 1 || !strings.Contains(r.Errors[0], ErrRuntime) {
+		t.Fatalf("errors = %v, want one test_runtime_error", r.Errors)
+	}
+	if !strings.Contains(r.Errors[0], "noSuchFn") || !strings.Contains(r.Errors[0], "onEnter") {
+		t.Errorf("errors[0] = %q, want the onEnter script failure named (noSuchFn)", r.Errors[0])
 	}
 }
 

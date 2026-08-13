@@ -1,8 +1,10 @@
 // Package testrunner implements the headless `qorm test` runner (Phase 9 of
 // planning/spec/test-runner-spec.md, MVP). It loads a QORM app from a
 // directory, executes the app's declarative `type:"test"` JSON documents
-// (canonically in tests/*.json) against a fresh runtime each, and reports the
-// spec's minimal JSON report. Exit semantics are delegated to the CLI: exit 0
+// against a fresh runtime each, and reports the spec's minimal JSON report.
+// Discovery takes ANY document with type:"test" anywhere under the app
+// directory (the loader's walk, with its usual skip rules); the canonical
+// location is tests/*.json. Exit semantics are delegated to the CLI: exit 0
 // when every test passed, exit 1 when any test failed or errored.
 //
 // # Test document shape (MVP surface of the spec)
@@ -60,8 +62,9 @@
 // # Error codes
 //
 // Codes named in the spec: test_scene_not_found, test_assertion_failed,
-// query_invalid_selector, test_runtime_error. MVP additions (documented here;
-// the spec's code list is updated on its next revision):
+// query_invalid_selector, test_query_ambiguous, test_runtime_error. MVP
+// additions (documented here; the spec's code list is updated on its next
+// revision):
 //
 //	test_load_error        the app directory could not be loaded
 //	test_none_found        no test documents found under the app directory
@@ -69,8 +72,6 @@
 //	test_step_unknown      unknown step type
 //	test_assert_unknown    unknown assert type
 //	test_target_not_found  simulate_event target matched no node
-//	test_query_ambiguous   a selector matched more than one node where a
-//	                       single target is required (spec code, reused)
 //	test_event_unknown     simulate_event event name is not a supported event
 //	test_event_not_handled the target node declares no handler for the event
 //	test_action_not_found  simulate_event named an action the app lacks
@@ -80,7 +81,12 @@
 // advance_time / flush_async (delay and async http.* steps run synchronously
 // in the MVP — the runtime degrades every pending step to the sync path when
 // no Async sink is installed, so chains settle without a clock); apply_patch;
-// global_equals / diagnostic_contains / host_called / host_not_called; the
-// host-mock registry (a test document's "mocks" field is accepted, warned
-// about, and ignored — host capabilities execute UNMOCKED in the MVP).
+// global_equals / diagnostic_contains / host_called / host_not_called, plus
+// the per-failure diagnostics snapshot (each failure already names the
+// failed assertion, actual vs expected, and the target selector or path); the
+// host-mock registry and its spec error codes test_mock_missing /
+// test_host_call_unmocked / test_host_call_unmatched (a test document's
+// "mocks" field is accepted, warned about, and ignored — host capabilities
+// execute UNMOCKED in the MVP); the spec's --target / --report CLI flags (the
+// CLI rejects any "-"-prefixed argument as an unsupported flag).
 package testrunner
