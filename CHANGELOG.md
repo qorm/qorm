@@ -6,6 +6,8 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+## [v0.8.11] - 2026-08-12
+
 ### Changed
 - **Mario is NES 1-1 at 2x, not a generic platformer**: 32 px tiles with a
   24×32 (big 24×64) hitbox; walk/run/jump/gravity are 2x SMB numbers;
@@ -1255,6 +1257,7 @@ Initial release: QORM, an agent-native declarative-UI runtime in pure Go.
 - Render performance: cached parsed expressions and reflection-free CSS
   numeric writes in the hot path.
 
+[v0.8.11]: https://github.com/qorm/qorm/compare/v0.8.10...v0.8.11
 [v0.8.10]: https://github.com/qorm/qorm/compare/v0.8.9...v0.8.10
 [v0.8.9]: https://github.com/qorm/qorm/compare/v0.8.8...v0.8.9
 [v0.8.8]: https://github.com/qorm/qorm/compare/v0.5.4...v0.8.8
