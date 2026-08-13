@@ -1,6 +1,7 @@
 package canvas
 
-//go:generate go run ../../../tools/genicons/main.go
+// -o is package-dir-relative: go:generate runs with cwd = this directory.
+//go:generate go run ../../../tools/genicons/main.go -o icon_font_auto.go
 
 // icon font — hand-crafted bitmap glyphs for the built-in icon set.
 // These entries take precedence over auto-generated ones in icon_font_auto.go

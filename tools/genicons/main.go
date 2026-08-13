@@ -3,9 +3,11 @@
 // genicons rasterizes the SVG icon set into bitmap glyph entries and writes
 // canvas/icon_font_auto.go. Hand-crafted entries (icon_font_data.go) win
 // via registerIcon's dedup. Run: go generate ./internal/render/canvas/
+// (the directive passes -o icon_font_auto.go, relative to the package dir).
 package main
 
 import (
+	"flag"
 	"fmt"
 	"image/color"
 	"os"
@@ -15,6 +17,11 @@ import (
 )
 
 func main() {
+	// go:generate runs with the working directory set to the package dir
+	// (internal/render/canvas), so the directive passes -o icon_font_auto.go;
+	// running the tool from the repo root still hits the default path.
+	out := flag.String("o", "internal/render/canvas/icon_font_auto.go", "output file")
+	flag.Parse()
 	icons := widgets.IconSet()
 	names := make([]string, 0, len(icons))
 	for name := range icons {
@@ -81,6 +88,12 @@ func main() {
 		n++
 	}
 	buf = append(buf, "}\n"...)
-	os.WriteFile("internal/render/canvas/icon_font_auto.go", buf, 0o644)
-	fmt.Printf("genicons: wrote %d icons to icon_font_auto.go\n", n)
+	// Fail loud: a silent write error here once left the glyph file stale for
+	// weeks while every run printed success (go:generate runs in the package
+	// dir, so a bare repo-relative path misses and os.WriteFile errors).
+	if err := os.WriteFile(*out, buf, 0o644); err != nil {
+		fmt.Fprintln(os.Stderr, "genicons:", err)
+		os.Exit(1)
+	}
+	fmt.Printf("genicons: wrote %d icons to %s\n", n, *out)
 }
