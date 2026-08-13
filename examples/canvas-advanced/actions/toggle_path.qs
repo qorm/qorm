@@ -1,1 +1,1 @@
-state.pathMorphed = !state.pathMorphed;
+state.pathMorphed = !state.pathMorphed
