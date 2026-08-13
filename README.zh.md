@@ -310,8 +310,8 @@ Patreon 会员——**Indie 每月 $1**(个人)或 **Studio 每月 $7**(公司)�
 ## 路线图
 
 HTTPS OTA(`qorm run --tls`)、密钥吊销列表(`--revoked`)以及智能体 `apply_patch`
-工具均已落地。其余方向——一个托管的文档门户、一个沙箱化的 Playground,以及生态注册表——
-在 `docs/planning/` 中追踪。
+工具均已落地;文档门户与浏览器内 Playground 已上线。其余方向——生态注册表与
+Phase 8/10 的多语言 SDK / 高级运行时项——在 `planning/` 中追踪。
 
 ## 致谢
 

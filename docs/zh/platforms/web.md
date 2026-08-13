@@ -12,6 +12,8 @@ qorm package examples/dashboard -p web -o dashboard-web   # an installable, offl
 
 托管输出目录并「添加到主屏幕」。任何示例都可以打包为 web。参见[支持矩阵](../../platforms/support-matrix.md)。
 
+Raiden/Mario 级别的游戏需要 canvas 宿主（`qorm_canvas` / games 页）；默认的 `qorm package -p web` 是 HTML 形态，而非完整的 canvas 游戏保真。
+
 ## 这里的 `http.*` 步骤跑在后台
 
 打包后的应用把 QORM 运行时作为 WASM 携带,而 js/wasm 是单线程的:执行你 action 的

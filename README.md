@@ -343,9 +343,9 @@ again to renew).
 ## Roadmap
 
 HTTPS OTA (`qorm run --tls`), key-revocation lists (`--revoked`), and the
-agent `apply_patch` tool have all landed. Remaining direction — a hosted docs
-portal, a sandboxed Playground, and the ecosystem registry — is tracked in
-`planning/`.
+agent `apply_patch` tool have all landed; the docs portal and the in-browser
+Playground are live. Remaining direction — the ecosystem registry and the
+Phase 8/10 SDK / advanced-runtime items — is tracked in `planning/`.
 
 ## Acknowledgments
 

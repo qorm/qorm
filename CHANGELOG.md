@@ -6,6 +6,42 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+- **Green baseline restored**: the canvas-ultimate commit swept debug-session
+  artifacts into the repo root and `cmd/` — an empty `scratch.go`, duplicate
+  `package main` stubs, patch/script scratch, and two ungated cgo/ObjC
+  prototype tools (`qorm-video-stream`, `qorm-audio-extract`) — which made
+  `go build ./...` fail outright on main. All removed; the shipped video
+  widget keeps its own build-gated decoder.
+
+### Docs
+- Homepage and docs feature canvas-ultimate; site deployed.
+
+## [v0.9.0] - 2026-08-13
+
+### Added
+- **Video widget**: per-frame native AVFoundation decoding on macOS
+  (`video_decoder_darwin.go`), HTML5 `<video>` on the web host, poster
+  fallback elsewhere; `src` / `loop` / `autoplay` / `muted` props; demo asset
+  `assets/video.mp4`.
+- **Canvas-advanced showcase** (`examples/canvas-advanced`): board camera
+  follow + drag interactions, RichText mixed-style paragraph, timeline path
+  follow with `orient`/`cubic`, fx triggers.
+- **Canvas-native measure / shot flows**: `qorm measure` runs the canvas
+  layout pipeline without a WebView (`measure_flow_canvas.go`); `qorm shot`
+  gains a canvas path on non-darwin hosts.
+- **Live canvas capture**: console / MCP capture of the running canvas frame
+  (`internal/server/canvas_capture.go`, `cmd/qorm/live_canvas_capture.go`).
+- **canvaswebview demo app** for the `-tags canvaswebview` overlay path.
+
+### Changed
+- **Fixed conditional rendering**: `render` steps evaluate `when` conditions
+  against post-step state (runtime + render-step regression tests).
+- **Advanced text styling**: RichText spans with per-span color / weight /
+  size / shadow in the canvas graph renderer.
+- Docs refresh across styles / verification / desktop / collaboration /
+  MCP-tools (EN + ZH).
+
 ## [v0.8.11] - 2026-08-12
 
 ### Changed
@@ -1257,6 +1293,7 @@ Initial release: QORM, an agent-native declarative-UI runtime in pure Go.
 - Render performance: cached parsed expressions and reflection-free CSS
   numeric writes in the hot path.
 
+[v0.9.0]: https://github.com/qorm/qorm/compare/v0.8.11...v0.9.0
 [v0.8.11]: https://github.com/qorm/qorm/compare/v0.8.10...v0.8.11
 [v0.8.10]: https://github.com/qorm/qorm/compare/v0.8.9...v0.8.10
 [v0.8.9]: https://github.com/qorm/qorm/compare/v0.8.8...v0.8.9
