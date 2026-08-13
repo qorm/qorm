@@ -264,6 +264,95 @@ func TestParseSVGPathEmptyOrMalformed(t *testing.T) {
 	}
 }
 
+// TestParseSVGPathArc is the Defect-1(a) regression: the arc command must not
+// hang and must not desync the parser. Each arc consumes its 7 parameters and
+// advances the current point to the endpoint (last two params, relative for
+// 'a'); the arc itself is a straight chord — arc-to-bezier flattening is
+// deferred MVP scope.
+func TestParseSVGPathArc(t *testing.T) {
+	// Absolute arc: endpoint (100,100) after the moveto.
+	sub := parsePathToSubpaths("M 0 0 A 50 50 0 0 1 100 100")
+	if len(sub) != 1 {
+		t.Fatalf("expected 1 subpath, got %d", len(sub))
+	}
+	if len(sub[0]) != 2 {
+		t.Fatalf("expected moveto + arc endpoint, got %d points: %v", len(sub[0]), flattenPathString(sub[0]))
+	}
+	if end := sub[0][len(sub[0])-1]; end.X != 100 || end.Y != 100 {
+		t.Errorf("arc endpoint = (%g,%g), want (100,100)", end.X, end.Y)
+	}
+
+	// Relative arc: endpoint offsets from the current point.
+	sub2 := parsePathToSubpaths("M 10 10 a 5 5 0 0 1 20 30")
+	if len(sub2) != 1 {
+		t.Fatalf("expected 1 subpath for relative arc, got %d", len(sub2))
+	}
+	if end := sub2[0][len(sub2[0])-1]; end.X != 30 || end.Y != 40 {
+		t.Errorf("relative arc endpoint = (%g,%g), want (30,40)", end.X, end.Y)
+	}
+
+	// Implicit repeats: more coordinate groups draw further chords from the
+	// new current point (repeatable until the next command letter).
+	sub3 := parsePathToSubpaths("M 0 0 A 10 10 0 0 1 10 0 20 0 0 0 1 20 0")
+	if len(sub3) != 1 {
+		t.Fatalf("expected 1 subpath for repeated arc, got %d", len(sub3))
+	}
+	if len(sub3[0]) != 3 {
+		t.Fatalf("expected moveto + 2 arc endpoints, got %d points: %v", len(sub3[0]), flattenPathString(sub3[0]))
+	}
+	if end := sub3[0][2]; end.X != 20 || end.Y != 0 {
+		t.Errorf("repeated arc endpoint = (%g,%g), want (20,0)", end.X, end.Y)
+	}
+
+	// A command after an arc stays aligned with the arc's endpoint.
+	sub4 := parsePathToSubpaths("M 0 0 A 50 50 0 0 1 100 100 L 100 150")
+	if len(sub4) != 1 {
+		t.Fatalf("expected 1 subpath after arc+line, got %d", len(sub4))
+	}
+	if len(sub4[0]) != 3 {
+		t.Fatalf("expected moveto + arc endpoint + line point, got %d points: %v", len(sub4[0]), flattenPathString(sub4[0]))
+	}
+	if end := sub4[0][2]; end.X != 100 || end.Y != 150 {
+		t.Errorf("post-arc line endpoint = (%g,%g), want (100,150)", end.X, end.Y)
+	}
+}
+
+// TestParseSVGPathToxicInputsTerminate is the Defect-1 DoS regression: every
+// adversarial input below used to hang parsePathToSubpaths (an infinite loop
+// at the engine's DrawFrame level froze the canvas host). Termination is by
+// construction — the test completing is the assertion — plus every emitted
+// point must be finite (the overflowed "1e309" coordinate must be consumed,
+// never materialized as ±Inf geometry).
+func TestParseSVGPathToxicInputsTerminate(t *testing.T) {
+	cases := []struct {
+		name string
+		d    string
+	}{
+		{"arc command", "M 0 0 A 50 50 0 0 1 100 100"},
+		{"bare numbers after Z", "M 0 0 L 5 5 Z 10 10"},
+		{"overflowing float", "M 0 0 L 1e309 0"},
+		{"overflowing negative float", "M 0 0 L -1e309 -1e309"},
+		{"unknown command letters", "M 0 0 R 5 5 J 3 3 L 4 4"},
+		{"garbage tokens", "M 0 0 ??? zzz L 1 2"},
+		{"truncated arc", "M 0 0 A 1 2 3"},
+		{"fraction junk", "M 0 0 L 5.5.5 3"},
+		{"numbers before start", "5 5 M 1 1"},
+		{"sane path parses too", "M 0 0 L 10 0 L 10 10 Z"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			sub := parsePathToSubpaths(tc.d)
+			for _, pts := range sub {
+				for _, p := range pts {
+					if math.IsNaN(p.X) || math.IsInf(p.X, 0) || math.IsNaN(p.Y) || math.IsInf(p.Y, 0) {
+						t.Errorf("non-finite point (%g,%g) in %v", p.X, p.Y, flattenPathString(pts))
+					}
+				}
+			}
+		})
+	}
+}
+
 // TestPathOpsColors guards the coloured op path the path widget rasterizes:
 // fill segments are painted with the fill color and stroke segments with the
 // stroke color, each group isolated by its own Save/Restore.

@@ -22,9 +22,10 @@ import (
 // The path's coordinates are authoritative in the node's own pixel space
 // (1 unit = 1 px, origin at the node's top-left), mirroring the HTML side's
 // viewBox: coordinates are authored against the layout box the style
-// declares. Without explicit width/height the box defaults to the path's
-// own bounding box (Measure reports it; the generic explicit-size override
-// still wins when set).
+// declares. Without explicit width/height the box defaults to a 0,0-anchored
+// box sized bb.Max.X x bb.Max.Y (Measure reports it — see the semantics
+// choice above Measure; the generic explicit-size override still wins when
+// set).
 func init() {
 	RegisterWidget("path", pathWidget{})
 }
@@ -68,7 +69,17 @@ func (pathWidget) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, 
 		return 0, 0
 	}
 	bb := pathBBox(d)
-	return bb.Dx() * scale, bb.Dy() * scale
+	// Chosen semantics: a box anchored at the node's origin (0,0) sized
+	// bb.Max.X x bb.Max.Y — the canvas mirror of the HTML side's
+	// viewBox="0 0 w h", so both backends keep the geometry in author
+	// coordinates and render shape-for-shape identical. The previous size
+	// (bb.Dx x bb.Dy) cropped off-path shapes: Record never translates the
+	// geometry by -bb.Min, so a path with bbox.Min > 0 and no explicit
+	// width/height (e.g. "M 50 50 L 150 150 L 50 150 Z") painted only a
+	// corner sliver inside its own raster. Negative coordinates clip,
+	// exactly as viewBox="0 0 w h" clips on the HTML side — authors anchor
+	// paths at 0,0 or set explicit width/height.
+	return bb.Max.X * scale, bb.Max.Y * scale
 }
 
 func (pathWidget) Record(ln *LayoutNode, rt *runtime.Runtime, scale int) graph.Node {
