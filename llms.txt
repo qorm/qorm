@@ -26,6 +26,7 @@ references below (the runnable sources are the contract).
 ## The format (write apps in this)
 
 - [examples/](examples) — the canonical runnable patterns: text via `text`, bind with `{{state.x}}`, `onPress` names an action in `actions/`, components in `qorm.json` with `{{prop.x}}`.
+- [Project structure](docs/project-structure.md) — the app folder: `qorm.json` manifest, `scenes/`, `actions/`, and the optional `qorm.config.json` host-window block (size/title/resizable/chromeless/transparent → shaped windows).
 - [Actions & state](api/actions.md) — the step vocabulary, `script` actions in the qscript language (`actions/*.qs` + the shared `actions/lib.qs`), scene `keys`/`swipes`, `computed`.
 - [Expressions](docs/expressions.md) — the `{{ … }}` language: operators and every builtin (incl. the v2 array/string methods).
 - [Widget catalog](api/widgets.md) — every node `type` the renderer accepts (auto-generated from `internal/render`, guarded by `TestWidgetCatalogInSync`).
