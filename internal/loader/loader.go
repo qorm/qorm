@@ -594,6 +594,14 @@ func checkComputed(app *model.App, vars map[string]string, diags *[]string) {
 			for _, mm := range expr.Check(src, vars) {
 				*diags = append(*diags, fmt.Sprintf("error: computed 派生值 %q type mismatch: %s in {{ %s }}", name, mm.Detail, mm.Expr))
 			}
+			// A computed[...] bracket key that is not a plain string literal
+			// yields NO dependency edge (the name is unknowable until runtime),
+			// so a real cycle hiding behind one would go undetected. Refuse it
+			// at load time instead of letting the cycle surface at runtime as
+			// empty values.
+			for _, dyn := range model.ComputedDynamicKeyRefs(src) {
+				*diags = append(*diags, fmt.Sprintf("error: computed 派生值 %q 的表达式 {{ %s }} 用动态键访问了派生值命名空间 (%s):动态键无法做循环依赖检查,真实的环可能被漏报。请改用静态键,如 computed['name']。", name, src, dyn))
+			}
 		})
 	}
 	if _, cyclic := app.ComputedOrder(); len(cyclic) > 0 {

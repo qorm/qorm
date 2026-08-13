@@ -586,6 +586,206 @@ func computedPathName(path []string) string {
 	return ""
 }
 
+// ComputedDynamicKeyRefs returns, inside src, the accessor spellings that read
+// the computed namespace through a DYNAMIC bracket key — `computed[state.k]`,
+// `state.computed[someExpr]` and friends — instead of a plain string literal
+// (`computed['total']`) or a dotted name (`computed.total`). The dependency
+// scan (computedRefs) deliberately drops such accesses: the name is unknowable
+// until runtime, so it cannot draw the edge. A real dependency cycle hiding
+// behind a dynamic key would then go undetected — the loader upgrades any hit
+// into a load error, so the author fixes the key instead of hiding the cycle.
+//
+// The scan mirrors the refTokens/refPath precision calls that computedRefs
+// makes, with three deliberate differences:
+//   - it only inspects the TOP-LEVEL expression (string-literal contents are
+//     data here, never re-scanned), so a decorative string like
+//     `'read computed[state.k] first'` cannot become a load error;
+//   - a dynamic key DEEPER than the namespace name (`computed.items[state.i]`)
+//     is fine — the `items` edge exists, the cycle check is unaffected;
+//   - `computed[0]` and `computed[]` are dynamic too (nothing but a single
+//     string literal counts as a static key).
+func ComputedDynamicKeyRefs(src string) []string {
+	var out []string
+	rs := []rune(src)
+	i := 0
+	nextRun := func(j int) (string, int) {
+		// maximal identifier run: letters/digits/_/$/. — exactly the expr
+		// lexer's identifier token (numbers are skipped separately below).
+		k := j
+		for k < len(rs) && (unicode.IsLetter(rs[k]) || unicode.IsDigit(rs[k]) || rs[k] == '_' || rs[k] == '$' || rs[k] == '.') {
+			k++
+		}
+		return string(rs[j:k]), k
+	}
+	skipWS := func(j int) int {
+		for j < len(rs) && (rs[j] == ' ' || rs[j] == '\t' || rs[j] == '\n') {
+			j++
+		}
+		return j
+	}
+	// closeBracket returns the index just past the ']' matching rs[j]=='[',
+	// honoring nested brackets and quoted contents.
+	closeBracket := func(j int) int {
+		depth := 0
+		k := j
+		for k < len(rs) {
+			switch rs[k] {
+			case '\\':
+				k += 2
+				continue
+			case '\'', '"':
+				q := rs[k]
+				k++
+				for k < len(rs) && rs[k] != q {
+					if rs[k] == '\\' {
+						k++
+					}
+					k++
+				}
+			case '[':
+				depth++
+			case ']':
+				depth--
+				if depth == 0 {
+					return k + 1
+				}
+			}
+			k++
+		}
+		return len(rs)
+	}
+	// quotedLiteral reports whether content (a rune slice interior to the
+	// brackets) is EXACTLY one string literal — the opening quote at the
+	// first char, its matching close, and nothing after it but whitespace.
+	// This is the refPath static-key rule: `['total']` yes, `['a' + 'b']`
+	// no (that is a dynamic expression, concatenation is not a plain key).
+	quotedLiteral := func(content []rune) bool {
+		if len(content) < 2 || (content[0] != '\'' && content[0] != '"') {
+			return false
+		}
+		quote := content[0]
+		j := 1
+		for j < len(content) {
+			if content[j] == '\\' {
+				j += 2
+				continue
+			}
+			if content[j] == quote {
+				break
+			}
+			j++
+		}
+		if j >= len(content) {
+			return false // unterminated
+		}
+		for k := j + 1; k < len(content); k++ {
+			if !unicode.IsSpace(content[k]) {
+				return false
+			}
+		}
+		return true
+	}
+	for i < len(rs) {
+		c := rs[i]
+		switch {
+		case unicode.IsLetter(c) || c == '_' || c == '$':
+			run, end := nextRun(i)
+			segs := strings.Split(run, ".")
+			// keyIdx is the path position of the namespace KEY: path[1] for
+			// `computed...`, path[2] for `state.computed...`. A lone `state`
+			// run can still be rooted when its FIRST postfix access supplies
+			// the `computed` element (`state['computed'][x]`), which the walk
+			// below enforces with rootFromStatePrefix.
+			keyIdx, rootFromStatePrefix := -1, false
+			switch {
+			case segs[0] == ComputedNamespace:
+				keyIdx = 1 // `computed`; the key may already sit inside the run (`computed.total`)
+			case segs[0] == StateRoot && len(segs) > 1 && segs[1] == ComputedNamespace:
+				keyIdx = 2
+			case segs[0] == StateRoot && len(segs) == 1:
+				keyIdx = 2
+				rootFromStatePrefix = true
+			}
+			if keyIdx < 0 {
+				i = end
+				continue
+			}
+			// appendStatic extends the access path with one STATIC element (a
+			// dotted name or a bracketed string literal) and reports the
+			// element's name; ok=false when the next access is dynamic (or
+			// absent), which is exactly the reporting point when it sits at
+			// the key position.
+			appendStatic := func(p int) (name string, npos int, ok bool) {
+				if p < len(rs) && rs[p] == '.' {
+					q := skipWS(p + 1)
+					if q < len(rs) && (unicode.IsLetter(rs[q]) || rs[q] == '_' || rs[q] == '$') {
+						r, e := nextRun(q)
+						return r, e, true
+					}
+					return "", p, false
+				}
+				if p < len(rs) && rs[p] == '[' {
+					cb := closeBracket(p)
+					content := rs[p+1 : cb-1]
+					firstNonWS := skipWS(p+1) - (p + 1)
+					if quotedLiteral(content[firstNonWS:]) {
+						name := strings.TrimSpace(string(content))
+						return name[1 : len(name)-1], cb, true
+					}
+				}
+				return "", p, false
+			}
+			elems := len(segs) // elements already inside the identifier run
+			pos := end
+			for elems-1 < keyIdx {
+				p := skipWS(pos)
+				if p >= len(rs) {
+					break // path terminates: bare `computed` names no value
+				}
+				name, npos, ok := appendStatic(p)
+				if !ok {
+					// Non-static access. At the key position it IS the dynamic
+					// key; anywhere else the path stopped being rooted. Empty
+					// brackets (`computed[]`) are left to the parser — there is
+					// no key at all, so nothing to cycle-check.
+					if elems == keyIdx && p < len(rs) && rs[p] == '[' && closeBracket(p) > p+2 {
+						out = append(out, string(rs[i:closeBracket(p)]))
+					}
+					break
+				}
+				if rootFromStatePrefix && elems == len(segs) && name != ComputedNamespace {
+					break // path[1] is not the namespace: `state.total[...]` is plain state
+				}
+				elems++
+				pos = npos
+			}
+			i = pos
+		case unicode.IsDigit(c) || (c == '.' && i+1 < len(rs) && unicode.IsDigit(rs[i+1])):
+			j := i + 1
+			for j < len(rs) && (unicode.IsDigit(rs[j]) || rs[j] == '.') {
+				j++
+			}
+			i = j
+		case c == '\'' || c == '"':
+			// a string literal is data, never scanned for accesses
+			q := c
+			j := i + 1
+			for j < len(rs) && rs[j] != q {
+				if rs[j] == '\\' {
+					j++
+				}
+				j++
+			}
+			i = j + 1
+		case unicode.IsSpace(c):
+			i++
+		default:
+			i++
+		}
+	}
+	return out
+}
+
 // EntryRoot returns the root node of the entry scene (or nil).
 func (a *App) EntryRoot() *Node {
 	if a == nil {

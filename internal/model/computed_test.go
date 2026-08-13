@@ -47,6 +47,54 @@ func TestIsComputedPath(t *testing.T) {
 	}
 }
 
+func TestComputedDynamicKeyRefs(t *testing.T) {
+	tests := []struct {
+		src  string
+		want []string
+	}{
+		// Dynamic keys AT the namespace-name position — exactly what hides a
+		// real cycle from the dependency scan.
+		{"{{ computed[state.k] }}", []string{"computed[state.k]"}},
+		{"{{ computed [ state.k ] }}", []string{"computed [ state.k ]"}}, // verbatim spelling
+		{"{{ computed[0] }}", []string{"computed[0]"}},
+		{"{{ computed[] }}", nil}, // empty brackets: a parse error later, no key to cycle-check
+		{"{{ state.computed[state.k] }}", []string{"state.computed[state.k]"}},
+		{"{{ state['computed'][state.k] }}", []string{"state['computed'][state.k]"}},
+		{"{{ computed[key] + computed['b'] }}", []string{"computed[key]"}},
+		{"{{ computed[state.m[k]] }}", []string{"computed[state.m[k]]"}},
+		{"{{ computed['a' + 'b'] }}", []string{"computed['a' + 'b']"}}, // concatenation is not a plain key
+		{"{{ computed[a\\b] }}", []string{"computed[a\\b]"}},           // a backslash inside the brackets: still a dynamic key (the quoted-literal rule decides)
+		{"{{ computed['abc ", []string{"computed['abc "}},              // unterminated quote: the bracket runs to the end, still reported as dynamic
+		// Static keys and statically-rooted accesses are never reported.
+		{"{{ computed }}", nil}, // the bare namespace names no value: the path just terminates
+		{"computed", nil},       // ditto with nothing after the run
+		{"{{ computed.total }}", nil},
+		{"{{ computed['total'] }}", nil},
+		{"{{ computed['a'] + 42 }}", nil}, // a number is not an access
+		{"{{ computed['a\\'b'] }}", nil},  // an escaped quote inside the literal: still exactly one string literal, so `a'b` is a static key
+		{"{{ computed['a']['b'] }}", nil},
+		{"{{ state.computed.total }}", nil},
+		{"{{ state['computed']['total'] }}", nil},
+		{"{{ state['total'] }}", nil}, // a lone `state` run whose first postfix is not the namespace: plain state
+		{"{{ (computed)['total'] }}", nil},
+		{"{{ computed . total }}", nil},
+		{"{{ computed . ['total'] }}", nil},    // the dot before a bracket is a parse error: nothing to report
+		{"{{ computed.items[state.i] }}", nil}, // deeper bracket on a static value
+		{"{{ state.total }}", nil},             // ordinary state
+		{"{{ item.computed.key }}", nil},       // someone else's field named computed
+		{"{{ computedTotal }}", nil},
+		{"{{ 'read computed[state.k] first' }}", nil}, // decorative string is data
+		{"{{ 'it\\'s not a binding' }}", nil},         // ...even when it contains an escaped quote
+		{"{{ sum(computed.rows) }}", nil},
+		{"no bindings", nil},
+	}
+	for _, tt := range tests {
+		if got := ComputedDynamicKeyRefs(tt.src); !reflect.DeepEqual(got, tt.want) {
+			t.Errorf("ComputedDynamicKeyRefs(%q) = %q, want %q", tt.src, got, tt.want)
+		}
+	}
+}
+
 func TestComputedOrderIndependentValuesAreNameSorted(t *testing.T) {
 	app := &App{Computed: map[string]string{
 		"zeta":  "{{ state.a }}",
@@ -202,6 +250,7 @@ func TestComputedRefsSeesBracketSpelling(t *testing.T) {
 		{"{{ rows['computed.x'] }}", nil},                           // a string index key is app data, not a reference
 		{"{{ computed[key] }}", nil},                                // a dynamic key names nothing statically
 		{"{{ item['computed'].x }}", nil},                           // someone else's bracketed field named computed
+		{"{{ computed['a\\'b'] }}", []string{"a'b"}},                // an escaped quote in a static key is still a static key
 	}
 	for _, tt := range tests {
 		if got := computedRefs(tt.src); !reflect.DeepEqual(got, tt.want) {

@@ -13,6 +13,7 @@ package loader
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -129,6 +130,20 @@ func TestComputedDiagnostics(t *testing.T) {
 			docs: computedDocs(nil, map[string]any{"type": "unused"})[:1],
 			want: "",
 		},
+		{
+			name: "dynamic bracket key cannot be cycle-checked",
+			docs: computedDocs(map[string]any{
+				"k": "{{ computed[state.k] }}",
+			}),
+			want: "动态键无法做循环依赖检查",
+		},
+		{
+			name: "dynamic key through the state root is refused too",
+			docs: computedDocs(map[string]any{
+				"k": "{{ state.computed[state.k] }}",
+			}),
+			want: "动态键无法做循环依赖检查",
+		},
 	}
 	for _, tt := range tests {
 		if tt.want == "" {
@@ -140,6 +155,48 @@ func TestComputedDiagnostics(t *testing.T) {
 				t.Errorf("want a diagnostic containing %q, got %v", tt.want, app.Diagnostics)
 			}
 		})
+	}
+}
+
+// TestComputedDynamicKeyStaticSpellingsUnaffected: only a dynamic (non-string)
+// key AT the namespace-name position is refused. Dotted names, string-literal
+// keys, deeper accesses on a static value, and the exact static counter of the
+// dynamic spelling must all keep loading clean.
+func TestComputedDynamicKeyStaticSpellingsUnaffected(t *testing.T) {
+	app := FromDocs(computedDocs(map[string]any{
+		"total":  "{{ computed.amount + 1 }}",
+		"total2": "{{ computed['amount'] + 1 }}",
+		"total3": `{{ computed["amount"] + 1 }}`,
+		"total4": "{{ state.computed.amount + 1 }}",
+		"deep":   "{{ computed.items[state.count] + 1 }}",
+		"spaced": "{{ computed ['amount'] + 1 }}",
+	}))
+	for _, d := range app.Diagnostics {
+		if hasDiag([]string{d}, "动态键") {
+			t.Fatalf("static spellings must load clean, got %s", d)
+		}
+	}
+}
+
+// TestComputedDynamicKeyMessageNamesTheComputed: the refusal quotes the
+// computed's name and the offending access, and demands a static key.
+func TestComputedDynamicKeyMessageNamesTheComputed(t *testing.T) {
+	app := FromDocs(computedDocs(map[string]any{
+		"grandTotal": "{{ computed[state.k] * 2 }}",
+	}))
+	var gots []string
+	for _, d := range app.Diagnostics {
+		if hasDiag([]string{d}, "动态键") {
+			gots = append(gots, d)
+		}
+	}
+	if len(gots) != 1 {
+		t.Fatalf("want exactly one dynamic-key diagnostic, got %v", gots)
+	}
+	for _, frag := range []string{"grandTotal", `computed[state.k]`, "静态键"} {
+		if !strings.Contains(gots[0], frag) {
+			t.Errorf("diagnostic should mention %q, got %q", frag, gots[0])
+		}
 	}
 }
 
