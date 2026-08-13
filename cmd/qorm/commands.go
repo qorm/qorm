@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/ed25519"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"net"
@@ -19,6 +20,7 @@ import (
 	"github.com/qorm/qorm/internal/mcp"
 	"github.com/qorm/qorm/internal/render"
 	"github.com/qorm/qorm/internal/server"
+	"github.com/qorm/qorm/internal/testrunner"
 )
 
 func cmdMCP(args []string) int {
@@ -419,6 +421,59 @@ func splitCapabilityList(s string) []string {
 		}
 	}
 	return caps
+}
+
+// cmdTest runs the app's headless tests (`qorm test <app-dir> [test.json...]`)
+// per planning/spec/test-runner-spec.md (Phase 9, MVP). Every test document
+// runs against a FRESH runtime, so test order and interference are impossible;
+// the spec's minimal JSON report goes to stdout verbatim — nothing else — so
+// the output is machine-parseable (`qorm test app | jq .status`). Exit 0 iff
+// every test passed, 1 on any failure/error (and when the app cannot load or
+// has no tests: a run that tests nothing must not report green).
+func cmdTest(args []string) int {
+	dir := ""
+	var files []string
+	for _, a := range args {
+		if info, err := os.Stat(a); err == nil && info.IsDir() {
+			dir = a
+		} else {
+			files = append(files, a)
+		}
+	}
+	appDir := dir
+	if len(files) > 0 && appDir == "" {
+		// No directory given with explicit test files: the app is the nearest
+		// ancestor of the first file that carries a qorm.json manifest (the
+		// canonical tests/ layout lives inside the app tree).
+		for d := filepath.Dir(files[0]); ; d = filepath.Dir(d) {
+			if _, err := os.Stat(filepath.Join(d, "qorm.json")); err == nil {
+				appDir = d
+				break
+			}
+			if d == filepath.Dir(d) {
+				fmt.Fprintf(os.Stderr, "error: %s: cannot find the app (qorm.json) owning %s — run `qorm test <app-dir> <test.json...>`\n", testrunner.ErrLoad, files[0])
+				return 1
+			}
+		}
+	}
+	if appDir == "" {
+		appDir = "."
+	}
+	report, err := testrunner.Run(appDir, files)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+	data, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+	fmt.Println(string(data))
+	if report.Status != testrunner.StatusPassed {
+		return 1
+	}
+	return 0
 }
 
 func cmdKeygen(args []string) int {

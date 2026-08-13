@@ -72,6 +72,8 @@ func main() {
 		os.Exit(cmdShot(os.Args[2:]))
 	case "check":
 		os.Exit(cmdCheck(os.Args[2:]))
+	case "test":
+		os.Exit(cmdTest(os.Args[2:]))
 	case "docs":
 		os.Exit(cmdDocs(os.Args[2:]))
 	case "updates":
@@ -127,6 +129,9 @@ usage:
   qorm check <app-dir> (--checks c.json | --audit) [--width N] [--physical] [-o r.json]
                                                   verify layout/styles vs expectations (or generic audit;
                                                   interactive flows drive the pure-Go canvas by default)
+  qorm test <app-dir> [test.json...]              run the app's headless tests (tests/*.json by
+                                                  default), print the spec's JSON report to stdout
+                                                  (exit 0 all pass / 1 any fail)
   qorm build <app-dir> -o app.qorm.bundle [--key priv.key] [--version V] [--require-capability camera,location]
                                                   compile (+optionally sign) a bundle; declared capabilities are
                                                   enforced at startup on the running platform
