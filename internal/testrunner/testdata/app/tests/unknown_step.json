@@ -1,0 +1,10 @@
+{
+  "qorm": "0.1",
+  "type": "test",
+  "id": "fixture_unknown_step",
+  "scene": "main",
+  "steps": [
+    { "type": "advance_time", "ms": 500 }
+  ],
+  "assert": []
+}

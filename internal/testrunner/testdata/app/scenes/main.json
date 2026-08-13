@@ -1,0 +1,43 @@
+{
+  "type": "scene",
+  "id": "main",
+  "root": {
+    "type": "column",
+    "id": "root",
+    "children": [
+      {
+        "type": "text",
+        "id": "title",
+        "text": "Runner Fixture"
+      },
+      {
+        "type": "text",
+        "id": "number",
+        "text": "{{state.count}}"
+      },
+      {
+        "type": "text",
+        "id": "status_text",
+        "text": "{{state.status}}"
+      },
+      {
+        "type": "text",
+        "id": "hidden_text",
+        "text": "Secret",
+        "visible": "{{!state.hidden}}"
+      },
+      {
+        "type": "button",
+        "id": "btn_increment",
+        "label": "Plus ({{state.count}})",
+        "onPress": { "name": "increment" }
+      },
+      {
+        "type": "button",
+        "id": "btn_status",
+        "label": "Set Status",
+        "onPress": { "name": "set_status", "args": { "msg": "Pressed!" } }
+      }
+    ]
+  }
+}

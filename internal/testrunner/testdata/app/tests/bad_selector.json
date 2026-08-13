@@ -1,0 +1,9 @@
+{
+  "qorm": "0.1",
+  "type": "test",
+  "id": "fixture_bad_selector",
+  "scene": "main",
+  "assert": [
+    { "type": "node_exists", "target": { "path": "count" } }
+  ]
+}

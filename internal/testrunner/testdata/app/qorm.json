@@ -1,0 +1,18 @@
+{
+  "type": "app",
+  "id": "testrunner_fixture",
+  "name": "Testrunner Fixture",
+  "entry": "main",
+  "globalState": {
+    "schema": {
+      "count": "number",
+      "status": "string",
+      "hidden": "boolean"
+    },
+    "initial": {
+      "count": 0,
+      "status": "Ready",
+      "hidden": true
+    }
+  }
+}

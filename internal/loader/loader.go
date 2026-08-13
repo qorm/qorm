@@ -1352,6 +1352,25 @@ func LoadFile(path string) (*model.App, error) {
 // the walk below. Stylesheets: a styles/<id>.qss file (QSS source in a file of
 // its own) is collected as the type:"stylesheet" document {id, qss, source}.
 func collect(dir string) ([]map[string]any, error) {
+	return collectWhere(dir, func(t string) bool { return t != "test" })
+}
+
+// CollectTestDocs returns the raw type:"test" documents under dir — the
+// declarative test-fixture JSON files `qorm test` executes (canonically the
+// app's tests/*.json). It shares CollectDocs' walk, skip rules (locales,
+// nested projects, qorm.config.json) and symlink containment, so a test file
+// is vetted exactly like a scene or action. Empty when the app declares no
+// tests; callers report that as "no tests found" rather than loading nothing.
+func CollectTestDocs(dir string) ([]map[string]any, error) {
+	return collectWhere(dir, func(t string) bool { return t == "test" })
+}
+
+// collectWhere is the collect walk parameterized by the document type the
+// caller wants: collect() keeps every non-test doc, CollectTestDocs keeps
+// only type:"test" docs. The predicate is applied at every append site, so
+// the .qs/.qss synthesized documents (fixed types) are filtered by the same
+// rule as the parsed ones.
+func collectWhere(dir string, want func(t string) bool) ([]map[string]any, error) {
 	root, err := resolvedRoot(dir)
 	if err != nil {
 		return nil, err
@@ -1407,15 +1426,17 @@ func collect(dir string) ([]map[string]any, error) {
 			if rerr != nil {
 				rel = path
 			}
-			out = append(out, map[string]any{
-				"type": "stylesheet",
-				"id":   id,
-				"qss":  string(data),
-				// Provenance, so a parse diagnostic can name the file (and a
-				// signed bundle records where the sheet came from). Slashed,
-				// never OS-separated: the path rides the content hash.
-				"source": filepath.ToSlash(rel),
-			})
+			if want("stylesheet") {
+				out = append(out, map[string]any{
+					"type": "stylesheet",
+					"id":   id,
+					"qss":  string(data),
+					// Provenance, so a parse diagnostic can name the file (and a
+					// signed bundle records where the sheet came from). Slashed,
+					// never OS-separated: the path rides the content hash.
+					"source": filepath.ToSlash(rel),
+				})
+			}
 			return nil
 		}
 		// A .qs file is a SCRIPT-FILE ACTION: it lives in an actions/ directory,
@@ -1452,22 +1473,26 @@ func collect(dir string) ([]map[string]any, error) {
 			// ONE file instead of copy-pasting them into each action. Collected
 			// as a type:"scriptlib" document, not an action.
 			if id == "lib" {
-				out = append(out, map[string]any{
-					"type":   "scriptlib",
-					"text":   string(data),
-					"source": filepath.ToSlash(rel),
-				})
+				if want("scriptlib") {
+					out = append(out, map[string]any{
+						"type":   "scriptlib",
+						"text":   string(data),
+						"source": filepath.ToSlash(rel),
+					})
+				}
 				return nil
 			}
-			out = append(out, map[string]any{
-				"type":   "action",
-				"id":     id,
-				"script": string(data),
-				// Provenance, so a compile diagnostic can name the file (and a
-				// signed bundle records where the script came from). Slashed,
-				// never OS-separated: the path rides the content hash.
-				"source": filepath.ToSlash(rel),
-			})
+			if want("action") {
+				out = append(out, map[string]any{
+					"type":   "action",
+					"id":     id,
+					"script": string(data),
+					// Provenance, so a compile diagnostic can name the file (and a
+					// signed bundle records where the script came from). Slashed,
+					// never OS-separated: the path rides the content hash.
+					"source": filepath.ToSlash(rel),
+				})
+			}
 			return nil
 		}
 		if !symlinkStaysInside(root, path) {
@@ -1481,10 +1506,19 @@ func collect(dir string) ([]map[string]any, error) {
 		if json.Unmarshal(data, &doc) != nil {
 			return nil // ignore malformed / non-object json
 		}
-		if asString(doc["type"]) == "test" {
-			return nil
+		if want(asString(doc["type"])) {
+			if asString(doc["type"]) == "test" {
+				rel, rerr := filepath.Rel(dir, path)
+				if rerr != nil {
+					rel = path
+				}
+				// Provenance for the test runner's report: test docs never
+				// enter the app (CollectDocs skips them), so this stamp is
+				// invisible to every existing consumer's hashes.
+				doc["source"] = filepath.ToSlash(rel)
+			}
+			out = append(out, doc)
 		}
-		out = append(out, doc)
 		return nil
 	})
 	return out, err
@@ -1506,6 +1540,11 @@ func DocID(doc map[string]any) string { return asString(doc["id"]) }
 
 // DocType is the type of a raw source document, coerced like DocID.
 func DocType(doc map[string]any) string { return asString(doc["type"]) }
+
+// DocString coerces a raw source document value the way DocID coerces the id,
+// so consumers of the parsed docs (the bundle builder, the test runner) read
+// every optional field through the same stable coercion.
+func DocString(doc map[string]any, key string) string { return asString(doc[key]) }
 
 // parseMenuItems reads a JSON array of menu items.
 func parseMenuItems(raw any) []model.MenuItem {

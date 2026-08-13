@@ -1,0 +1,13 @@
+{
+  "qorm": "0.1",
+  "type": "test",
+  "id": "fixture_fail",
+  "scene": "main",
+  "steps": [
+    { "type": "simulate_event", "action": "increment" }
+  ],
+  "assert": [
+    { "type": "state_equals", "path": "count", "value": 99 },
+    { "type": "text_equals", "target": { "id": "number" }, "value": "unexpected" }
+  ]
+}
