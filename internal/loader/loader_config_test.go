@@ -182,3 +182,48 @@ func TestWindowDefaultResizable(t *testing.T) {
 		t.Errorf("absent resizable must not set Fixed: %+v", app.Window)
 	}
 }
+
+func TestLoadConfigZeroSizeResetsToFluid(t *testing.T) {
+	// The config is the override layer: an explicit "width": 0 must win over a
+	// manifest-declared size and reset it to fluid (0). Absent height is
+	// untouched.
+	manifest := `{
+		"type": "app", "id": "cfg", "name": "Cfg", "entry": "home",
+		"globalState": {"schema": {}, "initial": {}},
+		"platforms": {"desktop": {"window": {"width": 512, "height": 480}}}
+	}`
+	dir := configApp(t, manifest, `{"window": {"width": 0}}`)
+	app, err := LoadDir(dir)
+	if err != nil {
+		t.Fatalf("LoadDir: %v", err)
+	}
+	if app.Window.Width != 0 {
+		t.Errorf("explicit width:0 in config must reset to fluid, got %d", app.Window.Width)
+	}
+	if app.Window.Height != 480 {
+		t.Errorf("absent height must keep the manifest value, got %d", app.Window.Height)
+	}
+}
+
+func TestLoadConfigDisplayWindowMergePerKey(t *testing.T) {
+	// Within one config file the blocks merge per key: display applies first,
+	// window overrides only the keys it declares. A resizable the window block
+	// does not redeclare survives from display.
+	dir := configApp(t, plainManifest, `{
+		"display": {"width": 100, "height": 100, "resizable": false},
+		"window":  {"width": 200}
+	}`)
+	app, err := LoadDir(dir)
+	if err != nil {
+		t.Fatalf("LoadDir: %v", err)
+	}
+	if app.Window.Width != 200 {
+		t.Errorf("window block width must override display: %+v", app.Window)
+	}
+	if app.Window.Height != 100 {
+		t.Errorf("display height must survive when window omits it: %+v", app.Window)
+	}
+	if !app.Window.Fixed {
+		t.Errorf("display resizable:false must survive when window omits resizable: %+v", app.Window)
+	}
+}

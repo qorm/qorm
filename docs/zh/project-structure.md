@@ -92,11 +92,15 @@ myapp/
 
 优先级(高者生效):`qorm.config.json` 的 `window` → `qorm.json` 的
 `platforms.desktop.window` → `qorm.json` 顶层 `display`。顶层 `display` 块是向后
-兼容的写法(仅几何属性);`qorm.config.json` 内的 `display` 块同样仍被接受。
-`chromeless` + `transparent` 组合即异形(自定义形状)窗口 —— 在 macOS 的 **WebView**
-宿主(`-tags desktop`)上完整支持;默认的纯 Go canvas 窗口只遵循尺寸/resizable,
-不遵循 chrome 标志。Windows 上 `chromeless` 生效(`transparent` 待实现),Linux 上
-两者均可解析但去装饰尚未接线。配置文件格式错误会作为加载诊断报告,而不是被静默应用。
+兼容的写法(仅几何属性);`qorm.config.json` 内的 `display` 块同样仍被接受 ——
+两块同时存在时按键合并(`window` 只覆盖它声明的键)。config 是覆盖层,因此显式写
+`"width": 0` 会把清单声明的尺寸重置回流式自适应。`chromeless` + `transparent`
+组合即异形(自定义形状)窗口 —— 在 macOS 的 **WebView** 宿主(`-tags desktop`)上
+完整支持;默认的纯 Go canvas 窗口只遵循尺寸/resizable,不遵循 chrome 标志。
+Windows 上 `chromeless` 生效(`transparent` 待实现);仍为 `resizable` 的无边框
+窗口会保留一条细的边缘调整框 —— 那个框正是 Windows 上窗口可被用户调整大小的位。
+Linux 上两者均可解析但去装饰尚未接线。配置文件格式错误会作为加载诊断报告,而不是
+被静默应用。
 
 ## 实时开发(热重载)
 

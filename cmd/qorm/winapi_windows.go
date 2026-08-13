@@ -36,19 +36,32 @@ func startWindowDrag(hwnd unsafe.Pointer) {
 	sendMessage.Call(uintptr(hwnd), 0x00A1, 2, 0)
 }
 
-// setUndecorated strips the title bar and sizing border from a chromeless
-// app window (WebView2 hosts create it WS_OVERLAPPEDWINDOW). Dragging still
-// works through the app's drag region (startWindowDrag).
-func setUndecorated(hwnd unsafe.Pointer) {
+// setUndecorated strips the title bar from a chromeless app window (WebView2
+// hosts create it WS_OVERLAPPEDWINDOW). The sizing border (WS_THICKFRAME) is
+// kept when the window is resizable: it is the exact bit that makes a
+// top-level window user-resizable on Windows, so clearing it unconditionally
+// would silently ignore `resizable`. Dragging still works through the app's
+// drag region (startWindowDrag).
+//
+// Must run BEFORE the webview's SetSize: set_size_impl computes the outer
+// frame with AdjustWindowRectExForDpi from the *current* style, so stripping
+// chrome first is what keeps the client rect equal to the declared size.
+func setUndecorated(hwnd unsafe.Pointer, resizable bool) {
 	user32 := syscall.NewLazyDLL("user32.dll")
 	getLong := user32.NewProc("GetWindowLongPtrW")
 	setLong := user32.NewProc("SetWindowLongPtrW")
 	setPos := user32.NewProc("SetWindowPos")
-	// GWL_STYLE = -16; drop WS_THICKFRAME (0x00040000) and WS_CAPTION
-	// (0x00C00000 = WS_BORDER|WS_DLGFRAME).
-	const gwlStyle = -16 // #define GWL_STYLE
+	// GWL_STYLE = -16. GetWindowLongPtrW takes an int index; route the
+	// negative through a variable so the uintptr conversion wraps at runtime
+	// (constant -16 does not compile as uintptr).
+	gwlStyle := int64(-16) // #define GWL_STYLE
+	// Always drop WS_CAPTION (0x00C00000 = WS_BORDER|WS_DLGFRAME); drop
+	// WS_THICKFRAME (0x00040000) only when fixed.
 	style, _, _ := getLong.Call(uintptr(hwnd), uintptr(gwlStyle))
-	style &^= 0x00040000 | 0x00C00000
+	style &^= uintptr(0x00C00000)
+	if !resizable {
+		style &^= uintptr(0x00040000)
+	}
 	setLong.Call(uintptr(hwnd), uintptr(gwlStyle), style)
 	// SWP_FRAMECHANGED applies the new style; keep size/position/z-order.
 	const swpFlags = 0x0002 | 0x0001 | 0x0004 | 0x0020 // NOZORDER|NOMOVE|NOSIZE|FRAMECHANGED

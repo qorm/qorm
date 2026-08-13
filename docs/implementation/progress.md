@@ -1,6 +1,6 @@
 # 实施进度
 
-> 主控同步 · 更新：2026-08-13 **窗口建设完善轮 · qorm.config.json 文档补齐**
+> 主控同步 · 更新：2026-08-13 **窗口建设完善轮 · 对抗复审 + CI 修复波**
 
 ## 窗口建设完善轮（2026-08-13）
 
@@ -16,6 +16,19 @@
 | 异形窗口（chromeless+transparent） | macOS WebView 已完整；Windows 补 chromeless（user32 去装饰）；Linux/BSD 解析但去装饰未接线（如实记录）；canvas 宿主不消费 chrome 标志（如实记录） |
 | MCP 可见 | `qorm_inspect` 输出新增 `window`（解析后的最终窗口配置）；mcp-tools.md（en+zh）新增"宿主窗口"引言段 + qorm_inspect 描述更新，生成器测试守护 |
 | 文档补齐 | SKILL.md 可运行格式节 + docs/agent/skills.md（en+zh）+ docs/project-structure.md（en+zh）新增 qorm.config.json 专节与优先级表 + AGENTS.md；`examples/mario` 转用新 `window` 块；纠正 project-structure 示例中从未存在的 `window.icon` 键；删除 model.DisplaySpec 死代码 |
+
+### 对抗复审 + CI 修复波（同日，`4e7a103` 的后续）
+
+对抗复审（3 项确认缺陷）+ CI 桌面矩阵（ubuntu/windows 本地无法 cgo 编译的盲区）共同暴露的问题，全部根因修复：
+
+| 问题 | 修复 |
+|------|------|
+| Windows：chromeless 无条件剥掉 WS_THICKFRAME → `resizable` 被静默忽略 | `setUndecorated(hwnd, resizable)`：只剥 WS_CAPTION，resizable 时保留调整框（它正是 Windows 上用户可调整大小的位） |
+| Windows：chromeless 内容区比声明尺寸大 ~16×39px（SetSize 先按带装饰风格算外框） | 去装饰挪到 SetSize **之前**，框架几何按无装饰风格计算 |
+| macOS：陈旧 window.txt 恢复覆盖 fixed 窗口尺寸并锁死（持久化循环反复回写，永不自愈） | 仅 resizable 窗口恢复记忆框架；fixed 窗口以声明尺寸为准 |
+| CI 编译错：`hint := webview.HintNone` 推断为 int（cgo 无类型常量）不匹配 `webview.Hint`；`uintptr(-16)` 常量溢出 | 显式 `webview.Hint(webview.HintNone)`；负数 GWL_STYLE 经运行时变量转换 |
+| config `"width": 0` 无法把清单尺寸覆盖回流式（与"WINS + 0=fluid"文档矛盾） | `applyConfigWindow` 按键在场即生效（≥0），新增测试锁定；另加 per-key 合并语义测试 |
+| 验证手段 | 本机 mingw-w64 交叉编译 `-tags desktop` Windows 构建通过（本地首次可验证该路径）；全门禁绿（34 包 + race + 三构建 + linux/windows 纯构建） |
 
 ## v0.9.1 发布后维护轮（2026-08-13）
 
@@ -111,3 +124,4 @@ CI 变红触发排查，两个失败都是真实缺陷，按根因修复而非�
 | 2026-08-13 | 全量门禁绿：build · test · race · wasm · coverage gate · `qorm test` 4/4 |
 | 2026-08-13 | **v0.9.1 发布**：changelog 归档 + version bump + annotated tag + push + 官网部署 |
 | 2026-08-13 | 窗口建设完善轮：qorm.config.json `window` 块 + resizable/title 落地 + MCP inspect 可见 + SKILL/文档补齐 |
+| 2026-08-13 | 对抗复审 + CI 修复波：Windows chromeless×resizable/尺寸几何、macOS fixed 窗口状态恢复、两处编译错、config 0=fluid 覆盖 |

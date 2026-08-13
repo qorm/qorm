@@ -105,13 +105,18 @@ instead (`platforms.desktop.window`).
 Precedence (highest wins): `qorm.config.json` `window` → `qorm.json`
 `platforms.desktop.window` → `qorm.json` top-level `display`. The top-level
 `display` block is the backwards-compatible spelling (geometry only); a
-`display` block inside `qorm.config.json` is still accepted too. `chromeless` +
-`transparent` together make a 异形 (custom-shape) window — fully supported on the
-macOS **WebView** host (`-tags desktop`); the default pure-Go canvas window
-honours size/resizable but not the chrome flags. On Windows `chromeless` is
-honoured (`transparent` pending), and on Linux both parse but the decoration
-strip is not wired yet. A malformed config file is reported as a load
-diagnostic rather than applied.
+`display` block inside `qorm.config.json` is still accepted too — when both
+blocks are present they merge per key (`window` overrides only the keys it
+declares). Because the config is the override layer, an explicit `"width": 0`
+resets a manifest-declared size back to fluid. `chromeless` + `transparent`
+together make a 异形 (custom-shape) window — fully supported on the macOS
+**WebView** host (`-tags desktop`); the default pure-Go canvas window honours
+size/resizable but not the chrome flags. On Windows `chromeless` is honoured
+(`transparent` pending); a chromeless window that is still `resizable` keeps a
+thin edge-resize border, since that frame bit is what makes a window
+user-resizable there. On Linux both parse but the decoration strip is not wired
+yet. A malformed config file is reported as a load diagnostic rather than
+applied.
 
 ## Live development (hot-reload)
 

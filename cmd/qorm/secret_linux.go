@@ -31,7 +31,7 @@ func startWindowDrag(hwnd unsafe.Pointer) {}
 // not wired yet (the Linux native layer is deliberately cgo-free DBus — the
 // GTK window itself is owned by the vendored webview). The flag still loads
 // and round-trips; only the decoration strip is pending.
-func setUndecorated(hwnd unsafe.Pointer) {}
+func setUndecorated(hwnd unsafe.Pointer, resizable bool) {}
 
 // nativeVolumeGet/Set: no native master-volume API wired on Linux; the desktop
 // bridge uses pactl (see desktopHardwareLinux).

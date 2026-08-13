@@ -109,11 +109,18 @@ var configWindowKeys = map[string]bool{
 // rather than swallowed: a typo'd window key silently produces the wrong
 // host window otherwise.
 func applyConfigWindow(app *model.App, b map[string]any, which string) {
-	if w, ok := b["width"].(float64); ok && w > 0 {
-		app.Window.Width = int(w)
+	// width/height: the config is the override layer, so an explicit key wins
+	// even at 0 — {"width": 0} resets a manifest-declared size back to fluid
+	// (0 = fluid). Absent keys leave the lower-precedence value untouched.
+	if v, present := b["width"]; present {
+		if w, ok := v.(float64); ok && w >= 0 {
+			app.Window.Width = int(w)
+		}
 	}
-	if h, ok := b["height"].(float64); ok && h > 0 {
-		app.Window.Height = int(h)
+	if v, present := b["height"]; present {
+		if h, ok := v.(float64); ok && h >= 0 {
+			app.Window.Height = int(h)
+		}
 	}
 	if t, ok := b["title"].(string); ok && t != "" {
 		app.Window.Title = t

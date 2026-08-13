@@ -39,14 +39,18 @@ func runAppWindow(url, title string, ww, hh int, chromeless, transparent, resiza
 	if hh == 0 {
 		hh = 820
 	}
-	hint := webview.HintNone
+	hint := webview.Hint(webview.HintNone)
 	if !resizable {
 		hint = webview.HintFixed
 	}
-	w.SetSize(ww, hh, hint)
+	// Chrome strip BEFORE SetSize: the webview computes the outer frame from
+	// the current style, so undecorating first keeps the client rect at the
+	// declared ww×hh (and SetSize's HintNone re-asserts WS_THICKFRAME, which
+	// chromeless keeps when resizable).
 	if chromeless {
-		setUndecorated(w.Window())
+		setUndecorated(w.Window(), resizable)
 	}
+	w.SetSize(ww, hh, hint)
 	bindDesktopHardware(w)
 	go func() {
 		time.Sleep(600 * time.Millisecond)
@@ -150,14 +154,15 @@ func openWin(id, title, url string, w, h int, cl, tr, resizable bool) {
 		if h == 0 {
 			h = 600
 		}
-		hint := webview.HintNone
+		hint := webview.Hint(webview.HintNone)
 		if !resizable {
 			hint = webview.HintFixed
 		}
-		wv.SetSize(w, h, hint)
+		// Chrome strip before SetSize — same ordering contract as runAppWindow.
 		if cl {
-			setUndecorated(wv.Window())
+			setUndecorated(wv.Window(), resizable)
 		}
+		wv.SetSize(w, h, hint)
 		wv.Navigate(url)
 		wv.Run()
 	}()

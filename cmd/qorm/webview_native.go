@@ -197,8 +197,14 @@ func runAppWindow(url, title string, w, h int, chromeless, transparent, resizabl
 	stateFile := windowStateFile(title)
 	go func() {
 		dispatchMain(func() { setAppMenu(title, gMenuJSON); disableRestore() })
-		if fr := readWindowState(stateFile); len(fr) == 4 {
-			dispatchMain(func() { moveWin("main", fr[0], fr[1], fr[2], fr[3]) })
+		// Restore a remembered frame only for resizable windows: a fixed
+		// (resizable:false) window's declared size is the contract, and
+		// re-applying a stale user-dragged frame would override it with no way
+		// for the user to correct it (the persist loop would then re-save it).
+		if resizable {
+			if fr := readWindowState(stateFile); len(fr) == 4 {
+				dispatchMain(func() { moveWin("main", fr[0], fr[1], fr[2], fr[3]) })
+			}
 		}
 		var last string
 		for {
