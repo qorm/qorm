@@ -6,6 +6,8 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+## [v0.9.1] - 2026-08-13
+
 ### Added
 - **`qorm test` headless test runner** (Phase 9 MVP of
   `planning/spec/test-runner-spec.md`): declarative `type:"test"` documents
@@ -1354,6 +1356,7 @@ Initial release: QORM, an agent-native declarative-UI runtime in pure Go.
 - Render performance: cached parsed expressions and reflection-free CSS
   numeric writes in the hot path.
 
+[v0.9.1]: https://github.com/qorm/qorm/compare/v0.9.0...v0.9.1
 [v0.9.0]: https://github.com/qorm/qorm/compare/v0.8.11...v0.9.0
 [v0.8.11]: https://github.com/qorm/qorm/compare/v0.8.10...v0.8.11
 [v0.8.10]: https://github.com/qorm/qorm/compare/v0.8.9...v0.8.10
