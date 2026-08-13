@@ -1,0 +1,13 @@
+{
+  "qorm": "0.1",
+  "type": "test",
+  "id": "counter_set_status",
+  "scene": "main",
+  "steps": [
+    { "type": "simulate_event", "action": "set_status", "args": { "msg": "Testing" } }
+  ],
+  "assert": [
+    { "type": "state_equals", "path": "status", "value": "Testing" },
+    { "type": "text_equals", "target": { "id": "status_text" }, "value": "Testing" }
+  ]
+}

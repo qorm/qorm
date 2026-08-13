@@ -1,0 +1,18 @@
+{
+  "qorm": "0.1",
+  "type": "test",
+  "id": "counter_increment",
+  "scene": "scene://main",
+  "steps": [
+    { "type": "simulate_event", "target": { "id": "btn_increment" }, "event": "press" },
+    { "type": "simulate_event", "target": { "id": "btn_increment" }, "event": "press" },
+    { "type": "simulate_event", "target": { "id": "btn_decrement" }, "event": "press" }
+  ],
+  "assert": [
+    { "type": "state_equals", "path": "count", "value": 1 },
+    { "type": "text_equals", "target": { "id": "number" }, "value": "1" },
+    { "type": "node_exists", "target": { "id": "controls" } },
+    { "type": "node_not_exists", "target": { "id": "target_block" } },
+    { "type": "prop_equals", "target": { "id": "btn_theme" }, "prop": "label", "value": "Toggle Theme (apple-light)" }
+  ]
+}

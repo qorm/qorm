@@ -1,0 +1,13 @@
+{
+  "qorm": "0.1",
+  "type": "test",
+  "id": "counter_mount_physics",
+  "scene": "main",
+  "steps": [
+    { "type": "mount_scene", "scene": "scene://physics" }
+  ],
+  "assert": [
+    { "type": "node_exists", "target": { "id": "target_block" } },
+    { "type": "node_not_exists", "target": { "id": "btn_increment" } }
+  ]
+}

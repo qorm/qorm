@@ -1,0 +1,13 @@
+{
+  "qorm": "0.1",
+  "type": "test",
+  "id": "counter_theme_toggle",
+  "scene": "main",
+  "steps": [
+    { "type": "set_state", "path": "theme", "value": "apple-dark" },
+    { "type": "simulate_event", "action": "toggle_theme" }
+  ],
+  "assert": [
+    { "type": "state_equals", "path": "theme", "value": "win11-light" }
+  ]
+}
