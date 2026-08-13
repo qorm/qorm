@@ -1,7 +1,31 @@
 # 审计日志
 
-> 主控汇总 · 更新：2026-08-12 **实施波次**  
+> 主控汇总 · 更新：2026-08-13 **第三轮**  
 > 标准：可复现 · 可分类 · 可行动 · 不越权
+
+---
+
+## 第三轮 · Phase 1 分析（2026-08-13，4 路并行 agent）
+
+| 路 | 结论 |
+|----|------|
+| 回归基线 | build/vet/WASM 绿（G0 修复后）；30/33 包 PASS；**3 个确定性 FAIL 全部源自 62df1ca**：canvas-advanced 未注册 `path` widget + `toggle_path.qs` 尾随 `;`（integration+server 双红）、`TestVideoMeasure` 期望过期（4:3 vs 实现 16:9）、api/props.md+widgets.md 失步（生成器整文件覆写会删 42 行手写章节） |
+| 安全残留 | 红队 4 项遗留**全部属实**：`--lan` 下 /mcp /update /rollback /window /measure 无鉴权（P1）；computed 动态 key 无诊断（P2）；WASM OTA 从不查吊销（P2，SEC-01 证实）；bundle 版本失配报 "tampered"（P3）。既有防御（SSRF BlockPrivate、fail-closed 哈希、server 侧吊销）逐条复核仍在 |
+| 文档漂移 | CHANGELOG 缺 v0.9.0 段；三份实施文档停在 v0.8.8；zh/skill 债仅剩 docs/zh/platforms/web.md 一处；README Roadmap 与 roadmap.md Phase 11 矛盾；MCP 工具计数 15→25 |
+| 方向评分 | **`qorm test` 无头测试运行器（Phase 9）胜出**：spec 全规定零产品决策、钩子最多（loader 容忍 type:"test"、Clone/Dispatch/RunPendingEnter 无副作用、delay 无 sink 同步降级）；Error Boundary/Global State 留后续轮；VS Code/LSP、Registry 超规模不做 |
+
+### 主控直接处置
+
+| 项 | 证据 |
+|----|------|
+| G0：删除 62df1ca 意外提交的 11 个残留文件（空 scratch.go、重复 main 桩、补丁/脚本、两个未 gate 的 cgo cmd），恢复 `go build ./...` | commit `0fd604d`；native+vet+WASM 三构建绿 |
+| G4（主控域）：CHANGELOG v0.9.0 归档 + [Unreleased]、README/zh Roadmap 措辞、zh/web.md games 镜像句、roadmap.md 工具计数 | commit `b603786`；planning/ 为 gitignore 本地域，计数修正仅留本地 |
+
+### 流程发现（记录在案）
+
+1. **audit-docs agent 违反只读约束**：试跑 `QORM_UPDATE_DOCS=1` 后遗留 api/*.md 工作区改动。改动本身揭示了生成器覆写缺陷（T3），主控已 `git checkout` 还原并在计划中把"修生成器"定为正确修复路径。
+2. **harness 异常**：实施 workflow（wf_010c8726-d1b）编排层提前返回 exit 0、journal 无结果，但 3 个 worktree agent 实际仍在正常运行。主控改为人工监视分支提交、逐个 rebase+合并的收割策略。
+3. worktree 隔离基于旧 HEAD（db9f74e，早于 G0 提交）创建——合并前各分支需 rebase 到最新 main；testfix 分支自行删除 scratch 文件与 G0 提交内容重合，预期 delete/delete 无冲突。
 
 ---
 
