@@ -28,6 +28,8 @@
 | macOS：陈旧 window.txt 恢复覆盖 fixed 窗口尺寸并锁死（持久化循环反复回写，永不自愈） | 仅 resizable 窗口恢复记忆框架；fixed 窗口以声明尺寸为准 |
 | CI 编译错：`hint := webview.HintNone` 推断为 int（cgo 无类型常量）不匹配 `webview.Hint`；`uintptr(-16)` 常量溢出 | 显式 `webview.Hint(webview.HintNone)`；负数 GWL_STYLE 经运行时变量转换 |
 | config `"width": 0` 无法把清单尺寸覆盖回流式（与"WINS + 0=fluid"文档矛盾） | `applyConfigWindow` 按键在场即生效（≥0），新增测试锁定；另加 per-key 合并语义测试 |
+| CI build·vet·test 红：`TestStdoutSinkSFXDoesNotReplaceMusic` 竞态 | 根因不是测试而是 sink：loop 音乐靠"退出即重生"实现，无音频设备的 runner 上 aplay 秒退 → 重生风暴替换 `sink.music`（生产中即无限失败进程风暴）。加重生护栏：存活 <500ms 判为 sink 损坏不再重生；测试在音乐进程秒退时如实 skip |
+| README 携带过期版本信息 | 按用户要求移除 README.md / README.zh.md 的 "What's new in 0.8.11" 整节 —— README 不再放版本信息 |
 | 验证手段 | 本机 mingw-w64 交叉编译 `-tags desktop` Windows 构建通过（本地首次可验证该路径）；全门禁绿（34 包 + race + 三构建 + linux/windows 纯构建） |
 
 ## v0.9.1 发布后维护轮（2026-08-13）
@@ -125,3 +127,4 @@ CI 变红触发排查，两个失败都是真实缺陷，按根因修复而非�
 | 2026-08-13 | **v0.9.1 发布**：changelog 归档 + version bump + annotated tag + push + 官网部署 |
 | 2026-08-13 | 窗口建设完善轮：qorm.config.json `window` 块 + resizable/title 落地 + MCP inspect 可见 + SKILL/文档补齐 |
 | 2026-08-13 | 对抗复审 + CI 修复波：Windows chromeless×resizable/尺寸几何、macOS fixed 窗口状态恢复、两处编译错、config 0=fluid 覆盖 |
+| 2026-08-13 | CI build·vet·test 根因修复（audio sink 重生风暴护栏）+ README 去版本信息（en+zh） |
