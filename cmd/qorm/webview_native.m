@@ -28,7 +28,7 @@
 // ARC keeps everything in gWins alive; QormWV owns its window+web via strong refs.
 static NSMutableDictionary<NSString *, QormWV *> *gWins;
 
-void *qormWVOpen(const char *cwid, const char *title, const char *url, int w, int h, int chromeless, int transparent) {
+void *qormWVOpen(const char *cwid, const char *title, const char *url, int w, int h, int chromeless, int transparent, int resizable) {
     @autoreleasepool {
         [NSApplication sharedApplication];
         [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
@@ -37,9 +37,13 @@ void *qormWVOpen(const char *cwid, const char *title, const char *url, int w, in
         QormWV *v = [[QormWV alloc] init];
         v.wid = wid;
         NSRect frame = NSMakeRect(200, 200, w, h);
-        NSUInteger style = chromeless
-            ? (NSWindowStyleMaskBorderless | NSWindowStyleMaskResizable)
-            : (NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable);
+        NSUInteger style;
+        if (chromeless) {
+            style = NSWindowStyleMaskBorderless;
+        } else {
+            style = NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable;
+        }
+        if (resizable) style |= NSWindowStyleMaskResizable;
         v.window = [[NSWindow alloc] initWithContentRect:frame styleMask:style backing:NSBackingStoreBuffered defer:NO];
         v.window.title = [NSString stringWithUTF8String:title];
         v.window.releasedWhenClosed = NO;

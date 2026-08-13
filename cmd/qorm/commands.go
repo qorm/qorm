@@ -215,7 +215,13 @@ func cmdRun(args []string) int {
 	// In a `-tags desktop` build, host the app in a native WebView window
 	// (Wails-style). launchWindow serves and blocks; a false return means this
 	// is the pure-Go build with no native WebView, so fall back to a browser.
-	if open && appMode && launchWindow(srv, ln, url, name) {
+	// A declared window title (qorm.config.json / manifest) wins over the app
+	// name for the window's title bar.
+	winTitle := name
+	if t := srv.AppWindow().Title; t != "" {
+		winTitle = t
+	}
+	if open && appMode && launchWindow(srv, ln, url, winTitle) {
 		return 0
 	}
 	openURL := url

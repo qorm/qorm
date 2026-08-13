@@ -36,6 +36,25 @@ func startWindowDrag(hwnd unsafe.Pointer) {
 	sendMessage.Call(uintptr(hwnd), 0x00A1, 2, 0)
 }
 
+// setUndecorated strips the title bar and sizing border from a chromeless
+// app window (WebView2 hosts create it WS_OVERLAPPEDWINDOW). Dragging still
+// works through the app's drag region (startWindowDrag).
+func setUndecorated(hwnd unsafe.Pointer) {
+	user32 := syscall.NewLazyDLL("user32.dll")
+	getLong := user32.NewProc("GetWindowLongPtrW")
+	setLong := user32.NewProc("SetWindowLongPtrW")
+	setPos := user32.NewProc("SetWindowPos")
+	// GWL_STYLE = -16; drop WS_THICKFRAME (0x00040000) and WS_CAPTION
+	// (0x00C00000 = WS_BORDER|WS_DLGFRAME).
+	const gwlStyle = -16 // #define GWL_STYLE
+	style, _, _ := getLong.Call(uintptr(hwnd), uintptr(gwlStyle))
+	style &^= 0x00040000 | 0x00C00000
+	setLong.Call(uintptr(hwnd), uintptr(gwlStyle), style)
+	// SWP_FRAMECHANGED applies the new style; keep size/position/z-order.
+	const swpFlags = 0x0002 | 0x0001 | 0x0004 | 0x0020 // NOZORDER|NOMOVE|NOSIZE|FRAMECHANGED
+	setPos.Call(uintptr(hwnd), 0, 0, 0, 0, 0, swpFlags)
+}
+
 type dataBlob struct {
 	cbData uint32
 	pbData *byte

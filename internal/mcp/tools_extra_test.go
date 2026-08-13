@@ -202,6 +202,39 @@ func TestInspectSurfacesDesignTokens(t *testing.T) {
 	}
 }
 
+// TestInspectSurfacesWindow asserts inspect reports the resolved host-window
+// config (qorm.config.json / manifest), so the agent can see the size/chrome
+// the app will open in. resizable reflects the effective value.
+func TestInspectSurfacesWindow(t *testing.T) {
+	root := &model.Node{Type: "column", ID: "root"}
+	app := &model.App{
+		Entry:  "main",
+		Scenes: map[string]*model.Node{"main": root},
+		Window: model.Window{
+			Width: 1024, Height: 480, Title: "Raiden",
+			Fixed: true, Chromeless: true, Transparent: true,
+		},
+	}
+	s := &Server{rt: qrt.New(app), mu: &sync.Mutex{}}
+	insp := resultObj(t, toolCallRPC(t, s, "qorm_inspect", map[string]any{}))
+	win, ok := insp["window"].(map[string]any)
+	if !ok {
+		t.Fatalf("inspect must surface the window config, got %v", insp)
+	}
+	if win["width"] != float64(1024) || win["height"] != float64(480) {
+		t.Errorf("window size = %v", win)
+	}
+	if win["title"] != "Raiden" {
+		t.Errorf("window title = %v", win["title"])
+	}
+	if win["resizable"] != false {
+		t.Errorf("Fixed window must report resizable=false, got %v", win["resizable"])
+	}
+	if win["chromeless"] != true || win["transparent"] != true {
+		t.Errorf("chrome flags not surfaced: %v", win)
+	}
+}
+
 func TestCapabilities(t *testing.T) {
 	s := newCounterHandler(t)
 	caps := resultArr(t, toolCallRPC(t, s, "qorm_capabilities", map[string]any{}))

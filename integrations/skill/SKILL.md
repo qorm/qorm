@@ -13,6 +13,7 @@ behaviour). A pure-Go runtime renders it, signs it, and packages it everywhere.
 ## Write the runnable format (trust this, not the aspirational spec)
 
 - Manifest: `{ "type":"app", "id":…, "entry":"main", "globalState":{ "schema":{…}, "initial":{…} } }`.
+- Window config: an optional `qorm.config.json` beside `qorm.json` sets the host window: `{ "window": { "width":1024, "height":480, "title":"…", "resizable":false, "chromeless":true, "transparent":true, "hideLog":true, "hideTray":true } }`. It is host/build-time config — never bundled or signed — and WINS over the manifest's `display` / `platforms.desktop.window`; put window settings that must ship with a signed bundle in the manifest instead. `chromeless` + `transparent` make a shaped (异形) window: no system chrome, clear background, your content defines the visible shape (see `examples/floating`). `qorm_inspect` reports the resolved values; width/height 0 = fluid.
 - Text: the `text` field (NOT `value`); bind with `{{ state.x }}` — e.g. `{ "type":"text", "text":"Count: {{ state.count }}" }`.
 - RichText: the `richtext` widget takes a `spans` array (each with `text` and `style`).
 - Video: use `{ "type":"video", "src":"...", "loop":true, "autoplay":true, "muted":true }` for video playback or looping backgrounds.

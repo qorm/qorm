@@ -43,7 +43,7 @@ func toolList() []tool {
 		},
 		{
 			Name:        "qorm_inspect",
-			Description: "Inspect the QORM app: id, name, entry scene, scene ids, state schema, current state, action ids, static compiler diagnostics, and the design-token system (designTokens: name -> {type,value,enforce}) when declared. Enforced color tokens hard-constrain apply_patch: a color style may only be set to one of their values. Read-only.",
+			Description: "Inspect the QORM app: id, name, entry scene, scene ids, state schema, current state, action ids, static compiler diagnostics, the resolved host window config (window: width/height/title/resizable/chromeless/transparent — set via qorm.config.json or qorm.json display/platforms.desktop.window), and the design-token system (designTokens: name -> {type,value,enforce}) when declared. Enforced color tokens hard-constrain apply_patch: a color style may only be set to one of their values. Read-only.",
 			InputSchema: obj(nil),
 		},
 		{
@@ -754,6 +754,7 @@ func (s *Server) inspect() map[string]any {
 		actionIDs = append(actionIDs, id)
 	}
 	sort.Strings(actionIDs)
+	win := s.rt.App.Window
 	out := map[string]any{
 		"id":           s.rt.App.ID,
 		"name":         s.rt.App.Name,
@@ -763,6 +764,17 @@ func (s *Server) inspect() map[string]any {
 		"stateSchema":  s.rt.App.GlobalState.Schema,
 		"currentState": s.rt.State,
 		"diagnostics":  s.rt.App.Diagnostics,
+		// Resolved host-window config (qorm.config.json > platforms.desktop.window
+		// > top-level display). width/height 0 = fluid. resizable reflects the
+		// effective value (windows are resizable unless "resizable": false).
+		"window": map[string]any{
+			"width":       win.Width,
+			"height":      win.Height,
+			"title":       win.Title,
+			"resizable":   !win.Fixed,
+			"chromeless":  win.Chromeless,
+			"transparent": win.Transparent,
+		},
 	}
 	// Surface the design-token system so the agent knows which token values it
 	// may use; enforced color tokens hard-constrain apply_patch style edits.

@@ -18,6 +18,8 @@ QORM exposes a [Model Context Protocol](https://modelcontextprotocol.io) server 
 
 **Safety model.** `qorm_simulate_action`, `qorm_preview_patch` and `qorm_diff` run against a copy and never touch the live app. `qorm_apply_patch` commits a change, but it must carry the `previewToken` returned by a matching `qorm_preview_patch` of the same ops — so every committed edit is bound to a prior review. `qorm_undo` reverts the last apply.
 
+**The host window.** The window an app opens in is configured by an optional `qorm.config.json` beside `qorm.json` (host/build-time config — it is NOT bundled or signed), with `qorm.json` `display` / `platforms.desktop.window` as the in-manifest fallback: `width`/`height` (start size), `title`, `resizable` (default true), `chromeless` (no title bar/border), `transparent` (clear background → custom-shape window), `hideLog`/`hideTray`. `qorm.config.json` wins over the manifest; `qorm_inspect` reports the resolved values.
+
 ## Tool categories
 
 The 25 tools fall into six intent groups. Pick by what you are trying to do:
@@ -32,7 +34,7 @@ The 25 tools fall into six intent groups. Pick by what you are trying to do:
 | Tool | Parameters | What it does |
 |---|---|---|
 | `qorm_window` | `h` (integer), `id` (string), `js` (string), `op` (move\|open\|close\|eval\|tile\|focus\|minimize\|pin\|unpin), `url` (string), `w` (integer), `x` (integer), `y` (integer) | Control the desktop app window: op=move needs x,y,w,h (top-left px); op=focus/minimize/pin/unpin act on the window. The control engine positions the user's window. Supported on macOS and Windows desktop apps. |
-| `qorm_inspect` | — | Inspect the QORM app: id, name, entry scene, scene ids, state schema, current state, action ids, static compiler diagnostics, and the design-token system (designTokens: name -> {type,value,enforce}) when declared. Enforced color tokens hard-constrain apply_patch: a color style may only be set to one of their values. Read-only. |
+| `qorm_inspect` | — | Inspect the QORM app: id, name, entry scene, scene ids, state schema, current state, action ids, static compiler diagnostics, the resolved host window config (window: width/height/title/resizable/chromeless/transparent — set via qorm.config.json or qorm.json display/platforms.desktop.window), and the design-token system (designTokens: name -> {type,value,enforce}) when declared. Enforced color tokens hard-constrain apply_patch: a color style may only be set to one of their values. Read-only. |
 | `qorm_render_html` | — | Render the current app to HTML so the agent can see what the UI looks like — the scene the session is actually on, after its route guard has been resolved (a guarded scene the session may not enter is never rendered). Read-only. |
 | `qorm_capture_subtree` | `id`* (string) | Capture a specific node subtree by node id: returns isolated rendered HTML and child layout hierarchy for visual AI feedback. Read-only. |
 | `qorm_capture_canvas` | `id` (string) | Capture the actual last-presented native Canvas pixel plane as a base64 PNG. Optional id still returns the full surface plus a physical-pixel clip rectangle for that node; it does not pretend to isolate or re-render the subtree. Fails loudly outside a running native Canvas host, before its first frame, for absent/invisible nodes, or when safety limits are exceeded. Read-only. |

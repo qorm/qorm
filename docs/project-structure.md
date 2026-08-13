@@ -8,6 +8,7 @@ native code that compiles into every target.
 ```
 myapp/
   qorm.json            manifest — the one required file
+  qorm.config.json     optional — host window / build-time config (NOT bundled, NOT signed)
   scenes/              one screen per file
     main.json          { "type": "scene", "id": "main", "root": { … node tree … } }
   actions/             one action per file
@@ -52,7 +53,7 @@ the global state:
     "initial": { "items": [], "inputValue": "" }
   },
   "platforms": {
-    "desktop": { "window": { "width": 500, "height": 700, "icon": "assets/icon.png" } }
+    "desktop": { "window": { "width": 500, "height": 700 } }
   }
 }
 ```
@@ -67,6 +68,50 @@ the global state:
 | `components` | reusable component definitions (or a folder of them) |
 | `platforms` | per-platform config — desktop `window`, and packaging options |
 | `defaultLocale` | initial language for multi-locale apps |
+
+## `qorm.config.json` — the host window (optional)
+
+An optional file **beside** `qorm.json` that configures the window the app opens
+in. It is host/build-time config: it is never bundled or signed (the signed
+payload is the app's *content*), so a build farm or a local checkout can
+re-window an app without editing it. Window settings that are part of the
+app's identity and must ship with a signed bundle belong in the manifest
+instead (`platforms.desktop.window`).
+
+```json
+{
+  "window": {
+    "width": 1024,
+    "height": 480,
+    "title": "Raiden",
+    "resizable": false,
+    "chromeless": true,
+    "transparent": true,
+    "hideLog": true,
+    "hideTray": true
+  }
+}
+```
+
+| Key | Meaning |
+|---|---|
+| `width` · `height` | window size in points at launch; the runtime Viewport is seeded from them before the first render (no client round-trip). `0`/absent = fluid |
+| `title` | window title; falls back to the app `name` |
+| `resizable` | default `true`; `false` locks the window to its declared size (fixed game boards, HUDs) |
+| `chromeless` | no title bar / border — widget/overlay style; drag via the app's drag region |
+| `transparent` | transparent background → a **shaped window**: the app's own rendered content defines the visible shape, the rest is click-through |
+| `hideLog` · `hideTray` | don't spawn the Activity-log window / the menu-bar tray icon |
+
+Precedence (highest wins): `qorm.config.json` `window` → `qorm.json`
+`platforms.desktop.window` → `qorm.json` top-level `display`. The top-level
+`display` block is the backwards-compatible spelling (geometry only); a
+`display` block inside `qorm.config.json` is still accepted too. `chromeless` +
+`transparent` together make a 异形 (custom-shape) window — fully supported on the
+macOS **WebView** host (`-tags desktop`); the default pure-Go canvas window
+honours size/resizable but not the chrome flags. On Windows `chromeless` is
+honoured (`transparent` pending), and on Linux both parse but the decoration
+strip is not wired yet. A malformed config file is reported as a load
+diagnostic rather than applied.
 
 ## Live development (hot-reload)
 

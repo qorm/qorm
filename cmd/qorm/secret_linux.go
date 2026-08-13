@@ -27,6 +27,12 @@ func setWindowPos(hwnd unsafe.Pointer, x, y, w, h int) {}
 // startWindowDrag: no GTK drag path wired yet.
 func startWindowDrag(hwnd unsafe.Pointer) {}
 
+// setUndecorated: chromeless on Linux needs gtk_window_set_decorated, which is
+// not wired yet (the Linux native layer is deliberately cgo-free DBus — the
+// GTK window itself is owned by the vendored webview). The flag still loads
+// and round-trips; only the decoration strip is pending.
+func setUndecorated(hwnd unsafe.Pointer) {}
+
 // nativeVolumeGet/Set: no native master-volume API wired on Linux; the desktop
 // bridge uses pactl (see desktopHardwareLinux).
 func nativeVolumeGet() (float64, bool) { return 0, false }

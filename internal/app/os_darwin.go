@@ -57,8 +57,10 @@ var darwinKeyCodes = map[int]string{
 
 var activeWindow *Window
 
-// NewWindow creates a new native window.
-func NewWindow(title string, width, height int) *Window {
+// NewWindow creates a new native window. resizable=false drops
+// NSWindowStyleMaskResizable so the window keeps its declared size (fixed
+// game boards, HUDs).
+func NewWindow(title string, width, height int, resizable bool) *Window {
 	clsNSApp := appkit.ObjcGetClass("NSApplication")
 	app := appkit.MsgSend(clsNSApp, appkit.SelRegisterName("sharedApplication"))
 	appkit.MsgSend(app, appkit.SelRegisterName("setActivationPolicy:"), 0)
@@ -82,7 +84,12 @@ func NewWindow(title string, width, height int) *Window {
 	rectPtr := uintptr(unsafe.Pointer(&rect))
 	appkit.MsgSend(inv, appkit.SelRegisterName("setArgument:atIndex:"), rectPtr, 2)
 
+	// 15 = Titled|Closable|Miniaturizable|Resizable; drop the Resizable bit
+	// (8) for fixed-size windows.
 	styleMask := uintptr(15)
+	if !resizable {
+		styleMask = uintptr(7)
+	}
 	appkit.MsgSend(inv, appkit.SelRegisterName("setArgument:atIndex:"), uintptr(unsafe.Pointer(&styleMask)), 3)
 
 	backing := uintptr(2)

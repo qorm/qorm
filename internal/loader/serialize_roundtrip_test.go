@@ -899,6 +899,18 @@ func TestSerializeRoundTripRegressionFields(t *testing.T) {
 			},
 		},
 		{
+			name: "window resizable:false (Fixed)",
+			mut:  func(a *model.App) { a.Window = model.Window{Width: 320, Height: 240, Fixed: true} },
+			check: func(t *testing.T, got *model.App) {
+				// "resizable": false must survive the round trip — a fixed game
+				// board that came back resizable would let users drag it out of
+				// aspect ratio.
+				if !got.Window.Fixed {
+					t.Errorf("window Fixed lost on round trip: %+v", got.Window)
+				}
+			},
+		},
+		{
 			name: "if step condition and branches",
 			mut: func(a *model.App) {
 				a.Actions["cond"] = &model.Action{ID: "cond", Steps: []model.Step{{

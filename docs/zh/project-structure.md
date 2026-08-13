@@ -7,6 +7,7 @@
 ```
 myapp/
   qorm.json            清单——唯一必需的文件
+  qorm.config.json     可选——宿主窗口 / 构建期配置(不打进 bundle、不参与签名)
   scenes/              每个屏幕一个文件
     main.json          { "type": "scene", "id": "main", "root": { … 节点树 … } }
   actions/             每个动作一个文件
@@ -42,7 +43,7 @@ myapp/
     "initial": { "items": [], "inputValue": "" }
   },
   "platforms": {
-    "desktop": { "window": { "width": 500, "height": 700, "icon": "assets/icon.png" } }
+    "desktop": { "window": { "width": 500, "height": 700 } }
   }
 }
 ```
@@ -57,6 +58,45 @@ myapp/
 | `components` | 可复用的组件定义(或一个组件文件夹) |
 | `platforms` | 各平台配置——桌面 `window`、以及打包选项 |
 | `defaultLocale` | 多语言应用的初始语言 |
+
+## `qorm.config.json` —— 宿主窗口(可选)
+
+与 `qorm.json` **并列**的可选文件,用来配置应用打开时的窗口。它属于宿主/构建期配置:
+不会被打进 bundle、也不参与签名(签名载荷是应用的*内容*),因此构建农场或本地检出
+可以在不改动应用本身的情况下重新设定窗口。属于应用身份、且必须随签名 bundle 分发的
+窗口设置,应写在清单内(`platforms.desktop.window`)。
+
+```json
+{
+  "window": {
+    "width": 1024,
+    "height": 480,
+    "title": "Raiden",
+    "resizable": false,
+    "chromeless": true,
+    "transparent": true,
+    "hideLog": true,
+    "hideTray": true
+  }
+}
+```
+
+| 键 | 含义 |
+|---|---|
+| `width` · `height` | 启动时的窗口尺寸(点);运行时视口在首帧渲染前就由其初始化(无需客户端往返)。`0`/缺省 = 流式自适应 |
+| `title` | 窗口标题;缺省回退到应用 `name` |
+| `resizable` | 默认 `true`;设为 `false` 时窗口锁定为声明的尺寸(固定棋盘的游戏、HUD) |
+| `chromeless` | 无标题栏/边框——挂件/悬浮窗风格;通过应用自身的拖拽区域拖动 |
+| `transparent` | 透明背景 → **异形窗口**:由应用自己渲染的内容决定可见形状,其余区域点击穿透 |
+| `hideLog` · `hideTray` | 不弹出活动日志窗口 / 不显示菜单栏托盘图标 |
+
+优先级(高者生效):`qorm.config.json` 的 `window` → `qorm.json` 的
+`platforms.desktop.window` → `qorm.json` 顶层 `display`。顶层 `display` 块是向后
+兼容的写法(仅几何属性);`qorm.config.json` 内的 `display` 块同样仍被接受。
+`chromeless` + `transparent` 组合即异形(自定义形状)窗口 —— 在 macOS 的 **WebView**
+宿主(`-tags desktop`)上完整支持;默认的纯 Go canvas 窗口只遵循尺寸/resizable,
+不遵循 chrome 标志。Windows 上 `chromeless` 生效(`transparent` 待实现),Linux 上
+两者均可解析但去装饰尚未接线。配置文件格式错误会作为加载诊断报告,而不是被静默应用。
 
 ## 实时开发(热重载)
 

@@ -77,7 +77,7 @@ func runCanvasWindow(srv *server.Server, ln net.Listener, title string, hooks *c
 	// request is marshalled onto the main thread (see marshalToMain).
 	srv.SetCanvasHost(true)
 
-	win := app.NewWindow(title, ww, hh)
+	win := app.NewWindow(title, ww, hh, !aw.Fixed)
 	eng := canvas.NewEngine(srv.Runtime(), canvas.SoftwareRenderer{})
 	eng.SetHumanActionSink(srv.RecordHumanDispatch)
 	eng.SetHumanPresenceSink(srv.RecordHumanPresence)

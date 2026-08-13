@@ -1,6 +1,21 @@
 # 实施进度
 
-> 主控同步 · 更新：2026-08-13 **v0.9.1 已发布 · 发布后维护轮完成**
+> 主控同步 · 更新：2026-08-13 **窗口建设完善轮 · qorm.config.json 文档补齐**
+
+## 窗口建设完善轮（2026-08-13）
+
+用户反馈两点：(1) `qorm.config.json` 在 MCP 与 SKILL 文档里完全没有说明；
+(2) 窗口部分建设未完善 —— 异形窗口、窗口大小这类配置应统一收进 `qorm.config.json`。
+本轮把窗口配置补齐并落到文档：
+
+| 变更 | 内容 |
+|------|------|
+| `qorm.config.json` 成为窗口配置的家 | 新增 `window` 块（width/height/title/resizable/chromeless/transparent/hideLog/hideTray），`display` 块保留为兼容别名；优先级 config > platforms.desktop.window > 顶层 display；坏 JSON / 未知键改为出诊断而非静默吞掉 |
+| `resizable` 真正生效 | 此前只解析不消费。macOS WebView style mask、非 macOS 走 webview `HintFixed`、canvas 窗口 style mask 均按 `resizable:false` 锁尺寸；新增 `Window.Fixed` 区分"显式 false"与"未声明" |
+| `title` 真正生效 | 窗口标题此前从不消费；现在声明的 window title 优先于 app name 作为窗口标题 |
+| 异形窗口（chromeless+transparent） | macOS WebView 已完整；Windows 补 chromeless（user32 去装饰）；Linux/BSD 解析但去装饰未接线（如实记录）；canvas 宿主不消费 chrome 标志（如实记录） |
+| MCP 可见 | `qorm_inspect` 输出新增 `window`（解析后的最终窗口配置）；mcp-tools.md（en+zh）新增"宿主窗口"引言段 + qorm_inspect 描述更新，生成器测试守护 |
+| 文档补齐 | SKILL.md 可运行格式节 + docs/agent/skills.md（en+zh）+ docs/project-structure.md（en+zh）新增 qorm.config.json 专节与优先级表 + AGENTS.md；`examples/mario` 转用新 `window` 块；纠正 project-structure 示例中从未存在的 `window.icon` 键；删除 model.DisplaySpec 死代码 |
 
 ## v0.9.1 发布后维护轮（2026-08-13）
 
@@ -95,3 +110,4 @@ CI 变红触发排查，两个失败都是真实缺陷，按根因修复而非�
 | 2026-08-13 | 对抗复审三轮：双镜 pass；残留债全部归档 audit-log |
 | 2026-08-13 | 全量门禁绿：build · test · race · wasm · coverage gate · `qorm test` 4/4 |
 | 2026-08-13 | **v0.9.1 发布**：changelog 归档 + version bump + annotated tag + push + 官网部署 |
+| 2026-08-13 | 窗口建设完善轮：qorm.config.json `window` 块 + resizable/title 落地 + MCP inspect 可见 + SKILL/文档补齐 |

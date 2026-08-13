@@ -73,7 +73,7 @@ func launchWindow(srv *server.Server, ln net.Listener, url, title string) bool {
 			if h == 0 {
 				h = 600
 			}
-			dispatchMain(func() { openWin(id, id, url, w, h, false, false) })
+			dispatchMain(func() { openWin(id, id, url, w, h, false, false, true) })
 		},
 		func(id, js string) { nativeEval(id, js) },
 	)
@@ -85,7 +85,7 @@ func launchWindow(srv *server.Server, ln net.Listener, url, title string) bool {
 	if hh == 0 {
 		hh = 820
 	}
-	runAppWindow(url, title, ww, hh, aw.Chromeless, aw.Transparent)
+	runAppWindow(url, title, ww, hh, aw.Chromeless, aw.Transparent, !aw.Fixed)
 	return true
 }
 

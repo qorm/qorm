@@ -173,7 +173,9 @@ func ManifestToJSON(app *model.App) map[string]any {
 		if app.Window.Transparent {
 			win["transparent"] = true
 		}
-		if app.Window.Resizable {
+		if app.Window.Fixed {
+			win["resizable"] = false
+		} else if app.Window.Resizable {
 			win["resizable"] = true
 		}
 		if app.Window.HideLog {

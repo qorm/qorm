@@ -16,7 +16,7 @@ QORM 发布 **一份综合技能**：[`integrations/skill/SKILL.md`](https://git
 
 | 章节 | 教会智能体什么 |
 |---|---|
-| 编写可运行格式 | 运行时今天接受的精确 JSON：清单、`text` + `{{ state.x }}` 绑定、`richtext` spans、`video`、`path`、`onPress`、动作步骤、组件 —— 以及哪些"规格格式"不能用。 |
+| 编写可运行格式 | 运行时今天接受的精确 JSON：清单、可选的 `qorm.config.json` 宿主窗口块（尺寸/标题/resizable/chromeless/transparent → 异形窗口）、`text` + `{{ state.x }}` 绑定、`richtext` spans、`video`、`path`、`onPress`、动作步骤、组件 —— 以及哪些"规格格式"不能用。 |
 | 标准动作模式 | 加载态、错误处理、乐观更新、表单校验、分页 —— 均为可直接加载的形态，配方见 `docs/tutorials/first-action.md`。 |
 | 通过 MCP 驱动应用 | 全部 **25 个 MCP 工具**按用途分组（理解 / 操作 / 窗口 / 设计 / 验证 / 模拟），与 [mcp-tools.md](mcp-tools.md) 一致。 |
 | 永远自我验证 | 何时用 `qorm_measure` / `qorm_check_layout`（实时宿主）、何时用 CLI `qorm measure` / `qorm check`（无头）；像素证据用 `qorm_capture_canvas` / `qorm shot`。 |

@@ -55,11 +55,22 @@ func LoadDir(dir string) (*model.App, error) {
 }
 
 // loadConfig reads <dir>/qorm.config.json (optional) and applies it to the
-// app. Currently only the `display` block is recognised — width / height /
-// resizable / title land in App.Window, which the server then seeds into
-// the runtime Viewport at startup (so the first frame already has the
-// right size, with no client round-trip). The desktop host reads the same
-// field to size the native window.
+// app. Recognised blocks:
+//
+//	window  — the canonical window configuration: width / height / title /
+//	          resizable / chromeless / transparent / hideLog / hideTray.
+//	          chromeless + transparent together make a shaped (异形) window:
+//	          no system chrome, transparent backdrop, the app's own content
+//	          defines the visible shape.
+//	display — legacy spelling kept for compatibility; same keys, applied
+//	          first, so a `window` block present beside it wins.
+//
+// The values land in App.Window, which the server seeds into the runtime
+// Viewport at startup (so the first frame already has the right size, with
+// no client round-trip) and the desktop host reads to size and chrome the
+// native window. Because LoadDir runs this AFTER the manifest is parsed,
+// qorm.config.json WINS over both the manifest's top-level `display` and
+// platforms.desktop.window.
 func loadConfig(dir string, app *model.App) {
 	cfgPath := filepath.Join(dir, "qorm.config.json")
 	data, err := os.ReadFile(cfgPath)
@@ -68,28 +79,66 @@ func loadConfig(dir string, app *model.App) {
 	}
 	var doc map[string]any
 	if err := json.Unmarshal(data, &doc); err != nil {
-		// Don't fail the load for a malformed config — surface a warning
-		// via the app's diagnostics? The loader returns (*App, error)
-		// only; the diagnostics slice lives on app.Diagnostics (not
-		// exposed by LoadDir). Use the public Collect-style path next
-		// time; for now, skip silently.
+		// A broken config must not kill the load, but silently ignoring it
+		// hides the reason the window came out wrong — diagnose it.
+		app.Diagnostics = append(app.Diagnostics, fmt.Sprintf("warning: qorm.config.json is not valid JSON (%v) — ignored", err))
 		return
 	}
 	if d, ok := doc["display"].(map[string]any); ok {
-		// qorm.config.json WINS over both the manifest's top-level
-		// `display` and platforms.desktop.window — the config file is
-		// the explicit override the build / run command honours.
-		if w, ok := d["width"].(float64); ok && w > 0 {
-			app.Window.Width = int(w)
+		applyConfigWindow(app, d, "display")
+	}
+	if w, ok := doc["window"].(map[string]any); ok {
+		applyConfigWindow(app, w, "window")
+	}
+	for _, k := range sortedKeys(doc) {
+		if k != "window" && k != "display" {
+			app.Diagnostics = append(app.Diagnostics, fmt.Sprintf("warning: unknown block %q in qorm.config.json (recognised: window, display)", k))
 		}
-		if h, ok := d["height"].(float64); ok && h > 0 {
-			app.Window.Height = int(h)
+	}
+}
+
+// configWindowKeys is the key set a qorm.config.json window/display block
+// accepts — the full model.Window surface.
+var configWindowKeys = map[string]bool{
+	"width": true, "height": true, "title": true, "resizable": true,
+	"chromeless": true, "transparent": true, "hideLog": true, "hideTray": true,
+}
+
+// applyConfigWindow applies one qorm.config.json window block to app.Window.
+// which is the block name, for diagnostics only. Unknown keys are warned
+// rather than swallowed: a typo'd window key silently produces the wrong
+// host window otherwise.
+func applyConfigWindow(app *model.App, b map[string]any, which string) {
+	if w, ok := b["width"].(float64); ok && w > 0 {
+		app.Window.Width = int(w)
+	}
+	if h, ok := b["height"].(float64); ok && h > 0 {
+		app.Window.Height = int(h)
+	}
+	if t, ok := b["title"].(string); ok && t != "" {
+		app.Window.Title = t
+	}
+	if r, ok := b["resizable"].(bool); ok {
+		app.Window.Resizable = r
+		app.Window.Fixed = !r
+	}
+	flags := []struct {
+		key string
+		dst *bool
+	}{
+		{"chromeless", &app.Window.Chromeless},
+		{"transparent", &app.Window.Transparent},
+		{"hideLog", &app.Window.HideLog},
+		{"hideTray", &app.Window.HideTray},
+	}
+	for _, f := range flags {
+		if v, ok := b[f.key].(bool); ok {
+			*f.dst = v
 		}
-		if t, ok := d["title"].(string); ok && t != "" {
-			app.Window.Title = t
-		}
-		if r, ok := d["resizable"].(bool); ok {
-			app.Window.Resizable = r
+	}
+	for _, k := range sortedKeys(b) {
+		if !configWindowKeys[k] {
+			app.Diagnostics = append(app.Diagnostics, fmt.Sprintf("warning: unknown key %q in qorm.config.json %q block", k, which))
 		}
 	}
 }
@@ -1598,10 +1647,12 @@ func applyManifest(app *model.App, doc map[string]any, diags *[]string) {
 	// and any app whose layout is NOT fluid declare it here so the
 	// runtime Viewport is seeded BEFORE the first render (no race
 	// against a late /viewport POST), and so the server / desktop host
-	// can size the host window without a client round-trip. A nested
-	// platforms.desktop.window entry still wins when both are present
-	// (the desktop host needs Chromeless / Transparent which the
-	// top-level form does not carry) — see applyPlatforms below.
+	// can size the host window without a client round-trip. Precedence:
+	// within the manifest this block seeds size + title first and
+	// platforms.desktop.window only fills what it left zero (but owns the
+	// desktop-only chrome flags and the last word on `resizable`);
+	// qorm.config.json, loaded after the manifest, wins over both — see
+	// loadConfig.
 	if d, ok := doc["display"].(map[string]any); ok {
 		app.Window.Width = int(asFloat(d["width"]))
 		app.Window.Height = int(asFloat(d["height"]))
@@ -1610,6 +1661,7 @@ func applyManifest(app *model.App, doc map[string]any, diags *[]string) {
 		}
 		if r, ok := d["resizable"].(bool); ok {
 			app.Window.Resizable = r
+			app.Window.Fixed = !r
 		}
 	}
 	// Plugin (middle-layer) ABI compatibility: warn if the app was authored
@@ -1719,6 +1771,7 @@ func applyManifest(app *model.App, doc map[string]any, diags *[]string) {
 				}
 				if r, ok := w["resizable"].(bool); ok {
 					app.Window.Resizable = r
+					app.Window.Fixed = !r
 				}
 				app.Window.Chromeless = asBool(w["chromeless"])
 				app.Window.Transparent = asBool(w["transparent"])

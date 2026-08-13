@@ -16,7 +16,7 @@ by pointing your agent at the file (or via the repo's
 
 | Section | What it teaches |
 |---|---|
-| Write the runnable format | The exact JSON the runtime accepts today: manifest, `text` + `{{ state.x }}` bindings, `richtext` spans, `video`, `path`, `onPress`, action steps, components — and which spec formats to NOT use. |
+| Write the runnable format | The exact JSON the runtime accepts today: manifest, the optional `qorm.config.json` host-window block (size/title/resizable/chromeless/transparent → shaped windows), `text` + `{{ state.x }}` bindings, `richtext` spans, `video`, `path`, `onPress`, action steps, components — and which spec formats to NOT use. |
 | Standard action patterns | Loading state, error handling, optimistic update, form validation, pagination — load-clean shapes with recipes in `docs/tutorials/first-action.md`. |
 | Drive a live app over MCP | All **25 MCP tools** grouped by purpose (Understand / Operate / Window / Design / Verify / Simulate), matching [mcp-tools.md](mcp-tools.md). |
 | Always self-verify | When to use `qorm_measure` / `qorm_check_layout` (live host) vs CLI `qorm measure` / `qorm check` (headless), pixel evidence via `qorm_capture_canvas` / `qorm shot`. |

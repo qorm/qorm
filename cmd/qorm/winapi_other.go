@@ -10,6 +10,10 @@ func setWindowPos(hwnd unsafe.Pointer, x, y, w, h int) {}
 // startWindowDrag: no GTK drag path wired yet.
 func startWindowDrag(hwnd unsafe.Pointer) {}
 
+// setUndecorated: no window-decoration path wired on BSD yet (see the Linux
+// stub for what it takes). The chromeless flag still loads and round-trips.
+func setUndecorated(hwnd unsafe.Pointer) {}
+
 // nativeSecureSet/Get: no OS-backed secure storage wired on BSD yet; refuse
 // rather than store plaintext. Linux has a real DBus Secret Service path in
 // secret_linux.go.

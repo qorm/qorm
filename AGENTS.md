@@ -2,8 +2,10 @@
 
 **What this is.** QORM (Query · Observe · Render · Mutate) is a pure-Go,
 agent-native cross-platform app platform. A QORM app is JSON — a manifest
-(`qorm.json`) + `scenes/*.json` + `actions/*.json`, plus an optional Go
-middle-layer — that one runtime renders to HTML/CSS, ed25519-signs into a
+(`qorm.json`) + `scenes/*.json` + `actions/*.json`, an optional Go
+middle-layer, and an optional `qorm.config.json` (host window config:
+size/title/resizable/chromeless/transparent — never bundled or signed) — that
+one runtime renders to HTML/CSS, ed25519-signs into a
 verifiable bundle, delivers over-the-air, packages for web / iOS / Android /
 desktop, and exposes to agents over MCP. Dual-consumer by design: every artifact
 is meant to be read, written, and *verified* by both a person and an AI. The

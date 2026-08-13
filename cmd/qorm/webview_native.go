@@ -6,7 +6,7 @@ package main
 #cgo CFLAGS: -x objective-c -fobjc-arc
 #cgo LDFLAGS: -framework Cocoa -framework WebKit
 #include <stdlib.h>
-void* qormWVOpen(const char* wid, const char* title, const char* url, int w, int h, int chromeless, int transparent);
+void* qormWVOpen(const char* wid, const char* title, const char* url, int w, int h, int chromeless, int transparent, int resizable);
 void qormWVEval(const char* wid, const char* js);
 void qormSetDockMenu(const char* json);
 void qormWinDragStart(const char* wid);
@@ -65,9 +65,9 @@ func dispatchMain(f func()) { nativeMainQueue <- f; C.qormWVWake() }
 
 func cstr(s string) *C.char { return C.CString(s) }
 
-func openWin(id, title, url string, w, h int, chromeless, transparent bool) {
+func openWin(id, title, url string, w, h int, chromeless, transparent, resizable bool) {
 	ci, ct, cu := cstr(id), cstr(title), cstr(url)
-	C.qormWVOpen(ci, ct, cu, C.int(w), C.int(h), cbool(chromeless), cbool(transparent))
+	C.qormWVOpen(ci, ct, cu, C.int(w), C.int(h), cbool(chromeless), cbool(transparent), cbool(resizable))
 	C.free(unsafe.Pointer(ci))
 	C.free(unsafe.Pointer(ct))
 	C.free(unsafe.Pointer(cu))
@@ -179,7 +179,7 @@ func cbool(b bool) C.int {
 	return 0
 }
 
-func runAppWindow(url, title string, w, h int, chromeless, transparent bool) {
+func runAppWindow(url, title string, w, h int, chromeless, transparent, resizable bool) {
 	notifyClickHandler = func(id string) { nativeEval("main", "qormOnNotifyClick("+jsQuote(id)+")") }
 	biometricHandler = func(ok bool, m string) { nativeEval("main", "qormOnBiometric("+boolJS(ok)+","+jsQuote(m)+")") }
 	btStateHandler = func(on bool) { nativeEval("main", "qormOnBluetoothState("+boolJS(on)+")") }
@@ -192,7 +192,7 @@ func runAppWindow(url, title string, w, h int, chromeless, transparent bool) {
 		cb := func(js string) { nativeEval(target, js) }
 		go desktopHardware(op, m, cb, dispatchMain)
 	}
-	openWin("main", title, url, w, h, chromeless, transparent)
+	openWin("main", title, url, w, h, chromeless, transparent, resizable)
 
 	stateFile := windowStateFile(title)
 	go func() {
@@ -216,7 +216,7 @@ func runAppWindow(url, title string, w, h int, chromeless, transparent bool) {
 
 func runLogWindow(url, title string) {
 	runtime.LockOSThread()
-	openWin("log", title, url, 460, 640, false, false)
+	openWin("log", title, url, 460, 640, false, false, true)
 	parent := os.Getppid()
 	go func() {
 		for {

@@ -23,7 +23,11 @@ var (
 )
 
 // runAppWindow (non-macOS): the app window via webview_go (WebKitGTK/WebView2).
-func runAppWindow(url, title string, ww, hh int, chromeless, transparent bool) {
+// chromeless strips the window decorations where the platform wires it
+// (Windows today — see setUndecorated); transparent is honoured only by the
+// macOS host, where the window's backing can go clear (the webview library
+// exposes no transparency on GTK/WebView2).
+func runAppWindow(url, title string, ww, hh int, chromeless, transparent, resizable bool) {
 	w := webview.New(false)
 	appWebView = w
 	defer func() { appWebView = nil }()
@@ -35,7 +39,14 @@ func runAppWindow(url, title string, ww, hh int, chromeless, transparent bool) {
 	if hh == 0 {
 		hh = 820
 	}
-	w.SetSize(ww, hh, webview.HintNone)
+	hint := webview.HintNone
+	if !resizable {
+		hint = webview.HintFixed
+	}
+	w.SetSize(ww, hh, hint)
+	if chromeless {
+		setUndecorated(w.Window())
+	}
 	bindDesktopHardware(w)
 	go func() {
 		time.Sleep(600 * time.Millisecond)
@@ -108,7 +119,7 @@ func moveAppWindow(x, y, w, h int) {
 	}
 }
 
-func openWin(id, title, url string, w, h int, cl, tr bool) {
+func openWin(id, title, url string, w, h int, cl, tr, resizable bool) {
 	winMu.Lock()
 	if old, ok := activeWindows[id]; ok {
 		winMu.Unlock()
@@ -139,7 +150,14 @@ func openWin(id, title, url string, w, h int, cl, tr bool) {
 		if h == 0 {
 			h = 600
 		}
-		wv.SetSize(w, h, webview.HintNone)
+		hint := webview.HintNone
+		if !resizable {
+			hint = webview.HintFixed
+		}
+		wv.SetSize(w, h, hint)
+		if cl {
+			setUndecorated(wv.Window())
+		}
 		wv.Navigate(url)
 		wv.Run()
 	}()

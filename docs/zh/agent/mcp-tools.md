@@ -18,6 +18,8 @@ QORM 暴露了一个 [Model Context Protocol](https://modelcontextprotocol.io) �
 
 **安全模型**：`qorm_simulate_action`、`qorm_preview_patch` 和 `qorm_diff` 均对应用副本运行，绝不触碰运行中的应用。`qorm_apply_patch` 提交修改，但它必须携带由相同操作的 `qorm_preview_patch` 返回的 `previewToken` —— 从而保证每次提交的编辑都有前置审查。`qorm_undo` 撤销最后一次提交的操作。
 
+**宿主窗口**：应用打开时的窗口由 `qorm.json` 旁的可选文件 `qorm.config.json` 配置（宿主/构建期配置 —— 不会被打进 bundle，也不参与签名），并以 `qorm.json` 内的 `display` / `platforms.desktop.window` 作为清单内回退：`width`/`height`（初始尺寸）、`title`、`resizable`（默认 true）、`chromeless`（无标题栏/边框）、`transparent`（透明背景 → 异形/自定义形状窗口）、`hideLog`/`hideTray`。`qorm.config.json` 优先于清单；`qorm_inspect` 会回报解析后的最终取值。
+
 ## 工具分类
 
 25 个工具按意图分为六组，按需取用：
@@ -32,7 +34,7 @@ QORM 暴露了一个 [Model Context Protocol](https://modelcontextprotocol.io) �
 | 工具 | 参数 | 描述 |
 |---|---|---|
 | `qorm_window` | `h` (integer), `id` (string), `js` (string), `op` (move\|open\|close\|eval\|tile\|focus\|minimize\|pin\|unpin), `url` (string), `w` (integer), `x` (integer), `y` (integer) | 控制桌面应用窗口：op=move 时需要 x,y,w,h（左上角像素坐标）；op=focus/minimize/pin/unpin 作用于窗口。控制引擎调整用户窗口的位置。支持 macOS 和 Windows 桌面应用。 |
-| `qorm_inspect` | — | 检查 QORM 应用：id、名称、入口场景、场景 id 列表、状态模式 (schema)、当前状态、动作 (action) id 列表、静态编译诊断警告，以及（若已声明）设计令牌系统（designTokens：名称 -> {type,value,enforce}）。声明为 enforce 的颜色令牌会硬约束 apply_patch：颜色样式只能设为这些令牌的值。只读。 |
+| `qorm_inspect` | — | 检查 QORM 应用：id、名称、入口场景、场景 id 列表、状态模式 (schema)、当前状态、动作 (action) id 列表、静态编译诊断警告、解析后的宿主窗口配置（window：width/height/title/resizable/chromeless/transparent —— 由 qorm.config.json 或 qorm.json 的 display/platforms.desktop.window 设定），以及（若已声明）设计令牌系统（designTokens：名称 -> {type,value,enforce}）。声明为 enforce 的颜色令牌会硬约束 apply_patch：颜色样式只能设为这些令牌的值。只读。 |
 | `qorm_render_html` | — | 将当前应用渲染为 HTML，以便智能体查看 UI 的外观——渲染的是会话当前实际所处的场景，且已先完成该场景的路由守卫解析（会话无权进入的受保护场景绝不会被渲染）。只读。 |
 | `qorm_capture_subtree` | `id`* (string) | 按节点 id 捕获指定子树：返回隔离渲染的 HTML 与子级布局层次，用于视觉反馈。只读。 |
 | `qorm_capture_canvas` | `id` (string) | 把原生 Canvas 最近一次实际呈现的像素平面捕获为 base64 PNG。可选 id 仍返回完整画布，并附该节点的物理像素裁剪矩形；不会伪称已隔离或重新渲染子树。在非运行中的原生 Canvas 宿主、首帧尚未呈现、节点不存在/不可见或超过安全上限时会明确失败。只读。 |
