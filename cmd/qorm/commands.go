@@ -190,6 +190,18 @@ func cmdRun(args []string) int {
 		fmt.Println("  MCP is read-only: mutating agent tools (dispatch/set_state/apply_patch) are disabled")
 	}
 	if lan {
+		// A non-loopback bind exposes the LAN-facing endpoints to the whole
+		// network; blockCrossOrigin only screens browser Origins, so gate
+		// /mcp, /update, /rollback, /window and /measure behind the page
+		// token and print it for the human to share with trusted devices.
+		srv.SetRequireToken(true)
+		fmt.Println()
+		fmt.Printf("  SECURITY WARNING: bound to %s (--lan) — anything on the network can reach this session.\n", host)
+		fmt.Printf("  /mcp, /update, /rollback, /window, /measure now require the access token:\n")
+		fmt.Printf("    X-Qorm-Token: %s\n", srv.EventToken())
+		fmt.Println("  local loopback requests keep working without it; use --tls so the token is not sent in the clear.")
+	}
+	if lan {
 		printDeviceConnect(port, scheme)
 	}
 
