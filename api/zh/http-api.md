@@ -17,10 +17,10 @@
 | `/console` | GET | 日志窗口的控制台信息流页面 |
 | `/logwindow` | GET | 伴随桌面应用的独立日志窗口 |
 | `/window` | POST | 桌面窗口控制(移动 / 缩放 / 打开 / 关闭 / 聚焦) |
-| `/measure` | POST | 浏览器回报每个节点的实测布局(x/y/w/h、计算样式) |
 | `/mcp` | POST | HTTP 上的 MCP JSON-RPC——与 `qorm mcp` 相同的工具,共享同一活动运行时 |
 | `/update` | POST | OTA:向运行中的应用应用一个新的**已签名**捆绑包 |
 | `/rollback` | POST | 回滚到上一个运行的捆绑包 |
+| `/measure` | POST | 浏览器回报每个节点的实测布局(x/y/w/h、计算样式) |
 | `/dev/state` | GET / POST | DevTools 状态检查器：读取或修改运行中的应用状态 |
 | `/dev/tree` | GET | DevTools 组件树：读取当前场景的节点树 JSON |
 | `/dev/highlight` | POST | DevTools 高亮事件：向所有客户端广播节点高亮检查信号 |

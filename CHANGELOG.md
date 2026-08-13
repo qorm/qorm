@@ -6,6 +6,41 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+- **`qorm test` headless test runner** (Phase 9 MVP of
+  `planning/spec/test-runner-spec.md`): declarative `type:"test"` documents
+  (steps `mount_scene` / `simulate_event` / `set_state`; asserts
+  `state_equals` / `node_exists` / `node_not_exists` / `text_equals` /
+  `prop_equals`) run against a fresh runtime each, queries evaluate the
+  materialized scene tree, the spec's JSON report goes to stdout verbatim,
+  exit 0 iff every test passed. `examples/counter` ships 4 test docs.
+- **Path widget** (`type:"path"`): SVG-subset `d` (M/L/H/V/Q/T/S/Z, absolute
+  and relative) rendered on both engines — canvas software raster with fill
+  + stroke, HTML inline `<svg><path>` with `preserveAspectRatio="none"`;
+  demoed by the canvas-advanced morph path.
+
+### Changed
+- **LAN gate is now two-token**: a non-loopback bind (`--lan` / `--tls`)
+  prints an ADMIN token that is never embedded in any served page; `/mcp`,
+  `/update`, `/rollback`, `/window` and the diagnostics reads (`/dev/state`,
+  `/log`, `/presence` GET) require it. The page token stays valid only on
+  browser-needed endpoints (`/event`, `/measure`, in-page writes). Loopback
+  binds are byte-for-byte unchanged.
+
+### Security
+- **Fixed LAN gate bypass**: the gate secret was the page token, which the
+  unauthenticated index page embeds — any LAN peer could harvest it with one
+  GET and pass the gate. The admin token is generated separately and never
+  serialized into served HTML (adversarially verified with live curl repros).
+- **Diagnostics reads gated on --lan**: `/dev/state`, `/log`, `/presence`
+  were tokenless on non-loopback binds and leaked live state/activity.
+- **Computed dynamic keys rejected at load**: `computed[...]` refs whose key
+  is not a string literal now fail loading with a diagnostic naming the
+  computed (previously unresolvable refs surfaced as silent misses).
+- **WASM OTA checks revocation**: the web host passes its shipped revocation
+  snapshot to bundle verification at boot, rollback and update-check
+  (previously `nil`), failing closed on malformed lists.
+
 ### Fixed
 - **Green baseline restored**: the canvas-ultimate commit swept debug-session
   artifacts into the repo root and `cmd/` — an empty `scratch.go`, duplicate
@@ -13,6 +48,25 @@ All notable changes to QORM are documented here. The format is based on
   prototype tools (`qorm-video-stream`, `qorm-audio-extract`) — which made
   `go build ./...` fail outright on main. All removed; the shipped video
   widget keeps its own build-gated decoder.
+- **Canvas path parser cannot hang**: unsupported/stray tokens (arc
+  parameters, bare numbers after `Z`, overflowing coordinates like `1e309`)
+  no longer loop the parser — every iteration consumes at least one token.
+  Arcs (`A`/`a`) parse their 7 parameters and approximate with a chord to
+  the endpoint; arc-to-bezier flattening is deferred.
+- **Canvas path offset crop**: without explicit width/height the widget now
+  measures an origin-anchored box (`bbox` max, mirroring HTML
+  `viewBox="0 0 w h"`), so offset paths paint fully instead of a corner
+  sliver.
+- **`qorm test` surfaces onEnter crashes**: a scene whose `onEnter` action
+  raises a qscript runtime error now fails the test (`test_runtime_error`)
+  instead of reporting green; `-`-prefixed arguments are rejected as
+  unsupported flags instead of being misread as file paths.
+- **Bundle hash-mismatch hint**: verification failure now names the declared
+  version when the bundle carries one (message-only; fail-closed unchanged).
+- **API doc generator preserves hand-written sections**: the `QORM_UPDATE_DOCS`
+  regeneration of `api/widgets.md` / `api/props.md` keeps the RichText /
+  Video / Accessibility trailer and the hand-edited schema rows (ported into
+  the generator); `api/http-api.md` (en + zh) regenerated in sync.
 
 ### Docs
 - Homepage and docs feature canvas-ultimate; site deployed.

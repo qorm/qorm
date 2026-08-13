@@ -17,10 +17,10 @@
 | `/console` | GET | the log-window console feed page |
 | `/logwindow` | GET | the standalone log window that accompanies the desktop app |
 | `/window` | POST | desktop window control (move / resize / open / close / focus) |
-| `/measure` | POST | the browser reports the measured layout (x/y/w/h, computed style) of every node |
 | `/mcp` | POST | MCP JSON-RPC over HTTP — the same tools as `qorm mcp`, sharing the live runtime |
 | `/update` | POST | OTA: apply a new **signed** bundle to the running app |
 | `/rollback` | POST | revert to the previously running bundle |
+| `/measure` | POST | the browser reports the measured layout (x/y/w/h, computed style) of every node |
 | `/dev/state` | GET / POST | DevTools state inspector: read or write the live app state |
 | `/dev/tree` | GET | DevTools component tree: read the current scene's node tree JSON |
 | `/dev/highlight` | POST | DevTools highlight event: broadcast a node highlight inspect signal to all clients |
