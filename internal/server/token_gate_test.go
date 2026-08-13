@@ -177,7 +177,7 @@ func TestRequireTokenGateLANTwoToken(t *testing.T) {
 	// a GET-only gate leaked the full state and activity log through
 	// OPTIONS/PUT/PATCH/DELETE/HEAD with zero credentials (adversarially
 	// reproduced with curl against the built binary).
-	for _, method := range []string{http.MethodOptions, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodHead} {
+	for _, method := range []string{http.MethodOptions, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodHead, http.MethodTrace} {
 		for _, path := range []string{"/dev/state", "/log?since=0", "/presence"} {
 			if code, _ := doJSON(t, method, ts.URL+path, "", "", ""); code != http.StatusUnauthorized {
 				t.Errorf("gated %s %s without token = %d, want 401 (read gate covers every non-POST verb)", method, path, code)

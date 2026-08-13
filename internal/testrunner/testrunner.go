@@ -417,6 +417,10 @@ func mountScene(rt *qrt.Runtime, scene string) error {
 		rt.RouteParams = map[string]any{}
 	}
 	rt.NavDir = "push"
+	// Mark the mount explicitly: only the very first drain rides the flag New
+	// raised for the entry scene — a mount_scene STEP must fire the target's
+	// onEnter too, and the drain loop only runs while pendingEnter is raised.
+	rt.MarkPendingEnter()
 	rt.RunPendingEnter()
 	if rt.Blocked() {
 		return fmt.Errorf("%s: scene %q was refused by its route guard (runtime parked on GuardBlocked)", ErrSceneNotFound, scene)

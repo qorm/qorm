@@ -42,11 +42,11 @@ func TestRunDiscoverAll(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
-	if report.Tests != 7 {
-		t.Fatalf("tests = %d, want 7", report.Tests)
+	if report.Tests != 8 {
+		t.Fatalf("tests = %d, want 8", report.Tests)
 	}
-	if report.Passed != 1 || report.Failed != 6 {
-		t.Fatalf("passed/failed = %d/%d, want 1/6 (fail.json, bad_selector.json, scene_missing.json, unknown_step.json, onenter_error.json, onenter_chain_error.json)", report.Passed, report.Failed)
+	if report.Passed != 1 || report.Failed != 7 {
+		t.Fatalf("passed/failed = %d/%d, want 1/7 (fail.json, bad_selector.json, scene_missing.json, unknown_step.json, onenter_error.json, onenter_chain_error.json, mount_step_error.json)", report.Passed, report.Failed)
 	}
 	if report.Status != StatusFailed {
 		t.Fatalf("status = %q, want failed", report.Status)
@@ -57,8 +57,8 @@ func TestRunDiscoverAll(t *testing.T) {
 			errStatus++
 		}
 	}
-	if errStatus != 4 {
-		t.Errorf("error-statused tests = %d, want 4 (scene_missing + unknown_step + onenter_error + onenter_chain_error)", errStatus)
+	if errStatus != 5 {
+		t.Errorf("error-statused tests = %d, want 5 (scene_missing + unknown_step + onenter_error + onenter_chain_error + mount_step_error)", errStatus)
 	}
 }
 
@@ -154,6 +154,28 @@ func TestRunOnEnterChainScriptErrorFailsTest(t *testing.T) {
 	}
 	if !strings.Contains(r.Errors[0], "noSuchFn") || !strings.Contains(r.Errors[0], "onEnter") {
 		t.Errorf("errors[0] = %q, want the chain crash named (noSuchFn)", r.Errors[0])
+	}
+}
+
+func TestRunMountSceneStepFiresOnEnter(t *testing.T) {
+	// Regression: a mount_scene STEP must fire the target's onEnter. Only the
+	// document-level mount rode the pending flag New raised; later steps
+	// drained nothing, so a step-mount into a scene whose onEnter crashes
+	// reported green. The boom scene's onEnter crashes — the step must error
+	// the test.
+	report, err := Run(fixture, []string{filepath.Join(fixture, "tests", "mount_step_error.json")})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if report.Status != StatusFailed {
+		t.Fatalf("status = %q, want failed (the step-mounted scene's onEnter crashed)", report.Status)
+	}
+	r := report.Results[0]
+	if r.Status != StatusError {
+		t.Fatalf("test status = %q, want error", r.Status)
+	}
+	if len(r.Errors) != 1 || !strings.Contains(r.Errors[0], ErrRuntime) || !strings.Contains(r.Errors[0], "noSuchFn") {
+		t.Fatalf("errors = %v, want one test_runtime_error naming the crash (noSuchFn)", r.Errors)
 	}
 }
 

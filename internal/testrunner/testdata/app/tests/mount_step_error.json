@@ -1,0 +1,13 @@
+{
+  "qorm": "0.1",
+  "type": "test",
+  "id": "fixture_mount_step_error",
+  "scene": "main",
+  "steps": [
+    {
+      "type": "mount_scene",
+      "scene": "boom"
+    }
+  ],
+  "assert": []
+}

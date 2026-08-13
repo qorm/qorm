@@ -558,6 +558,16 @@ func (r *Runtime) NavigateTo(scene string, params map[string]any) {
 	r.pendingEnter = true
 }
 
+// MarkPendingEnter marks the current scene as just entered, so the next
+// RunPendingEnter dispatches its onEnter. New already raises the flag for the
+// entry scene and every Navigate* raises it for its target; this explicit
+// mark exists for a host that places the runtime on a scene WITHOUT going
+// through Navigate — the headless test runner's mount_scene sets Scene
+// directly to keep the mount free of back-stack frames, and without the mark
+// the target's onEnter never fired (the drain loop only runs while
+// pendingEnter is raised).
+func (r *Runtime) MarkPendingEnter() { r.pendingEnter = true }
+
 // NavigateToPath drives navigation from a URL query string (the part after "?"
 // produced by RoutePath): `scene` selects the target scene (absent = entry) and
 // every other parameter becomes a string route param. It is the inverse of
