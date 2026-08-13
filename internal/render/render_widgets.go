@@ -160,6 +160,50 @@ func (r *renderer) board(n *model.Node) {
 	r.sb.WriteString(`</div></div>`)
 }
 
+// path renders an SVG-subset vector path as inline <svg><path>: the fill is
+// the style `background` ('transparent' means no fill), the outline
+// `strokeColor` + `strokeWidth`. `d` is a plain node prop — read with
+// bindings evaluated like every other prop, so a state swap snaps the shape
+// (no morph interpolation; MVP scope, same as the canvas engine). The
+// viewBox is the node's layout box, so coordinates are authored in
+// node-local pixels (1 unit = 1 px from the box's top-left) — the same space
+// the canvas widget rasters into. The node keeps its normal layout box and
+// id/attrs like any other widget; only the svg is the leaf.
+func (r *renderer) path(n *model.Node) {
+	d := r.interp(propStr(n, "d"))
+	s := r.resolveStyle(r.effectiveStyle(n))
+	w := numOrDefault(s, "width", 0)
+	h := numOrDefault(s, "height", 0)
+	if w <= 0 || h <= 0 {
+		// No explicit box: fall back to the browser's intrinsic SVG viewport
+		// for the viewBox. Authors should set width/height — the canvas side
+		// needs a box for its raster (Measure defaults it to the path bbox).
+		w, h = 300, 150
+	}
+	fill := "none"
+	if bg := colorStr(s, "background"); bg != "" && !strings.EqualFold(bg, "transparent") {
+		fill = bg
+	}
+	stroke := "none"
+	if sc := colorStr(s, "strokeColor"); sc != "" {
+		stroke = sc
+	}
+	sw := numOrDefault(s, "strokeWidth", 0)
+	// d/colours are author values interpolated into quoted SVG attributes:
+	// entity-encode them (like chartBars) so a double quote cannot break out
+	// of the attribute and inject markup.
+	var path string
+	if sw > 0 {
+		path = fmt.Sprintf(`<path d=%q fill=%q stroke=%q stroke-width="%g" stroke-linecap="round" stroke-linejoin="round"/>`,
+			html.EscapeString(d), html.EscapeString(fill), html.EscapeString(stroke), sw)
+	} else {
+		path = fmt.Sprintf(`<path d=%q fill=%q stroke=%q stroke-linecap="round" stroke-linejoin="round"/>`,
+			html.EscapeString(d), html.EscapeString(fill), html.EscapeString(stroke))
+	}
+	fmt.Fprintf(&r.sb, `<div id=%q data-qorm-path="1" style=%q%s><svg width="100%%" height="100%%" viewBox="0 0 %g %g" preserveAspectRatio="none" style="display:block;">%s</svg></div>`,
+		attrID(n.ID), r.containerCSS(n), r.a11y(n), w, h, path)
+}
+
 // tilemap is a baked world bitmap on canvas. HTML paints a positioned
 // placeholder so the type is not "unknown"; games use the canvas host.
 func (r *renderer) tilemap(n *model.Node) {
