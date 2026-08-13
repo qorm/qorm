@@ -33,7 +33,9 @@ All notable changes to QORM are documented here. The format is based on
   GET and pass the gate. The admin token is generated separately and never
   serialized into served HTML (adversarially verified with live curl repros).
 - **Diagnostics reads gated on --lan**: `/dev/state`, `/log`, `/presence`
-  were tokenless on non-loopback binds and leaked live state/activity.
+  were tokenless on non-loopback binds and leaked live state/activity; the
+  gate covers every non-POST verb (a GET-only check leaked the same data
+  through OPTIONS/PUT/PATCH/DELETE/HEAD/TRACE — adversarially reproduced).
 - **Computed dynamic keys rejected at load**: `computed[...]` refs whose key
   is not a string literal now fail loading with a diagnostic naming the
   computed (previously unresolvable refs surfaced as silent misses).
@@ -57,10 +59,15 @@ All notable changes to QORM are documented here. The format is based on
   measures an origin-anchored box (`bbox` max, mirroring HTML
   `viewBox="0 0 w h"`), so offset paths paint fully instead of a corner
   sliver.
-- **`qorm test` surfaces onEnter crashes**: a scene whose `onEnter` action
+- **`qorm test` enter-hook crash handling**: a scene whose `onEnter` action
   raises a qscript runtime error now fails the test (`test_runtime_error`)
-  instead of reporting green; `-`-prefixed arguments are rejected as
-  unsupported flags instead of being misread as file paths.
+  instead of reporting green — including crashes anywhere in a
+  navigate-then-enter chain (the runtime accumulates the chain's FIRST crash
+  in `EnterScriptError`; each link's dispatch used to wipe the previous
+  link's error). `mount_scene` steps now actually fire the target's
+  `onEnter` (only the document-level mount fired before). `-`-prefixed
+  arguments are rejected as unsupported flags instead of being misread as
+  file paths.
 - **Bundle hash-mismatch hint**: verification failure now names the declared
   version when the bundle carries one (message-only; fail-closed unchanged).
 - **API doc generator preserves hand-written sections**: the `QORM_UPDATE_DOCS`

@@ -1,7 +1,86 @@
 # 审计日志
 
-> 主控汇总 · 更新：2026-08-13 **第三轮**  
+> 主控汇总 · 更新：2026-08-13 **第三轮 · 终审**  
 > 标准：可复现 · 可分类 · 可行动 · 不越权
+
+---
+
+## 第三轮 · 实施与审计闭环（2026-08-13）
+
+### 实施波（3 agent · worktree 隔离 · 域不相交）
+
+| 分支 | 交付 | 合并 |
+|------|------|------|
+| r3-testfix | path widget 全栈（canvas 光栅 + HTML svg）、canvas-advanced qscript 修复、video 测试、文档生成器手写段保护 | rebase 后 no-ff |
+| r3-security | --lan token 门禁、computed 动态 key 拒载、WASM OTA 吊销、bundle 版本提示 | rebase 后 no-ff |
+| r3-qormtest | testrunner 包、`qorm test` CLI、counter 4 份测试文档 | rebase 后 no-ff |
+
+### 对抗复审 · 第一轮（3 镜：正确性 / 安全 / 规格）
+
+**9 项确认缺陷**（其余攻击线全部证伪）：
+
+| ID | 级别 | 缺陷 |
+|----|------|------|
+| path-parser-infinite-loop | P1 | `A` 弧 / Z 后数字 / `1e309` 使解析器死循环（`d` 作者可控 → 可达 DoS） |
+| path-widget-offset-crop | P2 | 非原点路径无显式尺寸时被裁剪为角条 |
+| C1-gate-bypass | P1 | 门禁密钥即页面 token，GET / 一次抓取即可通过全部受控端点 |
+| C1-state-leak-surfaces | P2 | /dev/state /log /presence 在 --lan 无鉴权 |
+| loopback-message-false | P3 | 启动提示谎称 loopback 免门禁 |
+| TR-1 | P1 | onEnter 运行时错误被吞，绿跑 |
+| TR-2..TR-5 | P2/P3 | 发现规则、--target/--report、诊断快照、doc.go 措辞与 spec 失步 |
+
+### 修复波（3 agent · worktree 隔离）+ 主控门禁
+
+r3-fix-canvas（前进保证 + 原点锚定框）、r3-fix-gate（两 token 拆分 + 诊断纳入 + 提示纠正）、r3-fix-testrunner（onEnter 报错 + 标志拒绝 + 边界对齐）。合并后 `TestAPIRefHTTP` 报 http-api.md 失步 → `QORM_UPDATE_DOCS=1` 再生（仅行序变化）。全量门禁绿。
+
+### 对抗复审 · 第二轮（逐域证伪修复）
+
+| 镜 | 结论 |
+|----|------|
+| canvas | **pass**——44 变体 + 3.2M 模糊输入 + 修复前对照树 20s 超时证实缺陷真实；仅 info 残留（弧按弦近似、超大坐标、负框裁剪，均与 HTML viewBox 语义一致） |
+| gate | **block**——读门禁只查 GET：OPTIONS/PUT/PATCH/DELETE/HEAD 对 /dev/state /log 零凭证全量读出（新 P1，curl 实测） |
+| spec | **block**——TR-1 只修单发形态：enter 链中 crash 被后续干净场景的 dispatch 边界清除，仍绿跑（新 P1，live 复现） |
+
+### 主控直修（第二轮缺陷）
+
+| 修复 | 证据 |
+|------|------|
+| 读门禁改键"除 POST 外全部方法"（教训：门禁应键于数据路径而非 HTTP 动词）；矩阵补 5 动词 + TRACE | `db3455d`；42 组 live 401 |
+| runtime 增 `EnterScriptError`（链内首个 crash 累积器，RunPendingEnter 复位/逐链捕获），mountScene 改查它 | `db3455d`；验证者原始攻击形态 live exit 1 |
+
+### 对抗复审 · 第三轮（仅两个新修复）
+
+**双镜 pass**。gate：7 动词 × 3 路由 × {无 token, 页面 token} = 42 组 live 401，admin token 读通；POST 写路径不变；路由枚举未发现新增泄漏。chain：5 种顺序变体（链首/链中/链尾/全链/后无 onEnter）全部 exit 1 且报首个 crash；3 场景干净链、simulate_event 归因等误报探针全部绿。链镜附带发现 **mount_scene 步骤从不触发 onEnter**（首轮挂载侥幸借 `New()` 的 pending 标志）——与 doc.go 语义矛盾，属已交付功能真洞：
+
+| 修复 | 证据 |
+|------|------|
+| runtime 增 `MarkPendingEnter()`；mountScene 显式标记；fixture 回归 | `5e4e2c0`；counter 场景无 onEnter 不受影响 |
+
+### 终审门禁
+
+gofmt · build · vet · `go test ./...` 全绿 · -race（runtime/server）绿 · WASM 构建绿 · `qorm test examples/counter` 4/4 exit 0。
+
+### 残留债（info/既定设计，不在本轮）
+
+| 债 | 级别 |
+|----|------|
+| /logwindow /console 页面 --lan 无鉴权（纳入门禁破坏人类观察窗约定） | P2 |
+| POST /dev/state 仅页面 token（DevTool 写，既定设计） | P2 |
+| /poll /events 无 token 帧流（浏览器 EventSource 无法带 header；载荷即 GET / 已公开的 UI） | P2 |
+| /dev/tree /dev/canvas 无鉴权读 | P2 |
+| `qorm package --revoked` 缺失（吊销快照无 CLI 注入路径） | P2 |
+| DevTool 页在 --lan 读面 401 降级（无 admin token 输入口） | P3 |
+| token 比较非常数时间（== 比较，dev 工具定位） | P3 |
+| onEnter 悬空 action 引用静默 no-op（loader 不校验，绿跑） | P3 |
+| error 级 loader 诊断被 `qorm test` 丢弃 | P3 |
+| `qorm check` 不联动 computed 动态 key 诊断 | P3 |
+| 弧 → 贝塞尔展平（当前弦近似）；超大有限坐标渲染不可见 | P3 |
+
+### 流程发现（记录在案）
+
+1. **验证 agent 会遗留现场**：三轮验证在主仓根留下 `--help/`、`.qorm-bin-*` 及 /tmp 探针目录，均由主控收尾清理。后续验证 brief 应强制"离场清场"（本轮第三轮已写入提示）。
+2. **门禁按动词设键是设计陷阱**：读门禁 GET-only 被 5 个动词绕过——凡"方法分派到同一数据路径"的处理器，门禁必须键于路径而非动词。
+3. **修复验证必须重放原攻击**：第二轮两个 P1 均为"修复只覆盖证明用例的形态"（TR-1 单发 crash、读门禁 GET），逐域证伪 + 变体扩展是必要环节。
 
 ---
 

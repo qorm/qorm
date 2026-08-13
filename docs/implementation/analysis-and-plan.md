@@ -116,3 +116,10 @@
 - VS Code/LSP、Ecosystem Registry、真机验收（需外部环境/决策）
 - `d` 变形插值动画、advance_time/host-mock（D1 二期）
 - push 到远程（完工前只本地提交）
+
+## 7. 执行结果（2026-08-13 收尾）
+
+- G0–G4 全部落地：G1（T1 path widget / T2 video 测试 / T3 生成器手写段保护）、G2（S1–S4，S1 经复审升级为两 token 模型）、G3（D1 `qorm test` MVP）、G4 文档同步。
+- 对抗复审跑了三轮：首轮 9 项确认缺陷 → 修复波；二轮发现 2 项新 P1（读门禁动词绕过、enter 链吞错）+ 链镜附带发现 mount_scene 空转 → 主控直修；三轮双镜 pass。
+- 终审门禁全绿（build / vet / 全量 test / -race / WASM / coverage gate / `qorm test` counter 4/4）。
+- 残留债与流程发现归档 `audit-log.md` 第三轮终审节；本地提交未 push。
