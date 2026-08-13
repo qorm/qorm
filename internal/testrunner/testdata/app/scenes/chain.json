@@ -1,0 +1,16 @@
+{
+  "type": "scene",
+  "id": "chain",
+  "onEnter": "enter_chain",
+  "root": {
+    "type": "column",
+    "id": "root",
+    "children": [
+      {
+        "type": "text",
+        "id": "chain_text",
+        "text": "chain"
+      }
+    ]
+  }
+}

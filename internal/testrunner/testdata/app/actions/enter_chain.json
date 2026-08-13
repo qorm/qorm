@@ -1,0 +1,14 @@
+{
+  "type": "action",
+  "id": "enter_chain",
+  "steps": [
+    {
+      "type": "navigate",
+      "to": "chainboom"
+    },
+    {
+      "type": "invoke",
+      "name": "crash_writer"
+    }
+  ]
+}

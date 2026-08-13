@@ -42,11 +42,11 @@ func TestRunDiscoverAll(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Run: %v", err)
 	}
-	if report.Tests != 6 {
-		t.Fatalf("tests = %d, want 6", report.Tests)
+	if report.Tests != 7 {
+		t.Fatalf("tests = %d, want 7", report.Tests)
 	}
-	if report.Passed != 1 || report.Failed != 5 {
-		t.Fatalf("passed/failed = %d/%d, want 1/5 (fail.json, bad_selector.json, scene_missing.json, unknown_step.json, onenter_error.json)", report.Passed, report.Failed)
+	if report.Passed != 1 || report.Failed != 6 {
+		t.Fatalf("passed/failed = %d/%d, want 1/6 (fail.json, bad_selector.json, scene_missing.json, unknown_step.json, onenter_error.json, onenter_chain_error.json)", report.Passed, report.Failed)
 	}
 	if report.Status != StatusFailed {
 		t.Fatalf("status = %q, want failed", report.Status)
@@ -57,8 +57,8 @@ func TestRunDiscoverAll(t *testing.T) {
 			errStatus++
 		}
 	}
-	if errStatus != 3 {
-		t.Errorf("error-statused tests = %d, want 3 (scene_missing + unknown_step + onenter_error)", errStatus)
+	if errStatus != 4 {
+		t.Errorf("error-statused tests = %d, want 4 (scene_missing + unknown_step + onenter_error + onenter_chain_error)", errStatus)
 	}
 }
 
@@ -123,6 +123,37 @@ func TestRunOnEnterScriptErrorFailsTest(t *testing.T) {
 	}
 	if !strings.Contains(r.Errors[0], "noSuchFn") || !strings.Contains(r.Errors[0], "onEnter") {
 		t.Errorf("errors[0] = %q, want the onEnter script failure named (noSuchFn)", r.Errors[0])
+	}
+}
+
+func TestRunOnEnterChainScriptErrorFailsTest(t *testing.T) {
+	// Regression: the crash happens in the FIRST link of an enter chain
+	// (chain's onEnter navigates to chainboom, then invokes a script that
+	// writes state and crashes). The chain drains on: chainboom's CLEAN
+	// onEnter dispatches afterwards and clears LastScriptError at its
+	// boundary — without the runtime's EnterScriptError accumulator the
+	// crash vanished and the run reported green. The mount must fail with
+	// the script error named, and the pre-crash state write (count = 1)
+	// proves the crashing script really executed.
+	report, err := Run(fixture, []string{filepath.Join(fixture, "tests", "onenter_chain_error.json")})
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if report.Status != StatusFailed {
+		t.Fatalf("status = %q, want failed (an enter-chain crash must fail the run)", report.Status)
+	}
+	if report.Tests != 1 || report.Passed != 0 || report.Failed != 1 {
+		t.Fatalf("tests/passed/failed = %d/%d/%d, want 1/0/1", report.Tests, report.Passed, report.Failed)
+	}
+	r := report.Results[0]
+	if r.Status != StatusError {
+		t.Fatalf("test status = %q, want error (a chain link crashed)", r.Status)
+	}
+	if len(r.Errors) != 1 || !strings.Contains(r.Errors[0], ErrRuntime) {
+		t.Fatalf("errors = %v, want one test_runtime_error", r.Errors)
+	}
+	if !strings.Contains(r.Errors[0], "noSuchFn") || !strings.Contains(r.Errors[0], "onEnter") {
+		t.Errorf("errors[0] = %q, want the chain crash named (noSuchFn)", r.Errors[0])
 	}
 }
 

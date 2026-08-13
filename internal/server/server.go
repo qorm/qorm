@@ -1098,17 +1098,21 @@ func (s *Server) requireAdminCheck(next http.HandlerFunc) http.HandlerFunc {
 }
 
 // requireAdminReadCheck gates the diagnostics read surfaces (/dev/state,
-// /log, /presence): on a non-loopback bind their GET reads demand the admin
-// token, because they are otherwise tokenless and expose the session's live
-// state and activity to any LAN peer (blockCrossOrigin does not stop curl).
-// Like requireAdminCheck it refuses the public page token, so harvesting the
-// page does not unlock the diagnostics. The POST writes on these routes are
-// browser-faced and keep their own page-token checks, so the app page and
-// the DevTool work unchanged; loopback keeps every method byte-for-byte as
-// before.
+// /log, /presence): on a non-loopback bind every method EXCEPT the browser's
+// own POST writes demands the admin token, because the read path is
+// otherwise tokenless and exposes the session's live state and activity to
+// any LAN peer (blockCrossOrigin does not stop curl). The gate keys on
+// "anything that is not POST" rather than on GET alone: the handlers route
+// every non-POST request into the read path, so a GET-only gate leaked the
+// same data through OPTIONS/PUT/PATCH/DELETE/HEAD (adversarially reproduced
+// with curl). Like requireAdminCheck it refuses the public page token, so
+// harvesting the page does not unlock the diagnostics. The POST writes on
+// these routes are browser-faced and keep their own page-token checks, so
+// the app page and the DevTool work unchanged; loopback keeps every method
+// byte-for-byte as before.
 func (s *Server) requireAdminReadCheck(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if s.requireToken && r.Method == http.MethodGet && r.Header.Get("X-Qorm-Token") != s.adminToken {
+		if s.requireToken && r.Method != http.MethodPost && r.Header.Get("X-Qorm-Token") != s.adminToken {
 			http.Error(w, "admin token required: this server is bound beyond loopback (--lan); send X-Qorm-Token <admin token printed at startup>", http.StatusUnauthorized)
 			return
 		}

@@ -401,10 +401,12 @@ func sortedKeys[V any](m map[string]V) []string {
 // a host mount would. The scene field accepts the spec's "scene://" prefix.
 // A guard that diverts the mount is fine (the runtime lands where the app
 // would land — a test can assert the redirect); a guard that refuses entry
-// outright parks the runtime on GuardBlocked, which is reported. An onEnter
-// whose action raises a qscript runtime error lands on the runtime's
-// LastScriptError and fails the mount (a green run must never come out of a
-// crash during an enter hook).
+// outright parks the runtime on GuardBlocked, which is reported. Any onEnter
+// whose action raises a qscript runtime error fails the mount — read from
+// EnterScriptError, which survives the whole chain: each link's dispatch
+// clears LastScriptError at its boundary, so a crash anywhere in a
+// navigate-then-enter chain must not be hidden by a later clean scene (a
+// green run must never come out of a crash during an enter hook).
 func mountScene(rt *qrt.Runtime, scene string) error {
 	scene = strings.TrimPrefix(scene, "scene://")
 	if rt.App.Scenes[scene] == nil {
@@ -419,7 +421,7 @@ func mountScene(rt *qrt.Runtime, scene string) error {
 	if rt.Blocked() {
 		return fmt.Errorf("%s: scene %q was refused by its route guard (runtime parked on GuardBlocked)", ErrSceneNotFound, scene)
 	}
-	if se := rt.LastScriptError; se != "" {
+	if se := rt.EnterScriptError; se != "" {
 		return fmt.Errorf("%s: onEnter of scene %q failed: %s", ErrRuntime, scene, se)
 	}
 	return nil

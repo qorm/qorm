@@ -145,6 +145,15 @@ type Runtime struct {
 	// every top-level dispatch and guarded by the host's dispatch lock, like
 	// the state it describes.
 	LastScriptError string
+	// EnterScriptError records the FIRST qscript runtime error raised by any
+	// onEnter dispatched during the most recent RunPendingEnter chain ("" when
+	// every enter hook ran clean). LastScriptError alone cannot carry this:
+	// every top-level dispatch — including each later link of the chain —
+	// clears it at its boundary, so a clean scene entered after a crashing one
+	// would erase the crash. RunPendingEnter resets and captures it; the
+	// headless test runner reads it so a green run never comes out of a crash
+	// during an enter hook, wherever in the chain it happened.
+	EnterScriptError string
 	// keyed maps a step's `key` to the request currently occupying that slot,
 	// so a newer request on the same key can supersede it. Entries live only
 	// between launch and continuation; the map is nil until the first keyed
@@ -892,7 +901,8 @@ func (r *Runtime) RunPendingEnter() {
 	// current even when the state under it was written without dispatching an
 	// action.
 	r.refreshComputed()
-	last := "\x00" // sentinel: never equals a scene key
+	r.EnterScriptError = "" // fresh chain: no enter hook has crashed yet
+	last := "\x00"          // sentinel: never equals a scene key
 	for i := 0; i < maxEnterChain && r.pendingEnter; i++ {
 		r.pendingEnter = false
 		scene := r.Scene
@@ -948,6 +958,12 @@ func (r *Runtime) RunPendingEnter() {
 			continue // nothing to run for this scene; a pending re-mark would drain next
 		}
 		r.Dispatch(inv.Name, r.EvalArgs(inv.Args))
+		// Capture the FIRST crash of the chain: the next link's dispatch
+		// clears LastScriptError at its boundary, so without this copy a
+		// clean scene entered after a crashing one would hide the crash.
+		if r.LastScriptError != "" && r.EnterScriptError == "" {
+			r.EnterScriptError = r.LastScriptError
+		}
 	}
 	r.pendingEnter = false
 }

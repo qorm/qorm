@@ -1,0 +1,5 @@
+{
+  "type": "action",
+  "id": "crash_writer",
+  "script": "state.count = 1\nlet x = noSuchFn(9)"
+}

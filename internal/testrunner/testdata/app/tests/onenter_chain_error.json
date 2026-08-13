@@ -1,0 +1,14 @@
+{
+  "qorm": "0.1",
+  "type": "test",
+  "id": "fixture_onenter_chain_error",
+  "scene": "chain",
+  "steps": [],
+  "assert": [
+    {
+      "type": "state_equals",
+      "path": "count",
+      "value": 1
+    }
+  ]
+}

@@ -1,65 +1,70 @@
 # 实施进度
 
-> 主控同步 · 更新：2026-08-12 **v0.8.8 已发布**
+> 主控同步 · 更新：2026-08-13 **第三轮 · v0.9.0 后续修复波**
 
-## 发布
+## 当前状态
 
 | 项 | 状态 | 证据 |
 |----|------|------|
-| 功能 commit | 🟢 | `f6133ea` feat: HTML QSS/swipes/camera/audio parity… |
-| gofmt | 🟢 | `c1a0382` |
-| changelog archive | 🟢 | `e19220b` docs: changelog v0.8.8 |
-| version bump | 🟢 | `8a80a64` · `var version = "0.8.8"` |
-| CI 修复 | 🟢 | `d7cdb02` CanonicalAssetURL → playcore |
-| tag | 🟢 | `v0.8.8` → `d7cdb02`（含 CI 修复 force 更新） |
-| main push | 🟢 | origin/main 对齐 |
-| 官网 deploy | 🟢 | 两次 `deploy-site.sh` OK · wasm+docs+v0.8.8 戳记 |
+| v0.9.0 发布 | 🟢 | CHANGELOG [v0.9.0] 段 + compare 链接（tag/推送待发布流程） |
+| G0 基线修复 | 🟢 | `0fd604d` 删除 62df1ca 残留 11 文件；`go build ./...` 恢复 |
+| G1 测试基线 | 🟢 | path widget 全栈落地 · video 测试修正 · 文档生成器手写段保护 |
+| G2 安全残留 | 🟢 | 两 token LAN 门禁 · computed 动态 key 拒载 · WASM OTA 吊销 · bundle 版本提示 |
+| G3 `qorm test` MVP | 🟢 | Phase 9 spec 落地；examples/counter 4/4；exit 0/1 语义实测 |
+| 对抗复审 | 🟢 | 首轮 9 项确认缺陷 → 修复波 → 二轮逐域证伪验证（见 audit-log） |
+| 全量回归 | 🟢 | `go test ./...` 全绿 · -race 关键包绿 · WASM 构建绿 · gofmt 净 |
 
-## G0–G2
+## 第三轮交付（main，本地未推）
 
-| 目标 | 状态 |
+### 实施波（3 分支 worktree 并行，rebase 后合并）
+
+| 分支 | 内容 |
 |------|------|
-| G0 WASM preload | 🟢 已入 0.8.8 |
-| G1 文档/golden | 🟢 已入 0.8.8 |
-| G2 A–F 对等 | 🟢 已入 0.8.8 |
-| G3 安全 | ⬜ 未做 |
+| r3-testfix | path widget（canvas 光栅 + HTML `<svg><path>`，M/L/H/V/Q/T/S/Z 绝对+相对）；canvas-advanced qscript 尾随 `;`；video measure 期望修正；文档生成器手写段并入生成源 |
+| r3-security | `--lan` token 门禁 · computed 动态 key 加载错误 · WASM OTA 吊销快照 · bundle 版本提示 |
+| r3-qormtest | `internal/testrunner` + `qorm test` CLI + counter 4 份测试文档 |
 
-## 链接
+### 修复波（对抗复审驱动，3 分支 worktree 并行）
 
-- 仓库：https://github.com/qorm/qorm  
-- Tag：https://github.com/qorm/qorm/releases/tag/v0.8.8  
-- 官网：https://qorm.com/  
-- Docs：https://qorm.com/docs/  
-- Games：https://qorm.com/games/  
+| 分支 | 修复 |
+|------|------|
+| r3-fix-canvas | 解析器前进保证（弧/Z 后数字/1e309 不再死循环；弧按弦近似）；Measure 改原点锚定框（bbox max），偏移路径不再被裁剪 |
+| r3-fix-gate | 门禁密钥与页面 token 解耦：admin token 从不出现在任何响应页面；诊断读面（/dev/state /log /presence GET）纳入门禁；启动提示措辞纠正 |
+| r3-fix-testrunner | onEnter 运行时错误 → `test_runtime_error` 失败；`-` 前缀参数明确拒绝；发现规则/诊断快照/--target/--report 边界在 doc.go 与 spec 对齐 |
 
-## Canvas 完善波次
+## 已知债（记录在案，不在本轮）
+
+| 债 | 级别 | 说明 |
+|----|------|------|
+| `/logwindow` `/console` 页面在 --lan 无鉴权 | P2 | 纳入门禁会破坏 AGENTS.md 的人类观察窗约定，待产品决策 |
+| POST /dev/state（DevTool 写）仅页面 token | P2 | 设计如此；持有页面 token 的 LAN 对端可写状态 |
+| `qorm package --revoked` 缺失 | P2 | 吊销快照无 CLI 注入路径，需手工内置 |
+| `qorm check` 不诊断 computed 动态 key | P3 | 加载已拒，check 联动待补 |
+| 弧 → 贝塞尔展平 | P3 | 当前按弦近似，曲线呈折线 |
+| token 比较非常数时间 | P3 | == 比较；dev 工具定位可接受，记录在案 |
+
+## 发布
 
 | 项 | 状态 |
 |----|------|
-| style: gradient / flexGrow / boxShadowX / disabledOpacity | 🟢 |
-| widgets: aspectratio, ignorepointer, skeleton, circularprogress | 🟢 |
-| aliases: activityindicator, tag, animatedcontainer | 🟢 |
-| fab / switchlisttile / letterSpacing·lineHeight·italic | 🟢 |
-| searchbar / checkboxlisttile / radiolisttile | 🟢 |
-| field / textformfield / richtext(wrap) / carousel | 🟢 |
-| multi-stop CSS-angle gradient + backdropBlur | 🟢 |
-| rangeslider / pageview / tree / autocomplete | 🟢 |
-| remaining: actionsheet/alertdialog/descriptions/dropdownbutton/materialstepper/monthview/motion/picker/rating/refreshindicator/selectabletext/transform | 🟢 |
-| parity allowlist 收缩 | 🟢 核心 example 类型 allowlist 已清空 |
-| 测试 widgets/canvas/integration | 🟢 |
+| 上一版 | **v0.8.8**（2026-08-12 tag + 官网部署） |
+| 本版 | v0.9.0 已载入 CHANGELOG；tag/推送/部署**待用户**（本地分支规则） |
+
+## 链接
+
+- 仓库：https://github.com/qorm/qorm
+- 官网：https://qorm.com/
+- Docs：https://qorm.com/docs/
+- Games：https://qorm.com/games/
 
 ## 变更日志
 
 | 时间 | 事件 |
 |------|------|
-| 2026-08-12 | 实施波次 1–2 完成 |
-| 2026-08-12 | **v0.8.8** tag + main + 官网部署 |
-| 2026-08-12 | Canvas 完善：样式键 + 7 个 widget/别名 |
-| 2026-08-12 | Canvas：rangeslider/pageview/tree/autocomplete + richtext wrap + true angle gradient |
-| 2026-08-12 | Canvas：剩余 allowlist 12 类全部 port；parity 核心 allowlist 清空 |
-| 2026-08-12 | **竞争级加深**：entrance 真 scale/rotate + 绑定重播；selectabletext 选区/复制；transform skew |
-| 2026-08-12 | **滚动手感**：touch-drag + 橡皮筋 + spring + 惯性；pull-to-refresh 与 refreshindicator 联动 |
-| 2026-08-12 | **列表行拖滚协商** + **canvas 原生 measure**（`qorm measure` / MCP 无需 WebView） |
-| 2026-08-12 | measure 样式字段 + 逻辑像素/HiDPI；嵌套 scroll 拖动手势链 |
-| 2026-08-12 | 渲染质量：ShadowX、径向渐变+色标位置、可分离 frost blur、text ellipsis |
-| 2026-08-12 | 旋转 RRect 局部空间 SDF；多行 textOverflow ellipsis |
+| 2026-08-13 | v0.9.0 CHANGELOG 归档（video widget、canvas-advanced、measure/shot、live capture 等） |
+| 2026-08-13 | 第三轮分析：4 路并行（回归/安全/文档/方向）→ 规划 analysis-and-plan.md |
+| 2026-08-13 | G0 基线修复（62df1ca 残留清理）+ 文档同步（README/Roadmap/zh） |
+| 2026-08-13 | 实施波：r3-testfix / r3-security / r3-qormtest 并行落地并合并 |
+| 2026-08-13 | 对抗复审：3 镜验证，9 项确认缺陷（正确性 2 / 安全 3 / 规格 4） |
+| 2026-08-13 | 修复波：r3-fix-canvas / r3-fix-gate / r3-fix-testrunner 并行落地并合并 |
+| 2026-08-13 | 全量门禁绿：build · test · race · wasm · coverage gate · `qorm test` 4/4 |

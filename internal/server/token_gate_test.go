@@ -171,6 +171,26 @@ func TestRequireTokenGateLANTwoToken(t *testing.T) {
 			t.Errorf("gated %s %s with admin token = %d, want 200", ep.method, ep.path, code)
 		}
 	}
+
+	// Method-bypass regression: the read path serves EVERY non-POST request,
+	// so the gate must refuse every verb except the browser's POST writes —
+	// a GET-only gate leaked the full state and activity log through
+	// OPTIONS/PUT/PATCH/DELETE/HEAD with zero credentials (adversarially
+	// reproduced with curl against the built binary).
+	for _, method := range []string{http.MethodOptions, http.MethodPut, http.MethodPatch, http.MethodDelete, http.MethodHead} {
+		for _, path := range []string{"/dev/state", "/log?since=0", "/presence"} {
+			if code, _ := doJSON(t, method, ts.URL+path, "", "", ""); code != http.StatusUnauthorized {
+				t.Errorf("gated %s %s without token = %d, want 401 (read gate covers every non-POST verb)", method, path, code)
+			}
+			if code, _ := doJSON(t, method, ts.URL+path, s.eventToken, "", ""); code != http.StatusUnauthorized {
+				t.Errorf("gated %s %s with PAGE token = %d, want 401 (admin-only)", method, path, code)
+			}
+		}
+	}
+	// And the admin token opens the reads under any of those verbs too.
+	if code, _ := doJSON(t, http.MethodOptions, ts.URL+"/dev/state", s.AdminToken(), "", ""); code != http.StatusOK {
+		t.Errorf("gated OPTIONS /dev/state with admin token = %d, want 200", code)
+	}
 }
 
 // TestRequireTokenGateLANOTA drives a full update + rollback through the gate

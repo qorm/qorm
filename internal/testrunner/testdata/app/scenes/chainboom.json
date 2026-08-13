@@ -1,0 +1,16 @@
+{
+  "type": "scene",
+  "id": "chainboom",
+  "onEnter": "chain_clean",
+  "root": {
+    "type": "column",
+    "id": "root",
+    "children": [
+      {
+        "type": "text",
+        "id": "boom_text",
+        "text": "{{state.status}}"
+      }
+    ]
+  }
+}
