@@ -6,6 +6,76 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+## [v0.9.2] - 2026-08-13
+
+### Added
+- **`qorm.config.json` is the home of the host window**: the optional file
+  beside `qorm.json` now takes a `window` block — `width` / `height` /
+  `title` / `resizable` / `chromeless` / `transparent` / `hideLog` /
+  `hideTray`. It is host/build-time config (never bundled or signed) and wins
+  over the manifest's `platforms.desktop.window`; the legacy `display` block
+  is still accepted and merges per key. Malformed JSON and unknown keys now
+  surface as load diagnostics instead of being silently dropped, and an
+  explicit `"width": 0` resets a manifest-declared size back to fluid.
+- **`qorm_inspect` reports the resolved host window** (`window` block:
+  width/height/title/resizable/chromeless/transparent), so an agent sees
+  exactly what the host will open.
+- **Shaped (异形) windows on Windows**: `chromeless` now strips the title bar
+  there too (user32, no cgo); combined with `transparent` on the macOS WebView
+  host this covers custom-shape windows on the two main desktop targets.
+
+### Changed
+- **`resizable` and `title` are actually enforced**: previously parsed but
+  dead. `"resizable": false` locks the window to its declared size on every
+  host (macOS WebView style mask, non-macOS webview `HintFixed`, canvas
+  window mask) via a new `Window.Fixed` tri-state that distinguishes explicit
+  false from absent; a declared `title` wins over the app name in the window
+  title bar. A chromeless window that stays `resizable` keeps its sizing
+  border (on Windows that frame bit is what makes a window user-resizable).
+- **README carries no per-version sections** — version history lives in this
+  changelog and the tag annotations.
+
+### Fixed
+- **Windows chromeless geometry and resize**: the decoration strip
+  unconditionally cleared `WS_THICKFRAME`, silently ignoring `resizable`, and
+  ran after `SetSize`, so the frame math used the decorated style and the
+  content area came out ~16×39 px larger than declared. Chrome is now stripped
+  before `SetSize` and the sizing border is kept when resizable.
+- **macOS fixed windows keep their declared size**: a stale remembered frame
+  (`window.txt`) no longer overrides a `resizable: false` window and locks it
+  there — only resizable windows restore their remembered frame.
+- **Audio respawn storm**: loop music is respawn-on-exit; on a host with no
+  audio device the tool exits instantly and was respawned forever (an
+  unbounded stream of failing processes — also the `-race` CI flake). A
+  sub-500 ms lifetime now means "broken sink, stop".
+- **Icon font completeness**: `go:generate` for the canvas bitmap font failed
+  silently, leaving 6 Mario glyphs (brick/coin/flag/goomba/ground/mario) out;
+  the generator now takes `-o` and fails loudly. 47 → 53 glyphs, exactly
+  `widgets.IconSet()`.
+- **darwin cross-compile without cgo**: the video decoder's build tags
+  excluded its pure-Go fallback from `CGO_ENABLED=0` cross-builds
+  (`startVideoDecoder` undefined — this is what broke the v0.9.1 release
+  workflow's binaries), re-tagged.
+- **CI**: desktop matrix compile errors in the chromeless path (untyped
+  `Hint` constant, `uintptr(-16)` overflow) — both root-caused and now
+  verified locally via mingw cross-compile; `TestRaidenPerf` skips its
+  perf budget under `-race` (logic assertions kept); iOS/Android packaging
+  jobs dropped from CI (kept: mac/ubuntu/windows + docker).
+
+### Docs
+- **SKILL/MCP/docs/API fully re-synced**: `skills.md` referenced seven skill
+  files that never existed — rewritten around the single real `SKILL.md`
+  (with its 4 workflows); counts corrected to 53 icons / 146 widgets / 108
+  style keys in all three places; missing/awkward `doc.go` ZH translations
+  fixed; the generated `mcp-tools.md` (en+zh) gained tool categories and
+  examples, guarded by `TestMCPDocInSync`.
+- **`qorm.config.json` documented everywhere it matters**: dedicated section
+  + key table + precedence in `project-structure.md` (en+zh, surfaced in
+  `llms.txt`), window block in `SKILL.md` / `skills.md` / MCP docs /
+  `AGENTS.md`; `examples/mario` converted to the new `window` block.
+- **Go toolchain requirement clarified**: build-time vs runtime (a shipped
+  app runs without Go).
+
 ## [v0.9.1] - 2026-08-13
 
 ### Added
@@ -1356,6 +1426,7 @@ Initial release: QORM, an agent-native declarative-UI runtime in pure Go.
 - Render performance: cached parsed expressions and reflection-free CSS
   numeric writes in the hot path.
 
+[v0.9.2]: https://github.com/qorm/qorm/compare/v0.9.1...v0.9.2
 [v0.9.1]: https://github.com/qorm/qorm/compare/v0.9.0...v0.9.1
 [v0.9.0]: https://github.com/qorm/qorm/compare/v0.8.11...v0.9.0
 [v0.8.11]: https://github.com/qorm/qorm/compare/v0.8.10...v0.8.11
