@@ -1,0 +1,5 @@
+{
+  "type": "action",
+  "id": "boom",
+  "script": "let x = noSuchFn(1)"
+}

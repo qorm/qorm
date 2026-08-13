@@ -1,0 +1,8 @@
+{
+  "qorm": "0.1",
+  "type": "test",
+  "id": "fixture_onenter_error",
+  "scene": "boom",
+  "steps": [],
+  "assert": []
+}
