@@ -126,34 +126,58 @@ type Server struct {
 	// log entries. Agents use MCP, which produces "agent" entries. This prevents
 	// either side from forging the other's identity — the foundational audit
 	// principle for human-AI collaboration.
+	//
+	// The page token is PUBLIC: the unauthenticated index page ships it verbatim
+	// (__tok) so in-page JS can talk to the server. It is therefore accepted on
+	// browser-needed endpoints only, and is never the secret behind the gate.
 	eventToken string
 
-	// requireToken turns on the shared-secret gate for the LAN-facing
-	// endpoints (/mcp, /update, /rollback, /window, /measure): every request
-	// must carry the page token (X-Qorm-Token). Set from `qorm run --lan`
-	// (any non-loopback bind), which prints the token at startup. Loopback
-	// binds leave it off, so local MCP stdio + dev flows run byte-for-byte
-	// as before.
+	// adminToken is a second random secret, generated at server start like the
+	// page token, but NEVER written into any served response. The run command
+	// prints it once at startup on a non-loopback bind, and it is the only
+	// credential that opens the admin-facing endpoints (/mcp, /update,
+	// /rollback, /window) and the diagnostics read surfaces (/dev/state, /log,
+	// /presence) while the gate is on. Because it never appears in a page,
+	// a LAN peer harvesting the page token from GET / gets nothing.
+	adminToken string
+
+	// requireToken turns on the two-token gate for the endpoints that face
+	// beyond the local machine: /mcp, /update, /rollback and /window demand
+	// the admin token; the diagnostics reads /dev/state, /log, /presence
+	// demand it too; /measure keeps the page token (the browser self-reports
+	// with it). Set from `qorm run --lan` (any non-loopback bind), which
+	// prints the admin token at startup. Loopback binds leave the gate off,
+	// so local MCP stdio + dev flows run byte-for-byte as before.
 	requireToken bool
 }
 
-// SetRequireToken toggles the page-token gate for the LAN-facing endpoints
-// (/mcp, /update, /rollback, /window, /measure). On a non-loopback bind
-// (`qorm run --lan` / `--tls`) those endpoints would otherwise require NO
-// auth — blockCrossOrigin only screens browser Origin headers and is
-// bypassed by any non-browser client (curl, scripts, other devices). Once
-// the gate is on, each request must prove it holds the page token printed
-// at startup; blockCrossOrigin stays as the CSRF layer on top. Loopback
-// binds never set it, keeping MCP stdio and local dev flows unchanged.
+// SetRequireToken toggles the two-token gate on a non-loopback bind
+// (`qorm run --lan` / `--tls`): /mcp, /update, /rollback, /window and the
+// diagnostics reads (/dev/state, /log, /presence) then require the ADMIN
+// token, /measure requires the page token. Without the gate those endpoints
+// would require NO auth — blockCrossOrigin only screens browser Origin
+// headers and is bypassed by any non-browser client (curl, scripts, other
+// devices). Once the gate is on, each request must prove it holds the
+// matching token printed at startup; blockCrossOrigin stays as the CSRF
+// layer on top. Loopback binds never set it, keeping MCP stdio and local
+// dev flows unchanged.
 func (s *Server) SetRequireToken(on bool) { s.requireToken = on }
 
 // EventToken returns the page token embedded in rendered pages (and required
-// by /event): the token the run command prints when --lan turns the gate on.
+// by /event, /measure and the other browser-side writes). The page token is
+// readable by anyone who can GET /, so it never unlocks the admin surfaces —
+// see AdminToken.
 func (s *Server) EventToken() string { return s.eventToken }
+
+// AdminToken returns the admin token: printed once at startup on a --lan
+// bind, never embedded in any served page, and the only credential the gate
+// accepts for /mcp, /update, /rollback, /window and the diagnostics reads
+// (/dev/state, /log, /presence) while the gate is on.
+func (s *Server) AdminToken() string { return s.adminToken }
 
 // New builds a server for a runtime (no OTA).
 func New(rt *runtime.Runtime) *Server {
-	s := &Server{rt: rt, eventToken: genEventToken()}
+	s := &Server{rt: rt, eventToken: genEventToken(), adminToken: genEventToken()}
 	// Seed the runtime's viewport from the manifest's window hints. Without
 	// this, the very first render — before any browser has reported its size
 	// via POST /viewport — sees a zero-value Viewport, and any `when` node
@@ -175,7 +199,7 @@ func NewBundle(b *bundle.Bundle, trust ed25519.PublicKey, revoked bundle.Revocat
 	if err := CheckRequiredCapabilities(b); err != nil {
 		return nil, err
 	}
-	s := &Server{rt: runtime.New(b.ToApp()), current: b, trust: trust, revoked: revoked, eventToken: genEventToken()}
+	s := &Server{rt: runtime.New(b.ToApp()), current: b, trust: trust, revoked: revoked, eventToken: genEventToken(), adminToken: genEventToken()}
 	s.initAgent()
 	return s, nil
 }
@@ -217,8 +241,11 @@ func CheckRequiredCapabilities(b *bundle.Bundle) error {
 	return nil
 }
 
-// genEventToken returns a cryptographically random 16-byte hex string used to
-// bind /event and /presence to the real browser client.
+// genEventToken returns a cryptographically random 16-byte hex string. It is
+// used for both the page token (bind /event and /presence to the real browser
+// client) and the admin token (gate the admin-facing endpoints on --lan).
+// The same generator is fine for both: the tokens are independent secrets and
+// the admin one is never serialized into any served response.
 func genEventToken() string {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
@@ -1034,20 +1061,55 @@ func blockCrossOrigin(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// requireTokenCheck is the auth layer for the LAN-facing endpoints: when the
-// server is bound beyond loopback (--lan), /mcp, /update, /rollback, /window
-// and /measure must carry the page token (X-Qorm-Token) the run command
-// printed at startup. blockCrossOrigin only screens browser Origins, so
-// without this gate any LAN peer could call window eval / update / measure /
-// MCP with no credentials at all; the token makes the bind shareable (the
-// human wires trusted devices with it) while strangers are refused. The
-// loopback default (requireToken off) passes everything through unchanged —
-// the token mechanism here is exactly the one /event and /presence already
-// use.
-func (s *Server) requireTokenCheck(next http.HandlerFunc) http.HandlerFunc {
+// requirePageTokenCheck is the auth layer for the browser-needed endpoint
+// /measure: when the server is bound beyond loopback (--lan) it must carry
+// the page token (X-Qorm-Token) the browser reads from the served page —
+// the in-page JS self-reports layout with exactly that token. The admin
+// surfaces get requireAdminCheck instead; the page token is public to the
+// LAN and can never protect them. The loopback default (requireToken off)
+// passes everything through unchanged.
+func (s *Server) requirePageTokenCheck(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if s.requireToken && r.Header.Get("X-Qorm-Token") != s.eventToken {
 			http.Error(w, "access token required: this server is bound beyond loopback (--lan); send X-Qorm-Token <token printed at startup>", http.StatusUnauthorized)
+			return
+		}
+		next(w, r)
+	}
+}
+
+// requireAdminCheck is the auth layer for the admin-facing endpoints (/mcp,
+// /update, /rollback, /window): when the server is bound beyond loopback
+// (--lan), each request must carry the ADMIN token (X-Qorm-Token) the run
+// command printed at startup. The page token the index page embeds is public
+// to the whole LAN, so it is deliberately NOT accepted here — a peer that
+// harvests __tok from GET / still cannot eval windows, update/rollback the
+// app, or drive MCP. blockCrossOrigin only screens browser Origins, so the
+// gate is what stops curl and scripts. The loopback default (requireToken
+// off) passes everything through unchanged.
+func (s *Server) requireAdminCheck(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.requireToken && r.Header.Get("X-Qorm-Token") != s.adminToken {
+			http.Error(w, "admin token required: this server is bound beyond loopback (--lan); send X-Qorm-Token <admin token printed at startup>", http.StatusUnauthorized)
+			return
+		}
+		next(w, r)
+	}
+}
+
+// requireAdminReadCheck gates the diagnostics read surfaces (/dev/state,
+// /log, /presence): on a non-loopback bind their GET reads demand the admin
+// token, because they are otherwise tokenless and expose the session's live
+// state and activity to any LAN peer (blockCrossOrigin does not stop curl).
+// Like requireAdminCheck it refuses the public page token, so harvesting the
+// page does not unlock the diagnostics. The POST writes on these routes are
+// browser-faced and keep their own page-token checks, so the app page and
+// the DevTool work unchanged; loopback keeps every method byte-for-byte as
+// before.
+func (s *Server) requireAdminReadCheck(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.requireToken && r.Method == http.MethodGet && r.Header.Get("X-Qorm-Token") != s.adminToken {
+			http.Error(w, "admin token required: this server is bound beyond loopback (--lan); send X-Qorm-Token <admin token printed at startup>", http.StatusUnauthorized)
 			return
 		}
 		next(w, r)
@@ -1061,21 +1123,28 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/navigate", blockCrossOrigin(s.serveNavigate))
 	mux.HandleFunc("/events", blockCrossOrigin(s.serveEvents))
 	mux.HandleFunc("/poll", s.servePoll)
-	mux.HandleFunc("/log", s.serveLog)
-	mux.HandleFunc("/presence", blockCrossOrigin(s.servePresence))
+	mux.HandleFunc("/log", s.requireAdminReadCheck(s.serveLog))
+	mux.HandleFunc("/presence", blockCrossOrigin(s.requireAdminReadCheck(s.servePresence)))
 	mux.HandleFunc("/viewport", blockCrossOrigin(s.serveViewport))
 	mux.HandleFunc("/console", s.serveConsole)
 	mux.HandleFunc("/logwindow", s.serveLogWindow)
-	// The five LAN-facing endpoints carry the page-token gate (see
-	// requireTokenCheck): on a non-loopback bind they need auth, on loopback
-	// the gate is inert and behavior is byte-for-byte unchanged. They keep
-	// blockCrossOrigin as the CSRF layer in every mode.
-	mux.HandleFunc("/window", blockCrossOrigin(s.requireTokenCheck(s.serveWindow)))
-	mux.HandleFunc("/measure", blockCrossOrigin(s.requireTokenCheck(s.serveMeasure)))
-	mux.HandleFunc("/mcp", blockCrossOrigin(s.requireTokenCheck(s.serveMCP)))
-	mux.HandleFunc("/update", blockCrossOrigin(s.requireTokenCheck(s.serveUpdate)))
-	mux.HandleFunc("/rollback", blockCrossOrigin(s.requireTokenCheck(s.serveRollback)))
-	mux.HandleFunc("/dev/state", blockCrossOrigin(s.serveDevState))
+	// Two-token gate on a non-loopback bind (--lan); inert on loopback, where
+	// behavior stays byte-for-byte unchanged. The ADMIN-facing endpoints
+	// (/window, /mcp, /update, /rollback) require the admin token printed at
+	// startup — never the page token, which any LAN peer can harvest from the
+	// index page. blockCrossOrigin remains the outermost CSRF layer in every
+	// mode.
+	mux.HandleFunc("/window", blockCrossOrigin(s.requireAdminCheck(s.serveWindow)))
+	mux.HandleFunc("/mcp", blockCrossOrigin(s.requireAdminCheck(s.serveMCP)))
+	mux.HandleFunc("/update", blockCrossOrigin(s.requireAdminCheck(s.serveUpdate)))
+	mux.HandleFunc("/rollback", blockCrossOrigin(s.requireAdminCheck(s.serveRollback)))
+	// /measure is browser-needed: the in-page JS self-reports layout with the
+	// page token, so it keeps the page-token gate (see requirePageTokenCheck).
+	mux.HandleFunc("/measure", blockCrossOrigin(s.requirePageTokenCheck(s.serveMeasure)))
+	// Diagnostics read surfaces: tokenless today, so on a non-loopback bind
+	// /dev/state, /log and /presence GET demand the admin token; their POST
+	// writes stay page-token-gated for the app page and the DevTool.
+	mux.HandleFunc("/dev/state", blockCrossOrigin(s.requireAdminReadCheck(s.serveDevState)))
 	mux.HandleFunc("/dev/tree", blockCrossOrigin(s.serveDevTree))
 	mux.HandleFunc("/dev/highlight", blockCrossOrigin(s.serveDevHighlight))
 	mux.HandleFunc("/dev/canvas", blockCrossOrigin(s.serveDevCanvas))
@@ -1358,11 +1427,11 @@ func (s *Server) serveMCP(w http.ResponseWriter, r *http.Request) {
 	// logged as "agent". Each identity has exactly one door; neither can walk
 	// through the other's.
 	//
-	// On a non-loopback bind (requireToken on) the printed page token IS the
-	// session's shared secret: requireTokenCheck demands it from everyone, so
-	// refusing it here — the one holder it would accept — would lock /mcp
-	// out entirely, breaking the documented LAN agent channel. The refusal
-	// stays in the loopback default, where identity separation is cheap.
+	// On a non-loopback bind (requireToken on) the ADMIN token printed at
+	// startup IS the session's shared secret: requireAdminCheck demands it in
+	// front of /mcp, so a request reaching this point already holds it — the
+	// page-token refusal only applies on loopback, where the human browser is
+	// the only holder of the page token and identity separation is cheap.
 	if !s.requireToken && r.Header.Get("X-Qorm-Token") == s.eventToken {
 		http.Error(w, "the human client must use the UI (/event), not the agent channel (/mcp)", http.StatusForbidden)
 		return

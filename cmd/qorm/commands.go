@@ -192,16 +192,21 @@ func cmdRun(args []string) int {
 		fmt.Println("  MCP is read-only: mutating agent tools (dispatch/set_state/apply_patch) are disabled")
 	}
 	if lan {
-		// A non-loopback bind exposes the LAN-facing endpoints to the whole
-		// network; blockCrossOrigin only screens browser Origins, so gate
-		// /mcp, /update, /rollback, /window and /measure behind the page
-		// token and print it for the human to share with trusted devices.
+		// A non-loopback bind exposes the endpoints to the whole network;
+		// blockCrossOrigin only screens browser Origins, so gate the
+		// admin-facing endpoints (/mcp, /update, /rollback, /window) and the
+		// diagnostics reads (/dev/state, /log, /presence) behind a dedicated
+		// ADMIN token and print it for the human to share with trusted
+		// devices and agents. The page token the browser uses for /event,
+		// /measure and /poll stays embedded in the served pages and is public
+		// to the LAN — it is never the gate secret.
 		srv.SetRequireToken(true)
 		fmt.Println()
 		fmt.Printf("  SECURITY WARNING: bound to %s (--lan) — anything on the network can reach this session.\n", host)
-		fmt.Printf("  /mcp, /update, /rollback, /window, /measure now require the access token:\n")
-		fmt.Printf("    X-Qorm-Token: %s\n", srv.EventToken())
-		fmt.Println("  local loopback requests keep working without it; use --tls so the token is not sent in the clear.")
+		fmt.Printf("  /mcp, /update, /rollback, /window and the diagnostics reads (/dev/state, /log, /presence)\n")
+		fmt.Printf("  now require the admin token, which is never embedded in served pages:\n")
+		fmt.Printf("    X-Qorm-Token: %s\n", srv.AdminToken())
+		fmt.Println("  Every request to this bind is gated while --lan is on (loopback included); use --tls so the token is not sent in the clear.")
 	}
 	if lan {
 		printDeviceConnect(port, scheme)
