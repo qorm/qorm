@@ -90,6 +90,7 @@ Each widget lists its **canonical name** first; the rest are equivalent aliases.
 | `orientation` | — | `hwList` |
 | `pageview` | — | `pageView` |
 | `pagination` | — | `pagination` |
+| `path` | — | `path` |
 | `pedometer` | — | `hwList` |
 | `photopicker` | photo | `hwList` |
 | `picker` | cupertinopicker | `picker` |

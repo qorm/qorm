@@ -11,7 +11,53 @@ import (
 
 // widgetCatalog extracts the canonical widget type + its aliases + renderer from
 // the render node() switch, so the doc is generated from the ONE source of truth
-// (the switch itself) and can never drift.
+// (the switch itself) and can never drift. The en doc appends a hand-written
+// trailer (widgetTrailerEN) — prose sections too long for a table row live in
+// the generator, not in the .md, so a whole-file regeneration keeps them.
+const widgetTrailerEN = `
+## RichText Widget
+
+The ` + "`richtext`" + ` widget allows displaying mixed-style text within a single paragraph. It takes a ` + "`spans`" + ` array, where each span is an object containing ` + "`text`" + ` and ` + "`style`" + `.
+
+` + "```json" + `
+{
+  "type": "richtext",
+  "spans": [
+    { "text": "Hello ", "style": { "color": "red" } },
+    { "text": "World", "style": { "fontWeight": "bold" } }
+  ]
+}
+` + "```" + `
+
+## Video Widget
+
+The ` + "`video`" + ` widget allows displaying video content. You can configure properties such as ` + "`src`" + `, ` + "`loop`" + `, ` + "`autoplay`" + `, and ` + "`muted`" + `.
+
+` + "```json" + `
+{
+  "type": "video",
+  "src": "https://www.w3schools.com/html/mov_bbb.mp4",
+  "loop": true,
+  "autoplay": true,
+  "muted": true
+}
+` + "```" + `
+
+## Accessibility (A11y)
+
+Canvas nodes support accessibility labels via the ` + "`aria-label`" + ` property. These are critical for making apps usable with screen readers. You can apply an ` + "`aria-label`" + ` to any interactive node or structural container to provide a descriptive label.
+
+` + "```json" + `
+{
+  "type": "button",
+  "aria-label": "Play the game",
+  "children": [
+    { "type": "icon", "props": { "icon": "play" } }
+  ]
+}
+` + "```" + `
+`
+
 func widgetCatalog(t *testing.T, lang string) string {
 	t.Helper()
 	src, err := os.ReadFile("../../internal/render/render.go")
@@ -81,6 +127,9 @@ func widgetCatalog(t *testing.T, lang string) string {
 			al = "—"
 		}
 		b.WriteString("| `" + g.canonical + "` | " + al + " | `" + g.renderer + "` |\n")
+	}
+	if lang == "en" {
+		b.WriteString(widgetTrailerEN)
 	}
 	return b.String()
 }

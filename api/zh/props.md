@@ -28,16 +28,17 @@
 | `condition` | string | 仅 `when` 节点:基于 `viewport.width` / `viewport.height` / `viewport.orientation` 的 `{{ … }}` 表达式,真值渲染 `then`,否则渲染 `else`;视口未知(服务端首帧)按假值处理 |
 | `then` | node | 仅 `when` 节点:`condition` 为真时渲染的子树 |
 | `else` | node | 仅 `when` 节点:否则渲染的子树(与隐藏单个节点的 `if` 属性不同,`when` 在两棵备选子树间切换) |
+| `d` | string | 矢量路径的 SVG 路径数据字符串(`path` 组件) |
 | `…` | any | 其余任何键都是组件专有**属性**(见下表) |
 
 ## 通用样式属性
 
 由共享渲染器读取,任何绘制盒子的节点都可用:
 
-- **Box (`style`)** — `width` `height` `minWidth` `maxWidth` `minHeight` `maxHeight` `padding` `margin` `gap` `background` `gradient` (linear / radial / **conic**, canvas) `borderRadius` `borderWidth` `borderColor` `shadow` `opacity` `aspectRatio` `flexGrow` `flexShrink` `alignSelf` `zIndex` (canvas: sibling paint + hit order; `0` = auto) `position` `top` `right` `bottom` `left` `x` `y` (canvas absolute aliases for left/top) `cursor` `overflow` (`hidden` clips children; rounded when `borderRadius` set, canvas) `transition` `transitionEasing` `transitionYoyo` `transitionLoop` `transitionRepeat` (DOTween-style SetLoops on property tweens, canvas)
+- **Box (`style`)** — `width` `height` `minWidth` `maxWidth` `minHeight` `maxHeight` `padding` `margin` `gap` `background` `gradient` (linear / radial / **conic**, canvas) `radialGradient` `borderRadius` `borderWidth` `borderColor` `shadow` `opacity` `aspectRatio` `flexGrow` `flexShrink` `alignSelf` `zIndex` (canvas: sibling paint + hit order; `0` = auto) `position` `top` `right` `bottom` `left` `x` `y` (canvas absolute aliases for left/top) `cursor` `overflow` (`hidden` clips children; rounded when `borderRadius` set, canvas) `transition` `transitionEasing` `transitionYoyo` `transitionLoop` `transitionRepeat` (DOTween-style SetLoops on property tweens, canvas)
 - **Text (`style`)** — `color` `fontSize` `fontWeight` `fontFamily` `lineHeight` `letterSpacing` `fontStyle` `textDecoration` (`underline` / `line-through` / `overline`) `textTransform` (`uppercase` / `lowercase` / `capitalize`) `textAlign` `textOverflow` (`ellipsis`) `lineClamp` `textStrokeColor` `textStrokeWidth` `textShadowColor` `textShadowBlur` `textShadowX` `textShadowY` (stroke/shadow: canvas)
-- **Chrome / shadow (`style`, canvas)** — `strokeColor` `strokeWidth` `outline` `outlineColor` `outlineWidth` `outlineOffset` `boxShadowColor` `boxShadowBlur` `boxShadowX` `boxShadowY` `boxShadowInset` (CSS inset box-shadow)
-- **Filter / mask / clip (`style`, canvas)** — `filter` (`blur()` `brightness()` `contrast()` `saturate()` `grayscale()` `hue-rotate()` `opacity()` `drop-shadow()` `invert()` `sepia()`) `blur` `filterBlur` (shortcuts) `tint` (RGB modulate, canvas) `imageRendering` (`pixelated` nearest-neighbour, canvas) `mixBlendMode` (`multiply` / `screen` / `overlay` / `darken` / `lighten` / `difference` / `exclusion` / `color-dodge` / `color-burn` / `hard-light` / `plus-lighter` / `lighter`) `maskFade` (`top` / `bottom` / `left` / `right`) `maskFadeSize` `maskImage` `clipPath` (`circle()` / `ellipse()` / `inset(… round …)` / `polygon(...)`) `layerCache` (reuse offscreen bitmap when content fingerprint is unchanged)
+- **Chrome / shadow (`style`, canvas)** — `strokeColor` `strokeWidth` `strokeDasharray` `strokeDashoffset` `outline` `outlineColor` `outlineWidth` `outlineOffset` `boxShadowColor` `boxShadowBlur` `boxShadowX` `boxShadowY` `boxShadowInset` (CSS inset box-shadow)
+- **Filter / mask / clip (`style`, canvas)** — `filter` (`blur()` `brightness()` `contrast()` `saturate()` `grayscale()` `hue-rotate()` `opacity()` `drop-shadow()` `invert()` `sepia()`) `blur` `filterBlur` `contrast` `hue-rotate` (shortcuts) `dropShadowX` `dropShadowY` `dropShadowBlur` `dropShadowColor` (drop-shadow properties) `tint` (RGB modulate, canvas) `imageRendering` (`pixelated` nearest-neighbour, canvas) `mixBlendMode` (`multiply` / `screen` / `overlay` / `darken` / `lighten` / `difference` / `exclusion` / `color-dodge` / `color-burn` / `hard-light` / `plus-lighter` / `lighter`) `maskFade` (`top` / `bottom` / `left` / `right`) `maskFadeSize` `maskImage` `clipPath` (`circle()` / `ellipse()` / `inset(… round …)` / `polygon(...)`) `layerCache` (reuse offscreen bitmap when content fingerprint is unchanged)
 - **Scroll snap (`style`, canvas)** — `scrollSnapType` (`x|y|both` + `mandatory|proximity`, on scroll viewports) `scrollSnapAlign` (`start` / `center` / `end`, on children)
 - **Layout motion (`style`, canvas)** — `layoutMotion` (FLIP ease of absolute position/size when set with `transition` + stable `id`) — pair with `transition: "0.3s"` or `"0.3s spring"` / `transitionEasing: "spring"`
 - **Transform (`style`, canvas)** — `rotate` (degrees) `scale` `scaleX` `scaleY` (0 = unset → 1) `flipX` `flipY` `skewX` `skewY` (degrees; graph shear) `transformOrigin` (CSS pivot: `center`, `left top`, `50% 0`, `12px 8px`; default center) — layout box unchanged; composes with entrance/`fx`/press scale
@@ -143,6 +144,7 @@ QSS/内联级联接受 `pointer`、`text`、`not-allowed`、`default`(以及 `ha
 | `orientation` | `label` |
 | `pageview` | — |
 | `pagination` | `page` · `total` |
+| `path` | `d` |
 | `pedometer` | `label` |
 | `photopicker` | `label` |
 | `picker` | `options` |

@@ -28,7 +28,7 @@ Every node object may carry these top-level keys:
 | `condition` | string | `when` nodes only: `{{ … }}` expression over `viewport.width` / `viewport.height` / `viewport.orientation` selecting `then` (truthy) or `else`; an unknown viewport (server first frame) is falsy |
 | `then` | node | `when` nodes only: subtree rendered when `condition` is truthy |
 | `else` | node | `when` nodes only: subtree rendered otherwise (unlike the `if` prop, which hides one node, `when` swaps two alternative subtrees) |
-| `d` | string | SVG path data string for vector paths |
+| `d` | string | SVG path data string for vector paths (the `path` widget) |
 | `…` | any | any other key is a widget-specific **prop** (table below) |
 
 ## Common style props
@@ -145,6 +145,7 @@ The widget-specific keys each renderer reads, on top of the common style props a
 | `orientation` | `label` |
 | `pageview` | — |
 | `pagination` | `page` · `total` |
+| `path` | `d` |
 | `pedometer` | `label` |
 | `photopicker` | `label` |
 | `picker` | `options` |

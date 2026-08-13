@@ -90,6 +90,7 @@
 | `orientation` | — | `hwList` |
 | `pageview` | — | `pageView` |
 | `pagination` | — | `pagination` |
+| `path` | — | `path` |
 | `pedometer` | — | `hwList` |
 | `photopicker` | photo | `hwList` |
 | `picker` | cupertinopicker | `picker` |
