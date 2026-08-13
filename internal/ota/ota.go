@@ -7,6 +7,8 @@ package ota
 
 import (
 	"crypto/ed25519"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -165,6 +167,68 @@ func readCapped(r io.Reader) ([]byte, error) {
 		return nil, fmt.Errorf("bundle exceeds the %d MiB size cap", maxBundle>>20)
 	}
 	return data, nil
+}
+
+// ClientConfig is a packaged app's client-side OTA configuration: the
+// window.__QORM_UPDATE__ document that server.OfflineHTML injects into the
+// offline HTML. URL + App locate the update server; Trust is the ed25519
+// public key every OTA bundle must be signed with; Revoked is the OPTIONAL
+// key-id revocation snapshot the package ships with.
+//
+// A shipped package should carry a revocation snapshot (the freshly-built
+// revocation list from `qorm sign`/release tooling): OTA can only refuse
+// bundles signed by a key the CLIENT knows about — once a key is revoked
+// AFTER the package shipped, the next release (or store re-signing) is the
+// only channel that reaches a stopped-updating device.
+type ClientConfig struct {
+	URL     string
+	App     string
+	Trust   ed25519.PublicKey
+	Revoked bundle.RevocationList
+}
+
+// ParseClientConfig parses the JSON form of window.__QORM_UPDATE__ into a
+// ClientConfig. The trust key is REQUIRED — without it OTA stays off, the
+// same fail-closed model as the live server's /update. `revoked` is optional
+// (absent or null means "nothing revoked"); when present it must be a valid
+// revocation list (see bundle.LoadRevocation) — a malformed one is an error,
+// never silently empty.
+func ParseClientConfig(data []byte) (*ClientConfig, error) {
+	var doc struct {
+		URL     string          `json:"url"`
+		App     string          `json:"app"`
+		Trust   string          `json:"trust"`
+		Revoked json.RawMessage `json:"revoked"`
+	}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return nil, fmt.Errorf("update config is not valid JSON: %v", err)
+	}
+	cfg := &ClientConfig{URL: strings.TrimRight(doc.URL, "/"), App: doc.App}
+	if cfg.URL == "" || cfg.App == "" {
+		return nil, fmt.Errorf("update config needs url and app")
+	}
+	raw, err := base64.StdEncoding.DecodeString(doc.Trust)
+	if err != nil || len(raw) != ed25519.PublicKeySize {
+		return nil, fmt.Errorf("update config has no valid trust key (base64 ed25519 public key) — OTA stays off")
+	}
+	cfg.Trust = ed25519.PublicKey(raw)
+	if len(doc.Revoked) > 0 && string(doc.Revoked) != "null" {
+		if cfg.Revoked, err = bundle.LoadRevocation(doc.Revoked); err != nil {
+			return nil, err
+		}
+	}
+	return cfg, nil
+}
+
+// VerifyBundle verifies an OTA-origin bundle the way the live server's
+// /update does: integrity + signature against Trust, then rejection of any
+// revoked signing key. A nil config (no update server declared) or a missing
+// trust key fails closed — an unverifiable bundle is never activated.
+func (c *ClientConfig) VerifyBundle(b *bundle.Bundle) error {
+	if c == nil || len(c.Trust) == 0 {
+		return fmt.Errorf("update config has no valid trust key — OTA bundles cannot be verified")
+	}
+	return bundle.VerifyWithRevocation(b, c.Trust, c.Revoked)
 }
 
 // FetchVerified fetches, decodes and verifies a bundle in one step, rejecting

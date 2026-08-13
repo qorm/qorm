@@ -7,9 +7,7 @@
 package main
 
 import (
-	"crypto/ed25519"
 	"crypto/rand"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -96,7 +94,7 @@ func qormInit(_ js.Value, args []js.Value) any {
 			// Stored OTA bundle but no (valid) trust key: unverifiable, refuse it.
 			err = cErr
 		} else {
-			err = bundle.VerifyWithRevocation(b, cfg.trust, nil)
+			err = cfg.VerifyBundle(b)
 		}
 	}
 	if err != nil {
@@ -384,39 +382,26 @@ const (
 // message instead of half-applying.
 const otaMaxBundle = 4 << 20
 
-// otaConfig is the parsed window.__QORM_UPDATE__ injected by the packager
-// (server.OfflineHTML): the update server URL, the app's rollout id, and the
-// ed25519 public key every OTA bundle must be signed with.
-type otaConfig struct {
-	url, app string
-	trust    ed25519.PublicKey
-}
-
 // readUpdateConfig reads and validates window.__QORM_UPDATE__. A missing or
 // keyless config disables OTA entirely — the same fail-closed "no trusted key,
 // no update" model as the live server's /update endpoint.
-func readUpdateConfig() (*otaConfig, error) {
+//
+// The document is structured:: json-formatted by the browser (JSON.stringify
+// is available on every runtime this binary targets) and parsed by
+// ota.ParseClientConfig, which owns the schema: url + app + base64 trust key,
+// plus the OPTIONAL `revoked` array (key ids the client refuses) that
+// server.UpdateConfig serializes. Unknown extra keys are ignored — the
+// document is forward-compatible.
+func readUpdateConfig() (*ota.ClientConfig, error) {
 	u := js.Global().Get("__QORM_UPDATE__")
 	if u.Type() != js.TypeObject {
 		return nil, fmt.Errorf("no update server configured (window.__QORM_UPDATE__ missing)")
 	}
-	str := func(k string) string {
-		v := u.Get(k)
-		if v.Type() != js.TypeString {
-			return ""
-		}
-		return v.String()
+	raw := js.Global().Get("JSON").Call("stringify", u)
+	if raw.Type() != js.TypeString {
+		return nil, fmt.Errorf("update config is not serializable to JSON")
 	}
-	cfg := &otaConfig{url: strings.TrimRight(str("url"), "/"), app: str("app")}
-	if cfg.url == "" || cfg.app == "" {
-		return nil, fmt.Errorf("update config needs url and app")
-	}
-	raw, err := base64.StdEncoding.DecodeString(str("trust"))
-	if err != nil || len(raw) != ed25519.PublicKeySize {
-		return nil, fmt.Errorf("update config has no valid trust key (base64 ed25519 public key) — OTA stays off")
-	}
-	cfg.trust = ed25519.PublicKey(raw)
-	return cfg, nil
+	return ota.ParseClientConfig([]byte(raw.String()))
 }
 
 // qormCheckUpdate() asks the configured update server which bundle this client
@@ -432,8 +417,11 @@ func qormCheckUpdate(js.Value, []js.Value) any {
 			reject("qorm ota: " + err.Error())
 			return
 		}
-		source := cfg.url + "/resolve?app=" + url.QueryEscape(cfg.app) + "&client=" + url.QueryEscape(otaClientID())
-		next, err := ota.FetchVerified(source, cfg.trust, nil)
+		source := cfg.URL + "/resolve?app=" + url.QueryEscape(cfg.App) + "&client=" + url.QueryEscape(otaClientID())
+		// The shipped revocation snapshot rides along: a bundle signed by a
+		// key the package revokes is dropped exactly like one that fails the
+		// signature check — and, like every failure, the running app is kept.
+		next, err := ota.FetchVerified(source, cfg.Trust, cfg.Revoked)
 		if err != nil {
 			reject("qorm ota: " + err.Error())
 			return
@@ -485,7 +473,7 @@ func qormOTARollback(js.Value, []js.Value) any {
 		if cfg, cErr := readUpdateConfig(); cErr != nil {
 			err = cErr
 		} else {
-			err = bundle.VerifyWithRevocation(b, cfg.trust, nil)
+			err = cfg.VerifyBundle(b)
 		}
 	}
 	if err != nil {

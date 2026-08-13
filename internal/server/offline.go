@@ -18,6 +18,13 @@ type UpdateConfig struct {
 	URL   string `json:"url"`   // update server base URL; the client calls <url>/resolve
 	App   string `json:"app"`   // app id — the rollout.json key on the update server
 	Trust string `json:"trust"` // base64 ed25519 public key OTA bundles must be signed with
+	// Revoked is an optional array of revoked signing-key ids (the same
+	// format the CLI's --revoked list uses). The WASM OTA client refuses any
+	// bundle signed by one of these keys, matching the live server's /update.
+	// Ship a revocation SNAPSHOT here: the client only revokes what the
+	// package knew at build time, so a key revoked after shipping reaches
+	// devices only through the next release.
+	Revoked []string `json:"revoked,omitempty"`
 }
 
 // OfflineHTML produces a fully standalone index.html for an installable package:
