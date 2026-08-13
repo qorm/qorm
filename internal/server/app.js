@@ -60,7 +60,9 @@ function qormMeasure(){
         role:el.getAttribute('role')||'', ariaLabel:el.getAttribute('aria-label')||'',
         tabindex:el.getAttribute('tabindex')||'', contrast:qormContrast(el,cs)});
     });
-    fetch('/measure',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(out)});
+    // The page token rides along so self-measurement survives the --lan
+    // token gate (/measure is one of the five LAN-facing endpoints).
+    fetch('/measure',{method:'POST',headers:{'Content-Type':'application/json','X-Qorm-Token':__tok},body:JSON.stringify(out)});
   }catch(e){}
 }
 // qormFlash briefly outlines a node the AI just changed, so the human sees WHERE

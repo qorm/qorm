@@ -127,7 +127,29 @@ type Server struct {
 	// either side from forging the other's identity — the foundational audit
 	// principle for human-AI collaboration.
 	eventToken string
+
+	// requireToken turns on the shared-secret gate for the LAN-facing
+	// endpoints (/mcp, /update, /rollback, /window, /measure): every request
+	// must carry the page token (X-Qorm-Token). Set from `qorm run --lan`
+	// (any non-loopback bind), which prints the token at startup. Loopback
+	// binds leave it off, so local MCP stdio + dev flows run byte-for-byte
+	// as before.
+	requireToken bool
 }
+
+// SetRequireToken toggles the page-token gate for the LAN-facing endpoints
+// (/mcp, /update, /rollback, /window, /measure). On a non-loopback bind
+// (`qorm run --lan` / `--tls`) those endpoints would otherwise require NO
+// auth — blockCrossOrigin only screens browser Origin headers and is
+// bypassed by any non-browser client (curl, scripts, other devices). Once
+// the gate is on, each request must prove it holds the page token printed
+// at startup; blockCrossOrigin stays as the CSRF layer on top. Loopback
+// binds never set it, keeping MCP stdio and local dev flows unchanged.
+func (s *Server) SetRequireToken(on bool) { s.requireToken = on }
+
+// EventToken returns the page token embedded in rendered pages (and required
+// by /event): the token the run command prints when --lan turns the gate on.
+func (s *Server) EventToken() string { return s.eventToken }
 
 // New builds a server for a runtime (no OTA).
 func New(rt *runtime.Runtime) *Server {
@@ -1012,6 +1034,26 @@ func blockCrossOrigin(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// requireTokenCheck is the auth layer for the LAN-facing endpoints: when the
+// server is bound beyond loopback (--lan), /mcp, /update, /rollback, /window
+// and /measure must carry the page token (X-Qorm-Token) the run command
+// printed at startup. blockCrossOrigin only screens browser Origins, so
+// without this gate any LAN peer could call window eval / update / measure /
+// MCP with no credentials at all; the token makes the bind shareable (the
+// human wires trusted devices with it) while strangers are refused. The
+// loopback default (requireToken off) passes everything through unchanged —
+// the token mechanism here is exactly the one /event and /presence already
+// use.
+func (s *Server) requireTokenCheck(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.requireToken && r.Header.Get("X-Qorm-Token") != s.eventToken {
+			http.Error(w, "access token required: this server is bound beyond loopback (--lan); send X-Qorm-Token <token printed at startup>", http.StatusUnauthorized)
+			return
+		}
+		next(w, r)
+	}
+}
+
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", s.serveIndex)
@@ -1024,11 +1066,15 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/viewport", blockCrossOrigin(s.serveViewport))
 	mux.HandleFunc("/console", s.serveConsole)
 	mux.HandleFunc("/logwindow", s.serveLogWindow)
-	mux.HandleFunc("/window", blockCrossOrigin(s.serveWindow))
-	mux.HandleFunc("/measure", blockCrossOrigin(s.serveMeasure))
-	mux.HandleFunc("/mcp", blockCrossOrigin(s.serveMCP))
-	mux.HandleFunc("/update", blockCrossOrigin(s.serveUpdate))
-	mux.HandleFunc("/rollback", blockCrossOrigin(s.serveRollback))
+	// The five LAN-facing endpoints carry the page-token gate (see
+	// requireTokenCheck): on a non-loopback bind they need auth, on loopback
+	// the gate is inert and behavior is byte-for-byte unchanged. They keep
+	// blockCrossOrigin as the CSRF layer in every mode.
+	mux.HandleFunc("/window", blockCrossOrigin(s.requireTokenCheck(s.serveWindow)))
+	mux.HandleFunc("/measure", blockCrossOrigin(s.requireTokenCheck(s.serveMeasure)))
+	mux.HandleFunc("/mcp", blockCrossOrigin(s.requireTokenCheck(s.serveMCP)))
+	mux.HandleFunc("/update", blockCrossOrigin(s.requireTokenCheck(s.serveUpdate)))
+	mux.HandleFunc("/rollback", blockCrossOrigin(s.requireTokenCheck(s.serveRollback)))
 	mux.HandleFunc("/dev/state", blockCrossOrigin(s.serveDevState))
 	mux.HandleFunc("/dev/tree", blockCrossOrigin(s.serveDevTree))
 	mux.HandleFunc("/dev/highlight", blockCrossOrigin(s.serveDevHighlight))
@@ -1305,12 +1351,19 @@ func (s *Server) serveIndex(w http.ResponseWriter, r *http.Request) {
 // request in, one response out. The agent operates the same runtime the browser
 // renders, guarded by the same mutex.
 func (s *Server) serveMCP(w http.ResponseWriter, r *http.Request) {
-	// Symmetric isolation. /event requires the human token, so an agent (which
-	// never sees it) cannot pose as a human. The mirror: /mcp REFUSES the human
-	// token, so the human browser — the only holder of the token — cannot route
-	// operations through the agent channel and have them logged as "agent".
-	// Each identity has exactly one door; neither can walk through the other's.
-	if r.Header.Get("X-Qorm-Token") == s.eventToken {
+	// Symmetric isolation ON LOOPBACK. /event requires the human token, so an
+	// agent (which never sees it) cannot pose as a human. The mirror: /mcp
+	// REFUSES the human token, so the human browser — the only holder of the
+	// token — cannot route operations through the agent channel and have them
+	// logged as "agent". Each identity has exactly one door; neither can walk
+	// through the other's.
+	//
+	// On a non-loopback bind (requireToken on) the printed page token IS the
+	// session's shared secret: requireTokenCheck demands it from everyone, so
+	// refusing it here — the one holder it would accept — would lock /mcp
+	// out entirely, breaking the documented LAN agent channel. The refusal
+	// stays in the loopback default, where identity separation is cheap.
+	if !s.requireToken && r.Header.Get("X-Qorm-Token") == s.eventToken {
 		http.Error(w, "the human client must use the UI (/event), not the agent channel (/mcp)", http.StatusForbidden)
 		return
 	}
