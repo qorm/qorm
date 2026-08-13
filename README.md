@@ -159,6 +159,28 @@ Each target is a single static ~7 MB binary with no runtime dependencies. In
 this default (pure-Go) build, `qorm run --app` opens the app in a chromeless
 browser window.
 
+### When is Go required?
+
+**Go is a build-time dependency, not a runtime one.** A downloaded/pre-built
+`qorm` binary runs apps with no Go on the machine: `run`, `render`, `mcp`,
+`shot`, `measure`, `check`, `test`, `verify` and bundle execution are fully
+self-contained. Where the binary shells out at runtime it calls OS-native
+tools, never Go — and always per-OS with availability guards
+(`osascript`/`screencapture`/`pbcopy` on macOS, `pactl`/`brightnessctl`/
+`wl-paste`/`notify-send` on Linux, `powershell` on Windows); a missing tool
+degrades just that one capability.
+
+The Go toolchain IS needed for:
+
+- `qorm package …` — builds the app binary via `go build` (the web package
+  compiles the WASM client; iOS/Android/mac additionally want xcodebuild /
+  gradle / codesign).
+- An app with a Go middle layer (`native/desktop.go`) — `qorm run` compiles it
+  once (content-hashed cache); without a toolchain it warns and runs without
+  the middle layer.
+- `qorm update` — tries `go install …@latest` when Go is present, otherwise
+  falls back to the signed-binary download automatically.
+
 ## Native desktop window (opt-in)
 
 For a true native window, build with `-tags desktop`. This drives the

@@ -146,6 +146,25 @@ qorm run    counter.qorm.bundle --trust qorm_key.pub   # refuses tampered/unsign
 每个目标都是一个约 7 MB 的单一静态二进制,无运行时依赖。在这个默认(纯 Go)构建中,
 `qorm run --app` 会在一个无边框浏览器窗口中打开应用。
 
+### 什么时候需要 Go?
+
+**Go 是构建期依赖,不是运行期依赖。** 下载/预编译好的 `qorm` 二进制在没有任何 Go
+的机器上即可运行应用:`run`、`render`、`mcp`、`shot`、`measure`、`check`、`test`、
+`verify` 与 bundle 执行全部自包含。二进制在运行时即便调用外部命令,调用的也是操作系统
+原生工具而非 Go——且一律按 GOOS 分支并带可用性探测(macOS 用
+`osascript`/`screencapture`/`pbcopy`,Linux 用
+`pactl`/`brightnessctl`/`wl-paste`/`notify-send`,Windows 用 `powershell`);
+某个工具缺失只会让对应的那一项能力降级。
+
+需要 Go 工具链的场景:
+
+- `qorm package …` —— 通过 `go build` 构建应用二进制(web 包会编译 WASM 客户端;
+  iOS/Android/mac 还需要 xcodebuild / gradle / codesign)。
+- 应用带 Go 中间层(`native/desktop.go`)时 —— `qorm run` 首次会编译一次(按内容
+  哈希缓存);没有工具链时给出警告并在不含中间层的情况下继续运行。
+- `qorm update` —— 有 Go 时先走 `go install …@latest` 快路径,否则自动回退到
+  签名二进制下载。
+
 ## 原生桌面窗口(可选开启)
 
 若需要真正的原生窗口,使用 `-tags desktop` 构建。它通过 cgo 驱动平台原生
