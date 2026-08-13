@@ -20,11 +20,11 @@ func TestRichTextMeasureAndWrap(t *testing.T) {
 	}
 
 	ln := Measure(node, nil, nil, 1)
-	
+
 	if len(ln.RichTextSpans) != 3 {
 		t.Fatalf("expected 3 spans, got %d", len(ln.RichTextSpans))
 	}
-	
+
 	if ln.RichTextSpans[0].Content != "Hello " {
 		t.Errorf("expected 'Hello ', got '%s'", ln.RichTextSpans[0].Content)
 	}
@@ -34,16 +34,16 @@ func TestRichTextMeasureAndWrap(t *testing.T) {
 	if ln.RichTextSpans[0].Fill != (color.RGBA{255, 0, 0, 255}) {
 		t.Errorf("expected red color, got %v", ln.RichTextSpans[0].Fill)
 	}
-	
+
 	// Test wrapping
 	ln.Style.Width = 0
 	ln.Style.WidthRaw = ""
 	wrapTree(ln, 50) // Assuming this forces wrap
-	
+
 	if len(ln.RichTextSpans) < 3 {
 		t.Errorf("wrap failed to produce enough spans")
 	}
-	
+
 	for _, span := range ln.RichTextSpans {
 		if span.Y < 0 {
 			t.Errorf("negative Y coordinate on span: %v", span)

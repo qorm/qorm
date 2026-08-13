@@ -258,7 +258,7 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 						} else if content, ok := spMap["content"]; ok {
 							span.Content = evalPropStrScope(content, rt, sc)
 						}
-						
+
 						fs2 := style.FontSize
 						if fs2 == 0 {
 							fs2 = 14
@@ -269,24 +269,24 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 						} else if v, ok := spMap["fontSize"].(int); ok {
 							span.FontSize = float64(v)
 						}
-						
+
 						span.Fill = style.Color
 						if c, ok := spMap["color"].(string); ok {
 							span.Fill = parseColor(c)
 						}
-						
+
 						span.FontWeight = style.FontWeight
 						if fw, ok := spMap["fontWeight"].(float64); ok {
 							span.FontWeight = int(fw)
 						} else if fw, ok := spMap["fontWeight"].(int); ok {
 							span.FontWeight = fw
 						}
-						
+
 						span.LetterSpacing = style.LetterSpacing
 						if ls, ok := spMap["letterSpacing"].(float64); ok {
 							span.LetterSpacing = ls
 						}
-						
+
 						span.StrokeColor = style.TextStrokeColor
 						if c, ok := spMap["textStrokeColor"].(string); ok {
 							span.StrokeColor = parseColor(c)
@@ -297,7 +297,7 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 						} else if w, ok := spMap["textStrokeWidth"].(int); ok {
 							span.StrokeWidth = float64(w)
 						}
-						
+
 						span.ShadowColor = style.TextShadowColor
 						if c, ok := spMap["textShadowColor"].(string); ok {
 							span.ShadowColor = parseColor(c)
@@ -320,7 +320,7 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 						} else if y, ok := spMap["textShadowY"].(int); ok {
 							span.ShadowY = float64(y)
 						}
-						
+
 						ln.RichTextSpans = append(ln.RichTextSpans, span)
 					}
 				}

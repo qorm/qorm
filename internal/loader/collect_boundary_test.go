@@ -291,3 +291,63 @@ func TestBoundGuardRedirectIsAnError(t *testing.T) {
 		t.Errorf("a well-formed guard must still load clean: %v", ok.Diagnostics)
 	}
 }
+
+// TestCollectTestDocsPartitionsWithCollectDocs: `qorm test` fixtures share the
+// collect walk's trust rules (skip dirs, locales, nested projects, symlink
+// containment), and the partition must be exact — CollectDocs never sees a
+// type:"test" doc (so fixtures are never hashed into a signed bundle), while
+// CollectTestDocs sees nothing else. An app without tests yields an empty
+// slice and no error; the CLI reports that as "no tests found".
+func TestCollectTestDocsPartitionsWithCollectDocs(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "qorm.json"), `{"type":"app","id":"a","entry":"main"}`)
+	writeFile(t, filepath.Join(dir, "scenes", "main.json"),
+		`{"type":"scene","id":"main","root":{"type":"text","id":"t","text":"hi"}}`)
+	writeFile(t, filepath.Join(dir, "tests", "smoke.json"),
+		`{"type":"test","id":"smoke","steps":[],"asserts":[]}`)
+
+	appDocs, err := CollectDocs(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range appDocs {
+		if DocType(d) == "test" {
+			t.Errorf("a test fixture leaked into the bundle-bound doc set: %v", DocID(d))
+		}
+	}
+	testDocs, err := CollectTestDocs(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(testDocs) != 1 || DocID(testDocs[0]) != "smoke" || DocType(testDocs[0]) != "test" {
+		t.Errorf("CollectTestDocs must return exactly the test fixtures: %v", testDocs)
+	}
+
+	empty := t.TempDir()
+	writeFile(t, filepath.Join(empty, "qorm.json"), `{"type":"app","id":"b","entry":"main"}`)
+	none, err := CollectTestDocs(empty)
+	if err != nil || len(none) != 0 {
+		t.Errorf("an app without tests must yield empty, no error: %v, %v", none, err)
+	}
+}
+
+// TestDocStringCoercesLikeDocID: the test runner and the bundle builder read
+// optional fixture fields through DocString, so its coercion must be the same
+// stable one DocID applies — never a raw type assertion that a numeric or
+// boolean JSON value could surprise.
+func TestDocStringCoercesLikeDocID(t *testing.T) {
+	doc := map[string]any{"id": "t1", "name": "smoke", "num": float64(7), "flag": true}
+	for _, c := range []struct{ key, want string }{
+		{"name", "smoke"},
+		{"num", "7"},
+		{"flag", "true"},
+		{"missing", ""},
+	} {
+		if got := DocString(doc, c.key); got != c.want {
+			t.Errorf("DocString(%q) = %q, want %q", c.key, got, c.want)
+		}
+	}
+	if got := DocString(map[string]any{}, "id"); got != DocID(map[string]any{}) {
+		t.Errorf("DocString drifted from DocID's coercion: %q vs %q", got, DocID(map[string]any{}))
+	}
+}

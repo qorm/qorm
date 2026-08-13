@@ -1888,9 +1888,15 @@ func roundBoxArcLength(px, py, cx, cy, hw, hh, r float64) float64 {
 	distL := math.Abs(x + hw)
 	distR := math.Abs(x - hw)
 	minD := distT
-	if distB < minD { minD = distB }
-	if distL < minD { minD = distL }
-	if distR < minD { minD = distR }
+	if distB < minD {
+		minD = distB
+	}
+	if distL < minD {
+		minD = distL
+	}
+	if distR < minD {
+		minD = distR
+	}
 
 	if minD == distT {
 		return x + iw

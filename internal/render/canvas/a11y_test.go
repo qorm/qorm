@@ -88,7 +88,7 @@ func TestBuildA11yTree(t *testing.T) {
 			if got == nil || tt.expected == nil {
 				t.Fatalf("expected %v, got %v", tt.expected, got)
 			}
-			
+
 			if got.Role != tt.expected.Role {
 				t.Errorf("Role: expected %v, got %v", tt.expected.Role, got.Role)
 			}
@@ -101,7 +101,7 @@ func TestBuildA11yTree(t *testing.T) {
 			if got.State.Checked != tt.expected.State.Checked {
 				t.Errorf("Checked: expected %v, got %v", tt.expected.State.Checked, got.State.Checked)
 			}
-			
+
 			if len(got.Children) != len(tt.expected.Children) {
 				t.Errorf("Children count: expected %d, got %d", len(tt.expected.Children), len(got.Children))
 			} else {

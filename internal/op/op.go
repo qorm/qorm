@@ -364,16 +364,16 @@ type RRectOp struct {
 	GradientRadial bool
 	GradientConic  bool
 	// BackdropBlur px: frost pixels already in the buffer under the rect.
-	BackdropBlur float64
-	BackdropTint color.RGBA
+	BackdropBlur     float64
+	BackdropTint     color.RGBA
 	Stroke           color.RGBA
 	StrokeWidth      float64
 	StrokeDasharray  []float64
 	StrokeDashoffset float64
 	Shadow           color.RGBA
-	ShadowBlur   float64
-	ShadowX      float64
-	ShadowY      float64
+	ShadowBlur       float64
+	ShadowX          float64
+	ShadowY          float64
 	// ShadowInset draws the shadow inside the shape (CSS box-shadow: inset).
 	ShadowInset bool
 	// Outline is CSS outline (outside the border box, does not affect layout).

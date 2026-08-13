@@ -3,8 +3,8 @@ package widgets
 import (
 	"image"
 	"image/color"
-	"sync"
 	"path/filepath"
+	"sync"
 
 	"github.com/qorm/qorm/internal/geom"
 	"github.com/qorm/qorm/internal/model"
@@ -19,9 +19,9 @@ func init() {
 
 // Video implements a Canvas widget that buffers decoded video frames and renders them.
 type Video struct {
-	mu     sync.Mutex
-	frames []image.Image
-	dirty  bool
+	mu      sync.Mutex
+	frames  []image.Image
+	dirty   bool
 	playing bool
 	src     string
 }
@@ -32,8 +32,6 @@ func NewVideo() *Video {
 		frames: make([]image.Image, 0),
 	}
 }
-
-
 
 // AppendFrame buffers a new decoded frame and flags the widget as dirty for repaint.
 func (v *Video) AppendFrame(img image.Image) {
@@ -51,7 +49,7 @@ func (v *Video) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, sc
 	} else if srcVal, ok := n.Props["src"].(string); ok && srcVal != "" {
 		src = srcVal
 	}
-	
+
 	if src != "" {
 		if !filepath.IsAbs(src) && rt != nil && rt.App != nil {
 			src = filepath.Join(rt.App.BaseDir, src)
@@ -73,15 +71,15 @@ func (v *Video) Measure(n *model.Node, rt *runtime.Runtime, _ map[string]any, sc
 
 func (v *Video) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) graph.Node {
 	startVideoDecoder(v, ln.Width, ln.Height)
-	
+
 	v.mu.Lock()
 	defer v.mu.Unlock()
-	
+
 	if v.dirty {
 		ln.NeedsRedraw = true
 		v.dirty = false
 	}
-	
+
 	var currentFrame image.Image
 	if len(v.frames) > 0 {
 		currentFrame = v.frames[0]
@@ -90,7 +88,7 @@ func (v *Video) Record(ln *canvas.LayoutNode, rt *runtime.Runtime, scale int) gr
 			ln.NeedsRedraw = true
 		}
 	}
-	
+
 	node := &videoNode{
 		Width:  float64(ln.Width),
 		Height: float64(ln.Height),
@@ -117,14 +115,14 @@ func (n *videoNode) Draw(ctx *graph.Context) {
 	if n.Width <= 0 || n.Height <= 0 {
 		return
 	}
-	
+
 	n.UpdateGlobalTransform()
 	ctx.Save()
 	ctx.Transform(n.Base().GlobalTransform)
-	
+
 	rect := image.Rect(0, 0, int(n.Width), int(n.Height))
 	ctx.ClipRect(rect)
-	
+
 	if n.Frame != nil {
 		if rgba, ok := n.Frame.(*image.RGBA); ok {
 			ctx.DrawImageEx(rgba, rect, false)
@@ -134,7 +132,7 @@ func (n *videoNode) Draw(ctx *graph.Context) {
 		ctx.Fill(color.RGBA{0, 0, 0, 255})
 		ctx.Paint()
 	}
-	
+
 	ctx.Restore()
 }
 

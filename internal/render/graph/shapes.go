@@ -152,27 +152,27 @@ func (g *Group) Draw(ctx *Context) {
 // Rect represents a rectangular shape (with optional border radius)
 type Rect struct {
 	BaseNode
-	Fill          color.RGBA
-	GradientStops []color.RGBA
-	GradientAngle float64
-	BackdropBlur  float64
-	BorderRadius  float64
-	Stroke        color.RGBA
-	StrokeWidth   float64
+	Fill             color.RGBA
+	GradientStops    []color.RGBA
+	GradientAngle    float64
+	BackdropBlur     float64
+	BorderRadius     float64
+	Stroke           color.RGBA
+	StrokeWidth      float64
 	StrokeDasharray  []float64
 	StrokeDashoffset float64
-	ShadowColor   color.RGBA
-	ShadowBlur    float64
-	ShadowX       float64
-	ShadowY       float64
-	ShadowInset   bool
-	OutlineColor  color.RGBA
-	OutlineWidth  float64
-	OutlineOffset float64
-	GradientStopPos []float64
-	GradientRadial  bool
-	GradientConic   bool
-	BackdropTint    color.RGBA
+	ShadowColor      color.RGBA
+	ShadowBlur       float64
+	ShadowX          float64
+	ShadowY          float64
+	ShadowInset      bool
+	OutlineColor     color.RGBA
+	OutlineWidth     float64
+	OutlineOffset    float64
+	GradientStopPos  []float64
+	GradientRadial   bool
+	GradientConic    bool
+	BackdropTint     color.RGBA
 }
 
 func NewRect() *Rect {
