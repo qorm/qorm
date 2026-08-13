@@ -18,6 +18,17 @@ QORM exposes a [Model Context Protocol](https://modelcontextprotocol.io) server 
 
 **Safety model.** `qorm_simulate_action`, `qorm_preview_patch` and `qorm_diff` run against a copy and never touch the live app. `qorm_apply_patch` commits a change, but it must carry the `previewToken` returned by a matching `qorm_preview_patch` of the same ops — so every committed edit is bound to a prior review. `qorm_undo` reverts the last apply.
 
+## Tool categories
+
+The 25 tools fall into six intent groups. Pick by what you are trying to do:
+
+- **Understand (read-only):** `qorm_inspect`, `qorm_render_html`, `qorm_capture_subtree`, `qorm_capture_canvas`, `qorm_a11y_tree`, `qorm_capabilities`, `qorm_get_node`, `qorm_source_location`, `qorm_query`, `qorm_list_actions`, `qorm_activity`, `qorm_export_scene`, `qorm_export_bundle`
+- **Operate (mutate live state):** `qorm_dispatch`, `qorm_set_state`
+- **Simulate (side-effect-free):** `qorm_simulate_action`
+- **Design (preview → apply, review-bound):** `qorm_preview_patch`, `qorm_diff`, `qorm_apply_patch`, `qorm_undo`
+- **Verify (test + interpret the live render):** `qorm_assert`, `qorm_validate`, `qorm_measure`, `qorm_check_layout`
+- **Window control (desktop):** `qorm_window`
+
 | Tool | Parameters | What it does |
 |---|---|---|
 | `qorm_window` | `h` (integer), `id` (string), `js` (string), `op` (move\|open\|close\|eval\|tile\|focus\|minimize\|pin\|unpin), `url` (string), `w` (integer), `x` (integer), `y` (integer) | Control the desktop app window: op=move needs x,y,w,h (top-left px); op=focus/minimize/pin/unpin act on the window. The control engine positions the user's window. Supported on macOS and Windows desktop apps. |
@@ -47,3 +58,57 @@ QORM exposes a [Model Context Protocol](https://modelcontextprotocol.io) server 
 | `qorm_validate` | `node` (object), `sceneId` (string) | VALIDATE a QORM scene node or whole app against component schemas, widget catalog type rules, expression syntax, and design token constraints before patching or saving. Returns valid (bool) and an array of diagnostic warnings or errors. |
 
 Parameters marked `*` are required; the rest are optional.
+
+## Examples
+
+Representative calls (JSON-RPC 2.0, method `tools/call`):
+
+**Understand** — read the app, then locate a node and jump to its source:
+
+```json
+{"jsonrpc":"2.0","id":1,"method":"tools/call",
+ "params":{"name":"qorm_inspect","arguments":{}}}
+
+{"jsonrpc":"2.0","id":2,"method":"tools/call",
+ "params":{"name":"qorm_query","arguments":{"type":"button","textContains":"Save"}}}
+
+{"jsonrpc":"2.0","id":3,"method":"tools/call",
+ "params":{"name":"qorm_source_location","arguments":{"id":"saveBtn"}}}
+```
+
+**Operate** — dispatch an action and set a nested state path:
+
+```json
+{"jsonrpc":"2.0","id":4,"method":"tools/call",
+ "params":{"name":"qorm_dispatch","arguments":{"action":"increment"}}}
+
+{"jsonrpc":"2.0","id":5,"method":"tools/call",
+ "params":{"name":"qorm_set_state","arguments":{"path":"user.name","value":"Ada"}}}
+```
+
+**Design** — preview a patch, review the diff, then commit with the token:
+
+```json
+{"jsonrpc":"2.0","id":6,"method":"tools/call",
+ "params":{"name":"qorm_preview_patch","arguments":{"ops":[
+   {"op":"setProp","target":"saveBtn","key":"text","value":"Save now"}]}}}
+
+{"jsonrpc":"2.0","id":7,"method":"tools/call",
+ "params":{"name":"qorm_apply_patch","arguments":{
+   "ops":[{"op":"setProp","target":"saveBtn","key":"text","value":"Save now"}],
+   "previewToken":"<token from qorm_preview_patch>"}}}
+```
+
+**Verify** — assert state and check the live layout:
+
+```json
+{"jsonrpc":"2.0","id":8,"method":"tools/call",
+ "params":{"name":"qorm_assert","arguments":{"checks":[
+   {"kind":"stateEquals","path":"count","value":3},
+   {"kind":"htmlContains","text":"Saved"}]}}}
+
+{"jsonrpc":"2.0","id":9,"method":"tools/call",
+ "params":{"name":"qorm_check_layout","arguments":{"checks":[
+   {"id":"saveBtn","type":"button","visible":true,"noOverflow":true}]}}}
+```
+

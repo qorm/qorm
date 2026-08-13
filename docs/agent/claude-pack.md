@@ -51,7 +51,8 @@ Operations with side effects require user confirmation before they can run.
 When the app runs on `-tags desktop`, the agent should know:
 
 - The app renders in a native window with a pure-Go software renderer.
-- All 80+ widgets work identically to the HTML path.
+- All 146 canonical widget types (see `api/widgets.md`) work identically to
+  the HTML path.
 - Interaction features: keyboard navigation, scroll momentum, text editing
   (selection/clipboard/undo), animated transitions, disabled dimming.
 - Overlay widgets (drawer, menu, modal, tooltip) position above siblings via
@@ -60,7 +61,7 @@ When the app runs on `-tags desktop`, the agent should know:
   smoothly; `disabled` dims non-widget nodes to 50% opacity.
 - QSS stylesheets (`styles/*.qss`) cascade over theme defaults.
 - QScript actions (`actions/*.qs`) support `let`/`if`/`for`/`while`/`fn`.
-- Icon font: 66 icons on U+E000+, use the `icon` widget with `"icon": "name"`.
+- Icon font: 53 icons on U+E000+, use the `icon` widget with `"icon": "name"`.
 
 ## Permission Boundaries
 

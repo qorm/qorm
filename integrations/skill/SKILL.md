@@ -110,9 +110,10 @@ DOM/CSS are independent implementations — verify the backend you will ship:
   keyboard input are attributed to `human` in the same DevTool and
   `qorm_activity` event stream as browser/WebView actions. Canvas also reports
   privacy-safe focus/typing/filled presence; password values are never sent.
-- **Widgets**: all 80+ widgets work, including overlay panels (drawer, menu,
-  modal, snackbar, tooltip) and interactive controls (switch, slider, checkbox,
-  select, textarea, draggable).
+- **Widgets**: all 146 canonical widget types work (full catalog:
+  `api/widgets.md`), including overlay panels (drawer, menu, modal, snackbar,
+  tooltip) and interactive controls (switch, slider, checkbox, select,
+  textarea, draggable).
 - **Run canvas**: `go run ./cmd/qorm run <app>` (macOS default). WebView:
   `go run -tags desktop ./cmd/qorm run <app>`.
 
@@ -248,19 +249,26 @@ When an `input` or `textarea` is focused on the native canvas:
 
 ### Icon font
 
-66 icons on Unicode Private Use Area U+E000+. Use the `icon` widget:
+53 icons on Unicode Private Use Area U+E000+. Use the `icon` widget:
 ```json
 { "type": "icon", "props": { "icon": "heart" }, "style": { "color": "#FF3B30" } }
 ```
-Available names: home, folder, star, heart, settings, search, user, bell, mail,
-check, plus, minus, trash, copy, info, chevron-right, chevron-down, and 47 more
-(auto-generated from the SVG set). See `internal/render/canvas/icon_font_data.go`.
+Available names (the built-in SVG set, `widgets.IconSet()`; the canvas bitmap
+font rasterizes them via `go generate ./internal/render/canvas/`):
+alert, battery, bell, bluetooth, book, brick, brightness, camera, check,
+chevron-down, chevron-right, clipboard, coin, compass, copy, database, device,
+download, fingerprint, flag, flashlight, folder, globe, goomba, ground, heart,
+home, image, inbox, info, location, lock, mail, mario, menu, mic, minus, nfc,
+plus, screenshot, search, settings, share, star, sun, trash, upload, user,
+video, volume, wifi, x, zap.
+Hand-crafted glyphs in `internal/render/canvas/icon_font_data.go` take
+precedence; the rest come from `icon_font_auto.go` (generated).
 
 ## Don't
 
 - Don't use `value`/`on:{press}`/`{{count}}`/`scene://` (the aspirational spec format — the runtime ignores it).
 - Don't `apply_patch` without a matching `preview_patch` token.
-- Don't add emoji to UI/code/docs — use the built-in icon font (66 icons).
+- Don't add emoji to UI/code/docs — use the built-in icon font (53 icons).
 - Don't skip verification — always run `qorm_check_layout` after edits.
 - Don't guess what a widget supports — check the [widget catalog](api/widgets.md) (auto-generated, canonical).
 - Don't tween physics `x`/`y` or `layoutMotion` a 60 fps sprite.

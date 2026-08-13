@@ -167,24 +167,27 @@ rasterizer.
 - Showcase: `examples/canvas-fx`. Docs: [docs/styles.md](docs/styles.md),
   [api/props.md](api/props.md), [api/animation.md](api/animation.md).
 
-**Widgets:** 80+ registered (`internal/widgets`), 28 interactive (custom
-HandlePointer), 5 overlay (drawer, menu, modal, snackbar, tooltip), plus
-engine `tilemap` (baked char-grid world bitmap). The canonical showcase is
-`examples/widget-showcase`; side-scrollers are `examples/mario`.
+**Widgets:** 146 canonical types registered (`internal/widgets`; the
+auto-generated `api/widgets.md` catalog is the exact list), 30+ interactive
+(custom HandlePointer), 5 overlay (drawer, menu, modal, snackbar, tooltip),
+plus engine `tilemap` (baked char-grid world bitmap). The canonical showcase
+is `examples/widget-showcase`; side-scrollers are `examples/mario`.
 
 **Board camera (side-scrollers):** `cameraTarget` / `cameraCenter` /
 `cameraCell` / `cameraViewport` / `cameraDeadZone` / `cameraLockLeft` /
 `cameraResetToken` / `cameraMax` / `disablePan`. Restart must bump
 `cameraResetToken` or lock-left will not rewind. Do not tween physics `x`/`y`.
 
-**Style system:** ~90 keys in `render.KnownStyleKeys` (box/text/chrome/
+**Style system:** 108 keys in `render.KnownStyleKeys` (box/text/chrome/
 filter/mask/snap/motion/pseudo/backdrop). Theme cascade: default ← QSS type
 rule ← class rule ← id rule ← inline style. `warnUnsupportedStyleKeys`
 reports unknown keys once per scene.
 
 **Fonts:** 5×7 bitmap for ASCII, TrueType/SFNT for CJK (Source Han Sans SC
-subset, ~3.4MB), unified bitmap icon font on U+E000+ PUA (66 glyphs: 18
-hand-crafted + 47 auto-generated via `tools/genicons`).
+subset, ~3.4MB), unified bitmap icon font on U+E000+ PUA (53 glyphs from the
+`widgets.IconSet()` SVG set: 17 hand-crafted in `icon_font_data.go` take
+precedence over the rest, auto-rasterized into `icon_font_auto.go` via
+`tools/genicons`).
 
-**Testing:** 407 canvas tests, 121 widget tests. Run: `go test
+**Testing:** ~435 canvas tests, ~123 widget tests. Run: `go test
 ./internal/render/canvas/... ./internal/widgets/...`.
