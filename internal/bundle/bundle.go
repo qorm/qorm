@@ -219,7 +219,16 @@ func Verify(b *Bundle, trust ed25519.PublicKey) error {
 		return err
 	}
 	if b.ContentHash != want {
-		return &VerifyError{Reason: fmt.Sprintf("content hash mismatch (tampered): have %s, want %s", b.ContentHash, want)}
+		reason := fmt.Sprintf("content hash mismatch (tampered): have %s, want %s", b.ContentHash, want)
+		// A mismatch on a versioned bundle is usually NOT tampering: an OLD
+		// qorm meeting a NEWER bundle's field set re-marshals the same content
+		// differently (a field it does not know gets echoed, reordered, or
+		// dropped), so the hash derives from different bytes. Point that out
+		// instead of crying foul — verification still fails closed either way.
+		if v := b.Version(); v != "" {
+			reason += fmt.Sprintf(" (bundle declares version %q — this qorm may predate its field set; upgrade qorm or rebuild the bundle)", v)
+		}
+		return &VerifyError{Reason: reason}
 	}
 	if trust == nil {
 		return nil // integrity verified; authenticity not requested

@@ -144,6 +144,44 @@ func TestVerifyErrorString(t *testing.T) {
 	}
 }
 
+// TestVerifyHashMismatchVersionHint: when a hash mismatch is accompanied by a
+// declared version, the failure names the version so an OLD qorm meeting a
+// NEWER bundle's field set is told the likely cause (still fail-closed, the
+// hint is appended to the same refusal).
+func TestVerifyHashMismatchVersionHint(t *testing.T) {
+	b, err := Build(counterDir())
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	if err := b.SetVersion("9.9.9"); err != nil {
+		t.Fatalf("version: %v", err)
+	}
+	b.ContentHash = "sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+	err = Verify(b, nil)
+	if err == nil {
+		t.Fatal("forged content hash must fail verification")
+	}
+	if !strings.Contains(err.Error(), "tampered") {
+		t.Errorf("mismatch reason should stay fail-closed, got %q", err.Error())
+	}
+	if !strings.Contains(err.Error(), `bundle declares version "9.9.9"`) {
+		t.Errorf("versioned mismatch should carry the version hint, got %q", err.Error())
+	}
+	// A versionless bundle keeps the exact old message — no hint appended.
+	b2, err := Build(counterDir())
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	b2.ContentHash = "sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+	err = Verify(b2, nil)
+	if err == nil {
+		t.Fatal("forged content hash must fail verification")
+	}
+	if strings.Contains(err.Error(), "bundle declares version") {
+		t.Errorf("versionless mismatch must not carry the hint, got %q", err.Error())
+	}
+}
+
 func TestVerifyRejectsUnsupportedAlgorithm(t *testing.T) {
 	b, err := Build(counterDir())
 	if err != nil {
