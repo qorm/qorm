@@ -197,15 +197,21 @@ func parsePathToSubpaths(d string) [][]geom.Point {
 	var prevQuad, prevCubic bool
 	started := false // a path must begin with a moveto; commands before it are skipped
 
+	// nextFloat consumes the token at idx: on success it returns the parsed
+	// value, on failure (malformed number, or strconv.ErrRange for a value
+	// overflowing float64, e.g. "1e309") it returns false — but the token is
+	// ALWAYS consumed. A failed parse must never leave the token at idx, or
+	// the caller's next loop pass would re-run nextFloat on the same token
+	// and spin forever (Defect-1 reproduction "M 0 0 L 1e309 0").
 	nextFloat := func() (float64, bool) {
 		if idx >= len(tokens) {
 			return 0, false
 		}
 		val, err := strconv.ParseFloat(tokens[idx], 64)
+		idx++
 		if err != nil {
 			return 0, false
 		}
-		idx++
 		return val, true
 	}
 	// emit appends a flattened curve to the current subpath, skipping the
@@ -410,6 +416,57 @@ func parsePathToSubpaths(d string) [][]geom.Point {
 				currentPt = startPt
 			}
 			prevQuad, prevCubic = false, false
+			if !isCmd {
+				// Stray numbers after a closepath (an implicit-repeat of Z)
+				// are invalid SVG. Consume the token so the loop always
+				// advances — "M 0 0 L 5 5 Z 10 10" would otherwise spin on
+				// the first bare number.
+				idx++
+			}
+
+		case 'A', 'a':
+			// Elliptical arc: rx, ry, x-axis-rotation, large-arc-flag,
+			// sweep-flag, then the endpoint x,y. The five leading
+			// parameters are accepted and ignored — arc-to-bezier
+			// flattening is deferred MVP scope. The arc is approximated
+			// with a straight line (a chord) to its endpoint (the last two
+			// parameters, relative to the current point for 'a'), which
+			// keeps the subpath connected and subsequent commands aligned.
+			// Implicit repeats (more coordinate groups after the first
+			// arc) draw further chords from the new current point.
+			rx, ok1 := nextFloat()
+			ry, ok2 := nextFloat()
+			rot, ok3 := nextFloat()
+			large, ok4 := nextFloat()
+			sweep, ok5 := nextFloat()
+			x, ok6 := nextFloat()
+			y, ok7 := nextFloat()
+			if !ok1 || !ok2 || !ok3 || !ok4 || !ok5 || !ok6 || !ok7 {
+				continue
+			}
+			_ = rx
+			_ = ry
+			_ = rot
+			_ = large
+			_ = sweep
+			if cmd == 'a' {
+				x += currentPt.X
+				y += currentPt.Y
+			}
+			currentPt = geom.Point{X: x, Y: y}
+			currentPath = append(currentPath, currentPt)
+			prevQuad, prevCubic = false, false
+
+		default:
+			// Unknown/stray token (an unsupported command letter or the
+			// numbers that follow it): skip it. The letter itself was
+			// already consumed above; a number token would otherwise
+			// re-enter the loop with the same unknown command and never
+			// advance. Every iteration consumes at least one token, so no
+			// input can hang the parser.
+			if !isCmd {
+				idx++
+			}
 		}
 	}
 	if len(currentPath) > 0 {
