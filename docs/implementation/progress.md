@@ -1,6 +1,18 @@
 # 实施进度
 
-> 主控同步 · 更新：2026-08-13 **v0.9.1 已发布**
+> 主控同步 · 更新：2026-08-13 **v0.9.1 已发布 · 发布后维护轮完成**
+
+## v0.9.1 发布后维护轮（2026-08-13）
+
+CI 变红触发排查，两个失败都是真实缺陷，按根因修复而非移除 job：
+
+| 提交 | 修复 |
+|------|------|
+| `b6460db` | cross-compile 失败根因：darwin 视频解码器是 cgo 文件，`CGO_ENABLED=0` 交叉编译时被排除，而纯 Go fallback 的 tag 又排除了 darwin → `startVideoDecoder` 无定义。同一 bug 已导致 release.yml 失败（**v0.9.1 GitHub Release 无二进制产物**）。重排两个文件的 build tag；另 TestRaidenPerf 在 -race 下仅超性能预算（0 处数据竞争），加 `race` build tag 跳过预算、保留逻辑断言 |
+| `ae6e98f` | genicons 生成器静默失败：写盘用仓库相对路径但 go:generate 在包目录执行，错误被吞 → 6 个马里奥图标（brick/coin/flag/goomba/ground/mario）从未进入 canvas 位图字体。加 `-o` flag + 写失败即报错；重新生成 47 → 53 字形，与 `widgets.IconSet()` 完全一致 |
+| `39a2995` | **SKILL/MCP/文档/API 完全同步**：skills.md 记载了 7 个从未存在的技能文件 → 重写为真实的单一 SKILL.md（含 4 条工作流）；图标数 66 → 53、组件数 80+ → 146、样式键 ~90 → 108（SKILL.md / claude-pack.md / AGENTS.md 三处）；doc.go 中文版补 qorm_validate 缺失译文、修复 qorm_query 半角病句、补齐 activity/capabilities 漏句；生成的 mcp-tools.md（en+zh）新增「工具分类」+「示例」两节，由 TestMCPDocInSync 永久守护。审计：四个面（mcp-tools en+zh、SKILL.md、integrations/README.md）均为 25/25 工具，零多余零遗漏 |
+
+遗留待决：v0.9.1 tag 的 release workflow 在修复前已失败，tag 不可移动 —— GitHub Release 的二进制产物需等下一个 tag（如 v0.9.2）或接受缺失。
 
 ## 当前状态
 
