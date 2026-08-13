@@ -112,8 +112,9 @@ Mario 是 NES 1-1 两倍缩放(512×480、变身、原创 WAV)。canvas 样式�
 
 ```bash
 go run ./cmd/qorm run examples/counter      # 浏览器或原生 canvas 窗口
-go run ./cmd/qorm run examples/tetris       # canvas 游戏 + chiptune
+go run ./cmd/qorm run examples/dashboard     # 演示二维滚动 / 排版
 go run ./cmd/qorm run examples/canvas-fx    # 视觉与动效展示
+go run ./cmd/qorm run examples/canvas-ultimate -tags canvaswebview # 富文本、原生视频、Webview叠加与矢量动画终极展示
 go run ./cmd/qorm render examples/todo -o todo.html   # 静态快照
 ```
 
@@ -250,9 +251,8 @@ app JSON (manifest + scenes + actions)
 样式(shadow、gradient、position + top/left/right/bottom、aspectRatio、
 min/max width/height、opacity、transition / 弹簧、滤镜/蒙版/裁剪、
 scroll-snap、FLIP `layoutMotion`、`animation`、canvas `fx`/`timeline`、
-`tint`、`rotate`/`scale`/`flipX`)。参见 `examples/gallery` 与
-`examples/canvas-fx`;游戏见 `examples/tetris` / `mario` / `raiden` /
-`g2048`。完整键表:[属性](api/zh/props.md)、[样式](docs/zh/styles.md)。
+`tint`、`layoutMotion`、`animation` 等等)。请参考 `examples/gallery` 和 `examples/canvas-fx`；终极能力展示（富文本、原生视频、Webview叠加、矢量形变）见 `examples/canvas-ultimate`；游戏见 `examples/tetris` / `mario` / `raiden` /
+`g2048`。完整的属性支持列表见 [props.md](api/zh/props.md) 以及 [styles.md](docs/zh/styles.md)。
 
 ## 空中下发更新
 

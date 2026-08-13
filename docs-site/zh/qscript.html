@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-K3FQCHWD');</script>
+<!-- End Google Tag Manager -->
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1529418578004538"
+     crossorigin="anonymous"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QScript 脚本语言参考 · QORM</title>
+<meta name="description" content="QScript (actions/*.qs) 是 QORM 的脚本语言 — 一个小型、确定性、类 JavaScript 的解释型语言，用于应用和游戏逻辑。场景 JSON 声明结构和数据，而脚本负责那些本该由 Go 组件或冗长步骤列表完成的计算。">
+<meta property="og:title" content="QScript 脚本语言参考">
+<meta property="og:description" content="QScript (actions/*.qs) 是 QORM 的脚本语言 — 一个小型、确定性、类 JavaScript 的解释型语言，用于应用和游戏逻辑。场景 JSON 声明结构和数据，而脚本负责那些本该由 Go 组件或冗长步骤列表完成的计算。">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://qorm.com/docs/zh/qscript.html">
+<meta property="og:site_name" content="QORM">
+<meta property="og:locale" content="zh_CN">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="QScript 脚本语言参考">
+<meta name="twitter:description" content="QScript (actions/*.qs) 是 QORM 的脚本语言 — 一个小型、确定性、类 JavaScript 的解释型语言，用于应用和游戏逻辑。场景 JSON 声明结构和数据，而脚本负责那些本该由 Go 组件或冗长步骤列表完成的计算。">
+<link rel="canonical" href="https://qorm.com/docs/zh/qscript.html">
+<link rel="alternate" hreflang="en" href="https://qorm.com/docs/qscript.html">
+<link rel="alternate" hreflang="zh-CN" href="https://qorm.com/docs/zh/qscript.html">
+<link rel="alternate" hreflang="x-default" href="https://qorm.com/docs/qscript.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"QScript (actions/*.qs) 是 QORM 的脚本语言 — 一个小型、确定性、类 JavaScript 的解释型语言，用于应用和游戏逻辑。场景 JSON 声明结构和数据，而脚本负责那些本该由 Go 组件或冗长步骤列表完成的计算。","headline":"QScript 脚本语言参考","inLanguage":"zh","name":"QScript 脚本语言参考","url":"https://qorm.com/docs/zh/qscript.html"}</script>
+<link rel="icon" href="/assets/logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+  :root{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
+  @media (prefers-color-scheme:dark){ :root{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; } }
+  :root[data-theme="light"]{ --ground:#f4f4f6; --surface:#fff; --raise:#fbfbfd; --ink:#15161a; --muted:#63666f; --faint:#8b8f98; --line:#e7e8ec; --accent:#0a84ff; --accent-ink:#0a6ed1; }
+  :root[data-theme="dark"]{ --ground:#0b0c0f; --surface:#15171c; --raise:#1b1e24; --ink:#eef0f3; --muted:#9a9ea8; --faint:#71757e; --line:#25272e; --accent:#0a84ff; --accent-ink:#4aa8ff; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Inter",-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;color:var(--ink);background:var(--ground);line-height:1.62;letter-spacing:-.011em;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent-ink);text-decoration:none} a:hover{text-decoration:underline}
+  code,pre{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+  header.top{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--ground) 82%,transparent);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:.5px solid var(--line)}
+  header.top .tnav{height:56px;display:flex;align-items:center;gap:14px;max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,32px)}
+  header.top .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:16px;letter-spacing:-.02em;color:var(--ink)}
+  header.top .brand img{width:24px;height:24px}
+  @media (prefers-color-scheme:dark){ header.top .brand img{filter:invert(1) brightness(1.7)} }
+  :root[data-theme="dark"] header.top .brand img{filter:invert(1) brightness(1.7)}
+  :root[data-theme="light"] header.top .brand img{filter:none}
+  header.top .doc{color:var(--faint);font-weight:600;font-size:15px}
+  header.top a.ver{font-size:11.5px;font-weight:700;color:var(--muted);border:.5px solid var(--line);border-radius:999px;padding:2px 8px;letter-spacing:.01em}
+  header.top a.ver:hover{color:var(--accent-ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));text-decoration:none}
+  header.top .sp{flex:1}
+  header.top nav.pill{display:flex;align-items:center;gap:2px;background:var(--surface);border:.5px solid var(--line);border-radius:999px;padding:3px}
+  header.top nav.pill a.tl{color:var(--muted);font-size:13.5px;font-weight:600;padding:5px 12px;border-radius:999px;white-space:nowrap;transition:color .15s,background .15s}
+  header.top nav.pill a.tl:hover{color:var(--ink);background:var(--raise);text-decoration:none}
+  header.top nav.pill a.tl.active-nav{color:var(--accent-ink);background:color-mix(in srgb,var(--accent) 10%,var(--surface))}
+  header.top .btn.navcta{display:inline-flex;align-items:center;font-weight:600;font-size:13.5px;border-radius:999px;padding:6px 14px;background:var(--accent);color:#fff;white-space:nowrap;transition:filter .12s}
+  header.top .btn.navcta:hover{filter:brightness(1.06);text-decoration:none}
+  @media (max-width:860px){header.top nav.pill,header.top .btn.navcta{display:none}}
+  .tbtn{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:transform 0.2s ease, background 0.2s, color 0.2s, border-color 0.2s}
+  .tbtn:hover{color:var(--ink);transform:rotate(15deg) scale(1.05)} .tbtn svg{width:16px;height:16px}
+  header.top .iconlink{width:32px;height:32px;border-radius:8px;border:.5px solid var(--line);background:var(--surface);color:var(--muted);display:inline-flex;align-items:center;justify-content:center;transition:transform .2s cubic-bezier(.16,1,.3,1),color .2s,border-color .2s}
+  header.top .iconlink:hover{color:var(--ink);border-color:color-mix(in srgb,var(--accent) 40%,var(--line));transform:translateY(-1px);text-decoration:none}
+  header.top .iconlink.patreon:hover{color:#f96854;border-color:color-mix(in srgb,#f96854 45%,var(--line))}
+  header.top .iconlink svg{width:17px;height:17px}
+  header.top .iconlink.lang{width:auto;padding:0 9px;gap:3px;font-size:11px;font-weight:800;letter-spacing:.02em}
+  header.top .iconlink.lang svg{width:14px;height:14px}
+  header.top .iconlink.lang.off{opacity:.4;pointer-events:none}
+  header.top .lang{display:inline-flex;align-items:center;border:.5px solid var(--line);border-radius:8px;overflow:hidden;font-size:13px;font-weight:600}
+  header.top .lang a,header.top .lang span{padding:5px 10px;color:var(--muted)}
+  header.top .lang a:hover{color:var(--ink);text-decoration:none;background:var(--surface)}
+  header.top .lang .on{background:var(--accent);color:#fff}
+  header.top .lang .off{color:var(--faint);opacity:.55}
+  .shell{display:flex;max-width:1280px;margin:0 auto;padding:0 clamp(0px,2vw,20px)}
+  aside{width:262px;min-width:262px;height:calc(100vh - 56px);overflow:auto;position:sticky;top:56px;padding:22px 8px 48px 22px}
+  aside .nav-group{text-transform:uppercase;font-size:11px;font-weight:700;color:var(--faint);margin:20px 0 6px;letter-spacing:.05em}
+  aside ul{list-style:none;margin:0;padding:0}
+  aside li a{display:block;padding:6px 12px;color:var(--muted);border-radius:8px;font-size:14px;font-weight:500;transition:background 0.15s ease, color 0.15s ease, transform 0.15s ease}
+  aside li a:hover{background:var(--surface);color:var(--ink);text-decoration:none;transform:translateX(2px)}
+  aside li a.active{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent-ink);font-weight:600}
+  aside li a .entag{font-size:9.5px;font-weight:700;letter-spacing:.04em;color:var(--faint);border:.5px solid var(--line);border-radius:4px;padding:0 4px;margin-left:6px;vertical-align:1px}
+  main{flex:1;min-width:0;max-width:800px;padding:38px 46px 90px}
+  main>*:first-child{margin-top:0}
+  main h1{font-size:33px;font-weight:800;letter-spacing:-.03em;margin:0 0 .5em}
+  main h2{font-size:23px;font-weight:700;letter-spacing:-.02em;margin:1.7em 0 .5em;padding-bottom:.3em;border-bottom:.5px solid var(--line)}
+  main h3{font-size:18px;font-weight:700;margin:1.5em 0 .4em}
+  main code{background:var(--raise);border:.5px solid var(--line);padding:.12em .4em;border-radius:6px;font-size:.88em}
+  main pre{background:var(--raise);border:.5px solid var(--line);padding:14px 16px;border-radius:12px;overflow:auto;font-size:13.5px;line-height:1.7}
+  main pre code{background:none;border:none;padding:0}
+  main table{border-collapse:collapse;width:100%;margin:1em 0;display:block;overflow-x:auto;font-size:14px}
+  main th,main td{border:.5px solid var(--line);padding:8px 13px;text-align:left}
+  main th{background:var(--surface);font-weight:600}
+  main blockquote{border-left:3px solid var(--accent);margin:1.1em 0;padding:.5em 1.1em;color:var(--muted);background:var(--surface);border-radius:0 10px 10px 0}
+  main img{max-width:100%;height:auto}
+  @media (max-width:800px){ aside{display:none} main{padding:26px 22px} }
+</style>
+</head>
+<body>
+<header class="top"><div class="tnav">
+  <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
+  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.9.0</a>
+  <span class="doc">docs</span>
+  <span class="sp"></span>
+  <nav class="pill" aria-label="Primary"><a class="tl active-nav" href="/docs/zh/">文档</a><a class="tl" href="/api/zh/">接口</a><a class="tl" href="/compare/index.zh.html">对比</a><a class="tl" href="/about.zh.html">关于</a></nav>
+  <a class="btn navcta" href="/docs/zh/build-with-ai.html">开始使用</a>
+  <a class="iconlink" href="https://github.com/qorm/qorm" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
+  <a class="iconlink patreon" href="https://www.patreon.com/qorm" target="_blank" rel="noopener" aria-label="资助" title="资助"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="14.4" cy="9.6" r="6.6"/><rect x="1.5" y="2.5" width="4" height="19" rx="0.3"/></svg></a>
+  <a class="iconlink lang" href="../qscript.html" data-lang="en" aria-label="English" title="English"><span>EN</span></a>
+  <button class="tbtn" id="theme" aria-label="Theme"></button>
+</div></header>
+<div class="shell">
+  <aside><div class="nav-group">概览</div><ul><li><a href="README.html">QORM 文档</a></li><li><a href="project-structure.html">工程结构</a></li><li><a href="build-with-ai.html">与你的 AI 助手一起构建 QORM 应用</a></li><li><a href="collaboration.html">在运行中的应用上进行人机协作</a></li><li><a href="verification.html">解释并验证一个 QORM 应用</a></li><li><a href="expressions.html">表达式</a></li><li><a href="qscript.html" class="active">QScript 脚本语言参考</a></li><li><a href="styles.html">QSS — QORM 样式表</a></li></ul><div class="nav-group">教程</div><ul><li><a href="tutorials/getting-started.html">QORM 快速上手</a></li><li><a href="tutorials/first-scene.html">第一个场景</a></li><li><a href="tutorials/first-action.html">第一个动作</a></li><li><a href="tutorials/first-component.html">第一个组件</a></li><li><a href="tutorials/first-platform-pack.html">第一个平台包</a></li></ul><div class="nav-group">示例</div><ul><li><a href="examples/counter.html">示例:计数器</a></li><li><a href="examples/todo.html">示例:待办事项</a></li><li><a href="examples/login.html">示例:登录</a></li><li><a href="examples/dashboard.html">示例:仪表盘</a></li></ul><div class="nav-group">平台</div><ul><li><a href="platforms/web.html">QORM Web 平台</a></li><li><a href="platforms/mobile.html">QORM 移动平台</a></li><li><a href="platforms/desktop.html">QORM 桌面平台</a></li><li><a href="platforms/miniapp.html">QORM 小程序平台</a></li><li><a href="platforms/native-middlelayer.html">用户中间层:为应用添加你自己的能力</a></li><li><a href="platforms/capabilities.html">能力清单</a></li><li><a href="platforms/support-matrix.html">平台支持矩阵</a></li></ul><div class="nav-group">智能体</div><ul><li><a href="agent/permissions.html">QORM Agent 权限</a></li><li><a href="agent/mcp-tools.html">QORM MCP 工具</a></li><li><a href="agent/skills.html">QORM Skills</a></li><li><a href="agent/claude-pack.html">QORM Claude Pack</a></li><li><a href="agent/codex-pack.html">QORM Codex Pack</a></li><li><a href="agent/openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">安全</div><ul><li><a href="security/security-model.html">QORM 安全模型</a></li><li><a href="security/permission-model.html">QORM 权限模型</a></li><li><a href="security/bundle-signing.html">QORM Bundle 签名</a></li></ul><div class="nav-group">implementation</div><ul><li><a href="../implementation/analysis-and-plan.html">QORM 整体分析与目标实施规划 <span class="entag">EN</span></a></li><li><a href="../implementation/audit-log.html">审计日志 <span class="entag">EN</span></a></li><li><a href="../implementation/progress.html">实施进度 <span class="entag">EN</span></a></li></ul><div class="nav-group">spec</div><ul><li><a href="spec/navigation-spec.html">导航与路由</a></li></ul></aside>
+  <main><h1 id="qscript-脚本语言参考">QScript 脚本语言参考</h1>
+<p>QScript (<code>actions/*.qs</code>) 是 QORM 的脚本语言 — 一个小型、确定性、类 JavaScript 的解释型语言，用于应用和游戏逻辑。场景 JSON 声明结构和数据，而脚本负责那些本该由 Go 组件或冗长步骤列表完成的计算。</p>
+<h2 id="驱动样式qss--canvas-fx">驱动样式(QSS / canvas FX)</h2>
+<p>脚本<strong>不</strong>直接写 CSS 键。它们写 <code>state</code>;样式(内联或 <a href="styles.html"><code>styles/*.qss</code></a>)在下一帧重新求值 <code>{{绑定}}</code>——与 JSON <code>steps</code> 同一路径。 这覆盖全部 canvas 效果键(<code>filter</code>、<code>layoutMotion</code>、<code>mixBlendMode</code>、scroll-snap、 弹簧 <code>transition</code> 等):</p>
+<pre><code># actions/toggle_filter.qs
+state.filterOn = !state.filterOn</code></pre>
+<pre><code>/* styles/app.qss — 每帧求值绑定 */
+.filterCard {
+  filter: {{ state.filterOn ? &#34;saturate(0.3) brightness(1.15)&#34; : &#34;none&#34; }}
+}</code></pre>
+<p>端到端示例:<a href="https://github.com/qorm/qorm/tree/main/examples/canvas-fx"><code>examples/canvas-fx</code></a>。共享游戏核心: <a href="https://github.com/qorm/qorm/tree/main/examples/tetris"><code>examples/tetris</code></a>(<code>actions/*.qs</code> + <code>styles/app.qss</code>)。 横版:在这里写物理 <code>x</code>/<code>y</code>,用 <code>board</code> 镜头 + <code>tilemap</code> 跟随——见 <a href="styles.html#横版与瓦片世界board--tilemap">样式 — 瓦片世界</a> 与 <a href="https://github.com/qorm/qorm/tree/main/examples/mario"><code>examples/mario</code></a>。</p>
+<h2 id="语句">语句</h2>
+<pre><code>let x = expr                     # 声明局部变量
+x = expr                         # 为已声明的局部变量 / 参数赋值
+state.a = expr                   # 写入状态路径（setPath 语义：
+state.obj.k = expr               #   中间 map 会自动创建）
+state.arr[i] = expr              # 写入数组元素 / map 条目
+if (expr) { ... } else { ... }   # else 可选；支持 `else if` 链
+for name in expr { ... }         # 遍历数组元素
+while expr { ... }               # 条件括号可选
+break / continue                 # 跳出 / 继续最内层循环
+return expr?                     # 在 fn 内返回；在顶层结束脚本。
+                                 # 裸 `return` 在 &#39;}&#39; 前或脚本结尾被识别；
+                                 # 其他地方 `return` 之后的文本解析为返回值。
+expr                             # 表达式语句（如函数调用）</code></pre>
+<h2 id="函数">函数</h2>
+<pre><code>fn name(a, b, ...) { ... }</code></pre>
+<p>调用语法与内建函数一致：<code>name(1, state.x)</code>。<strong>没有</strong>闭包：函数只能看到 自己的参数、<code>let</code> 局部变量、<code>state</code> 和 <code>args</code> 句柄以及全局函数表 — 无法访问任何调用者的作用域。</p>
+<h3 id="共享库actionslibqs">共享库：<code>actions/lib.qs</code></h3>
+<p>将函数定义（只能有函数定义 — 不能有顶层语句）放在 <code>actions/lib.qs</code> 中。 加载器将其作为 <code>type:&#34;scriptlib&#34;</code> 收集，运行时在每次分发时将它前置到 <strong>每个</strong> action 的脚本体之前。游戏的共享核心 — 物理引擎、碰撞逻辑、 敌人生成、视口渲染 — 都在这里，每个 <code>.qs</code> 文件都可以调用。</p>
+<pre><code># actions/lib.qs
+fn clamp(v, lo, hi) {
+  if (v &lt; lo) { return lo }
+  if (v &gt; hi) { return hi }
+  return v
+}
+
+# actions/tick.qs
+if (state.status == &#34;playing&#34;) {
+  state.player.x = clamp(state.player.x + 1, 0, state.viewW)
+}</code></pre>
+<h2 id="表达式">表达式</h2>
+<p>表达式与 <code>{{ }}</code> 模板语法完全一致：数字/字符串/布尔值/null 字面量、点号标识符 （<code>state.piece.x</code>）、后缀索引（<code>a[i]</code>、<code>users[0].name</code>）、一元 <code>!</code> 和 <code>-</code>、 二元 <code>* / % + - &lt; &lt;= &gt; &gt;= == != &amp;&amp; ||</code>、三元 <code>?:</code>，以及完整的 <a href="expressions.html">内建函数集</a>。脚本额外支持<strong>数组字面量</strong> <code>[e1, e2, ...]</code> （模板语言中没有）。</p>
+<h2 id="注释">注释</h2>
+<p>注释从 <code>#</code> 到行尾。没有分号；语句自定界。</p>
+<h2 id="保留字">保留字</h2>
+<p><code>let if else for in while return fn break continue state args true false null nil</code></p>
+<h2 id="确定性">确定性</h2>
+<p>没有任何 I/O 或外部调用面：脚本是 <code>(state, args)</code> 的纯函数。唯一的时钟是 <code>now()</code> 内建函数（Unix 毫秒时间戳）。随机性只能通过状态传入 （例如将 LCG 种子存入 <code>state.rng</code> — 参见 <a href="https://github.com/qorm/qorm/tree/main/examples/tetris"><code>examples/tetris</code></a>）。</p>
+<h2 id="管控反失控保护">管控（反失控保护）</h2>
+<p>失控脚本会降级为错误，绝不卡死：</p>
+<table>
+<thead><tr><th>限制</th><th>上限</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>源码长度</td><td>64 KB</td><td>每个 action 的总文本量</td></tr>
+<tr><td>解析器深度</td><td>256</td><td>嵌套表达式深度</td></tr>
+<tr><td>最大操作数</td><td>200 000</td><td>每次顶层分发，跨所有 call() 链</td></tr>
+<tr><td>最大循环迭代</td><td>100 000</td><td>每次循环执行</td></tr>
+<tr><td>最大调用深度</td><td>64</td><td>fn 嵌套调用</td></tr>
+</tbody></table>
+<p>每次违规都会返回带有脚本行号的错误 — 解释器无论输入什么都不会 panic。</p>
+<h2 id="call--编排多个-action"><code>call()</code> — 编排多个 action</h2>
+<p>脚本可以触发同级 action：</p>
+<pre><code>call(&#34;otherAction&#34;)
+call(&#34;someAction&#34;, { key: 42 })   # 带参数</code></pre>
+<p>调用通过宿主安装的 dispatch 钩子桥接；运行时将其接到自己的 <code>Dispatch</code>， 因此 <code>call()</code> 链会重新进入正常的调用深度管控。未安装钩子时 <code>call()</code> 为空操作。</p>
+<h2 id="完整示例物理帧">完整示例：物理帧</h2>
+<p>完整游戏脚本请参见 <a href="https://github.com/qorm/qorm/tree/main/examples/raiden">Raiden</a>、 <a href="https://github.com/qorm/qorm/tree/main/examples/mario">Mario</a> 或 <a href="https://github.com/qorm/qorm/tree/main/examples/tetris">Tetris</a> 示例 （含对 <code>audio/*.wav</code> 的 <code>playSound</code> / <code>playMusic</code> / <code>stopMusic</code>）。 以下是 Raiden 的 <code>tick.qs</code> 节选：</p>
+<pre><code># tick.qs — 一个物理帧。由场景的 timer 驱动。
+
+if (state.status == &#34;playing&#34;) {
+  state.tick = state.tick + 1
+  scrollStars()
+  movePlayer()
+  fireBullet()
+  moveBullets()
+  moveEnemies()
+  checkHits()
+  tickInvuln()
+
+  state.spawnTimer = state.spawnTimer - 1
+  if (state.spawnTimer &lt;= 0) {
+    spawnEnemy()
+    state.spawnTimer = 25
+  }
+}</code></pre>
+<h2 id="内建函数">内建函数</h2>
+<p>完整的内建函数参考见 <a href="expressions.html">表达式文档</a>。在模板中可用的所有函数 在 qscript 中同样可用，外加脚本专属的 <code>call()</code>。</p>
+</main>
+</div>
+<script>
+  (function(){var r=document.documentElement,b=document.getElementById('theme');
+   var sun='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></svg>';
+   var moon='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+   function c(){return r.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');}
+   try{var s=localStorage.getItem('qorm-theme');if(s)r.setAttribute('data-theme',s);}catch(e){}
+   function p(){b.innerHTML=c()==='dark'?sun:moon;} p();
+   b.onclick=function(){var t=c()==='dark'?'light':'dark';r.setAttribute('data-theme',t);try{localStorage.setItem('qorm-theme',t);}catch(e){}p();};})();
+  (function(){/* remember the reader's language across pages + both sites */
+   try{var cur=document.documentElement.lang;
+     document.querySelectorAll('header [data-lang]').forEach(function(el){
+       if(el.tagName==='A')el.addEventListener('click',function(){try{localStorage.setItem('qorm-lang',el.getAttribute('data-lang'));}catch(e){}});});
+     var pref;try{pref=localStorage.getItem('qorm-lang');}catch(e){}
+     if(pref&&pref!==cur){var alt=document.querySelector('header a[data-lang="'+pref+'"]');if(alt)location.replace(alt.getAttribute('href'));}
+   }catch(e){}})();
+</script>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-K3FQCHWD"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+</body>
+</html>

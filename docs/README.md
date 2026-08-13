@@ -70,6 +70,7 @@ App-facing capability docs stay here with the platform guides:
 - [Counter](examples/counter.md) · [Todo](examples/todo.md) · [Login](examples/login.md) · [Dashboard](examples/dashboard.md)
 - Games (canvas): [`tetris`](https://github.com/qorm/qorm/tree/main/examples/tetris) · [`mario`](https://github.com/qorm/qorm/tree/main/examples/mario) · [`raiden`](https://github.com/qorm/qorm/tree/main/examples/raiden) · [`g2048`](https://github.com/qorm/qorm/tree/main/examples/g2048) — live at [qorm.com/games](https://qorm.com/games/)
 - Motion showcase: [`canvas-fx`](https://github.com/qorm/qorm/tree/main/examples/canvas-fx)
+- Ultimate showcase (RichText, Video, WebView, SVG Morphing): [`canvas-ultimate`](https://github.com/qorm/qorm/tree/main/examples/canvas-ultimate)
 - The full set of runnable apps lives in [`examples/`](https://github.com/qorm/qorm/tree/main/examples).
 
 ## Human-AI collaboration

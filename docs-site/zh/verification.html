@@ -100,7 +100,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <body>
 <header class="top"><div class="tnav">
   <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
-  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.8.0</a>
+  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.9.0</a>
   <span class="doc">docs</span>
   <span class="sp"></span>
   <nav class="pill" aria-label="Primary"><a class="tl active-nav" href="/docs/zh/">文档</a><a class="tl" href="/api/zh/">接口</a><a class="tl" href="/compare/index.zh.html">对比</a><a class="tl" href="/about.zh.html">关于</a></nav>
@@ -111,21 +111,30 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   <button class="tbtn" id="theme" aria-label="Theme"></button>
 </div></header>
 <div class="shell">
-  <aside><div class="nav-group">概览</div><ul><li><a href="README.html">QORM 文档</a></li><li><a href="project-structure.html">工程结构</a></li><li><a href="build-with-ai.html">与你的 AI 助手一起构建 QORM 应用</a></li><li><a href="collaboration.html">在运行中的应用上进行人机协作</a></li><li><a href="verification.html" class="active">解释并验证一个 QORM 应用</a></li><li><a href="expressions.html">表达式</a></li><li><a href="styles.html">QSS — QORM 样式表</a></li></ul><div class="nav-group">教程</div><ul><li><a href="tutorials/getting-started.html">QORM 快速上手</a></li><li><a href="tutorials/first-scene.html">第一个场景</a></li><li><a href="tutorials/first-action.html">第一个动作</a></li><li><a href="tutorials/first-component.html">第一个组件</a></li><li><a href="tutorials/first-platform-pack.html">第一个平台包</a></li></ul><div class="nav-group">示例</div><ul><li><a href="examples/counter.html">示例:计数器</a></li><li><a href="examples/todo.html">示例:待办事项</a></li><li><a href="examples/login.html">示例:登录</a></li><li><a href="examples/dashboard.html">示例:仪表盘</a></li></ul><div class="nav-group">平台</div><ul><li><a href="platforms/web.html">QORM Web 平台</a></li><li><a href="platforms/mobile.html">QORM 移动平台</a></li><li><a href="platforms/desktop.html">QORM 桌面平台</a></li><li><a href="platforms/miniapp.html">QORM 小程序平台</a></li><li><a href="platforms/native-middlelayer.html">用户中间层:为应用添加你自己的能力</a></li><li><a href="platforms/capabilities.html">能力清单</a></li><li><a href="platforms/support-matrix.html">平台支持矩阵</a></li></ul><div class="nav-group">智能体</div><ul><li><a href="agent/permissions.html">QORM Agent 权限</a></li><li><a href="agent/mcp-tools.html">QORM MCP 工具</a></li><li><a href="agent/skills.html">QORM Skills</a></li><li><a href="agent/claude-pack.html">QORM Claude Pack</a></li><li><a href="agent/codex-pack.html">QORM Codex Pack</a></li><li><a href="agent/openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">安全</div><ul><li><a href="security/security-model.html">QORM 安全模型</a></li><li><a href="security/permission-model.html">QORM 权限模型</a></li><li><a href="security/bundle-signing.html">QORM Bundle 签名</a></li></ul><div class="nav-group">spec</div><ul><li><a href="spec/navigation-spec.html">导航与路由</a></li></ul></aside>
+  <aside><div class="nav-group">概览</div><ul><li><a href="README.html">QORM 文档</a></li><li><a href="project-structure.html">工程结构</a></li><li><a href="build-with-ai.html">与你的 AI 助手一起构建 QORM 应用</a></li><li><a href="collaboration.html">在运行中的应用上进行人机协作</a></li><li><a href="verification.html" class="active">解释并验证一个 QORM 应用</a></li><li><a href="expressions.html">表达式</a></li><li><a href="qscript.html">QScript 脚本语言参考</a></li><li><a href="styles.html">QSS — QORM 样式表</a></li></ul><div class="nav-group">教程</div><ul><li><a href="tutorials/getting-started.html">QORM 快速上手</a></li><li><a href="tutorials/first-scene.html">第一个场景</a></li><li><a href="tutorials/first-action.html">第一个动作</a></li><li><a href="tutorials/first-component.html">第一个组件</a></li><li><a href="tutorials/first-platform-pack.html">第一个平台包</a></li></ul><div class="nav-group">示例</div><ul><li><a href="examples/counter.html">示例:计数器</a></li><li><a href="examples/todo.html">示例:待办事项</a></li><li><a href="examples/login.html">示例:登录</a></li><li><a href="examples/dashboard.html">示例:仪表盘</a></li></ul><div class="nav-group">平台</div><ul><li><a href="platforms/web.html">QORM Web 平台</a></li><li><a href="platforms/mobile.html">QORM 移动平台</a></li><li><a href="platforms/desktop.html">QORM 桌面平台</a></li><li><a href="platforms/miniapp.html">QORM 小程序平台</a></li><li><a href="platforms/native-middlelayer.html">用户中间层:为应用添加你自己的能力</a></li><li><a href="platforms/capabilities.html">能力清单</a></li><li><a href="platforms/support-matrix.html">平台支持矩阵</a></li></ul><div class="nav-group">智能体</div><ul><li><a href="agent/permissions.html">QORM Agent 权限</a></li><li><a href="agent/mcp-tools.html">QORM MCP 工具</a></li><li><a href="agent/skills.html">QORM Skills</a></li><li><a href="agent/claude-pack.html">QORM Claude Pack</a></li><li><a href="agent/codex-pack.html">QORM Codex Pack</a></li><li><a href="agent/openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">安全</div><ul><li><a href="security/security-model.html">QORM 安全模型</a></li><li><a href="security/permission-model.html">QORM 权限模型</a></li><li><a href="security/bundle-signing.html">QORM Bundle 签名</a></li></ul><div class="nav-group">implementation</div><ul><li><a href="../implementation/analysis-and-plan.html">QORM 整体分析与目标实施规划 <span class="entag">EN</span></a></li><li><a href="../implementation/audit-log.html">审计日志 <span class="entag">EN</span></a></li><li><a href="../implementation/progress.html">实施进度 <span class="entag">EN</span></a></li></ul><div class="nav-group">spec</div><ul><li><a href="spec/navigation-spec.html">导航与路由</a></li></ul></aside>
   <main><h1 id="解释并验证一个-qorm-应用">解释并验证一个 QORM 应用</h1>
 <p>QORM 的目标是让 AI 能够<strong>完整而精确地解释并验证</strong>用户在应用中表达的一切—— 它的布局、样式、行为和翻译——使用框架本身,无需外部浏览器。</p>
-<p>机制如下:运行中的应用在它自己的运行时(浏览器或原生 WebView)中<strong>自我测量</strong>。 一段小脚本遍历每个带 id 的元素,记录其 <code>getBoundingClientRect</code> 和计算样式, 并将它们 POST 到 <code>/measure</code>。随后框架将那份真实的渲染结果与用户的<strong>意图</strong> (每个节点的类型、文本和状态绑定,来自应用 JSON)连接起来。于是对于每个组件, 你都同时得到<em>用户所要求的</em>和<em>实际渲染出来的</em>。</p>
-<p>下面的一切都可以从 CLI(<code>-tags desktop</code> 构建,它驱动一个原生 WebView) 和经由 MCP 的实时共享会话中运行。</p>
+<p>测量有两个来源,但输出同一种 JSON 形状:</p>
+<ul>
+<li>默认纯 Go CLI 在软件 canvas 中离屏渲染一次,然后从同一棵保留模式渲染图</li>
+</ul>
+<p>导出布局和计算样式。该结果确定且不需要窗口或外部浏览器。</p>
+<ul>
+<li>实时宿主测量人正在看的内容。macOS 原生 canvas 窗口在渲染帧后导出其图;</li>
+</ul>
+<p>浏览器/WebView 则遍历 DOM,记录 <code>getBoundingClientRect</code> 和计算样式,再 POST 到 <code>/measure</code>。</p>
+<p>框架把两种渲染结果与用户的<strong>意图</strong>(应用 JSON 中节点的类型、文本和状态绑定) 连接起来。因此每个组件都同时给出<em>用户所要求的</em>和<em>所选后端实际渲染的</em>。</p>
 <h2 id="qorm-measure读取真实渲染"><code>qorm measure</code>——读取真实渲染</h2>
-<pre><code>qorm measure &lt;app-dir&gt; [-o report.json]</code></pre>
+<pre><code>qorm measure &lt;app-dir&gt; [--width 400] [--physical] [-o report.json]</code></pre>
 <p>渲染应用、自我测量,并每个组件打印一行,将意图与结果连接起来:</p>
 <pre><code>{ &#34;id&#34;: &#34;wifi&#34;, &#34;type&#34;: &#34;switchlisttile&#34;, &#34;intent&#34;: {&#34;label&#34;: &#34;Wi-Fi&#34;, &#34;binding&#34;: &#34;{{state.wifi}}&#34;},
   &#34;x&#34;: 32, &#34;y&#34;: 499, &#34;w&#34;: 336, &#34;h&#34;: 47, &#34;visible&#34;: true,
   &#34;color&#34;: &#34;rgb(0,0,0)&#34;, &#34;background&#34;: &#34;rgba(0,0,0,0)&#34;, &#34;fontSize&#34;: &#34;15px&#34;,
   &#34;padding&#34;: &#34;…&#34;, &#34;borderRadius&#34;: &#34;…&#34;, &#34;overflowX&#34;: false }</code></pre>
 <p>每个组件的字段:<code>id</code>、<code>type</code>、<code>intent</code>(text/label/binding)、<code>x y w h</code>、 <code>visible</code>、<code>tag</code>、<code>text</code>(用于叶子节点),以及计算出的 <code>color</code>、<code>background</code>、 <code>fontSize</code>、<code>fontWeight</code>、<code>textAlign</code>、<code>padding</code>、<code>margin</code>、<code>borderRadius</code>、 <code>border</code>、<code>opacity</code>、<code>zIndex</code>、<code>position</code>、<code>overflowX</code>。</p>
+<p>普通构建下,该命令按指定逻辑宽度进行无窗口纯 Go canvas 渲染(高度来自 <code>qorm.json</code>,默认 820)。坐标默认是逻辑 CSS 像素;<code>--physical</code> 保留 canvas 设备像素。 <code>-tags desktop</code> 构建则刻意走 HTML/WebView 路径;WebView 始终回报 CSS 像素, 因此 <code>--physical</code> 在该路径无效。</p>
 <h2 id="qorm-check---checks验证期望"><code>qorm check --checks</code>——验证期望</h2>
-<pre><code>qorm check &lt;app-dir&gt; --checks checks.json [-o report.json]</code></pre>
+<pre><code>qorm check &lt;app-dir&gt; --checks checks.json [--width 400] [--physical] [-o report.json]</code></pre>
 <p><code>checks.json</code> 是一个 <code>{id, &lt;assertion&gt;…}</code> 的数组。每个断言都针对真实渲染进行验证; 报告给出每项检查的通过/失败以及实际值。</p>
 <table>
 <thead><tr><th>assertion</th><th>meaning</th></tr></thead>
@@ -143,7 +152,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <tr><td><code>hasAriaLabel: true</code></td><td>元素带有 <code>aria-label</code></td></tr>
 <tr><td><code>contrastRatio: &lt;n&gt;</code></td><td>文本/背景对比度至少为 <code>n</code>(WCAG AA:正文 4.5、大字号 3.0),针对有效背景色计算</td></tr>
 </tbody></table>
-<p>无障碍断言读取的是<strong>渲染后</strong>的 DOM,因此能捕捉渲染器隐式注入的 role 和 label, 而不只是 JSON 里声明的。<code>focusTrap</code> 目前被刻意拒绝:焦点陷阱是动态的 Tab 键序行为, 不是静态快照,验证工具绝不应为一个它实际做不到的检查背书。</p>
+<p>后端边界:几何、可见性、文本、溢出和上述盒模型/计算样式在两个来源都可用。 HTML/WebView 的无障碍断言读取<strong>渲染后的 DOM</strong>,所以 <code>role</code> 可包含渲染器 隐式注入的语义,<code>contrastRatio</code> 按有效背景计算。canvas 图当前回报作者显式声明的 <code>role</code> / <code>ariaLabel</code>,尚不计算对比度;因此 <code>contrastRatio</code> 会明确报不可用, 而不是静默通过。<code>focusTrap</code> 在所有后端都被刻意拒绝:它是动态 Tab 键序行为, 不是静态快照。</p>
 <p>检查明确失败:无法识别的断言键(如拼写错误)会判定为失败,未被测量的 <code>within</code>/<code>below</code> 目标 id 会以 &#39;not found&#39; 判定为失败 —— 绝不会有检查项被 静默通过。</p>
 <pre><code>[
   {&#34;id&#34;: &#34;nav&#34;,      &#34;type&#34;: &#34;appbar&#34;, &#34;visible&#34;: true, &#34;y&#34;: 0, &#34;text&#34;: &#34;Today&#34;},
@@ -157,7 +166,20 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   { &#34;name&#34;: &#34;go dark&#34;,   &#34;do&#34;: {&#34;setState&#34;: {&#34;path&#34;: &#34;theme&#34;, &#34;value&#34;: &#34;dark&#34;}},
     &#34;checks&#34;: [{&#34;id&#34;: &#34;card&#34;, &#34;backgroundNot&#34;: &#34;255, 255, 255&#34;}] }
 ] }</code></pre>
-<p><code>do</code> 是 <code>{&#34;dispatch&#34;: &#34;&lt;action&gt;&#34;, &#34;args&#34;: {…}}</code> 或 <code>{&#34;setState&#34;: {&#34;path&#34;: …, &#34;value&#34;: …}}</code>。</p>
+<p>默认纯 Canvas 驱动器要求每一步的 <code>do</code> 恰好包含一个操作:</p>
+<ul>
+<li><code>{&#34;dispatch&#34;:&#34;&lt;动作&gt;&#34;, &#34;args&#34;:{…}}</code></li>
+<li><code>{&#34;setState&#34;:{&#34;path&#34;:…, &#34;value&#34;:…}}</code>(或更短的 <code>state</code> 别名)</li>
+<li><code>{&#34;press&#34;:&#34;id&#34;}</code> 或 <code>{&#34;press&#34;:{&#34;id&#34;:&#34;id&#34;}}</code></li>
+<li><code>{&#34;type&#34;:{&#34;id&#34;:&#34;field&#34;, &#34;text&#34;:&#34;hello&#34;, &#34;clear&#34;:true}}</code></li>
+<li><code>{&#34;key&#34;:&#34;Enter&#34;}</code> 或 `{&#34;key&#34;:{&#34;key&#34;:&#34;Tab&#34;, &#34;id&#34;:&#34;field&#34;,</li>
+</ul>
+<p>&#34;shift&#34;:false, &#34;ctrl&#34;:false, &#34;alt&#34;:false, &#34;meta&#34;:false}}`</p>
+<ul>
+<li><code>{&#34;scroll&#34;:{&#34;id&#34;:&#34;list&#34;, &#34;dx&#34;:0, &#34;dy&#34;:120, &#34;ctrl&#34;:false}}</code></li>
+<li><code>{&#34;wait&#34;:250}</code>(毫秒)或 <code>{&#34;wait&#34;:&#34;250ms&#34;}</code>(Go duration)</li>
+</ul>
+<p>press/type/key/scroll 驱动与原生窗口相同的保留图和输入处理器,并会先把目标 滚动到可见。Canvas <code>wait</code> 确定性推进动画/定时器时钟,不会真实 sleep。 <code>-tags desktop</code> 构建保留既有 WebView 步骤子集(<code>dispatch</code> 与 <code>setState</code>)。</p>
 <h2 id="qorm-check---audit一次性回归"><code>qorm check --audit</code>——一次性回归</h2>
 <pre><code>qorm check &lt;app-dir&gt; --audit</code></pre>
 <p>无需手写检查:针对每个<strong>可见</strong>组件验证通用的不变量——非零尺寸、无水平溢出、 在窗口之内(水平滚动/分页容器及其后代不在此列)。返回 <code>{ok, visibleComponents, issues, details}</code>。</p>
@@ -168,7 +190,14 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <li><strong><code>qorm_check_layout</code></strong>——传入 <code>checks</code>(与 <code>--checks</code> 相同的 schema),</li>
 </ul>
 <p>得到每项检查的通过/失败以及实际值。</p>
-<p>两者都读取实时客户端的自我测量,因此智能体看到的正是人所看到的。 工具描述中携带完整的断言列表。</p>
+<ul>
+<li><strong><code>qorm_capture_canvas</code></strong>——把原生 Canvas 宿主最近一次实际呈现的像素平面</li>
+</ul>
+<p>捕获为 base64 PNG。传可选 <code>id</code> 时 PNG 仍是完整画布,<code>clip</code> 用物理像素定位该节点; 这不是隔离子树渲染。没有 Canvas 宿主/已呈现帧、节点不存在或不可见时会明确失败。 浏览器/WebView 会话不会伪造 Canvas 像素。</p>
+<pre><code>qorm_capture_canvas({})
+qorm_capture_canvas({&#34;id&#34;:&#34;card&#34;})  # 完整 PNG + card 裁剪元数据</code></pre>
+<p>两者都读取当前宿主的最新测量,因此智能体看到的正是人所看到的: 原生 canvas 窗口的当前保留渲染图,或浏览器/WebView 的当前 DOM。应连接运行中 <code>qorm run</code> 会话的 HTTP <code>/mcp</code>。单独的 <code>qorm mcp &lt;app&gt;</code> stdio 服务没有渲染宿主, 这两个工具会报测量不可用;无窗口 canvas 验证请用 CLI <code>qorm measure</code> / <code>qorm check</code>。</p>
+<p>若需要不依赖实时宿主的文件证据,用 <code>qorm shot &lt;app&gt; -o out.png</code> 通过同一个纯 Go Canvas 后端无窗口渲染(默认 <code>440x720</code>,安全上限为单边 4096 px、总计 16 MP)。若目标是 隔离 HTML 而非原生像素,请使用 <code>qorm_capture_subtree</code>。</p>
 <h2 id="设备上实时调试">设备上实时调试</h2>
 <pre><code>qorm run &lt;app&gt; --lan</code></pre>
 <p>绑定到局域网,并打印一台物理手机如何加入与开发机器和智能体<strong>同一个实时 会话</strong>:</p>
@@ -196,9 +225,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <p>运行 <code>go test ./...</code>(渲染标记、actions、i18n 格式化、fuzz、 确定性)外加对每个示例的自我测量布局审计,汇总成单一的 ALL-GREEN / 有回归 判定。无需外部浏览器。</p>
 <h2 id="说明">说明</h2>
 <ul>
-<li>测量需要应用在一个渲染运行时中运行。CLI 使用</li>
+<li>默认 CLI 是离屏 canvas 渲染,也支持原生输入步骤流。只在明确需要</li>
 </ul>
-<p><code>-tags desktop</code> 的 WebView(以无头方式运行);实时会话使用人所打开的任意 浏览器/WebView。</p>
+<p>WebView/DOM 对等性时才使用 <code>-tags desktop</code> 构建。</p>
+<ul>
+<li>实时 MCP 测量需要活跃的渲染宿主。macOS 默认 <code>qorm run</code> canvas 窗口直接提供;</li>
+</ul>
+<p>浏览器或 <code>-tags desktop</code> WebView 提供 DOM 测量。仅 stdio 的 <code>qorm mcp</code> 不提供。</p>
 <ul>
 <li><code>visible: false</code> + 零尺寸对于非活动 tab 内容、已关闭的</li>
 </ul>

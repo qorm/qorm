@@ -122,6 +122,7 @@ or `go run ./cmd/qorm run examples/mario`. Showcase:
 go run ./cmd/qorm run examples/counter      # opens the app (browser or native canvas)
 go run ./cmd/qorm run examples/tetris       # canvas game + chiptune
 go run ./cmd/qorm run examples/canvas-fx    # visual + motion showcase
+go run ./cmd/qorm run examples/canvas-ultimate -tags canvaswebview # RichText, Video, Webview, Morphing showcase
 go run ./cmd/qorm render examples/todo -o todo.html   # static snapshot
 ```
 
@@ -277,8 +278,7 @@ Plus cross-cutting features on every node: conditional rendering
 (`"if": "{{state.x}}"`), accessibility (`role`, `ariaLabel`, `title`), and rich
 style (shadow, gradient, position + top/left/right/bottom, aspectRatio,
 min/max width/height, opacity, transition / spring, filter/mask/clip,
-scroll-snap, FLIP `layoutMotion`, `animation`). See `examples/gallery` and
-`examples/canvas-fx`; games in `examples/tetris` / `mario` / `raiden` /
+scroll-snap, FLIP `layoutMotion`, `animation`). The canvas effects engine showcase is `examples/canvas-fx`; the ultimate capabilities showcase (RichText, Video, Webview, Morphing) is `examples/canvas-ultimate`; games in `examples/tetris` / `mario` / `raiden` /
 `g2048`. Full keys in [props](api/props.md) and [styles](docs/styles.md).
 
 ## Over-the-air updates

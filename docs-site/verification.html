@@ -13,21 +13,21 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Interpreting &amp; verifying a QORM app · QORM</title>
-<meta name="description" content="Interpret and verify a QORM app precisely: the running app measures its own render so qorm measure and qorm check report real geometry.">
+<meta name="description" content="Interpret and verify QORM precisely from the pure-Go canvas graph or a live browser/WebView DOM with qorm measure, qorm check, and MCP.">
 <meta property="og:title" content="Interpreting &amp; verifying a QORM app">
-<meta property="og:description" content="Interpret and verify a QORM app precisely: the running app measures its own render so qorm measure and qorm check report real geometry.">
+<meta property="og:description" content="Interpret and verify QORM precisely from the pure-Go canvas graph or a live browser/WebView DOM with qorm measure, qorm check, and MCP.">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://qorm.com/docs/verification.html">
 <meta property="og:site_name" content="QORM">
 <meta property="og:locale" content="en_US">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Interpreting &amp; verifying a QORM app">
-<meta name="twitter:description" content="Interpret and verify a QORM app precisely: the running app measures its own render so qorm measure and qorm check report real geometry.">
+<meta name="twitter:description" content="Interpret and verify QORM precisely from the pure-Go canvas graph or a live browser/WebView DOM with qorm measure, qorm check, and MCP.">
 <link rel="canonical" href="https://qorm.com/docs/verification.html">
 <link rel="alternate" hreflang="en" href="https://qorm.com/docs/verification.html">
 <link rel="alternate" hreflang="zh-CN" href="https://qorm.com/docs/zh/verification.html">
 <link rel="alternate" hreflang="x-default" href="https://qorm.com/docs/verification.html">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"Interpret and verify a QORM app precisely: the running app measures its own render so qorm measure and qorm check report real geometry.","headline":"Interpreting \u0026 verifying a QORM app","inLanguage":"en","name":"Interpreting \u0026 verifying a QORM app","url":"https://qorm.com/docs/verification.html"}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"Interpret and verify QORM precisely from the pure-Go canvas graph or a live browser/WebView DOM with qorm measure, qorm check, and MCP.","headline":"Interpreting \u0026 verifying a QORM app","inLanguage":"en","name":"Interpreting \u0026 verifying a QORM app","url":"https://qorm.com/docs/verification.html"}</script>
 <link rel="icon" href="/assets/logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -100,7 +100,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <body>
 <header class="top"><div class="tnav">
   <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
-  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.8.0</a>
+  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.9.0</a>
   <span class="doc">docs</span>
   <span class="sp"></span>
   <nav class="pill" aria-label="Primary"><a class="tl active-nav" href="/docs/">Docs</a><a class="tl" href="/api/">API</a><a class="tl" href="/compare/">Compare</a><a class="tl" href="/about.html">About</a></nav>
@@ -111,21 +111,30 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   <button class="tbtn" id="theme" aria-label="Theme"></button>
 </div></header>
 <div class="shell">
-  <aside><div class="nav-group">overview</div><ul><li><a href="README.html">QORM documentation</a></li><li><a href="project-structure.html">Project structure</a></li><li><a href="build-with-ai.html">Build QORM apps with your AI assistant</a></li><li><a href="collaboration.html">Human-AI collaboration on a live app</a></li><li><a href="verification.html" class="active">Interpreting &amp; verifying a QORM app</a></li><li><a href="expressions.html">Expressions</a></li><li><a href="styles.html">QSS — QORM Style Sheets</a></li></ul><div class="nav-group">tutorials</div><ul><li><a href="tutorials/getting-started.html">Getting Started with QORM</a></li><li><a href="tutorials/first-scene.html">First Scene</a></li><li><a href="tutorials/first-action.html">First Action</a></li><li><a href="tutorials/first-component.html">First Component</a></li><li><a href="tutorials/first-platform-pack.html">First Platform Pack</a></li></ul><div class="nav-group">examples</div><ul><li><a href="examples/counter.html">Example: Counter</a></li><li><a href="examples/todo.html">Example: Todo</a></li><li><a href="examples/login.html">Example: Login</a></li><li><a href="examples/dashboard.html">Example: Dashboard</a></li></ul><div class="nav-group">platforms</div><ul><li><a href="platforms/web.html">QORM Web Platform</a></li><li><a href="platforms/mobile.html">QORM Mobile Platform</a></li><li><a href="platforms/desktop.html">QORM Desktop Platform</a></li><li><a href="platforms/miniapp.html">QORM Mini-program platform</a></li><li><a href="platforms/native-middlelayer.html">User middle layer: adding your own capabilities to an app</a></li><li><a href="platforms/capabilities.html">Capabilities</a></li><li><a href="platforms/support-matrix.html">Platform support matrix</a></li></ul><div class="nav-group">agent</div><ul><li><a href="agent/permissions.html">QORM Agent Permissions</a></li><li><a href="agent/mcp-tools.html">QORM MCP tools</a></li><li><a href="agent/skills.html">QORM Skills</a></li><li><a href="agent/claude-pack.html">QORM Claude Pack</a></li><li><a href="agent/codex-pack.html">QORM Codex Pack</a></li><li><a href="agent/openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">security</div><ul><li><a href="security/security-model.html">QORM Security Model</a></li><li><a href="security/permission-model.html">QORM Permission Model</a></li><li><a href="security/bundle-signing.html">QORM Bundle Signing</a></li></ul><div class="nav-group">spec</div><ul><li><a href="spec/navigation-spec.html">Navigation &amp;amp; routing</a></li></ul></aside>
+  <aside><div class="nav-group">overview</div><ul><li><a href="README.html">QORM documentation</a></li><li><a href="project-structure.html">Project structure</a></li><li><a href="build-with-ai.html">Build QORM apps with your AI assistant</a></li><li><a href="collaboration.html">Human-AI collaboration on a live app</a></li><li><a href="verification.html" class="active">Interpreting &amp; verifying a QORM app</a></li><li><a href="expressions.html">Expressions</a></li><li><a href="qscript.html">QScript language reference</a></li><li><a href="styles.html">QSS — QORM Style Sheets</a></li></ul><div class="nav-group">tutorials</div><ul><li><a href="tutorials/getting-started.html">Getting Started with QORM</a></li><li><a href="tutorials/first-scene.html">First Scene</a></li><li><a href="tutorials/first-action.html">First Action</a></li><li><a href="tutorials/first-component.html">First Component</a></li><li><a href="tutorials/first-platform-pack.html">First Platform Pack</a></li></ul><div class="nav-group">examples</div><ul><li><a href="examples/counter.html">Example: Counter</a></li><li><a href="examples/todo.html">Example: Todo</a></li><li><a href="examples/login.html">Example: Login</a></li><li><a href="examples/dashboard.html">Example: Dashboard</a></li></ul><div class="nav-group">platforms</div><ul><li><a href="platforms/web.html">QORM Web Platform</a></li><li><a href="platforms/mobile.html">QORM Mobile Platform</a></li><li><a href="platforms/desktop.html">QORM Desktop Platform</a></li><li><a href="platforms/miniapp.html">QORM Mini-program platform</a></li><li><a href="platforms/native-middlelayer.html">User middle layer: adding your own capabilities to an app</a></li><li><a href="platforms/capabilities.html">Capabilities</a></li><li><a href="platforms/support-matrix.html">Platform support matrix</a></li></ul><div class="nav-group">agent</div><ul><li><a href="agent/permissions.html">QORM Agent Permissions</a></li><li><a href="agent/mcp-tools.html">QORM MCP tools</a></li><li><a href="agent/skills.html">QORM Skills</a></li><li><a href="agent/claude-pack.html">QORM Claude Pack</a></li><li><a href="agent/codex-pack.html">QORM Codex Pack</a></li><li><a href="agent/openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">security</div><ul><li><a href="security/security-model.html">QORM Security Model</a></li><li><a href="security/permission-model.html">QORM Permission Model</a></li><li><a href="security/bundle-signing.html">QORM Bundle Signing</a></li></ul><div class="nav-group">implementation</div><ul><li><a href="implementation/analysis-and-plan.html">QORM 整体分析与目标实施规划</a></li><li><a href="implementation/audit-log.html">审计日志</a></li><li><a href="implementation/progress.html">实施进度</a></li></ul><div class="nav-group">spec</div><ul><li><a href="spec/navigation-spec.html">Navigation &amp;amp; routing</a></li></ul></aside>
   <main><h1 id="interpreting--verifying-a-qorm-app">Interpreting &amp; verifying a QORM app</h1>
 <p>QORM&#39;s goal is to let an AI <strong>completely and precisely interpret and verify</strong> everything a user expressed in an app — its layout, styles, behavior and translations — using the framework itself, with no external browser.</p>
-<p>The mechanism: the running app <strong>measures itself</strong> in its own runtime (browser or native WebView). A tiny script walks every element with an id, records its <code>getBoundingClientRect</code> and computed styles, and POSTs them to <code>/measure</code>. The framework then joins that real rendered result with the user&#39;s <strong>intent</strong> (each node&#39;s type, text, and state binding, from the app JSON). So for every component you get both <em>what the user asked for</em> and <em>what actually rendered</em>.</p>
-<p>Everything below works from the CLI (<code>-tags desktop</code> build, which drives a native WebView) and from the live shared session over MCP.</p>
+<p>There are two measurement sources with one JSON shape:</p>
+<ul>
+<li>The default, pure-Go CLI renders once into the software canvas, then exports</li>
+</ul>
+<p>geometry and computed styles from the same retained graph used for painting. This is deterministic and needs no window or external browser.</p>
+<ul>
+<li>A live host measures what the human is actually viewing. The native macOS</li>
+</ul>
+<p>canvas window exports its graph after a rendered frame; browser/WebView hosts walk the DOM with <code>getBoundingClientRect</code>, read computed styles, and POST the result to <code>/measure</code>.</p>
+<p>The framework joins either rendered result with the user&#39;s <strong>intent</strong> (each node&#39;s type, text, and state binding from the app JSON). For every component you get both <em>what the user asked for</em> and <em>what the selected backend rendered</em>.</p>
 <h2 id="qorm-measure--read-the-real-render"><code>qorm measure</code> — read the real render</h2>
-<pre><code>qorm measure &lt;app-dir&gt; [-o report.json]</code></pre>
+<pre><code>qorm measure &lt;app-dir&gt; [--width 400] [--physical] [-o report.json]</code></pre>
 <p>Renders the app, self-measures, and prints one row per component joining intent with result:</p>
 <pre><code>{ &#34;id&#34;: &#34;wifi&#34;, &#34;type&#34;: &#34;switchlisttile&#34;, &#34;intent&#34;: {&#34;label&#34;: &#34;Wi-Fi&#34;, &#34;binding&#34;: &#34;{{state.wifi}}&#34;},
   &#34;x&#34;: 32, &#34;y&#34;: 499, &#34;w&#34;: 336, &#34;h&#34;: 47, &#34;visible&#34;: true,
   &#34;color&#34;: &#34;rgb(0,0,0)&#34;, &#34;background&#34;: &#34;rgba(0,0,0,0)&#34;, &#34;fontSize&#34;: &#34;15px&#34;,
   &#34;padding&#34;: &#34;…&#34;, &#34;borderRadius&#34;: &#34;…&#34;, &#34;overflowX&#34;: false }</code></pre>
 <p>Fields per component: <code>id</code>, <code>type</code>, <code>intent</code> (text/label/binding), <code>x y w h</code>, <code>visible</code>, <code>tag</code>, <code>text</code> (for leaf nodes), and computed <code>color</code>, <code>background</code>, <code>fontSize</code>, <code>fontWeight</code>, <code>textAlign</code>, <code>padding</code>, <code>margin</code>, <code>borderRadius</code>, <code>border</code>, <code>opacity</code>, <code>zIndex</code>, <code>position</code>, <code>overflowX</code>.</p>
+<p>In a normal build this is a headless pure-Go canvas render at the requested logical width (height comes from <code>qorm.json</code>, default 820). Coordinates are logical CSS pixels by default; <code>--physical</code> keeps canvas device pixels. A <code>-tags desktop</code> build intentionally exercises the HTML/WebView path instead; WebView measurements are always CSS pixels, so <code>--physical</code> has no effect there.</p>
 <h2 id="qorm-check---checks--verify-expectations"><code>qorm check --checks</code> — verify expectations</h2>
-<pre><code>qorm check &lt;app-dir&gt; --checks checks.json [-o report.json]</code></pre>
+<pre><code>qorm check &lt;app-dir&gt; --checks checks.json [--width 400] [--physical] [-o report.json]</code></pre>
 <p><code>checks.json</code> is an array of <code>{id, &lt;assertion&gt;…}</code>. Each assertion is verified against the real render; the report gives per-check pass/fail with actual values.</p>
 <table>
 <thead><tr><th>assertion</th><th>meaning</th></tr></thead>
@@ -143,7 +152,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <tr><td><code>hasAriaLabel: true</code></td><td>the element exposes an <code>aria-label</code></td></tr>
 <tr><td><code>contrastRatio: &lt;n&gt;</code></td><td>text/background contrast is at least <code>n</code> (WCAG AA: 4.5 normal, 3.0 large), computed against the effective background</td></tr>
 </tbody></table>
-<p>Accessibility assertions read the <strong>rendered</strong> DOM, so they catch roles and labels the renderer injects implicitly — not just what the JSON declared. <code>focusTrap</code> is intentionally rejected for now: focus containment is a dynamic Tab-order behavior, not a static snapshot, and a verifier must never vouch for a check it cannot actually make.</p>
+<p>Backend boundary: geometry, visibility, text, overflow, and the listed computed box/style fields work on both measurement sources. On HTML/WebView, accessibility assertions read the <strong>rendered DOM</strong>, so <code>role</code> can include renderer-injected semantics and <code>contrastRatio</code> is computed against the effective background. The canvas graph currently reports author-supplied <code>role</code> / <code>ariaLabel</code>; it does not yet compute contrast, so <code>contrastRatio</code> fails as unavailable rather than silently passing. <code>focusTrap</code> is intentionally rejected on every backend: focus containment is dynamic Tab-order behavior, not a static snapshot.</p>
 <p>Checks fail loud: an unrecognised assertion key (e.g. a typo) fails, and a <code>within</code>/<code>below</code> target id that was not measured fails as &#39;not found&#39; — nothing silently passes.</p>
 <pre><code>[
   {&#34;id&#34;: &#34;nav&#34;,      &#34;type&#34;: &#34;appbar&#34;, &#34;visible&#34;: true, &#34;y&#34;: 0, &#34;text&#34;: &#34;Today&#34;},
@@ -157,7 +166,20 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   { &#34;name&#34;: &#34;go dark&#34;,   &#34;do&#34;: {&#34;setState&#34;: {&#34;path&#34;: &#34;theme&#34;, &#34;value&#34;: &#34;dark&#34;}},
     &#34;checks&#34;: [{&#34;id&#34;: &#34;card&#34;, &#34;backgroundNot&#34;: &#34;255, 255, 255&#34;}] }
 ] }</code></pre>
-<p><code>do</code> is <code>{&#34;dispatch&#34;: &#34;&lt;action&gt;&#34;, &#34;args&#34;: {…}}</code> or <code>{&#34;setState&#34;: {&#34;path&#34;: …, &#34;value&#34;: …}}</code>.</p>
+<p>The default pure-Canvas driver accepts exactly one operation per step:</p>
+<ul>
+<li><code>{&#34;dispatch&#34;:&#34;&lt;action&gt;&#34;, &#34;args&#34;:{…}}</code></li>
+<li><code>{&#34;setState&#34;:{&#34;path&#34;:…, &#34;value&#34;:…}}</code> (or the shorter <code>state</code> alias)</li>
+<li><code>{&#34;press&#34;:&#34;id&#34;}</code> or <code>{&#34;press&#34;:{&#34;id&#34;:&#34;id&#34;}}</code></li>
+<li><code>{&#34;type&#34;:{&#34;id&#34;:&#34;field&#34;, &#34;text&#34;:&#34;hello&#34;, &#34;clear&#34;:true}}</code></li>
+<li><code>{&#34;key&#34;:&#34;Enter&#34;}</code> or `{&#34;key&#34;:{&#34;key&#34;:&#34;Tab&#34;, &#34;id&#34;:&#34;field&#34;,</li>
+</ul>
+<p>&#34;shift&#34;:false, &#34;ctrl&#34;:false, &#34;alt&#34;:false, &#34;meta&#34;:false}}`</p>
+<ul>
+<li><code>{&#34;scroll&#34;:{&#34;id&#34;:&#34;list&#34;, &#34;dx&#34;:0, &#34;dy&#34;:120, &#34;ctrl&#34;:false}}</code></li>
+<li><code>{&#34;wait&#34;:250}</code> (milliseconds) or <code>{&#34;wait&#34;:&#34;250ms&#34;}</code> (Go duration)</li>
+</ul>
+<p>Press/type/key/scroll drive the same retained graph and input handlers as the native window; targets are revealed before input. Canvas <code>wait</code> advances its animation/timer clocks deterministically and does not sleep. A <code>-tags desktop</code> build keeps the established WebView flow subset (<code>dispatch</code> and <code>setState</code>).</p>
 <h2 id="qorm-check---audit--one-shot-regression"><code>qorm check --audit</code> — one-shot regression</h2>
 <pre><code>qorm check &lt;app-dir&gt; --audit</code></pre>
 <p>No hand-authored checks: verifies generic invariants over every <strong>visible</strong> component — non-zero size, no horizontal overflow, within the window (horizontal-scroll/paged containers and their descendants are exempt). Returns <code>{ok, visibleComponents, issues, details}</code>.</p>
@@ -168,7 +190,14 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <li><strong><code>qorm_check_layout</code></strong> — pass <code>checks</code> (same schema as <code>--checks</code>), get</li>
 </ul>
 <p>per-check pass/fail with actual values.</p>
-<p>Both read the live client&#39;s self-measurement, so the agent sees exactly what the human sees. The tool descriptions carry the full assertion list.</p>
+<ul>
+<li><strong><code>qorm_capture_canvas</code></strong> — capture the native Canvas host&#39;s actual last-presented</li>
+</ul>
+<p>pixel plane as a base64 PNG. With optional <code>id</code>, the PNG remains the full surface and <code>clip</code> locates that node in physical pixels; it is not an isolated subtree render. It fails loudly when no Canvas host/frame exists or a node is absent/invisible. Browser/WebView sessions do not synthesize Canvas pixels.</p>
+<pre><code>qorm_capture_canvas({})
+qorm_capture_canvas({&#34;id&#34;:&#34;card&#34;})  # full PNG + card clip metadata</code></pre>
+<p>Both read the active host&#39;s latest measurement, so the agent sees exactly what the human sees: the current retained graph in the native canvas window, or the current DOM in a browser/WebView. Use HTTP <code>/mcp</code> on the running <code>qorm run</code> session. A standalone <code>qorm mcp &lt;app&gt;</code> stdio server has no rendering host, so these two tools report measurement unavailable; use CLI <code>qorm measure</code> / <code>qorm check</code> for headless canvas verification.</p>
+<p>For a file artifact without a live host, <code>qorm shot &lt;app&gt; -o out.png</code> renders the same pure-Go Canvas backend headlessly (default <code>440x720</code>, 4096 px/edge and 16 MP safety limits). Use <code>qorm_capture_subtree</code> when isolated HTML rather than native pixels is the intended evidence.</p>
 <p><img src="assets/screenshots/logwindow.png" alt="QORM DevTool activity view of the shared session" loading="lazy" decoding="async"> <em>In a shared session the agent reads the same live render you see; the DevTool interleaves both sides&#39; activity.</em></p>
 <p>Note: the <code>qorm measure</code> and <code>qorm check</code> reports are structured CLI/JSON (shown as code blocks above) — there is no terminal screenshot for them. The image here is the DevTool view of the live shared session, not a captured report.</p>
 <h2 id="on-device-live-debugging">On-device live debugging</h2>
@@ -198,9 +227,13 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <p>Runs <code>go test ./...</code> (render markers, actions, i18n formatting, fuzz, determinism) plus a self-measured layout audit of every example, aggregated to a single ALL-GREEN / regressions verdict. No external browser.</p>
 <h2 id="notes">Notes</h2>
 <ul>
-<li>Measurement needs the app running in a rendering runtime. The CLI uses the</li>
+<li>The default CLI is an offscreen canvas render, including native input step</li>
 </ul>
-<p><code>-tags desktop</code> WebView (runs headlessly); the live session uses whatever browser/WebView the human has open.</p>
+<p>flows. Build with <code>-tags desktop</code> only when you intentionally need WebView/ DOM parity.</p>
+<ul>
+<li>Live MCP measurement needs an active rendering host. On macOS the default</li>
+</ul>
+<p><code>qorm run</code> canvas window supplies it directly; a browser or <code>-tags desktop</code> WebView supplies DOM measurement. Stdio-only <code>qorm mcp</code> does not.</p>
 <ul>
 <li><code>visible: false</code> + zero size is normal for inactive tab content, closed</li>
 </ul>

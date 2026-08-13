@@ -12,22 +12,21 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
      crossorigin="anonymous"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>QORM Desktop Platform · QORM</title>
-<meta name="description" content="Run QORM in the pure-Go native canvas or a tagged native WebView, with desktop host capabilities and cross-platform packaging.">
-<meta property="og:title" content="QORM Desktop Platform">
-<meta property="og:description" content="Run QORM in the pure-Go native canvas or a tagged native WebView, with desktop host capabilities and cross-platform packaging.">
+<title>QORM 整体分析与目标实施规划 · QORM</title>
+<meta name="description" content="QORM = Agent-native 跨平台应用运行时：JSON 描述 UI + 纯 Go 运行时 + MCP 协作 + ed25519 OTA。">
+<meta property="og:title" content="QORM 整体分析与目标实施规划">
+<meta property="og:description" content="QORM = Agent-native 跨平台应用运行时：JSON 描述 UI + 纯 Go 运行时 + MCP 协作 + ed25519 OTA。">
 <meta property="og:type" content="article">
-<meta property="og:url" content="https://qorm.com/docs/platforms/desktop.html">
+<meta property="og:url" content="https://qorm.com/docs/implementation/analysis-and-plan.html">
 <meta property="og:site_name" content="QORM">
 <meta property="og:locale" content="en_US">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="QORM Desktop Platform">
-<meta name="twitter:description" content="Run QORM in the pure-Go native canvas or a tagged native WebView, with desktop host capabilities and cross-platform packaging.">
-<link rel="canonical" href="https://qorm.com/docs/platforms/desktop.html">
-<link rel="alternate" hreflang="en" href="https://qorm.com/docs/platforms/desktop.html">
-<link rel="alternate" hreflang="zh-CN" href="https://qorm.com/docs/zh/platforms/desktop.html">
-<link rel="alternate" hreflang="x-default" href="https://qorm.com/docs/platforms/desktop.html">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"Run QORM in the pure-Go native canvas or a tagged native WebView, with desktop host capabilities and cross-platform packaging.","headline":"QORM Desktop Platform","inLanguage":"en","name":"QORM Desktop Platform","url":"https://qorm.com/docs/platforms/desktop.html"}</script>
+<meta name="twitter:title" content="QORM 整体分析与目标实施规划">
+<meta name="twitter:description" content="QORM = Agent-native 跨平台应用运行时：JSON 描述 UI + 纯 Go 运行时 + MCP 协作 + ed25519 OTA。">
+<link rel="canonical" href="https://qorm.com/docs/implementation/analysis-and-plan.html">
+<link rel="alternate" hreflang="en" href="https://qorm.com/docs/implementation/analysis-and-plan.html">
+<link rel="alternate" hreflang="x-default" href="https://qorm.com/docs/implementation/analysis-and-plan.html">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"QORM = Agent-native 跨平台应用运行时：JSON 描述 UI + 纯 Go 运行时 + MCP 协作 + ed25519 OTA。","headline":"QORM 整体分析与目标实施规划","inLanguage":"en","name":"QORM 整体分析与目标实施规划","url":"https://qorm.com/docs/implementation/analysis-and-plan.html"}</script>
 <link rel="icon" href="/assets/logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -107,81 +106,88 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   <a class="btn navcta" href="/docs/build-with-ai.html">Get started</a>
   <a class="iconlink" href="https://github.com/qorm/qorm" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
   <a class="iconlink patreon" href="https://www.patreon.com/qorm" target="_blank" rel="noopener" aria-label="Patreon" title="Patreon"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="14.4" cy="9.6" r="6.6"/><rect x="1.5" y="2.5" width="4" height="19" rx="0.3"/></svg></a>
-  <a class="iconlink lang" href="../zh/platforms/desktop.html" data-lang="zh" aria-label="中文" title="中文"><span>中</span></a>
+  <span class="iconlink lang off" aria-label="中文"><span>中</span></span>
   <button class="tbtn" id="theme" aria-label="Theme"></button>
 </div></header>
 <div class="shell">
-  <aside><div class="nav-group">overview</div><ul><li><a href="../README.html">QORM documentation</a></li><li><a href="../project-structure.html">Project structure</a></li><li><a href="../build-with-ai.html">Build QORM apps with your AI assistant</a></li><li><a href="../collaboration.html">Human-AI collaboration on a live app</a></li><li><a href="../verification.html">Interpreting &amp; verifying a QORM app</a></li><li><a href="../expressions.html">Expressions</a></li><li><a href="../qscript.html">QScript language reference</a></li><li><a href="../styles.html">QSS — QORM Style Sheets</a></li></ul><div class="nav-group">tutorials</div><ul><li><a href="../tutorials/getting-started.html">Getting Started with QORM</a></li><li><a href="../tutorials/first-scene.html">First Scene</a></li><li><a href="../tutorials/first-action.html">First Action</a></li><li><a href="../tutorials/first-component.html">First Component</a></li><li><a href="../tutorials/first-platform-pack.html">First Platform Pack</a></li></ul><div class="nav-group">examples</div><ul><li><a href="../examples/counter.html">Example: Counter</a></li><li><a href="../examples/todo.html">Example: Todo</a></li><li><a href="../examples/login.html">Example: Login</a></li><li><a href="../examples/dashboard.html">Example: Dashboard</a></li></ul><div class="nav-group">platforms</div><ul><li><a href="web.html">QORM Web Platform</a></li><li><a href="mobile.html">QORM Mobile Platform</a></li><li><a href="desktop.html" class="active">QORM Desktop Platform</a></li><li><a href="miniapp.html">QORM Mini-program platform</a></li><li><a href="native-middlelayer.html">User middle layer: adding your own capabilities to an app</a></li><li><a href="capabilities.html">Capabilities</a></li><li><a href="support-matrix.html">Platform support matrix</a></li></ul><div class="nav-group">agent</div><ul><li><a href="../agent/permissions.html">QORM Agent Permissions</a></li><li><a href="../agent/mcp-tools.html">QORM MCP tools</a></li><li><a href="../agent/skills.html">QORM Skills</a></li><li><a href="../agent/claude-pack.html">QORM Claude Pack</a></li><li><a href="../agent/codex-pack.html">QORM Codex Pack</a></li><li><a href="../agent/openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">security</div><ul><li><a href="../security/security-model.html">QORM Security Model</a></li><li><a href="../security/permission-model.html">QORM Permission Model</a></li><li><a href="../security/bundle-signing.html">QORM Bundle Signing</a></li></ul><div class="nav-group">implementation</div><ul><li><a href="../implementation/analysis-and-plan.html">QORM 整体分析与目标实施规划</a></li><li><a href="../implementation/audit-log.html">审计日志</a></li><li><a href="../implementation/progress.html">实施进度</a></li></ul><div class="nav-group">spec</div><ul><li><a href="../spec/navigation-spec.html">Navigation &amp;amp; routing</a></li></ul></aside>
-  <main><h1 id="qorm-desktop-platform">QORM Desktop Platform</h1>
-<p>Desktop is one of QORM&#39;s first-priority runtime platforms, well suited to development previews, production desktop apps, utility apps, and high-performance UI experiments.</p>
-<h2 id="package-it">Package it</h2>
-<pre><code>qorm package examples/menus -p mac         # a macOS .app (per-platform cgo build)
-qorm package app -p mac --release [--notarize]   # Developer ID + hardened runtime + DMG
-./scripts/build-desktop.sh                 # native-window binary for this OS (-tags desktop)
-qorm-desktop-... run examples/menus --app  # opens a native window</code></pre>
-<p>On Linux the tray, notification click-through and secure storage speak DBus directly (StatusNotifierItem / org.freedesktop.Notifications / Secret Service — GNOME needs the AppIndicator extension for the tray; keys land in GNOME Keyring or KWallet).</p>
-<p>Examples that exercise desktop features: <a href="https://github.com/qorm/qorm/tree/main/examples/menus"><code>menus</code></a> (system menu bar / tray / right-click menus, with icons + submenus), <a href="https://github.com/qorm/qorm/tree/main/examples/floating"><code>floating</code></a> (chromeless + transparent, custom-shape window), <a href="https://github.com/qorm/qorm/tree/main/examples/desktop-hardware"><code>desktop-hardware</code></a>. See the <a href="support-matrix.html">support matrix</a> for what&#39;s tested per OS.</p>
-<p><img src="img/web-dashboard.png" alt="The QORM dashboard used as a stand-in for the desktop build" loading="lazy" decoding="async"> <em>The dashboard example as rendered in a browser, shown as a stand-in. The same UI is hosted in a real native window by the <code>-tags desktop</code> binary; no native-window screenshot is captured in this build environment.</em></p>
-<h2 id="architecture">Architecture</h2>
-<pre><code>qorm app (JSON) / qorm.bundle.json
-  ↓
-Go Runtime (loader + state + action + i18n, pure Go)
-  ↓
-Render host selected by build/platform
-  ├─ Pure-Go retained canvas (macOS default, no `desktop` tag)
-  │    measure → layout → display list → software raster
-  ├─ Native WebView (`-tags desktop`)
-  │    HTML/CSS → WKWebView / WebView2 / WebKitGTK
-  └─ Browser fallback (other untagged desktop platforms)</code></pre>
-<h2 id="features">Features</h2>
+  <aside><div class="nav-group">overview</div><ul><li><a href="../README.html">QORM documentation</a></li><li><a href="../project-structure.html">Project structure</a></li><li><a href="../build-with-ai.html">Build QORM apps with your AI assistant</a></li><li><a href="../collaboration.html">Human-AI collaboration on a live app</a></li><li><a href="../verification.html">Interpreting &amp; verifying a QORM app</a></li><li><a href="../expressions.html">Expressions</a></li><li><a href="../qscript.html">QScript language reference</a></li><li><a href="../styles.html">QSS — QORM Style Sheets</a></li></ul><div class="nav-group">tutorials</div><ul><li><a href="../tutorials/getting-started.html">Getting Started with QORM</a></li><li><a href="../tutorials/first-scene.html">First Scene</a></li><li><a href="../tutorials/first-action.html">First Action</a></li><li><a href="../tutorials/first-component.html">First Component</a></li><li><a href="../tutorials/first-platform-pack.html">First Platform Pack</a></li></ul><div class="nav-group">examples</div><ul><li><a href="../examples/counter.html">Example: Counter</a></li><li><a href="../examples/todo.html">Example: Todo</a></li><li><a href="../examples/login.html">Example: Login</a></li><li><a href="../examples/dashboard.html">Example: Dashboard</a></li></ul><div class="nav-group">platforms</div><ul><li><a href="../platforms/web.html">QORM Web Platform</a></li><li><a href="../platforms/mobile.html">QORM Mobile Platform</a></li><li><a href="../platforms/desktop.html">QORM Desktop Platform</a></li><li><a href="../platforms/miniapp.html">QORM Mini-program platform</a></li><li><a href="../platforms/native-middlelayer.html">User middle layer: adding your own capabilities to an app</a></li><li><a href="../platforms/capabilities.html">Capabilities</a></li><li><a href="../platforms/support-matrix.html">Platform support matrix</a></li></ul><div class="nav-group">agent</div><ul><li><a href="../agent/permissions.html">QORM Agent Permissions</a></li><li><a href="../agent/mcp-tools.html">QORM MCP tools</a></li><li><a href="../agent/skills.html">QORM Skills</a></li><li><a href="../agent/claude-pack.html">QORM Claude Pack</a></li><li><a href="../agent/codex-pack.html">QORM Codex Pack</a></li><li><a href="../agent/openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">security</div><ul><li><a href="../security/security-model.html">QORM Security Model</a></li><li><a href="../security/permission-model.html">QORM Permission Model</a></li><li><a href="../security/bundle-signing.html">QORM Bundle Signing</a></li></ul><div class="nav-group">implementation</div><ul><li><a href="analysis-and-plan.html" class="active">QORM 整体分析与目标实施规划</a></li><li><a href="audit-log.html">审计日志</a></li><li><a href="progress.html">实施进度</a></li></ul><div class="nav-group">spec</div><ul><li><a href="../spec/navigation-spec.html">Navigation &amp;amp; routing</a></li></ul></aside>
+  <main><h1 id="qorm-整体分析与目标实施规划">QORM 整体分析与目标实施规划</h1>
+<blockquote>主控文档 · 2026-08-12 第二轮 · 以代码与 <code>examples/</code> 为准</blockquote>
+<h2 id="1-项目定位事实">1. 项目定位（事实）</h2>
+<p>QORM = <strong>Agent-native 跨平台应用运行时</strong>：JSON 描述 UI + 纯 Go 运行时 + MCP 协作 + ed25519 OTA。</p>
+<table>
+<thead><tr><th>维度</th><th>结论</th></tr></thead>
+<tbody>
+<tr><td>核心路径</td><td>loader → model → runtime (expr/qscript) → <strong>HTML 或 canvas 渲染</strong> → server/MCP/bundle</td></tr>
+<tr><td>规模</td><td>~13 万行 Go · 38+ examples · MCP 24 tools · 双（三）渲染宿主</td></tr>
+<tr><td>差异化</td><td>人机同 live runtime · 签名 OTA · measure/check 几何自验证</td></tr>
+<tr><td>脚本引擎</td><td><strong>规格内完整</strong>（expr+qscript；游戏 examples 已证）</td></tr>
+<tr><td>渲染引擎</td><td><strong>主路径可用，双路径未对等</strong>（QSS/swipes/相机/音频偏 canvas）</td></tr>
+</tbody></table>
+<h2 id="2-目标分层本周期完成的定义">2. 目标分层（本周期「完成」的定义）</h2>
+<h3 id="g0--交付闭环本周必须">G0 — 交付闭环（本周必须）</h3>
+<p>使 <strong>Web Canvas Games（Raiden/Mario）</strong> 与 <strong>仓库主线质量信号</strong> 可复现、可合入、可部署。</p>
+<p>成功标准：</p>
+<ol>
+<li><code>cmd/qorm-wasm</code> asseturl 修复在跟踪源中且 <code>go test ./cmd/qorm-wasm/</code> 绿  </li>
+<li>本地/预发 games 页 Raiden+Mario 有图、可玩（<code>preloaded_count&gt;0</code>，<code>graph_imgs&gt;0</code>）  </li>
+<li>实施进度与审计文档与仓库状态一致  </li>
+</ol>
+<h3 id="g1--质量可信本周力争">G1 — 质量可信（本周力争）</h3>
+<ol>
+<li><code>TestGoldenFrames</code> counter_* 有结论：刷新或修复，<strong>不留无解释红灯</strong>  </li>
+<li>关键文档纠错：canvas ≠ <code>-tags desktop</code>（AGENTS / styles 至少一处权威表述）  </li>
+<li>产品一句话：<strong>游戏默认 canvas 宿主</strong>；<code>package -p web</code> 是 HTML 路径  </li>
+</ol>
+<h3 id="g2--引擎对等下一周期不阻塞-g0">G2 — 引擎对等（下一周期，不阻塞 G0）</h3>
+<p>按优先级：HTML QSS → 产品打包档 → board 相机 → swipes → WebAudio → widget harness</p>
+<h3 id="g3--安全硬化下一周期">G3 — 安全硬化（下一周期）</h3>
+<p>SEC-01 WASM 吊销 · SEC-04 LAN 鉴权 · SEC-02/03 审批模型（产品拍板后）</p>
+<h2 id="3-架构快照">3. 架构快照</h2>
+<pre><code>App JSON / .qs / .qss
+    → loader → model.App
+    → runtime (state · expr · qscript · steps)
+    → ┌─ HTML/CSS (browser / WebView / package -p web)
+       └─ Canvas software (macOS 默认窗 · games WASM + qorm_canvas)
+    → server SSE/MCP/OTA · bundle sign</code></pre>
+<table>
+<thead><tr><th>子系统</th><th>成熟度</th><th>备注</th></tr></thead>
+<tbody>
+<tr><td>Loader/Runtime/Expr/QScript</td><td>高</td><td>脚本规格闭合、有治理与测试</td></tr>
+<tr><td>MCP</td><td>高</td><td>24 tools；preview→apply 门闩</td></tr>
+<tr><td>HTML 渲染</td><td>高</td><td>业务主路径；无 QSS cascade</td></tr>
+<tr><td>Canvas 渲染</td><td>高（有债）</td><td>游戏主路径；golden 当前红</td></tr>
+<tr><td>WASM games 资源加载</td><td>修复在途</td><td>key 规范化；待合入部署</td></tr>
+<tr><td>Desktop Linux/Windows</td><td>beta</td><td>—</td></tr>
+</tbody></table>
+<h2 id="4-本轮-agent-分工执行--审计">4. 本轮 Agent 分工（执行 + 审计）</h2>
+<table>
+<thead><tr><th>Agent</th><th>目标</th><th>模式</th><th>产出</th></tr></thead>
+<tbody>
+<tr><td>A-impl-golden</td><td>G1：处理 canvas golden 失败</td><td>读+写</td><td>刷新或修根因 + 测试绿</td></tr>
+<tr><td>A-impl-docs</td><td>G1：纠错 canvas/desktop 与 games 路径</td><td>读+写</td><td>AGENTS/styles 等最小 diff</td></tr>
+<tr><td>A-gate-wasm</td><td>G0：再验证 wasm 修复与合入清单</td><td>执行测试</td><td>审计条目 + 确认 commit 集</td></tr>
+<tr><td>A-score-engines</td><td>G0/G1：脚本/渲染完整度记分卡</td><td>只读</td><td>写入审计的正式评分</td></tr>
+<tr><td>A-audit-regress</td><td>G1：全量关键包回归快照</td><td>执行测试</td><td>新失败列表</td></tr>
+</tbody></table>
+<p>主控：合并 → 更新 <code>progress.md</code> / <code>audit-log.md</code> → 标出阻塞与决策。</p>
+<h2 id="5-审计门槛">5. 审计门槛</h2>
 <ul>
-<li>Runs the pure-Go core directly (frontend + framework + the user&#39;s <code>native/desktop.go</code> compiled into a single binary).</li>
-<li>The default path is pure Go, so you can cross-compile from one machine to macOS/Linux/Windows x amd64/arm64.</li>
-<li>Access to a more complete set of Host Capabilities.</li>
-<li>Provides development debugging, Agent Patch, preview, and profiling.</li>
+<li>声称完成必须附命令与退出码摘要</li>
+<li>区分 <strong>事实 / 假设 / 产品决策</strong></li>
+<li>不扩大范围（禁止无关重构）</li>
+<li>密钥与 exploit 禁区保持</li>
+<li>每波结束同步进度文档，不静默丢项</li>
 </ul>
-<h2 id="host-capability">Host Capability</h2>
-<p>The Desktop Pack should support first:</p>
-<pre><code>network.request
-storage.read/write
-clipboard.read/write
-filesystem.openFile
-filesystem.saveFile
-notification.show
-window.resize
-window.fullscreen
-navigation.go</code></pre>
-<p>Dangerous capabilities must require authorization:</p>
-<pre><code>filesystem.write
-shell
-process.spawn
-system.automation</code></pre>
-<h2 id="desktop-dangerous-capability-boundaries">Desktop dangerous-capability boundaries</h2>
+<h2 id="6-非目标本轮">6. 非目标（本轮）</h2>
 <ul>
-<li><code>shell</code>, <code>process.spawn</code>, and <code>system.automation</code> must be explicitly authorized.</li>
-<li>The authorization scope should at minimum be bound to the target command, directory, or resource range.</li>
-<li>platform / app / host policy still takes precedence over what the Agent or Pack layer permits.</li>
+<li>HTML 全量 QSS 实现（G2）</li>
+<li>VS Code/LSP</li>
+<li>GPU 渲染</li>
+<li>未授权 commit 到 origin（合入由用户确认后主控执行）</li>
 </ul>
-<h2 id="rendering">Rendering</h2>
-<p>Desktop has two concrete renderers over the same JSON/state/action model:</p>
-<ul>
-<li>On macOS, the default untagged <code>qorm run</code> opens the pure-Go retained-mode</li>
-</ul>
-<p>software canvas. It supports native input, scrolling, text editing, QSS, visual effects, and exports its live graph to MCP measurement. Actions from native pointer/keyboard input are also attributed to the human in the shared DevTool and <code>qorm_activity</code> event stream, with privacy-safe focus/typing presence. DevTool tree hover highlights the matching native node.</p>
-<ul>
-<li><code>-tags desktop</code> selects the HTML path in a platform WebView</li>
-</ul>
-<p>(WKWebView/WebView2/WebKitGTK). It is not the canvas renderer.</p>
-<p>The implementations share the app model but do not share layout/paint code, so verify the backend in scope: default <code>qorm measure</code> / static <code>qorm check</code> use headless canvas; a <code>-tags desktop</code> binary measures WebView/DOM. See <a href="/docs/verification.html">verification</a> and <a href="../styles.html">QSS / canvas effects</a>.</p>
-<h2 id="development-tools">Development tools</h2>
-<p>Desktop provides:</p>
-<pre><code>qorm run
-qorm build
-qorm preview
-qorm measure
-qorm check
-qorm shot</code></pre>
-<p>See <a href="/api/cli.html">the CLI reference</a>. The DevTool component tree can hover- highlight native Canvas nodes, and <code>GET /dev/canvas</code> reports the physical viewport plus latest layout/render/present/total frame timings. MCP can obtain the last-presented native pixels with <code>qorm_capture_canvas</code>.</p>
+<h2 id="7-与首轮规划的关系">7. 与首轮规划的关系</h2>
+<p>首轮 Wave0–3 与安全/文档表仍有效。本轮将目标收束为 <strong>G0/G1 可验证交付</strong>，避免无限审计空转。</p>
 </main>
 </div>
 <script>

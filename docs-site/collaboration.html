@@ -13,21 +13,21 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Human-AI collaboration on a live app · QORM</title>
-<meta name="description" content="A human and an AI agent on the same running QORM app at once, each seeing the other over the browser, MCP, and SSE.">
+<meta name="description" content="A human and an AI agent on the same running QORM app at once, each seeing the other through a native canvas or browser/WebView host, MCP, and the DevTool.">
 <meta property="og:title" content="Human-AI collaboration on a live app">
-<meta property="og:description" content="A human and an AI agent on the same running QORM app at once, each seeing the other over the browser, MCP, and SSE.">
+<meta property="og:description" content="A human and an AI agent on the same running QORM app at once, each seeing the other through a native canvas or browser/WebView host, MCP, and the DevTool.">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://qorm.com/docs/collaboration.html">
 <meta property="og:site_name" content="QORM">
 <meta property="og:locale" content="en_US">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Human-AI collaboration on a live app">
-<meta name="twitter:description" content="A human and an AI agent on the same running QORM app at once, each seeing the other over the browser, MCP, and SSE.">
+<meta name="twitter:description" content="A human and an AI agent on the same running QORM app at once, each seeing the other through a native canvas or browser/WebView host, MCP, and the DevTool.">
 <link rel="canonical" href="https://qorm.com/docs/collaboration.html">
 <link rel="alternate" hreflang="en" href="https://qorm.com/docs/collaboration.html">
 <link rel="alternate" hreflang="zh-CN" href="https://qorm.com/docs/zh/collaboration.html">
 <link rel="alternate" hreflang="x-default" href="https://qorm.com/docs/collaboration.html">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"A human and an AI agent on the same running QORM app at once, each seeing the other over the browser, MCP, and SSE.","headline":"Human-AI collaboration on a live app","inLanguage":"en","name":"Human-AI collaboration on a live app","url":"https://qorm.com/docs/collaboration.html"}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"A human and an AI agent on the same running QORM app at once, each seeing the other through a native canvas or browser/WebView host, MCP, and the DevTool.","headline":"Human-AI collaboration on a live app","inLanguage":"en","name":"Human-AI collaboration on a live app","url":"https://qorm.com/docs/collaboration.html"}</script>
 <link rel="icon" href="/assets/logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -100,7 +100,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <body>
 <header class="top"><div class="tnav">
   <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
-  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.8.0</a>
+  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.9.0</a>
   <span class="doc">docs</span>
   <span class="sp"></span>
   <nav class="pill" aria-label="Primary"><a class="tl active-nav" href="/docs/">Docs</a><a class="tl" href="/api/">API</a><a class="tl" href="/compare/">Compare</a><a class="tl" href="/about.html">About</a></nav>
@@ -111,17 +111,20 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   <button class="tbtn" id="theme" aria-label="Theme"></button>
 </div></header>
 <div class="shell">
-  <aside><div class="nav-group">overview</div><ul><li><a href="README.html">QORM documentation</a></li><li><a href="project-structure.html">Project structure</a></li><li><a href="build-with-ai.html">Build QORM apps with your AI assistant</a></li><li><a href="collaboration.html" class="active">Human-AI collaboration on a live app</a></li><li><a href="verification.html">Interpreting &amp; verifying a QORM app</a></li><li><a href="expressions.html">Expressions</a></li><li><a href="styles.html">QSS — QORM Style Sheets</a></li></ul><div class="nav-group">tutorials</div><ul><li><a href="tutorials/getting-started.html">Getting Started with QORM</a></li><li><a href="tutorials/first-scene.html">First Scene</a></li><li><a href="tutorials/first-action.html">First Action</a></li><li><a href="tutorials/first-component.html">First Component</a></li><li><a href="tutorials/first-platform-pack.html">First Platform Pack</a></li></ul><div class="nav-group">examples</div><ul><li><a href="examples/counter.html">Example: Counter</a></li><li><a href="examples/todo.html">Example: Todo</a></li><li><a href="examples/login.html">Example: Login</a></li><li><a href="examples/dashboard.html">Example: Dashboard</a></li></ul><div class="nav-group">platforms</div><ul><li><a href="platforms/web.html">QORM Web Platform</a></li><li><a href="platforms/mobile.html">QORM Mobile Platform</a></li><li><a href="platforms/desktop.html">QORM Desktop Platform</a></li><li><a href="platforms/miniapp.html">QORM Mini-program platform</a></li><li><a href="platforms/native-middlelayer.html">User middle layer: adding your own capabilities to an app</a></li><li><a href="platforms/capabilities.html">Capabilities</a></li><li><a href="platforms/support-matrix.html">Platform support matrix</a></li></ul><div class="nav-group">agent</div><ul><li><a href="agent/permissions.html">QORM Agent Permissions</a></li><li><a href="agent/mcp-tools.html">QORM MCP tools</a></li><li><a href="agent/skills.html">QORM Skills</a></li><li><a href="agent/claude-pack.html">QORM Claude Pack</a></li><li><a href="agent/codex-pack.html">QORM Codex Pack</a></li><li><a href="agent/openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">security</div><ul><li><a href="security/security-model.html">QORM Security Model</a></li><li><a href="security/permission-model.html">QORM Permission Model</a></li><li><a href="security/bundle-signing.html">QORM Bundle Signing</a></li></ul><div class="nav-group">spec</div><ul><li><a href="spec/navigation-spec.html">Navigation &amp;amp; routing</a></li></ul></aside>
+  <aside><div class="nav-group">overview</div><ul><li><a href="README.html">QORM documentation</a></li><li><a href="project-structure.html">Project structure</a></li><li><a href="build-with-ai.html">Build QORM apps with your AI assistant</a></li><li><a href="collaboration.html" class="active">Human-AI collaboration on a live app</a></li><li><a href="verification.html">Interpreting &amp; verifying a QORM app</a></li><li><a href="expressions.html">Expressions</a></li><li><a href="qscript.html">QScript language reference</a></li><li><a href="styles.html">QSS — QORM Style Sheets</a></li></ul><div class="nav-group">tutorials</div><ul><li><a href="tutorials/getting-started.html">Getting Started with QORM</a></li><li><a href="tutorials/first-scene.html">First Scene</a></li><li><a href="tutorials/first-action.html">First Action</a></li><li><a href="tutorials/first-component.html">First Component</a></li><li><a href="tutorials/first-platform-pack.html">First Platform Pack</a></li></ul><div class="nav-group">examples</div><ul><li><a href="examples/counter.html">Example: Counter</a></li><li><a href="examples/todo.html">Example: Todo</a></li><li><a href="examples/login.html">Example: Login</a></li><li><a href="examples/dashboard.html">Example: Dashboard</a></li></ul><div class="nav-group">platforms</div><ul><li><a href="platforms/web.html">QORM Web Platform</a></li><li><a href="platforms/mobile.html">QORM Mobile Platform</a></li><li><a href="platforms/desktop.html">QORM Desktop Platform</a></li><li><a href="platforms/miniapp.html">QORM Mini-program platform</a></li><li><a href="platforms/native-middlelayer.html">User middle layer: adding your own capabilities to an app</a></li><li><a href="platforms/capabilities.html">Capabilities</a></li><li><a href="platforms/support-matrix.html">Platform support matrix</a></li></ul><div class="nav-group">agent</div><ul><li><a href="agent/permissions.html">QORM Agent Permissions</a></li><li><a href="agent/mcp-tools.html">QORM MCP tools</a></li><li><a href="agent/skills.html">QORM Skills</a></li><li><a href="agent/claude-pack.html">QORM Claude Pack</a></li><li><a href="agent/codex-pack.html">QORM Codex Pack</a></li><li><a href="agent/openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">security</div><ul><li><a href="security/security-model.html">QORM Security Model</a></li><li><a href="security/permission-model.html">QORM Permission Model</a></li><li><a href="security/bundle-signing.html">QORM Bundle Signing</a></li></ul><div class="nav-group">implementation</div><ul><li><a href="implementation/analysis-and-plan.html">QORM 整体分析与目标实施规划</a></li><li><a href="implementation/audit-log.html">审计日志</a></li><li><a href="implementation/progress.html">实施进度</a></li></ul><div class="nav-group">spec</div><ul><li><a href="spec/navigation-spec.html">Navigation &amp;amp; routing</a></li></ul></aside>
   <main><h1 id="human-ai-collaboration-on-a-live-app">Human-AI collaboration on a live app</h1>
-<p>QORM&#39;s premise: a person and an AI agent work on the <strong>same running app at the same time</strong>, and each sees the other. <code>qorm run</code> serves one live runtime over three channels — a browser for the human, MCP for the agent, and Server-Sent Events (SSE) to keep every viewer in sync.</p>
+<p>QORM&#39;s premise: a person and an AI agent work on the <strong>same running app at the same time</strong>, and each sees the other. <code>qorm run</code> serves one live runtime over the human UI (native canvas on macOS by default, or browser/WebView), HTTP MCP for the agent, and the DevTool/activity stream. Browser/WebView viewers stay in sync over Server-Sent Events (SSE).</p>
 <p><img src="agent/img/console.png" alt="A human and an AI agent on one live QORM app" loading="lazy" decoding="async"> <em>One running app, two panes: the live UI on the left and the shared session log on the right.</em></p>
 <h2 id="start-a-shared-session">Start a shared session</h2>
-<pre><code>qorm run examples/counter          # browser UI + agent endpoint at /mcp</code></pre>
+<pre><code>qorm run examples/counter          # native/browser UI + agent endpoint at /mcp</code></pre>
 <ul>
-<li><strong>Human</strong> — open the printed URL. Clicks POST <code>/event</code>; the UI updates live.</li>
-<li><strong>AI</strong> — connect over MCP: <code>qorm mcp examples/counter</code> (stdio), or POST JSON-RPC</li>
+<li><strong>Human</strong> — use the window QORM opens, or open the printed URL. Native canvas</li>
 </ul>
-<p>to <code>http://127.0.0.1:PORT/mcp</code>. It shares the <em>same</em> runtime the browser renders.</p>
+<p>dispatches directly; browser/WebView clicks POST <code>/event</code>.</p>
+<ul>
+<li><strong>AI</strong> — POST JSON-RPC to <code>http://127.0.0.1:PORT/mcp</code>. That HTTP endpoint</li>
+</ul>
+<p>shares the <em>same</em> runtime as the human UI. <code>qorm mcp examples/counter</code> is a separate stdio runtime and is useful for standalone tooling, not this live shared-session loop.</p>
 <h2 id="the-loop--each-sees-the-other">The loop — each sees the other</h2>
 <ul>
 <li><strong>The human sees the AI.</strong> When the agent edits the app (<code>qorm_apply_patch</code>,</li>
@@ -130,7 +133,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <ul>
 <li><strong>The AI sees the human.</strong> <code>qorm_activity</code> returns the shared session&#39;s live</li>
 </ul>
-<p>presence: the <code>events</code> log (who did what, in order), <code>humanFocus</code> (the element the human is on right now), <code>humanTyping</code> (the text they last entered), and <code>humanFilled</code> (which password fields they completed — by label only; a password value is <strong>never</strong> captured). So the agent collaborates in context — &#34;the human is filling the email field&#34; — instead of guessing from state.</p>
+<p>presence: the <code>events</code> log (who did what, in order), <code>humanFocus</code> (the element the human is on right now), <code>humanTyping</code> (the text they last entered), and <code>humanFilled</code> (which password fields they completed — by label only; a password value is <strong>never</strong> captured). So the agent collaborates in context — &#34;the human is filling the email field&#34; — instead of guessing from state. Native canvas pointer/keyboard actions enter the same human <code>events</code> stream and DevTool as browser/WebView actions. Canvas also reports privacy-safe focus, typing, and hidden-field labels through the same presence model.</p>
 <ul>
 <li><strong>The human sees what&#39;s shared.</strong> The activity panel (a separate window the</li>
 </ul>
