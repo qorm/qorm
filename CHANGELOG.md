@@ -6,6 +6,8 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+## [v0.9.3] - 2026-08-14
+
 ### Changed
 - **Repository renamed to `github.com/qorm/platform`**: Go module path, package imports, CI/CD workflows, container image targets (`ghcr.io/qorm/platform`), and official website links (`qorm.com`) updated from `github.com/qorm/qorm` to `github.com/qorm/platform`. The project and CLI name remain `qorm`.
 
@@ -1429,6 +1431,7 @@ Initial release: QORM, an agent-native declarative-UI runtime in pure Go.
 - Render performance: cached parsed expressions and reflection-free CSS
   numeric writes in the hot path.
 
+[v0.9.3]: https://github.com/qorm/platform/compare/v0.9.2...v0.9.3
 [v0.9.2]: https://github.com/qorm/platform/compare/v0.9.1...v0.9.2
 [v0.9.1]: https://github.com/qorm/platform/compare/v0.9.0...v0.9.1
 [v0.9.0]: https://github.com/qorm/platform/compare/v0.8.11...v0.9.0
