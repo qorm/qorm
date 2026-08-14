@@ -9,11 +9,11 @@ import (
 	"image/color"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/render/canvas"
-	"github.com/qorm/qorm/internal/render/draw"
-	"github.com/qorm/qorm/internal/runtime"
-	"github.com/qorm/qorm/internal/theme"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/render/canvas"
+	"github.com/qorm/platform/internal/render/draw"
+	"github.com/qorm/platform/internal/runtime"
+	"github.com/qorm/platform/internal/theme"
 )
 
 func chartRT() *runtime.Runtime {

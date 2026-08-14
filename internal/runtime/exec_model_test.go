@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/model"
 )
 
 // Tests for the execution-model steps: `if` (conditional branches), `invoke`

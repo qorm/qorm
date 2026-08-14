@@ -20,8 +20,8 @@
 package draw
 
 import (
-	"github.com/qorm/qorm/internal/op"
-	"github.com/qorm/qorm/internal/render/graph"
+	"github.com/qorm/platform/internal/op"
+	"github.com/qorm/platform/internal/render/graph"
 )
 
 type (

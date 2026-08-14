@@ -5,7 +5,7 @@ package main
 import (
 	"unsafe"
 
-	webview "github.com/qorm/qorm/internal/webview"
+	webview "github.com/qorm/platform/internal/webview"
 )
 
 // nativeTray: a native Windows (Shell_NotifyIcon) / BSD tray is not wired yet,

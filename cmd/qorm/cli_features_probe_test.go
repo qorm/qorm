@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/bundle"
+	"github.com/qorm/platform/internal/bundle"
 )
 
 // runQORMStdin runs the built binary with args, feeding stdin, and returns

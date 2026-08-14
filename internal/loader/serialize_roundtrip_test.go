@@ -36,8 +36,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/pkg/qormext"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/pkg/qormext"
 )
 
 // roundTripApp builds a model.App exercising EVERY field the round-3 bugs

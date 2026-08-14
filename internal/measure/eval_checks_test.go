@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
-	qrt "github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/model"
+	qrt "github.com/qorm/platform/internal/runtime"
 )
 
 // textApp has nodes carrying expressed text/labels so the "text" check's

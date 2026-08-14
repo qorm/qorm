@@ -3,7 +3,7 @@ package loader
 import (
 	"sort"
 
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/model"
 )
 
 // typedKeys are node fields represented by struct fields; everything else in a

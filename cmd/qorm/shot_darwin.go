@@ -186,10 +186,10 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/qorm/qorm/internal/loader"
-	"github.com/qorm/qorm/internal/render"
-	qrt "github.com/qorm/qorm/internal/runtime"
-	"github.com/qorm/qorm/internal/server"
+	"github.com/qorm/platform/internal/loader"
+	"github.com/qorm/platform/internal/render"
+	qrt "github.com/qorm/platform/internal/runtime"
+	"github.com/qorm/platform/internal/server"
 )
 
 func runShot(html string, w, h int, out string) bool {

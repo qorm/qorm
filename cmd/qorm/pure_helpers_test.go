@@ -17,8 +17,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/qorm/qorm/internal/keys"
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/keys"
+	"github.com/qorm/platform/internal/model"
 )
 
 func TestSanitizeID(t *testing.T) {

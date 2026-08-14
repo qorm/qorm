@@ -16,9 +16,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/render"
-	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/render"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 var (

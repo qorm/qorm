@@ -8,10 +8,10 @@ import (
 	"image"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/render/canvas"
-	"github.com/qorm/qorm/internal/runtime"
-	"github.com/qorm/qorm/internal/theme"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/render/canvas"
+	"github.com/qorm/platform/internal/runtime"
+	"github.com/qorm/platform/internal/theme"
 )
 
 func badgeEngine(t *testing.T, label any) (*canvas.Engine, *canvas.HeadlessSurface) {

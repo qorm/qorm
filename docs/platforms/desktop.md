@@ -21,10 +21,10 @@ directly (StatusNotifierItem / org.freedesktop.Notifications / Secret
 Service — GNOME needs the AppIndicator extension for the tray; keys land in
 GNOME Keyring or KWallet).
 
-Examples that exercise desktop features: [`menus`](https://github.com/qorm/qorm/tree/main/examples/menus) (system
+Examples that exercise desktop features: [`menus`](https://github.com/qorm/platform/tree/main/examples/menus) (system
 menu bar / tray / right-click menus, with icons + submenus),
-[`floating`](https://github.com/qorm/qorm/tree/main/examples/floating) (chromeless + transparent, custom-shape
-window), [`desktop-hardware`](https://github.com/qorm/qorm/tree/main/examples/desktop-hardware). See the
+[`floating`](https://github.com/qorm/platform/tree/main/examples/floating) (chromeless + transparent, custom-shape
+window), [`desktop-hardware`](https://github.com/qorm/platform/tree/main/examples/desktop-hardware). See the
 [support matrix](support-matrix.md) for what's tested per OS.
 
 ![The QORM dashboard used as a stand-in for the desktop build](img/web-dashboard.png)

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"html"
 
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/model"
 )
 
 // controlTile is Flutter's SwitchListTile/CheckboxListTile/RadioListTile: a

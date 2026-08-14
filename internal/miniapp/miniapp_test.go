@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/loader"
-	qrt "github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/loader"
+	qrt "github.com/qorm/platform/internal/runtime"
 )
 
 func TestBuildProjectWeChat(t *testing.T) {

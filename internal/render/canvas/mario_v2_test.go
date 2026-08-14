@@ -35,12 +35,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/qorm/qorm/internal/loader"
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/qscript"
-	"github.com/qorm/qorm/internal/render/graph"
-	"github.com/qorm/qorm/internal/runtime"
-	"github.com/qorm/qorm/internal/theme"
+	"github.com/qorm/platform/internal/loader"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/qscript"
+	"github.com/qorm/platform/internal/render/graph"
+	"github.com/qorm/platform/internal/runtime"
+	"github.com/qorm/platform/internal/theme"
 )
 
 func marioV2Fixture(t *testing.T) (*Engine, *HeadlessSurface, *runtime.Runtime) {

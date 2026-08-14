@@ -13,8 +13,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 // nid returns a node's id made unique within the current list item, so widgets

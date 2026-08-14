@@ -23,11 +23,11 @@ state.filterOn = !state.filterOn
 }
 ```
 
-端到端示例:[`examples/canvas-fx`](https://github.com/qorm/qorm/tree/main/examples/canvas-fx)。共享游戏核心:
-[`examples/tetris`](https://github.com/qorm/qorm/tree/main/examples/tetris)(`actions/*.qs` + `styles/app.qss`)。
+端到端示例:[`examples/canvas-fx`](https://github.com/qorm/platform/tree/main/examples/canvas-fx)。共享游戏核心:
+[`examples/tetris`](https://github.com/qorm/platform/tree/main/examples/tetris)(`actions/*.qs` + `styles/app.qss`)。
 横版:在这里写物理 `x`/`y`,用 `board` 镜头 + `tilemap` 跟随——见
 [样式 — 瓦片世界](styles.md#横版与瓦片世界board--tilemap) 与
-[`examples/mario`](https://github.com/qorm/qorm/tree/main/examples/mario)。
+[`examples/mario`](https://github.com/qorm/platform/tree/main/examples/mario)。
 
 ## 语句
 
@@ -99,7 +99,7 @@ if (state.status == "playing") {
 没有任何 I/O 或外部调用面：脚本是 `(state, args)` 的纯函数。唯一的时钟是
 `now()` 内建函数（Unix 毫秒时间戳）。随机性只能通过状态传入
 （例如将 LCG 种子存入 `state.rng` — 参见
-[`examples/tetris`](https://github.com/qorm/qorm/tree/main/examples/tetris)）。
+[`examples/tetris`](https://github.com/qorm/platform/tree/main/examples/tetris)）。
 
 ## 管控（反失控保护）
 
@@ -129,9 +129,9 @@ call("someAction", { key: 42 })   # 带参数
 
 ## 完整示例：物理帧
 
-完整游戏脚本请参见 [Raiden](https://github.com/qorm/qorm/tree/main/examples/raiden)、
-[Mario](https://github.com/qorm/qorm/tree/main/examples/mario) 或
-[Tetris](https://github.com/qorm/qorm/tree/main/examples/tetris) 示例
+完整游戏脚本请参见 [Raiden](https://github.com/qorm/platform/tree/main/examples/raiden)、
+[Mario](https://github.com/qorm/platform/tree/main/examples/mario) 或
+[Tetris](https://github.com/qorm/platform/tree/main/examples/tetris) 示例
 （含对 `audio/*.wav` 的 `playSound` / `playMusic` / `stopMusic`）。
 以下是 Raiden 的 `tick.qs` 节选：
 

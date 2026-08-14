@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/qorm/qorm/internal/measure"
-	"github.com/qorm/qorm/internal/render/canvas"
+	"github.com/qorm/platform/internal/measure"
+	"github.com/qorm/platform/internal/render/canvas"
 )
 
 // measureRowsCanvas lays out the app with the pure-Go canvas engine (no

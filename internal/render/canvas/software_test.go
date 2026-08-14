@@ -5,9 +5,9 @@ import (
 	"image/color"
 	"testing"
 
-	"github.com/qorm/qorm/internal/geom"
-	"github.com/qorm/qorm/internal/op"
-	"github.com/qorm/qorm/internal/render/graph"
+	"github.com/qorm/platform/internal/geom"
+	"github.com/qorm/platform/internal/op"
+	"github.com/qorm/platform/internal/render/graph"
 )
 
 // SoftwareRenderer must satisfy the Renderer contract.

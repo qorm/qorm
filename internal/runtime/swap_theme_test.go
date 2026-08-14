@@ -3,7 +3,7 @@ package runtime
 import (
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/model"
 )
 
 func themeApp(theme string, initial map[string]any) *model.App {

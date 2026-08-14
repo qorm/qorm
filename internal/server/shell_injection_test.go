@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 // The HTML shell used to interpolate two state-controlled values RAW:

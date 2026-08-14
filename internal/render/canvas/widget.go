@@ -5,9 +5,9 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/render/graph"
-	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/render/graph"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 // Widget is the contract between the engine and one UI component type —

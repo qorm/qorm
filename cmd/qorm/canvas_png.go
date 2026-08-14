@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/qorm/qorm/internal/render/canvas"
+	"github.com/qorm/platform/internal/render/canvas"
 )
 
 const (

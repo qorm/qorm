@@ -11,7 +11,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/model"
 )
 
 // Node is one entry in the accessibility tree: a widget's derived ARIA role, its

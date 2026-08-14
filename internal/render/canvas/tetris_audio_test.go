@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/qorm/qorm/internal/expr"
+	"github.com/qorm/platform/internal/expr"
 )
 
 // tetrisAudioFiles is the clip set baked by tools/gentetrisaudio.

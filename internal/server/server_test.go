@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/bundle"
-	"github.com/qorm/qorm/internal/keys"
-	"github.com/qorm/qorm/internal/render"
+	"github.com/qorm/platform/internal/bundle"
+	"github.com/qorm/platform/internal/keys"
+	"github.com/qorm/platform/internal/render"
 )
 
 func counterDir() string { return filepath.Join("..", "..", "examples", "counter") }

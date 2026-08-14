@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/qorm/qorm/internal/loader"
-	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/loader"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 // Server-side tests for the M4 governance fields, with REAL goroutines: request

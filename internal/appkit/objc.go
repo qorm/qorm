@@ -5,7 +5,7 @@ package appkit
 import (
 	"unsafe"
 
-	"github.com/qorm/qorm/internal/purego"
+	"github.com/qorm/platform/internal/purego"
 )
 
 var (

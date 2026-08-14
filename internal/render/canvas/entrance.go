@@ -15,9 +15,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/qorm/qorm/internal/anim"
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/anim"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 // entranceKey identifies one mounted node. List instances share the template's

@@ -11,7 +11,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/qorm/qorm/internal/bundle"
+	"github.com/qorm/platform/internal/bundle"
 )
 
 // Rollout describes which bundle an app's clients receive. A deterministic

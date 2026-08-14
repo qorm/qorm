@@ -18,9 +18,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/qorm/qorm/internal/loader"
-	"github.com/qorm/qorm/internal/render/canvas"
-	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/loader"
+	"github.com/qorm/platform/internal/render/canvas"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 // Session is one running app instance (engine + surface state). It is NOT

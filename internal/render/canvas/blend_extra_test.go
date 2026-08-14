@@ -5,8 +5,8 @@ import (
 	"image/color"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/op"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/op"
 )
 
 func TestMixBlendDifference(t *testing.T) {

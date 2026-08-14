@@ -4,9 +4,9 @@ import (
 	"image"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/runtime"
-	"github.com/qorm/qorm/internal/theme"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/runtime"
+	"github.com/qorm/platform/internal/theme"
 )
 
 func TestTilemapBakesOneImageAndCaches(t *testing.T) {

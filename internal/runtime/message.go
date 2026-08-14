@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/qorm/qorm/internal/expr"
+	"github.com/qorm/platform/internal/expr"
 )
 
 // fillMessage expands an ICU-MessageFormat-lite catalog string against ctx:

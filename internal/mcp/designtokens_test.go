@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
-	qrt "github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/model"
+	qrt "github.com/qorm/platform/internal/runtime"
 )
 
 // tokenApp builds a minimal app with two enforced color tokens and one

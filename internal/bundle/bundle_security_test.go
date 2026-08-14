@@ -14,8 +14,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/keys"
-	"github.com/qorm/qorm/internal/loader"
+	"github.com/qorm/platform/internal/keys"
+	"github.com/qorm/platform/internal/loader"
 )
 
 // --- canonicalization determinism ---

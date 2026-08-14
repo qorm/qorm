@@ -100,12 +100,12 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <body>
 <header class="top"><div class="tnav">
   <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
-  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.9.0</a>
+  <a class="ver" href="https://github.com/qorm/platform/releases" target="_blank" rel="noopener" title="Release notes">v0.9.2</a>
   <span class="doc">docs</span>
   <span class="sp"></span>
   <nav class="pill" aria-label="Primary"><a class="tl active-nav" href="/docs/">Docs</a><a class="tl" href="/api/">API</a><a class="tl" href="/compare/">Compare</a><a class="tl" href="/about.html">About</a></nav>
   <a class="btn navcta" href="/docs/build-with-ai.html">Get started</a>
-  <a class="iconlink" href="https://github.com/qorm/qorm" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
+  <a class="iconlink" href="https://github.com/qorm/platform" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
   <a class="iconlink patreon" href="https://www.patreon.com/qorm" target="_blank" rel="noopener" aria-label="Patreon" title="Patreon"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="14.4" cy="9.6" r="6.6"/><rect x="1.5" y="2.5" width="4" height="19" rx="0.3"/></svg></a>
   <a class="iconlink lang" href="../zh/platforms/native-middlelayer.html" data-lang="zh" aria-label="中文" title="中文"><span>中</span></a>
   <button class="tbtn" id="theme" aria-label="Theme"></button>
@@ -119,7 +119,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <pre><code>//go:build ignore
 
 package main
-import &#34;github.com/qorm/qorm/pkg/qormext&#34;
+import &#34;github.com/qorm/platform/pkg/qormext&#34;
 func init() {
     qormext.Register(&#34;myBankSDK&#34;, func(data map[string]any) string {
         // Your Go logic: algorithms, protocols, HTTP, backend integration... data is the qormToNative payload
@@ -181,11 +181,11 @@ function qormOnBankSDK(msg) {
 <blockquote>A component&#39;s <code>id</code> (declared in qorm.json) renders as the DOM <code>id</code>, so <code>web.js</code> can locate it with <code>getElementById</code> / <code>closest(&#39;#id&#39;)</code>.</blockquote>
 <h2 id="complete-examples">Complete examples</h2>
 <ul>
-<li><a href="https://github.com/qorm/qorm/tree/main/examples/middleware"><code>examples/middleware</code></a> -- <strong>recommended</strong>, showing the full Go middle layer:</li>
+<li><a href="https://github.com/qorm/platform/tree/main/examples/middleware"><code>examples/middleware</code></a> -- <strong>recommended</strong>, showing the full Go middle layer:</li>
 </ul>
 <p><code>hash</code> (real <code>crypto/sha256</code>, logic that declarative JSON cannot express), <code>visit</code> (stateful counting held in Go memory), <code>celebrate</code> (Go calling the framework hardware bridge <code>qormext.Native</code> + using <code>qormext.Emit</code> to push events to the UI event bus). A single <code>native/desktop.go</code>, compiled into the desktop binary and the mobile/web WASM alike.</p>
 <ul>
-<li><a href="https://github.com/qorm/qorm/tree/main/examples/native-ext"><code>examples/native-ext</code></a> -- minimal version: a &#34;Pay via Native SDK&#34; button,</li>
+<li><a href="https://github.com/qorm/platform/tree/main/examples/native-ext"><code>examples/native-ext</code></a> -- minimal version: a &#34;Pay via Native SDK&#34; button,</li>
 </ul>
 <p>with <code>ios.swift</code> / <code>android.java</code> pure-native escape-hatch snippets.</p>
 <pre><code>qorm run examples/middleware                         # desktop: Go middle layer compiled into the binary, runs directly
@@ -200,7 +200,7 @@ qorm package examples/native-ext -p ios --dev URL    # inject ios.swift into the
 <li><strong>Desktop (macOS)</strong>: the user middle layer is just <strong>Go</strong>, <strong>compiled into that single binary</strong> together with the frontend + framework (not a subprocess, not another language). Write <code>native/desktop.go</code>:</li>
 </ul>
 <p>```go //go:build ignore</p>
-<p>package main import &#34;github.com/qorm/qorm/pkg/qormext&#34; func init() { qormext.Register(&#34;myBankSDK&#34;, func(data map[string]any) string { // Your Go logic: HTTP, computation, protocols, backend integration... data is the qormToNative payload return <code>qormOnBankSDK(&#34;paid via Go middle-layer&#34;)</code> // return one line of JS, which desktop evals back into the page }) } ```</p>
+<p>package main import &#34;github.com/qorm/platform/pkg/qormext&#34; func init() { qormext.Register(&#34;myBankSDK&#34;, func(data map[string]any) string { // Your Go logic: HTTP, computation, protocols, backend integration... data is the qormToNative payload return <code>qormOnBankSDK(&#34;paid via Go middle-layer&#34;)</code> // return one line of JS, which desktop evals back into the page }) } ```</p>
 <p><code>qorm package -p mac</code> runs <code>go build</code> on it together with the framework into a <strong>single binary</strong> (the packager injects it into cmd/qorm for compilation, then removes it afterward); when the desktop bridge hits an unknown op, it looks it up in the <code>qormext</code> registry. <code>web.js</code> also works as usual (on desktop, camera/microphone/location use the Web API directly, since localhost is a secure context).</p>
 <blockquote><code>//go:build ignore</code> keeps <code>go build ./...</code> from compiling it standalone; at package time the packager strips this line before compiling it in.</blockquote>
 <ul>
@@ -219,10 +219,10 @@ qorm package examples/native-ext -p ios --dev URL    # inject ios.swift into the
 package main
 
 import (
-    &#34;github.com/qorm/qorm/internal/model&#34;
-    &#34;github.com/qorm/qorm/internal/render/canvas&#34;
-    &#34;github.com/qorm/qorm/internal/render/draw&#34;
-    &#34;github.com/qorm/qorm/internal/runtime&#34;
+    &#34;github.com/qorm/platform/internal/model&#34;
+    &#34;github.com/qorm/platform/internal/render/canvas&#34;
+    &#34;github.com/qorm/platform/internal/render/draw&#34;
+    &#34;github.com/qorm/platform/internal/runtime&#34;
 )
 
 func init() { canvas.RegisterWidget(&#34;rating&#34;, ratingWidget{}) }

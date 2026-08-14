@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/keys"
-	"github.com/qorm/qorm/internal/loader"
-	"github.com/qorm/qorm/internal/render"
-	qrt "github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/keys"
+	"github.com/qorm/platform/internal/loader"
+	"github.com/qorm/platform/internal/render"
+	qrt "github.com/qorm/platform/internal/runtime"
 )
 
 func counterDir() string { return filepath.Join("..", "..", "examples", "counter") }

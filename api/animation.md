@@ -97,13 +97,13 @@ Composable with entrance `animation`, `transition` / spring press, FLIP, and
 style `rotate` / `scale` / `flipX` / `skewX` / `skewY` — offsets stack on the same transform
 channels (pivot: style `transformOrigin`, default center). Persistent style transform does not change the layout box.
 
-Runnable: [`examples/canvas-fx`](https://github.com/qorm/qorm/tree/main/examples/canvas-fx) (FX section). Live
-games: [`examples/tetris`](https://github.com/qorm/qorm/tree/main/examples/tetris) (local clear flash +
+Runnable: [`examples/canvas-fx`](https://github.com/qorm/platform/tree/main/examples/canvas-fx) (FX section). Live
+games: [`examples/tetris`](https://github.com/qorm/platform/tree/main/examples/tetris) (local clear flash +
 SINGLE/DOUBLE/TRIPLE/TETRIS banner + gold outline; NEXT/SCORE/LINES punch;
-the board does not shake or burst), [`examples/g2048`](https://github.com/qorm/qorm/tree/main/examples/g2048)
+the board does not shake or burst), [`examples/g2048`](https://github.com/qorm/platform/tree/main/examples/g2048)
 (local spawn/merge color flashes only; SCORE punch; the board does not
-move), [`examples/mario`](https://github.com/qorm/qorm/tree/main/examples/mario) (`fxJump`/`fxCoin`/`fxDeath`),
-[`examples/raiden`](https://github.com/qorm/qorm/tree/main/examples/raiden) (`fxHit`/`fxBomb`/`fxBoss`, explosions
+move), [`examples/mario`](https://github.com/qorm/platform/tree/main/examples/mario) (`fxJump`/`fxCoin`/`fxDeath`),
+[`examples/raiden`](https://github.com/qorm/platform/tree/main/examples/raiden) (`fxHit`/`fxBomb`/`fxBoss`, explosions
 `burst`). Physics owns `x`/`y`; `fx` is a visual offset only. Puzzle grids
 keep motion on cells and HUD, not the whole board.
 
@@ -304,7 +304,7 @@ canvas eases the jump instead of snapping:
 }
 ```
 
-Runnable demo: [`examples/canvas-fx`](https://github.com/qorm/qorm/tree/main/examples/canvas-fx) (scroll-snap,
+Runnable demo: [`examples/canvas-fx`](https://github.com/qorm/platform/tree/main/examples/canvas-fx) (scroll-snap,
 filters, mask, clip-path, spring press, and FLIP in one scene). Full style
 key list: [common style props](props.md#common-style-props) and
 [QSS / canvas effects](../docs/styles.md#canvas-visual-effects).

@@ -12,22 +12,22 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
      crossorigin="anonymous"></script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>QORM Skills · QORM</title>
-<meta name="description" content="Skill 是供 agent 使用的工作流描述。QORM 应为不同任务提供可复用的 Skill。">
-<meta property="og:title" content="QORM Skills">
-<meta property="og:description" content="Skill 是供 agent 使用的工作流描述。QORM 应为不同任务提供可复用的 Skill。">
+<title>QORM 技能（Skills） · QORM</title>
+<meta name="description" content="QORM 技能是面向 AI 智能体的实战指令集：它编码了可运行的应用格式、MCP 工具面， 以及智能体可靠完成 QORM 任务所需的验证闭环。技能随仓库发布于 integrations/skill/， 由智能体在会话开始时加载。">
+<meta property="og:title" content="QORM 技能（Skills）">
+<meta property="og:description" content="QORM 技能是面向 AI 智能体的实战指令集：它编码了可运行的应用格式、MCP 工具面， 以及智能体可靠完成 QORM 任务所需的验证闭环。技能随仓库发布于 integrations/skill/， 由智能体在会话开始时加载。">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://qorm.com/docs/zh/agent/skills.html">
 <meta property="og:site_name" content="QORM">
 <meta property="og:locale" content="zh_CN">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="QORM Skills">
-<meta name="twitter:description" content="Skill 是供 agent 使用的工作流描述。QORM 应为不同任务提供可复用的 Skill。">
+<meta name="twitter:title" content="QORM 技能（Skills）">
+<meta name="twitter:description" content="QORM 技能是面向 AI 智能体的实战指令集：它编码了可运行的应用格式、MCP 工具面， 以及智能体可靠完成 QORM 任务所需的验证闭环。技能随仓库发布于 integrations/skill/， 由智能体在会话开始时加载。">
 <link rel="canonical" href="https://qorm.com/docs/zh/agent/skills.html">
 <link rel="alternate" hreflang="en" href="https://qorm.com/docs/agent/skills.html">
 <link rel="alternate" hreflang="zh-CN" href="https://qorm.com/docs/zh/agent/skills.html">
 <link rel="alternate" hreflang="x-default" href="https://qorm.com/docs/agent/skills.html">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"Skill 是供 agent 使用的工作流描述。QORM 应为不同任务提供可复用的 Skill。","headline":"QORM Skills","inLanguage":"zh","name":"QORM Skills","url":"https://qorm.com/docs/zh/agent/skills.html"}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"QORM 技能是面向 AI 智能体的实战指令集：它编码了可运行的应用格式、MCP 工具面， 以及智能体可靠完成 QORM 任务所需的验证闭环。技能随仓库发布于 integrations/skill/， 由智能体在会话开始时加载。","headline":"QORM 技能（Skills）","inLanguage":"zh","name":"QORM 技能（Skills）","url":"https://qorm.com/docs/zh/agent/skills.html"}</script>
 <link rel="icon" href="/assets/logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -100,57 +100,71 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <body>
 <header class="top"><div class="tnav">
   <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
-  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.9.0</a>
+  <a class="ver" href="https://github.com/qorm/platform/releases" target="_blank" rel="noopener" title="Release notes">v0.9.2</a>
   <span class="doc">docs</span>
   <span class="sp"></span>
   <nav class="pill" aria-label="Primary"><a class="tl active-nav" href="/docs/zh/">文档</a><a class="tl" href="/api/zh/">接口</a><a class="tl" href="/compare/index.zh.html">对比</a><a class="tl" href="/about.zh.html">关于</a></nav>
   <a class="btn navcta" href="/docs/zh/build-with-ai.html">开始使用</a>
-  <a class="iconlink" href="https://github.com/qorm/qorm" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
+  <a class="iconlink" href="https://github.com/qorm/platform" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
   <a class="iconlink patreon" href="https://www.patreon.com/qorm" target="_blank" rel="noopener" aria-label="资助" title="资助"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="14.4" cy="9.6" r="6.6"/><rect x="1.5" y="2.5" width="4" height="19" rx="0.3"/></svg></a>
   <a class="iconlink lang" href="../../agent/skills.html" data-lang="en" aria-label="English" title="English"><span>EN</span></a>
   <button class="tbtn" id="theme" aria-label="Theme"></button>
 </div></header>
 <div class="shell">
-  <aside><div class="nav-group">概览</div><ul><li><a href="../README.html">QORM 文档</a></li><li><a href="../project-structure.html">工程结构</a></li><li><a href="../build-with-ai.html">与你的 AI 助手一起构建 QORM 应用</a></li><li><a href="../collaboration.html">在运行中的应用上进行人机协作</a></li><li><a href="../verification.html">解释并验证一个 QORM 应用</a></li><li><a href="../expressions.html">表达式</a></li><li><a href="../qscript.html">QScript 脚本语言参考</a></li><li><a href="../styles.html">QSS — QORM 样式表</a></li></ul><div class="nav-group">教程</div><ul><li><a href="../tutorials/getting-started.html">QORM 快速上手</a></li><li><a href="../tutorials/first-scene.html">第一个场景</a></li><li><a href="../tutorials/first-action.html">第一个动作</a></li><li><a href="../tutorials/first-component.html">第一个组件</a></li><li><a href="../tutorials/first-platform-pack.html">第一个平台包</a></li></ul><div class="nav-group">示例</div><ul><li><a href="../examples/counter.html">示例:计数器</a></li><li><a href="../examples/todo.html">示例:待办事项</a></li><li><a href="../examples/login.html">示例:登录</a></li><li><a href="../examples/dashboard.html">示例:仪表盘</a></li></ul><div class="nav-group">平台</div><ul><li><a href="../platforms/web.html">QORM Web 平台</a></li><li><a href="../platforms/mobile.html">QORM 移动平台</a></li><li><a href="../platforms/desktop.html">QORM 桌面平台</a></li><li><a href="../platforms/miniapp.html">QORM 小程序平台</a></li><li><a href="../platforms/native-middlelayer.html">用户中间层:为应用添加你自己的能力</a></li><li><a href="../platforms/capabilities.html">能力清单</a></li><li><a href="../platforms/support-matrix.html">平台支持矩阵</a></li></ul><div class="nav-group">智能体</div><ul><li><a href="permissions.html">QORM Agent 权限</a></li><li><a href="mcp-tools.html">QORM MCP 工具</a></li><li><a href="skills.html" class="active">QORM Skills</a></li><li><a href="claude-pack.html">QORM Claude Pack</a></li><li><a href="codex-pack.html">QORM Codex Pack</a></li><li><a href="openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">安全</div><ul><li><a href="../security/security-model.html">QORM 安全模型</a></li><li><a href="../security/permission-model.html">QORM 权限模型</a></li><li><a href="../security/bundle-signing.html">QORM Bundle 签名</a></li></ul><div class="nav-group">implementation</div><ul><li><a href="../../implementation/analysis-and-plan.html">QORM 整体分析与目标实施规划 <span class="entag">EN</span></a></li><li><a href="../../implementation/audit-log.html">审计日志 <span class="entag">EN</span></a></li><li><a href="../../implementation/progress.html">实施进度 <span class="entag">EN</span></a></li></ul><div class="nav-group">spec</div><ul><li><a href="../spec/navigation-spec.html">导航与路由</a></li></ul></aside>
-  <main><h1 id="qorm-skills">QORM Skills</h1>
-<p>Skill 是供 agent 使用的工作流描述。QORM 应为不同任务提供可复用的 Skill。</p>
-<h2 id="skill-类型">Skill 类型</h2>
-<pre><code>scene-authoring
-layout-debugging
-agent-patch
-platform-porting
-motion-design
-host-capability-check
-mobile-adaptation</code></pre>
-<h2 id="skill-基本结构">Skill 基本结构</h2>
-<pre><code>Goal
-Applicable scope
-Input files
-Recommended tools
-Steps
-Prohibited actions
-Output format
-Permission requirements</code></pre>
-<h2 id="scene-authoring">scene-authoring</h2>
-<p>用途:让 agent 创建或修改场景 JSON。</p>
-<p>规则:</p>
-<ul>
-<li>JSON 必须保持有效。</li>
-<li>必须使用 <code>type</code> 字段来区分文件语义。</li>
-<li>侧滚关卡用 <code>board</code> + <code>tilemap</code>，不要用 <code>list</code> 铺整张地图。</li>
-<li>不要对 60fps 物理的 <code>x</code>/<code>y</code> 做 <code>layoutMotion</code> / transition。</li>
-<li>不得凭空添加 Host Capabilities。</li>
-<li>修改后,必须执行 validate。</li>
-</ul>
-<h2 id="layout-debugging">layout-debugging</h2>
-<p>用途:分析布局异常。</p>
-<p>步骤:</p>
-<pre><code>inspect_scene
-layout_debug
-Inspect LayoutSpec
-Inspect text measurement
-Inspect safe area / scroll / absolute
-preview_patch</code></pre>
+  <aside><div class="nav-group">概览</div><ul><li><a href="../README.html">QORM 文档</a></li><li><a href="../project-structure.html">工程结构</a></li><li><a href="../build-with-ai.html">与你的 AI 助手一起构建 QORM 应用</a></li><li><a href="../collaboration.html">在运行中的应用上进行人机协作</a></li><li><a href="../verification.html">解释并验证一个 QORM 应用</a></li><li><a href="../expressions.html">表达式</a></li><li><a href="../qscript.html">QScript 脚本语言参考</a></li><li><a href="../styles.html">QSS — QORM 样式表</a></li></ul><div class="nav-group">教程</div><ul><li><a href="../tutorials/getting-started.html">QORM 快速上手</a></li><li><a href="../tutorials/first-scene.html">第一个场景</a></li><li><a href="../tutorials/first-action.html">第一个动作</a></li><li><a href="../tutorials/first-component.html">第一个组件</a></li><li><a href="../tutorials/first-platform-pack.html">第一个平台包</a></li></ul><div class="nav-group">示例</div><ul><li><a href="../examples/counter.html">示例:计数器</a></li><li><a href="../examples/todo.html">示例:待办事项</a></li><li><a href="../examples/login.html">示例:登录</a></li><li><a href="../examples/dashboard.html">示例:仪表盘</a></li></ul><div class="nav-group">平台</div><ul><li><a href="../platforms/web.html">QORM Web 平台</a></li><li><a href="../platforms/mobile.html">QORM 移动平台</a></li><li><a href="../platforms/desktop.html">QORM 桌面平台</a></li><li><a href="../platforms/miniapp.html">QORM 小程序平台</a></li><li><a href="../platforms/native-middlelayer.html">用户中间层:为应用添加你自己的能力</a></li><li><a href="../platforms/capabilities.html">能力清单</a></li><li><a href="../platforms/support-matrix.html">平台支持矩阵</a></li></ul><div class="nav-group">智能体</div><ul><li><a href="permissions.html">QORM Agent 权限</a></li><li><a href="mcp-tools.html">QORM MCP 工具</a></li><li><a href="skills.html" class="active">QORM 技能（Skills）</a></li><li><a href="claude-pack.html">QORM Claude Pack</a></li><li><a href="codex-pack.html">QORM Codex Pack</a></li><li><a href="openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">安全</div><ul><li><a href="../security/security-model.html">QORM 安全模型</a></li><li><a href="../security/permission-model.html">QORM 权限模型</a></li><li><a href="../security/bundle-signing.html">QORM Bundle 签名</a></li></ul><div class="nav-group">implementation</div><ul><li><a href="../../implementation/analysis-and-plan.html">QORM 整体分析与目标实施规划 <span class="entag">EN</span></a></li><li><a href="../../implementation/audit-log.html">审计日志 <span class="entag">EN</span></a></li><li><a href="../../implementation/progress.html">实施进度 <span class="entag">EN</span></a></li></ul><div class="nav-group">spec</div><ul><li><a href="../spec/navigation-spec.html">导航与路由</a></li></ul></aside>
+  <main><h1 id="qorm-技能skills">QORM 技能（Skills）</h1>
+<p>QORM 技能是面向 AI 智能体的实战指令集：它编码了可运行的应用格式、MCP 工具面， 以及智能体可靠完成 QORM 任务所需的验证闭环。技能随仓库发布于 <a href="https://github.com/qorm/platform/tree/main/integrations/skill"><code>integrations/skill/</code></a>， 由智能体在会话开始时加载。</p>
+<h2 id="已发布的技能">已发布的技能</h2>
+<p>QORM 发布 <strong>一份综合技能</strong>：<a href="https://github.com/qorm/platform/blob/main/integrations/skill/SKILL.md"><code>integrations/skill/SKILL.md</code></a>。 它是单个 markdown 文件，带有兼容 Claude Code 的 frontmatter （<code>name: qorm</code> + 触发描述），正文按以下章节组织。加载方式：让智能体直接读取该文件 （或经由仓库的 <a href="https://github.com/qorm/platform/blob/main/llms.txt"><code>llms.txt</code></a>，其中已链接该技能）。</p>
+<table>
+<thead><tr><th>章节</th><th>教会智能体什么</th></tr></thead>
+<tbody>
+<tr><td>编写可运行格式</td><td>运行时今天接受的精确 JSON：清单、可选的 <code>qorm.config.json</code> 宿主窗口块（尺寸/标题/resizable/chromeless/transparent → 异形窗口）、<code>text</code> + <code>{{ state.x }}</code> 绑定、<code>richtext</code> spans、<code>video</code>、<code>path</code>、<code>onPress</code>、动作步骤、组件 —— 以及哪些&#34;规格格式&#34;不能用。</td></tr>
+<tr><td>标准动作模式</td><td>加载态、错误处理、乐观更新、表单校验、分页 —— 均为可直接加载的形态，配方见 <code>docs/tutorials/first-action.md</code>。</td></tr>
+<tr><td>通过 MCP 驱动应用</td><td>全部 <strong>25 个 MCP 工具</strong>按用途分组（理解 / 操作 / 窗口 / 设计 / 验证 / 模拟），与 <a href="mcp-tools.html">mcp-tools.md</a> 一致。</td></tr>
+<tr><td>永远自我验证</td><td>何时用 <code>qorm_measure</code> / <code>qorm_check_layout</code>（实时宿主）、何时用 CLI <code>qorm measure</code> / <code>qorm check</code>（无头）；像素证据用 <code>qorm_capture_canvas</code> / <code>qorm shot</code>。</td></tr>
+<tr><td>交付</td><td><code>qorm run</code> / <code>render</code> / <code>build</code> / <code>verify</code> / <code>package</code> 与签名流程。</td></tr>
+<tr><td>保持 QORM 更新</td><td>开工前先执行 <code>qorm update</code> 的纪律。</td></tr>
+<tr><td>Canvas 引擎</td><td>macOS 默认 canvas 窗口 vs <code>-tags desktop</code> WebView；布局、交互、共享活动流、全部 146 种组件。</td></tr>
+<tr><td>声明式交互与 canvas 特效</td><td>任意节点可用的样式键全表：pressed/hover、过渡、FLIP、变换、滤镜、遮罩、fx/timeline、stagger。</td></tr>
+<tr><td>横版卷轴与瓦片世界</td><td><code>board</code> 相机属性 + <code>tilemap</code> 烘焙；游戏运动规则。</td></tr>
+<tr><td>样式系统</td><td>QSS 层叠、主题变量、渐变、108 个已知样式键。</td></tr>
+<tr><td>脚本动作（qscript）</td><td><code>let</code>/<code>if</code>/<code>for</code>/<code>while</code>/<code>fn</code>、状态写入、音频内置函数。</td></tr>
+<tr><td>文本输入编辑</td><td>canvas 的选择/剪贴板/撤销/IME 行为。</td></tr>
+<tr><td>图标字体</td><td>内置 53 个图标名称。</td></tr>
+<tr><td>禁止事项</td><td>硬性规则：不用&#34;理想规格&#34;格式、无 preview token 不得 apply、不用 emoji、不得跳过验证。</td></tr>
+</tbody></table>
+<h2 id="技能编码的工作流">技能编码的工作流</h2>
+<p>这一份技能文件编码了以下可复用工作流；每个工作流都点名所用 MCP 工具及调用顺序。</p>
+<h3 id="场景创作闭环">场景创作闭环</h3>
+<p>脚手架 → 接线 → 验证。</p>
+<ol>
+<li>读取 <code>qorm_inspect</code> 输出（状态模式、场景、动作、设计令牌）。</li>
+<li>使用<a href="/api/widgets.html">组件目录</a>中的规范组件名编写场景 JSON；用 <code>{{ state.x }}</code> 绑定状态。</li>
+<li>通过 <code>onPress</code> 动作名或 <code>actions/*.json</code> 步骤接入行为。</li>
+<li>用 <code>qorm_validate</code> 校验；每次编辑后运行 <code>qorm_check_layout</code>。</li>
+</ol>
+<h3 id="布局调试闭环">布局调试闭环</h3>
+<ol>
+<li><code>qorm_measure</code> —— 每个节点的渲染 x、y、w、h 与计算样式。</li>
+<li>定位溢出（<code>x-overflow</code>）、裁剪（盒子越出其 <code>scroll</code> 视口）、overlay 的 z-index 叠放。</li>
+<li><code>qorm_preview_patch</code> → <code>qorm_diff</code> → <code>qorm_apply_patch</code> 修复。</li>
+<li>重新测量确认。</li>
+</ol>
+<h3 id="评审绑定的补丁闭环">评审绑定的补丁闭环</h3>
+<p><code>qorm_query</code>（定位）→ <code>qorm_preview_patch</code>（安全副本 + <code>previewToken</code>）→ <code>qorm_diff</code>（结构评审）→ <code>qorm_apply_patch</code>（提交，与 token 绑定）→ 出错时 <code>qorm_undo</code>。每次提交都绑定于一次先行评审。</p>
+<h3 id="共享会话协作闭环">共享会话协作闭环</h3>
+<p><code>qorm_activity</code>（人类刚做了什么；<code>inflight: 0</code> = 已静默）→ <code>qorm_dispatch</code> / <code>qorm_set_state</code>（操作）→ <code>qorm_render_html</code> （读取守卫解析后的结果）。</p>
+<h2 id="技能文件的结构格式">技能文件的结构（格式）</h2>
+<p>一份 QORM 技能文件遵循如下构造：</p>
+<pre><code>frontmatter        — 名称 + 描述（智能体触发条件）
+编写格式            — 可运行的 JSON，含反模式
+工具分组            — 使用哪些 MCP 工具、以何种顺序
+工作流              — 上述编号闭环
+禁止行为            — 绝不做的事
+验证                — 如何用渲染现实证明一次编辑</code></pre>
+<h2 id="技能如何保持同步">技能如何保持同步</h2>
+<p>技能只引用自动生成的、以代码为准的参考面 —— 组件目录（<code>api/widgets.md</code>）、 MCP 工具列表（<code>docs/agent/mcp-tools.md</code>，由 <code>internal/mcp/tools.go</code> 生成）、 能力矩阵（<code>docs/platforms/capabilities.md</code>）。QORM 变化时，更新后 （<code>qorm update</code>）重新阅读 <code>AGENTS.md</code> 与技能文件；技能本身与其所描述的特性 在同一提交中更新。</p>
 </main>
 </div>
 <script>

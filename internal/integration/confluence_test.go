@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/qorm/qorm/internal/loader"
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/render"
-	qrt "github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/loader"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/render"
+	qrt "github.com/qorm/platform/internal/runtime"
 )
 
 // The determinism guard, extended.

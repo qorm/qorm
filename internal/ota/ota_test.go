@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/bundle"
-	"github.com/qorm/qorm/internal/keys"
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/bundle"
+	"github.com/qorm/platform/internal/keys"
+	"github.com/qorm/platform/internal/model"
 )
 
 // testApp is the smallest app that compiles into a bundle.

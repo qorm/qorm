@@ -11,10 +11,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/render/canvas"
-	"github.com/qorm/qorm/internal/runtime"
-	"github.com/qorm/qorm/internal/theme"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/render/canvas"
+	"github.com/qorm/platform/internal/runtime"
+	"github.com/qorm/platform/internal/theme"
 )
 
 func displayEngine(t *testing.T, root *model.Node, size image.Point) (*canvas.Engine, *canvas.HeadlessSurface) {

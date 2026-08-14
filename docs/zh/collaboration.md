@@ -58,4 +58,4 @@ qorm run examples/counter          # native/browser UI + agent endpoint at /mcp
 | verify | `qorm_measure`, `qorm_check_layout` |
 
 完整参考:[MCP 工具](../agent/mcp-tools.md)。要把 QORM 添加到你的智能体,见
-[`integrations/`](https://github.com/qorm/qorm/tree/main/integrations)。
+[`integrations/`](https://github.com/qorm/platform/tree/main/integrations)。

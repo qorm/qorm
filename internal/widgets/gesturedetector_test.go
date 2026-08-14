@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/render/canvas"
-	"github.com/qorm/qorm/internal/runtime"
-	"github.com/qorm/qorm/internal/theme"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/render/canvas"
+	"github.com/qorm/platform/internal/runtime"
+	"github.com/qorm/platform/internal/theme"
 )
 
 // gestureEngine builds an engine around one gestureDetector wrapping a box,

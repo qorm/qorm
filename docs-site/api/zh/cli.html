@@ -94,12 +94,12 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <body>
 <header class="top"><div class="tnav">
   <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
-  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.5.5</a>
+  <a class="ver" href="https://github.com/qorm/platform/releases" target="_blank" rel="noopener" title="Release notes">v0.5.5</a>
   <span class="doc">QORM-API</span>
   <span class="sp"></span>
   <a class="tl" href="/">首页</a>
   <a class="tl" href="/docs/zh/">文档</a><a class="tl" href="/api/zh/">接口</a>
-  <a class="iconlink" href="https://github.com/qorm/qorm" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
+  <a class="iconlink" href="https://github.com/qorm/platform" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
   <a class="iconlink patreon" href="https://www.patreon.com/qorm" target="_blank" rel="noopener" aria-label="资助" title="资助"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="14.4" cy="9.6" r="6.6"/><rect x="1.5" y="2.5" width="4" height="19" rx="0.3"/></svg></a>
   <a class="iconlink lang" href="../cli.html" data-lang="en" aria-label="English" title="English"><span>EN</span></a>
   <button class="tbtn" id="theme" aria-label="Theme"></button>
@@ -241,7 +241,7 @@ qorm shot --live &#34;窗口标题&#34; -o out.png</code></pre>
 <tr><td><code>mac</code></td><td>内嵌桌面二进制的 macOS <code>.app</code>(需要 macOS + cgo);开发期使用 ad-hoc 代码签名</td></tr>
 <tr><td><code>miniapp</code></td><td>微信风格小程序工程(WXML/WXSS 静态导出初始 UI;在微信开发者工具中打开)</td></tr>
 </tbody></table>
-<p><code>web</code>/<code>ios</code>/<code>android</code> 的产物会用 <code>go build</code>(<code>GOOS=js GOARCH=wasm</code>)编译客户端运行时,因此必须能访问 Go 工具链与 QORM 模块——请在 QORM 仓库内,或 <code>go.mod</code> 依赖 <code>github.com/qorm/qorm</code> 的目录中运行。应用自己的 Go 中间层(<code>native/desktop.go</code>)会被注入该构建,<code>mac</code> 平台则注入桌面二进制。</p>
+<p><code>web</code>/<code>ios</code>/<code>android</code> 的产物会用 <code>go build</code>(<code>GOOS=js GOARCH=wasm</code>)编译客户端运行时,因此必须能访问 Go 工具链与 QORM 模块——请在 QORM 仓库内,或 <code>go.mod</code> 依赖 <code>github.com/qorm/platform</code> 的目录中运行。应用自己的 Go 中间层(<code>native/desktop.go</code>)会被注入该构建,<code>mac</code> 平台则注入桌面二进制。</p>
 <p>通用标志:</p>
 <table>
 <thead><tr><th>标志</th><th>效果</th></tr></thead>
@@ -285,7 +285,7 @@ qorm shot --live &#34;窗口标题&#34; -o out.png</code></pre>
 </ul>
 <h2 id="update">update</h2>
 <pre><code>qorm update [--insecure-skip-verify]</code></pre>
-<p>从最新 GitHub release 自更新 CLI。已是最新(release 标签等于运行版本):打印说明并以 <code>0</code> 退出。否则,有 Go 工具链时执行 <code>go install github.com/qorm/qorm/cmd/qorm@latest</code>;没有则下载 <code>qorm-&lt;os&gt;-&lt;arch&gt;[.exe]</code> 资产,用构建内嵌的发布公钥对照 release 的 <code>SHA256SUMS</code> + <code>SHA256SUMS.sig</code> 验证(没有内嵌密钥的构建无法验证,会拒绝),然后替换可执行文件——旧二进制先改名为 <code>&lt;exe&gt;.old</code>,替换失败时恢复。<code>--insecure-skip-verify</code> 跳过验证直接安装(打印警告;不推荐)。</p>
+<p>从最新 GitHub release 自更新 CLI。已是最新(release 标签等于运行版本):打印说明并以 <code>0</code> 退出。否则,有 Go 工具链时执行 <code>go install github.com/qorm/platform/cmd/qorm@latest</code>;没有则下载 <code>qorm-&lt;os&gt;-&lt;arch&gt;[.exe]</code> 资产,用构建内嵌的发布公钥对照 release 的 <code>SHA256SUMS</code> + <code>SHA256SUMS.sig</code> 验证(没有内嵌密钥的构建无法验证,会拒绝),然后替换可执行文件——旧二进制先改名为 <code>&lt;exe&gt;.old</code>,替换失败时恢复。<code>--insecure-skip-verify</code> 跳过验证直接安装(打印警告;不推荐)。</p>
 <h2 id="version">version</h2>
 <pre><code>qorm version        # 别名:--version、-v</code></pre>
 <p>打印 <code>qorm &lt;版本&gt; (&lt;go 版本&gt; &lt;os&gt;/&lt;arch&gt;)</code>。版本在构建时经 <code>-ldflags -X main.version=&lt;tag&gt;</code> 盖入;未盖章的构建报告源码内的开发默认值。</p>

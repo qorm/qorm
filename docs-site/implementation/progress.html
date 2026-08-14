@@ -13,17 +13,20 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>实施进度 · QORM</title>
+<meta name="description" content="用户反馈两点：(1) qorm.config.json 在 MCP 与 SKILL 文档里完全没有说明； (2) 窗口部分建设未完善 —— 异形窗口、窗口大小这类配置应统一收进 qorm.config.json。 本轮把窗口配置补齐并落到文档：">
 <meta property="og:title" content="实施进度">
+<meta property="og:description" content="用户反馈两点：(1) qorm.config.json 在 MCP 与 SKILL 文档里完全没有说明； (2) 窗口部分建设未完善 —— 异形窗口、窗口大小这类配置应统一收进 qorm.config.json。 本轮把窗口配置补齐并落到文档：">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://qorm.com/docs/implementation/progress.html">
 <meta property="og:site_name" content="QORM">
 <meta property="og:locale" content="en_US">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="实施进度">
+<meta name="twitter:description" content="用户反馈两点：(1) qorm.config.json 在 MCP 与 SKILL 文档里完全没有说明； (2) 窗口部分建设未完善 —— 异形窗口、窗口大小这类配置应统一收进 qorm.config.json。 本轮把窗口配置补齐并落到文档：">
 <link rel="canonical" href="https://qorm.com/docs/implementation/progress.html">
 <link rel="alternate" hreflang="en" href="https://qorm.com/docs/implementation/progress.html">
 <link rel="alternate" hreflang="x-default" href="https://qorm.com/docs/implementation/progress.html">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"实施进度","inLanguage":"en","name":"实施进度","url":"https://qorm.com/docs/implementation/progress.html"}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"用户反馈两点：(1) qorm.config.json 在 MCP 与 SKILL 文档里完全没有说明； (2) 窗口部分建设未完善 —— 异形窗口、窗口大小这类配置应统一收进 qorm.config.json。 本轮把窗口配置补齐并落到文档：","headline":"实施进度","inLanguage":"en","name":"实施进度","url":"https://qorm.com/docs/implementation/progress.html"}</script>
 <link rel="icon" href="/assets/logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -96,12 +99,12 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <body>
 <header class="top"><div class="tnav">
   <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
-  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.9.0</a>
+  <a class="ver" href="https://github.com/qorm/platform/releases" target="_blank" rel="noopener" title="Release notes">v0.9.2</a>
   <span class="doc">docs</span>
   <span class="sp"></span>
   <nav class="pill" aria-label="Primary"><a class="tl active-nav" href="/docs/">Docs</a><a class="tl" href="/api/">API</a><a class="tl" href="/compare/">Compare</a><a class="tl" href="/about.html">About</a></nav>
   <a class="btn navcta" href="/docs/build-with-ai.html">Get started</a>
-  <a class="iconlink" href="https://github.com/qorm/qorm" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
+  <a class="iconlink" href="https://github.com/qorm/platform" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
   <a class="iconlink patreon" href="https://www.patreon.com/qorm" target="_blank" rel="noopener" aria-label="Patreon" title="Patreon"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="14.4" cy="9.6" r="6.6"/><rect x="1.5" y="2.5" width="4" height="19" rx="0.3"/></svg></a>
   <span class="iconlink lang off" aria-label="中文"><span>中</span></span>
   <button class="tbtn" id="theme" aria-label="Theme"></button>
@@ -109,68 +112,127 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <div class="shell">
   <aside><div class="nav-group">overview</div><ul><li><a href="../README.html">QORM documentation</a></li><li><a href="../project-structure.html">Project structure</a></li><li><a href="../build-with-ai.html">Build QORM apps with your AI assistant</a></li><li><a href="../collaboration.html">Human-AI collaboration on a live app</a></li><li><a href="../verification.html">Interpreting &amp; verifying a QORM app</a></li><li><a href="../expressions.html">Expressions</a></li><li><a href="../qscript.html">QScript language reference</a></li><li><a href="../styles.html">QSS — QORM Style Sheets</a></li></ul><div class="nav-group">tutorials</div><ul><li><a href="../tutorials/getting-started.html">Getting Started with QORM</a></li><li><a href="../tutorials/first-scene.html">First Scene</a></li><li><a href="../tutorials/first-action.html">First Action</a></li><li><a href="../tutorials/first-component.html">First Component</a></li><li><a href="../tutorials/first-platform-pack.html">First Platform Pack</a></li></ul><div class="nav-group">examples</div><ul><li><a href="../examples/counter.html">Example: Counter</a></li><li><a href="../examples/todo.html">Example: Todo</a></li><li><a href="../examples/login.html">Example: Login</a></li><li><a href="../examples/dashboard.html">Example: Dashboard</a></li></ul><div class="nav-group">platforms</div><ul><li><a href="../platforms/web.html">QORM Web Platform</a></li><li><a href="../platforms/mobile.html">QORM Mobile Platform</a></li><li><a href="../platforms/desktop.html">QORM Desktop Platform</a></li><li><a href="../platforms/miniapp.html">QORM Mini-program platform</a></li><li><a href="../platforms/native-middlelayer.html">User middle layer: adding your own capabilities to an app</a></li><li><a href="../platforms/capabilities.html">Capabilities</a></li><li><a href="../platforms/support-matrix.html">Platform support matrix</a></li></ul><div class="nav-group">agent</div><ul><li><a href="../agent/permissions.html">QORM Agent Permissions</a></li><li><a href="../agent/mcp-tools.html">QORM MCP tools</a></li><li><a href="../agent/skills.html">QORM Skills</a></li><li><a href="../agent/claude-pack.html">QORM Claude Pack</a></li><li><a href="../agent/codex-pack.html">QORM Codex Pack</a></li><li><a href="../agent/openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">security</div><ul><li><a href="../security/security-model.html">QORM Security Model</a></li><li><a href="../security/permission-model.html">QORM Permission Model</a></li><li><a href="../security/bundle-signing.html">QORM Bundle Signing</a></li></ul><div class="nav-group">implementation</div><ul><li><a href="analysis-and-plan.html">QORM 整体分析与目标实施规划</a></li><li><a href="audit-log.html">审计日志</a></li><li><a href="progress.html" class="active">实施进度</a></li></ul><div class="nav-group">spec</div><ul><li><a href="../spec/navigation-spec.html">Navigation &amp;amp; routing</a></li></ul></aside>
   <main><h1 id="实施进度">实施进度</h1>
-<blockquote>主控同步 · 更新：2026-08-12 <strong>v0.8.8 已发布</strong></blockquote>
-<h2 id="发布">发布</h2>
+<blockquote>主控同步 · 更新：2026-08-13 <strong>v0.9.2 发布（窗口建设完善轮收官）</strong></blockquote>
+<h2 id="窗口建设完善轮2026-08-13">窗口建设完善轮（2026-08-13）</h2>
+<p>用户反馈两点：(1) <code>qorm.config.json</code> 在 MCP 与 SKILL 文档里完全没有说明； (2) 窗口部分建设未完善 —— 异形窗口、窗口大小这类配置应统一收进 <code>qorm.config.json</code>。 本轮把窗口配置补齐并落到文档：</p>
+<table>
+<thead><tr><th>变更</th><th>内容</th></tr></thead>
+<tbody>
+<tr><td><code>qorm.config.json</code> 成为窗口配置的家</td><td>新增 <code>window</code> 块（width/height/title/resizable/chromeless/transparent/hideLog/hideTray），<code>display</code> 块保留为兼容别名；优先级 config &gt; platforms.desktop.window &gt; 顶层 display；坏 JSON / 未知键改为出诊断而非静默吞掉</td></tr>
+<tr><td><code>resizable</code> 真正生效</td><td>此前只解析不消费。macOS WebView style mask、非 macOS 走 webview <code>HintFixed</code>、canvas 窗口 style mask 均按 <code>resizable:false</code> 锁尺寸；新增 <code>Window.Fixed</code> 区分&#34;显式 false&#34;与&#34;未声明&#34;</td></tr>
+<tr><td><code>title</code> 真正生效</td><td>窗口标题此前从不消费；现在声明的 window title 优先于 app name 作为窗口标题</td></tr>
+<tr><td>异形窗口（chromeless+transparent）</td><td>macOS WebView 已完整；Windows 补 chromeless（user32 去装饰）；Linux/BSD 解析但去装饰未接线（如实记录）；canvas 宿主不消费 chrome 标志（如实记录）</td></tr>
+<tr><td>MCP 可见</td><td><code>qorm_inspect</code> 输出新增 <code>window</code>（解析后的最终窗口配置）；mcp-tools.md（en+zh）新增&#34;宿主窗口&#34;引言段 + qorm_inspect 描述更新，生成器测试守护</td></tr>
+<tr><td>文档补齐</td><td>SKILL.md 可运行格式节 + docs/agent/skills.md（en+zh）+ docs/project-structure.md（en+zh）新增 qorm.config.json 专节与优先级表 + AGENTS.md；<code>examples/mario</code> 转用新 <code>window</code> 块；纠正 project-structure 示例中从未存在的 <code>window.icon</code> 键；删除 model.DisplaySpec 死代码</td></tr>
+</tbody></table>
+<h3 id="对抗复审--ci-修复波同日4e7a103-的后续">对抗复审 + CI 修复波（同日，<code>4e7a103</code> 的后续）</h3>
+<p>对抗复审（3 项确认缺陷）+ CI 桌面矩阵（ubuntu/windows 本地无法 cgo 编译的盲区）共同暴露的问题，全部根因修复：</p>
+<table>
+<thead><tr><th>问题</th><th>修复</th></tr></thead>
+<tbody>
+<tr><td>Windows：chromeless 无条件剥掉 WS_THICKFRAME → <code>resizable</code> 被静默忽略</td><td><code>setUndecorated(hwnd, resizable)</code>：只剥 WS_CAPTION，resizable 时保留调整框（它正是 Windows 上用户可调整大小的位）</td></tr>
+<tr><td>Windows：chromeless 内容区比声明尺寸大 ~16×39px（SetSize 先按带装饰风格算外框）</td><td>去装饰挪到 SetSize <strong>之前</strong>，框架几何按无装饰风格计算</td></tr>
+<tr><td>macOS：陈旧 window.txt 恢复覆盖 fixed 窗口尺寸并锁死（持久化循环反复回写，永不自愈）</td><td>仅 resizable 窗口恢复记忆框架；fixed 窗口以声明尺寸为准</td></tr>
+<tr><td>CI 编译错：<code>hint := webview.HintNone</code> 推断为 int（cgo 无类型常量）不匹配 <code>webview.Hint</code>；<code>uintptr(-16)</code> 常量溢出</td><td>显式 <code>webview.Hint(webview.HintNone)</code>；负数 GWL_STYLE 经运行时变量转换</td></tr>
+<tr><td>config <code>&#34;width&#34;: 0</code> 无法把清单尺寸覆盖回流式（与&#34;WINS + 0=fluid&#34;文档矛盾）</td><td><code>applyConfigWindow</code> 按键在场即生效（≥0），新增测试锁定；另加 per-key 合并语义测试</td></tr>
+<tr><td>CI build·vet·test 红：<code>TestStdoutSinkSFXDoesNotReplaceMusic</code> 竞态</td><td>根因不是测试而是 sink：loop 音乐靠&#34;退出即重生&#34;实现，无音频设备的 runner 上 aplay 秒退 → 重生风暴替换 <code>sink.music</code>（生产中即无限失败进程风暴）。加重生护栏：存活 &lt;500ms 判为 sink 损坏不再重生；测试在音乐进程秒退时如实 skip</td></tr>
+<tr><td>README 携带过期版本信息</td><td>按用户要求移除 README.md / README.zh.md 的 &#34;What&#39;s new in 0.8.11&#34; 整节 —— README 不再放版本信息</td></tr>
+<tr><td>验证手段</td><td>本机 mingw-w64 交叉编译 <code>-tags desktop</code> Windows 构建通过（本地首次可验证该路径）；全门禁绿（34 包 + race + 三构建 + linux/windows 纯构建）</td></tr>
+</tbody></table>
+<h2 id="v091-发布后维护轮2026-08-13">v0.9.1 发布后维护轮（2026-08-13）</h2>
+<p>CI 变红触发排查，两个失败都是真实缺陷，按根因修复而非移除 job：</p>
+<table>
+<thead><tr><th>提交</th><th>修复</th></tr></thead>
+<tbody>
+<tr><td><code>b6460db</code></td><td>cross-compile 失败根因：darwin 视频解码器是 cgo 文件，<code>CGO_ENABLED=0</code> 交叉编译时被排除，而纯 Go fallback 的 tag 又排除了 darwin → <code>startVideoDecoder</code> 无定义。同一 bug 已导致 release.yml 失败（<strong>v0.9.1 GitHub Release 无二进制产物</strong>）。重排两个文件的 build tag；另 TestRaidenPerf 在 -race 下仅超性能预算（0 处数据竞争），加 <code>race</code> build tag 跳过预算、保留逻辑断言</td></tr>
+<tr><td><code>ae6e98f</code></td><td>genicons 生成器静默失败：写盘用仓库相对路径但 go:generate 在包目录执行，错误被吞 → 6 个马里奥图标（brick/coin/flag/goomba/ground/mario）从未进入 canvas 位图字体。加 <code>-o</code> flag + 写失败即报错；重新生成 47 → 53 字形，与 <code>widgets.IconSet()</code> 完全一致</td></tr>
+<tr><td><code>39a2995</code></td><td><strong>SKILL/MCP/文档/API 完全同步</strong>：skills.md 记载了 7 个从未存在的技能文件 → 重写为真实的单一 SKILL.md（含 4 条工作流）；图标数 66 → 53、组件数 80+ → 146、样式键 ~90 → 108（SKILL.md / claude-pack.md / AGENTS.md 三处）；doc.go 中文版补 qorm_validate 缺失译文、修复 qorm_query 半角病句、补齐 activity/capabilities 漏句；生成的 mcp-tools.md（en+zh）新增「工具分类」+「示例」两节，由 TestMCPDocInSync 永久守护。审计：四个面（mcp-tools en+zh、SKILL.md、integrations/README.md）均为 25/25 工具，零多余零遗漏</td></tr>
+</tbody></table>
+<p>遗留已闭环：v0.9.1 tag 的 release workflow 在修复前失败、tag 不可移动 —— 由 <strong>v0.9.2</strong> 补齐（release 工作流绿，6 平台二进制 + SHA256SUMS 全部产出）。</p>
+<h2 id="当前状态">当前状态</h2>
 <table>
 <thead><tr><th>项</th><th>状态</th><th>证据</th></tr></thead>
 <tbody>
-<tr><td>功能 commit</td><td>🟢</td><td><code>f6133ea</code> feat: HTML QSS/swipes/camera/audio parity…</td></tr>
-<tr><td>gofmt</td><td>🟢</td><td><code>c1a0382</code></td></tr>
-<tr><td>changelog archive</td><td>🟢</td><td><code>e19220b</code> docs: changelog v0.8.8</td></tr>
-<tr><td>version bump</td><td>🟢</td><td><code>8a80a64</code> · <code>var version = &#34;0.8.8&#34;</code></td></tr>
-<tr><td>CI 修复</td><td>🟢</td><td><code>d7cdb02</code> CanonicalAssetURL → playcore</td></tr>
-<tr><td>tag</td><td>🟢</td><td><code>v0.8.8</code> → <code>d7cdb02</code>（含 CI 修复 force 更新）</td></tr>
-<tr><td>main push</td><td>🟢</td><td>origin/main 对齐</td></tr>
-<tr><td>官网 deploy</td><td>🟢</td><td>两次 <code>deploy-site.sh</code> OK · wasm+docs+v0.8.8 戳记</td></tr>
+<tr><td><strong>v0.9.2 发布</strong></td><td>🟢</td><td>tag <code>v0.9.2</code> → <code>7f938bb</code> · main push 对齐 · release 工作流绿（6 平台二进制 + SHA256SUMS）· 官网 deploy（v0.9.2 戳记 + 首页 200）</td></tr>
+<tr><td>G0 基线修复</td><td>🟢</td><td><code>0fd604d</code> 删除 62df1ca 残留 11 文件；<code>go build ./...</code> 恢复</td></tr>
+<tr><td>G1 测试基线</td><td>🟢</td><td>path widget 全栈落地 · video 测试修正 · 文档生成器手写段保护</td></tr>
+<tr><td>G2 安全残留</td><td>🟢</td><td>两 token LAN 门禁 · computed 动态 key 拒载 · WASM OTA 吊销 · bundle 版本提示</td></tr>
+<tr><td>G3 <code>qorm test</code> MVP</td><td>🟢</td><td>Phase 9 spec 落地；examples/counter 4/4；exit 0/1 语义实测</td></tr>
+<tr><td>对抗复审</td><td>🟢</td><td>三轮闭环：首轮 9 缺陷 → 修复波 → 二轮 2 新 P1 → 主控直修 → 三轮双镜 pass（见 audit-log）</td></tr>
+<tr><td>全量回归</td><td>🟢</td><td><code>go test ./...</code> 全绿 · -race 关键包绿 · WASM 构建绿 · gofmt 净</td></tr>
 </tbody></table>
-<h2 id="g0g2">G0–G2</h2>
+<h2 id="第三轮交付main本地未推">第三轮交付（main，本地未推）</h2>
+<h3 id="实施波3-分支-worktree-并行rebase-后合并">实施波（3 分支 worktree 并行，rebase 后合并）</h3>
 <table>
-<thead><tr><th>目标</th><th>状态</th></tr></thead>
+<thead><tr><th>分支</th><th>内容</th></tr></thead>
 <tbody>
-<tr><td>G0 WASM preload</td><td>🟢 已入 0.8.8</td></tr>
-<tr><td>G1 文档/golden</td><td>🟢 已入 0.8.8</td></tr>
-<tr><td>G2 A–F 对等</td><td>🟢 已入 0.8.8</td></tr>
-<tr><td>G3 安全</td><td>⬜ 未做</td></tr>
+<tr><td>r3-testfix</td><td>path widget（canvas 光栅 + HTML <code>&lt;svg&gt;&lt;path&gt;</code>，M/L/H/V/Q/T/S/Z 绝对+相对）；canvas-advanced qscript 尾随 <code>;</code>；video measure 期望修正；文档生成器手写段并入生成源</td></tr>
+<tr><td>r3-security</td><td><code>--lan</code> token 门禁 · computed 动态 key 加载错误 · WASM OTA 吊销快照 · bundle 版本提示</td></tr>
+<tr><td>r3-qormtest</td><td><code>internal/testrunner</code> + <code>qorm test</code> CLI + counter 4 份测试文档</td></tr>
+</tbody></table>
+<h3 id="修复波对抗复审驱动3-分支-worktree-并行">修复波（对抗复审驱动，3 分支 worktree 并行）</h3>
+<table>
+<thead><tr><th>分支</th><th>修复</th></tr></thead>
+<tbody>
+<tr><td>r3-fix-canvas</td><td>解析器前进保证（弧/Z 后数字/1e309 不再死循环；弧按弦近似）；Measure 改原点锚定框（bbox max），偏移路径不再被裁剪</td></tr>
+<tr><td>r3-fix-gate</td><td>门禁密钥与页面 token 解耦：admin token 从不出现在任何响应页面；诊断读面（/dev/state /log /presence GET）纳入门禁；启动提示措辞纠正</td></tr>
+<tr><td>r3-fix-testrunner</td><td>onEnter 运行时错误 → <code>test_runtime_error</code> 失败；<code>-</code> 前缀参数明确拒绝；发现规则/诊断快照/--target/--report 边界在 doc.go 与 spec 对齐</td></tr>
+</tbody></table>
+<h3 id="主控直修二三轮复审缺陷">主控直修（二/三轮复审缺陷）</h3>
+<table>
+<thead><tr><th>提交</th><th>修复</th></tr></thead>
+<tbody>
+<tr><td><code>db3455d</code></td><td>读门禁键于&#34;除 POST 外全部方法&#34;（动词绕过 P1）；runtime <code>EnterScriptError</code> 链内首错累积器（enter 链吞错 P1）</td></tr>
+<tr><td><code>5e4e2c0</code></td><td><code>MarkPendingEnter</code>：mount_scene 步骤真正触发目标 onEnter（复审链镜发现的已交付功能洞）</td></tr>
+</tbody></table>
+<h2 id="已知债记录在案不在本轮">已知债（记录在案，不在本轮）</h2>
+<table>
+<thead><tr><th>债</th><th>级别</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><code>/logwindow</code> <code>/console</code> 页面在 --lan 无鉴权</td><td>P2</td><td>纳入门禁会破坏 AGENTS.md 的人类观察窗约定，待产品决策</td></tr>
+<tr><td>POST /dev/state（DevTool 写）仅页面 token</td><td>P2</td><td>设计如此；持有页面 token 的 LAN 对端可写状态</td></tr>
+<tr><td>/poll /events 无 token 帧流</td><td>P2</td><td>EventSource 无法带 header；载荷即 GET / 已公开的 UI</td></tr>
+<tr><td>/dev/tree /dev/canvas 无鉴权读</td><td>P2</td><td>DevTools 面，待 LAN 加固轮统一处理</td></tr>
+<tr><td><code>qorm package --revoked</code> 缺失</td><td>P2</td><td>吊销快照无 CLI 注入路径，需手工内置</td></tr>
+<tr><td>DevTool 页在 --lan 读面 401 降级</td><td>P3</td><td>无 admin token 输入口，待产品决策</td></tr>
+<tr><td><code>qorm check</code> 不诊断 computed 动态 key</td><td>P3</td><td>加载已拒，check 联动待补</td></tr>
+<tr><td>onEnter 悬空 action 引用静默 no-op</td><td>P3</td><td>loader 不校验引用，测试作者笔误会绿跑</td></tr>
+<tr><td>弧 → 贝塞尔展平</td><td>P3</td><td>当前按弦近似，曲线呈折线</td></tr>
+<tr><td>token 比较非常数时间</td><td>P3</td><td>== 比较；dev 工具定位可接受，记录在案</td></tr>
+</tbody></table>
+<h2 id="发布">发布</h2>
+<table>
+<thead><tr><th>项</th><th>状态</th></tr></thead>
+<tbody>
+<tr><td>上一版</td><td><strong>v0.9.1</strong>（2026-08-13）：qorm test MVP · path widget · LAN 双 token 门禁（<strong>GitHub Release 无二进制产物</strong>——release.yml 在 cross-compile 修复前失败，tag 不可移动）</td></tr>
+<tr><td>本版</td><td><strong>v0.9.2</strong>（2026-08-13）：changelog 归档 <code>014d5fc</code> · version bump <code>7f938bb</code> · annotated tag · main+tag push · <strong>release 工作流绿，6 平台二进制 + SHA256SUMS 补齐</strong> · 官网 deploy（wasm 同源重建防漂移 · 109 页 · sitemap 104 · 首页 v0.9.2 戳记 200）</td></tr>
 </tbody></table>
 <h2 id="链接">链接</h2>
 <ul>
-<li>仓库：https://github.com/qorm/qorm</li>
-<li>Tag：https://github.com/qorm/qorm/releases/tag/v0.8.8</li>
+<li>仓库：https://github.com/qorm/platform</li>
 <li>官网：https://qorm.com/</li>
 <li>Docs：https://qorm.com/docs/</li>
 <li>Games：https://qorm.com/games/</li>
 </ul>
-<h2 id="canvas-完善波次">Canvas 完善波次</h2>
-<table>
-<thead><tr><th>项</th><th>状态</th></tr></thead>
-<tbody>
-<tr><td>style: gradient / flexGrow / boxShadowX / disabledOpacity</td><td>🟢</td></tr>
-<tr><td>widgets: aspectratio, ignorepointer, skeleton, circularprogress</td><td>🟢</td></tr>
-<tr><td>aliases: activityindicator, tag, animatedcontainer</td><td>🟢</td></tr>
-<tr><td>fab / switchlisttile / letterSpacing·lineHeight·italic</td><td>🟢</td></tr>
-<tr><td>searchbar / checkboxlisttile / radiolisttile</td><td>🟢</td></tr>
-<tr><td>field / textformfield / richtext(wrap) / carousel</td><td>🟢</td></tr>
-<tr><td>multi-stop CSS-angle gradient + backdropBlur</td><td>🟢</td></tr>
-<tr><td>rangeslider / pageview / tree / autocomplete</td><td>🟢</td></tr>
-<tr><td>remaining: actionsheet/alertdialog/descriptions/dropdownbutton/materialstepper/monthview/motion/picker/rating/refreshindicator/selectabletext/transform</td><td>🟢</td></tr>
-<tr><td>parity allowlist 收缩</td><td>🟢 核心 example 类型 allowlist 已清空</td></tr>
-<tr><td>测试 widgets/canvas/integration</td><td>🟢</td></tr>
-</tbody></table>
 <h2 id="变更日志">变更日志</h2>
 <table>
 <thead><tr><th>时间</th><th>事件</th></tr></thead>
 <tbody>
-<tr><td>2026-08-12</td><td>实施波次 1–2 完成</td></tr>
-<tr><td>2026-08-12</td><td><strong>v0.8.8</strong> tag + main + 官网部署</td></tr>
-<tr><td>2026-08-12</td><td>Canvas 完善：样式键 + 7 个 widget/别名</td></tr>
-<tr><td>2026-08-12</td><td>Canvas：rangeslider/pageview/tree/autocomplete + richtext wrap + true angle gradient</td></tr>
-<tr><td>2026-08-12</td><td>Canvas：剩余 allowlist 12 类全部 port；parity 核心 allowlist 清空</td></tr>
-<tr><td>2026-08-12</td><td><strong>竞争级加深</strong>：entrance 真 scale/rotate + 绑定重播；selectabletext 选区/复制；transform skew</td></tr>
-<tr><td>2026-08-12</td><td><strong>滚动手感</strong>：touch-drag + 橡皮筋 + spring + 惯性；pull-to-refresh 与 refreshindicator 联动</td></tr>
-<tr><td>2026-08-12</td><td><strong>列表行拖滚协商</strong> + <strong>canvas 原生 measure</strong>（<code>qorm measure</code> / MCP 无需 WebView）</td></tr>
-<tr><td>2026-08-12</td><td>measure 样式字段 + 逻辑像素/HiDPI；嵌套 scroll 拖动手势链</td></tr>
-<tr><td>2026-08-12</td><td>渲染质量：ShadowX、径向渐变+色标位置、可分离 frost blur、text ellipsis</td></tr>
-<tr><td>2026-08-12</td><td>旋转 RRect 局部空间 SDF；多行 textOverflow ellipsis</td></tr>
+<tr><td>2026-08-13</td><td>v0.9.0 CHANGELOG 归档（video widget、canvas-advanced、measure/shot、live capture 等）</td></tr>
+<tr><td>2026-08-13</td><td>第三轮分析：4 路并行（回归/安全/文档/方向）→ 规划 analysis-and-plan.md</td></tr>
+<tr><td>2026-08-13</td><td>G0 基线修复（62df1ca 残留清理）+ 文档同步（README/Roadmap/zh）</td></tr>
+<tr><td>2026-08-13</td><td>实施波：r3-testfix / r3-security / r3-qormtest 并行落地并合并</td></tr>
+<tr><td>2026-08-13</td><td>对抗复审一轮：3 镜验证，9 项确认缺陷（正确性 2 / 安全 3 / 规格 4）</td></tr>
+<tr><td>2026-08-13</td><td>修复波：r3-fix-canvas / r3-fix-gate / r3-fix-testrunner 并行落地并合并</td></tr>
+<tr><td>2026-08-13</td><td>对抗复审二轮：canvas pass（3.2M 模糊）；gate/spec 各 1 新 P1（动词绕过 / enter 链吞错）</td></tr>
+<tr><td>2026-08-13</td><td>主控直修两轮 P1 + 链镜发现的 mount_scene 空转洞（<code>MarkPendingEnter</code>）</td></tr>
+<tr><td>2026-08-13</td><td>对抗复审三轮：双镜 pass；残留债全部归档 audit-log</td></tr>
+<tr><td>2026-08-13</td><td>全量门禁绿：build · test · race · wasm · coverage gate · <code>qorm test</code> 4/4</td></tr>
+<tr><td>2026-08-13</td><td><strong>v0.9.1 发布</strong>：changelog 归档 + version bump + annotated tag + push + 官网部署</td></tr>
+<tr><td>2026-08-13</td><td>窗口建设完善轮：qorm.config.json <code>window</code> 块 + resizable/title 落地 + MCP inspect 可见 + SKILL/文档补齐</td></tr>
+<tr><td>2026-08-13</td><td>对抗复审 + CI 修复波：Windows chromeless×resizable/尺寸几何、macOS fixed 窗口状态恢复、两处编译错、config 0=fluid 覆盖</td></tr>
+<tr><td>2026-08-13</td><td>CI build·vet·test 根因修复（audio sink 重生风暴护栏）+ README 去版本信息（en+zh）</td></tr>
+<tr><td>2026-08-13</td><td><strong>v0.9.2 发布</strong>：changelog 归档 + bump + annotated tag + push；release 工作流绿（6 平台二进制补齐 v0.9.1 缺失）；官网 deploy 并验证首页 v0.9.2</td></tr>
 </tbody></table>
 </main>
 </div>

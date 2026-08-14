@@ -7,7 +7,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/qorm/qorm/internal/updates"
+	"github.com/qorm/platform/internal/updates"
 )
 
 // cmdUpdates runs the OTA publish server: serves bundles from a directory with

@@ -3,7 +3,7 @@ package canvas
 import (
 	"strings"
 
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/model"
 )
 
 // A11yRole defines the semantic role of an accessibility node.

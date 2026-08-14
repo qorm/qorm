@@ -200,7 +200,7 @@ qorm package <app-dir> [-p web|ios|android|mac|miniapp] [-o out-dir] [标志]
 | `mac` | 内嵌桌面二进制的 macOS `.app`(需要 macOS + cgo);开发期使用 ad-hoc 代码签名 |
 | `miniapp` | 微信风格小程序工程(WXML/WXSS 静态导出初始 UI;在微信开发者工具中打开) |
 
-`web`/`ios`/`android` 的产物会用 `go build`(`GOOS=js GOARCH=wasm`)编译客户端运行时,因此必须能访问 Go 工具链与 QORM 模块——请在 QORM 仓库内,或 `go.mod` 依赖 `github.com/qorm/qorm` 的目录中运行。应用自己的 Go 中间层(`native/desktop.go`)会被注入该构建,`mac` 平台则注入桌面二进制。
+`web`/`ios`/`android` 的产物会用 `go build`(`GOOS=js GOARCH=wasm`)编译客户端运行时,因此必须能访问 Go 工具链与 QORM 模块——请在 QORM 仓库内,或 `go.mod` 依赖 `github.com/qorm/platform` 的目录中运行。应用自己的 Go 中间层(`native/desktop.go`)会被注入该构建,`mac` 平台则注入桌面二进制。
 
 通用标志:
 
@@ -265,7 +265,7 @@ OTA 的发布侧:一个 HTTP 服务器,按分阶段(金丝雀)发布把客户端
 qorm update [--insecure-skip-verify]
 ```
 
-从最新 GitHub release 自更新 CLI。已是最新(release 标签等于运行版本):打印说明并以 `0` 退出。否则,有 Go 工具链时执行 `go install github.com/qorm/qorm/cmd/qorm@latest`;没有则下载 `qorm-<os>-<arch>[.exe]` 资产,用构建内嵌的发布公钥对照 release 的 `SHA256SUMS` + `SHA256SUMS.sig` 验证(没有内嵌密钥的构建无法验证,会拒绝),然后替换可执行文件——旧二进制先改名为 `<exe>.old`,替换失败时恢复。`--insecure-skip-verify` 跳过验证直接安装(打印警告;不推荐)。
+从最新 GitHub release 自更新 CLI。已是最新(release 标签等于运行版本):打印说明并以 `0` 退出。否则,有 Go 工具链时执行 `go install github.com/qorm/platform/cmd/qorm@latest`;没有则下载 `qorm-<os>-<arch>[.exe]` 资产,用构建内嵌的发布公钥对照 release 的 `SHA256SUMS` + `SHA256SUMS.sig` 验证(没有内嵌密钥的构建无法验证,会拒绝),然后替换可执行文件——旧二进制先改名为 `<exe>.old`,替换失败时恢复。`--insecure-skip-verify` 跳过验证直接安装(打印警告;不推荐)。
 
 ## version
 

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/qorm/qorm/internal/server"
+	"github.com/qorm/platform/internal/server"
 )
 
 // launchWindow hosts the app in the plain native canvas window: the shared

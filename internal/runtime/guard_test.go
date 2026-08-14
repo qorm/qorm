@@ -17,7 +17,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/model"
 )
 
 // guardApp is a three-scene app: a public home, a dashboard that requires a

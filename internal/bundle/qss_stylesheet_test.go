@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/loader"
+	"github.com/qorm/platform/internal/loader"
 )
 
 // Stylesheets (styles/<id>.qss) ride the SAME collect() walk as the JSON

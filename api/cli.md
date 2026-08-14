@@ -200,7 +200,7 @@ Compiles the app into an installable, fully offline package. Default platform `w
 | `mac` | a macOS `.app` with the desktop binary compiled in (needs macOS + cgo); ad-hoc code-signed for development |
 | `miniapp` | a WeChat-style mini-program project (WXML/WXSS static export of the initial UI; open in WeChat DevTools) |
 
-The `web`/`ios`/`android` payloads compile the client runtime with `go build` (`GOOS=js GOARCH=wasm`), so the Go toolchain and the QORM module must be reachable — run it from the QORM repo, or a directory whose `go.mod` requires `github.com/qorm/qorm`. The app's own Go middle layer (`native/desktop.go`) is injected into that build, and into the desktop binary for `mac`.
+The `web`/`ios`/`android` payloads compile the client runtime with `go build` (`GOOS=js GOARCH=wasm`), so the Go toolchain and the QORM module must be reachable — run it from the QORM repo, or a directory whose `go.mod` requires `github.com/qorm/platform`. The app's own Go middle layer (`native/desktop.go`) is injected into that build, and into the desktop binary for `mac`.
 
 General flags:
 
@@ -265,7 +265,7 @@ The publish side of OTA: an HTTP server that hands each client the bundle it sho
 qorm update [--insecure-skip-verify]
 ```
 
-Self-updates the CLI from the latest GitHub release. Already current (release tag equals the running version): prints so and exits `0`. Otherwise, with a Go toolchain present it runs `go install github.com/qorm/qorm/cmd/qorm@latest`; without one it downloads the `qorm-<os>-<arch>[.exe]` asset, verifies it against the release's `SHA256SUMS` + `SHA256SUMS.sig` using the release public keys embedded in the build (a build without embedded keys cannot verify and refuses), then swaps the executable — the old binary is renamed to `<exe>.old` first and restored if the swap fails. `--insecure-skip-verify` installs the download without verification (prints a warning; not recommended).
+Self-updates the CLI from the latest GitHub release. Already current (release tag equals the running version): prints so and exits `0`. Otherwise, with a Go toolchain present it runs `go install github.com/qorm/platform/cmd/qorm@latest`; without one it downloads the `qorm-<os>-<arch>[.exe]` asset, verifies it against the release's `SHA256SUMS` + `SHA256SUMS.sig` using the release public keys embedded in the build (a build without embedded keys cannot verify and refuses), then swaps the executable — the old binary is renamed to `<exe>.old` first and restored if the swap fails. `--insecure-skip-verify` installs the download without verification (prints a warning; not recommended).
 
 ## version
 

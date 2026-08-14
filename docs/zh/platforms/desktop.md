@@ -17,7 +17,7 @@ Linux 上托盘、通知点击回路与安全存储直接走 DBus(StatusNotifier
 org.freedesktop.Notifications / Secret Service——GNOME 的托盘需要
 AppIndicator 扩展;密钥落入 GNOME Keyring 或 KWallet)。
 
-演示桌面特性的示例:[`menus`](https://github.com/qorm/qorm/tree/main/examples/menus)(系统菜单栏 / 托盘 / 右键菜单,带图标 + 子菜单)、[`floating`](https://github.com/qorm/qorm/tree/main/examples/floating)(无边框 + 透明、自定义形状窗口)、[`desktop-hardware`](https://github.com/qorm/qorm/tree/main/examples/desktop-hardware)。有关各操作系统的测试情况,参见[支持矩阵](../../platforms/support-matrix.md)。
+演示桌面特性的示例:[`menus`](https://github.com/qorm/platform/tree/main/examples/menus)(系统菜单栏 / 托盘 / 右键菜单,带图标 + 子菜单)、[`floating`](https://github.com/qorm/platform/tree/main/examples/floating)(无边框 + 透明、自定义形状窗口)、[`desktop-hardware`](https://github.com/qorm/platform/tree/main/examples/desktop-hardware)。有关各操作系统的测试情况,参见[支持矩阵](../../platforms/support-matrix.md)。
 
 ## 架构
 

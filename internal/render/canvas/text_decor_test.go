@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/op"
-	"github.com/qorm/qorm/internal/runtime"
-	"github.com/qorm/qorm/internal/theme"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/op"
+	"github.com/qorm/platform/internal/runtime"
+	"github.com/qorm/platform/internal/theme"
 )
 
 // Text stroke must ink pixels around the glyph that plain fill does not.

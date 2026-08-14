@@ -3,7 +3,7 @@ package mcp
 import (
 	"strings"
 
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/model"
 )
 
 // selector matches nodes by structural properties. Empty fields are ignored;

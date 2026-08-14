@@ -13,7 +13,7 @@ import (
 	"os"
 	"sort"
 
-	"github.com/qorm/qorm/internal/widgets"
+	"github.com/qorm/platform/internal/widgets"
 )
 
 func main() {

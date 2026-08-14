@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/bundle"
-	"github.com/qorm/qorm/internal/keys"
+	"github.com/qorm/platform/internal/bundle"
+	"github.com/qorm/platform/internal/keys"
 )
 
 // clientConfigDoc builds the JSON document the packager injects as

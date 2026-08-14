@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/expr"
+	"github.com/qorm/platform/internal/expr"
 )
 
 // runOK runs src against state and fails the test on any error.

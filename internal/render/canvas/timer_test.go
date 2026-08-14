@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/runtime"
-	"github.com/qorm/qorm/internal/theme"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/runtime"
+	"github.com/qorm/platform/internal/theme"
 )
 
 // timerFixture builds a headless engine whose scene mounts one timer node

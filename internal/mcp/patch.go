@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/qorm/qorm/internal/loader"
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/loader"
+	"github.com/qorm/platform/internal/model"
 )
 
 // PatchOp is a single design operation on the scene tree.

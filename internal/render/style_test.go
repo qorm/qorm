@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
-	qrt "github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/model"
+	qrt "github.com/qorm/platform/internal/runtime"
 )
 
 // styleHTML renders a single text node carrying the given style map and returns

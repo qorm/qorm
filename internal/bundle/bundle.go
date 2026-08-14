@@ -15,8 +15,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/qorm/qorm/internal/loader"
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/loader"
+	"github.com/qorm/platform/internal/model"
 )
 
 // Format is the bundle format identifier.

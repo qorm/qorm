@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/qorm/qorm/internal/capability"
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/capability"
+	"github.com/qorm/platform/internal/model"
 )
 
 // normPlatform maps a -p value to a support-matrix key.

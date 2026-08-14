@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/runtime"
-	"github.com/qorm/qorm/internal/theme"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/runtime"
+	"github.com/qorm/platform/internal/theme"
 )
 
 // scrollSnapFixture builds a vertical scroll with three 100px pages and

@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 // renderWidget renders a single widget as the only child of a plain column root

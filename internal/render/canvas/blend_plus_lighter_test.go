@@ -5,7 +5,7 @@ import (
 	"image/color"
 	"testing"
 
-	"github.com/qorm/qorm/internal/op"
+	"github.com/qorm/platform/internal/op"
 )
 
 func TestPlusLighterRedOverGreen(t *testing.T) {

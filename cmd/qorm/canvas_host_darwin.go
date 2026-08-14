@@ -9,12 +9,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/qorm/qorm/internal/app"
-	"github.com/qorm/qorm/internal/mcp"
-	"github.com/qorm/qorm/internal/qscript"
-	"github.com/qorm/qorm/internal/render/canvas"
-	"github.com/qorm/qorm/internal/runtime"
-	"github.com/qorm/qorm/internal/server"
+	"github.com/qorm/platform/internal/app"
+	"github.com/qorm/platform/internal/mcp"
+	"github.com/qorm/platform/internal/qscript"
+	"github.com/qorm/platform/internal/render/canvas"
+	"github.com/qorm/platform/internal/runtime"
+	"github.com/qorm/platform/internal/server"
 )
 
 // This file hosts the SHARED canvas-window machinery used by both darwin

@@ -10,7 +10,7 @@ module boundaries, naming consistency, and the security model are very welcome.
 ## Try it in 5 minutes
 
 ```sh
-go install github.com/qorm/qorm/cmd/qorm@latest   # or: go run ./cmd/qorm
+go install github.com/qorm/platform/cmd/qorm@latest   # or: go run ./cmd/qorm
 qorm run examples/counter                          # opens in your browser
 qorm mcp examples/counter                          # or drive it from your AI over MCP
 ```
@@ -70,7 +70,7 @@ asserting that remote main and the tag both point at the release commit.
 ## Reporting / feedback
 
 Found a bug or rough edge while trying it? Please
-[open an issue](https://github.com/qorm/qorm/issues/new/choose) — tell us what you
+[open an issue](https://github.com/qorm/platform/issues/new/choose) — tell us what you
 built, what failed, and where the DX got in the way. Questions and ideas go in
-[Discussions](https://github.com/qorm/qorm/discussions). Early feedback shapes the
+[Discussions](https://github.com/qorm/platform/discussions). Early feedback shapes the
 roadmap.

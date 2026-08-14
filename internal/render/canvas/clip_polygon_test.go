@@ -5,10 +5,10 @@ import (
 	"math"
 	"testing"
 
-	"github.com/qorm/qorm/internal/geom"
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/op"
-	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/geom"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/op"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 func TestParseClipPathPolygon(t *testing.T) {

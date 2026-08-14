@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/qorm/qorm/internal/render"
-	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/render"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 // UpdateConfig wires a packaged app to an OTA update server (`qorm updates`).

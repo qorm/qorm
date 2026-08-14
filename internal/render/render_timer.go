@@ -3,8 +3,8 @@ package render
 import (
 	"fmt"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 // TimerMinEveryMS is the floor for a timer's `every` interval in milliseconds.

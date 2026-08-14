@@ -4,8 +4,8 @@ import (
 	"math"
 	"time"
 
-	"github.com/qorm/qorm/internal/anim"
-	"github.com/qorm/qorm/internal/theme"
+	"github.com/qorm/platform/internal/anim"
+	"github.com/qorm/platform/internal/theme"
 )
 
 // flipState tracks one node's previous layout box for FLIP layout motion.

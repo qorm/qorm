@@ -238,4 +238,4 @@ invoke 的 `name` 本身也可以是绑定,因此组件可以把"要执行哪个
 - `{{ prop.* }}` 只在组件模板内部可见;实例上同名的字段就是传入的值。
 - 组件可以嵌套组件(最深 32 层);模板内部的 id 会按实例加后缀,因此两个实例绝不会冲突。
 - 组件没有自己的局部状态或生命周期——它们通过你传入的 prop 读取全局状态。
-- 完整的可运行示例,参见 [`examples/uikit`](https://github.com/qorm/qorm/tree/main/examples/uikit)(metric / kv / panel)。
+- 完整的可运行示例,参见 [`examples/uikit`](https://github.com/qorm/platform/tree/main/examples/uikit)(metric / kv / panel)。

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/model"
 )
 
 // xss is the injection payload for TEXT contexts. The distinctive QORMXSS marker

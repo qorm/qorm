@@ -3,7 +3,7 @@ package runtime
 import (
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/model"
 )
 
 // navApp builds a two-scene app with an openProfile action that navigates with

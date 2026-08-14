@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/qorm/qorm/internal/keys"
+	"github.com/qorm/platform/internal/keys"
 )
 
 // TestPackageUpdateFlagPairing pins the OTA packaging contract: --update-url

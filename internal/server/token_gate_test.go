@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/keys"
+	"github.com/qorm/platform/internal/keys"
 )
 
 // TestRequireTokenGateLoopbackUnchanged pins the loopback default: the two-

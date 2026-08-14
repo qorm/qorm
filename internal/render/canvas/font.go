@@ -5,7 +5,7 @@ import (
 	"image/color"
 	"math"
 
-	"github.com/qorm/qorm/internal/op"
+	"github.com/qorm/platform/internal/op"
 )
 
 // Font5x7 is a simple built-in 5x7 ASCII bitmap font.

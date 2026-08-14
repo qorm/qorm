@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/qorm/qorm/internal/loader"
-	"github.com/qorm/qorm/internal/model"
-	qrt "github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/loader"
+	"github.com/qorm/platform/internal/model"
+	qrt "github.com/qorm/platform/internal/runtime"
 )
 
 func responsiveServer(t *testing.T) *Server {

@@ -8,8 +8,8 @@ import (
 	"math"
 	"sync"
 
-	"github.com/qorm/qorm/fonts"
-	"github.com/qorm/qorm/internal/op"
+	"github.com/qorm/platform/fonts"
+	"github.com/qorm/platform/internal/op"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/font/sfnt"

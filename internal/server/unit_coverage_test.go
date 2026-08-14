@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/bundle"
-	"github.com/qorm/qorm/internal/model"
-	qrt "github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/bundle"
+	"github.com/qorm/platform/internal/model"
+	qrt "github.com/qorm/platform/internal/runtime"
 )
 
 // TestClientHost maps a connection's remote address to the identity shown in

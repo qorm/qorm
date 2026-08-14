@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/model"
 )
 
 // A script action dispatches its qscript source: reads and writes state

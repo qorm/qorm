@@ -3,7 +3,7 @@ package canvas
 import (
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/model"
 )
 
 func TestBuildA11yTree(t *testing.T) {

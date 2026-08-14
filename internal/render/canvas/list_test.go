@@ -6,10 +6,10 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/render"
-	"github.com/qorm/qorm/internal/render/graph"
-	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/render"
+	"github.com/qorm/platform/internal/render/graph"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 // listFixture builds a headless engine around one list bound to state.items,

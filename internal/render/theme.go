@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/model"
 )
 
 // Built-in theme palettes — the single source of truth for QORM's design

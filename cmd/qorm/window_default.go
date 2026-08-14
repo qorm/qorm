@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/qorm/qorm/internal/server"
+	"github.com/qorm/platform/internal/server"
 )
 
 // launchWindow is a no-op in the default (pure-Go) build: there is no native

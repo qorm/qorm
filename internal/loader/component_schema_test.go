@@ -22,7 +22,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/model"
 )
 
 // diagsWith returns the diagnostics containing sub (for asserting on one

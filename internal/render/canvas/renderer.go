@@ -6,7 +6,7 @@ package canvas
 import (
 	"image"
 
-	"github.com/qorm/qorm/internal/op"
+	"github.com/qorm/platform/internal/op"
 )
 
 // Renderer consumes a recorded display list and produces pixels into a

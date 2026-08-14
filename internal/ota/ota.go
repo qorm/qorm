@@ -19,7 +19,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/qorm/qorm/internal/bundle"
+	"github.com/qorm/platform/internal/bundle"
 )
 
 // maxBundle is the largest accepted bundle payload: 32 MiB. Anything bigger

@@ -26,13 +26,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/qorm/qorm/internal/bundle"
-	"github.com/qorm/qorm/internal/capability"
-	"github.com/qorm/qorm/internal/mcp"
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/ota"
-	"github.com/qorm/qorm/internal/render"
-	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/bundle"
+	"github.com/qorm/platform/internal/capability"
+	"github.com/qorm/platform/internal/mcp"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/ota"
+	"github.com/qorm/platform/internal/render"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 // Server is an HTTP handler wrapping a live runtime. It serves the browser UI,

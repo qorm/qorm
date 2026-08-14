@@ -10,9 +10,9 @@ import (
 	"sync"
 	"syscall/js"
 
-	"github.com/qorm/qorm/internal/playcore"
-	"github.com/qorm/qorm/internal/render/canvas"
-	"github.com/qorm/qorm/internal/theme"
+	"github.com/qorm/platform/internal/playcore"
+	"github.com/qorm/platform/internal/render/canvas"
+	"github.com/qorm/platform/internal/theme"
 )
 
 var (

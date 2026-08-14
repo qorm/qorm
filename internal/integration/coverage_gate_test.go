@@ -27,15 +27,15 @@
 // EXEMPT — packages the gate deliberately does NOT measure (reason mandatory,
 // enforced disjoint from coverageFloors):
 //
-//	github.com/qorm/qorm/cmd/qorm              server main loop + native packaging
+//	github.com/qorm/platform/cmd/qorm              server main loop + native packaging
 //	                                           (codesign/notarize/gradle); exercised
 //	                                           by release tooling, hard to unit-test
-//	github.com/qorm/qorm/internal/integration  no statements: test-only package
+//	github.com/qorm/platform/internal/integration  no statements: test-only package
 //	                                           (every file is *_test.go), so
 //	                                           `go test -cover` reports no percentage
-//	github.com/qorm/qorm/internal/webview/...  vendored cgo bindings, excluded
+//	github.com/qorm/platform/internal/webview/...  vendored cgo bindings, excluded
 //	                                           from the pure-Go default build
-//	github.com/qorm/qorm/cmd/qorm-wasm         build-constrained to js/wasm;
+//	github.com/qorm/platform/cmd/qorm-wasm         build-constrained to js/wasm;
 //	                                           excluded from the default
 //	                                           GOOS/GOARCH build
 //
@@ -83,35 +83,35 @@ const coverageGateInnerEnv = "QORM_COVERAGE_GATE_INNER"
 // observed when it was written (trailing comment). See the file-top doc for
 // the ratchet rule.
 var coverageFloors = map[string]float64{
-	"github.com/qorm/qorm/internal/keys":       97, // observed 100.0%
-	"github.com/qorm/qorm/internal/expr":       97, // observed 100.0%
-	"github.com/qorm/qorm/internal/loader":     97, // observed 100.0%
-	"github.com/qorm/qorm/internal/bundle":     97, // observed 100.0%
-	"github.com/qorm/qorm/internal/measure":    97, // observed 100.0%
-	"github.com/qorm/qorm/internal/render":     96, // observed 99.7%
-	"github.com/qorm/qorm/internal/runtime":    96, // observed 99.5%
-	"github.com/qorm/qorm/internal/mcp":        96, // observed 99.4%
-	"github.com/qorm/qorm/internal/server":     95, // observed 98.4%
-	"github.com/qorm/qorm/internal/miniapp":    93, // observed 96.6%
-	"github.com/qorm/qorm/internal/support":    90, // observed 94.0%
-	"github.com/qorm/qorm/internal/ota":        90, // observed 93.1%
-	"github.com/qorm/qorm/internal/model":      97, // observed 100.0%
-	"github.com/qorm/qorm/internal/mdsite":     89, // observed 92.3%
-	"github.com/qorm/qorm/pkg/qormext":         95, // observed 100.0%
-	"github.com/qorm/qorm/internal/updates":    84, // observed 87.8%
-	"github.com/qorm/qorm/internal/sourcemap":  84, // observed 87.7%
-	"github.com/qorm/qorm/internal/capability": 82, // observed 84.9%
-	"github.com/qorm/qorm/internal/a11y":       70, // observed 73.3%
+	"github.com/qorm/platform/internal/keys":       97, // observed 100.0%
+	"github.com/qorm/platform/internal/expr":       97, // observed 100.0%
+	"github.com/qorm/platform/internal/loader":     97, // observed 100.0%
+	"github.com/qorm/platform/internal/bundle":     97, // observed 100.0%
+	"github.com/qorm/platform/internal/measure":    97, // observed 100.0%
+	"github.com/qorm/platform/internal/render":     96, // observed 99.7%
+	"github.com/qorm/platform/internal/runtime":    96, // observed 99.5%
+	"github.com/qorm/platform/internal/mcp":        96, // observed 99.4%
+	"github.com/qorm/platform/internal/server":     95, // observed 98.4%
+	"github.com/qorm/platform/internal/miniapp":    93, // observed 96.6%
+	"github.com/qorm/platform/internal/support":    90, // observed 94.0%
+	"github.com/qorm/platform/internal/ota":        90, // observed 93.1%
+	"github.com/qorm/platform/internal/model":      97, // observed 100.0%
+	"github.com/qorm/platform/internal/mdsite":     89, // observed 92.3%
+	"github.com/qorm/platform/pkg/qormext":         95, // observed 100.0%
+	"github.com/qorm/platform/internal/updates":    84, // observed 87.8%
+	"github.com/qorm/platform/internal/sourcemap":  84, // observed 87.7%
+	"github.com/qorm/platform/internal/capability": 82, // observed 84.9%
+	"github.com/qorm/platform/internal/a11y":       70, // observed 73.3%
 }
 
 // coverageExempt lists packages the gate deliberately does NOT measure. Every
 // entry carries a mandatory reason, and TestCoverageGate asserts the set is
 // disjoint from coverageFloors — a package is floored or exempt, never both.
 var coverageExempt = map[string]string{
-	"github.com/qorm/qorm/cmd/qorm":             "server main loop + native packaging (codesign/notarize/gradle); exercised by release tooling, hard to unit-test",
-	"github.com/qorm/qorm/internal/integration": "no statements: test-only package (every file is *_test.go), so `go test -cover` reports no percentage",
-	"github.com/qorm/qorm/internal/webview/...": "vendored cgo bindings, excluded from the pure-Go default build",
-	"github.com/qorm/qorm/cmd/qorm-wasm":        "build-constrained to js/wasm; excluded from the default GOOS/GOARCH build",
+	"github.com/qorm/platform/cmd/qorm":             "server main loop + native packaging (codesign/notarize/gradle); exercised by release tooling, hard to unit-test",
+	"github.com/qorm/platform/internal/integration": "no statements: test-only package (every file is *_test.go), so `go test -cover` reports no percentage",
+	"github.com/qorm/platform/internal/webview/...": "vendored cgo bindings, excluded from the pure-Go default build",
+	"github.com/qorm/platform/cmd/qorm-wasm":        "build-constrained to js/wasm; excluded from the default GOOS/GOARCH build",
 }
 
 // covLineRe extracts the percentage from the `go test -cover` summary line
@@ -228,7 +228,7 @@ func TestCoverageGate(t *testing.T) {
 // blocks a below-floor package. (Same pattern as the planted snippets in
 // TestAttrInjectionLint.)
 func TestCoverageGateFailsOnImpossibleFloor(t *testing.T) {
-	const synthetic = "ok  github.com/qorm/qorm/internal/synthetic  0.001s  coverage: 50.0% of statements"
+	const synthetic = "ok  github.com/qorm/platform/internal/synthetic  0.001s  coverage: 50.0% of statements"
 
 	pct, ok, why := parseCoverage(synthetic)
 	if !ok {
@@ -238,23 +238,23 @@ func TestCoverageGateFailsOnImpossibleFloor(t *testing.T) {
 		t.Fatalf("parseCoverage read %.1f, want 50.0", pct)
 	}
 
-	if err := checkFloor("github.com/qorm/qorm/internal/synthetic", pct, 99); err == nil {
+	if err := checkFloor("github.com/qorm/platform/internal/synthetic", pct, 99); err == nil {
 		t.Errorf("self-proof failed: 50.0%% against a floor of 99%% did NOT error — the coverage gate can never block a regression")
 	}
 	// The comparison must be exact in the other direction too: at-floor and
 	// above-floor pass, so the gate is not merely always-failing.
-	if err := checkFloor("github.com/qorm/qorm/internal/synthetic", pct, 50); err != nil {
+	if err := checkFloor("github.com/qorm/platform/internal/synthetic", pct, 50); err != nil {
 		t.Errorf("self-proof failed: coverage exactly at the floor errored: %v", err)
 	}
-	if err := checkFloor("github.com/qorm/qorm/internal/synthetic", pct, 49); err != nil {
+	if err := checkFloor("github.com/qorm/platform/internal/synthetic", pct, 49); err != nil {
 		t.Errorf("self-proof failed: coverage above the floor errored: %v", err)
 	}
 
 	// Output with no measurable number must be a parse failure, never a silent
 	// pass — the gate must not go quiet when a package stops reporting.
 	for _, silent := range []string{
-		"ok  github.com/qorm/qorm/internal/synthetic  [no test files]",
-		"ok  github.com/qorm/qorm/internal/synthetic  coverage: [no statements]",
+		"ok  github.com/qorm/platform/internal/synthetic  [no test files]",
+		"ok  github.com/qorm/platform/internal/synthetic  coverage: [no statements]",
 		"--- FAIL: TestX\nFAIL",
 		"",
 	} {

@@ -1,11 +1,11 @@
 # Go 包:qormext
 
-> 由 `github.com/qorm/qorm/pkg/qormext` 自动生成(`TestAPIRef`),请勿手工编辑。
+> 由 `github.com/qorm/platform/pkg/qormext` 自动生成(`TestAPIRef`),请勿手工编辑。
 
 唯一的公开 Go 包。应用用 Go 注册**自己的**原生操作,打包器将其编译进应用的单一可执行文件——桌面桥接把未知操作分发到这里。
 
 ```go
-import "github.com/qorm/qorm/pkg/qormext"
+import "github.com/qorm/platform/pkg/qormext"
 ```
 
 Package qormext is the user middle-layer registry. An app registers its OWN
@@ -16,7 +16,7 @@ Contract — the app's native/desktop.go:
 
 ```go
 package main
-import "github.com/qorm/qorm/pkg/qormext"
+import "github.com/qorm/platform/pkg/qormext"
 func init() {
     qormext.Register("myOp", func(data map[string]any) string {
         // your Go logic; return one line of JS to run back in the app

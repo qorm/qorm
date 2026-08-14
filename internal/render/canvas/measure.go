@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	flexlayout "github.com/qorm/qorm/internal/layout"
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/render/graph"
-	"github.com/qorm/qorm/internal/runtime"
+	flexlayout "github.com/qorm/platform/internal/layout"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/render/graph"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 type LayoutNode struct {

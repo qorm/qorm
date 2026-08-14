@@ -15,12 +15,12 @@ import (
 	"strings"
 	"syscall/js"
 
-	"github.com/qorm/qorm/internal/bundle"
-	"github.com/qorm/qorm/internal/ota"
-	"github.com/qorm/qorm/internal/playcore"
-	"github.com/qorm/qorm/internal/render"
-	"github.com/qorm/qorm/internal/runtime"
-	"github.com/qorm/qorm/pkg/qormext"
+	"github.com/qorm/platform/internal/bundle"
+	"github.com/qorm/platform/internal/ota"
+	"github.com/qorm/platform/internal/playcore"
+	"github.com/qorm/platform/internal/render"
+	"github.com/qorm/platform/internal/runtime"
+	"github.com/qorm/platform/pkg/qormext"
 )
 
 var (

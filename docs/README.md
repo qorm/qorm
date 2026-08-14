@@ -17,11 +17,11 @@ over HTTP/MCP, **Observe** it in real time over SSE, **Render** it on every
 platform, **Mutate** it through actions and the write API.
 
 > **2-Prompt Agent Quickstart:**
-> 1. *"Load QORM framework MCP configuration and Skill library (https://github.com/qorm/qorm), set up environment, keep DevTool active."*
+> 1. *"Load QORM framework MCP configuration and Skill library (https://github.com/qorm/platform), set up environment, keep DevTool active."*
 > 2. *"Use QORM to create a new app in `./my-app`, launch native window, and build: <your app idea here>."*
 
-New here? Read the [top-level README](https://github.com/qorm/qorm/blob/main/README.md) for the big picture and the
-CLI, then dive in below. The [`examples/`](https://github.com/qorm/qorm/tree/main/examples) apps are the canonical,
+New here? Read the [top-level README](https://github.com/qorm/platform/blob/main/README.md) for the big picture and the
+CLI, then dive in below. The [`examples/`](https://github.com/qorm/platform/tree/main/examples) apps are the canonical,
 runnable reference — when a doc and a running example disagree, trust the example.
 
 ![QORM live human-AI collaboration](assets/qorm-demo.gif)
@@ -68,10 +68,10 @@ App-facing capability docs stay here with the platform guides:
 ## Examples (walkthroughs)
 
 - [Counter](examples/counter.md) · [Todo](examples/todo.md) · [Login](examples/login.md) · [Dashboard](examples/dashboard.md)
-- Games (canvas): [`tetris`](https://github.com/qorm/qorm/tree/main/examples/tetris) · [`mario`](https://github.com/qorm/qorm/tree/main/examples/mario) · [`raiden`](https://github.com/qorm/qorm/tree/main/examples/raiden) · [`g2048`](https://github.com/qorm/qorm/tree/main/examples/g2048) — live at [qorm.com/games](https://qorm.com/games/)
-- Motion showcase: [`canvas-fx`](https://github.com/qorm/qorm/tree/main/examples/canvas-fx)
-- Ultimate showcase (RichText, Video, WebView, SVG Morphing): [`canvas-ultimate`](https://github.com/qorm/qorm/tree/main/examples/canvas-ultimate)
-- The full set of runnable apps lives in [`examples/`](https://github.com/qorm/qorm/tree/main/examples).
+- Games (canvas): [`tetris`](https://github.com/qorm/platform/tree/main/examples/tetris) · [`mario`](https://github.com/qorm/platform/tree/main/examples/mario) · [`raiden`](https://github.com/qorm/platform/tree/main/examples/raiden) · [`g2048`](https://github.com/qorm/platform/tree/main/examples/g2048) — live at [qorm.com/games](https://qorm.com/games/)
+- Motion showcase: [`canvas-fx`](https://github.com/qorm/platform/tree/main/examples/canvas-fx)
+- Ultimate showcase (RichText, Video, WebView, SVG Morphing): [`canvas-ultimate`](https://github.com/qorm/platform/tree/main/examples/canvas-ultimate)
+- The full set of runnable apps lives in [`examples/`](https://github.com/qorm/platform/tree/main/examples).
 
 ## Human-AI collaboration
 
@@ -80,7 +80,7 @@ App-facing capability docs stay here with the platform guides:
 
 ## For AI agents
 
-- [Agent integrations](https://github.com/qorm/qorm/tree/main/integrations) — drop-in MCP config + a QORM skill for Claude / Cursor / Windsurf
+- [Agent integrations](https://github.com/qorm/platform/tree/main/integrations) — drop-in MCP config + a QORM skill for Claude / Cursor / Windsurf
 - [MCP tools](agent/mcp-tools.md) — the Model Context Protocol surface to read, edit, and verify a live app
 - [Verifying an app](verification.md) — self-verify edits with `qorm measure` / `qorm check`
 - [Skills](agent/skills.md) · [Permissions](agent/permissions.md)
@@ -92,4 +92,4 @@ App-facing capability docs stay here with the platform guides:
 
 ## Commercial use
 
-- [Terms](https://github.com/qorm/qorm/blob/main/ops/TERMS.md) — the source is MIT; a Patreon membership covers commercial white-labeling
+- [Terms](https://github.com/qorm/platform/blob/main/ops/TERMS.md) — the source is MIT; a Patreon membership covers commercial white-labeling

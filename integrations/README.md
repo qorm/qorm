@@ -6,8 +6,8 @@ lets an agent read, edit, run, and verify a live QORM app, plus a **skill**
 
 > 💡 **Quickest Way**: Copy the 1-Prompt Quickstart from [README.md](../README.md) to your AI agent. Running `qorm run ./myapp` automatically scaffolds, serves, and opens the live app and HTTP MCP endpoint in one step!
 
-Prerequisite: `qorm` on PATH — `go install github.com/qorm/qorm/cmd/qorm@latest`
-(or use the container: `ghcr.io/qorm/qorm`).
+Prerequisite: `qorm` on PATH — `go install github.com/qorm/platform/cmd/qorm@latest`
+(or use the container: `ghcr.io/qorm/platform`).
 
 ## MCP tools the server exposes
 

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/qorm/qorm/internal/capability"
+	"github.com/qorm/platform/internal/capability"
 )
 
 // dropNFCEntitlement removes the NFC entitlement (a free personal team can't
@@ -61,9 +61,9 @@ func scaffoldMac(out, name, appName, srcDir string, rel releaseOpts) error {
 	// build the desktop binary (webview + tray; needs cgo, macOS only)
 	// Compile the app's own Go middle-layer (native/desktop.go) INTO this one
 	// binary — the user writes Go, it ships in the single executable.
-	defer injectUserGo(srcDir, "github.com/qorm/qorm/cmd/qorm")()
+	defer injectUserGo(srcDir, "github.com/qorm/platform/cmd/qorm")()
 	fmt.Fprintf(os.Stderr, "building the desktop binary (webview + tray)…\n")
-	build := exec.Command("go", "build", "-tags", "desktop", "-o", filepath.Join(macos, id), "github.com/qorm/qorm/cmd/qorm")
+	build := exec.Command("go", "build", "-tags", "desktop", "-o", filepath.Join(macos, id), "github.com/qorm/platform/cmd/qorm")
 	build.Stderr = os.Stderr
 	if err := build.Run(); err != nil {
 		return fmt.Errorf("desktop build failed (need macOS + cgo): %w", err)

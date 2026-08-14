@@ -5,8 +5,8 @@ import (
 	"image/color"
 	"math"
 
-	"github.com/qorm/qorm/internal/geom"
-	"github.com/qorm/qorm/internal/op"
+	"github.com/qorm/platform/internal/geom"
+	"github.com/qorm/platform/internal/op"
 )
 
 // Context provides a stateful Canvas-like API for drawing.

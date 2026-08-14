@@ -11,9 +11,9 @@
 package playcore
 
 import (
-	"github.com/qorm/qorm/internal/loader"
-	"github.com/qorm/qorm/internal/render"
-	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/loader"
+	"github.com/qorm/platform/internal/render"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 // Result is one compile's output, ready to be handed to the JS bridge. RT and

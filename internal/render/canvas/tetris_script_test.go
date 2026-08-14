@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/qorm/qorm/internal/loader"
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/runtime"
-	"github.com/qorm/qorm/internal/theme"
+	"github.com/qorm/platform/internal/loader"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/runtime"
+	"github.com/qorm/platform/internal/theme"
 )
 
 // tetrisFixture loads examples/tetris into a headless engine. Any loader

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/model"
 )
 
 // These tests cover the list's built-in depth features — pagination

@@ -12,7 +12,7 @@ human's side of the workflow.
 
 ## See it first
 
-The 60-second version: [`scripts/demo.sh`](https://github.com/qorm/qorm/blob/main/scripts/demo.sh) starts a shared session and plays a scripted set of AI edits — open the printed URL, hit record, and watch the app change live with an "AI edited" toast:
+The 60-second version: [`scripts/demo.sh`](https://github.com/qorm/platform/blob/main/scripts/demo.sh) starts a shared session and plays a scripted set of AI edits — open the printed URL, hit record, and watch the app change live with an "AI edited" toast:
 
 ```sh
 ./scripts/demo.sh                 # examples/counter
@@ -28,7 +28,7 @@ No complex manual setup needed. Simply send these two prompts in sequence to you
 
 ```text
 Prompt 1 (Load Framework & Skills):
-Load QORM framework MCP configuration and Skill library (https://github.com/qorm/qorm), set up environment, keep DevTool active.
+Load QORM framework MCP configuration and Skill library (https://github.com/qorm/platform), set up environment, keep DevTool active.
 
 Prompt 2 (Create & Build App):
 Use QORM to create a new app in ./myapp, launch the native window, then build the app for: <your app idea, e.g. a habit tracker with streak days>.
@@ -96,7 +96,7 @@ Comparison is normalized for hex case and the leading `#`, so `#0A84FF`,
 
 The agent discovers your tokens through `qorm_inspect`, which now returns a
 `designTokens` field, so it knows which values it's allowed to use before it
-edits. See the [gallery example](https://github.com/qorm/qorm/blob/main/examples/gallery/qorm.json)
+edits. See the [gallery example](https://github.com/qorm/platform/blob/main/examples/gallery/qorm.json)
 for a working declaration.
 
 ## Prompts that work well

@@ -2,7 +2,7 @@
 
 package main
 
-import "github.com/qorm/qorm/pkg/qormext"
+import "github.com/qorm/platform/pkg/qormext"
 
 // The app's OWN native middle-layer, in Go — ONE file, compiled into the desktop
 // binary AND the mobile/web WASM. Runs everywhere.

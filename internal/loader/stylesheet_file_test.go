@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/model"
 )
 
 // Stylesheets: styles/<id>.qss collects as a type:"stylesheet" document whose

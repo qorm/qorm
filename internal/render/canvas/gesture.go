@@ -4,8 +4,8 @@ import (
 	"math"
 	"time"
 
-	"github.com/qorm/qorm/internal/geom"
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/geom"
+	"github.com/qorm/platform/internal/model"
 )
 
 // ClickDetector turns a stream of presses into a click count: two presses

@@ -5,7 +5,7 @@ A release ships four artifacts from one version tag:
 1. **Cross-compiled binaries** — `qorm-{darwin,linux,windows}-{amd64,arm64}` +
    `SHA256SUMS` (ed25519-signed when the release key is configured), attached to
    a GitHub Release.
-2. **Container image** — `ghcr.io/qorm/qorm:<tag>` (+ `:latest`, `:sha-<sha>`).
+2. **Container image** — `ghcr.io/qorm/platform:<tag>` (+ `:latest`, `:sha-<sha>`).
 3. **Docs site** — the `docs/` and `api/` trees rendered and published to
    qorm.com under `/docs` and `/api`.
 4. **The `go install` version** — the value `qorm version` prints for users who

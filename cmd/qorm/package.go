@@ -9,12 +9,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/qorm/qorm/internal/bundle"
-	"github.com/qorm/qorm/internal/keys"
-	"github.com/qorm/qorm/internal/loader"
-	"github.com/qorm/qorm/internal/miniapp"
-	qrt "github.com/qorm/qorm/internal/runtime"
-	"github.com/qorm/qorm/internal/server"
+	"github.com/qorm/platform/internal/bundle"
+	"github.com/qorm/platform/internal/keys"
+	"github.com/qorm/platform/internal/loader"
+	"github.com/qorm/platform/internal/miniapp"
+	qrt "github.com/qorm/platform/internal/runtime"
+	"github.com/qorm/platform/internal/server"
 )
 
 //go:embed icons/appicon-1024.png icons/appicon-512.png icons/appicon-192.png icons/tray.png icons/macicon-1024.png
@@ -336,12 +336,12 @@ func cmdPackage(args []string) int {
 
 // buildWASM compiles the client-side runtime for the browser/WebView.
 func buildWASM(dst, appDir string) error {
-	defer injectUserGo(appDir, "github.com/qorm/qorm/cmd/qorm-wasm")()
-	cmd := exec.Command("go", "build", "-ldflags", "-s -w", "-trimpath", "-o", dst, "github.com/qorm/qorm/cmd/qorm-wasm")
+	defer injectUserGo(appDir, "github.com/qorm/platform/cmd/qorm-wasm")()
+	cmd := exec.Command("go", "build", "-ldflags", "-s -w", "-trimpath", "-o", dst, "github.com/qorm/platform/cmd/qorm-wasm")
 	cmd.Env = append(os.Environ(), "GOOS=js", "GOARCH=wasm")
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("%w (packaging builds the client WASM via 'go build github.com/qorm/qorm/cmd/qorm-wasm'; run 'qorm package' from the QORM repo, or a dir whose go.mod requires github.com/qorm/qorm)", err)
+		return fmt.Errorf("%w (packaging builds the client WASM via 'go build github.com/qorm/platform/cmd/qorm-wasm'; run 'qorm package' from the QORM repo, or a dir whose go.mod requires github.com/qorm/platform)", err)
 	}
 	return nil
 }

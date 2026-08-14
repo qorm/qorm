@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/pkg/qormext"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/pkg/qormext"
 )
 
 // loadManifest runs applyManifest on a manifest doc and returns the app + diags.

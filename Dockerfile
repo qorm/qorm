@@ -3,8 +3,8 @@
 # Go install needed. The container runs from the module dir (/qorm) so the WASM
 # build resolves; mount your app and use absolute paths.
 #
-#   docker run --rm -v "$PWD:/app" ghcr.io/qorm/qorm run /app
-#   docker run --rm -v "$PWD:/app" ghcr.io/qorm/qorm package /app -p web -o /app/out
+#   docker run --rm -v "$PWD:/app" ghcr.io/qorm/platform run /app
+#   docker run --rm -v "$PWD:/app" ghcr.io/qorm/platform package /app -p web -o /app/out
 FROM golang:1.24-bookworm
 
 WORKDIR /qorm

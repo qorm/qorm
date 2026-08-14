@@ -105,7 +105,7 @@ CI 变红触发排查，两个失败都是真实缺陷，按根因修复而非�
 
 ## 链接
 
-- 仓库：https://github.com/qorm/qorm
+- 仓库：https://github.com/qorm/platform
 - 官网：https://qorm.com/
 - Docs：https://qorm.com/docs/
 - Games：https://qorm.com/games/

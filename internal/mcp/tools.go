@@ -6,16 +6,16 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/qorm/qorm/internal/a11y"
-	"github.com/qorm/qorm/internal/bundle"
-	"github.com/qorm/qorm/internal/capability"
-	"github.com/qorm/qorm/internal/expr"
-	"github.com/qorm/qorm/internal/loader"
-	"github.com/qorm/qorm/internal/measure"
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/render"
-	qrt "github.com/qorm/qorm/internal/runtime"
-	"github.com/qorm/qorm/internal/sourcemap"
+	"github.com/qorm/platform/internal/a11y"
+	"github.com/qorm/platform/internal/bundle"
+	"github.com/qorm/platform/internal/capability"
+	"github.com/qorm/platform/internal/expr"
+	"github.com/qorm/platform/internal/loader"
+	"github.com/qorm/platform/internal/measure"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/render"
+	qrt "github.com/qorm/platform/internal/runtime"
+	"github.com/qorm/platform/internal/sourcemap"
 )
 
 type tool struct {

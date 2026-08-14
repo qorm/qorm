@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/model"
 )
 
 // TRUE list virtualization (`virtualize: "window"`): only the rows around the

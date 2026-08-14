@@ -14,13 +14,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/qorm/qorm/internal/bundle"
-	"github.com/qorm/qorm/internal/keys"
-	"github.com/qorm/qorm/internal/loader"
-	"github.com/qorm/qorm/internal/mcp"
-	"github.com/qorm/qorm/internal/render"
-	"github.com/qorm/qorm/internal/server"
-	"github.com/qorm/qorm/internal/testrunner"
+	"github.com/qorm/platform/internal/bundle"
+	"github.com/qorm/platform/internal/keys"
+	"github.com/qorm/platform/internal/loader"
+	"github.com/qorm/platform/internal/mcp"
+	"github.com/qorm/platform/internal/render"
+	"github.com/qorm/platform/internal/server"
+	"github.com/qorm/platform/internal/testrunner"
 )
 
 func cmdMCP(args []string) int {

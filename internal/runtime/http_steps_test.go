@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/model"
 )
 
 // These tests exercise the http.* dispatch steps against a loopback

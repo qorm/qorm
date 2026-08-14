@@ -2,7 +2,7 @@
 
 package main
 
-import "github.com/qorm/qorm/internal/audio"
+import "github.com/qorm/platform/internal/audio"
 
 // Wire the browser HTMLAudioElement sink so qscript playSound / playMusic /
 // stopMusic emit real audio on the games page and other WASM hosts. Desktop

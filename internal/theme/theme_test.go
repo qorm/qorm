@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/qorm/qorm/internal/anim"
+	"github.com/qorm/platform/internal/anim"
 )
 
 func writeTheme(t *testing.T, body string) *Theme {

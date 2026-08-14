@@ -15,7 +15,7 @@ package runtime
 import (
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/model"
 )
 
 // inboxApp is the canonical bulk-update app: mark every message read.

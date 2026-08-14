@@ -1,11 +1,11 @@
 # Go package: qormext
 
-> Auto-generated from `github.com/qorm/qorm/pkg/qormext` (`TestAPIRef`) — do not edit by hand.
+> Auto-generated from `github.com/qorm/platform/pkg/qormext` (`TestAPIRef`) — do not edit by hand.
 
 The one public Go package. An app registers its **own** native ops (in Go) so the packager compiles them into the app's single executable — the desktop bridge dispatches unknown ops here.
 
 ```go
-import "github.com/qorm/qorm/pkg/qormext"
+import "github.com/qorm/platform/pkg/qormext"
 ```
 
 Package qormext is the user middle-layer registry. An app registers its OWN
@@ -16,7 +16,7 @@ Contract — the app's native/desktop.go:
 
 ```go
 package main
-import "github.com/qorm/qorm/pkg/qormext"
+import "github.com/qorm/platform/pkg/qormext"
 func init() {
     qormext.Register("myOp", func(data map[string]any) string {
         // your Go logic; return one line of JS to run back in the app

@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/loader"
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/loader"
+	"github.com/qorm/platform/internal/model"
 )
 
 // TestSetPropFieldBranches covers the value/placeholder/custom-prop targets of

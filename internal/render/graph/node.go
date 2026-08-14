@@ -1,8 +1,8 @@
 package graph
 
 import (
-	"github.com/qorm/qorm/internal/geom"
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/geom"
+	"github.com/qorm/platform/internal/model"
 )
 
 // Node is the core interface for all Scene Graph elements

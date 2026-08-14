@@ -13,7 +13,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/qorm/qorm/pkg/qormext"
+	"github.com/qorm/platform/pkg/qormext"
 )
 
 // The bridge's shared state. Declared here (not in window_desktop.go, which is

@@ -94,12 +94,12 @@ state.hits = state.hits + 1
 `scale` / `flipX` / `skewX` / `skewY` 叠加——偏移走同一套变换通道(枢轴:样式
 `transformOrigin`,默认中心)。持久样式变换不改变布局盒。
 
-可运行:[`examples/canvas-fx`](https://github.com/qorm/qorm/tree/main/examples/canvas-fx)(FX 段)。完整游戏:
-[`examples/tetris`](https://github.com/qorm/qorm/tree/main/examples/tetris)(局部消行闪白 + SINGLE/DOUBLE/TRIPLE/TETRIS
+可运行:[`examples/canvas-fx`](https://github.com/qorm/platform/tree/main/examples/canvas-fx)(FX 段)。完整游戏:
+[`examples/tetris`](https://github.com/qorm/platform/tree/main/examples/tetris)(局部消行闪白 + SINGLE/DOUBLE/TRIPLE/TETRIS
 横幅 + 金色描边;NEXT/SCORE/LINES punch;棋盘本身不 shake / burst)、
-[`examples/g2048`](https://github.com/qorm/qorm/tree/main/examples/g2048)(仅格子生成/合并变色闪;SCORE punch;
-棋盘整体不位移)、[`examples/mario`](https://github.com/qorm/qorm/tree/main/examples/mario)(`fxJump`/`fxCoin`/`fxDeath`)、
-[`examples/raiden`](https://github.com/qorm/qorm/tree/main/examples/raiden)(`fxHit`/`fxBomb`/`fxBoss`,爆炸
+[`examples/g2048`](https://github.com/qorm/platform/tree/main/examples/g2048)(仅格子生成/合并变色闪;SCORE punch;
+棋盘整体不位移)、[`examples/mario`](https://github.com/qorm/platform/tree/main/examples/mario)(`fxJump`/`fxCoin`/`fxDeath`)、
+[`examples/raiden`](https://github.com/qorm/platform/tree/main/examples/raiden)(`fxHit`/`fxBomb`/`fxBoss`,爆炸
 `burst`)。物理仍写 `x`/`y`;`fx` 只做视觉偏移。益智棋盘把动效留在格子和 HUD,
 不晃整块板。
 
@@ -297,7 +297,7 @@ stagger / DOTween `SetDelay(i * step)`:
 }
 ```
 
-可运行演示:[`examples/canvas-fx`](https://github.com/qorm/qorm/tree/main/examples/canvas-fx)(同一场景覆盖
+可运行演示:[`examples/canvas-fx`](https://github.com/qorm/platform/tree/main/examples/canvas-fx)(同一场景覆盖
 scroll-snap、滤镜、蒙版、clip-path、弹簧按压与 FLIP)。完整样式键列表:
 [通用样式属性](props.md#通用样式属性)与
 [QSS / canvas 效果](../../docs/zh/styles.md#canvas-视觉效果)。

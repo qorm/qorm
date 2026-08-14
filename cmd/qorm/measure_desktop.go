@@ -14,10 +14,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/qorm/qorm/internal/measure"
-	qrt "github.com/qorm/qorm/internal/runtime"
-	"github.com/qorm/qorm/internal/server"
-	webview "github.com/qorm/qorm/internal/webview"
+	"github.com/qorm/platform/internal/measure"
+	qrt "github.com/qorm/platform/internal/runtime"
+	"github.com/qorm/platform/internal/server"
+	webview "github.com/qorm/platform/internal/webview"
 )
 
 // measureRows renders appDir in a WebView, waits for the app to self-report its

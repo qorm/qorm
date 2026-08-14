@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/qorm/qorm/internal/capability"
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/capability"
+	"github.com/qorm/platform/internal/model"
 )
 
 // scaffoldAndroid generates a complete WebView Android project around the

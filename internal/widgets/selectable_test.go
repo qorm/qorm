@@ -3,8 +3,8 @@ package widgets
 import (
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/render/canvas"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/render/canvas"
 )
 
 func TestSelectableTextSessionAndCopy(t *testing.T) {

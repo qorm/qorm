@@ -59,10 +59,10 @@ func userBinaryPath(dir string, data []byte) (string, error) {
 	if _, err := os.Stat(bin); err == nil {
 		return bin, nil
 	}
-	cleanup := injectUserGo(dir, "github.com/qorm/qorm/cmd/qorm")
+	cleanup := injectUserGo(dir, "github.com/qorm/platform/cmd/qorm")
 	defer cleanup()
 	tmp := bin + ".tmp"
-	cmd := exec.Command("go", "build", "-o", tmp, "github.com/qorm/qorm/cmd/qorm")
+	cmd := exec.Command("go", "build", "-o", tmp, "github.com/qorm/platform/cmd/qorm")
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		return "", fmt.Errorf("go build: %w", err)

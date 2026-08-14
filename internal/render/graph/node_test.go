@@ -3,8 +3,8 @@ package graph
 import (
 	"testing"
 
-	"github.com/qorm/qorm/internal/geom"
-	"github.com/qorm/qorm/internal/op"
+	"github.com/qorm/platform/internal/geom"
+	"github.com/qorm/platform/internal/op"
 )
 
 // drawForTransforms runs a Draw pass so every node's GlobalTransform is

@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 // Handler is a press/change handler captured during render. Args are raw

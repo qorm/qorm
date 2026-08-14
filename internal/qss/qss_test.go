@@ -3,7 +3,7 @@ package qss
 import (
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/model"
 )
 
 func mustParse(t *testing.T, src string) []model.StyleRule {

@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/render"
-	qrt "github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/render"
+	qrt "github.com/qorm/platform/internal/runtime"
 )
 
 // allWidgetTypes is every widget type string handled by the render switch,

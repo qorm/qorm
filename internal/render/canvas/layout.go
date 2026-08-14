@@ -3,10 +3,10 @@ package canvas
 import (
 	"image"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/op"
-	"github.com/qorm/qorm/internal/render/graph"
-	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/op"
+	"github.com/qorm/platform/internal/render/graph"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 // findBoard walks the tree depth-first and returns the first node of type

@@ -3,8 +3,8 @@ package canvas
 import (
 	"image"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/render/graph"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/render/graph"
 )
 
 // WidgetFrames returns the rendered bounding boxes (physical px, global

@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/qorm/qorm/internal/keys"
+	"github.com/qorm/platform/internal/keys"
 )
 
 type githubRelease struct {
@@ -33,7 +33,7 @@ type githubRelease struct {
 
 // releaseAPIURL serves the latest-release metadata (GitHub API JSON shape).
 // It is a package variable so loopback tests can point it at a local server.
-var releaseAPIURL = "https://api.github.com/repos/qorm/qorm/releases/latest"
+var releaseAPIURL = "https://api.github.com/repos/qorm/platform/releases/latest"
 
 // errGoInstallUnavailable marks a go-install phase that was skipped because no
 // Go toolchain is on PATH: a silent fallback to the signed-binary download,
@@ -55,7 +55,7 @@ func defaultGoInstallPhase() error {
 		return errGoInstallUnavailable
 	}
 	fmt.Println("Updating via 'go install'...")
-	cmd := exec.Command("go", "install", "github.com/qorm/qorm/cmd/qorm@latest")
+	cmd := exec.Command("go", "install", "github.com/qorm/platform/cmd/qorm@latest")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()

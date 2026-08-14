@@ -17,11 +17,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/qorm/qorm/internal/audio"
-	"github.com/qorm/qorm/internal/expr"
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/qscript"
-	"github.com/qorm/qorm/internal/theme"
+	"github.com/qorm/platform/internal/audio"
+	"github.com/qorm/platform/internal/expr"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/qscript"
+	"github.com/qorm/platform/internal/theme"
 )
 
 // Viewport is a client viewport size in CSS pixels. The zero value means

@@ -7,11 +7,11 @@ package measure
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/qorm/qorm/internal/render"
+	"github.com/qorm/platform/internal/render"
 	"strings"
 
-	"github.com/qorm/qorm/internal/model"
-	qrt "github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/model"
+	qrt "github.com/qorm/platform/internal/runtime"
 )
 
 // NodeIndex maps id -> the user's expressed intent for that node.

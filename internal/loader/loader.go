@@ -12,12 +12,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/qorm/qorm/internal/expr"
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/qscript"
-	"github.com/qorm/qorm/internal/qss"
-	"github.com/qorm/qorm/internal/render"
-	"github.com/qorm/qorm/pkg/qormext"
+	"github.com/qorm/platform/internal/expr"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/qscript"
+	"github.com/qorm/platform/internal/qss"
+	"github.com/qorm/platform/internal/render"
+	"github.com/qorm/platform/pkg/qormext"
 )
 
 // skipDirs are directories that never contain renderable QORM sources.

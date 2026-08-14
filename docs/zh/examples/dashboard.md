@@ -1,4 +1,4 @@
-<!-- data-lang-nav --> [English](https://github.com/qorm/qorm/blob/main/examples/dashboard.md) · 中文
+<!-- data-lang-nav --> [English](https://github.com/qorm/platform/blob/main/examples/dashboard.md) · 中文
 
 # 示例:仪表盘
 

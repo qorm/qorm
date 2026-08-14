@@ -4,8 +4,8 @@ import (
 	"image/color"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/render/canvas"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/render/canvas"
 )
 
 // isFocusBlue matches the keyboard focus ring (#007AFF) — distinct from

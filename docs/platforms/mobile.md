@@ -38,8 +38,8 @@ is still open, and anything depending on the reply must sit in
 [First action](../tutorials/first-action.md).
 
 The app runs offline on device via Go→WASM in a WebView. Examples:
-[`hardware`](https://github.com/qorm/qorm/tree/main/examples/hardware) (the capability catalog exercised),
-[`i18n`](https://github.com/qorm/qorm/tree/main/examples/i18n) (locales, plurals, currency, RTL). See the
+[`hardware`](https://github.com/qorm/platform/tree/main/examples/hardware) (the capability catalog exercised),
+[`i18n`](https://github.com/qorm/platform/tree/main/examples/i18n) (locales, plurals, currency, RTL). See the
 [support matrix](support-matrix.md) for per-capability platform support.
 
 ![A QORM app on iOS with native inputs and toggles](../assets/screenshots/gallery.png)

@@ -45,7 +45,7 @@ QORM is built for AI agents: give your AI assistant **a single sentence**, and i
 
 > **Copy & paste these 2 sequential prompts to your AI assistant (ChatGPT / Claude Code / Cursor / Windsurf / Antigravity / DeepSeek / Kimi):**
 >
-> 1. *"Load QORM framework MCP configuration and Skill library (https://github.com/qorm/qorm), set up environment, keep DevTool active."*
+> 1. *"Load QORM framework MCP configuration and Skill library (https://github.com/qorm/platform), set up environment, keep DevTool active."*
 > 2. *"Use QORM to create a new app in `./myapp`, launch the native window, then build the app for: <your app idea, e.g. a habit tracker with streak days>."*
 
 User interactions are streamed live to the agent (`qorm_activity`); agent modifications to UI and logic synchronize instantly across all clients. Full guide: **[Build with your AI](docs/build-with-ai.md)** · [Human-AI collaboration](docs/collaboration.md).

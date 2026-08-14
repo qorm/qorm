@@ -8,7 +8,7 @@ import (
 	"math"
 	"unsafe"
 
-	"github.com/qorm/qorm/internal/geom"
+	"github.com/qorm/platform/internal/geom"
 )
 
 // Ops is a list of rendering and state operations.

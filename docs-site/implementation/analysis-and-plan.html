@@ -13,20 +13,20 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QORM 整体分析与目标实施规划 · QORM</title>
-<meta name="description" content="QORM = Agent-native 跨平台应用运行时：JSON 描述 UI + 纯 Go 运行时 + MCP 协作 + ed25519 OTA。">
+<meta name="description" content="62df1ca 把调试会话残留扫进仓库：空 scratch.go、重复 package main 桩、 补丁/脚本杂物、两个未加构建标签的 cgo/ObjC 原型 cmd——main 上 go build ./... 直接失败（Linux CI 必红）。已删除 11 个文件并提交 0fd604d；视频功能本体…">
 <meta property="og:title" content="QORM 整体分析与目标实施规划">
-<meta property="og:description" content="QORM = Agent-native 跨平台应用运行时：JSON 描述 UI + 纯 Go 运行时 + MCP 协作 + ed25519 OTA。">
+<meta property="og:description" content="62df1ca 把调试会话残留扫进仓库：空 scratch.go、重复 package main 桩、 补丁/脚本杂物、两个未加构建标签的 cgo/ObjC 原型 cmd——main 上 go build ./... 直接失败（Linux CI 必红）。已删除 11 个文件并提交 0fd604d；视频功能本体…">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://qorm.com/docs/implementation/analysis-and-plan.html">
 <meta property="og:site_name" content="QORM">
 <meta property="og:locale" content="en_US">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="QORM 整体分析与目标实施规划">
-<meta name="twitter:description" content="QORM = Agent-native 跨平台应用运行时：JSON 描述 UI + 纯 Go 运行时 + MCP 协作 + ed25519 OTA。">
+<meta name="twitter:description" content="62df1ca 把调试会话残留扫进仓库：空 scratch.go、重复 package main 桩、 补丁/脚本杂物、两个未加构建标签的 cgo/ObjC 原型 cmd——main 上 go build ./... 直接失败（Linux CI 必红）。已删除 11 个文件并提交 0fd604d；视频功能本体…">
 <link rel="canonical" href="https://qorm.com/docs/implementation/analysis-and-plan.html">
 <link rel="alternate" hreflang="en" href="https://qorm.com/docs/implementation/analysis-and-plan.html">
 <link rel="alternate" hreflang="x-default" href="https://qorm.com/docs/implementation/analysis-and-plan.html">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"QORM = Agent-native 跨平台应用运行时：JSON 描述 UI + 纯 Go 运行时 + MCP 协作 + ed25519 OTA。","headline":"QORM 整体分析与目标实施规划","inLanguage":"en","name":"QORM 整体分析与目标实施规划","url":"https://qorm.com/docs/implementation/analysis-and-plan.html"}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"62df1ca 把调试会话残留扫进仓库：空 scratch.go、重复 package main 桩、 补丁/脚本杂物、两个未加构建标签的 cgo/ObjC 原型 cmd——main 上 go build ./... 直接失败（Linux CI 必红）。已删除 11 个文件并提交 0fd604d；视频功能本体…","headline":"QORM 整体分析与目标实施规划","inLanguage":"en","name":"QORM 整体分析与目标实施规划","url":"https://qorm.com/docs/implementation/analysis-and-plan.html"}</script>
 <link rel="icon" href="/assets/logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -99,12 +99,12 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <body>
 <header class="top"><div class="tnav">
   <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
-  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.9.0</a>
+  <a class="ver" href="https://github.com/qorm/platform/releases" target="_blank" rel="noopener" title="Release notes">v0.9.2</a>
   <span class="doc">docs</span>
   <span class="sp"></span>
   <nav class="pill" aria-label="Primary"><a class="tl active-nav" href="/docs/">Docs</a><a class="tl" href="/api/">API</a><a class="tl" href="/compare/">Compare</a><a class="tl" href="/about.html">About</a></nav>
   <a class="btn navcta" href="/docs/build-with-ai.html">Get started</a>
-  <a class="iconlink" href="https://github.com/qorm/qorm" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
+  <a class="iconlink" href="https://github.com/qorm/platform" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
   <a class="iconlink patreon" href="https://www.patreon.com/qorm" target="_blank" rel="noopener" aria-label="Patreon" title="Patreon"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="14.4" cy="9.6" r="6.6"/><rect x="1.5" y="2.5" width="4" height="19" rx="0.3"/></svg></a>
   <span class="iconlink lang off" aria-label="中文"><span>中</span></span>
   <button class="tbtn" id="theme" aria-label="Theme"></button>
@@ -112,82 +112,127 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <div class="shell">
   <aside><div class="nav-group">overview</div><ul><li><a href="../README.html">QORM documentation</a></li><li><a href="../project-structure.html">Project structure</a></li><li><a href="../build-with-ai.html">Build QORM apps with your AI assistant</a></li><li><a href="../collaboration.html">Human-AI collaboration on a live app</a></li><li><a href="../verification.html">Interpreting &amp; verifying a QORM app</a></li><li><a href="../expressions.html">Expressions</a></li><li><a href="../qscript.html">QScript language reference</a></li><li><a href="../styles.html">QSS — QORM Style Sheets</a></li></ul><div class="nav-group">tutorials</div><ul><li><a href="../tutorials/getting-started.html">Getting Started with QORM</a></li><li><a href="../tutorials/first-scene.html">First Scene</a></li><li><a href="../tutorials/first-action.html">First Action</a></li><li><a href="../tutorials/first-component.html">First Component</a></li><li><a href="../tutorials/first-platform-pack.html">First Platform Pack</a></li></ul><div class="nav-group">examples</div><ul><li><a href="../examples/counter.html">Example: Counter</a></li><li><a href="../examples/todo.html">Example: Todo</a></li><li><a href="../examples/login.html">Example: Login</a></li><li><a href="../examples/dashboard.html">Example: Dashboard</a></li></ul><div class="nav-group">platforms</div><ul><li><a href="../platforms/web.html">QORM Web Platform</a></li><li><a href="../platforms/mobile.html">QORM Mobile Platform</a></li><li><a href="../platforms/desktop.html">QORM Desktop Platform</a></li><li><a href="../platforms/miniapp.html">QORM Mini-program platform</a></li><li><a href="../platforms/native-middlelayer.html">User middle layer: adding your own capabilities to an app</a></li><li><a href="../platforms/capabilities.html">Capabilities</a></li><li><a href="../platforms/support-matrix.html">Platform support matrix</a></li></ul><div class="nav-group">agent</div><ul><li><a href="../agent/permissions.html">QORM Agent Permissions</a></li><li><a href="../agent/mcp-tools.html">QORM MCP tools</a></li><li><a href="../agent/skills.html">QORM Skills</a></li><li><a href="../agent/claude-pack.html">QORM Claude Pack</a></li><li><a href="../agent/codex-pack.html">QORM Codex Pack</a></li><li><a href="../agent/openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">security</div><ul><li><a href="../security/security-model.html">QORM Security Model</a></li><li><a href="../security/permission-model.html">QORM Permission Model</a></li><li><a href="../security/bundle-signing.html">QORM Bundle Signing</a></li></ul><div class="nav-group">implementation</div><ul><li><a href="analysis-and-plan.html" class="active">QORM 整体分析与目标实施规划</a></li><li><a href="audit-log.html">审计日志</a></li><li><a href="progress.html">实施进度</a></li></ul><div class="nav-group">spec</div><ul><li><a href="../spec/navigation-spec.html">Navigation &amp;amp; routing</a></li></ul></aside>
   <main><h1 id="qorm-整体分析与目标实施规划">QORM 整体分析与目标实施规划</h1>
-<blockquote>主控文档 · 2026-08-12 第二轮 · 以代码与 <code>examples/</code> 为准</blockquote>
-<h2 id="1-项目定位事实">1. 项目定位（事实）</h2>
-<p>QORM = <strong>Agent-native 跨平台应用运行时</strong>：JSON 描述 UI + 纯 Go 运行时 + MCP 协作 + ed25519 OTA。</p>
+<blockquote>主控文档 · 2026-08-13 <strong>第三轮（v0.9.x）</strong> · 以代码、测试与 <code>examples/</code> 为准 前两轮（2026-08-12）的 G0–G2 已随 v0.8.8–v0.9.0 交付；第二轮文档快照中 &#34;HTML 无 QSS cascade / 双路径未对等&#34; 的表述已过时（QSS、swipes、相机、 WebAudio、parity harness 均已落地），本轮以 git 实况为准。</blockquote>
+<h2 id="1-项目现状第一阶段-4-路-agent-审计结论head-0fd604d">1. 项目现状（第一阶段 4 路 agent 审计结论，HEAD 0fd604d）</h2>
 <table>
 <thead><tr><th>维度</th><th>结论</th></tr></thead>
 <tbody>
-<tr><td>核心路径</td><td>loader → model → runtime (expr/qscript) → <strong>HTML 或 canvas 渲染</strong> → server/MCP/bundle</td></tr>
-<tr><td>规模</td><td>~13 万行 Go · 38+ examples · MCP 24 tools · 双（三）渲染宿主</td></tr>
-<tr><td>差异化</td><td>人机同 live runtime · 签名 OTA · measure/check 几何自验证</td></tr>
-<tr><td>脚本引擎</td><td><strong>规格内完整</strong>（expr+qscript；游戏 examples 已证）</td></tr>
-<tr><td>渲染引擎</td><td><strong>主路径可用，双路径未对等</strong>（QSS/swipes/相机/音频偏 canvas）</td></tr>
+<tr><td>版本</td><td>v0.9.0（tag ffb5482）+ 2 个未入 changelog 的后续提交</td></tr>
+<tr><td>规模</td><td>~13 万行 Go · 40+ examples · MCP 25 tools · HTML/Canvas 双渲染宿主</td></tr>
+<tr><td>构建</td><td><code>go build ./...</code> / <code>go vet</code> / WASM 构建 <strong>绿</strong>（0fd604d 修复后）</td></tr>
+<tr><td>测试</td><td>30/33 包绿；<strong>3 个确定性 FAIL 全部源自 62df1ca（canvas-ultimate）</strong></td></tr>
+<tr><td>race</td><td>server/runtime/mcp/loader/bundle <code>-race</code> 无数据竞争</td></tr>
+<tr><td>红队</td><td>2026-07-26 清单 P0/P1 全部关闭；4 项遗留经本轮逐条核验<strong>全部属实</strong></td></tr>
 </tbody></table>
-<h2 id="2-目标分层本周期完成的定义">2. 目标分层（本周期「完成」的定义）</h2>
-<h3 id="g0--交付闭环本周必须">G0 — 交付闭环（本周必须）</h3>
-<p>使 <strong>Web Canvas Games（Raiden/Mario）</strong> 与 <strong>仓库主线质量信号</strong> 可复现、可合入、可部署。</p>
-<p>成功标准：</p>
-<ol>
-<li><code>cmd/qorm-wasm</code> asseturl 修复在跟踪源中且 <code>go test ./cmd/qorm-wasm/</code> 绿  </li>
-<li>本地/预发 games 页 Raiden+Mario 有图、可玩（<code>preloaded_count&gt;0</code>，<code>graph_imgs&gt;0</code>）  </li>
-<li>实施进度与审计文档与仓库状态一致  </li>
-</ol>
-<h3 id="g1--质量可信本周力争">G1 — 质量可信（本周力争）</h3>
-<ol>
-<li><code>TestGoldenFrames</code> counter_* 有结论：刷新或修复，<strong>不留无解释红灯</strong>  </li>
-<li>关键文档纠错：canvas ≠ <code>-tags desktop</code>（AGENTS / styles 至少一处权威表述）  </li>
-<li>产品一句话：<strong>游戏默认 canvas 宿主</strong>；<code>package -p web</code> 是 HTML 路径  </li>
-</ol>
-<h3 id="g2--引擎对等下一周期不阻塞-g0">G2 — 引擎对等（下一周期，不阻塞 G0）</h3>
-<p>按优先级：HTML QSS → 产品打包档 → board 相机 → swipes → WebAudio → widget harness</p>
-<h3 id="g3--安全硬化下一周期">G3 — 安全硬化（下一周期）</h3>
-<p>SEC-01 WASM 吊销 · SEC-04 LAN 鉴权 · SEC-02/03 审批模型（产品拍板后）</p>
-<h2 id="3-架构快照">3. 架构快照</h2>
-<pre><code>App JSON / .qs / .qss
-    → loader → model.App
-    → runtime (state · expr · qscript · steps)
-    → ┌─ HTML/CSS (browser / WebView / package -p web)
-       └─ Canvas software (macOS 默认窗 · games WASM + qorm_canvas)
-    → server SSE/MCP/OTA · bundle sign</code></pre>
-<table>
-<thead><tr><th>子系统</th><th>成熟度</th><th>备注</th></tr></thead>
-<tbody>
-<tr><td>Loader/Runtime/Expr/QScript</td><td>高</td><td>脚本规格闭合、有治理与测试</td></tr>
-<tr><td>MCP</td><td>高</td><td>24 tools；preview→apply 门闩</td></tr>
-<tr><td>HTML 渲染</td><td>高</td><td>业务主路径；无 QSS cascade</td></tr>
-<tr><td>Canvas 渲染</td><td>高（有债）</td><td>游戏主路径；golden 当前红</td></tr>
-<tr><td>WASM games 资源加载</td><td>修复在途</td><td>key 规范化；待合入部署</td></tr>
-<tr><td>Desktop Linux/Windows</td><td>beta</td><td>—</td></tr>
-</tbody></table>
-<h2 id="4-本轮-agent-分工执行--审计">4. 本轮 Agent 分工（执行 + 审计）</h2>
-<table>
-<thead><tr><th>Agent</th><th>目标</th><th>模式</th><th>产出</th></tr></thead>
-<tbody>
-<tr><td>A-impl-golden</td><td>G1：处理 canvas golden 失败</td><td>读+写</td><td>刷新或修根因 + 测试绿</td></tr>
-<tr><td>A-impl-docs</td><td>G1：纠错 canvas/desktop 与 games 路径</td><td>读+写</td><td>AGENTS/styles 等最小 diff</td></tr>
-<tr><td>A-gate-wasm</td><td>G0：再验证 wasm 修复与合入清单</td><td>执行测试</td><td>审计条目 + 确认 commit 集</td></tr>
-<tr><td>A-score-engines</td><td>G0/G1：脚本/渲染完整度记分卡</td><td>只读</td><td>写入审计的正式评分</td></tr>
-<tr><td>A-audit-regress</td><td>G1：全量关键包回归快照</td><td>执行测试</td><td>新失败列表</td></tr>
-</tbody></table>
-<p>主控：合并 → 更新 <code>progress.md</code> / <code>audit-log.md</code> → 标出阻塞与决策。</p>
-<h2 id="5-审计门槛">5. 审计门槛</h2>
+<h3 id="11-已处置g0本轮主控直接执行">1.1 已处置（G0，本轮主控直接执行）</h3>
+<p><code>62df1ca</code> 把调试会话残留扫进仓库：空 <code>scratch.go</code>、重复 <code>package main</code> 桩、 补丁/脚本杂物、两个未加构建标签的 cgo/ObjC 原型 cmd——main 上 <code>go build ./...</code> 直接失败（Linux CI 必红）。<strong>已删除 11 个文件并提交 <code>0fd604d</code></strong>；视频功能本体 （<code>internal/widgets/video_decoder_darwin.go</code>，有 <code>//go:build darwin &amp;&amp; !js</code>）不受影响。</p>
+<h3 id="12-待处置本轮目标">1.2 待处置（本轮目标）</h3>
+<p><strong>测试基线（P1，3 个 FAIL 包）</strong></p>
 <ul>
-<li>声称完成必须附命令与退出码摘要</li>
-<li>区分 <strong>事实 / 假设 / 产品决策</strong></li>
-<li>不扩大范围（禁止无关重构）</li>
-<li>密钥与 exploit 禁区保持</li>
-<li>每波结束同步进度文档，不静默丢项</li>
+<li>T1 <code>examples/canvas-advanced</code> 损坏：场景用未注册的 <code>path</code> widget（scenes/main.json:29，</li>
+</ul>
+<p>SVG 风格 <code>d</code> 属性 + stroke 样式，意图是路径变形演示）；<code>actions/toggle_path.qs</code> 行尾多余 <code>;</code> 被 qscript 拒绝（兄弟脚本均无分号）。牵连 internal/integration （examples/playground 编译检查）与 internal/server（TestSweepAllExamplesRenderClean）。</p>
+<ul>
+<li>T2 <code>TestVideoMeasure</code> 期望 4:3 640x480，实现返回 16:9 640x360（video.go:69-70 为准，测试过期）。</li>
+<li>T3 <code>api/props.md</code> / <code>api/widgets.md</code> 与目录失步；且 <code>QORM_UPDATE_DOCS=1</code> 是整文件覆写，</li>
+</ul>
+<p>会<strong>静默删除 42 行手写 RichText/Video/A11y 章节</strong>。</p>
+<p><strong>安全残留（上轮 G3 遗留，本轮全部核验属实）</strong></p>
+<ul>
+<li>S1（P1）<code>--lan</code>（0.0.0.0）下 <code>/mcp</code>、<code>/update</code>、<code>/rollback</code>、<code>/window</code> 无鉴权，</li>
+</ul>
+<p>仅 Origin 头筛查（非浏览器客户端直接绕过）；<code>POST /measure</code> 同为未鉴权写。</p>
+<ul>
+<li>S2（P2）<code>computed[动态key]</code> 无依赖边且 loader 无诊断——隐藏环静默发布垃圾值</li>
+</ul>
+<p>（红队 :85/:122 遗留，从未设防）。</p>
+<ul>
+<li>S3（P2）WASM/offline/playground OTA <strong>从不查吊销</strong>（cmd/qorm-wasm/main.go:99/:436</li>
+</ul>
+<p>传 nil；UpdateConfig 无法携带列表）——README 的 <code>--revoked</code> 承诺只对 CLI/server 成立。</p>
+<ul>
+<li>S4（P3）旧 qorm 收到新 bundle 报 &#34;tampered&#34;（bundle.go:222），误导运维；</li>
+</ul>
+<p>红队建议的版本提示从未实现。</p>
+<p><strong>DX / 路线图（方向评分 agent 结论）</strong></p>
+<ul>
+<li>D1 实施 Phase 9 <strong><code>qorm test</code> 无头测试运行器 MVP</strong>。理由：spec 完全规定</li>
+</ul>
+<p>（test-runner-spec.md 258 行，零产品决策）；钩子最多（loader 已容忍 type:&#34;test&#34; 文档、Runtime.Clone/Dispatch/RunPendingEnter 无副作用、无宿主 sink 时 delay 同步降级）； 直接关闭 roadmap Phase 9 缺口（qorm_assert 只能跑在活渲染上，无 CI 级无头跑法）。 Error Boundary / Global State 规格同样成熟但要改写核心求值/状态契约，风险更高，留后续轮。 VS Code/LSP、Registry 超一轮规模，不做。</p>
+<p><strong>文档漂移（审计 agent 清单）</strong></p>
+<ul>
+<li>DOC1 CHANGELOG 无 v0.9.0 段（[Unreleased] 空，release.sh 归档门被跳过）。</li>
+<li>DOC2 docs/implementation 三份文档停在 v0.8.8（本文件除外，随本轮重写）。</li>
+<li>DOC3 <code>docs/zh/platforms/web.md</code> 缺 games 需 canvas 宿主的镜像句（EN web.md:19-20 已有）</li>
+</ul>
+<p>——第二轮 P2 文档债的唯一残留。</p>
+<ul>
+<li>DOC4 README Roadmap 仍把 docs portal / Playground 列为待做（roadmap.md Phase 11 标已落地）。</li>
+<li>DOC5 roadmap.md Phase 5 &#34;15 个 MCP 工具&#34; 过时（现 25）。</li>
+</ul>
+<h2 id="2-本轮目标与验收">2. 本轮目标与验收</h2>
+<table>
+<thead><tr><th>目标</th><th>内容</th><th>验收</th></tr></thead>
+<tbody>
+<tr><td>G1 测试基线全绿</td><td>T1+T2+T3</td><td><code>go test ./...</code> 33/33 包 PASS（darwin）</td></tr>
+<tr><td>G2 安全硬化</td><td>S1–S4</td><td>对应回归测试 + 审计 agent 对抗复验</td></tr>
+<tr><td>G3 DX</td><td>D1 <code>qorm test</code> MVP</td><td>examples 上的测试文档跑通、exit code 正确、JSON 报告合 spec</td></tr>
+<tr><td>G4 文档对齐</td><td>DOC1–DOC5 + 本目录三份文档</td><td>漂移清单逐条关闭</td></tr>
+</tbody></table>
+<p>完成门槛（固定约束）：全量代码审查（对抗复审）+ 全项目回归 （<code>go test ./...</code> + 关键包 <code>-race</code> + WASM 构建 + gofmt）全绿； 只在本地 main 提交，<strong>不 push</strong>。</p>
+<h2 id="3-实施决策主控拍板agent-执行">3. 实施决策（主控拍板，agent 执行）</h2>
+<ol>
+<li><strong>T1 <code>path</code> widget：实现而非删改。</strong> 场景意图明确（SVG 子集 <code>d</code> + stroke + 绑定切换），</li>
+</ol>
+<p>引擎已有贝塞尔基建（timeline path-follow cubic）。范围：SVG 路径子集解析 （M/L/H/V/Q/T/C/S/Z 绝对+相对）、HTML 侧内联 <code>&lt;svg&gt;&lt;path&gt;</code>（render.go 加 case）、 canvas 侧栅格化（fill+stroke）并注册。<strong><code>d</code> 变形不做插值动画</strong>（binding 切换即换形， 文档如实说明）。若实施中遇结构性阻塞，降级方案：场景改用现有 widget 并记录原因。</p>
+<ol>
+<li><strong>T2：改测试</strong>（16:9 是当前 videoNode 的有意行为）。</li>
+<li><strong>T3：修生成器</strong>——把手写章节并入生成输出（永久保留），再重新生成；</li>
+</ol>
+<p>zh 镜像 api/zh/widgets.md 同样处理。禁止&#34;只覆写不保留&#34;。</p>
+<ol>
+<li><strong>S1：非回环绑定即发 token</strong>（复用 X-Qorm-Token 机制），启动时打印 + 大字警告；</li>
+</ol>
+<p><code>/mcp</code>、<code>/update</code>、<code>/rollback</code>、<code>/window</code>、<code>POST /measure</code> 强制校验。</p>
+<ol>
+<li><strong>S2：loader 加载期 error</strong>（动态 bracket key 的 computed 直接拒绝，附原因）。</li>
+<li><strong>S3：UpdateConfig/__QORM_UPDATE__ 增加可选 revocation 数组</strong>，两个校验点接入，文档说明。</li>
+<li><strong>S4：hash 失配且 bundle 声明版本时附版本提示</strong>，不改 fail-closed 语义。</li>
+<li><strong>D1 MVP 边界</strong>：步骤 mount_scene / simulate_event（dispatch action）/ set_state；</li>
+</ol>
+<p>断言 state_equals / node_exists / node_not_exists / text_equals / prop_equals； JSON 报告 + exit code。advance_time / flush_async / host-mock 留下轮。</p>
+<h2 id="4-agent-分工worktree-隔离文件域互斥">4. Agent 分工（worktree 隔离，文件域互斥）</h2>
+<table>
+<thead><tr><th>Agent</th><th>目标</th><th>文件域</th></tr></thead>
+<tbody>
+<tr><td>impl-testfix</td><td>G1：T1+T2+T3</td><td>examples/canvas-advanced · internal/render · internal/widgets · internal/integration · api/</td></tr>
+<tr><td>impl-security</td><td>G2：S1–S4</td><td>internal/server · internal/loader · internal/bundle · cmd/qorm-wasm · internal/server/offline.go</td></tr>
+<tr><td>impl-qormtest</td><td>G3：D1</td><td>cmd/qorm · 新 internal/testrunner · examples/counter/tests · spec 状态注记</td></tr>
+</tbody></table>
+<p>实施后主控合并 → <strong>对抗复审 3 路</strong>（回归正确性 / 安全实跑复验 / qorm test 对 spec 逐条） → 全量回归门 → G4 文档同步 → 收尾提交。</p>
+<h2 id="5-审计门槛沿用">5. 审计门槛（沿用）</h2>
+<ul>
+<li>声称完成必须附命令与结果摘要；区分 事实 / 假设 / 产品决策</li>
+<li>不扩大范围（禁止无关重构）；只读 agent 不得改动工作区</li>
+</ul>
+<p>（本轮第一阶段 audit-docs 曾遗留 api/*.md 试跑改动，主控已还原并记录）</p>
+<ul>
+<li>每波结束同步 progress.md / audit-log.md，不静默丢项</li>
 </ul>
 <h2 id="6-非目标本轮">6. 非目标（本轮）</h2>
 <ul>
-<li>HTML 全量 QSS 实现（G2）</li>
-<li>VS Code/LSP</li>
-<li>GPU 渲染</li>
-<li>未授权 commit 到 origin（合入由用户确认后主控执行）</li>
+<li>Error Boundary / Global State / 依赖解析（Phase 10，后续轮）</li>
+<li>VS Code/LSP、Ecosystem Registry、真机验收（需外部环境/决策）</li>
+<li><code>d</code> 变形插值动画、advance_time/host-mock（D1 二期）</li>
+<li>push 到远程（完工前只本地提交）</li>
 </ul>
-<h2 id="7-与首轮规划的关系">7. 与首轮规划的关系</h2>
-<p>首轮 Wave0–3 与安全/文档表仍有效。本轮将目标收束为 <strong>G0/G1 可验证交付</strong>，避免无限审计空转。</p>
+<h2 id="7-执行结果2026-08-13-收尾">7. 执行结果（2026-08-13 收尾）</h2>
+<ul>
+<li>G0–G4 全部落地：G1（T1 path widget / T2 video 测试 / T3 生成器手写段保护）、G2（S1–S4，S1 经复审升级为两 token 模型）、G3（D1 <code>qorm test</code> MVP）、G4 文档同步。</li>
+<li>对抗复审跑了三轮：首轮 9 项确认缺陷 → 修复波；二轮发现 2 项新 P1（读门禁动词绕过、enter 链吞错）+ 链镜附带发现 mount_scene 空转 → 主控直修；三轮双镜 pass。</li>
+<li>终审门禁全绿（build / vet / 全量 test / -race / WASM / coverage gate / <code>qorm test</code> counter 4/4）。</li>
+<li>残留债与流程发现归档 <code>audit-log.md</code> 第三轮终审节；本地提交未 push。</li>
+</ul>
 </main>
 </div>
 <script>

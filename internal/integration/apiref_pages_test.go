@@ -328,7 +328,7 @@ func TestAPIRefGoAPI(t *testing.T) {
 	}
 	var dpkg *doc.Package
 	for _, p := range pkgs {
-		dpkg = doc.New(p, "github.com/qorm/qorm/pkg/qormext", 0)
+		dpkg = doc.New(p, "github.com/qorm/platform/pkg/qormext", 0)
 	}
 	if dpkg == nil {
 		t.Fatal("no package parsed")
@@ -354,8 +354,8 @@ func TestAPIRefGoAPI(t *testing.T) {
 		if lang == "zh" {
 			title = "Go 包:qormext"
 		}
-		writeGenHeaderFrom(&b, lang, title, intro, "github.com/qorm/qorm/pkg/qormext")
-		b.WriteString("```go\nimport \"github.com/qorm/qorm/pkg/qormext\"\n```\n\n")
+		writeGenHeaderFrom(&b, lang, title, intro, "github.com/qorm/platform/pkg/qormext")
+		b.WriteString("```go\nimport \"github.com/qorm/platform/pkg/qormext\"\n```\n\n")
 		b.WriteString(fenceGoDoc(dpkg.Doc) + "\n")
 
 		if len(dpkg.Funcs) > 0 {

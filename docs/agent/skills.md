@@ -3,16 +3,16 @@
 A QORM Skill is a battle-tested instruction set for AI agents — it encodes the
 runnable app format, the MCP tool surface, and the verify-loops an agent needs
 to complete QORM tasks reliably. Skills are shipped in
-[`integrations/skill/`](https://github.com/qorm/qorm/tree/main/integrations/skill)
+[`integrations/skill/`](https://github.com/qorm/platform/tree/main/integrations/skill)
 and loaded by the agent at session start.
 
 ## The shipped skill
 
-QORM ships **one comprehensive skill**: [`integrations/skill/SKILL.md`](https://github.com/qorm/qorm/blob/main/integrations/skill/SKILL.md).
+QORM ships **one comprehensive skill**: [`integrations/skill/SKILL.md`](https://github.com/qorm/platform/blob/main/integrations/skill/SKILL.md).
 It is a single markdown file with a Claude-Code-compatible frontmatter
 (`name: qorm` + a trigger description) followed by the sections below. Load it
 by pointing your agent at the file (or via the repo's
-[`llms.txt`](https://github.com/qorm/qorm/blob/main/llms.txt), which links it).
+[`llms.txt`](https://github.com/qorm/platform/blob/main/llms.txt), which links it).
 
 | Section | What it teaches |
 |---|---|

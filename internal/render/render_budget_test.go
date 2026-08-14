@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 // The component fan-out bomb. renderInner caps component recursion with

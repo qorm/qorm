@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/loader"
-	"github.com/qorm/qorm/internal/render"
-	qrt "github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/loader"
+	"github.com/qorm/platform/internal/render"
+	qrt "github.com/qorm/platform/internal/runtime"
 )
 
 // writeApp writes a minimal QORM app (manifest + one scene) into a temp dir.

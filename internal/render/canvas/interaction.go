@@ -4,10 +4,10 @@ import (
 	"image"
 	"time"
 
-	"github.com/qorm/qorm/internal/geom"
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/render/graph"
-	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/geom"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/render/graph"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 // Interaction carries cross-frame interaction state for the canvas backend.

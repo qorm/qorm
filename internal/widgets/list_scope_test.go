@@ -8,11 +8,11 @@ import (
 	"image"
 	"testing"
 
-	"github.com/qorm/qorm/internal/loader"
-	"github.com/qorm/qorm/internal/op"
-	"github.com/qorm/qorm/internal/render/canvas"
-	"github.com/qorm/qorm/internal/render/graph"
-	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/loader"
+	"github.com/qorm/platform/internal/op"
+	"github.com/qorm/platform/internal/render/canvas"
+	"github.com/qorm/platform/internal/render/graph"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 func TestCardInListMeasuresWithItemScope(t *testing.T) {

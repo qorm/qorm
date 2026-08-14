@@ -11,11 +11,11 @@ web / iOS / Android / 桌面——人和 AI 智能体都能读写。
 再经由 actions 与写接口**变更(Mutate)**它。
 
 > **2-Prompt Agent 快速开始提示词：**
-> 1. *“请加载 QORM 框架的 MCP 配置与 Skill 技能库（https://github.com/qorm/qorm），搭好环境，保持 DevTool 可见。”*
+> 1. *“请加载 QORM 框架的 MCP 配置与 Skill 技能库（https://github.com/qorm/platform），搭好环境，保持 DevTool 可见。”*
 > 2. *“使用 QORM 在 `./my-app` 创建应用，启动原生窗口，然后根据以下需求构建应用：<在此输入你的应用想法，例如：带连续打卡天数的习惯追踪器>。”*
 
-初来乍到?先读[顶层 README](https://github.com/qorm/qorm/blob/main/README.zh.md) 了解全局与 CLI,然后从下方深入。
-[`examples/`](https://github.com/qorm/qorm/tree/main/examples) 应用是权威的、可运行的参考——当文档与运行中的示例不一致时,
+初来乍到?先读[顶层 README](https://github.com/qorm/platform/blob/main/README.zh.md) 了解全局与 CLI,然后从下方深入。
+[`examples/`](https://github.com/qorm/platform/tree/main/examples) 应用是权威的、可运行的参考——当文档与运行中的示例不一致时,
 以示例为准。
 
 ## 学习
@@ -47,9 +47,9 @@ web / iOS / Android / 桌面——人和 AI 智能体都能读写。
 ## 示例(逐步讲解)
 
 - [Counter](examples/counter.md) · [Todo](examples/todo.md) · [Login](examples/login.md) · [Dashboard](examples/dashboard.md)
-- 游戏(canvas):[`tetris`](https://github.com/qorm/qorm/tree/main/examples/tetris) · [`mario`](https://github.com/qorm/qorm/tree/main/examples/mario) · [`raiden`](https://github.com/qorm/qorm/tree/main/examples/raiden) · [`g2048`](https://github.com/qorm/qorm/tree/main/examples/g2048)——在线 [qorm.com/games](https://qorm.com/games/)
-- 动效展示:[`canvas-fx`](https://github.com/qorm/qorm/tree/main/examples/canvas-fx)
-- 全部可运行应用位于 [`examples/`](https://github.com/qorm/qorm/tree/main/examples)。
+- 游戏(canvas):[`tetris`](https://github.com/qorm/platform/tree/main/examples/tetris) · [`mario`](https://github.com/qorm/platform/tree/main/examples/mario) · [`raiden`](https://github.com/qorm/platform/tree/main/examples/raiden) · [`g2048`](https://github.com/qorm/platform/tree/main/examples/g2048)——在线 [qorm.com/games](https://qorm.com/games/)
+- 动效展示:[`canvas-fx`](https://github.com/qorm/platform/tree/main/examples/canvas-fx)
+- 全部可运行应用位于 [`examples/`](https://github.com/qorm/platform/tree/main/examples)。
 
 ## 人机协作
 
@@ -58,7 +58,7 @@ web / iOS / Android / 桌面——人和 AI 智能体都能读写。
 
 ## 面向 AI 智能体
 
-- [智能体集成](https://github.com/qorm/qorm/tree/main/integrations)——即插即用的 MCP 配置 + 面向 Claude / Cursor / Windsurf 的 QORM 技能
+- [智能体集成](https://github.com/qorm/platform/tree/main/integrations)——即插即用的 MCP 配置 + 面向 Claude / Cursor / Windsurf 的 QORM 技能
 - [MCP 工具](../agent/mcp-tools.md)——用于读取、编辑并验证运行中应用的模型上下文协议表面
 - [验证一个应用](verification.md)——用 `qorm measure` / `qorm check` 自我验证编辑
 - [技能](agent/skills.md) · [权限](agent/permissions.md)
@@ -70,4 +70,4 @@ web / iOS / Android / 桌面——人和 AI 智能体都能读写。
 
 ## 商业使用
 
-- [条款](https://github.com/qorm/qorm/blob/main/ops/TERMS.md)——源码为 MIT;一个 Patreon 会员涵盖商业白标;创业团队或不便订阅,可邮件 github@qorm.com 免费申请一年授权(可续期)
+- [条款](https://github.com/qorm/platform/blob/main/ops/TERMS.md)——源码为 MIT;一个 Patreon 会员涵盖商业白标;创业团队或不便订阅,可邮件 github@qorm.com 免费申请一年授权(可续期)

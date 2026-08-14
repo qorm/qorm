@@ -9,7 +9,7 @@ import (
 	"image"
 	"time"
 
-	"github.com/qorm/qorm/internal/render/graph"
+	"github.com/qorm/platform/internal/render/graph"
 )
 
 // AdvanceTime moves all canvas-owned deadlines and animation anchors back by

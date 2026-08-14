@@ -5,9 +5,9 @@ package canvas
 // instead of the old hand-rolled loop; stack/grid keep their own passes.
 
 import (
-	flexlayout "github.com/qorm/qorm/internal/layout"
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/runtime"
+	flexlayout "github.com/qorm/platform/internal/layout"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 // flexStyle maps a container's NodeStyle + node props to flexlayout.Style.

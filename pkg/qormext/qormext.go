@@ -5,7 +5,7 @@
 // Contract — the app's native/desktop.go:
 //
 //	package main
-//	import "github.com/qorm/qorm/pkg/qormext"
+//	import "github.com/qorm/platform/pkg/qormext"
 //	func init() {
 //	    qormext.Register("myOp", func(data map[string]any) string {
 //	        // your Go logic; return one line of JS to run back in the app

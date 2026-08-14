@@ -4,15 +4,15 @@
 
 QORM 技能是面向 AI 智能体的实战指令集：它编码了可运行的应用格式、MCP 工具面，
 以及智能体可靠完成 QORM 任务所需的验证闭环。技能随仓库发布于
-[`integrations/skill/`](https://github.com/qorm/qorm/tree/main/integrations/skill)，
+[`integrations/skill/`](https://github.com/qorm/platform/tree/main/integrations/skill)，
 由智能体在会话开始时加载。
 
 ## 已发布的技能
 
-QORM 发布 **一份综合技能**：[`integrations/skill/SKILL.md`](https://github.com/qorm/qorm/blob/main/integrations/skill/SKILL.md)。
+QORM 发布 **一份综合技能**：[`integrations/skill/SKILL.md`](https://github.com/qorm/platform/blob/main/integrations/skill/SKILL.md)。
 它是单个 markdown 文件，带有兼容 Claude Code 的 frontmatter
 （`name: qorm` + 触发描述），正文按以下章节组织。加载方式：让智能体直接读取该文件
-（或经由仓库的 [`llms.txt`](https://github.com/qorm/qorm/blob/main/llms.txt)，其中已链接该技能）。
+（或经由仓库的 [`llms.txt`](https://github.com/qorm/platform/blob/main/llms.txt)，其中已链接该技能）。
 
 | 章节 | 教会智能体什么 |
 |---|---|

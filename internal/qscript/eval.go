@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/qorm/qorm/internal/expr"
+	"github.com/qorm/platform/internal/expr"
 )
 
 // ---- interpreter ----

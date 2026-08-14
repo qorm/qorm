@@ -10,7 +10,7 @@ import (
 	"image/png"
 	"math"
 
-	"github.com/qorm/qorm/internal/mcp"
+	"github.com/qorm/platform/internal/mcp"
 )
 
 func encodeLiveCanvasCapture(frame image.Image, scale int, measure []byte, id string) (mcp.CanvasCapture, error) {

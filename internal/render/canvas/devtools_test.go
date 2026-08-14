@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/op"
-	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/op"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 func TestInspectNodeAppendsScreenOverlay(t *testing.T) {

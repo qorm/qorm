@@ -4,7 +4,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/qorm/qorm/internal/appkit"
+	"github.com/qorm/platform/internal/appkit"
 	"runtime"
 	"unsafe"
 )

@@ -11,7 +11,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/qorm/qorm/internal/keys"
+	"github.com/qorm/platform/internal/keys"
 )
 
 // Names of the checksum manifest assets attached to every GitHub release.

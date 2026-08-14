@@ -10,7 +10,7 @@ Write a `native/desktop.go` and register your op with `qormext.Register`. It is 
 //go:build ignore
 
 package main
-import "github.com/qorm/qorm/pkg/qormext"
+import "github.com/qorm/platform/pkg/qormext"
 func init() {
     qormext.Register("myBankSDK", func(data map[string]any) string {
         // Your Go logic: algorithms, protocols, HTTP, backend integration... data is the qormToNative payload
@@ -106,11 +106,11 @@ function qormOnBankSDK(msg) {
 
 ## Complete examples
 
-- [`examples/middleware`](https://github.com/qorm/qorm/tree/main/examples/middleware) -- **recommended**, showing the full Go middle layer:
+- [`examples/middleware`](https://github.com/qorm/platform/tree/main/examples/middleware) -- **recommended**, showing the full Go middle layer:
   `hash` (real `crypto/sha256`, logic that declarative JSON cannot express), `visit` (stateful counting held in Go memory),
   `celebrate` (Go calling the framework hardware bridge `qormext.Native` + using `qormext.Emit` to push events to the UI event bus).
   A single `native/desktop.go`, compiled into the desktop binary and the mobile/web WASM alike.
-- [`examples/native-ext`](https://github.com/qorm/qorm/tree/main/examples/native-ext) -- minimal version: a "Pay via Native SDK" button,
+- [`examples/native-ext`](https://github.com/qorm/platform/tree/main/examples/native-ext) -- minimal version: a "Pay via Native SDK" button,
   with `ios.swift` / `android.java` pure-native escape-hatch snippets.
 
 ```bash
@@ -131,7 +131,7 @@ qorm package examples/native-ext -p ios --dev URL    # inject ios.swift into the
   //go:build ignore
 
   package main
-  import "github.com/qorm/qorm/pkg/qormext"
+  import "github.com/qorm/platform/pkg/qormext"
   func init() {
       qormext.Register("myBankSDK", func(data map[string]any) string {
           // Your Go logic: HTTP, computation, protocols, backend integration... data is the qormToNative payload
@@ -178,10 +178,10 @@ custom native ops. The engine ships a widget registry
 package main
 
 import (
-    "github.com/qorm/qorm/internal/model"
-    "github.com/qorm/qorm/internal/render/canvas"
-    "github.com/qorm/qorm/internal/render/draw"
-    "github.com/qorm/qorm/internal/runtime"
+    "github.com/qorm/platform/internal/model"
+    "github.com/qorm/platform/internal/render/canvas"
+    "github.com/qorm/platform/internal/render/draw"
+    "github.com/qorm/platform/internal/runtime"
 )
 
 func init() { canvas.RegisterWidget("rating", ratingWidget{}) }

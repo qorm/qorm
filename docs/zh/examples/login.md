@@ -1,9 +1,9 @@
-<!-- data-lang-nav --> [English](https://github.com/qorm/qorm/blob/main/examples/login.md) · 中文
+<!-- data-lang-nav --> [English](https://github.com/qorm/platform/blob/main/examples/login.md) · 中文
 
 # 示例:登录
 
 一个带样式的登录表单——文本输入框、绑定状态和一个提交按钮。源码:
-[`examples/login`](https://github.com/qorm/qorm/tree/main/examples/login)。
+[`examples/login`](https://github.com/qorm/platform/tree/main/examples/login)。
 
 ```sh
 qorm run examples/login

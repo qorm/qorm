@@ -1,7 +1,7 @@
 # Example: Login
 
 A styled login form — text inputs, bound state, and a submit button. Source:
-[`examples/login`](https://github.com/qorm/qorm/tree/main/examples/login).
+[`examples/login`](https://github.com/qorm/platform/tree/main/examples/login).
 
 ```sh
 qorm run examples/login

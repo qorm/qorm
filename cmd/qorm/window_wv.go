@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	webview "github.com/qorm/qorm/internal/webview"
+	webview "github.com/qorm/platform/internal/webview"
 )
 
 // appWebView holds the running app window so nativeEval can reach it from any

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 // Server-side assertions for the parts of the client script no Go code can

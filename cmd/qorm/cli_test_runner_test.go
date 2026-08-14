@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/testrunner"
+	"github.com/qorm/platform/internal/testrunner"
 )
 
 // TestCLITestRunner drives `qorm test` end to end through the real binary:

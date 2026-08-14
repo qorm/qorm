@@ -10,11 +10,11 @@ import (
 	"os"
 	"unsafe"
 
-	"github.com/qorm/qorm/internal/app"
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/render/canvas"
-	"github.com/qorm/qorm/internal/server"
-	"github.com/qorm/qorm/internal/widgets"
+	"github.com/qorm/platform/internal/app"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/render/canvas"
+	"github.com/qorm/platform/internal/server"
+	"github.com/qorm/platform/internal/widgets"
 )
 
 // The canvaswebview build: the shared pure-Go canvas window (canvas_host_

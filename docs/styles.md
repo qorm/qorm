@@ -88,9 +88,9 @@ state.filterOn = !state.filterOn
 { "type": "box", "id": "filter_card", "class": "filterCard", "children": [ … ] }
 ```
 
-Runnable end-to-end: [`examples/canvas-fx`](https://github.com/qorm/qorm/tree/main/examples/canvas-fx) (`styles/app.qss` +
+Runnable end-to-end: [`examples/canvas-fx`](https://github.com/qorm/platform/tree/main/examples/canvas-fx) (`styles/app.qss` +
 `actions/*.qs`). Tetris is the same separation for game chrome:
-[`examples/tetris`](https://github.com/qorm/qorm/tree/main/examples/tetris).
+[`examples/tetris`](https://github.com/qorm/platform/tree/main/examples/tetris).
 
 ## Rendering
 
@@ -136,7 +136,7 @@ Canvas also resolves CSS-style geometry from either inline `style` or QSS:
 ## Canvas visual effects
 
 Declarative style keys consumed by the pure-Go canvas backend. Use them on any
-node (inline `style` or QSS). Runnable showcase: [`examples/canvas-fx`](https://github.com/qorm/qorm/tree/main/examples/canvas-fx).
+node (inline `style` or QSS). Runnable showcase: [`examples/canvas-fx`](https://github.com/qorm/platform/tree/main/examples/canvas-fx).
 
 ### Chrome, shadow, outline
 
@@ -434,7 +434,7 @@ Actors stay as `image` / `list` children **on the same board** with absolute
 `x`/`y`. HUD lives **outside** the board (stack overlay). Do **not** tween
 physics `x`/`y` or put `layoutMotion` on 60 fps movers. Pixel art: set
 `imageRendering: pixelated` (a QSS `image { … }` rule is enough). Canonical
-app: [`examples/mario`](https://github.com/qorm/qorm/tree/main/examples/mario).
+app: [`examples/mario`](https://github.com/qorm/platform/tree/main/examples/mario).
 Props: [board / tilemap](/api/props.md).
 
 ## Diagnostics

@@ -82,9 +82,9 @@ state.filterOn = !state.filterOn
 { "type": "box", "id": "filter_card", "class": "filterCard", "children": [ … ] }
 ```
 
-端到端可运行示例:[`examples/canvas-fx`](https://github.com/qorm/qorm/tree/main/examples/canvas-fx)
+端到端可运行示例:[`examples/canvas-fx`](https://github.com/qorm/platform/tree/main/examples/canvas-fx)
 (`styles/app.qss` + `actions/*.qs`)。游戏外观的同款分离见
-[`examples/tetris`](https://github.com/qorm/qorm/tree/main/examples/tetris)。
+[`examples/tetris`](https://github.com/qorm/platform/tree/main/examples/tetris)。
 
 ## 渲染
 
@@ -123,7 +123,7 @@ Canvas 还会从内联 `style` 或 QSS 解析 CSS 式几何:
 ## Canvas 视觉效果
 
 纯 Go canvas 后端消费的声明式样式键,可写在任意节点的内联 `style` 或 QSS 中。
-可运行展示:[`examples/canvas-fx`](https://github.com/qorm/qorm/tree/main/examples/canvas-fx)。
+可运行展示:[`examples/canvas-fx`](https://github.com/qorm/platform/tree/main/examples/canvas-fx)。
 
 ### 描边、阴影、outline
 
@@ -414,7 +414,7 @@ state.hits = state.hits + 1
 角色仍是同一 `board` 上带绝对 `x`/`y` 的 `image` / `list`。HUD 放在 board
 **外面**(stack 叠加)。不要给物理 `x`/`y` 做补间,也不要对 60fps 移动体开
 `layoutMotion`。像素画:设 `imageRendering: pixelated`(QSS `image { … }`
-即可)。范例:[`examples/mario`](https://github.com/qorm/qorm/tree/main/examples/mario)。
+即可)。范例:[`examples/mario`](https://github.com/qorm/platform/tree/main/examples/mario)。
 属性:[board / tilemap](/api/zh/props.md)。
 
 ## 诊断

@@ -11,7 +11,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/qorm/qorm/internal/op"
+	"github.com/qorm/platform/internal/op"
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/font/sfnt"
 )

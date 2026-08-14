@@ -32,12 +32,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/loader"
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/render/canvas"
+	"github.com/qorm/platform/internal/loader"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/render/canvas"
 
 	// Side-effect: built-in canvas.RegisterWidget calls.
-	_ "github.com/qorm/qorm/internal/widgets"
+	_ "github.com/qorm/platform/internal/widgets"
 )
 
 // canvasEngineNativeTypes are scene types the canvas engine handles without

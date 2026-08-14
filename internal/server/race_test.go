@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/qorm/qorm/internal/keys"
+	"github.com/qorm/platform/internal/keys"
 )
 
 // TestServeIndexEventNoRace hammers serveIndex (GET /) and serveEvent

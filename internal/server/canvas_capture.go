@@ -1,6 +1,6 @@
 package server
 
-import "github.com/qorm/qorm/internal/mcp"
+import "github.com/qorm/platform/internal/mcp"
 
 // SetCanvasCaptureProvider wires the native host's last-presented frame into
 // MCP. Keeping the provider on Server makes it survive hot reload/OTA runtime

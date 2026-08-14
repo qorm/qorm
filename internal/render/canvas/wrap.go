@@ -16,7 +16,7 @@ package canvas
 import (
 	"strings"
 
-	"github.com/qorm/qorm/internal/render/graph"
+	"github.com/qorm/platform/internal/render/graph"
 )
 
 // ellipsizeText truncates text to fit availW, appending "…" when needed.

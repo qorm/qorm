@@ -24,11 +24,11 @@ state.filterOn = !state.filterOn
 }
 ```
 
-End-to-end: [`examples/canvas-fx`](https://github.com/qorm/qorm/tree/main/examples/canvas-fx). Shared game core in
-[`examples/tetris`](https://github.com/qorm/qorm/tree/main/examples/tetris) (`actions/*.qs` + `styles/app.qss`).
+End-to-end: [`examples/canvas-fx`](https://github.com/qorm/platform/tree/main/examples/canvas-fx). Shared game core in
+[`examples/tetris`](https://github.com/qorm/platform/tree/main/examples/tetris) (`actions/*.qs` + `styles/app.qss`).
 Side-scrollers: write physics `x`/`y` here, follow with a `board` camera +
 `tilemap` — see [styles — tile worlds](styles.md#side-scrollers-and-tile-worlds-board--tilemap)
-and [`examples/mario`](https://github.com/qorm/qorm/tree/main/examples/mario).
+and [`examples/mario`](https://github.com/qorm/platform/tree/main/examples/mario).
 
 ## Statements
 
@@ -104,7 +104,7 @@ are self-delimiting.
 There is no I/O and no external call surface: a script is a pure function
 of `(state, args)`. The only clock is the explicit `now()` builtin (Unix ms).
 Randomness enters only through state (e.g. an LCG kept in `state.rng` — see
-[`examples/tetris`](https://github.com/qorm/qorm/tree/main/examples/tetris)).
+[`examples/tetris`](https://github.com/qorm/platform/tree/main/examples/tetris)).
 
 ## Governance
 
@@ -136,9 +136,9 @@ governance. Without a hook installed, `call()` is a no-op.
 
 ## Full example: a physics tick
 
-See the [Raiden](https://github.com/qorm/qorm/tree/main/examples/raiden),
-[Mario](https://github.com/qorm/qorm/tree/main/examples/mario), or
-[Tetris](https://github.com/qorm/qorm/tree/main/examples/tetris) examples
+See the [Raiden](https://github.com/qorm/platform/tree/main/examples/raiden),
+[Mario](https://github.com/qorm/platform/tree/main/examples/mario), or
+[Tetris](https://github.com/qorm/platform/tree/main/examples/tetris) examples
 for complete game scripts (including `playSound` / `playMusic` / `stopMusic`
 against baked `audio/*.wav`). Below is an excerpt from Raiden's `tick.qs`:
 

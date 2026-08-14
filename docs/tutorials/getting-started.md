@@ -101,4 +101,4 @@ qorm render my-app -o my-app.html
 - [Widget catalog](/api/widgets.md) — every node type the renderer accepts (code-generated, authoritative).
 - [Capabilities](../platforms/capabilities.md) — native capabilities like camera, location, and Bluetooth.
 - [User middle layer](../platforms/native-middlelayer.md) — add your own native ops with a single Go file.
-- For more runnable examples, see [`examples/`](https://github.com/qorm/qorm/tree/main/examples) in the repo (counter / todo / dashboard / hardware / …).
+- For more runnable examples, see [`examples/`](https://github.com/qorm/platform/tree/main/examples) in the repo (counter / todo / dashboard / hardware / …).

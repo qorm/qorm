@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/qorm/qorm/internal/measure"
-	"github.com/qorm/qorm/internal/render/canvas"
-	qrt "github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/measure"
+	"github.com/qorm/platform/internal/render/canvas"
+	qrt "github.com/qorm/platform/internal/runtime"
 )
 
 // canvasFlow is a superset of the existing WebView flow contract. dispatch

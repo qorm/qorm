@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/pkg/qormext"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/pkg/qormext"
 )
 
 func TestNodeToJSONNil(t *testing.T) {

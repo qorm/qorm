@@ -4,8 +4,8 @@ import (
 	"image"
 	"image/color"
 
-	"github.com/qorm/qorm/internal/geom"
-	"github.com/qorm/qorm/internal/op"
+	"github.com/qorm/platform/internal/geom"
+	"github.com/qorm/platform/internal/op"
 )
 
 // Group represents a container node

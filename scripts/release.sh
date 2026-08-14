@@ -20,7 +20,7 @@
 # Pushing the tag triggers the automated half:
 #   - .github/workflows/release.yml  → cross-compile 6 platforms, (optionally)
 #     ed25519-sign the checksums, publish the GitHub release with binaries.
-#   - .github/workflows/docker.yml   → build + push ghcr.io/qorm/qorm:<tag>.
+#   - .github/workflows/docker.yml   → build + push ghcr.io/qorm/platform:<tag>.
 #
 # The site (qorm.com docs) is deployed separately — see RELEASE.md. The local
 # orchestrator web_server/release.sh runs this script AND the site deploy end
@@ -102,7 +102,7 @@ changelog_preflight() {
 # changelog_archive VER DATE FILE [GIT_PREV] — rewrite FILE in place:
 #   (a) split the first `## [Unreleased]` heading line into a fresh empty
 #       `## [Unreleased]` on top and `## [vVER] - DATE` above the old content;
-#   (b) insert `[vVER]: https://github.com/qorm/qorm/compare/vPREV...vVER`
+#   (b) insert `[vVER]: https://github.com/qorm/platform/compare/vPREV...vVER`
 #       immediately above the current top footer link (`^\[vX.Y.Z\]:`), with
 #       vPREV read from that link. If GIT_PREV is given and disagrees with
 #       vPREV, warn on stderr (the footer has drifted before) but proceed.
@@ -127,7 +127,7 @@ changelog_archive() {
   if [ -n "$git_prev" ] && [ "$vprev" != "$git_prev" ]; then
     echo "WARN: changelog footer names $vprev as the previous release but the latest git tag is $git_prev (footer drift); inserting above the top link anyway" >&2
   fi
-  link="[v$ver]: https://github.com/qorm/qorm/compare/$vprev...v$ver"
+  link="[v$ver]: https://github.com/qorm/platform/compare/$vprev...v$ver"
   QORM_NEWLINK="$link" perl -i -pe 'print "$ENV{QORM_NEWLINK}\n" if $. == '"$lineno" "$file"
   return 0
 }
@@ -205,7 +205,7 @@ changelog_selftest() {
 ### Added
 - initial release
 
-[v0.1.0]: https://github.com/qorm/qorm/releases/tag/v0.1.0
+[v0.1.0]: https://github.com/qorm/platform/releases/tag/v0.1.0
 EOF
   if err="$(changelog_preflight 0.2.0 "$f" 2>&1)"; then
     st_fail "empty Unreleased: preflight accepted an empty section"
@@ -228,7 +228,7 @@ EOF
 ### Added
 - initial release
 
-[v0.1.0]: https://github.com/qorm/qorm/compare/v0.0.9...v0.1.0
+[v0.1.0]: https://github.com/qorm/platform/compare/v0.0.9...v0.1.0
 EOF
   cp "$f" "$tmp/populated.orig"
   if changelog_preflight 0.2.0 "$f" 2>"$tmp/preflight.err"; then
@@ -264,7 +264,7 @@ EOF
   fi
   if old_top="$(grep -nE '^\[v0\.1\.0\]:' "$f" | head -n1 | cut -d: -f1)" && [ -n "$old_top" ]; then
     above="$(head -n "$((old_top - 1))" "$f" | tail -n 1)"
-    [ "$above" = "[v0.2.0]: https://github.com/qorm/qorm/compare/v0.1.0...v0.2.0" ] \
+    [ "$above" = "[v0.2.0]: https://github.com/qorm/platform/compare/v0.1.0...v0.2.0" ] \
       && st_pass "archive: compare link inserted above the old top link with correct vPREV" \
       || st_fail "archive: line above old top link is '$above'"
   else
@@ -303,8 +303,8 @@ EOF
 ### Added
 - initial release
 
-[v0.2.0]: https://github.com/qorm/qorm/compare/v0.1.0...v0.2.0
-[v0.1.0]: https://github.com/qorm/qorm/compare/v0.0.9...v0.1.0
+[v0.2.0]: https://github.com/qorm/platform/compare/v0.1.0...v0.2.0
+[v0.1.0]: https://github.com/qorm/platform/compare/v0.0.9...v0.1.0
 EOF
   if err="$(changelog_preflight 0.2.0 "$f" 2>&1)"; then
     st_fail "double-archive: preflight accepted a second run for v0.2.0"
@@ -387,7 +387,7 @@ NOTES="$(mktemp)"
     echo "$lines" | sed 's/^/- /'
     echo
   done
-  [ -n "$PREV" ] && echo "**Full changelog**: https://github.com/qorm/qorm/compare/$PREV...$TAG"
+  [ -n "$PREV" ] && echo "**Full changelog**: https://github.com/qorm/platform/compare/$PREV...$TAG"
 } > "$NOTES"
 say "release notes ($RANGE):"; sed 's/^/    /' "$NOTES"
 

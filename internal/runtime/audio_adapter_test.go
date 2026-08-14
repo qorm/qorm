@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/qorm/qorm/internal/audio"
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/audio"
+	"github.com/qorm/platform/internal/model"
 )
 
 // writeTinyWAV emits a minimal valid 16-bit mono PCM WAV so LoadSound has

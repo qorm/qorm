@@ -4,8 +4,8 @@ import (
 	"math"
 	"strconv"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 // BoardCameraParams is the pure input for board follow-camera pan math.

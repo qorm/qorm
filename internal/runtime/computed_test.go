@@ -17,7 +17,7 @@ package runtime
 import (
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/model"
 )
 
 // cartApp is the canonical derived-value app: a line-item cart whose totals are

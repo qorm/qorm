@@ -1,6 +1,6 @@
 package playcore
 
-import "github.com/qorm/qorm/internal/runtime"
+import "github.com/qorm/platform/internal/runtime"
 
 // InstallSinks wires a SINGLE-THREADED host to the runtime's two host sinks:
 // the frame sink (`render` steps publishing a loading state mid-action) and the

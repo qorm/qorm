@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/qorm/qorm/internal/anim"
+	"github.com/qorm/platform/internal/anim"
 )
 
 // Theme represents a complete UI styling skin

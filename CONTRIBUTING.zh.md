@@ -7,7 +7,7 @@
 ## 5 分钟上手
 
 ```sh
-go install github.com/qorm/qorm/cmd/qorm@latest   # 或:go run ./cmd/qorm
+go install github.com/qorm/platform/cmd/qorm@latest   # 或:go run ./cmd/qorm
 qorm run examples/counter                          # 在浏览器里打开
 qorm mcp examples/counter                          # 或让你的 AI 经 MCP 驱动它
 ```
@@ -33,4 +33,4 @@ WASM 客户端运行时用 Go 自带的 wasm 支持;原生窗口构建(`-tags de
 
 ## 反馈
 
-试用时发现 bug 或不顺手的地方,请[开 issue](https://github.com/qorm/qorm/issues/new/choose):告诉我们你在做什么、哪里坏了、DX 卡在哪。问题和想法发到 [Discussions](https://github.com/qorm/qorm/discussions)。早期反馈会影响路线图。
+试用时发现 bug 或不顺手的地方,请[开 issue](https://github.com/qorm/platform/issues/new/choose):告诉我们你在做什么、哪里坏了、DX 卡在哪。问题和想法发到 [Discussions](https://github.com/qorm/platform/discussions)。早期反馈会影响路线图。

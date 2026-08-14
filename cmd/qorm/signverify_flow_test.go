@@ -13,8 +13,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/bundle"
-	"github.com/qorm/qorm/internal/keys"
+	"github.com/qorm/platform/internal/bundle"
+	"github.com/qorm/platform/internal/keys"
 )
 
 // captureStderr runs f with os.Stderr redirected to a pipe and returns what

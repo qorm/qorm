@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/model"
 )
 
 // This file covers the two desktop-shaped widgets added on top of the legacy

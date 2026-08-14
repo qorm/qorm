@@ -12,17 +12,17 @@ import (
 	"runtime"
 	"strconv"
 
-	"github.com/qorm/qorm/internal/audio"
-	"github.com/qorm/qorm/internal/bundle"
-	"github.com/qorm/qorm/internal/keys"
-	"github.com/qorm/qorm/internal/loader"
+	"github.com/qorm/platform/internal/audio"
+	"github.com/qorm/platform/internal/bundle"
+	"github.com/qorm/platform/internal/keys"
+	"github.com/qorm/platform/internal/loader"
 
-	qrt "github.com/qorm/qorm/internal/runtime"
-	"github.com/qorm/qorm/internal/server"
+	qrt "github.com/qorm/platform/internal/runtime"
+	"github.com/qorm/platform/internal/server"
 	// Register the built-in widget library (badge, …) into the canvas
 	// engine's registry — widgets live outside the engine and compose the
 	// draw layer (internal/render/draw).
-	_ "github.com/qorm/qorm/internal/widgets"
+	_ "github.com/qorm/platform/internal/widgets"
 )
 
 // init wires the real audio sink at startup so qscript's playSound /

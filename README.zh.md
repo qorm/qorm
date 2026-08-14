@@ -42,7 +42,7 @@ QORM 为 AI 智能体而生：只需**给你的 Agent 一句话**，就能自动
 
 > **两句提示词投递给你的 AI 助手（ChatGPT / Claude Code / Cursor / Windsurf / Antigravity / DeepSeek / Kimi）：**
 >
-> 1. *“请加载 QORM 框架的 MCP 配置与 Skill 技能库（https://github.com/qorm/qorm），搭好环境，保持 DevTool 可见。”*
+> 1. *“请加载 QORM 框架的 MCP 配置与 Skill 技能库（https://github.com/qorm/platform），搭好环境，保持 DevTool 可见。”*
 > 2. *“使用 QORM 在 `./myapp` 创建应用，启动原生窗口，然后根据以下需求构建应用：<在此输入你的应用想法，例如：带连续打卡天数的习惯追踪器>。”*
 
 用户在界面中交互，Agent 实时感知；Agent 实时调整 UI 与逻辑，改动即刻呈现。完整指南：**[与你的 AI 一起构建](docs/zh/build-with-ai.md)** · [人机协作](docs/zh/collaboration.md)。

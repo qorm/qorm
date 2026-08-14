@@ -27,7 +27,7 @@ import (
 	"github.com/godbus/dbus/v5"
 	"github.com/godbus/dbus/v5/introspect"
 	"github.com/godbus/dbus/v5/prop"
-	webview "github.com/qorm/qorm/internal/webview"
+	webview "github.com/qorm/platform/internal/webview"
 )
 
 const (

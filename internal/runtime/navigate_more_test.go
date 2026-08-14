@@ -3,7 +3,7 @@ package runtime
 import (
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/model"
 )
 
 // deepLinkApp adds a third scene to the shared navApp for stack-depth tests.

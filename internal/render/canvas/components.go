@@ -15,8 +15,8 @@ package canvas
 // carrying the prop map. Depth caps at 32 (render.go's compDepth).
 
 import (
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 const maxCompDepth = 32

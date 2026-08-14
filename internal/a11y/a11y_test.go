@@ -2,7 +2,7 @@ package a11y
 
 import "testing"
 
-import "github.com/qorm/qorm/internal/model"
+import "github.com/qorm/platform/internal/model"
 
 // TestBuildTreeAndAudit covers role/name/state derivation and the nameless-control
 // / missing-alt audit over a small mixed scene.

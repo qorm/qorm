@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/qorm/qorm/internal/loader"
+	"github.com/qorm/platform/internal/loader"
 )
 
 func galleryRoot(t *testing.T) string {

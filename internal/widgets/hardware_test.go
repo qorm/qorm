@@ -4,10 +4,10 @@ import (
 	"image"
 	"testing"
 
-	"github.com/qorm/qorm/internal/capability"
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/render/canvas"
-	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/capability"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/render/canvas"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 func hwRuntime() *runtime.Runtime {

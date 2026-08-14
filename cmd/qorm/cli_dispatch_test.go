@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/keys"
+	"github.com/qorm/platform/internal/keys"
 )
 
 // buildQORMBinary compiles the qorm CLI into a temp dir so dispatch can be

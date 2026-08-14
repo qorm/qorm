@@ -13,21 +13,21 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QORM Skills · QORM</title>
-<meta name="description" content="A QORM Skill is a battle-tested workflow description for AI agents — each skill encodes the exact steps, allowed tools, input files, and output format needed…">
+<meta name="description" content="A QORM Skill is a battle-tested instruction set for AI agents — it encodes the runnable app format, the MCP tool surface, and the verify-loops an agent needs…">
 <meta property="og:title" content="QORM Skills">
-<meta property="og:description" content="A QORM Skill is a battle-tested workflow description for AI agents — each skill encodes the exact steps, allowed tools, input files, and output format needed…">
+<meta property="og:description" content="A QORM Skill is a battle-tested instruction set for AI agents — it encodes the runnable app format, the MCP tool surface, and the verify-loops an agent needs…">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://qorm.com/docs/agent/skills.html">
 <meta property="og:site_name" content="QORM">
 <meta property="og:locale" content="en_US">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="QORM Skills">
-<meta name="twitter:description" content="A QORM Skill is a battle-tested workflow description for AI agents — each skill encodes the exact steps, allowed tools, input files, and output format needed…">
+<meta name="twitter:description" content="A QORM Skill is a battle-tested instruction set for AI agents — it encodes the runnable app format, the MCP tool surface, and the verify-loops an agent needs…">
 <link rel="canonical" href="https://qorm.com/docs/agent/skills.html">
 <link rel="alternate" hreflang="en" href="https://qorm.com/docs/agent/skills.html">
 <link rel="alternate" hreflang="zh-CN" href="https://qorm.com/docs/zh/agent/skills.html">
 <link rel="alternate" hreflang="x-default" href="https://qorm.com/docs/agent/skills.html">
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"A QORM Skill is a battle-tested workflow description for AI agents — each skill encodes the exact steps, allowed tools, input files, and output format needed…","headline":"QORM Skills","inLanguage":"en","name":"QORM Skills","url":"https://qorm.com/docs/agent/skills.html"}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","description":"A QORM Skill is a battle-tested instruction set for AI agents — it encodes the runnable app format, the MCP tool surface, and the verify-loops an agent needs…","headline":"QORM Skills","inLanguage":"en","name":"QORM Skills","url":"https://qorm.com/docs/agent/skills.html"}</script>
 <link rel="icon" href="/assets/logo.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -100,12 +100,12 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <body>
 <header class="top"><div class="tnav">
   <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
-  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.9.0</a>
+  <a class="ver" href="https://github.com/qorm/platform/releases" target="_blank" rel="noopener" title="Release notes">v0.9.2</a>
   <span class="doc">docs</span>
   <span class="sp"></span>
   <nav class="pill" aria-label="Primary"><a class="tl active-nav" href="/docs/">Docs</a><a class="tl" href="/api/">API</a><a class="tl" href="/compare/">Compare</a><a class="tl" href="/about.html">About</a></nav>
   <a class="btn navcta" href="/docs/build-with-ai.html">Get started</a>
-  <a class="iconlink" href="https://github.com/qorm/qorm" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
+  <a class="iconlink" href="https://github.com/qorm/platform" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
   <a class="iconlink patreon" href="https://www.patreon.com/qorm" target="_blank" rel="noopener" aria-label="Patreon" title="Patreon"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="14.4" cy="9.6" r="6.6"/><rect x="1.5" y="2.5" width="4" height="19" rx="0.3"/></svg></a>
   <a class="iconlink lang" href="../zh/agent/skills.html" data-lang="zh" aria-label="中文" title="中文"><span>中</span></a>
   <button class="tbtn" id="theme" aria-label="Theme"></button>
@@ -113,113 +113,64 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <div class="shell">
   <aside><div class="nav-group">overview</div><ul><li><a href="../README.html">QORM documentation</a></li><li><a href="../project-structure.html">Project structure</a></li><li><a href="../build-with-ai.html">Build QORM apps with your AI assistant</a></li><li><a href="../collaboration.html">Human-AI collaboration on a live app</a></li><li><a href="../verification.html">Interpreting &amp; verifying a QORM app</a></li><li><a href="../expressions.html">Expressions</a></li><li><a href="../qscript.html">QScript language reference</a></li><li><a href="../styles.html">QSS — QORM Style Sheets</a></li></ul><div class="nav-group">tutorials</div><ul><li><a href="../tutorials/getting-started.html">Getting Started with QORM</a></li><li><a href="../tutorials/first-scene.html">First Scene</a></li><li><a href="../tutorials/first-action.html">First Action</a></li><li><a href="../tutorials/first-component.html">First Component</a></li><li><a href="../tutorials/first-platform-pack.html">First Platform Pack</a></li></ul><div class="nav-group">examples</div><ul><li><a href="../examples/counter.html">Example: Counter</a></li><li><a href="../examples/todo.html">Example: Todo</a></li><li><a href="../examples/login.html">Example: Login</a></li><li><a href="../examples/dashboard.html">Example: Dashboard</a></li></ul><div class="nav-group">platforms</div><ul><li><a href="../platforms/web.html">QORM Web Platform</a></li><li><a href="../platforms/mobile.html">QORM Mobile Platform</a></li><li><a href="../platforms/desktop.html">QORM Desktop Platform</a></li><li><a href="../platforms/miniapp.html">QORM Mini-program platform</a></li><li><a href="../platforms/native-middlelayer.html">User middle layer: adding your own capabilities to an app</a></li><li><a href="../platforms/capabilities.html">Capabilities</a></li><li><a href="../platforms/support-matrix.html">Platform support matrix</a></li></ul><div class="nav-group">agent</div><ul><li><a href="permissions.html">QORM Agent Permissions</a></li><li><a href="mcp-tools.html">QORM MCP tools</a></li><li><a href="skills.html" class="active">QORM Skills</a></li><li><a href="claude-pack.html">QORM Claude Pack</a></li><li><a href="codex-pack.html">QORM Codex Pack</a></li><li><a href="openclaw-pack.html">QORM OpenClaw Pack</a></li></ul><div class="nav-group">security</div><ul><li><a href="../security/security-model.html">QORM Security Model</a></li><li><a href="../security/permission-model.html">QORM Permission Model</a></li><li><a href="../security/bundle-signing.html">QORM Bundle Signing</a></li></ul><div class="nav-group">implementation</div><ul><li><a href="../implementation/analysis-and-plan.html">QORM 整体分析与目标实施规划</a></li><li><a href="../implementation/audit-log.html">审计日志</a></li><li><a href="../implementation/progress.html">实施进度</a></li></ul><div class="nav-group">spec</div><ul><li><a href="../spec/navigation-spec.html">Navigation &amp;amp; routing</a></li></ul></aside>
   <main><h1 id="qorm-skills">QORM Skills</h1>
-<p>A QORM Skill is a battle-tested workflow description for AI agents — each skill encodes the exact steps, allowed tools, input files, and output format needed to complete a specific QORM task reliably. Skills are shipped in <a href="https://github.com/qorm/qorm/tree/main/integrations/skill"><code>integrations/skill/</code></a> and loaded by the agent at session start.</p>
-<h2 id="available-skills">Available Skills</h2>
+<p>A QORM Skill is a battle-tested instruction set for AI agents — it encodes the runnable app format, the MCP tool surface, and the verify-loops an agent needs to complete QORM tasks reliably. Skills are shipped in <a href="https://github.com/qorm/platform/tree/main/integrations/skill"><code>integrations/skill/</code></a> and loaded by the agent at session start.</p>
+<h2 id="the-shipped-skill">The shipped skill</h2>
+<p>QORM ships <strong>one comprehensive skill</strong>: <a href="https://github.com/qorm/platform/blob/main/integrations/skill/SKILL.md"><code>integrations/skill/SKILL.md</code></a>. It is a single markdown file with a Claude-Code-compatible frontmatter (<code>name: qorm</code> + a trigger description) followed by the sections below. Load it by pointing your agent at the file (or via the repo&#39;s <a href="https://github.com/qorm/platform/blob/main/llms.txt"><code>llms.txt</code></a>, which links it).</p>
 <table>
-<thead><tr><th>Skill</th><th>What it does</th></tr></thead>
+<thead><tr><th>Section</th><th>What it teaches</th></tr></thead>
 <tbody>
-<tr><td><code>scene-authoring</code></td><td>Author a new QORM scene: choose the right layout container, pick widgets from the catalog, wire state bindings with <code>{{state.x}}</code> syntax, declare actions for interactivity, and validate the result with <code>qorm_check_layout</code>. Covers the full authoring loop: scaffold → wire → verify.</td></tr>
-<tr><td><code>layout-debugging</code></td><td>Diagnose and fix layout issues: measure rendered positions with <code>qorm_measure</code>, compare against expected bounds, identify overflow/clipping/z-index problems, and apply targeted patches. Uses the verification pipeline to confirm fixes.</td></tr>
-<tr><td><code>agent-patch</code></td><td>Design and apply structural patches to a live app: use <code>qorm_query</code> to find target nodes, <code>qorm_preview_patch</code> to preview changes safely, <code>qorm_diff</code> to review the structural impact, and <code>qorm_apply_patch</code> to commit — with the preview token binding every apply to a prior review.</td></tr>
-<tr><td><code>platform-porting</code></td><td>Adapt a QORM app for a new platform: audit capabilities with <code>qorm_capabilities</code>, add platform-specific style overrides (safe-area insets, native font stacks, platform-correct spacing), and stamp the capability manifest so the runtime gates what the platform actually provides.</td></tr>
-<tr><td><code>motion-design</code></td><td>Add declarative animations and transitions: entrance <code>animation</code> + <code>curve</code>, <code>transition</code> / spring / FLIP <code>layoutMotion</code>, <code>fx</code>+<code>fxToken</code>, <code>timeline</code>+<code>timelineToken</code> (path/yoyo/onComplete), <code>stagger</code>, QSS-driven canvas filters/tint/pixelated. Games: <code>board</code> camera + <code>tilemap</code>; never tween physics <code>x</code>/<code>y</code>.</td></tr>
-<tr><td><code>host-capability-check</code></td><td>Audit which hardware/native capabilities are available on the current host: camera, biometrics, GPS, accelerometer, clipboard, Bluetooth, battery, brightness control, and more — cross-referenced against the platform support matrix so the agent knows what will actually work.</td></tr>
-<tr><td><code>mobile-adaptation</code></td><td>Adapt a desktop-first QORM app for mobile: responsive breakpoints (<code>sm</code>/<code>md</code>/<code>lg</code>), touch-friendly hit targets, bottom navigation patterns, safe-area handling, and viewport-aware <code>when</code> branches that swap layouts at device widths.</td></tr>
+<tr><td>Write the runnable format</td><td>The exact JSON the runtime accepts today: manifest, the optional <code>qorm.config.json</code> host-window block (size/title/resizable/chromeless/transparent → shaped windows), <code>text</code> + <code>{{ state.x }}</code> bindings, <code>richtext</code> spans, <code>video</code>, <code>path</code>, <code>onPress</code>, action steps, components — and which spec formats to NOT use.</td></tr>
+<tr><td>Standard action patterns</td><td>Loading state, error handling, optimistic update, form validation, pagination — load-clean shapes with recipes in <code>docs/tutorials/first-action.md</code>.</td></tr>
+<tr><td>Drive a live app over MCP</td><td>All <strong>25 MCP tools</strong> grouped by purpose (Understand / Operate / Window / Design / Verify / Simulate), matching <a href="mcp-tools.html">mcp-tools.md</a>.</td></tr>
+<tr><td>Always self-verify</td><td>When to use <code>qorm_measure</code> / <code>qorm_check_layout</code> (live host) vs CLI <code>qorm measure</code> / <code>qorm check</code> (headless), pixel evidence via <code>qorm_capture_canvas</code> / <code>qorm shot</code>.</td></tr>
+<tr><td>Ship it</td><td><code>qorm run</code> / <code>render</code> / <code>build</code> / <code>verify</code> / <code>package</code>, signing flow.</td></tr>
+<tr><td>Keep QORM updated</td><td><code>qorm update</code> discipline before starting work.</td></tr>
+<tr><td>Canvas engine</td><td>Default macOS canvas window vs <code>-tags desktop</code> WebView; layout, interaction, shared activity, all 146 widget types.</td></tr>
+<tr><td>Declarative interaction &amp; canvas effects</td><td>The full any-node style-key table: pressed/hover, transitions, FLIP, transforms, filters, masks, fx/timeline, stagger.</td></tr>
+<tr><td>Side-scrollers and tile worlds</td><td><code>board</code> camera props + <code>tilemap</code> baking; game motion rules.</td></tr>
+<tr><td>Style system</td><td>QSS cascade, theme variables, gradients, the 108 known style keys.</td></tr>
+<tr><td>Script actions (qscript)</td><td><code>let</code>/<code>if</code>/<code>for</code>/<code>while</code>/<code>fn</code>, state writes, audio builtins.</td></tr>
+<tr><td>Text input editing</td><td>Canvas selection/clipboard/undo/IME behaviour.</td></tr>
+<tr><td>Icon font</td><td>The 53 built-in icon names.</td></tr>
+<tr><td>Don&#39;t</td><td>Hard rules: no aspirational-spec format, no apply without preview token, no emoji, never skip verification.</td></tr>
 </tbody></table>
-<h2 id="skill-structure">Skill Structure</h2>
-<p>Each skill is a markdown file with this structure:</p>
-<pre><code>Goal              — the specific outcome (one sentence)
-Applicable scope  — when to use (trigger phrases, app state, file patterns)
-Input files       — which app files to read
-Recommended tools — which MCP tools to use and in what order
-Steps             — the numbered workflow
-Prohibited actions — what to NEVER do
-Output format     — how to report results
-Permission requirements — which qorm_* tools are needed</code></pre>
-<h2 id="scene-authoring">scene-authoring</h2>
-<p>Purpose: let the agent create or modify scene JSON.</p>
-<p>Rules:</p>
-<ul>
-<li>Use the canonical widget names from the <a href="/api/widgets.html">widget catalog</a>.</li>
-<li>Prefer <code>column</code>/<code>row</code> for layout, <code>scroll</code> for scrollable content, <code>box</code> for</li>
-</ul>
-<p>card/surface containers, <code>board</code> + <code>tilemap</code> for side-scrollers (not a <code>list</code> of every tile).</p>
-<ul>
-<li>Wire state with <code>{{ state.x }}</code> bindings; use <code>if</code>/<code>visible</code>/<code>show</code> for</li>
-</ul>
-<p>conditional nodes.</p>
-<ul>
-<li><code>onPress</code> names an action in <code>actions/</code>; <code>onChange</code> fires on input/select</li>
-</ul>
-<p>changes.</p>
-<ul>
-<li>Prefer QSS stylesheets (<code>styles/*.qss</code>) for shared styles; use inline <code>style</code></li>
-</ul>
-<p>for one-off overrides.</p>
-<ul>
-<li>Validate with <code>qorm_check_layout</code> after every edit.</li>
-<li>Check the <a href="/api/widgets.html">widget catalog</a> for available props per widget type.</li>
-</ul>
-<h2 id="layout-debugging">layout-debugging</h2>
-<p>Purpose: analyze and fix layout anomalies on the live app.</p>
-<p>Steps:</p>
+<h2 id="workflows-encoded-in-the-skill">Workflows encoded in the skill</h2>
+<p>The single skill file encodes these reusable workflows; each names the exact MCP tools to call, in order.</p>
+<h3 id="scene-authoring-loop">Scene authoring loop</h3>
+<p>scaffold → wire → verify.</p>
 <ol>
-<li><code>qorm_measure</code> — get every node&#39;s rendered x,y,w,h and computed styles.</li>
-<li>Identify overflow: any node where <code>x-overflow</code> is true or the node extends</li>
+<li>Read <code>qorm_inspect</code> output (state schema, scenes, actions, design tokens).</li>
+<li>Author scene JSON with canonical widget names from the</li>
 </ol>
-<p>past its parent&#39;s bounds.</p>
+<p><a href="/api/widgets.html">widget catalog</a>; bind state with <code>{{ state.x }}</code>.</p>
 <ol>
-<li>Identify clipping: nodes inside a <code>scroll</code> whose box sits outside the</li>
+<li>Wire behaviour via <code>onPress</code> action names or <code>actions/*.json</code> steps.</li>
+<li>Validate with <code>qorm_validate</code>, then <code>qorm_check_layout</code> after every edit.</li>
 </ol>
-<p>viewport.</p>
+<h3 id="layout-debugging-loop">Layout debugging loop</h3>
 <ol>
-<li>Check z-index: overlay widgets (drawer, menu, modal) must paint above siblings.</li>
-<li><code>qorm_preview_patch</code> → <code>qorm_diff</code> → <code>qorm_apply_patch</code> with fixes.</li>
+<li><code>qorm_measure</code> — every node&#39;s rendered x, y, w, h + computed styles.</li>
+<li>Find overflow (<code>x-overflow</code>), clipping (box outside its <code>scroll</code> viewport),</li>
+</ol>
+<p>z-index stacking of overlays.</p>
+<ol>
+<li><code>qorm_preview_patch</code> → <code>qorm_diff</code> → <code>qorm_apply_patch</code> the fix.</li>
 <li>Re-measure to confirm.</li>
 </ol>
-<p>Common causes: missing <code>scroll</code> wrapper, <code>width</code>/<code>height</code> too small for content, absolute-positioned nodes overlapping, <code>gap</code>/<code>padding</code> collapsing.</p>
-<h2 id="ai-usage-guidance">AI Usage Guidance</h2>
-<h3 id="best-practices-for-agents-working-with-qorm">Best practices for agents working with QORM</h3>
-<ol>
-<li><strong>Read before write.</strong> Always run <code>qorm_inspect</code> at session start to understand</li>
-</ol>
-<p>the app&#39;s state schema, scenes, actions, and design tokens. Run <code>qorm_measure</code> to see the current rendered layout.</p>
-<ol>
-<li><strong>Preview before apply.</strong> Never call <code>qorm_apply_patch</code> without first calling</li>
-</ol>
-<p><code>qorm_preview_patch</code> with the same ops — the preview token binds every commit to a prior review. Use <code>qorm_diff</code> to see what changed structurally.</p>
-<ol>
-<li><strong>Use the widget catalog.</strong> The <a href="/api/widgets.html">widget catalog</a> is</li>
-</ol>
-<p>auto-generated from the runtime — it is always correct. Prefer canonical widget names; aliases work but may confuse future agents.</p>
-<ol>
-<li><strong>Verify after every edit.</strong> Run <code>qorm_check_layout</code> with assertions that</li>
-</ol>
-<p>match what the human asked for (visible, within bounds, correct type, no overflow). A passing verification is the only proof the edit worked.</p>
-<ol>
-<li><strong>Keep the DevTool open.</strong> The human observation window (<code>/logwindow</code> or</li>
-</ol>
-<p><code>/console</code>) lets the human see what the agent is doing in real time. Never close it during development.</p>
-<ol>
-<li><strong>Use QSS for shared styles.</strong> Instead of repeating <code>style</code> blocks on every</li>
-</ol>
-<p>node, write a <code>styles/app.qss</code> with type/class/id rules. Theme variables (<code>var(--accent)</code>, <code>var(--label)</code>) follow OS light/dark automatically.</p>
-<ol>
-<li><strong>Use qscript for complex logic.</strong> When <code>steps</code> in an action JSON get too</li>
-</ol>
-<p>long, write an <code>actions/&lt;id&gt;.qs</code> file — <code>let</code>/<code>if</code>/<code>for in</code>/<code>while</code>/<code>fn</code> are easier to read and maintain than nested step arrays.</p>
-<ol>
-<li><strong>Respect the canvas engine.</strong> macOS default <code>qorm run</code> is the software</li>
-</ol>
-<p>canvas window (<code>-tags desktop</code> is WebView/HTML). Games WASM needs <code>-tags qorm_canvas</code>. Use <code>board</code> camera props + <code>tilemap</code> for large worlds; <code>playSound</code> / <code>playMusic</code> from qscript; do not tween physics <code>x</code>/<code>y</code>. Showcase: <code>examples/canvas-fx</code>, <code>examples/mario</code>.</p>
-<ol>
-<li><strong>Don&#39;t guess capabilities.</strong> Run <code>qorm_capabilities</code> to see what the host</li>
-</ol>
-<p>actually provides. A capability that exists on iOS may not exist on desktop.</p>
-<ol>
-<li><strong>Self-heal from errors.</strong> If <code>qorm_validate</code> reports issues, fix them before</li>
-</ol>
-<p>proceeding. If <code>qorm_preview_patch</code> returns <code>validTokens</code> and <code>suggestedFix</code>, use them.</p>
+<h3 id="review-bound-patch-loop">Review-bound patch loop</h3>
+<p><code>qorm_query</code> (locate) → <code>qorm_preview_patch</code> (safe copy + <code>previewToken</code>) → <code>qorm_diff</code> (structural review) → <code>qorm_apply_patch</code> (commit, token-bound) → <code>qorm_undo</code> if wrong. Every commit is bound to a prior review.</p>
+<h3 id="shared-session-collaboration-loop">Shared-session collaboration loop</h3>
+<p><code>qorm_activity</code> (what the human just did; <code>inflight: 0</code> = settled) → <code>qorm_dispatch</code> / <code>qorm_set_state</code> (operate) → <code>qorm_render_html</code> (read the guard-resolved result).</p>
+<h2 id="skill-structure-format">Skill structure (format)</h2>
+<p>A QORM skill file follows this anatomy:</p>
+<pre><code>frontmatter         — name + description (agent trigger)
+Write the format    — the runnable JSON, with anti-patterns
+Tool groups         — which MCP tools to use and in what order
+Workflows           — the numbered loops above
+Prohibited actions  — what to NEVER do
+Verification        — how to prove an edit against the rendered reality</code></pre>
+<h2 id="keeping-the-skill-in-sync">Keeping the skill in sync</h2>
+<p>The skill references only auto-generated, code-backed surfaces — the widget catalog (<code>api/widgets.md</code>), the MCP tool list (<code>docs/agent/mcp-tools.md</code>, generated from <code>internal/mcp/tools.go</code>), and the capability matrix (<code>docs/platforms/capabilities.md</code>). When QORM changes, re-read <code>AGENTS.md</code> and the skill file after updating (<code>qorm update</code>); the skill itself is updated in the same commit as the feature it documents.</p>
 </main>
 </div>
 <script>

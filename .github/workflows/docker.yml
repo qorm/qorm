@@ -24,7 +24,7 @@ jobs:
       - uses: docker/metadata-action@v6
         id: meta
         with:
-          images: ghcr.io/qorm/qorm
+          images: ghcr.io/qorm/platform
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=ref,event=tag

@@ -12,7 +12,7 @@ QORM 内置了 43 项硬件能力(相机/录制、定位、蓝牙、NFC、生物
 //go:build ignore
 
 package main
-import "github.com/qorm/qorm/pkg/qormext"
+import "github.com/qorm/platform/pkg/qormext"
 func init() {
     qormext.Register("myBankSDK", func(data map[string]any) string {
         // Your Go logic: algorithms, protocols, HTTP, backend integration... data is the qormToNative payload
@@ -108,11 +108,11 @@ function qormOnBankSDK(msg) {
 
 ## 完整示例
 
-- [`examples/middleware`](https://github.com/qorm/qorm/tree/main/examples/middleware) —— **推荐**,展示完整的 Go 中间层:
+- [`examples/middleware`](https://github.com/qorm/platform/tree/main/examples/middleware) —— **推荐**,展示完整的 Go 中间层:
   `hash`(真正的 `crypto/sha256`,声明式 JSON 无法表达的逻辑)、`visit`(保存在 Go 内存中的有状态计数)、
   `celebrate`(Go 调用框架硬件桥接 `qormext.Native` + 使用 `qormext.Emit` 向 UI 事件总线推送事件)。
   单个 `native/desktop.go`,既编译进桌面二进制,也一并编译进移动/web WASM。
-- [`examples/native-ext`](https://github.com/qorm/qorm/tree/main/examples/native-ext) —— 最小版本:一个「Pay via Native SDK」按钮,
+- [`examples/native-ext`](https://github.com/qorm/platform/tree/main/examples/native-ext) —— 最小版本:一个「Pay via Native SDK」按钮,
   带有 `ios.swift` / `android.java` 纯原生逃生舱片段。
 
 ```bash
@@ -133,7 +133,7 @@ qorm package examples/native-ext -p ios --dev URL    # inject ios.swift into the
   //go:build ignore
 
   package main
-  import "github.com/qorm/qorm/pkg/qormext"
+  import "github.com/qorm/platform/pkg/qormext"
   func init() {
       qormext.Register("myBankSDK", func(data map[string]any) string {
           // Your Go logic: HTTP, computation, protocols, backend integration... data is the qormToNative payload

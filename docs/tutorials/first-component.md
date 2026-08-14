@@ -259,4 +259,4 @@ document's `type`, so a component document can live anywhere in the app folder.
 - `{{ prop.* }}` is only visible inside the component template; a field of the same name on the instance is the value passed in.
 - Components can nest components (up to 32 deep); ids inside a template are suffixed per instance, so two instances never collide.
 - Components have no local state or lifecycle of their own — they read the global store through the props you pass them.
-- For a complete runnable example, see [`examples/uikit`](https://github.com/qorm/qorm/tree/main/examples/uikit) (metric / kv / panel).
+- For a complete runnable example, see [`examples/uikit`](https://github.com/qorm/platform/tree/main/examples/uikit) (metric / kv / panel).

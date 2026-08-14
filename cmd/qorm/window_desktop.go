@@ -16,8 +16,8 @@ import (
 	"runtime"
 	"strconv"
 
-	"github.com/qorm/qorm/internal/server"
-	"github.com/qorm/qorm/pkg/qormext"
+	"github.com/qorm/platform/internal/server"
+	"github.com/qorm/platform/pkg/qormext"
 )
 
 // launchWindow serves the app and opens the real app in a native window, while

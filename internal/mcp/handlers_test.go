@@ -10,8 +10,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/qorm/qorm/internal/loader"
-	qrt "github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/loader"
+	qrt "github.com/qorm/platform/internal/runtime"
 )
 
 // rpc sends one raw JSON-RPC line through the in-process handler and returns

@@ -8,9 +8,9 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/qorm/qorm/internal/bundle"
-	"github.com/qorm/qorm/internal/loader"
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/bundle"
+	"github.com/qorm/platform/internal/loader"
+	"github.com/qorm/platform/internal/model"
 )
 
 // usedWidgets returns the set of widget types an app actually uses across all its

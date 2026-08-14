@@ -8,7 +8,7 @@ QORM 面向智能体:让你的 AI 编码助手(Claude Code、Claude Desktop、Cu
 
 ## 先看效果
 
-60 秒版本:[`scripts/demo.sh`](https://github.com/qorm/qorm/blob/main/scripts/demo.sh) 会开一个共享会话并按脚本自动做一串 AI 编辑——打开打印出的 URL、按下录制,就能看到应用实时变化 + 「AI edited」提示:
+60 秒版本:[`scripts/demo.sh`](https://github.com/qorm/platform/blob/main/scripts/demo.sh) 会开一个共享会话并按脚本自动做一串 AI 编辑——打开打印出的 URL、按下录制,就能看到应用实时变化 + 「AI edited」提示:
 
 ```sh
 ./scripts/demo.sh                 # examples/counter
@@ -21,7 +21,7 @@ QORM 面向智能体:让你的 AI 编码助手(Claude Code、Claude Desktop、Cu
 
 ```text
 提示词 1 (载入框架与技能):
-请加载 QORM 框架的 MCP 配置与 Skill 技能库（https://github.com/qorm/qorm），搭好环境，保持 DevTool 可见。
+请加载 QORM 框架的 MCP 配置与 Skill 技能库（https://github.com/qorm/platform），搭好环境，保持 DevTool 可见。
 
 提示词 2 (新建并构建应用):
 使用 QORM 在 ./myapp 创建应用，启动原生窗口，然后根据以下需求构建应用：<在此输入你的应用想法，例如：带连续打卡天数的习惯追踪器>。
@@ -83,7 +83,7 @@ design token violation: color "#ff0000" is not an allowed token (allowed: #0a84f
 
 智能体通过 `qorm_inspect` 发现你的令牌——它现在会返回一个 `designTokens` 字段，
 从而在编辑前就知道自己被允许使用哪些值。可运行的声明示例见
-[gallery 示例](https://github.com/qorm/qorm/blob/main/examples/gallery/qorm.json)。
+[gallery 示例](https://github.com/qorm/platform/blob/main/examples/gallery/qorm.json)。
 
 ## 好用的提示词
 

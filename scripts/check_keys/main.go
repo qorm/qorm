@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/qorm/qorm/internal/loader"
-	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/loader"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 func main() {

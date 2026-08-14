@@ -10,10 +10,10 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/qorm/qorm/internal/geom"
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/render/graph"
-	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/geom"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/render/graph"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 // This file is the canvas counterpart of the HTML path's <input>

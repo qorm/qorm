@@ -4,11 +4,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/capability"
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/render"
-	qrt "github.com/qorm/qorm/internal/runtime"
-	"github.com/qorm/qorm/internal/server"
+	"github.com/qorm/platform/internal/capability"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/render"
+	qrt "github.com/qorm/platform/internal/runtime"
+	"github.com/qorm/platform/internal/server"
 )
 
 // TestCapabilityWiring is the headless self-verify harness for capabilities. For

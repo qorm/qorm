@@ -5,9 +5,9 @@ import (
 	"math"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
-	"github.com/qorm/qorm/internal/render"
-	"github.com/qorm/qorm/internal/render/graph"
+	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/render"
+	"github.com/qorm/platform/internal/render/graph"
 )
 
 func TestParseTransformOriginKeywordsAndPercent(t *testing.T) {

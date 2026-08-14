@@ -3,7 +3,7 @@ package canvas
 import (
 	"image"
 
-	"github.com/qorm/qorm/internal/op"
+	"github.com/qorm/platform/internal/op"
 )
 
 // Rasterize evaluates a display list into a freshly allocated RGBA image.

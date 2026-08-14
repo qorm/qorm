@@ -8,8 +8,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/qorm/qorm/internal/geom"
-	"github.com/qorm/qorm/internal/op"
+	"github.com/qorm/platform/internal/geom"
+	"github.com/qorm/platform/internal/op"
 )
 
 // ParseSVGPath parses an SVG path 'd' string (M, L, C, Z commands) and converts

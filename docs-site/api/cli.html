@@ -94,12 +94,12 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <body>
 <header class="top"><div class="tnav">
   <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
-  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.5.5</a>
+  <a class="ver" href="https://github.com/qorm/platform/releases" target="_blank" rel="noopener" title="Release notes">v0.5.5</a>
   <span class="doc">QORM-API</span>
   <span class="sp"></span>
   <a class="tl" href="/">Home</a>
   <a class="tl" href="/docs/">Docs</a><a class="tl" href="/api/">API</a>
-  <a class="iconlink" href="https://github.com/qorm/qorm" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
+  <a class="iconlink" href="https://github.com/qorm/platform" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
   <a class="iconlink patreon" href="https://www.patreon.com/qorm" target="_blank" rel="noopener" aria-label="Patreon" title="Patreon"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="14.4" cy="9.6" r="6.6"/><rect x="1.5" y="2.5" width="4" height="19" rx="0.3"/></svg></a>
   <a class="iconlink lang" href="zh/cli.html" data-lang="zh" aria-label="中文" title="中文"><span>中</span></a>
   <button class="tbtn" id="theme" aria-label="Theme"></button>
@@ -241,7 +241,7 @@ qorm shot --live &#34;window title&#34; -o out.png</code></pre>
 <tr><td><code>mac</code></td><td>a macOS <code>.app</code> with the desktop binary compiled in (needs macOS + cgo); ad-hoc code-signed for development</td></tr>
 <tr><td><code>miniapp</code></td><td>a WeChat-style mini-program project (WXML/WXSS static export of the initial UI; open in WeChat DevTools)</td></tr>
 </tbody></table>
-<p>The <code>web</code>/<code>ios</code>/<code>android</code> payloads compile the client runtime with <code>go build</code> (<code>GOOS=js GOARCH=wasm</code>), so the Go toolchain and the QORM module must be reachable — run it from the QORM repo, or a directory whose <code>go.mod</code> requires <code>github.com/qorm/qorm</code>. The app&#39;s own Go middle layer (<code>native/desktop.go</code>) is injected into that build, and into the desktop binary for <code>mac</code>.</p>
+<p>The <code>web</code>/<code>ios</code>/<code>android</code> payloads compile the client runtime with <code>go build</code> (<code>GOOS=js GOARCH=wasm</code>), so the Go toolchain and the QORM module must be reachable — run it from the QORM repo, or a directory whose <code>go.mod</code> requires <code>github.com/qorm/platform</code>. The app&#39;s own Go middle layer (<code>native/desktop.go</code>) is injected into that build, and into the desktop binary for <code>mac</code>.</p>
 <p>General flags:</p>
 <table>
 <thead><tr><th>Flag</th><th>Effect</th></tr></thead>
@@ -285,7 +285,7 @@ qorm shot --live &#34;window title&#34; -o out.png</code></pre>
 </ul>
 <h2 id="update">update</h2>
 <pre><code>qorm update [--insecure-skip-verify]</code></pre>
-<p>Self-updates the CLI from the latest GitHub release. Already current (release tag equals the running version): prints so and exits <code>0</code>. Otherwise, with a Go toolchain present it runs <code>go install github.com/qorm/qorm/cmd/qorm@latest</code>; without one it downloads the <code>qorm-&lt;os&gt;-&lt;arch&gt;[.exe]</code> asset, verifies it against the release&#39;s <code>SHA256SUMS</code> + <code>SHA256SUMS.sig</code> using the release public keys embedded in the build (a build without embedded keys cannot verify and refuses), then swaps the executable — the old binary is renamed to <code>&lt;exe&gt;.old</code> first and restored if the swap fails. <code>--insecure-skip-verify</code> installs the download without verification (prints a warning; not recommended).</p>
+<p>Self-updates the CLI from the latest GitHub release. Already current (release tag equals the running version): prints so and exits <code>0</code>. Otherwise, with a Go toolchain present it runs <code>go install github.com/qorm/platform/cmd/qorm@latest</code>; without one it downloads the <code>qorm-&lt;os&gt;-&lt;arch&gt;[.exe]</code> asset, verifies it against the release&#39;s <code>SHA256SUMS</code> + <code>SHA256SUMS.sig</code> using the release public keys embedded in the build (a build without embedded keys cannot verify and refuses), then swaps the executable — the old binary is renamed to <code>&lt;exe&gt;.old</code> first and restored if the swap fails. <code>--insecure-skip-verify</code> installs the download without verification (prints a warning; not recommended).</p>
 <h2 id="version">version</h2>
 <pre><code>qorm version        # aliases: --version, -v</code></pre>
 <p>Prints <code>qorm &lt;version&gt; (&lt;go version&gt; &lt;os&gt;/&lt;arch&gt;)</code>. The version is stamped at build time via <code>-ldflags -X main.version=&lt;tag&gt;</code>; un-stamped builds report the in-source dev default.</p>

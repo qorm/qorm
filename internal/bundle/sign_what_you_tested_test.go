@@ -28,8 +28,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/loader"
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/loader"
+	"github.com/qorm/platform/internal/model"
 )
 
 // appDir writes a directory of source files and returns its path.

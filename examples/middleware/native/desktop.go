@@ -11,7 +11,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/qorm/qorm/pkg/qormext"
+	"github.com/qorm/platform/pkg/qormext"
 )
 
 // State that lives in Go and persists across calls within the session.

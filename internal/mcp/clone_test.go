@@ -3,7 +3,7 @@ package mcp
 import (
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/model"
 )
 
 // TestCloneAppPreservesAllFields guards against cloneApp dropping App fields:

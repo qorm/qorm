@@ -100,12 +100,12 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <body>
 <header class="top"><div class="tnav">
   <a class="brand" href="/"><img src="/assets/logo.svg" alt="QORM"><span>QORM</span></a>
-  <a class="ver" href="https://github.com/qorm/qorm/releases" target="_blank" rel="noopener" title="Release notes">v0.9.0</a>
+  <a class="ver" href="https://github.com/qorm/platform/releases" target="_blank" rel="noopener" title="Release notes">v0.9.2</a>
   <span class="doc">docs</span>
   <span class="sp"></span>
   <nav class="pill" aria-label="Primary"><a class="tl active-nav" href="/docs/">Docs</a><a class="tl" href="/api/">API</a><a class="tl" href="/compare/">Compare</a><a class="tl" href="/about.html">About</a></nav>
   <a class="btn navcta" href="/docs/build-with-ai.html">Get started</a>
-  <a class="iconlink" href="https://github.com/qorm/qorm" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
+  <a class="iconlink" href="https://github.com/qorm/platform" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.81 1.3 3.5.99.11-.78.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.11-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.65 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.8 5.62-5.48 5.92.43.37.81 1.1.81 2.22 0 1.61-.01 2.9-.01 3.29 0 .32.21.7.82.58A12.01 12.01 0 0 0 24 12.5C24 5.87 18.63.5 12 .5z"/></svg></a>
   <a class="iconlink patreon" href="https://www.patreon.com/qorm" target="_blank" rel="noopener" aria-label="Patreon" title="Patreon"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="14.4" cy="9.6" r="6.6"/><rect x="1.5" y="2.5" width="4" height="19" rx="0.3"/></svg></a>
   <a class="iconlink lang" href="../zh/agent/mcp-tools.html" data-lang="zh" aria-label="中文" title="中文"><span>中</span></a>
   <button class="tbtn" id="theme" aria-label="Theme"></button>
@@ -118,11 +118,22 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <p><img src="img/console.png" alt="The live QORM app beside the shared collaboration log" loading="lazy" decoding="async"> <em>The app a human runs, beside the shared session log the agent reads over MCP — one live runtime.</em></p>
 <p><img src="../assets/screenshots/logwindow.png" alt="QORM DevTool activity log of a shared session" loading="lazy" decoding="async"> <em>The DevTool lists your taps and the agent&#39;s MCP calls on the same app, oldest first, colour-coded by actor.</em></p>
 <p><strong>Safety model.</strong> <code>qorm_simulate_action</code>, <code>qorm_preview_patch</code> and <code>qorm_diff</code> run against a copy and never touch the live app. <code>qorm_apply_patch</code> commits a change, but it must carry the <code>previewToken</code> returned by a matching <code>qorm_preview_patch</code> of the same ops — so every committed edit is bound to a prior review. <code>qorm_undo</code> reverts the last apply.</p>
+<p><strong>The host window.</strong> The window an app opens in is configured by an optional <code>qorm.config.json</code> beside <code>qorm.json</code> (host/build-time config — it is NOT bundled or signed), with <code>qorm.json</code> <code>display</code> / <code>platforms.desktop.window</code> as the in-manifest fallback: <code>width</code>/<code>height</code> (start size), <code>title</code>, <code>resizable</code> (default true), <code>chromeless</code> (no title bar/border), <code>transparent</code> (clear background → custom-shape window), <code>hideLog</code>/<code>hideTray</code>. <code>qorm.config.json</code> wins over the manifest; <code>qorm_inspect</code> reports the resolved values.</p>
+<h2 id="tool-categories">Tool categories</h2>
+<p>The 25 tools fall into six intent groups. Pick by what you are trying to do:</p>
+<ul>
+<li><strong>Understand (read-only):</strong> <code>qorm_inspect</code>, <code>qorm_render_html</code>, <code>qorm_capture_subtree</code>, <code>qorm_capture_canvas</code>, <code>qorm_a11y_tree</code>, <code>qorm_capabilities</code>, <code>qorm_get_node</code>, <code>qorm_source_location</code>, <code>qorm_query</code>, <code>qorm_list_actions</code>, <code>qorm_activity</code>, <code>qorm_export_scene</code>, <code>qorm_export_bundle</code></li>
+<li><strong>Operate (mutate live state):</strong> <code>qorm_dispatch</code>, <code>qorm_set_state</code></li>
+<li><strong>Simulate (side-effect-free):</strong> <code>qorm_simulate_action</code></li>
+<li><strong>Design (preview → apply, review-bound):</strong> <code>qorm_preview_patch</code>, <code>qorm_diff</code>, <code>qorm_apply_patch</code>, <code>qorm_undo</code></li>
+<li><strong>Verify (test + interpret the live render):</strong> <code>qorm_assert</code>, <code>qorm_validate</code>, <code>qorm_measure</code>, <code>qorm_check_layout</code></li>
+<li><strong>Window control (desktop):</strong> <code>qorm_window</code></li>
+</ul>
 <table>
 <thead><tr><th>Tool</th><th>Parameters</th><th>What it does</th></tr></thead>
 <tbody>
 <tr><td><code>qorm_window</code></td><td><code>h</code> (integer), <code>id</code> (string), <code>js</code> (string), <code>op</code> (move\</td><td>open\</td><td>close\</td><td>eval\</td><td>tile\</td><td>focus\</td><td>minimize\</td><td>pin\</td><td>unpin), <code>url</code> (string), <code>w</code> (integer), <code>x</code> (integer), <code>y</code> (integer)</td><td>Control the desktop app window: op=move needs x,y,w,h (top-left px); op=focus/minimize/pin/unpin act on the window. The control engine positions the user&#39;s window. Supported on macOS and Windows desktop apps.</td></tr>
-<tr><td><code>qorm_inspect</code></td><td>—</td><td>Inspect the QORM app: id, name, entry scene, scene ids, state schema, current state, action ids, static compiler diagnostics, and the design-token system (designTokens: name -&gt; {type,value,enforce}) when declared. Enforced color tokens hard-constrain apply_patch: a color style may only be set to one of their values. Read-only.</td></tr>
+<tr><td><code>qorm_inspect</code></td><td>—</td><td>Inspect the QORM app: id, name, entry scene, scene ids, state schema, current state, action ids, static compiler diagnostics, the resolved host window config (window: width/height/title/resizable/chromeless/transparent — set via qorm.config.json or qorm.json display/platforms.desktop.window), and the design-token system (designTokens: name -&gt; {type,value,enforce}) when declared. Enforced color tokens hard-constrain apply_patch: a color style may only be set to one of their values. Read-only.</td></tr>
 <tr><td><code>qorm_render_html</code></td><td>—</td><td>Render the current app to HTML so the agent can see what the UI looks like — the scene the session is actually on, after its route guard has been resolved (a guarded scene the session may not enter is never rendered). Read-only.</td></tr>
 <tr><td><code>qorm_capture_subtree</code></td><td><code>id</code>* (string)</td><td>Capture a specific node subtree by node id: returns isolated rendered HTML and child layout hierarchy for visual AI feedback. Read-only.</td></tr>
 <tr><td><code>qorm_capture_canvas</code></td><td><code>id</code> (string)</td><td>Capture the actual last-presented native Canvas pixel plane as a base64 PNG. Optional id still returns the full surface plus a physical-pixel clip rectangle for that node; it does not pretend to isolate or re-render the subtree. Fails loudly outside a running native Canvas host, before its first frame, for absent/invisible nodes, or when safety limits are exceeded. Read-only.</td></tr>
@@ -148,6 +159,41 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 <tr><td><code>qorm_validate</code></td><td><code>node</code> (object), <code>sceneId</code> (string)</td><td>VALIDATE a QORM scene node or whole app against component schemas, widget catalog type rules, expression syntax, and design token constraints before patching or saving. Returns valid (bool) and an array of diagnostic warnings or errors.</td></tr>
 </tbody></table>
 <p>Parameters marked <code>*</code> are required; the rest are optional.</p>
+<h2 id="examples">Examples</h2>
+<p>Representative calls (JSON-RPC 2.0, method <code>tools/call</code>):</p>
+<p><strong>Understand</strong> — read the app, then locate a node and jump to its source:</p>
+<pre><code>{&#34;jsonrpc&#34;:&#34;2.0&#34;,&#34;id&#34;:1,&#34;method&#34;:&#34;tools/call&#34;,
+ &#34;params&#34;:{&#34;name&#34;:&#34;qorm_inspect&#34;,&#34;arguments&#34;:{}}}
+
+{&#34;jsonrpc&#34;:&#34;2.0&#34;,&#34;id&#34;:2,&#34;method&#34;:&#34;tools/call&#34;,
+ &#34;params&#34;:{&#34;name&#34;:&#34;qorm_query&#34;,&#34;arguments&#34;:{&#34;type&#34;:&#34;button&#34;,&#34;textContains&#34;:&#34;Save&#34;}}}
+
+{&#34;jsonrpc&#34;:&#34;2.0&#34;,&#34;id&#34;:3,&#34;method&#34;:&#34;tools/call&#34;,
+ &#34;params&#34;:{&#34;name&#34;:&#34;qorm_source_location&#34;,&#34;arguments&#34;:{&#34;id&#34;:&#34;saveBtn&#34;}}}</code></pre>
+<p><strong>Operate</strong> — dispatch an action and set a nested state path:</p>
+<pre><code>{&#34;jsonrpc&#34;:&#34;2.0&#34;,&#34;id&#34;:4,&#34;method&#34;:&#34;tools/call&#34;,
+ &#34;params&#34;:{&#34;name&#34;:&#34;qorm_dispatch&#34;,&#34;arguments&#34;:{&#34;action&#34;:&#34;increment&#34;}}}
+
+{&#34;jsonrpc&#34;:&#34;2.0&#34;,&#34;id&#34;:5,&#34;method&#34;:&#34;tools/call&#34;,
+ &#34;params&#34;:{&#34;name&#34;:&#34;qorm_set_state&#34;,&#34;arguments&#34;:{&#34;path&#34;:&#34;user.name&#34;,&#34;value&#34;:&#34;Ada&#34;}}}</code></pre>
+<p><strong>Design</strong> — preview a patch, review the diff, then commit with the token:</p>
+<pre><code>{&#34;jsonrpc&#34;:&#34;2.0&#34;,&#34;id&#34;:6,&#34;method&#34;:&#34;tools/call&#34;,
+ &#34;params&#34;:{&#34;name&#34;:&#34;qorm_preview_patch&#34;,&#34;arguments&#34;:{&#34;ops&#34;:[
+   {&#34;op&#34;:&#34;setProp&#34;,&#34;target&#34;:&#34;saveBtn&#34;,&#34;key&#34;:&#34;text&#34;,&#34;value&#34;:&#34;Save now&#34;}]}}}
+
+{&#34;jsonrpc&#34;:&#34;2.0&#34;,&#34;id&#34;:7,&#34;method&#34;:&#34;tools/call&#34;,
+ &#34;params&#34;:{&#34;name&#34;:&#34;qorm_apply_patch&#34;,&#34;arguments&#34;:{
+   &#34;ops&#34;:[{&#34;op&#34;:&#34;setProp&#34;,&#34;target&#34;:&#34;saveBtn&#34;,&#34;key&#34;:&#34;text&#34;,&#34;value&#34;:&#34;Save now&#34;}],
+   &#34;previewToken&#34;:&#34;&lt;token from qorm_preview_patch&gt;&#34;}}}</code></pre>
+<p><strong>Verify</strong> — assert state and check the live layout:</p>
+<pre><code>{&#34;jsonrpc&#34;:&#34;2.0&#34;,&#34;id&#34;:8,&#34;method&#34;:&#34;tools/call&#34;,
+ &#34;params&#34;:{&#34;name&#34;:&#34;qorm_assert&#34;,&#34;arguments&#34;:{&#34;checks&#34;:[
+   {&#34;kind&#34;:&#34;stateEquals&#34;,&#34;path&#34;:&#34;count&#34;,&#34;value&#34;:3},
+   {&#34;kind&#34;:&#34;htmlContains&#34;,&#34;text&#34;:&#34;Saved&#34;}]}}}
+
+{&#34;jsonrpc&#34;:&#34;2.0&#34;,&#34;id&#34;:9,&#34;method&#34;:&#34;tools/call&#34;,
+ &#34;params&#34;:{&#34;name&#34;:&#34;qorm_check_layout&#34;,&#34;arguments&#34;:{&#34;checks&#34;:[
+   {&#34;id&#34;:&#34;saveBtn&#34;,&#34;type&#34;:&#34;button&#34;,&#34;visible&#34;:true,&#34;noOverflow&#34;:true}]}}}</code></pre>
 </main>
 </div>
 <script>

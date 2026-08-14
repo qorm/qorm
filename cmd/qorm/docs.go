@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/qorm/qorm/internal/mdsite"
+	"github.com/qorm/platform/internal/mdsite"
 )
 
 // cmdDocs renders the markdown docs tree into a static HTML site (pure Go).

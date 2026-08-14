@@ -9,8 +9,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/qorm/qorm/internal/loader"
-	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/platform/internal/loader"
+	"github.com/qorm/platform/internal/runtime"
 )
 
 // Server-level tests for the execution-model additions: the scene onEnter

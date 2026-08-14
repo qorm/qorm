@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/model"
 )
 
 // Dynamic (bound) node types: {"type":"{{item.kind}}"} names a widget the

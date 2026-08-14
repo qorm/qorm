@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/qorm/qorm/internal/capability"
-	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/platform/internal/capability"
+	"github.com/qorm/platform/internal/model"
 )
 
 // iosScFor returns an app's shortcuts, or none for the app-agnostic dev client.

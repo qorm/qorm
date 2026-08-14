@@ -7,7 +7,7 @@ import (
 	"unicode"
 	"unsafe"
 
-	"github.com/qorm/qorm/internal/appkit"
+	"github.com/qorm/platform/internal/appkit"
 )
 
 type windowImpl struct {
