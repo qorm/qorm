@@ -6,6 +6,9 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+### Changed
+- **Repository renamed to `github.com/qorm/platform`**: Go module path, package imports, CI/CD workflows, container image targets (`ghcr.io/qorm/platform`), and official website links (`qorm.com`) updated from `github.com/qorm/qorm` to `github.com/qorm/platform`. The project and CLI name remain `qorm`.
+
 ## [v0.9.2] - 2026-08-13
 
 ### Added
