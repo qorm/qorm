@@ -21,7 +21,7 @@ behaviour). A pure-Go runtime renders it, signs it, and packages it everywhere.
 - Buttons: `"onPress":"increment"` (an action name; a string invokes it) — or `{ "name":…, "args":{…} }`.
 - Actions (`actions/<id>.json`): `{ "type":"action","id":…,"steps":[ { "type":"state.set","path":"count","value":"{{ state.count + 1 }}" } ] }`. Step types: `state.set/increment/toggle/append/...` and `http.get`.
 - Components: declared in `qorm.json` under `"components"`, referenced by a node whose `type` equals the component name; template uses `{{ prop.x }}` with a `{ "type":"slot" }` placeholder.
-- Authoritative, code-generated references: the widget catalog (`api/widgets.md`) and capabilities (`docs/platforms/capabilities.md`). The JSON format spec is design-intent and diverges — prefer getting-started + `examples/`.
+- Authoritative, code-generated references: the widget catalog (`api/widgets.md`), the action step vocabulary (`api/actions.md` — every step `type` and its fields, the source of truth for what the runtime accepts), the navigation guide (`api/navigation.md` — `navigate`, route params, guards, transitions), and capabilities (`docs/platforms/capabilities.md`). The JSON format spec is design-intent and diverges — prefer getting-started + `examples/`.
 
 ## Standard action patterns
 
@@ -32,6 +32,164 @@ Don't reinvent behaviour — reach for these load-clean shapes (full recipes in 
 - Form validation: one conditional `state.set` per field writes `fieldErrors.<field>` (ternary → message or `""`); bind `{{ state.fieldErrors.<field> }}`.
 - Pagination: keep a `page` counter, `state.increment` it, compute the offset in the URL binding.
 - Debounce / cancel-token are **not** step types — debounce client-side via `onChange` throttling; cancellation is planned (last `result` write wins).
+
+## Action step types — write actions the runtime actually accepts
+
+The skill here is terse, but it has to be the AI's primary reference. Below is the
+full step vocabulary the runtime recognises. For every field name and edge case
+see [`api/actions.md`](../../api/actions.md) (auto-generated from source — never
+drifts) and the navigation guide at [`api/navigation.md`](../../api/navigation.md).
+
+### The full set (use this table, not docs that pre-date 0.9)
+
+| `type` | When to reach for it |
+|---|---|
+| `state.set` | write one value (scalar, object, or array) to a `path` |
+| `state.setAt` | write ONE element of an array by `index` |
+| `state.append` | push a value onto an array path |
+| `state.appendObject` | push a structured object built from per-field expressions (`item: { id: "{{ now }}", … }`) |
+| `state.toggle` | flip a boolean, or a `field` on a matched array element, or array membership for scalar arrays |
+| `state.increment` | add to a number (`value` is the delta, default +1) |
+| `state.remove` | drop the array element where `match` matches `matchKey` |
+| `state.updateWhere` | set `field` on every element where `match` matches `matchKey` |
+| `state.merge` | shallow-merge an object into a state path |
+| `state.sort` | sort an array by `field` |
+| `state.move` | reorder: move array element at `from` to `to` |
+| `state.clear` | empty an array, or zero a scalar |
+| `state.reset` | restore the manifest's initial values — one key with `path`, all of state without |
+| `navigate` | go to another scene, or pop the back stack — see below |
+| `http.get` / `http.post` / `http.put` / `http.delete` | call a backend (use the matching verb) |
+| `http.request` | generic request with an explicit `method` |
+| `if` | run one of two nested step lists by a `condition` (nestable, depth-capped at 32) |
+| `forEach` | loop: `in` yields an array, `as` names the current element (default `item`) — see `index` / `first` / `last` aliases |
+| `invoke` | call another action by `name` (call depth capped at 16) |
+| `delay` | wait `ms` and run the steps that **follow** in the same list (never blocks; degrades to no-wait on a host with no background sink) |
+| `render` | publish an intermediate frame so a loading flag is visible before the slow step runs (capped at 64/dispatch) |
+
+### Navigation (`navigate`) — the one you keep getting wrong
+
+Two forms, both load-clean:
+
+```json
+// actions/openProfile.json — go to another scene
+{ "type": "action", "id": "openProfile", "steps": [
+  { "type": "navigate", "to": "profile" }
+] }
+
+// actions/back.json — pop the back stack
+{ "type": "action", "id": "back", "steps": [
+  { "type": "navigate", "back": true }
+] }
+```
+
+With route parameters (the target scene reads them as `{{ route.<name> }}`):
+
+```json
+{ "type": "navigate", "to": "profile",
+  "params": { "userId": "{{ userId }}", "name": "{{ name }}" } }
+```
+
+Rules of thumb:
+- `to` is a scene id; it may contain `{{ bindings }}` evaluated in the dispatch's scope. Navigating to the current scene (or any unknown id) is a **no-op** — never assume it threw.
+- `back: true` pops the back stack. Without it, `navigate` pushes.
+- Each transition records a direction (`push` / `pop`); the client uses it to play the page transition. Direction is one-shot — read it after `navigate`, not as a state binding.
+- A scene may declare a `guard` (`{ condition, redirect, params }` in the scene file). The guard runs on every entry path — `navigate`, browser Back, deep link, the entry scene — so protected routes cannot be reached by spelling a URL. `qorm_render_html` follows the guard, so a guarded scene the session may not enter is never rendered for inspection.
+- There is no `onExit`; cleanup belongs in the next scene's `onEnter`.
+- See [`examples/navigation`](../../examples/navigation) and [`api/navigation.md`](../../api/navigation.md).
+
+### `state.*` — the list-shape rules that bite you
+
+The list-shaped steps (`append`, `remove`, `updateWhere`, `toggle` on a list element) all select **one element** by `matchKey` (default `id`) and `match` (a `{{ … }}` expression). The match expression is evaluated in the action's scope, so `{{ id }}` reads the `id` argument you dispatched with:
+
+```json
+// toggle a single todo item's `done` field
+{ "type": "state.toggle", "path": "todos",
+  "matchKey": "id", "match": "{{ id }}", "field": "done" }
+
+// delete it
+{ "type": "state.remove", "path": "todos",
+  "matchKey": "id", "match": "{{ id }}" }
+```
+
+For NEW items, never try to construct the object inline with `state.append` and
+JSON literals — use `state.appendObject` so the per-field `{{ bindings }}` are
+each evaluated in scope (a JSON literal in `value:` is a string constant, not
+a template):
+
+```json
+// WRONG — `{{ now }}` is a string literal here, not a binding
+{ "type": "state.append", "path": "todos",
+  "value": { "id": "{{ now }}", "title": "{{ state.draft }}", "done": false } }
+
+// RIGHT — `item` is per-field; each value is a binding
+{ "type": "state.appendObject", "path": "todos",
+  "item": { "id": "{{ now }}", "title": "{{ state.draft }}", "done": "false" } }
+```
+
+`state.set` with a multi-segment `path` NESTs the value (`user.name` writes
+`name` inside `user`); use `qorm_set_state`'s path semantics to mirror it from MCP.
+
+### `http.*` — the request lifecycle
+
+`result` is where the parsed response lands, `error` is where the failure message
+goes (and it is cleared on success). For non-trivial follow-up work, prefer
+`onSuccess` / `onError` over inspecting the error path afterwards:
+
+```json
+{ "type": "http.get", "url": "https://api.example.com/items",
+  "result": "items", "error": "loadError",
+  "onSuccess": [ { "type": "state.set", "path": "status", "value": "loaded" } ],
+  "onError":   [ { "type": "state.set", "path": "status", "value": "Could not load: {{ error }}" } ] }
+```
+
+Critical gotchas (the AI gets these wrong without help):
+
+- **`async: true` for anything UI-facing.** A blocking request deadlocks a packaged
+  app — the client-side host runs every `http.*` on the background worker
+  regardless, so the steps AFTER the request run while it is still open. Read
+  the reply in `onSuccess` / `onError`, never in a sibling step.
+- **`key` for search-as-you-type.** Starting a new request on the same key cancels
+  the in-flight one AND discards its outcome. Without it, a fast reply to an
+  old query overwrites the slow reply to the current one.
+- **`pending` replaces the loading-flag pair.** A state path held `true` for the
+  lifetime of the request (success, failure, timeout, refusal all clear it).
+  Reference-counted, so two overlapping requests hold it until the last settles.
+- **`timeout` per request** overrides the shared 20s ceiling. Omit (or 0) to keep
+  the default.
+- **`body` on POST/PUT:** a string is sent verbatim (an inline JSON template is
+  NOT double-encoded); a bound non-string value is JSON-encoded.
+- **Cap of 64 concurrent background requests per runtime.** Past that, a step
+  fails immediately on its `error` path with `too many concurrent requests
+  (64 in flight)` — preferable to invisible queueing.
+
+### `if`, `forEach`, `invoke`, `delay` — control flow
+
+```json
+// conditional
+{ "type": "if", "condition": "{{ len(trim(state.name)) > 0 }}",
+  "then": [ { "type": "state.set", "path": "message", "value": "Hello {{ state.name }}" } ],
+  "else": [ { "type": "state.set", "path": "formError", "value": "Name is required" } ] }
+
+// loop (cap 10000 iterations)
+{ "type": "forEach", "in": "{{ state.items }}", "as": "line",
+  "steps": [ { "type": "state.updateWhere", "path": "items",
+    "matchKey": "id", "match": "{{ line.id }}",
+    "item": { "gift": "{{ true }}" } } ] }
+
+// call another action
+{ "type": "invoke", "name": "resetForm",
+  "args": { "keepEmail": "{{ true }}" } }
+
+// pace a reveal: render → wait → render
+[ { "type": "state.set", "path": "phase", "value": "one" },
+  { "type": "render" },
+  { "type": "delay", "ms": 400 },
+  { "type": "state.set", "path": "phase", "value": "two" },
+  { "type": "render" } ]
+```
+
+The `{{ … }}` inside `condition` and `match` is REQUIRED — a bare string is a
+non-empty constant, so always truthy. The loader warns about exactly that mistake.
 
 ## Drive a live app over MCP
 
