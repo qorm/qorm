@@ -34,6 +34,9 @@ type Runtime struct {
 	// WASM build). Exposed to expressions as viewport.width / viewport.height /
 	// viewport.orientation for responsive `when` nodes.
 	Viewport Viewport
+	// DirtyPaths lists state paths mutated by the most recent Dispatch (cleared
+	// by TakeDirtyPaths after the server renders). Used for partial re-render.
+	DirtyPaths []string
 	// Scene is the id of the scene currently shown ("" = the manifest entry).
 	// NavStack holds the frames (scene + its route params) to return to for
 	// navigate-back, so popping restores both the previous scene and the route
@@ -216,13 +219,28 @@ func (r *Runtime) ViewportVars() map[string]any {
 	}
 }
 
+// BreakpointVars exposes manifest breakpoints as booleans: breakpoint.sm is
+// true when viewport.width >= the sm threshold (and the viewport is known).
+func (r *Runtime) BreakpointVars() map[string]any {
+	w := float64(r.Viewport.W)
+	out := map[string]any{}
+	for name, min := range r.App.Breakpoints() {
+		out[name] = w > 0 && w >= float64(min)
+	}
+	return out
+}
+
 var bindingRe = regexp.MustCompile(`\{\{(.*?)\}\}`)
 
 // sceneCtx is the evaluation context for scene bindings: `state.*`, the
-// active-locale message catalog `t.*`, the responsive `viewport.*` vars and the
-// current scene's navigation parameters `route.*`.
+// active-locale message catalog `t.*`, the responsive `viewport.*` vars,
+// `breakpoint.*` booleans, and the current scene's navigation parameters `route.*`.
 func (r *Runtime) sceneCtx() map[string]any {
-	return map[string]any{"state": r.State, "t": r.Catalog(), "viewport": r.ViewportVars(), "route": r.RouteParams}
+	return map[string]any{
+		"state": r.State, "t": r.Catalog(),
+		"viewport": r.ViewportVars(), "breakpoint": r.BreakpointVars(),
+		"route": r.RouteParams,
+	}
 }
 
 // CurrentLocale is state.locale, falling back to the app's default locale.
@@ -330,6 +348,7 @@ func (r *Runtime) Dispatch(name string, args map[string]any) {
 	if !ok {
 		return
 	}
+	r.DirtyPaths = nil
 	ctx := map[string]any{"state": r.State, "t": r.Catalog(), "viewport": r.ViewportVars()}
 	// Expose top-level state keys so a bare `count` in an action expression
 	// resolves to state.count (as the message-format context already does);
@@ -359,6 +378,25 @@ func evalParams(params map[string]string, ctx map[string]any) map[string]any {
 	return out
 }
 
+// TakeDirtyPaths returns and clears the paths marked dirty by the last Dispatch.
+func (r *Runtime) TakeDirtyPaths() []string {
+	out := r.DirtyPaths
+	r.DirtyPaths = nil
+	return out
+}
+
+func (r *Runtime) markDirty(path string) {
+	if path == "" {
+		return
+	}
+	for _, p := range r.DirtyPaths {
+		if p == path {
+			return
+		}
+	}
+	r.DirtyPaths = append(r.DirtyPaths, path)
+}
+
 func (r *Runtime) applyStep(step model.Step, ctx map[string]any) {
 	switch step.Type {
 	case "navigate":
@@ -369,11 +407,13 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any) {
 		}
 	case "state.set":
 		setPath(r.State, step.Path, EvalBinding(step.Value, ctx))
+		r.markDirty(step.Path)
 	case "state.append":
 		cur := getPath(r.State, step.Path)
 		arr, _ := cur.([]any)
 		arr = append(arr, EvalBinding(step.Value, ctx))
 		setPath(r.State, step.Path, arr)
+		r.markDirty(step.Path)
 	case "state.appendObject":
 		cur := getPath(r.State, step.Path)
 		arr, _ := cur.([]any)
@@ -383,14 +423,17 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any) {
 		}
 		arr = append(arr, obj)
 		setPath(r.State, step.Path, arr)
+		r.markDirty(step.Path)
 	case "state.toggle":
 		toggleInArray(getPath(r.State, step.Path), step.MatchKey, EvalBinding(step.Match, ctx), step.Field)
+		r.markDirty(step.Path)
 	case "state.increment":
 		by := 1.0
 		if step.Value != "" {
 			by = toNum(EvalBinding(step.Value, ctx))
 		}
 		setPath(r.State, step.Path, toNum(getPath(r.State, step.Path))+by)
+		r.markDirty(step.Path)
 	case "state.remove":
 		want := expr.Stringify(EvalBinding(step.Match, ctx))
 		arr, _ := getPath(r.State, step.Path).([]any)
@@ -402,6 +445,7 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any) {
 			out = append(out, it)
 		}
 		setPath(r.State, step.Path, out)
+		r.markDirty(step.Path)
 	case "state.updateWhere":
 		want := expr.Stringify(EvalBinding(step.Match, ctx))
 		arr, _ := getPath(r.State, step.Path).([]any)
@@ -414,6 +458,7 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any) {
 				m[field] = EvalBinding(e, ctx)
 			}
 		}
+		r.markDirty(step.Path)
 	case "state.merge":
 		cur, _ := getPath(r.State, step.Path).(map[string]any)
 		if cur == nil {
@@ -423,18 +468,21 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any) {
 			cur[field] = EvalBinding(e, ctx)
 		}
 		setPath(r.State, step.Path, cur)
+		r.markDirty(step.Path)
 	case "state.sort":
 		field := step.Field
 		if strings.Contains(field, "{{") { // sort key can be dynamic (e.g. clicked column)
 			field = expr.Stringify(EvalBinding(field, ctx))
 		}
 		sortArray(getPath(r.State, step.Path), field, EvalBinding(step.Value, ctx))
+		r.markDirty(step.Path)
 	case "state.move":
 		if arr, ok := getPath(r.State, step.Path).([]any); ok {
 			from := int(toNum(EvalBinding(step.From, ctx)))
 			to := int(toNum(EvalBinding(step.To, ctx)))
 			setPath(r.State, step.Path, moveElem(arr, from, to))
 		}
+		r.markDirty(step.Path)
 	case "state.clear":
 		switch getPath(r.State, step.Path).(type) {
 		case []any:
@@ -444,6 +492,7 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any) {
 		default:
 			setPath(r.State, step.Path, "")
 		}
+		r.markDirty(step.Path)
 	case "http.get", "http.post", "http.put", "http.delete", "http.request":
 		r.applyHTTP(step, ctx)
 	}

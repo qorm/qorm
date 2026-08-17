@@ -46,6 +46,9 @@ myapp/
 | `entry` | 首先显示的场景 id |
 | `theme` | 设计令牌集(如 `apple`) |
 | `globalState` | 供 `state.*` 使用的 `schema`(类型化结构)+ `initial`(初始值) |
+| `breakpoints` | 可选宽度阈值(px),暴露为 `breakpoint.<name>` 布尔值 |
+| `agent.policy` | 可选 Agent MCP 工具权限(见 [permissions](agent/permissions.md)) |
+| `capabilities` | 可选原生 op 运行时门禁(`used-only` / `manifest` / `open`) |
 | `components` | 可复用的组件定义(或一个组件文件夹) |
 | `platforms` | 各平台配置——桌面 `window`、以及打包选项 |
 | `defaultLocale` | 多语言应用的初始语言 |

@@ -63,7 +63,7 @@ var nodeSchema = [][4]string{
 	{"renderItem", "node", "item template for a bound `list`", "绑定 `list` 的条目模板"},
 	{"data", "string", "list data-binding expression (e.g. `state.todos`)", "列表数据绑定表达式(如 `state.todos`)"},
 	{"children", "node[]", "child nodes", "子节点"},
-	{"condition", "string", "`when` nodes only: `{{ … }}` expression over `viewport.width` / `viewport.height` / `viewport.orientation` selecting `then` (truthy) or `else`; an unknown viewport (server first frame) is falsy", "仅 `when` 节点:基于 `viewport.width` / `viewport.height` / `viewport.orientation` 的 `{{ … }}` 表达式,真值渲染 `then`,否则渲染 `else`;视口未知(服务端首帧)按假值处理"},
+	{"condition", "string", "`when` nodes only: `{{ … }}` expression over `viewport.*`, `breakpoint.*` (manifest width thresholds), or both — selects `then` (truthy) or `else`; an unknown viewport (server first frame) is falsy", "仅 `when` 节点:基于 `viewport.*`、`breakpoint.*`(清单宽度阈值)或二者组合的 `{{ … }}` 表达式,真值渲染 `then`,否则渲染 `else`;视口未知(服务端首帧)按假值处理"},
 	{"then", "node", "`when` nodes only: subtree rendered when `condition` is truthy", "仅 `when` 节点:`condition` 为真时渲染的子树"},
 	{"else", "node", "`when` nodes only: subtree rendered otherwise (unlike the `if` prop, which hides one node, `when` swaps two alternative subtrees)", "仅 `when` 节点:否则渲染的子树(与隐藏单个节点的 `if` 属性不同,`when` 在两棵备选子树间切换)"},
 	{"…", "any", "any other key is a widget-specific **prop** (table below)", "其余任何键都是组件专有**属性**(见下表)"},

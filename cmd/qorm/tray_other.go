@@ -25,7 +25,7 @@ func loginItemEnabled() bool         { return false }
 func nativeNotify(title, body, ident string) {}
 
 func centerWindow()      {}
-func screenInfo() string { return "[]" }
+func screenInfo() string { return windowsScreenInfo() }
 
 func windowFrame() string           { return "" }
 func setWindowFrame(x, y, w, h int) {}

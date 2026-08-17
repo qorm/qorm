@@ -31,6 +31,7 @@ import (
 	"github.com/qorm/qorm/internal/ota"
 	"github.com/qorm/qorm/internal/render"
 	"github.com/qorm/qorm/internal/runtime"
+	"github.com/qorm/qorm/pkg/qormext"
 )
 
 // Server is an HTTP handler wrapping a live runtime. It serves the browser UI,
@@ -97,6 +98,10 @@ type Server struct {
 	// either side from forging the other's identity — the foundational audit
 	// principle for human-AI collaboration.
 	eventToken string
+
+	// Partial render cache: last full/patched HTML and the scene dependency index.
+	renderCache render.Result
+	depIndex    *render.DepIndex
 }
 
 // New builds a server for a runtime (no OTA).
@@ -205,6 +210,12 @@ func (s *Server) initAgent() {
 		b, _ := json.Marshal(out)
 		return string(b)
 	})
+	qormext.SetOpAuthorizer(func(op string) error {
+		if s.rt == nil {
+			return nil
+		}
+		return capability.AuthorizeOp(s.rt.App, op)
+	})
 }
 
 // SetMCPReadOnly switches the shared MCP session into (or out of) read-only
@@ -221,7 +232,26 @@ func (s *Server) SetMCPReadOnly(v bool) {
 // pushes the new UI to all SSE subscribers. Caller must hold s.mu.
 func (s *Server) bump() (int64, string, string) {
 	rev := s.rev.Add(1)
-	res := render.RenderScene(s.rt, s.rt.CurrentScene())
+	scene := s.rt.CurrentScene()
+	dirty := s.rt.TakeDirtyPaths()
+
+	var res render.Result
+	patched := false
+	if len(dirty) > 0 && s.renderCache.HTML != "" {
+		if pr, ok := render.PatchScene(s.rt, scene, s.renderCache, dirty, s.depIndex); ok {
+			res = pr
+			patched = true
+		}
+	}
+	if !patched {
+		res = render.RenderScene(s.rt, scene)
+		root := s.rt.App.Scenes[scene]
+		if root == nil {
+			root = s.rt.App.EntryRoot()
+		}
+		s.depIndex = render.BuildDepIndex(root)
+	}
+	s.renderCache = res
 	s.handlers = res.Handlers
 	nav := s.rt.TakeNavDir()
 	s.broadcast(rev, res.HTML, nav, s.rt.RoutePath())
@@ -684,6 +714,8 @@ func (s *Server) Reload(next *runtime.Runtime) {
 	}
 	s.rt = next
 	s.handlers = nil
+	s.renderCache = render.Result{}
+	s.depIndex = nil
 	s.initAgent()
 	s.logEvent("system", "hot-reload: app source changed")
 	s.bump()
@@ -696,6 +728,8 @@ func (s *Server) activate(b *bundle.Bundle) {
 	s.current = b
 	s.rt = runtime.New(b.ToApp())
 	s.handlers = nil
+	s.renderCache = render.Result{}
+	s.depIndex = nil
 	s.initAgent()
 	s.bump()
 }
@@ -734,6 +768,8 @@ func (s *Server) Rollback() (string, error) {
 	s.current = restored
 	s.rt = runtime.New(restored.ToApp())
 	s.handlers = nil
+	s.renderCache = render.Result{}
+	s.depIndex = nil
 	s.initAgent()
 	s.bump()
 	return fmt.Sprintf("rolled back %s -> %s", from, versionOr(restored)), nil
@@ -793,6 +829,12 @@ func (s *Server) serveIndex(w http.ResponseWriter, r *http.Request) {
 	scene := s.rt.CurrentScene()
 	res := render.RenderScene(s.rt, scene)
 	s.handlers = res.Handlers
+	s.renderCache = res
+	root := s.rt.App.Scenes[scene]
+	if root == nil {
+		root = s.rt.App.EntryRoot()
+	}
+	s.depIndex = render.BuildDepIndex(root)
 	rev := s.rev.Load()
 	rt := s.rt
 	// Build the page while still holding the lock: Page/userWebJS read rt.State
@@ -959,9 +1001,10 @@ func (s *Server) serveNavigate(w http.ResponseWriter, r *http.Request) {
 var appJS string
 
 // qormAppJS returns the client script with the current revision substituted.
-func qormAppJS(rev int64, eventToken string) string {
+func qormAppJS(rev int64, eventToken, capPolicy string) string {
 	s := strings.ReplaceAll(appJS, "__QORM_REV__", strconv.FormatInt(rev, 10))
 	s = strings.ReplaceAll(s, "__QORM_TOKEN__", eventToken)
+	s = strings.ReplaceAll(s, "__QORM_CAP_POLICY__", capPolicy)
 	return s
 }
 
@@ -992,6 +1035,7 @@ func Page(rt *runtime.Runtime, body string, rev int64, eventToken ...string) str
 		dir = "rtl"
 	}
 	theme := rt.CurrentTheme()
+	capPolicy := capability.CapPolicyScript(rt.App)
 	return fmt.Sprintf(`<!doctype html>
 <html lang="%s" dir="%s">
 <head>
@@ -1141,7 +1185,7 @@ func Page(rt *runtime.Runtime, body string, rev int64, eventToken ...string) str
 <div id="qorm-stage" class="qorm-theme-%s"><div id="qorm-root">%s</div></div>
 <script>%s</script>
 </body>
-</html>`, lang, dir, htmlEscape(title), width, height, theme, body, qormAppJS(rev, tok))
+</html>`, lang, dir, htmlEscape(title), width, height, theme, body, qormAppJS(rev, tok, capPolicy))
 }
 
 func htmlEscape(s string) string {

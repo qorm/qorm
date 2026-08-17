@@ -17,6 +17,7 @@ import (
 	"sync"
 
 	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/qorm/internal/policy"
 	"github.com/qorm/qorm/internal/runtime"
 )
 
@@ -162,13 +163,17 @@ func (s *Server) dispatch(req request) *response {
 	case "tools/list":
 		return ok(req.ID, map[string]any{"tools": toolList()})
 	case "tools/call":
-		if s.readOnly {
-			var p struct {
-				Name string `json:"name"`
-			}
-			_ = json.Unmarshal(req.Params, &p)
-			if isMutating(p.Name) {
-				return fail(req.ID, -32000, "read-only mode: tool "+p.Name+" is disabled (server started with --mcp-read-only)")
+		var p struct {
+			Name      string          `json:"name"`
+			Arguments json.RawMessage `json:"arguments"`
+		}
+		_ = json.Unmarshal(req.Params, &p)
+		if s.readOnly && isMutating(p.Name) {
+			return fail(req.ID, -32000, "read-only mode: tool "+p.Name+" is disabled (server started with --mcp-read-only)")
+		}
+		if s.rt != nil && s.rt.App.AgentPolicy.HasPolicy() {
+			if err := policy.AuthorizeTool(s.rt.App.AgentPolicy, p.Name, p.Arguments); err != nil {
+				return fail(req.ID, policy.RPCCodePolicyDenied, err.Error())
 			}
 		}
 		return s.handleToolCall(req)

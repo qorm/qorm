@@ -50,6 +50,8 @@ jobs:
       - name: Smoke (run counter headless)
         # The script probes ./qorm.exe itself when ./qorm is absent (Windows).
         run: bash scripts/ci-smoke.sh ./qorm
+      - name: Smoke (MCP manifest policy)
+        run: bash scripts/ci-smoke-mcp.sh ./qorm
 
   # Mobile packaging jobs are expensive (Xcode / Gradle); run them on main and
   # on PRs explicitly labeled `ci-mobile`.

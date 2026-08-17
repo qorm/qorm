@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/qorm/qorm/internal/loader"
+	"github.com/qorm/qorm/internal/model"
 	"github.com/qorm/qorm/internal/render"
 	qrt "github.com/qorm/qorm/internal/runtime"
 )
@@ -305,5 +306,45 @@ func TestMCPReadOnlyMode(t *testing.T) {
 		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"qorm_dispatch","arguments":{"action":"increment","args":{"count":0}}}}`)
 	if strings.Contains(resp, "read-only mode") {
 		t.Fatalf("dispatch should work after disabling read-only, got %s", resp)
+	}
+}
+
+// TestMCPManifestPolicyPreviewOnly verifies manifest agent.policy is enforced
+// on the shared /mcp session independently of --mcp-read-only.
+func TestMCPManifestPolicyPreviewOnly(t *testing.T) {
+	app, err := loader.LoadDir(filepath.Join("..", "..", "examples", "counter"))
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	app.AgentPolicy = model.AgentPolicy{Level: "preview-only"}
+	s := New(qrt.New(app))
+	ts := httptest.NewServer(s.Handler())
+	defer ts.Close()
+
+	dispatch := post(t, ts.URL+"/mcp",
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"qorm_dispatch","arguments":{"action":"increment","args":{"count":0}}}}`)
+	var denied struct {
+		Error *struct {
+			Code    int    `json:"code"`
+			Message string `json:"message"`
+		} `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(dispatch), &denied); err != nil {
+		t.Fatalf("bad response: %q", dispatch)
+	}
+	if denied.Error == nil || denied.Error.Code != -32001 {
+		t.Fatalf("dispatch should be policy-denied (-32001), got %s", dispatch)
+	}
+
+	preview := post(t, ts.URL+"/mcp",
+		`{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"qorm_preview_patch","arguments":{"ops":[{"op":"setProp","target":"title","key":"text","value":"OK"}]}}}`)
+	if strings.Contains(preview, `"error"`) {
+		t.Fatalf("preview_patch should succeed under preview-only, got %s", preview)
+	}
+
+	inspect := post(t, ts.URL+"/mcp",
+		`{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"qorm_inspect","arguments":{}}}`)
+	if !strings.Contains(inspect, "agentPolicy") || !strings.Contains(inspect, "preview-only") {
+		t.Fatalf("inspect should surface agentPolicy, got %s", inspect)
 	}
 }

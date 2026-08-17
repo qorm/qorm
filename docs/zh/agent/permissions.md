@@ -50,7 +50,25 @@ deploy
 
 ## 运行时强制执行
 
-`read-only` 级别通过 `qorm run --mcp-read-only` 在运行时强制执行:共享 MCP 会话会以 JSON-RPC "read-only mode" 错误拒绝会产生变更的工具(`qorm_dispatch`、`qorm_set_state`、`qorm_apply_patch`、`qorm_undo`),而检查与预览类工具继续正常工作。
+两种机制在运行时生效:
+
+1. **`qorm run --mcp-read-only`** — CLI 标志。拒绝会产生变更的工具(`qorm_dispatch`、`qorm_set_state`、`qorm_apply_patch`、`qorm_undo`),返回 JSON-RPC `-32000`。检查与预览类工具(`qorm_preview_patch`、`qorm_diff` 等)仍可用。
+
+2. **`qorm.json` → `agent.policy`** — 按应用 manifest 策略强制执行(拒绝时 JSON-RPC `-32001`)。未声明 `agent` 的旧应用保持完全访问。示例:
+
+```json
+{
+  "agent": {
+    "policy": {
+      "level": "preview-only",
+      "tools": { "qorm_dispatch": false },
+      "hostCall": { "allowed": true, "ops": ["move"] }
+    }
+  }
+}
+```
+
+预设级别:`read-only` → `preview-only` → `operate` → `design` → `full`(逐级包含更多 MCP 工具)。`qorm_inspect` 在声明策略时返回 `agentPolicy` 有效工具图。
 
 ## 权限声明
 

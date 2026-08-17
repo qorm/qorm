@@ -48,6 +48,9 @@ the global state:
 | `entry` | the scene id shown first |
 | `theme` | design token set (e.g. `apple`) |
 | `globalState` | `schema` (typed shape) + `initial` (starting values) for `state.*` |
+| `breakpoints` | optional width thresholds (px) exposed as `breakpoint.<name>` booleans |
+| `agent.policy` | optional MCP tool permissions for agents (see [permissions](agent/permissions.md)) |
+| `capabilities` | optional runtime native-op gate (`used-only` / `manifest` / `open`) |
 | `components` | reusable component definitions (or a folder of them) |
 | `platforms` | per-platform config — desktop `window`, and packaging options |
 | `defaultLocale` | initial language for multi-locale apps |

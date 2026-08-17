@@ -116,6 +116,102 @@ func clamp01(v float64) float64 {
 	return v
 }
 
+// linuxScreenInfo enumerates displays via xrandr as [{w,h,scale,main},…].
+func linuxScreenInfo() string {
+	out, err := exec.Command("xrandr", "--query").Output()
+	if err != nil {
+		return "[]"
+	}
+	return formatScreensJSON(parseXrandrScreens(string(out)))
+}
+
+// parseXrandrScreens extracts connected outputs from xrandr --query text.
+func parseXrandrScreens(out string) []screenEntry {
+	var screens []screenEntry
+	for _, ln := range strings.Split(out, "\n") {
+		if !strings.Contains(ln, " connected") {
+			continue
+		}
+		w, h := 0, 0
+		for _, f := range strings.Fields(ln) {
+			if i := strings.Index(f, "x"); i > 0 {
+				rest := f[i+1:]
+				if j := strings.IndexAny(rest, "+"); j >= 0 {
+					rest = rest[:j]
+				}
+				if ww, e1 := strconv.Atoi(f[:i]); e1 == nil {
+					if hh, e2 := strconv.Atoi(rest); e2 == nil {
+						w, h = ww, hh
+						break
+					}
+				}
+			}
+		}
+		if w <= 0 || h <= 0 {
+			continue
+		}
+		screens = append(screens, screenEntry{W: w, H: h, Scale: 1, Main: strings.Contains(ln, " primary")})
+	}
+	return screens
+}
+
+type screenEntry struct {
+	W, H    int
+	Scale   float64
+	Main    bool
+}
+
+func formatScreensJSON(screens []screenEntry) string {
+	if len(screens) == 0 {
+		return "[]"
+	}
+	parts := make([]string, len(screens))
+	for i, s := range screens {
+		parts[i] = fmt.Sprintf(`{"w":%d,"h":%d,"scale":%g,"main":%t}`, s.W, s.H, s.Scale, s.Main)
+	}
+	return "[" + strings.Join(parts, ",") + "]"
+}
+
+// windowsScreenInfo enumerates displays via System.Windows.Forms.Screen.
+func windowsScreenInfo() string {
+	script := "Add-Type -AssemblyName System.Windows.Forms;" +
+		"$p=@();foreach($s in [System.Windows.Forms.Screen]::AllScreens){$b=$s.Bounds;" +
+		"$p+=('{\"\"w\"\":'+$b.Width+',\"\"h\"\":'+$b.Height+',\"\"scale\"\":1,\"\"main\"\":'+$s.Primary.ToString().ToLower()+'}')};" +
+		"'['+($p -join ',')+']'"
+	out, err := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", script).Output()
+	if err != nil {
+		return "[]"
+	}
+	s := strings.TrimSpace(string(out))
+	if !strings.HasPrefix(s, "[") {
+		return "[]"
+	}
+	return s
+}
+
+// windowsBrightness reads the primary monitor brightness (0..1) via WMI.
+func windowsBrightness() (float64, bool) {
+	out, err := exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command",
+		"(Get-CimInstance -Namespace root/WMI -Class WmiMonitorBrightness -ErrorAction SilentlyContinue | Select-Object -First 1).CurrentBrightness").Output()
+	if err != nil {
+		return 0, false
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(string(out)))
+	if err != nil || n < 0 {
+		return 0, false
+	}
+	return clamp01(float64(n) / 100), true
+}
+
+// windowsBrightnessSet sets the primary monitor brightness (0..1) via WMI.
+func windowsBrightnessSet(v float64) bool {
+	level := int(clamp01(v) * 100)
+	script := fmt.Sprintf(
+		"$m=Get-CimInstance -Namespace root/WMI -Class WmiMonitorBrightnessMethods -ErrorAction SilentlyContinue | Select-Object -First 1; if($m){$m.WmiSetBrightness(1,%d)}",
+		level)
+	return exec.Command("powershell", "-NoProfile", "-NonInteractive", "-Command", script).Run() == nil
+}
+
 // darwinBrightness reads the main display brightness (0..1) via the optional
 // `brightness` CLI. Returns ok=false when the tool is absent or unparseable.
 func darwinBrightness() (float64, bool) {
@@ -661,6 +757,34 @@ func desktopHardwareWindows(op string, m map[string]interface{}, cb func(string)
 		if data, err := os.ReadFile(fp); err == nil {
 			cb("qormOnScreenshot(" + strconv.Quote("data:image/png;base64,"+base64.StdEncoding.EncodeToString(data)) + ")")
 		}
+	case "brightnessSet":
+		if v, ok := m["value"].(float64); ok {
+			windowsBrightnessSet(clamp01(v))
+			if lvl, ok2 := windowsBrightness(); ok2 {
+				cb(fmt.Sprintf("qormOnBrightness(%g)", lvl))
+			} else {
+				cb(fmt.Sprintf("qormOnBrightness(%g)", clamp01(v)))
+			}
+		}
+	case "brightnessGet", "brightnessUp", "brightnessDown":
+		lvl, ok := windowsBrightness()
+		if !ok {
+			cb(brightnessUnsupportedJS)
+			return
+		}
+		if op == "brightnessUp" {
+			lvl += 0.1
+		} else if op == "brightnessDown" {
+			lvl -= 0.1
+		}
+		lvl = clamp01(lvl)
+		if op != "brightnessGet" {
+			windowsBrightnessSet(lvl)
+			if nl, ok2 := windowsBrightness(); ok2 {
+				lvl = nl
+			}
+		}
+		cb(fmt.Sprintf("qormOnBrightness(%g)", lvl))
 	}
 }
 

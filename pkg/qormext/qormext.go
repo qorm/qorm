@@ -57,6 +57,20 @@ var Ops = map[string]Op{}
 // Register adds a custom native op (call from an init() in native/desktop.go).
 func Register(name string, fn Op) { Ops[name] = fn }
 
+// OpAuthorizer is an optional call-time gate for qormToNative (wired by the
+// runtime from the app's capabilities policy).
+var OpAuthorizer func(op string) error
+
+// SetOpAuthorizer installs the runtime's native-op gate.
+func SetOpAuthorizer(fn func(string) error) { OpAuthorizer = fn }
+
+func authorizeOp(op string) error {
+	if OpAuthorizer == nil {
+		return nil
+	}
+	return OpAuthorizer(op)
+}
+
 // Emit pushes a signal onto the frontend event channel: every qormOn(event)
 // listener in the UI fires with dataJSON (a JSON value — "null" if empty). This
 // is the middle-layer's push side: Go/WASM code tells the UI something changed

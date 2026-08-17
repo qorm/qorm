@@ -19,6 +19,7 @@ runnable reference — when a doc and a running example disagree, trust the exam
 - [Project structure](project-structure.md) — the layout of a QORM app folder, file by file
 - [Getting started](tutorials/getting-started.md) — install, your first app, the run loop
 - [First scene](tutorials/first-scene.md) · [First action](tutorials/first-action.md) · [First component](tutorials/first-component.md) · [First platform pack](tutorials/first-platform-pack.md)
+- [Responsive layout](tutorials/responsive-layout.md) — `when`, `viewport.*`, and `breakpoint.*`
 
 ## Reference
 

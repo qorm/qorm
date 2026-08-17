@@ -20,6 +20,9 @@ func CallJS(script string) {
 // from Go: e.g. Native("bluetoothScan", "{}") reaches the native bridge or Web
 // API. Results arrive at the app's qormOn<X> JS callback.
 func Native(op, dataJSON string) {
+	if err := authorizeOp(op); err != nil {
+		return
+	}
 	if dataJSON == "" {
 		dataJSON = "{}"
 	}

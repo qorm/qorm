@@ -12,6 +12,7 @@ import (
 	"github.com/qorm/qorm/internal/loader"
 	"github.com/qorm/qorm/internal/measure"
 	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/qorm/internal/policy"
 	"github.com/qorm/qorm/internal/render"
 	qrt "github.com/qorm/qorm/internal/runtime"
 	"github.com/qorm/qorm/internal/sourcemap"
@@ -42,7 +43,7 @@ func toolList() []tool {
 		},
 		{
 			Name:        "qorm_inspect",
-			Description: "Inspect the QORM app: id, name, entry scene, scene ids, state schema, current state, action ids, static compiler diagnostics, and the design-token system (designTokens: name -> {type,value,enforce}) when declared. Enforced color tokens hard-constrain apply_patch: a color style may only be set to one of their values. Read-only.",
+			Description: "Inspect the QORM app: id, name, entry scene, scene ids, state schema, current state, action ids, static compiler diagnostics, the design-token system (designTokens: name -> {type,value,enforce}) when declared, agentPolicy (effective MCP tool permissions from qorm.json agent.policy when declared), breakpoints (manifest width thresholds as breakpoint.<name> booleans), and capabilities (runtime gate policy when declared). Enforced color tokens hard-constrain apply_patch: a color style may only be set to one of their values. Read-only.",
 			InputSchema: obj(nil),
 		},
 		{
@@ -522,6 +523,15 @@ func (s *Server) inspect() map[string]any {
 		"stateSchema":  s.rt.App.GlobalState.Schema,
 		"currentState": s.rt.State,
 		"diagnostics":  s.rt.App.Diagnostics,
+	}
+	if s.rt.App.AgentPolicy.HasPolicy() {
+		out["agentPolicy"] = policy.EffectivePermissions(s.rt.App.AgentPolicy, s.readOnly)
+	}
+	if capability.EnforceRuntimeGate(s.rt.App) {
+		out["capabilities"] = capability.CapPolicyFor(s.rt.App)
+	}
+	if bp := s.rt.App.Breakpoints(); len(bp) > 0 {
+		out["breakpoints"] = bp
 	}
 	// Surface the design-token system so the agent knows which token values it
 	// may use; enforced color tokens hard-constrain apply_patch style edits.

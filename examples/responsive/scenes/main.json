@@ -12,7 +12,7 @@
       {
         "type": "when",
         "id": "layout-switch",
-        "condition": "{{ viewport.width >= 768 }}",
+        "condition": "{{ breakpoint.md }}",
         "then": {
           "type": "row",
           "id": "cards-wide",
@@ -24,11 +24,11 @@
             ] },
             { "type": "card", "id": "card-b-wide", "style": { "flex": 1, "padding": 16 }, "children": [
               { "type": "text", "id": "card-b-wide-title", "text": "Activity", "style": { "fontWeight": "bold" } },
-              { "type": "text", "id": "card-b-wide-body", "text": "The when node picked its then branch because viewport.width >= 768." }
+              { "type": "text", "id": "card-b-wide-body", "text": "The when node picked its then branch because breakpoint.md is true." }
             ] },
             { "type": "card", "id": "card-c-wide", "style": { "flex": 1, "padding": 16 }, "children": [
               { "type": "text", "id": "card-c-wide-title", "text": "Details", "style": { "fontWeight": "bold" } },
-              { "type": "text", "id": "card-c-wide-body", "text": "Shrink the window under 768px to collapse into a column." }
+              { "type": "text", "id": "card-c-wide-body", "text": "Shrink the window under md (768px) to collapse into a column." }
             ] }
           ]
         },
@@ -43,11 +43,11 @@
             ] },
             { "type": "card", "id": "card-b-narrow", "style": { "padding": 16 }, "children": [
               { "type": "text", "id": "card-b-narrow-title", "text": "Activity", "style": { "fontWeight": "bold" } },
-              { "type": "text", "id": "card-b-narrow-body", "text": "The when node fell back to its else branch (viewport.width < 768)." }
+              { "type": "text", "id": "card-b-narrow-body", "text": "The when node fell back to its else branch (breakpoint.md is false)." }
             ] },
             { "type": "card", "id": "card-c-narrow", "style": { "padding": 16 }, "children": [
               { "type": "text", "id": "card-c-narrow-title", "text": "Details", "style": { "fontWeight": "bold" } },
-              { "type": "text", "id": "card-c-narrow-body", "text": "Widen the window past 768px to switch back to a row." }
+              { "type": "text", "id": "card-c-narrow-body", "text": "Widen the window past md (768px) to switch back to a row." }
             ] }
           ]
         }

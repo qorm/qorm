@@ -55,7 +55,7 @@ var All = []Cap{
 	{Stem: "wifi", Widget: "wifi", Ops: []string{"wifiInfo"}, Callback: "qormOnWifi", Platforms: []string{IOS, Android, Mac}, Desc: "Current Wi-Fi network info.", Notes: "iOS restricts Wi-Fi info to the current network"},
 	{Stem: "nfc", Widget: "nfc", Ops: []string{"nfcRead"}, Callback: "qormOnNfc", Platforms: []string{IOS, Android}, Desc: "Read an NFC/NDEF tag.", Notes: "iOS requires a paid Apple Developer team"},
 	{Stem: "volume", Widget: "volume", Ops: []string{"volumeGet", "volumeSet", "volumeUp", "volumeDown"}, Callback: "qormOnVolume", Platforms: []string{IOS, Android, Mac, Linux, Windows}, Desc: "System output volume.", Notes: "Android volumeSet pending (get/up/down only)"},
-	{Stem: "brightness", Widget: "brightness", Ops: []string{"brightnessGet", "brightnessSet", "brightnessUp", "brightnessDown"}, Callback: "qormOnBrightness", Platforms: []string{IOS, Android, Mac, Linux}, Desc: "Screen brightness.", Notes: "Linux needs brightnessctl + a backlight device; Android brightnessSet pending; Windows pending"},
+	{Stem: "brightness", Widget: "brightness", Ops: []string{"brightnessGet", "brightnessSet", "brightnessUp", "brightnessDown"}, Callback: "qormOnBrightness", Platforms: []string{IOS, Android, Mac, Linux, Windows}, Desc: "Screen brightness.", Notes: "Linux needs brightnessctl + a backlight device; Android brightnessSet pending; Windows uses WMI when available"},
 	{Stem: "vibrate", Widget: "vibrate", Ops: []string{"vibrate"}, Callback: "", Platforms: []string{IOS, Android, Web}, Desc: "Basic vibration."},
 	{Stem: "torch", Widget: "torch", Ops: []string{"torchGet", "torchToggle"}, Callback: "qormOnTorch", Platforms: []string{IOS, Android}, Desc: "Flashlight / torch."},
 	{Stem: "battery", Widget: "battery", Ops: []string{"battery"}, Callback: "qormOnBattery", Platforms: []string{IOS, Android, Mac, Linux, Web}, Desc: "Battery level + charging state."},
@@ -88,14 +88,28 @@ var All = []Cap{
 	{Stem: "systemmodes", Widget: "systemmodes", Ops: []string{"getModes"}, Callback: "qormOnModes", Platforms: []string{IOS, Android, Mac, Web}, Desc: "Read system modes: low-power, dark/appearance, airplane (Android), do-not-disturb (Android). Null where a platform has no public API."},
 	{Stem: "insets", Widget: "insets", Ops: []string{"getInsets"}, Callback: "qormOnInsets", Platforms: []string{IOS, Android, Web}, Desc: "Safe-area insets in points/dp (status bar, notch, home indicator, nav bar)."},
 	{Stem: "openurl", Widget: "openurl", Ops: []string{"openURL"}, Callback: "qormOnOpenUrl", Platforms: []string{IOS, Android, Mac, Linux, Windows, Web}, Desc: "Open a URL / deep link (http, mailto, tel, sms, maps)."},
-	{Stem: "screens", Widget: "screens", Ops: []string{"screens"}, Callback: "qormOnScreens", Platforms: []string{Mac}, Desc: "Enumerate displays.", Notes: "Linux/Windows enumeration pending (returns an empty list)"},
+	{Stem: "screens", Widget: "screens", Ops: []string{"screens"}, Callback: "qormOnScreens", Platforms: []string{Mac, Linux, Windows}, Desc: "Enumerate displays.", Notes: "Linux uses xrandr when available; Windows uses System.Windows.Forms.Screen"},
 }
 
 // byWidget indexes All by widget type for O(1) lookup.
 var byWidget = func() map[string]*Cap {
 	m := make(map[string]*Cap, len(All))
 	for i := range All {
-		m[All[i].Widget] = &All[i]
+		c := &All[i]
+		m[c.Widget] = c
+		if c.Widget != c.Stem {
+			m[c.Stem] = c
+		}
+	}
+	return m
+}()
+
+// byStem indexes All by canonical stem.
+var byStem = func() map[string]*Cap {
+	m := make(map[string]*Cap, len(All))
+	for i := range All {
+		c := &All[i]
+		m[c.Stem] = c
 	}
 	return m
 }()
@@ -215,13 +229,13 @@ var notesZH = map[string]string{
 	"wifi":          "iOS 限制仅能获取当前连接网络的信息",
 	"nfc":           "iOS 需要付费的 Apple Developer 团队账号",
 	"volume":        "Android 的 volumeSet 待完成（仅支持读取/加减）",
-	"brightness":    "Linux 需要 brightnessctl 与背光设备；Android brightnessSet 待完成；Windows 待完成",
+	"brightness":    "Linux 需要 brightnessctl 与背光设备；Android brightnessSet 待完成；Windows 走 WMI（不可用时回退 n/a）",
 	"notify":        "Android 会回退到 Web Notification API；Windows 为 WinRT Toast 通知（气泡回退）",
 	"screenshot":    "Linux 需要 grim、scrot 或 ImageMagick",
 	"screenrecord":  "Android 使用 MediaProjection（Android 14+ 需要类型为 mediaProjection 的前台服务）",
 	"share":         "Linux/Windows 回退为复制文本到剪贴板",
 	"loginitem":     "仅限 macOS（需要安装后的 .app 包）",
-	"screens":       "Linux/Windows 枚举待完成（返回空列表）",
+	"screens":       "Linux 通过 xrandr 枚举；Windows 通过 System.Windows.Forms.Screen",
 	"securestorage": "Web 端会回退到 localStorage（无硬件加密）；Linux 走 DBus Secret Service（GNOME Keyring / KWallet）",
 	"videocapture":  "Android 使用系统相机 Intent（ACTION_VIDEO_CAPTURE）",
 	"qrscan":        "Android 端使用 CameraX + ML Kit 条码扫描",

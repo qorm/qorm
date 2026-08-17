@@ -15,7 +15,7 @@ QORM 内置了 43 项硬件/原生能力。对应地：组件类型即能力名�
 | `wifi` | `wifi` | wifiInfo | `qormOnWifi` | ios, android, mac | 当前 Wi-Fi 网络信息。 (iOS 限制仅能获取当前连接网络的信息) |
 | `nfc` | `nfc` | nfcRead | `qormOnNfc` | ios, android | 读取 NFC/NDEF 标签。 (iOS 需要付费的 Apple Developer 团队账号) |
 | `volume` | `volume` | volumeGet<br>volumeSet<br>volumeUp<br>volumeDown | `qormOnVolume` | ios, android, mac, linux, windows | 系统输出音量。 (Android 的 volumeSet 待完成（仅支持读取/加减）) |
-| `brightness` | `brightness` | brightnessGet<br>brightnessSet<br>brightnessUp<br>brightnessDown | `qormOnBrightness` | ios, android, mac, linux | 屏幕亮度。 (Linux 需要 brightnessctl 与背光设备；Android brightnessSet 待完成；Windows 待完成) |
+| `brightness` | `brightness` | brightnessGet<br>brightnessSet<br>brightnessUp<br>brightnessDown | `qormOnBrightness` | ios, android, mac, linux, windows | 屏幕亮度。 (Linux 需要 brightnessctl 与背光设备；Android brightnessSet 待完成；Windows 走 WMI（不可用时回退 n/a）) |
 | `vibrate` | `vibrate` | vibrate | `—` | ios, android, web | 基本振动。 |
 | `torch` | `torch` | torchGet<br>torchToggle | `qormOnTorch` | ios, android | 手电筒 / 闪光灯。 |
 | `battery` | `battery` | battery | `qormOnBattery` | ios, android, mac, linux, web | 电量水平 + 充电状态。 |
@@ -48,7 +48,7 @@ QORM 内置了 43 项硬件/原生能力。对应地：组件类型即能力名�
 | `systemmodes` | `systemmodes` | getModes | `qormOnModes` | ios, android, mac, web | 读取系统模式：低电量、深色/外观样式、飞行模式 (Android)、免打扰 (Android)。在平台没有公开 API 时返回空值。 |
 | `insets` | `insets` | getInsets | `qormOnInsets` | ios, android, web | 安全区域内边距（以 point/dp 为单位，含状态栏、刘海屏、Home 指示条、导航栏）。 |
 | `openurl` | `openurl` | openURL | `qormOnOpenUrl` | ios, android, mac, linux, windows, web | 打开 URL / 深度链接（http, mailto, tel, sms, maps）。 |
-| `screens` | `screens` | screens | `qormOnScreens` | mac | 枚举显示器。 (Linux/Windows 枚举待完成（返回空列表）) |
+| `screens` | `screens` | screens | `qormOnScreens` | mac, linux, windows | 枚举显示器。 (Linux 通过 xrandr 枚举；Windows 通过 System.Windows.Forms.Screen) |
 
 ## 各平台硬件接口支持
 
@@ -57,6 +57,6 @@ QORM 内置了 43 项硬件/原生能力。对应地：组件类型即能力名�
 - **iOS** (41) — `camera`, `location`, `recorder`, `sensors`, `biometric`, `bluetooth`, `wifi`, `nfc`, `volume`, `brightness`, `vibrate`, `torch`, `battery`, `notify`, `badge`, `screenshot`, `screenrecord`, `share`, `clipboard`, `deviceinfo`, `network`, `keepawake`, `haptics`, `storage`, `stt`, `securestorage`, `filepicker`, `photopicker`, `orientation`, `videocapture`, `qrscan`, `tts`, `compass`, `proximity`, `pedometer`, `barometer`, `contacts`, `calendar`, `systemmodes`, `insets`, `openurl`
 - **Android** (39) — `camera`, `location`, `recorder`, `sensors`, `biometric`, `bluetooth`, `wifi`, `nfc`, `volume`, `brightness`, `vibrate`, `torch`, `battery`, `screenshot`, `screenrecord`, `share`, `clipboard`, `deviceinfo`, `network`, `keepawake`, `haptics`, `storage`, `stt`, `securestorage`, `filepicker`, `photopicker`, `orientation`, `videocapture`, `qrscan`, `tts`, `compass`, `proximity`, `pedometer`, `barometer`, `contacts`, `calendar`, `systemmodes`, `insets`, `openurl`
 - **macOS** (25) — `camera`, `location`, `recorder`, `biometric`, `bluetooth`, `wifi`, `volume`, `brightness`, `battery`, `notify`, `badge`, `screenshot`, `screenrecord`, `share`, `clipboard`, `deviceinfo`, `network`, `keepawake`, `storage`, `loginitem`, `securestorage`, `tts`, `systemmodes`, `openurl`, `screens`
-- **Linux** (17) — `camera`, `location`, `recorder`, `volume`, `brightness`, `battery`, `notify`, `screenshot`, `share`, `clipboard`, `deviceinfo`, `network`, `keepawake`, `storage`, `securestorage`, `tts`, `openurl`
-- **Windows** (14) — `camera`, `location`, `recorder`, `volume`, `notify`, `screenshot`, `share`, `clipboard`, `deviceinfo`, `network`, `storage`, `securestorage`, `tts`, `openurl`
+- **Linux** (18) — `camera`, `location`, `recorder`, `volume`, `brightness`, `battery`, `notify`, `screenshot`, `share`, `clipboard`, `deviceinfo`, `network`, `keepawake`, `storage`, `securestorage`, `tts`, `openurl`, `screens`
+- **Windows** (16) — `camera`, `location`, `recorder`, `volume`, `brightness`, `notify`, `screenshot`, `share`, `clipboard`, `deviceinfo`, `network`, `storage`, `securestorage`, `tts`, `openurl`, `screens`
 - **Web** (28) — `camera`, `location`, `recorder`, `vibrate`, `battery`, `notify`, `screenshot`, `screenrecord`, `share`, `clipboard`, `deviceinfo`, `network`, `keepawake`, `haptics`, `storage`, `stt`, `securestorage`, `filepicker`, `photopicker`, `orientation`, `videocapture`, `qrscan`, `tts`, `compass`, `contacts`, `systemmodes`, `insets`, `openurl`

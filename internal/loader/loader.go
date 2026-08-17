@@ -12,6 +12,7 @@ import (
 
 	"github.com/qorm/qorm/internal/expr"
 	"github.com/qorm/qorm/internal/model"
+	"github.com/qorm/qorm/internal/policy"
 	"github.com/qorm/qorm/pkg/qormext"
 )
 
@@ -97,6 +98,9 @@ func FromDocs(docs []map[string]any) *model.App {
 		}
 	}
 	sceneVars := stateVars(app.GlobalState.Schema, false)
+	for name := range app.Breakpoints() {
+		sceneVars["breakpoint."+name] = "bool"
+	}
 	actionVars := stateVars(app.GlobalState.Schema, true)
 	for _, doc := range docs {
 		switch asString(doc["type"]) {
@@ -308,6 +312,18 @@ func applyManifest(app *model.App, doc map[string]any, diags *[]string) {
 			}
 		}
 	}
+	if agent, ok := doc["agent"].(map[string]any); ok {
+		parseAgentPolicy(app, agent, diags)
+	}
+	if caps, ok := doc["capabilities"].(map[string]any); ok {
+		parseCapabilitiesPolicy(app, caps, diags)
+	}
+	if bp, ok := doc["breakpoints"].(map[string]any); ok {
+		app.BreakpointWidths = map[string]int{}
+		for name, v := range bp {
+			app.BreakpointWidths[name] = int(asFloat(v))
+		}
+	}
 	if plats, ok := doc["platforms"].(map[string]any); ok {
 		if desk, ok := plats["desktop"].(map[string]any); ok {
 			app.DesktopMenu = parseMenuGroups(desk["menu"])
@@ -326,6 +342,84 @@ func applyManifest(app *model.App, doc map[string]any, diags *[]string) {
 			}
 		}
 	}
+}
+
+// parseAgentPolicy reads agent.policy from the manifest.
+func parseAgentPolicy(app *model.App, agent map[string]any, diags *[]string) {
+	pol, ok := agent["policy"].(map[string]any)
+	if !ok {
+		return
+	}
+	ap := model.AgentPolicy{}
+	if level := asString(pol["level"]); level != "" {
+		ap.Level = level
+		if !policy.ValidLevel(level) {
+			*diags = append(*diags, fmt.Sprintf("warning: agent.policy.level %q is not a known preset (%s)", level, strings.Join(policy.KnownLevels(), ", ")))
+		}
+	}
+	if tools, ok := pol["tools"].(map[string]any); ok {
+		ap.Tools = map[string]bool{}
+		ap.RequiresPreview = map[string]bool{}
+		for name, v := range tools {
+			switch x := v.(type) {
+			case bool:
+				ap.Tools[name] = x
+			case string:
+				if strings.EqualFold(x, "requiresPreview") {
+					ap.RequiresPreview[name] = true
+				} else if x == "true" {
+					ap.Tools[name] = true
+				} else if x == "false" {
+					ap.Tools[name] = false
+				} else {
+					*diags = append(*diags, fmt.Sprintf("warning: agent.policy.tools[%q] has unknown value %q", name, x))
+				}
+			default:
+				*diags = append(*diags, fmt.Sprintf("warning: agent.policy.tools[%q] must be bool or \"requiresPreview\"", name))
+			}
+		}
+	}
+	if hc, ok := pol["hostCall"].(map[string]any); ok {
+		ap.HostCall.Allowed = asBool(hc["allowed"])
+		if ops, ok := hc["ops"].([]any); ok {
+			for _, it := range ops {
+				if s := asString(it); s != "" {
+					ap.HostCall.Ops = append(ap.HostCall.Ops, s)
+				}
+			}
+		}
+	}
+	app.AgentPolicy = ap
+}
+
+func parseCapabilitiesPolicy(app *model.App, caps map[string]any, diags *[]string) {
+	cp := model.CapabilitiesPolicy{Mode: asString(caps["mode"])}
+	cp.Allow = parseStringList(caps["allow"])
+	cp.Deny = parseStringList(caps["deny"])
+	cp.CustomOps = parseStringList(caps["customOps"])
+	if cp.Mode == "open" && !cp.HasPolicy() {
+		cp.Mode = "open"
+	}
+	switch cp.Mode {
+	case "", "used-only", "manifest", "open":
+	default:
+		*diags = append(*diags, fmt.Sprintf("warning: capabilities.mode %q is unknown (use used-only, manifest, or open)", cp.Mode))
+	}
+	app.Capabilities = cp
+}
+
+func parseStringList(raw any) []string {
+	arr, ok := raw.([]any)
+	if !ok {
+		return nil
+	}
+	var out []string
+	for _, it := range arr {
+		if s := asString(it); s != "" {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 // BuildNode builds a node tree from a raw JSON object (exported for patch ops).

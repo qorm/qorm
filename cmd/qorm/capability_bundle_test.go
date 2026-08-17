@@ -45,6 +45,18 @@ func TestBuildRequireCapabilityFlowsThroughVerifyAndRun(t *testing.T) {
 		t.Errorf("build output should list requirements, got %q", buildOut)
 	}
 
+	// hardware example auto-stamps used capabilities even without --require-capability.
+	hwOut := filepath.Join(dir, "hardware.qorm.bundle")
+	hw := filepath.Join("..", "..", "examples", "hardware")
+	hwBuildOut := captureStdout(t, func() {
+		if code := cmdBuild([]string{hw, "-o", hwOut}); code != 0 {
+			t.Errorf("hardware build exited %d", code)
+		}
+	})
+	if !strings.Contains(hwBuildOut, "requires:") {
+		t.Errorf("hardware build should auto-stamp capabilities, got %q", hwBuildOut)
+	}
+
 	// Verify reports the capability requirements.
 	verifyOut := captureStdout(t, func() {
 		if code := cmdVerify([]string{out}); code != 0 {
