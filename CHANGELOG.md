@@ -6,6 +6,8 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+## [v0.9.4] - 2026-08-17
+
 ### Added
 - **Agent policy (P0-1)**: manifest `agent.policy` gates MCP tools at runtime; denied calls return JSON-RPC `-32001`. Documented in `docs/agent/permissions.md`; `qorm_inspect` surfaces effective permissions.
 - **Capability gate (P0-2)**: manifest `capabilities` plus bundle `requiredCapabilities` enforce native-op allowlists at call time (`qormToNative` / `qormext`); `qorm build` auto-stamps required capabilities from scene widgets.
@@ -1441,6 +1443,7 @@ Initial release: QORM, an agent-native declarative-UI runtime in pure Go.
 - Render performance: cached parsed expressions and reflection-free CSS
   numeric writes in the hot path.
 
+[v0.9.4]: https://github.com/qorm/platform/compare/v0.9.3...v0.9.4
 [v0.9.3]: https://github.com/qorm/platform/compare/v0.9.2...v0.9.3
 [v0.9.2]: https://github.com/qorm/platform/compare/v0.9.1...v0.9.2
 [v0.9.1]: https://github.com/qorm/platform/compare/v0.9.0...v0.9.1
