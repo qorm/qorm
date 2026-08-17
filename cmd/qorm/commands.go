@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/qorm/platform/internal/bundle"
+	"github.com/qorm/platform/internal/capability"
 	"github.com/qorm/platform/internal/keys"
 	"github.com/qorm/platform/internal/loader"
 	"github.com/qorm/platform/internal/mcp"
@@ -356,8 +357,16 @@ func cmdBuild(args []string) int {
 			return 1
 		}
 	}
-	if caps := splitCapabilityList(requireCaps); len(caps) > 0 {
-		if err := b.SetRequiredCapabilities(caps); err != nil {
+	app, err := loader.LoadDir(dir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+	autoCaps := capability.StemsFromApp(app)
+	manual := splitCapabilityList(requireCaps)
+	merged := capability.MergeStems(autoCaps, manual)
+	if len(merged) > 0 {
+		if err := b.SetRequiredCapabilities(merged); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			return 1
 		}

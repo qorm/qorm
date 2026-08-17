@@ -34,7 +34,7 @@ var nativeRouted = map[string]map[string]bool{
 	"badge":          {Mac: true},                             // setDockBadge is a stub off darwin
 	"loginItem":      {Mac: true},                             // SMAppService
 	"loginItemGet":   {Mac: true},
-	"screens":        {Mac: true}, // screenInfo returns "[]" off darwin
+	"screens":        {Mac: true, Linux: true, Windows: true},
 	"biometric":      {Mac: true}, // Touch ID
 	"wifiInfo":       {Mac: true}, // CoreWLAN
 	"getModes":       {Mac: true}, // nativeSystemModes returns "{}" off darwin

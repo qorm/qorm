@@ -83,6 +83,14 @@ func SetEvaluator(fn func(string))
 
 SetEvaluator wires the host's JS evaluator (desktop only).
 
+### `SetOpAuthorizer`
+
+```go
+func SetOpAuthorizer(fn func(string) error)
+```
+
+SetOpAuthorizer installs the runtime's native-op gate.
+
 ## Types
 
 ### `Op`

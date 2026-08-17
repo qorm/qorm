@@ -13,6 +13,7 @@ import (
 	"github.com/qorm/platform/internal/loader"
 	"github.com/qorm/platform/internal/measure"
 	"github.com/qorm/platform/internal/model"
+	"github.com/qorm/platform/internal/policy"
 	"github.com/qorm/platform/internal/render"
 	qrt "github.com/qorm/platform/internal/runtime"
 	"github.com/qorm/platform/internal/sourcemap"
@@ -43,7 +44,7 @@ func toolList() []tool {
 		},
 		{
 			Name:        "qorm_inspect",
-			Description: "Inspect the QORM app: id, name, entry scene, scene ids, state schema, current state, action ids, static compiler diagnostics, the resolved host window config (window: width/height/title/resizable/chromeless/transparent — set via qorm.config.json or qorm.json display/platforms.desktop.window), and the design-token system (designTokens: name -> {type,value,enforce}) when declared. Enforced color tokens hard-constrain apply_patch: a color style may only be set to one of their values. Read-only.",
+			Description: "Inspect the QORM app: id, name, entry scene, scene ids, state schema, current state, action ids, static compiler diagnostics, the resolved host window config (window: width/height/title/resizable/chromeless/transparent — set via qorm.config.json or qorm.json display/platforms.desktop.window), and the design-token system (designTokens: name -> {type,value,enforce}) when declared, agentPolicy (effective MCP tool permissions from qorm.json agent.policy when declared), breakpoints (manifest width thresholds as breakpoint.<name> booleans), and capabilities (runtime gate policy when declared). Enforced color tokens hard-constrain apply_patch: a color style may only be set to one of their values. Read-only.",
 			InputSchema: obj(nil),
 		},
 		{
@@ -780,6 +781,15 @@ func (s *Server) inspect() map[string]any {
 	// may use; enforced color tokens hard-constrain apply_patch style edits.
 	if len(s.rt.App.DesignTokens) > 0 {
 		out["designTokens"] = s.rt.App.DesignTokens
+	}
+	if s.rt.App.AgentPolicy.HasPolicy() {
+		out["agentPolicy"] = policy.EffectivePermissions(s.rt.App.AgentPolicy, s.readOnly)
+	}
+	if capability.EnforceRuntimeGate(s.rt.App) {
+		out["capabilities"] = capability.CapPolicyFor(s.rt.App)
+	}
+	if bp := s.rt.App.Breakpoints(); len(bp) > 0 {
+		out["breakpoints"] = bp
 	}
 	return out
 }

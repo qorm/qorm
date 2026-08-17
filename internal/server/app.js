@@ -1,5 +1,14 @@
 // Gather all state-bound controls into a typed map, dispatch handler h, and
 // swap in the re-rendered UI. h === -1 means "just sync state" (no action).
+window.__qormCapPolicy=__QORM_CAP_POLICY__;
+function qormCapAllowed(op){
+  var p=window.__qormCapPolicy;
+  if(!p||!p.enforce) return true;
+  if(p.deny){ for(var i=0;i<p.deny.length;i++){ if(p.deny[i]===op) return false; } }
+  if(p.customOps){ for(var j=0;j<p.customOps.length;j++){ if(p.customOps[j]===op) return true; } }
+  if(p.ops){ for(var k=0;k<p.ops.length;k++){ if(p.ops[k]===op) return true; } }
+  return false;
+}
 // morphChildren diffs the new HTML into the live DOM in place, so unchanged
 // nodes are never re-created — no flicker, entrance animations don't replay on
 // every click, and input focus/scroll survive.
@@ -315,6 +324,7 @@ function qormHasNative(){ return !!((window.webkit && window.webkit.messageHandl
 // just a subset, so camera/mic/location must use the Web API there, not the bridge.
 function qormHasMobileNative(){ return !!((window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.qorm) || window.qormAndroid); }
 function qormToNative(op,data){
+  if(!qormCapAllowed(op)){ try{ console.warn('[qorm] capability denied:', op); }catch(e){} return; }
   // The app's OWN Go middle-layer (compiled into the WASM) handles its custom
   // ops first — so one Go file runs on mobile/web WebViews. It returns a line
   // of JS (may itself call qormToNative(...) to reach framework hardware, or a

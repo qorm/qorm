@@ -43,6 +43,7 @@ Sprint analysis, progress, and audit logs for multi-agent workstreams (not the p
 - [Project structure](project-structure.md) — the layout of a QORM app folder, file by file
 - [Getting started](tutorials/getting-started.md) — install, your first app, the run loop
 - [First scene](tutorials/first-scene.md) · [First action](tutorials/first-action.md) · [First component](tutorials/first-component.md) · [First platform pack](tutorials/first-platform-pack.md)
+- [Responsive layout](tutorials/responsive-layout.md) — `when`, `viewport.*`, and `breakpoint.*`
 - [Expressions](expressions.md) — the `{{ … }}` language: scopes, operators, index access, and every builtin function
 - [QScript](qscript.md) — the `.qs` scripting language: `let`, `if`, `for`, `while`, `fn`, `call()`, and the shared `lib.qs`
 - [QSS & canvas styles](styles.md) — stylesheets plus declarative canvas effects (filter, mask, snap, FLIP, spring, `fx` / `timeline`, tint, pixelated, rotate/scale/flip/skew, `board` camera + `tilemap`)

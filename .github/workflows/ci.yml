@@ -103,6 +103,8 @@ jobs:
       - name: Smoke (run counter headless)
         # The script probes ./qorm.exe itself when ./qorm is absent (Windows).
         run: bash scripts/ci-smoke.sh ./qorm
+      - name: Smoke (MCP manifest policy)
+        run: bash scripts/ci-smoke-mcp.sh ./qorm
 
   binaries:
     name: cross-compile (downloadable artifacts)

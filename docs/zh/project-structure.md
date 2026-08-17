@@ -58,6 +58,9 @@ myapp/
 | `components` | 可复用的组件定义(或一个组件文件夹) |
 | `platforms` | 各平台配置——桌面 `window`、以及打包选项 |
 | `defaultLocale` | 多语言应用的初始语言 |
+| `breakpoints` | 可选宽度阈值（px），以 `breakpoint.<name>` 布尔值暴露 |
+| `agent.policy` | Agent 的 MCP 工具权限（见 [permissions](agent/permissions.md)） |
+| `capabilities` | 运行时 native-op 门禁（`used-only` / `manifest` / `open`） |
 
 ## `qorm.config.json` —— 宿主窗口(可选)
 

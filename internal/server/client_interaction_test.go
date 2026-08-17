@@ -15,7 +15,7 @@ import (
 // TestClientScriptWindowedList: the client's whole job is measure-and-report,
 // over the ORDINARY event channel, at most once per frame.
 func TestClientScriptWindowedList(t *testing.T) {
-	js := qormAppJS(7, "tok")
+	js := qormAppJS(7, "tok", "null")
 	for _, want := range []string{
 		"function qormVListMetrics(", "function qormVListReport(",
 		"function qormVListSync(", "function qormVListInit(", "function qormVListScroll(",
@@ -81,7 +81,7 @@ func TestClientScriptWindowedList(t *testing.T) {
 // control, the handler index re-read when it fires, and a morph that cannot
 // strand a timer on a field that is gone.
 func TestClientScriptInputDebounce(t *testing.T) {
-	js := qormAppJS(7, "tok")
+	js := qormAppJS(7, "tok", "null")
 	for _, want := range []string{
 		"function qormDebounceArm(", "function qormDebounceFire(", "function qormDebounceClear(",
 		"function qormDebounceSync(", "function qormDebounceInit(", "function qormDebouncePending(",
@@ -129,7 +129,7 @@ func TestClientScriptInputDebounce(t *testing.T) {
 // invalid on its own, the first invalid field is brought on screen, and Enter
 // presses the button the app named.
 func TestClientScriptValidity(t *testing.T) {
-	js := qormAppJS(7, "tok")
+	js := qormAppJS(7, "tok", "null")
 	for _, want := range []string{
 		"function qormValidity(", "function qormValiditySync(", "function qormValidityInit(",
 		"window.__qormValidityReady", "data-qorm-error", "data-qorm-enter",

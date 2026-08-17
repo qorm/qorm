@@ -371,13 +371,16 @@ func (r *renderer) ctx() map[string]any {
 	if r.viewport == nil {
 		r.viewport = r.rt.ViewportVars() // constant during a single render too
 	}
+	if r.breakpoint == nil {
+		r.breakpoint = r.rt.BreakpointVars()
+	}
 	if len(r.scope) == 0 {
 		if r.baseCtx == nil { // most nodes have no list scope — share one read-only ctx
-			r.baseCtx = map[string]any{"state": r.rt.State, "t": r.catalog, "viewport": r.viewport, "route": r.rt.RouteParams, "computed": r.rt.ComputedVars()}
+			r.baseCtx = map[string]any{"state": r.rt.State, "t": r.catalog, "viewport": r.viewport, "breakpoint": r.breakpoint, "route": r.rt.RouteParams, "computed": r.rt.ComputedVars()}
 		}
 		return r.baseCtx
 	}
-	m := map[string]any{"state": r.rt.State, "t": r.catalog, "viewport": r.viewport, "route": r.rt.RouteParams, "computed": r.rt.ComputedVars()}
+	m := map[string]any{"state": r.rt.State, "t": r.catalog, "viewport": r.viewport, "breakpoint": r.breakpoint, "route": r.rt.RouteParams, "computed": r.rt.ComputedVars()}
 	for k, v := range r.scope {
 		m[k] = v
 	}

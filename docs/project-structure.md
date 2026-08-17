@@ -68,6 +68,9 @@ the global state:
 | `components` | reusable component definitions (or a folder of them) |
 | `platforms` | per-platform config — desktop `window`, and packaging options |
 | `defaultLocale` | initial language for multi-locale apps |
+| `breakpoints` | optional width thresholds (px) exposed as `breakpoint.<name>` booleans |
+| `agent.policy` | optional MCP tool permissions for agents (see [permissions](agent/permissions.md)) |
+| `capabilities` | optional runtime native-op gate (`used-only` / `manifest` / `open`) |
 
 ## `qorm.config.json` — the host window (optional)
 

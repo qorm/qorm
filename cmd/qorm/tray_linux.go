@@ -453,7 +453,7 @@ func setLoginItem(enabled bool) bool { return false }
 func loginItemEnabled() bool         { return false }
 
 func centerWindow()      {}
-func screenInfo() string { return "[]" }
+func screenInfo() string { return linuxScreenInfo() }
 
 func windowFrame() string           { return "" }
 func setWindowFrame(x, y, w, h int) {}

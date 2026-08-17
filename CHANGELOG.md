@@ -6,6 +6,16 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+- **Agent policy (P0-1)**: manifest `agent.policy` gates MCP tools at runtime; denied calls return JSON-RPC `-32001`. Documented in `docs/agent/permissions.md`; `qorm_inspect` surfaces effective permissions.
+- **Capability gate (P0-2)**: manifest `capabilities` plus bundle `requiredCapabilities` enforce native-op allowlists at call time (`qormToNative` / `qormext`); `qorm build` auto-stamps required capabilities from scene widgets.
+- **Responsive breakpoints (P1)**: manifest `breakpoints` expose `breakpoint.<name>` booleans; new tutorial and `examples/responsive` use `breakpoint.md`.
+- **Partial render (P1)**: state mutations patch only dirty subtrees when safe; dependency index cached per scene.
+- **Windows/Linux parity (P0-3)**: desktop hosts report screen info (xrandr / PowerShell) and Windows brightness via WMI; capability registry updated.
+
+### Docs
+- Responsive layout, partial render, permissions, capabilities, MCP tools, and project structure synced (en+zh).
+
 ## [v0.9.3] - 2026-08-14
 
 ### Changed

@@ -41,6 +41,9 @@ type Runtime struct {
 	// WASM build). Exposed to expressions as viewport.width / viewport.height /
 	// viewport.orientation for responsive `when` nodes.
 	Viewport Viewport
+	// DirtyPaths lists state paths mutated by the most recent Dispatch (cleared
+	// by TakeDirtyPaths after the server renders). Used for partial re-render.
+	DirtyPaths []string
 	// Scene is the id of the scene currently shown ("" = the manifest entry).
 	// NavStack holds the frames (scene + its route params) to return to for
 	// navigate-back, so popping restores both the previous scene and the route
@@ -1093,11 +1096,26 @@ func (r *Runtime) ViewportVars() map[string]any {
 	}
 }
 
+// BreakpointVars exposes manifest breakpoints as booleans: breakpoint.sm is
+// true when viewport.width >= the sm threshold (and the viewport is known).
+func (r *Runtime) BreakpointVars() map[string]any {
+	w := float64(r.Viewport.W)
+	out := map[string]any{}
+	for name, min := range r.App.Breakpoints() {
+		out[name] = w > 0 && w >= float64(min)
+	}
+	return out
+}
+
 // sceneCtx is the evaluation context for scene bindings: `state.*`, the
-// active-locale message catalog `t.*`, the responsive `viewport.*` vars and the
-// current scene's navigation parameters `route.*`.
+// active-locale message catalog `t.*`, the responsive `viewport.*` vars,
+// `breakpoint.*` booleans, and the current scene's navigation parameters `route.*`.
 func (r *Runtime) sceneCtx() map[string]any {
-	return map[string]any{"state": r.State, "t": r.Catalog(), "viewport": r.ViewportVars(), "route": r.RouteParams}
+	return map[string]any{
+		"state": r.State, "t": r.Catalog(),
+		"viewport": r.ViewportVars(), "breakpoint": r.BreakpointVars(),
+		"route": r.RouteParams,
+	}
 }
 
 // isReservedRoot reports whether a name is one of the context roots every
@@ -1105,7 +1123,7 @@ func (r *Runtime) sceneCtx() map[string]any {
 // nothing an app can name — a state key, an action arg, a captured list-item
 // alias — may take one over. See bareCtx.
 func isReservedRoot(name string) bool {
-	return name == "state" || name == "t" || name == "viewport"
+	return name == "state" || name == "t" || name == "viewport" || name == "breakpoint"
 }
 
 // bareCtx builds an action/derived evaluation context over the given state map:
@@ -1293,6 +1311,7 @@ func (r *Runtime) Dispatch(name string, args map[string]any) {
 	if r.callDepth == 0 {
 		r.budget = &frameBudget{left: MaxFrames}
 		r.LastScriptError = ""
+		r.DirtyPaths = nil
 	}
 	r.callDepth++
 	// Derived values are republished at the dispatch BOUNDARY, not per step:
@@ -1486,6 +1505,25 @@ func evalParams(params map[string]string, ctx map[string]any) map[string]any {
 	return out
 }
 
+// TakeDirtyPaths returns and clears the paths marked dirty by the last Dispatch.
+func (r *Runtime) TakeDirtyPaths() []string {
+	out := r.DirtyPaths
+	r.DirtyPaths = nil
+	return out
+}
+
+func (r *Runtime) markDirty(path string) {
+	if path == "" {
+		return
+	}
+	for _, p := range r.DirtyPaths {
+		if p == path {
+			return
+		}
+	}
+	r.DirtyPaths = append(r.DirtyPaths, path)
+}
+
 func (r *Runtime) applyStep(step model.Step, ctx map[string]any, depth int) {
 	// The computed namespace is DERIVED: it is republished wholesale at every
 	// frame boundary, so a step that writes into it would be both overwritten
@@ -1554,6 +1592,7 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any, depth int) {
 		}
 	case "state.set":
 		setPath(r.State, step.Path, EvalBinding(step.Value, ctx))
+		r.markDirty(step.Path)
 	case "state.setAt":
 		// state.setAt writes ONE array element: path names the list, index an
 		// expression yielding the position (board-cell writes in games).
@@ -1563,6 +1602,7 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any, depth int) {
 				if i >= 0 && i < len(arr) {
 					arr[i] = EvalBinding(step.Value, ctx)
 					setPath(r.State, step.Path, arr)
+					r.markDirty(step.Path)
 				}
 			}
 		}
@@ -1571,6 +1611,7 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any, depth int) {
 		arr, _ := cur.([]any)
 		arr = append(arr, EvalBinding(step.Value, ctx))
 		setPath(r.State, step.Path, arr)
+		r.markDirty(step.Path)
 	case "state.appendObject":
 		cur := getPath(r.State, step.Path)
 		arr, _ := cur.([]any)
@@ -1580,9 +1621,11 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any, depth int) {
 		}
 		arr = append(arr, obj)
 		setPath(r.State, step.Path, arr)
+		r.markDirty(step.Path)
 	case "state.toggle":
 		if arr, ok := getPath(r.State, step.Path).([]any); ok {
 			setPath(r.State, step.Path, toggleInArray(arr, step.MatchKey, EvalBinding(step.Match, ctx), step.Field))
+			r.markDirty(step.Path)
 		}
 	case "state.increment":
 		by := 1.0
@@ -1590,6 +1633,7 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any, depth int) {
 			by = toNum(EvalBinding(step.Value, ctx))
 		}
 		setPath(r.State, step.Path, toNum(getPath(r.State, step.Path))+by)
+		r.markDirty(step.Path)
 	case "state.remove":
 		want := expr.Stringify(EvalBinding(step.Match, ctx))
 		arr, _ := getPath(r.State, step.Path).([]any)
@@ -1601,6 +1645,7 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any, depth int) {
 			out = append(out, it)
 		}
 		setPath(r.State, step.Path, out)
+		r.markDirty(step.Path)
 	case "state.updateWhere":
 		want := expr.Stringify(EvalBinding(step.Match, ctx))
 		arr, _ := getPath(r.State, step.Path).([]any)
@@ -1613,6 +1658,7 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any, depth int) {
 				m[field] = EvalBinding(e, ctx)
 			}
 		}
+		r.markDirty(step.Path)
 	case "state.merge":
 		cur, _ := getPath(r.State, step.Path).(map[string]any)
 		if cur == nil {
@@ -1622,17 +1668,20 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any, depth int) {
 			cur[field] = EvalBinding(e, ctx)
 		}
 		setPath(r.State, step.Path, cur)
+		r.markDirty(step.Path)
 	case "state.sort":
 		field := step.Field
 		if strings.Contains(field, "{{") { // sort key can be dynamic (e.g. clicked column)
 			field = expr.Stringify(EvalBinding(field, ctx))
 		}
 		sortArray(getPath(r.State, step.Path), field, EvalBinding(step.Value, ctx))
+		r.markDirty(step.Path)
 	case "state.move":
 		if arr, ok := getPath(r.State, step.Path).([]any); ok {
 			from := int(toNum(EvalBinding(step.From, ctx)))
 			to := int(toNum(EvalBinding(step.To, ctx)))
 			setPath(r.State, step.Path, moveElem(arr, from, to))
+			r.markDirty(step.Path)
 		}
 	case "state.clear":
 		// Reset to the value's own type zero so a cleared flag stays a boolean
@@ -1648,6 +1697,7 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any, depth int) {
 		default:
 			setPath(r.State, step.Path, "")
 		}
+		r.markDirty(step.Path)
 	case "state.reset":
 		// Restore the manifest's initial values: with `path` just that one key,
 		// otherwise every key declared in globalState (a form reset). Values are
@@ -1656,6 +1706,7 @@ func (r *Runtime) applyStep(step model.Step, ctx map[string]any, depth int) {
 			if v := getPath(r.App.GlobalState.Initial, step.Path); v != nil {
 				setPath(r.State, step.Path, deepCopy(v))
 			}
+			r.markDirty(step.Path)
 		} else {
 			for k, v := range r.App.GlobalState.Initial {
 				r.State[k] = deepCopy(v)

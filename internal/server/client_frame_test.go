@@ -42,7 +42,7 @@ func jsBody(t *testing.T, js, fn string) string {
 // runtime's Async sink without this entry point would trade the js/wasm
 // deadlock for a UI that silently never updates, so the two ship together.
 func TestClientScriptFrameSink(t *testing.T) {
-	js := qormAppJS(7, "tok")
+	js := qormAppJS(7, "tok", "null")
 	if !strings.Contains(js, "function qormApplyFrame(") {
 		t.Fatal("app.js must define qormApplyFrame — the host frame sink for the WASM runtimes")
 	}
@@ -95,7 +95,7 @@ func TestOfflineHTMLCarriesFrameSink(t *testing.T) {
 // TestClientScriptTabsWiring pins the two tab behaviours CSS cannot do, and the
 // idempotence discipline both follow.
 func TestClientScriptTabsWiring(t *testing.T) {
-	js := qormAppJS(7, "tok")
+	js := qormAppJS(7, "tok", "null")
 	for _, want := range []string{
 		"function qormTabRevealBar(", "function qormTabReveal(",
 		"function qormTabSwipeInit(", "function qormTabActivate(", "function qormTabActive(",
@@ -146,7 +146,7 @@ func TestClientScriptTabsWiring(t *testing.T) {
 // read from the live DOM at click time, so the default (independent toggles)
 // cannot regress and a re-render cannot leave a stale mode behind.
 func TestClientScriptAccordionSingle(t *testing.T) {
-	acc := jsBody(t, qormAppJS(7, "tok"), "qormAcc")
+	acc := jsBody(t, qormAppJS(7, "tok", "null"), "qormAcc")
 	if !strings.Contains(acc, `closest('[data-qorm-acc="single"]')`) {
 		t.Errorf("qormAcc must read the exclusive mode off the live DOM:\n%s", acc)
 	}
@@ -164,7 +164,7 @@ func TestClientScriptAccordionSingle(t *testing.T) {
 // timer registry's reconcile contract, and the indicator dots hold no state at
 // all — the active one is derived from the live scroll position.
 func TestClientScriptCarouselWiring(t *testing.T) {
-	js := qormAppJS(7, "tok")
+	js := qormAppJS(7, "tok", "null")
 	for _, want := range []string{
 		"function qormCarouselSync(", "function qormCarouselTick(", "function qormCarouselDots(",
 		"function qormCarouselGo(", "function qormCarouselIndex(", "function qormCarouselInit(",

@@ -109,6 +109,36 @@ func TestNative(t *testing.T) {
 	}
 }
 
+func TestNativeOpAuthorizer(t *testing.T) {
+	prev := OpAuthorizer
+	t.Cleanup(func() { SetOpAuthorizer(prev) })
+
+	calls := captureCalls(t)
+	SetOpAuthorizer(func(op string) error {
+		if op == "blocked" {
+			return errTestBlocked
+		}
+		return nil
+	})
+	Native("allowed", `{}`)
+	Native("blocked", `{}`)
+	if len(*calls) != 1 || (*calls)[0] != `qormToNative("allowed",{})` {
+		t.Fatalf("authorizer should drop blocked ops, got calls %v", *calls)
+	}
+
+	SetOpAuthorizer(nil)
+	Native("free", `{}`)
+	if len(*calls) != 2 || (*calls)[1] != `qormToNative("free",{})` {
+		t.Fatalf("nil authorizer should allow ops, got calls %v", *calls)
+	}
+}
+
+var errTestBlocked = &testBlockedErr{}
+
+type testBlockedErr struct{}
+
+func (e *testBlockedErr) Error() string { return "blocked" }
+
 // TestJSStr verifies jsStr wraps a string in double quotes and escapes
 // everything that would otherwise terminate the literal, break it across
 // lines, or be an illegal raw character inside it: quote, backslash,

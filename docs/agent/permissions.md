@@ -48,7 +48,35 @@ Here, `filesystem.saveFile` denotes a file-write capability; its permission key 
 
 ## Runtime Enforcement
 
-The `read-only` level is enforced at runtime by `qorm run --mcp-read-only`: the shared MCP session then rejects mutating tools (`qorm_dispatch`, `qorm_set_state`, `qorm_apply_patch`, `qorm_undo`) with a JSON-RPC "read-only mode" error, while inspection and preview tools keep working.
+Two mechanisms apply at runtime:
+
+1. **`qorm run --mcp-read-only`** — CLI flag on the shared MCP session. Rejects mutating tools (`qorm_dispatch`, `qorm_set_state`, `qorm_apply_patch`, `qorm_undo`) with JSON-RPC error `-32000` ("read-only mode"). Inspection and preview tools (`qorm_preview_patch`, `qorm_diff`, …) keep working.
+
+2. **`qorm.json` → `agent.policy`** — per-app manifest policy enforced on every MCP tool call (JSON-RPC `-32001` when denied). Legacy apps with no `agent` block keep full access. When declared:
+
+```json
+{
+  "agent": {
+    "policy": {
+      "level": "preview-only",
+      "tools": { "qorm_dispatch": false },
+      "hostCall": { "allowed": true, "ops": ["move"] }
+    }
+  }
+}
+```
+
+**Preset levels** (each includes the previous):
+
+| Level | Adds |
+|---|---|
+| `read-only` | inspect, query, render, measure, activity |
+| `preview-only` | + preview_patch, diff, simulate, assert, check_layout |
+| `operate` | + dispatch, set_state |
+| `design` | + apply_patch, undo, export_scene |
+| `full` | + qorm_window, export_bundle |
+
+`qorm_inspect` returns `agentPolicy` with the effective tool map when a policy is declared.
 
 ## Permission Declaration
 

@@ -12,7 +12,7 @@
       {
         "type": "when",
         "id": "layout-switch",
-        "condition": "{{ viewport.width >= 768 }}",
+        "condition": "{{ breakpoint.md }}",
         "then": {
           "type": "row",
           "id": "cards-wide",
@@ -24,11 +24,11 @@
             ] },
             { "type": "card", "id": "card-b-wide", "style": { "flexGrow": 1, "padding": 16, "gap": 6, "borderRadius": 12, "borderWidth": 1, "borderColor": "var(--sep)" }, "children": [
               { "type": "text", "id": "card-b-wide-title", "text": "Activity", "style": { "color": "var(--label)", "fontWeight": "bold" } },
-              { "type": "text", "id": "card-b-wide-body", "text": "The when node picked its then branch because viewport.width >= 768.", "style": { "color": "var(--label2)" } }
+              { "type": "text", "id": "card-b-wide-body", "text": "The when node picked its then branch because breakpoint.md is true.", "style": { "color": "var(--label2)" } }
             ] },
             { "type": "card", "id": "card-c-wide", "style": { "flexGrow": 1, "padding": 16, "gap": 6, "borderRadius": 12, "borderWidth": 1, "borderColor": "var(--sep)" }, "children": [
               { "type": "text", "id": "card-c-wide-title", "text": "Details", "style": { "color": "var(--label)", "fontWeight": "bold" } },
-              { "type": "text", "id": "card-c-wide-body", "text": "Shrink the window under 768px to collapse into a column.", "style": { "color": "var(--label2)" } }
+              { "type": "text", "id": "card-c-wide-body", "text": "Shrink the window under md (768px) to collapse into a column.", "style": { "color": "var(--label2)" } }
             ] }
           ]
         },
@@ -43,11 +43,11 @@
             ] },
             { "type": "card", "id": "card-b-narrow", "style": { "padding": 16, "gap": 6, "borderRadius": 12, "borderWidth": 1, "borderColor": "var(--sep)" }, "children": [
               { "type": "text", "id": "card-b-narrow-title", "text": "Activity", "style": { "color": "var(--label)", "fontWeight": "bold" } },
-              { "type": "text", "id": "card-b-narrow-body", "text": "The when node fell back to its else branch (viewport.width < 768).", "style": { "color": "var(--label2)" } }
+              { "type": "text", "id": "card-b-narrow-body", "text": "The when node fell back to its else branch (breakpoint.md is false).", "style": { "color": "var(--label2)" } }
             ] },
             { "type": "card", "id": "card-c-narrow", "style": { "padding": 16, "gap": 6, "borderRadius": 12, "borderWidth": 1, "borderColor": "var(--sep)" }, "children": [
               { "type": "text", "id": "card-c-narrow-title", "text": "Details", "style": { "color": "var(--label)", "fontWeight": "bold" } },
-              { "type": "text", "id": "card-c-narrow-body", "text": "Widen the window past 768px to switch back to a row.", "style": { "color": "var(--label2)" } }
+              { "type": "text", "id": "card-c-narrow-body", "text": "Widen the window past md (768px) to switch back to a row.", "style": { "color": "var(--label2)" } }
             ] }
           ]
         }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 
 	"github.com/qorm/platform/internal/capability"
 	"github.com/qorm/platform/internal/model"
@@ -23,28 +22,7 @@ func normPlatform(p string) string {
 // usedFeatures walks every scene collecting the platform-specific widget types
 // the app actually uses (portable widgets are ignored).
 func usedFeatures(app *model.App) []string {
-	seen := map[string]bool{}
-	var walk func(n *model.Node)
-	walk = func(n *model.Node) {
-		if n == nil {
-			return
-		}
-		if capability.ForWidget(n.Type) != nil {
-			seen[n.Type] = true
-		}
-		for _, c := range n.Children {
-			walk(c)
-		}
-	}
-	for _, root := range app.Scenes {
-		walk(root)
-	}
-	var out []string
-	for f := range seen {
-		out = append(out, f)
-	}
-	sort.Strings(out)
-	return out
+	return capability.UsedWidgets(app)
 }
 
 // warnPlatformGaps prints a warning for every feature the app uses that the

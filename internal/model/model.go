@@ -174,6 +174,19 @@ type App struct {
 	// and app logic keep their helpers in one file instead of copy-pasting
 	// them into each action. Empty/absent = no library.
 	ScriptLib string
+	// AgentPolicy is the manifest-declared MCP tool policy (qorm.json "agent").
+	// Empty = legacy full agent access for backward compatibility.
+	AgentPolicy AgentPolicy
+	// Capabilities is the manifest call-time native-op policy (qorm.json
+	// "capabilities"). Empty with no RequiredCapabilities = legacy open access.
+	Capabilities CapabilitiesPolicy
+	// RequiredCapabilities is stamped at bundle build time (and enforced at
+	// startup on bundle load). Also feeds the runtime gate when non-empty.
+	RequiredCapabilities []string
+	// BreakpointWidths maps a breakpoint name to a min-width threshold in px
+	// (qorm.json "breakpoints"). Expressions see breakpoint.<name> as true when
+	// viewport.width >= threshold.
+	BreakpointWidths map[string]int
 	// Diagnostics holds static compilation warnings or syntax errors found by the loader.
 	Diagnostics []string
 

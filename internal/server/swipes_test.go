@@ -135,7 +135,7 @@ func TestQormKeyBindingsUnchangedWithoutSwipes(t *testing.T) {
 }
 
 func TestClientScriptSceneSwipeWiring(t *testing.T) {
-	js := qormAppJS(1, "tok")
+	js := qormAppJS(1, "tok", "null")
 	for _, want := range []string{
 		"window.__qormSceneSwipeReady",
 		"window.__qormSwipeDirection",

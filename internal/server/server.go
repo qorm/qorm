@@ -33,6 +33,7 @@ import (
 	"github.com/qorm/platform/internal/ota"
 	"github.com/qorm/platform/internal/render"
 	"github.com/qorm/platform/internal/runtime"
+	"github.com/qorm/platform/pkg/qormext"
 )
 
 // Server is an HTTP handler wrapping a live runtime. It serves the browser UI,
@@ -140,6 +141,10 @@ type Server struct {
 	// /presence) while the gate is on. Because it never appears in a page,
 	// a LAN peer harvesting the page token from GET / gets nothing.
 	adminToken string
+
+	// Partial render cache: last full/patched HTML and the scene dependency index.
+	renderCache render.Result
+	depIndex    *render.DepIndex
 
 	// requireToken turns on the two-token gate for the endpoints that face
 	// beyond the local machine: /mcp, /update, /rollback and /window demand
@@ -309,6 +314,12 @@ func (s *Server) initAgent() {
 		b, _ := json.Marshal(out)
 		return string(b)
 	})
+	qormext.SetOpAuthorizer(func(op string) error {
+		if s.rt == nil {
+			return nil
+		}
+		return capability.AuthorizeOp(s.rt.App, op)
+	})
 }
 
 // SetMCPReadOnly switches the shared MCP session into (or out of) read-only
@@ -406,7 +417,26 @@ func (s *Server) frame() (int64, string, string) {
 		return rev, "", ""
 	}
 	rev := s.rev.Add(1)
-	res := render.RenderScene(s.rt, s.rt.CurrentScene())
+	scene := s.rt.CurrentScene()
+	dirty := s.rt.TakeDirtyPaths()
+
+	var res render.Result
+	patched := false
+	if len(dirty) > 0 && s.renderCache.HTML != "" {
+		if pr, ok := render.PatchScene(s.rt, scene, s.renderCache, dirty, s.depIndex); ok {
+			res = pr
+			patched = true
+		}
+	}
+	if !patched {
+		res = render.RenderScene(s.rt, scene)
+		root := s.rt.App.Scenes[scene]
+		if root == nil {
+			root = s.rt.App.EntryRoot()
+		}
+		s.depIndex = render.BuildDepIndex(root)
+	}
+	s.renderCache = res
 	s.setHandlers(rev, res.Handlers)
 	nav := s.rt.TakeNavDir()
 	s.broadcast(rev, res.HTML, nav, s.rt.RoutePath())
@@ -1212,6 +1242,8 @@ func (s *Server) reload(next *runtime.Runtime) {
 	s.rt = next
 	s.handlers = nil
 	s.handlerHist = nil // tables from the previous app must never resolve
+	s.renderCache = render.Result{}
+	s.depIndex = nil
 	s.initAgent()
 	s.logEvent("system", "hot-reload: app source changed")
 	s.bump()
@@ -1228,6 +1260,8 @@ func (s *Server) activate(b *bundle.Bundle) {
 	s.rt = runtime.New(b.ToApp())
 	s.handlers = nil
 	s.handlerHist = nil
+	s.renderCache = render.Result{}
+	s.depIndex = nil
 	s.initAgent()
 	s.bump()
 }
@@ -1277,6 +1311,8 @@ func (s *Server) Rollback() (string, error) {
 	s.rt = runtime.New(restored.ToApp())
 	s.handlers = nil
 	s.handlerHist = nil
+	s.renderCache = render.Result{}
+	s.depIndex = nil
 	s.initAgent()
 	s.bump()
 	return fmt.Sprintf("rolled back %s -> %s", from, versionOr(restored)), nil
@@ -1393,6 +1429,12 @@ func (s *Server) serveIndex(w http.ResponseWriter, r *http.Request) {
 		} else {
 			scene := s.rt.CurrentScene()
 			res := render.RenderScene(s.rt, scene)
+			s.renderCache = res
+			root := s.rt.App.Scenes[scene]
+			if root == nil {
+				root = s.rt.App.EntryRoot()
+			}
+			s.depIndex = render.BuildDepIndex(root)
 			// The page is stamped with the same revision its handler table is
 			// filed under, which is what lets a later /event from this page
 			// resolve against exactly this frame.
@@ -1615,9 +1657,10 @@ func (s *Server) serveNavigate(w http.ResponseWriter, r *http.Request) {
 var appJS string
 
 // qormAppJS returns the client script with the current revision substituted.
-func qormAppJS(rev int64, eventToken string) string {
+func qormAppJS(rev int64, eventToken, capPolicy string) string {
 	s := strings.ReplaceAll(appJS, "__QORM_REV__", strconv.FormatInt(rev, 10))
 	s = strings.ReplaceAll(s, "__QORM_TOKEN__", eventToken)
+	s = strings.ReplaceAll(s, "__QORM_CAP_POLICY__", capPolicy)
 	return s
 }
 
@@ -1979,7 +2022,7 @@ func Page(rt *runtime.Runtime, body string, rev int64, eventToken ...string) str
 <div id="qorm-stage" class="qorm-theme-%s%s"><div id="qorm-root">%s</div></div>
 <script>%s%s%s</script>
 </body>
-</html>`, html.EscapeString(lang), dir, htmlEscape(title), themeCSS(rt), width, height, fixedCSS, html.EscapeString(theme), fixedClass, body, qormAppJS(rev, tok), resizeJS, qormKeyBindings(rt))
+</html>`, html.EscapeString(lang), dir, htmlEscape(title), themeCSS(rt), width, height, fixedCSS, html.EscapeString(theme), fixedClass, body, qormAppJS(rev, tok, capability.CapPolicyScript(rt.App)), resizeJS, qormKeyBindings(rt))
 }
 
 // themeClass turns the active theme name (state.theme — writable by an action,

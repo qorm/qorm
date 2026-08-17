@@ -84,7 +84,7 @@ func TestShellLargeTitleRules(t *testing.T) {
 // they are installed at load, and — the part a re-render could break — both are
 // re-run from the morph path, which is what makes them idempotent.
 func TestClientScriptOverlayWiring(t *testing.T) {
-	js := qormAppJS(7, "tok")
+	js := qormAppJS(7, "tok", "null")
 	for _, want := range []string{
 		"function qormSheetInit(", "function qormSheetSync(", "function qormSheetSet(",
 		"function qormLargeTitleInit(", "function qormLargeTitleSync(",

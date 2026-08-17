@@ -22,6 +22,8 @@ references below (the runnable sources are the contract).
 - [AGENTS.md](AGENTS.md) — a short orientation for AI agents working in this repo.
 - [Getting started](docs/tutorials/getting-started.md) — install, first app, the run loop.
 - [First scene](docs/tutorials/first-scene.md) · [First action](docs/tutorials/first-action.md) · [First component](docs/tutorials/first-component.md)
+- [Responsive layout](docs/tutorials/responsive-layout.md) — `when`, `viewport.*`, `breakpoint.*`
+- [Partial render](docs/runtime/partial-render.md) — server-side patch for scalar state updates
 
 ## The format (write apps in this)
 

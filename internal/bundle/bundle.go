@@ -407,6 +407,9 @@ func (b *Bundle) ToApp() *model.App {
 	}
 	app := loader.FromDocs(docs)
 	app.Locales = b.Content.Locales
+	if len(b.Content.RequiredCapabilities) > 0 {
+		app.RequiredCapabilities = append([]string(nil), b.Content.RequiredCapabilities...)
+	}
 	return app
 }
 
