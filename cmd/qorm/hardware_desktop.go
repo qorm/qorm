@@ -196,9 +196,9 @@ func parseXrandrScreens(out string) []screenEntry {
 }
 
 type screenEntry struct {
-	W, H    int
-	Scale   float64
-	Main    bool
+	W, H  int
+	Scale float64
+	Main  bool
 }
 
 func formatScreensJSON(screens []screenEntry) string {

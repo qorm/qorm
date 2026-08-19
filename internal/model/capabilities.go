@@ -8,7 +8,7 @@ type CapabilitiesPolicy struct {
 	//   "" / "used-only" — widgets in scenes + RequiredCapabilities + Allow
 	//   "manifest"       — only Allow (+ CustomOps)
 	//   "open"           — disable call-time gate (startup checks may still apply)
-	Mode string
+	Mode      string
 	Allow     []string // canonical capability stems
 	Deny      []string // stems or op names always rejected
 	CustomOps []string // middle-layer op names permitted when enforcing
