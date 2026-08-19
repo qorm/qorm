@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/qorm/platform/internal/bundle"
@@ -65,7 +66,7 @@ type releaseOpts struct {
 func cmdPackage(args []string) int {
 	in, out, platform, team, dev := "", "", "web", "", ""
 	noBranding, subscribed := false, false
-	updateURL, trustPath := "", ""
+	updateURL, trustPath, revokedPath := "", "", ""
 	var rel releaseOpts
 	strArg := func(i *int, dst *string) {
 		if *i+1 < len(args) {
@@ -121,12 +122,14 @@ func cmdPackage(args []string) int {
 			strArg(&i, &updateURL)
 		case "--trust":
 			strArg(&i, &trustPath)
+		case "--revoked":
+			strArg(&i, &revokedPath)
 		default:
 			in = args[i]
 		}
 	}
 	if in == "" {
-		fmt.Fprintln(os.Stderr, "usage: qorm package <app-dir> [-p web|android|ios|mac|miniapp] [-o out-dir] [--release] [--update-url https://… --trust key.pub]")
+		fmt.Fprintln(os.Stderr, "usage: qorm package <app-dir> [-p web|android|ios|mac|miniapp] [-o out-dir] [--release] [--update-url https://… --trust key.pub [--revoked list.json]]")
 		return 2
 	}
 	if rel.Release && dev != "" {
@@ -138,6 +141,10 @@ func cmdPackage(args []string) int {
 	// fail-closed model as the live server's /update (serveUpdate).
 	if (updateURL == "") != (trustPath == "") {
 		fmt.Fprintln(os.Stderr, "error: --update-url and --trust must be given together (updates are only applied when signed by the trusted key)")
+		return 2
+	}
+	if revokedPath != "" && updateURL == "" {
+		fmt.Fprintln(os.Stderr, "error: --revoked requires --update-url and --trust (revocation is a snapshot baked into the packaged OTA client)")
 		return 2
 	}
 	if updateURL != "" && !strings.HasPrefix(updateURL, "http://") && !strings.HasPrefix(updateURL, "https://") {
@@ -168,6 +175,24 @@ func cmdPackage(args []string) int {
 			URL:   strings.TrimRight(updateURL, "/"),
 			App:   name, // the rollout.json key the update server resolves by
 			Trust: base64.StdEncoding.EncodeToString(pub),
+		}
+		if revokedPath != "" {
+			data, err := os.ReadFile(revokedPath)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: --revoked: %v\n", err)
+				return 1
+			}
+			rl, err := bundle.LoadRevocation(data)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: --revoked: %v\n", err)
+				return 1
+			}
+			ids := make([]string, 0, len(rl))
+			for id := range rl {
+				ids = append(ids, id)
+			}
+			sort.Strings(ids)
+			update.Revoked = ids
 		}
 	}
 

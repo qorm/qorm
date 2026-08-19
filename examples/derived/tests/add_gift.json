@@ -1,0 +1,15 @@
+{
+  "qorm": "0.1",
+  "type": "test",
+  "id": "derived_add_and_gift",
+  "scene": "main",
+  "steps": [
+    { "type": "simulate_event", "target": { "id": "add_btn" }, "event": "press" },
+    { "type": "simulate_event", "target": { "id": "gift_btn" }, "event": "press" }
+  ],
+  "assert": [
+    { "type": "text_equals", "target": { "id": "count_line" }, "value": "4 items" },
+    { "type": "text_equals", "target": { "id": "total_line" }, "value": "Total: 64" },
+    { "type": "node_exists", "target": { "text": "gift" } }
+  ]
+}

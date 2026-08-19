@@ -1,0 +1,16 @@
+{
+  "qorm": "0.1",
+  "type": "test",
+  "id": "todo_list_add",
+  "scene": "main",
+  "steps": [
+    { "type": "set_state", "path": "inputValue", "value": "Buy milk" },
+    { "type": "simulate_event", "target": { "id": "add_btn" }, "event": "press" }
+  ],
+  "assert": [
+    { "type": "node_exists", "target": { "text": "Master QORM Layout" } },
+    { "type": "node_exists", "target": { "text": "Build a premium app" } },
+    { "type": "node_exists", "target": { "text": "Buy milk" } },
+    { "type": "state_equals", "path": "inputValue", "value": "" }
+  ]
+}

@@ -58,7 +58,7 @@ What QORM supports on each target, at a glance. **`ok`** = supported and tested;
 - **Themes (Apple / Material / dark)** — design tokens; mini-program carries the token WXSS
 - **Custom components (JSON-defined)** — declared in qorm.json, {{prop.x}} templates
 - **i18n messages + RTL** — ICU messages, plurals, currency, right-to-left
-- **Native window (chromeless / transparent)** — -tags desktop; macOS is the reference
+- **Native window (chromeless / transparent)** — -tags desktop; macOS is the reference; Linux parses chromeless but does not strip GTK decorations yet
 - **Live state + actions + bindings** — mini-program is static export only — no on-device runtime
 - **Expression bindings ({{ ... }})** — arithmetic, comparisons, ternary, string ops, functions; mini-program is static export only (evaluated once at export)
 - **Conditional render + data-bound lists** — if:, list repeat with {{item.*}} scope; mini-program is static export only (evaluated once at export)

@@ -1,0 +1,14 @@
+{
+  "qorm": "0.1",
+  "type": "test",
+  "id": "derived_totals_and_list",
+  "scene": "main",
+  "steps": [],
+  "assert": [
+    { "type": "text_equals", "target": { "id": "count_line" }, "value": "3 items" },
+    { "type": "text_equals", "target": { "id": "total_line" }, "value": "Total: 52" },
+    { "type": "node_exists", "target": { "text": "Notebook x2" } },
+    { "type": "node_exists", "target": { "text": "Fountain pen x1" } },
+    { "type": "node_not_exists", "target": { "text": "gift" } }
+  ]
+}

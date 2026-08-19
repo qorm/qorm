@@ -1,6 +1,21 @@
 # 实施进度
 
-> 主控同步 · 更新：2026-08-13 **v0.9.2 发布（窗口建设完善轮收官）**
+> 主控同步 · 更新：2026-08-19 **第四轮（v0.9.4 缺口收口）落地** · `go test ./...` 全绿
+
+## 第四轮（2026-08-19）
+
+对照 v0.9.4 的目标/实现缺口，收口 agent 可验证性，不扩 widget。
+
+| 目标 | 状态 | 证据 |
+|------|------|------|
+| G1 canvas `hostLimits` + MCP contrast 文案 | 🟢 | `TestCollectMeasureHostLimits`；mcp-tools en+zh 再生 |
+| G2 list 物化 + todo/derived `qorm test` | 🟢 | `TestMaterializeExpandsListRenderItem`；`TestRunExampleTodoAndDerived` |
+| G3 文档对齐 | 🟢 | README 架构图、security-model、SKILL 冻结 widget |
+| G4 Linux chromeless 矩阵注释 | 🟢 | support-matrix en+zh |
+| G5 LAN 观察窗 loopback 门禁 | 🟢 | `TestLANObservationWindowLoopbackOnly` |
+| G6 `qorm package --revoked` | 🟢 | `TestPackageUpdateFlagPairing` + `TestOfflineHTMLWithRevokedUpdateConfig` |
+
+详见 [analysis-and-plan.md](analysis-and-plan.md)。未做：GTK 接线、组件物化、Error Boundary、新 widget。
 
 ## 窗口建设完善轮（2026-08-13）
 

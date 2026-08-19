@@ -256,7 +256,8 @@ func Eval(rt *qrt.Runtime, measured, checksJSON []byte) ([]byte, error) {
 				"effectiveBackground": r["effectiveBackground"],
 				"role":                r["role"], "accessibleName": r["accessibleName"], "ariaLabel": r["ariaLabel"],
 				"semanticState": r["semanticState"], "contrast": r["contrast"],
-				"contrastUnavailable": r["contrastUnavailable"]}
+				"contrastUnavailable": r["contrastUnavailable"],
+				"hostLimits":          r["hostLimits"]}
 		}
 		if len(fails) == 0 {
 			res["pass"] = true

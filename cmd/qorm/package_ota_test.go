@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -20,6 +21,9 @@ func TestPackageUpdateFlagPairing(t *testing.T) {
 	}
 	if got := cmdPackage([]string{"someapp", "--update-url", "ftp://updates.example.com", "--trust", "key.pub"}); got != 2 {
 		t.Errorf("non-http(s) --update-url: exit = %d, want 2", got)
+	}
+	if got := cmdPackage([]string{"someapp", "--revoked", "revoked.json"}); got != 2 {
+		t.Errorf("--revoked without --update-url: exit = %d, want 2", got)
 	}
 }
 
@@ -43,5 +47,15 @@ func TestPackageUpdateFlagsAccepted(t *testing.T) {
 	// A trust file that is not a public key must fail cleanly before packaging.
 	if got := cmdPackage([]string{appDir, "--update-url", "https://updates.example.com", "--trust", filepath.Join(dir, "missing.pub")}); got != 1 {
 		t.Errorf("unreadable --trust: exit = %d, want 1", got)
+	}
+	revoked := filepath.Join(dir, "revoked.json")
+	if err := os.WriteFile(revoked, []byte(`["deadbeefdead"]`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if got := cmdPackage([]string{appDir, "--update-url", "https://updates.example.com", "--trust", pubPath, "--revoked", revoked}); got != 1 {
+		t.Errorf("valid OTA trio + missing app dir: exit = %d, want 1", got)
+	}
+	if got := cmdPackage([]string{appDir, "--update-url", "https://updates.example.com", "--trust", pubPath, "--revoked", filepath.Join(dir, "missing.json")}); got != 1 {
+		t.Errorf("unreadable --revoked: exit = %d, want 1", got)
 	}
 }

@@ -211,6 +211,7 @@ General flags:
 | `--no-branding` | drop the "Made with QORM" note |
 | `--subscribed` | confirm a QORM membership non-interactively (see below) |
 | `--update-url URL` + `--trust pub.key` | wire the package to an OTA update server. The two flags **must be given together** (fail-closed: updates are only applied when signed by the trusted key); the URL must be http(s) |
+| `--revoked list.json` | with `--update-url`/`--trust`: bake a signing-key revocation snapshot into the packaged OTA client (`window.__QORM_UPDATE__.revoked`). Refused without the OTA pair |
 
 **Commercial gate (honour system).** A custom `icon.png` in the app dir, or `--no-branding`, is commercial white-labeling: the packager prints a note and asks you to confirm a QORM Patreon membership — interactively, or via `--subscribed`. Non-interactive runs without `--subscribed` fail (exit `1`). Personal / educational / open-source use (default icon, branding on) never triggers it.
 

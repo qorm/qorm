@@ -6,6 +6,7 @@ import (
 	"image"
 	"image/color"
 	"math"
+	"sort"
 	"strings"
 	"time"
 
@@ -448,6 +449,7 @@ func measureRowFromGraph(m *model.Node, n graph.Node, b *graph.BaseNode, sn meas
 		enrichContrast(row, sn)
 	}
 	enrichSemantics(row, sem)
+	enrichHostLimits(row, m)
 	row["tabindex"] = ""
 	return row
 }
@@ -477,6 +479,7 @@ func measureRowFromSnap(id string, sn measureSnap, sem measureSemantic, scale in
 	enrichStyle(row, sn, scale, logical)
 	enrichContrast(row, sn)
 	enrichSemantics(row, sem)
+	enrichHostLimits(row, sn.node)
 	row["tabindex"] = ""
 	return row
 }
@@ -493,6 +496,31 @@ func enrichSemantics(row map[string]any, sem measureSemantic) {
 			row[key] = value
 		}
 	}
+}
+
+// enrichHostLimits records what this canvas host cannot honour on n, so an
+// agent reading measure/check does not treat HTML-path fidelity as proven.
+// Keys already in canvasStyleKeys are consumed; the rest are ignored at paint.
+// webview is a placeholder on every canvas host that is not -tags canvaswebview.
+func enrichHostLimits(row map[string]any, n *model.Node) {
+	if n == nil {
+		return
+	}
+	var limits []string
+	for k := range n.Style {
+		if !canvasStyleKeys[k] {
+			limits = append(limits, "style."+k+" ignored")
+		}
+	}
+	switch strings.ToLower(n.Type) {
+	case "webview":
+		limits = append(limits, "webview placeholder (native overlay needs -tags canvaswebview)")
+	}
+	if len(limits) == 0 {
+		return
+	}
+	sort.Strings(limits)
+	row["hostLimits"] = limits
 }
 
 func enrichContrast(row map[string]any, sn measureSnap) {

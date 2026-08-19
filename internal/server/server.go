@@ -1150,6 +1150,31 @@ func (s *Server) requireAdminReadCheck(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// requireLoopbackOrAdminCheck gates the human observation window and DevTool
+// read surfaces (/logwindow, /console, /dev/tree, /dev/canvas)
+// on a non-loopback bind. Same-machine loopback stays tokenless so AGENTS.md's
+// "keep the observation window open" still works without embedding the admin
+// secret in any served page. LAN peers must send the admin token; the public
+// page token is refused.
+func (s *Server) requireLoopbackOrAdminCheck(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.requireToken && !requestIsLoopback(r) && r.Header.Get("X-Qorm-Token") != s.adminToken {
+			http.Error(w, "admin token required: observation windows stay open on loopback; from the LAN send X-Qorm-Token <admin token printed at startup>", http.StatusUnauthorized)
+			return
+		}
+		next(w, r)
+	}
+}
+
+func requestIsLoopback(r *http.Request) bool {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		host = r.RemoteAddr
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", s.serveIndex)
@@ -1160,8 +1185,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/log", s.requireAdminReadCheck(s.serveLog))
 	mux.HandleFunc("/presence", blockCrossOrigin(s.requireAdminReadCheck(s.servePresence)))
 	mux.HandleFunc("/viewport", blockCrossOrigin(s.serveViewport))
-	mux.HandleFunc("/console", s.serveConsole)
-	mux.HandleFunc("/logwindow", s.serveLogWindow)
+	mux.HandleFunc("/console", s.requireLoopbackOrAdminCheck(s.serveConsole))
+	mux.HandleFunc("/logwindow", s.requireLoopbackOrAdminCheck(s.serveLogWindow))
 	// Two-token gate on a non-loopback bind (--lan); inert on loopback, where
 	// behavior stays byte-for-byte unchanged. The ADMIN-facing endpoints
 	// (/window, /mcp, /update, /rollback) require the admin token printed at
@@ -1179,9 +1204,9 @@ func (s *Server) Handler() http.Handler {
 	// /dev/state, /log and /presence GET demand the admin token; their POST
 	// writes stay page-token-gated for the app page and the DevTool.
 	mux.HandleFunc("/dev/state", blockCrossOrigin(s.requireAdminReadCheck(s.serveDevState)))
-	mux.HandleFunc("/dev/tree", blockCrossOrigin(s.serveDevTree))
+	mux.HandleFunc("/dev/tree", blockCrossOrigin(s.requireLoopbackOrAdminCheck(s.serveDevTree)))
 	mux.HandleFunc("/dev/highlight", blockCrossOrigin(s.serveDevHighlight))
-	mux.HandleFunc("/dev/canvas", blockCrossOrigin(s.serveDevCanvas))
+	mux.HandleFunc("/dev/canvas", blockCrossOrigin(s.requireLoopbackOrAdminCheck(s.serveDevCanvas)))
 	// Static asset serve: /assets/* and /themes/* and /locales/* are read from
 	// the app's directory tree (qorm.json "id" is the bundle root). Without
 	// this an image widget's `src: "assets/mario.png"` 404s in the browser

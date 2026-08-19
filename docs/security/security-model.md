@@ -2,12 +2,12 @@
 
 > **Target model vs. current implementation.** This document describes QORM's **target** security model. What the current Go runtime **already enforces**:
 > ed25519 "verify the artifact before running it" Bundle signing + content integrity (integrity takes precedence over signing); OTA updates require a trusted public key
-> (`--trust`, otherwise rejected); key revocation bound to the actual verification key; the local server blocks cross-origin (CSRF/DNS-rebind) access to dangerous endpoints (`/window` eval,
-> `/update`, `/mcp`); the `/update` source fetch refuses private / link-local / metadata destinations with redirects re-vetted per hop (loopback stays allowed for local development — see
-> `bundle-signing.md`); mobile native capabilities are gated by system permission prompts, and generated projects derive `Info.plist` / `AndroidManifest` declarations from the widgets actually used.
-> **Not yet implemented** (the targets described here; do not treat them as guarantees already in effect): a standalone runtime "capability approval layer" — that is, per-capability
-> allowlist adjudication, an approval lifecycle (revocation/expiration), and "desktop native ops gated beyond the transport layer". Desktop native
-> ops are currently not independently approved; the "security invariants" below are design intent, not currently enforced requirements.
+> (`--trust`, otherwise rejected); key revocation bound to the actual verification key (CLI `--revoked`, and `qorm package --update-url --trust --revoked` bakes a snapshot into the WASM OTA client); the local server blocks cross-origin (CSRF/DNS-rebind) access to dangerous endpoints (`/window` eval,
+> `/update`, `/mcp`); on `--lan`, admin endpoints and non-loopback observation windows (`/logwindow`, `/dev/tree`, …) require the startup admin token; the `/update` source fetch refuses private / link-local / metadata destinations with redirects re-vetted per hop (loopback stays allowed for local development — see
+> `bundle-signing.md`); mobile native capabilities are gated by system permission prompts, and generated projects derive `Info.plist` / `AndroidManifest` declarations from the widgets actually used;
+> manifest `capabilities` plus bundle `requiredCapabilities` refuse undeclared native ops at call time; manifest `agent.policy` gates MCP tools at runtime (JSON-RPC `-32001`).
+> **Not yet implemented** (the targets described here; do not treat them as guarantees already in effect): an approval *lifecycle* (per-call revocation/expiration of a granted capability), and independent user-facing approval UI for desktop native ops beyond the transport/manifest allowlist. Desktop native
+> ops are gated by the capability allowlist and OS prompts where those exist; interactive "approve this once" is design intent.
 
 QORM supports dynamic Bundles, Agent Patches, Host Capabilities, Plugins, and the Native Bridge, so the security model must be built in.
 

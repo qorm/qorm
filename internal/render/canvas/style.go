@@ -2279,8 +2279,8 @@ func lineHeightMult(lh float64, fontSize int) float64 {
 // canvasStyleKeys is the set of node style keys the native canvas renderer
 // actually consumes (parseStyle / applyStyleProps / flex / interaction).
 // The loader flags keys unknown to HTML (render.KnownStyleKeys); this set
-// is the canvas-specific residual — keys still unimplemented warn once per
-// scene (backdropBlur, fontFamily, letterSpacing, …).
+// is the canvas-specific residual — keys still unimplemented (fontFamily,
+// writingMode, …) warn once per scene and also appear on measure hostLimits.
 var canvasStyleKeys = map[string]bool{
 	"background": true, "color": true, "gradient": true,
 	"backdropBlur": true, "backdropTint": true,

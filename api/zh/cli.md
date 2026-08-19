@@ -211,6 +211,7 @@ qorm package <app-dir> [-p web|ios|android|mac|miniapp] [-o out-dir] [标志]
 | `--no-branding` | 去掉 "Made with QORM" 标注 |
 | `--subscribed` | 非交互地确认 QORM 会员资格(见下) |
 | `--update-url URL` + `--trust pub.key` | 把包接入 OTA 更新服务器。两个标志**必须成对给出**(失败即关闭:更新仅在被信任密钥签名时才应用);URL 必须是 http(s) |
+| `--revoked list.json` | 与 `--update-url`/`--trust` 一起:把签名密钥吊销快照打进打包后的 OTA 客户端(`window.__QORM_UPDATE__.revoked`)。没有 OTA 配对时拒绝 |
 
 **商业闸门(荣誉制度)。** 应用目录中的自定义 `icon.png`,或 `--no-branding`,属于商业化白标:打包器会打印说明并要求确认 QORM Patreon 会员——交互确认,或经 `--subscribed`。非交互运行且不带 `--subscribed` 会失败(退出码 `1`)。个人 / 教学 / 开源使用(默认图标、保留品牌标注)永不触发。
 

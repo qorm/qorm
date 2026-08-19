@@ -2,6 +2,7 @@ package canvas
 
 import (
 	"encoding/json"
+	"fmt"
 	"image"
 	"math"
 	"strings"
@@ -352,6 +353,32 @@ func TestCollectMeasureWCAGContrastAndUnavailableReasons(t *testing.T) {
 	}
 	if reason, _ := rows["under_opacity"]["contrastUnavailable"].(string); !strings.Contains(reason, "opacity") {
 		t.Errorf("ancestor subtree opacity must remain unavailable through opaque child: %q", reason)
+	}
+}
+
+func TestCollectMeasureHostLimits(t *testing.T) {
+	root := &model.Node{Type: "column", ID: "root", Style: map[string]any{
+		"width": 320.0, "background": "#ffffff",
+	}, Children: []*model.Node{
+		{Type: "text", ID: "fancy", Text: "Hello", Style: map[string]any{
+			"fontFamily": "Comic Sans", "fontSize": 16.0, "color": "#000000",
+		}},
+		{Type: "webview", ID: "embed", Props: map[string]any{"url": "https://example.com"},
+			Style: map[string]any{"width": 200.0, "height": 120.0}},
+	}}
+	rt := runtime.New(&model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}})
+	rows := measuredByID(t, MeasureScene(rt, 320, 240, 1))
+	limits, _ := rows["fancy"]["hostLimits"].([]any)
+	joined := fmt.Sprint(limits)
+	if !strings.Contains(joined, "style.fontFamily ignored") {
+		t.Errorf("fontFamily must surface as a hostLimit, got %v", rows["fancy"]["hostLimits"])
+	}
+	if _, ok := rows["fancy"]["hostLimits"]; !ok {
+		t.Fatal("fancy row missing hostLimits")
+	}
+	wlimits, _ := rows["embed"]["hostLimits"].([]any)
+	if !strings.Contains(fmt.Sprint(wlimits), "webview placeholder") {
+		t.Errorf("webview must surface placeholder hostLimit, got %v", rows["embed"]["hostLimits"])
 	}
 }
 

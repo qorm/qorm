@@ -63,3 +63,17 @@ func TestOfflineHTMLWithUpdateConfig(t *testing.T) {
 		t.Error("boot must try the OTA localStorage levels before falling back to bundle.json")
 	}
 }
+
+func TestOfflineHTMLWithRevokedUpdateConfig(t *testing.T) {
+	upd := &UpdateConfig{
+		URL: "https://updates.example.com", App: "counter", Trust: "cHVia2V5",
+		Revoked: []string{"abc123deadbe"},
+	}
+	html, err := OfflineHTML(runtime.New(offlineTestApp()), `{"entry":"main"}`, upd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(html, `"revoked":["abc123deadbe"]`) {
+		t.Error("OTA HTML must bake the revocation snapshot into window.__QORM_UPDATE__")
+	}
+}

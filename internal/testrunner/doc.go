@@ -55,9 +55,9 @@
 // applied. A selector carrying `path`, `within`, `match` or any other key is
 // refused with query_invalid_selector (path selects on state, so the spec
 // points those reads at state_equals). `semantic` is deferred: the model has
-// no semantic-tag slot yet. List renderItem templates and component instance
-// expansion are not materialized in the MVP: queries see the static scene
-// tree.
+// no semantic-tag slot yet. List and gridview renderItem templates are
+// expanded once per data item; JSON-component instance expansion is still
+// deferred.
 //
 // # Error codes
 //

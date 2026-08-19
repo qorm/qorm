@@ -272,7 +272,8 @@ DOM/CSS are independent implementations — verify the backend you will ship:
 - **Widgets**: all 146 canonical widget types work (full catalog:
   `api/widgets.md`), including overlay panels (drawer, menu, modal, snackbar,
   tooltip) and interactive controls (switch, slider, checkbox, select,
-  textarea, draggable).
+  textarea, draggable). **Do not invent types.** Scaffold with column / row /
+  text / button / input / list / scroll / image; look up the rest in the catalog.
 - **Run canvas**: `go run ./cmd/qorm run <app>` (macOS default). WebView:
   `go run -tags desktop ./cmd/qorm run <app>`.
 
@@ -430,6 +431,7 @@ precedence; the rest come from `icon_font_auto.go` (generated).
 - Don't add emoji to UI/code/docs — use the built-in icon font (53 icons).
 - Don't skip verification — always run `qorm_check_layout` after edits.
 - Don't guess what a widget supports — check the [widget catalog](api/widgets.md) (auto-generated, canonical).
+- Don't add widget types to the runtime; freeze the catalog and compose from what exists.
 - Don't tween physics `x`/`y` or `layoutMotion` a 60 fps sprite.
 - Don't `list` a whole tile level — use `tilemap`.
 - Don't confuse `-tags desktop` (WebView/HTML) with the default macOS canvas window.

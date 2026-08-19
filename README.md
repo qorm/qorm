@@ -240,8 +240,8 @@ qorm run examples/counter          # browser UI + agent endpoint at /mcp
 app JSON (manifest + scenes + actions)
   → loader   parse into model.App (Node tree / Action / GlobalState)
   → runtime  state store + {{expr}} evaluation + action dispatch
-  → render   Node → HTML + CSS flexbox (browser does layout)
-  → server   HTTP + /event live update loop
+  → render   Node → HTML/CSS (WebView/browser)  |  software canvas  |  WXML snapshot (mini-program)
+  → host     live HTTP server, WASM package, or native window
 ```
 
 | package | role |

@@ -218,8 +218,8 @@ qorm run examples/counter          # browser UI + agent endpoint at /mcp
 app JSON (manifest + scenes + actions)
   → loader   parse into model.App (Node tree / Action / GlobalState)
   → runtime  state store + {{expr}} evaluation + action dispatch
-  → render   Node → HTML + CSS flexbox (browser does layout)
-  → server   HTTP + /event live update loop
+  → render   Node → HTML/CSS (WebView/浏览器)  |  软件 canvas  |  WXML 快照（小程序）
+  → host     实时 HTTP 服务、WASM 包、或原生窗口
 ```
 
 | package | role |

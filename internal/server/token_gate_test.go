@@ -268,6 +268,40 @@ func TestServedPagesHideAdminToken(t *testing.T) {
 	}
 }
 
+func TestLANObservationWindowLoopbackOnly(t *testing.T) {
+	s := counterServer(t)
+	s.SetRequireToken(true)
+	h := s.Handler()
+	get := func(path, addr, tok string) int {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		req.RemoteAddr = addr
+		if tok != "" {
+			req.Header.Set("X-Qorm-Token", tok)
+		}
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, req)
+		return rr.Code
+	}
+	for _, path := range []string{"/logwindow", "/console", "/dev/tree", "/dev/canvas"} {
+		if code := get(path, "127.0.0.1:9", ""); code != http.StatusOK {
+			t.Errorf("loopback GET %s without token = %d, want 200", path, code)
+		}
+		if code := get(path, "[::1]:9", ""); code != http.StatusOK {
+			t.Errorf("ipv6 loopback GET %s without token = %d, want 200", path, code)
+		}
+		if code := get(path, "10.0.0.8:9", ""); code != http.StatusUnauthorized {
+			t.Errorf("LAN GET %s without token = %d, want 401", path, code)
+		}
+		if code := get(path, "10.0.0.8:9", s.eventToken); code != http.StatusUnauthorized {
+			t.Errorf("LAN GET %s with page token = %d, want 401", path, code)
+		}
+		if code := get(path, "10.0.0.8:9", s.AdminToken()); code != http.StatusOK {
+			t.Errorf("LAN GET %s with admin token = %d, want 200", path, code)
+		}
+	}
+}
+
 // TestRequireTokenGateKeepsCrossOriginGuard: the CSRF layer stays in front of
 // the token gates, so a cross-origin browser request is rejected with 403 even
 // when it holds the ADMIN token (no new bypass), and a cross-origin request

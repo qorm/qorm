@@ -4,12 +4,12 @@
 
 > **目标模型 vs. 当前实现。** 本文档描述的是 QORM 的**目标**安全模型。当前 Go 运行时**已经强制执行**的部分:
 > ed25519 的"运行前先验证工件"式 Bundle 签名 + 内容完整性(完整性优先于签名);OTA 更新需要一个受信任的公钥
-> (`--trust`,否则拒绝);密钥吊销与实际的验证密钥绑定;本地服务器阻止跨源(CSRF/DNS-rebind)访问危险端点(`/window` eval、
-> `/update`、`/mcp`);`/update` 的 source 拉取拒绝私网/链路本地/元数据地址,重定向逐跳复核(回环地址保持放行以支持本地开发 —— 详见
-> `bundle-signing.md`);移动端原生能力由系统权限提示把关,生成的项目会根据实际使用的组件派生出 `Info.plist` / `AndroidManifest` 声明。
-> **尚未实现**的部分(这里描述的目标;不要把它们当作已经生效的保证):一个独立的运行时"能力批准层"——即
-> 按能力粒度的允许列表裁决、批准生命周期(吊销/过期),以及"桌面原生操作在传输层之外的把关"。桌面原生
-> 操作目前并未独立批准;下文的"安全不变量"是设计意图,而非当前强制执行的要求。
+> (`--trust`,否则拒绝);密钥吊销与实际的验证密钥绑定(CLI `--revoked`,以及 `qorm package --update-url --trust --revoked` 把快照打进 WASM OTA 客户端);本地服务器阻止跨源(CSRF/DNS-rebind)访问危险端点(`/window` eval、
+> `/update`、`/mcp`);`--lan` 下管理端点和非回环观察窗(`/logwindow`、`/dev/tree` 等)需要启动时打印的 admin token;`/update` 的 source 拉取拒绝私网/链路本地/元数据地址,重定向逐跳复核(回环地址保持放行以支持本地开发 —— 详见
+> `bundle-signing.md`);移动端原生能力由系统权限提示把关,生成的项目会根据实际使用的组件派生出 `Info.plist` / `AndroidManifest` 声明;
+> 清单 `capabilities` 与 bundle `requiredCapabilities` 在调用时拒绝未声明的原生操作;清单 `agent.policy` 在运行时闸控 MCP 工具(JSON-RPC `-32001`)。
+> **尚未实现**的部分(这里描述的目标;不要把它们当作已经生效的保证):批准**生命周期**(一次授予后的吊销/过期),以及传输层/清单允许列表之外的桌面原生操作交互批准 UI。桌面原生
+> 操作目前由能力允许列表和(若有)系统提示把关;"批准这一次"是设计意图。
 
 QORM 支持动态 Bundle、Agent Patch、Host Capabilities、Plugin 和 Native Bridge,因此安全模型必须内建其中。
 

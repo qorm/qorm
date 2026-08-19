@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/qorm/platform/internal/model"
+	qrt "github.com/qorm/platform/internal/runtime"
 )
 
 // fixture is the self-contained app under testdata/: a minimal counter with
@@ -277,6 +280,48 @@ func TestReportMatchesSpecJSONShape(t *testing.T) {
 	}
 	if host := m["hostCalls"].([]any); len(host) != 0 {
 		t.Errorf("hostCalls = %v, want empty in the MVP (no host-mock registry)", host)
+	}
+}
+
+func TestMaterializeExpandsListRenderItem(t *testing.T) {
+	app := &model.App{
+		Entry: "main",
+		GlobalState: model.GlobalState{Initial: map[string]any{
+			"items": []any{
+				map[string]any{"text": "Alpha"},
+				map[string]any{"text": "Beta"},
+			},
+		}},
+		Scenes: map[string]*model.Node{
+			"main": {Type: "column", ID: "root", Children: []*model.Node{
+				{Type: "list", ID: "todo_list", Data: "{{state.items}}",
+					Template: &model.Node{Type: "text", Text: "{{item.text}}"}},
+			}},
+		},
+	}
+	rt := qrt.New(app)
+	var texts []string
+	for _, n := range materialize(rt) {
+		if n.text != "" {
+			texts = append(texts, n.text)
+		}
+	}
+	joined := strings.Join(texts, ",")
+	if !strings.Contains(joined, "Alpha") || !strings.Contains(joined, "Beta") {
+		t.Fatalf("list rows not materialized, texts=%v", texts)
+	}
+}
+
+func TestRunExampleTodoAndDerived(t *testing.T) {
+	for _, dir := range []string{"../../examples/todo", "../../examples/derived"} {
+		report, err := Run(dir, nil)
+		if err != nil {
+			t.Errorf("%s: Run: %v", dir, err)
+			continue
+		}
+		if report.Status != StatusPassed {
+			t.Errorf("%s: status=%s passed=%d failed=%d results=%+v", dir, report.Status, report.Passed, report.Failed, report.Results)
+		}
 	}
 }
 

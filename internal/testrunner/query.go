@@ -48,18 +48,20 @@ func sceneName(rt *qrt.Runtime) string {
 // nodes that would render, depth-first, with bindings evaluated. Mirror of
 // the renderer's node()/when()/visible() rules: `when` nodes render only
 // their chosen branch, nodes with a falsy if/visible/show render nothing,
-// and every text/binding is interpolated against the live state. List
-// renderItem templates and component instance expansion are out of scope for
-// the MVP — queries see the static scene tree.
+// and every text/binding is interpolated against the live state. List and
+// gridview `renderItem` templates are instantiated once per data item (item
+// / index / first / last in scope, matching the HTML and canvas renderers).
+// JSON-component expansion is still out of scope — queries see the instance
+// node, not the substituted template.
 func materialize(rt *qrt.Runtime) []*matNode {
 	root := rt.App.EntryRoot()
 	if sc := rt.App.Scenes[rt.Scene]; sc != nil {
 		root = sc
 	}
-	ctx := bindingCtx(rt)
+	base := bindingCtx(rt)
 	var out []*matNode
-	var walk func(n *model.Node)
-	walk = func(n *model.Node) {
+	var walk func(n *model.Node, ctx map[string]any)
+	walk = func(n *model.Node, ctx map[string]any) {
 		if n == nil {
 			return
 		}
@@ -70,7 +72,7 @@ func materialize(rt *qrt.Runtime) []*matNode {
 			}
 			// The when container itself renders nothing; the branch does.
 			if branch != nil {
-				walk(branch)
+				walk(branch, ctx)
 			}
 			return
 		}
@@ -82,12 +84,96 @@ func materialize(rt *qrt.Runtime) []*matNode {
 			typ = qrt.Stringify(qrt.EvalBinding(typ, ctx)) // bound `type`
 		}
 		out = append(out, &matNode{n: n, id: n.ID, typ: typ, text: nodeText(rt, n, ctx), props: nodeProps(rt, n, ctx)})
+		if isRepeat(typ) {
+			tmpl := n.Template
+			if tmpl == nil {
+				for _, c := range n.Children {
+					walk(c, ctx)
+				}
+				return
+			}
+			items := listItems(n, ctx)
+			if len(items) > maxListItems {
+				items = items[:maxListItems]
+			}
+			as := ""
+			if raw, ok := n.Prop("as"); ok {
+				as = fmt.Sprint(raw)
+			}
+			alias, idxKey, firstKey, lastKey := listAliasNames(as)
+			for i, it := range items {
+				walk(tmpl, itemScope(ctx, alias, idxKey, firstKey, lastKey, it, i, len(items)))
+			}
+			return
+		}
 		for _, c := range n.Children {
-			walk(c)
+			walk(c, ctx)
 		}
 	}
-	walk(root)
+	walk(root, base)
 	return out
+}
+
+// maxListItems caps repeat expansion in tests — same budget as the canvas
+// renderer, so a runaway binding cannot hang the runner.
+const maxListItems = 10000
+
+func isRepeat(typ string) bool {
+	switch strings.ToLower(typ) {
+	case "list", "gridview":
+		return true
+	}
+	return false
+}
+
+func listItems(n *model.Node, ctx map[string]any) []any {
+	raw := n.Data
+	if raw == "" {
+		if v, ok := n.Prop("data"); ok {
+			raw = fmt.Sprint(v)
+		}
+	}
+	if raw == "" {
+		return nil
+	}
+	items, _ := qrt.EvalBinding(raw, ctx).([]any)
+	return items
+}
+
+func itemScope(outer map[string]any, alias, idxKey, firstKey, lastKey string, it any, i, total int) map[string]any {
+	s := make(map[string]any, len(outer)+4)
+	for k, v := range outer {
+		s[k] = v
+	}
+	s[alias] = it
+	s[idxKey] = i
+	s[firstKey] = i == 0
+	s[lastKey] = i == total-1
+	return s
+}
+
+// listAliasNames mirrors render.ListAliasNames / canvas.listAliasNames so an
+// `as` alias means the same thing in tests as on both render paths.
+func listAliasNames(as string) (alias, idxKey, firstKey, lastKey string) {
+	if as == "" || as == "item" || reservedScopeAliases[as] || !isIdent(as) {
+		return "item", "index", "first", "last"
+	}
+	return as, as + "Index", as + "First", as + "Last"
+}
+
+var reservedScopeAliases = map[string]bool{
+	"state": true, "t": true, "viewport": true, "route": true, "prop": true,
+}
+
+func isIdent(s string) bool {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c == '_' || 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || (i > 0 && '0' <= c && c <= '9') {
+			continue
+		}
+		return false
+	}
+	return s != ""
 }
 
 // visible mirrors the renderer's visibility rule: the first of

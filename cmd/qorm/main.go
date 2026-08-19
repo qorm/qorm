@@ -147,7 +147,9 @@ usage:
                                                   --api-key*), Android signed .aab (--keystore / --key-alias /
                                                   --apk), macOS Developer ID + DMG (--identity /
                                                   --notarize [--keychain-profile P] / --no-dmg)
-       --update-url URL --trust pub.key           wire the package to an OTA update server (flags are paired)
+       --update-url URL --trust pub.key [--revoked list.json]
+                                                  wire the package to an OTA update server (flags are paired;
+                                                  --revoked bakes a signing-key snapshot into the client)
   qorm preview <package-dir> [--width N] [--eval JS] [-o report.json]
                                                   render a packaged app and report its layout
   qorm docs [--docs docs] [-o docs-site] [--name Name]

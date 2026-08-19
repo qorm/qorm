@@ -62,7 +62,7 @@ var Matrix = []Feature{
 	{"Rendering", "Themes (Apple / Material / dark)", [7]Status{y, y, y, y, y, y, p}, "design tokens; mini-program carries the token WXSS"},
 	{"Rendering", "Custom components (JSON-defined)", [7]Status{y, y, y, y, y, y, p}, "declared in qorm.json, {{prop.x}} templates"},
 	{"Rendering", "i18n messages + RTL", [7]Status{y, y, y, y, y, y, p}, "ICU messages, plurals, currency, right-to-left"},
-	{"Rendering", "Native window (chromeless / transparent)", [7]Status{n, n, n, y, p, p, n}, "-tags desktop; macOS is the reference"},
+	{"Rendering", "Native window (chromeless / transparent)", [7]Status{n, n, n, y, p, p, n}, "-tags desktop; macOS is the reference; Linux parses chromeless but does not strip GTK decorations yet"},
 	{"Rendering", "System menu bar / tray / right-click menu", [7]Status{n, n, n, y, p, p, n}, ""},
 
 	// Runtime
@@ -198,7 +198,7 @@ var notesZH = map[string]string{
 	"Themes (Apple / Material / dark)":             "设计 Token；小程序携带 Token WXSS",
 	"Custom components (JSON-defined)":             "在 qorm.json 中声明，采用 {{prop.x}} 模板",
 	"i18n messages + RTL":                          "ICU 消息、复数、货币、自右向左文本支持",
-	"Native window (chromeless / transparent)":     "需使用 -tags desktop 编译；macOS 为参考实现",
+	"Native window (chromeless / transparent)":     "需使用 -tags desktop 编译；macOS 为参考实现；Linux 会解析 chromeless 但尚未剥掉 GTK 窗口装饰",
 	"Live state + actions + bindings":              "小程序为仅静态导出（static export only），设备端无运行时",
 	"Expression bindings ({{ ... }})":              "算术、比较、三元、字符串操作、内置函数；小程序为仅静态导出（导出时求值一次）",
 	"Conditional render + data-bound lists":        "if: 条件渲染，列表重复以及 {{item.*}} 作用域；小程序为仅静态导出（导出时求值一次）",
