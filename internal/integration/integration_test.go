@@ -273,11 +273,17 @@ func TestVirtualizedList(t *testing.T) {
 	rt.State["items"] = items
 
 	html := render.Render(rt).HTML
-	if got := strings.Count(html, "content-visibility:auto"); got != n {
-		t.Errorf("expected %d virtualized item wrappers, got %d", n, got)
+	if got := strings.Count(html, "content-visibility:auto"); got < 20 || got > 30 {
+		t.Errorf("expected first window only (~26 rows), got %d", got)
 	}
-	if !strings.Contains(html, "User0") || !strings.Contains(html, "User4999") {
-		t.Error("all items (first and last) should be present in the DOM")
+	if !strings.Contains(html, "User0") {
+		t.Error("initial window should contain the first rows")
+	}
+	if strings.Contains(html, "User4999") {
+		t.Error("windowed list must not render the last row before scrolling there")
+	}
+	if !strings.Contains(html, "qorm-vpad") || !strings.Contains(html, "data-qorm-vlist") {
+		t.Error("windowed list must emit spacers and the vlist mount metadata")
 	}
 }
 
