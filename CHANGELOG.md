@@ -6,6 +6,8 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+## [v0.9.5] - 2026-08-19
+
 ### Added
 - **`qorm test` sees what the renderer shows**: list/gridview `renderItem` rows, JSON component templates + slots, and handler args evaluated in list item / `as` alias / `{{prop.x}}` scope.
 - **Numeric and looped tests**: `state_lt` / `state_gt` / `state_lte` / `state_gte` for world-position thresholds; `repeat` (capped) to drive N physics ticks. Example coverage now includes counter, todo, derived (including checkout guards), uikit, tetris `moveLeft`, and mario walk/jump.
@@ -1457,6 +1459,7 @@ Initial release: QORM, an agent-native declarative-UI runtime in pure Go.
 - Render performance: cached parsed expressions and reflection-free CSS
   numeric writes in the hot path.
 
+[v0.9.5]: https://github.com/qorm/platform/compare/v0.9.4...v0.9.5
 [v0.9.4]: https://github.com/qorm/platform/compare/v0.9.3...v0.9.4
 [v0.9.3]: https://github.com/qorm/platform/compare/v0.9.2...v0.9.3
 [v0.9.2]: https://github.com/qorm/platform/compare/v0.9.1...v0.9.2
