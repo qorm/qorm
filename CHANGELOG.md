@@ -9,6 +9,7 @@ All notable changes to QORM are documented here. The format is based on
 ### Added
 - **Canvas list window virtualization**: `virtualize: "window"` (and `virtualize: true` with `itemHeight`) inside a scroll viewport renders only rows around the live offset, with spacers preserving scroll height. `qorm measure` / MCP `qorm_measure` expose `listVirtualization` on the list row (`total`, `start`, `end`, `rendered`).
 - **Site sitemap regen**: `deploy-site.sh` rebuilds `sitemap.xml` from staged docs/api/landing on each deploy.
+- **Games release smoke**: `scripts/game-e2e/release_smoke.sh` wraps the mario walk and raiden fire-button checks for post-deploy verification, with optional `FULL=1` 4-game stability.
 
 ### Docs
 - **v0.9.6 plan** and post-v0.9.5 progress sync; `RELEASE.md` documents `build-wasm.sh` in the full release orchestration.

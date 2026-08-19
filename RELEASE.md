@@ -68,7 +68,8 @@ release it:
 3. writes curated notes onto the GitHub Release,
 4. deploys the site with `web_server/deploy-site.sh` and rebuilds games WASM with
    `web_server/build-wasm.sh`,
-5. verifies the release assets, the image tag, and the live site (homepage + `/games/`).
+5. runs the post-deploy games smoke (`scripts/game-e2e/release_smoke.sh`),
+6. verifies the release assets, the image tag, and the live site (homepage + `/games/`).
 
 ## Site deploy only (maintainers only)
 
@@ -90,6 +91,18 @@ Rebuild the games-page canvas WASM (and push the four example trees) with:
 ```
 
 That compile uses `-tags qorm_canvas`. Default `qorm package -p web` stays HTML morph.
+
+Post-deploy games smoke:
+
+```sh
+./scripts/game-e2e/release_smoke.sh
+FULL=1 ./scripts/game-e2e/release_smoke.sh
+```
+
+The fast smoke runs mario scroll + raiden fire-button checks against
+`https://qorm.com/games/`. `FULL=1` adds the 4-game stability rotation. The
+scripts expect Python modules `playwright` and `Pillow` to be installed on the
+maintainer machine.
 
 ## One-time setup
 
