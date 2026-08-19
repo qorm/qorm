@@ -1,0 +1,12 @@
+{
+  "qorm": "0.1",
+  "type": "test",
+  "id": "todo_list_toggle",
+  "scene": "main",
+  "steps": [
+    { "type": "simulate_event", "target": { "id": "done_2" }, "event": "press" }
+  ],
+  "assert": [
+    { "type": "state_equals", "path": "computed.openCount", "value": 0 }
+  ]
+}

@@ -16,6 +16,9 @@
       "inputValue": ""
     }
   },
+  "computed": {
+    "openCount": "{{ len(filter(state.items, \"it.done == false\")) }}"
+  },
   "platforms": {
     "desktop": {
       "window": {

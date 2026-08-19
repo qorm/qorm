@@ -22,6 +22,7 @@
 | G7 JSON 组件物化 | `qorm test` 展开组件模板 + slot；`simulate_event` 用 list item / prop 作用域求 handler 参数 | `TestMaterializeExpandsJSONComponents`；`TestSimulateEventUsesListItemScope`；`qorm test examples/uikit` |
 | G8 诊断联动 | error 级 loader 诊断让 `qorm test` / `qorm check` 失败（computed 动态 key、悬空 onEnter） | `TestRunRefusesErrorDiagnostics`；`TestCmdCheckRefusesErrorDiagnostics` |
 | G9 对比表诚实 | README 小程序标静态 WXML；MCP 工具数 25 | README en+zh |
+| G10 示例测试加深 | todo 行内 Done（item scope + computed 断言）；counter 纳入 CI 回归 | `examples/todo/tests/toggle.json`；`TestRunExampleAppsWithTests` |
 
 完成门槛：相关包测试绿；文档生成器同步（mcp / support）；不 push。
 

@@ -42,6 +42,8 @@
 // prop_equals.
 //
 //	state_equals   {"type":"state_equals","path":"count","value":2}
+//	               path may also read computed.<name> after a dispatch
+//	               refreshes derived values (e.g. computed.openCount).
 //	node_exists    {"type":"node_exists","target":{"id":"btn_increment"}}
 //	node_not_exists same shape, inverse
 //	text_equals    {"type":"text_equals","target":{"id":"number"},"value":"2"}

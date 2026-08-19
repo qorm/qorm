@@ -361,7 +361,7 @@ func selectorString(sel map[string]any) string {
 func evalAssert(rt *qrt.Runtime, a Assert) *Failure {
 	switch a.Type {
 	case "state_equals":
-		got := qrt.Stringify(rt.StatePath(a.Path))
+		got := qrt.Stringify(readAssertPath(rt, a.Path))
 		want := qrt.Stringify(a.Value)
 		if got != want {
 			return &Failure{Code: ErrAssertionFailed, Assert: a.Type, Target: a.Path, Expected: want, Actual: got}
@@ -421,6 +421,19 @@ func lookupProp(mn *matNode, key string) (string, bool) {
 	}
 	// A dotted key already flattened by nodeProps; fall through if missing.
 	return "", false
+}
+
+// readAssertPath reads a state_equals path: dotted state keys, or
+// computed.<name> for derived values republished after each dispatch.
+func readAssertPath(rt *qrt.Runtime, path string) any {
+	if strings.HasPrefix(path, "computed.") {
+		name := strings.TrimPrefix(path, "computed.")
+		if name == "" {
+			return nil
+		}
+		return rt.ComputedVars()[name]
+	}
+	return rt.StatePath(path)
 }
 
 // verb turns an existence boolean into the message word the reports read.

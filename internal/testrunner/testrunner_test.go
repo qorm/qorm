@@ -414,8 +414,46 @@ func TestRunRefusesErrorDiagnostics(t *testing.T) {
 	}
 }
 
-func TestRunExampleTodoAndDerived(t *testing.T) {
-	for _, dir := range []string{"../../examples/todo", "../../examples/derived", "../../examples/uikit"} {
+func TestStateEqualsComputedPath(t *testing.T) {
+	app := &model.App{
+		Entry: "main",
+		GlobalState: model.GlobalState{Initial: map[string]any{
+			"items": []any{
+				map[string]any{"done": true},
+				map[string]any{"done": false},
+			},
+		}},
+		Computed: map[string]string{
+			"openCount": `{{ len(filter(state.items, "it.done == false")) }}`,
+		},
+		Actions: map[string]*model.Action{
+			"noop": {ID: "noop"},
+		},
+		Scenes: map[string]*model.Node{
+			"main": {Type: "text", ID: "t", Text: "hi"},
+		},
+	}
+	rt := qrt.New(app)
+	if f := evalAssert(rt, Assert{Type: "state_equals", Path: "computed.openCount", Value: 1}); f != nil {
+		t.Fatalf("initial openCount: %+v", f)
+	}
+	rt.SetStatePath("items", []any{
+		map[string]any{"done": true},
+		map[string]any{"done": true},
+	})
+	rt.Dispatch("noop", nil) // republish computed at the dispatch boundary
+	if f := evalAssert(rt, Assert{Type: "state_equals", Path: "computed.openCount", Value: 0}); f != nil {
+		t.Fatalf("after all done: %+v", f)
+	}
+}
+
+func TestRunExampleAppsWithTests(t *testing.T) {
+	for _, dir := range []string{
+		"../../examples/counter",
+		"../../examples/todo",
+		"../../examples/derived",
+		"../../examples/uikit",
+	} {
 		report, err := Run(dir, nil)
 		if err != nil {
 			t.Errorf("%s: Run: %v", dir, err)

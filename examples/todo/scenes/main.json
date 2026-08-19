@@ -98,6 +98,7 @@
                 },
                 {
                   "type": "button",
+                  "id": "done_{{item.id}}",
                   "label": "Done",
                   "style": {
                     "background": "var(--fill)",

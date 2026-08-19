@@ -1,6 +1,15 @@
 # 实施进度
 
-> 主控同步 · 更新：2026-08-19 **第五轮落地** · 第四轮已提交 `8b640a7`
+> 主控同步 · 更新：2026-08-19 **第六轮落地中** · 第五轮已提交 `7f7a48f`
+
+## 第六轮（2026-08-19）
+
+把 `qorm test` 从「能跑 counter/todo add」推进到「能测 list 行内 handler + computed 断言」。
+
+| 目标 | 状态 | 证据 |
+|------|------|------|
+| G10 todo 行内 Done + computed.openCount | 🟢 | `examples/todo/tests/toggle.json`；`state_equals` 支持 `computed.*` |
+| G10 counter 纳入示例回归 | 🟢 | `TestRunExampleAppsWithTests` |
 
 ## 第五轮（2026-08-19）
 
