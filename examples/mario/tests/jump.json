@@ -1,0 +1,21 @@
+{
+  "qorm": "0.1",
+  "type": "test",
+  "id": "mario_jump",
+  "scene": "main",
+  "steps": [
+    { "type": "simulate_event", "action": "jump" },
+    {
+      "type": "repeat",
+      "times": 10,
+      "steps": [
+        { "type": "simulate_event", "action": "tick" }
+      ]
+    }
+  ],
+  "assert": [
+    { "type": "state_equals", "path": "keys.jumpHold", "value": true },
+    { "type": "state_equals", "path": "status", "value": "playing" },
+    { "type": "state_lt", "path": "mario.y", "value": 370 }
+  ]
+}

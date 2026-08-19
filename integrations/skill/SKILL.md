@@ -358,6 +358,8 @@ board**, with absolute `x`/`y`. HUD lives **outside** the board (stack overlay).
   like restart so OS key-repeat does not re-fire).
 - Drive style from qscript via `state` + `{{bindings}}` / QSS — do not
   assign style objects in qs.
+- Heavy boards / lists: set `layerCache` on the world plane so unchanged
+  frames reuse the offscreen layer.
 - Audio: `playSound(src)` / `playMusic(src)` / `stopMusic()`; WAV under
   the app dir. Native SFX do not kill looping BGM.
 - Pixel art: `imageRendering: pixelated` (QSS `image { … }` is enough).

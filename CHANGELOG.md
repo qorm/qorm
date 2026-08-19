@@ -6,6 +6,17 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+- **`qorm test` sees what the renderer shows**: list/gridview `renderItem` rows, JSON component templates + slots, and handler args evaluated in list item / `as` alias / `{{prop.x}}` scope.
+- **Numeric and looped tests**: `state_lt` / `state_gt` / `state_lte` / `state_gte` for world-position thresholds; `repeat` (capped) to drive N physics ticks. Example coverage now includes counter, todo, derived (including checkout guards), uikit, tetris `moveLeft`, and mario walk/jump.
+- **Canvas `hostLimits` in measure**: agents can prove which style keys the software canvas does not consume (e.g. `fontFamily`) and when `webview` is a placeholder.
+- **`qorm package --revoked`**: OTA HTML packages bake a revocation snapshot into `window.__QORM_UPDATE__` when paired with `--update-url` and `--trust`.
+
+### Changed
+- **`qorm test` / `qorm check` fail on error-level loader diagnostics** (dangling `onEnter`, computed dynamic keys) instead of reporting green on a broken app.
+- **LAN observation windows** (`/logwindow`, `/console`, `/dev/tree`, `/dev/canvas`): loopback stays open; non-loopback requires the admin token.
+- **Docs match the runtime**: README architecture lists three hosts (HTML / software canvas / static WXML); mini-program called out as static export; MCP tool count is 25; async `http.*` `"key"` already cancels overlapping flights.
+
 ## [v0.9.4] - 2026-08-17
 
 ### Added

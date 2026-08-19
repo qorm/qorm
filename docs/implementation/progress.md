@@ -1,6 +1,10 @@
 # 实施进度
 
-> 主控同步 · 更新：2026-08-19 **第八轮落地** · 第七轮已提交 `67d088e`
+> 主控同步 · 更新：2026-08-19 **v0.9.5 规划已落地，准备发版**
+
+## v0.9.5（2026-08-19）
+
+Agent 可验证性收口。规划见 [analysis-and-plan.md](analysis-and-plan.md)。G1–G12 已提交；R1（mario jump、CHANGELOG、SKILL `layerCache`）已落地。
 
 ## 第八轮（2026-08-19）
 
