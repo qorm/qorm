@@ -82,6 +82,7 @@ jobs:
 
   desktop:
     name: build (native desktop, cgo)
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -97,7 +98,20 @@ jobs:
           cache: true
       - name: Install WebKitGTK (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev pkg-config
+        # apt on ubuntu-22.04 runners occasionally hangs for hours; fail fast
+        # and retry instead of burning the whole 6h job budget.
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            echo "apt install attempt $attempt/3"
+            if timeout 300 sudo apt-get update && \
+               timeout 600 sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev pkg-config; then
+              exit 0
+            fi
+            echo "::warning::WebKitGTK apt install attempt $attempt failed"
+            sleep 15
+          done
+          exit 1
       - name: Build (-tags desktop)
         run: go build -tags desktop ./cmd/qorm
       - name: Smoke (run counter headless)
