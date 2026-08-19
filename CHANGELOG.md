@@ -7,7 +7,7 @@ All notable changes to QORM are documented here. The format is based on
 ## [Unreleased]
 
 ### Added
-- **Canvas list window virtualization**: `virtualize: "window"` (and `virtualize: true` with `itemHeight`) inside a scroll viewport renders only rows around the live offset, with spacers preserving scroll height — mirrors the HTML `virtualize: "window"` contract on the software canvas host.
+- **Canvas list window virtualization**: `virtualize: "window"` (and `virtualize: true` with `itemHeight`) inside a scroll viewport renders only rows around the live offset, with spacers preserving scroll height. `qorm measure` / MCP `qorm_measure` expose `listVirtualization` on the list row (`total`, `start`, `end`, `rendered`).
 - **Site sitemap regen**: `deploy-site.sh` rebuilds `sitemap.xml` from staged docs/api/landing on each deploy.
 
 ### Docs

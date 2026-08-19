@@ -394,3 +394,55 @@ func TestCollectMeasureContrastUnavailableWithoutOpaqueBackdrop(t *testing.T) {
 		t.Errorf("transparent-root reason = %v", got)
 	}
 }
+
+func TestCollectMeasureListVirtualization(t *testing.T) {
+	items := make([]any, 500)
+	for i := range items {
+		items[i] = map[string]any{"label": fmt.Sprintf("%d", i)}
+	}
+	list := &model.Node{
+		Type: "list", ID: "rows", Data: "{{state.items}}",
+		Props:    map[string]any{"virtualize": "window", "itemHeight": 20.0},
+		Template: &model.Node{Type: "text", Props: map[string]any{"text": "{{index}}"}},
+	}
+	sv := &model.Node{
+		Type: "scroll", ID: "sv",
+		Style:    map[string]any{"width": 200.0, "height": 200.0},
+		Children: []*model.Node{list},
+	}
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{sv}}
+	rt := runtime.New(&model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}})
+	rt.State["items"] = items
+	e := NewEngine(rt, SoftwareRenderer{})
+	surf := NewHeadlessSurface(image.Pt(400, 400))
+	e.DrawFrame(surf)
+	e.HandlePointer(PointerInput{Type: PointerMove, X: 100, Y: 50})
+	if !e.HandleScroll(ScrollInput{DY: 2000}) {
+		t.Fatal("scroll must be consumed")
+	}
+	e.DrawFrame(surf)
+
+	rows := measuredByID(t, e.CollectMeasure())
+	row, ok := rows["rows"]
+	if !ok {
+		t.Fatalf("missing list row rows in %v", rows)
+	}
+	lv, ok := row["listVirtualization"].(map[string]any)
+	if !ok {
+		t.Fatalf("rows missing listVirtualization: %v", row)
+	}
+	if lv["windowed"] != true {
+		t.Errorf("windowed = %v, want true", lv["windowed"])
+	}
+	if int(lv["total"].(float64)) != 500 {
+		t.Errorf("total = %v, want 500", lv["total"])
+	}
+	rendered := int(lv["rendered"].(float64))
+	if rendered < 10 || rendered > 25 {
+		t.Errorf("rendered = %v, want ~19", rendered)
+	}
+	start := int(lv["start"].(float64))
+	if start < 90 || start > 100 {
+		t.Errorf("start = %v, want ~96", start)
+	}
+}

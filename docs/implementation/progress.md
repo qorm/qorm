@@ -8,7 +8,7 @@ Agent 可验证性收口。规划见 [analysis-and-plan.md](analysis-and-plan.md
 
 线上：tag `v0.9.5`、GitHub Release、`ghcr.io/qorm/platform:v0.9.5`、qorm.com 首页/文档已打戳。首次站点 rsync `--delete` 误删 `/games/` 等 extras，已从备份恢复；后续 deploy 保护 extras，并用 `qorm_canvas` WASM 与示例源同步 games 页。
 
-**下一版规划：** [v0.9.6-plan.md](v0.9.6-plan.md)（P0 收口完成；P1 canvas list `virtualize: "window"` 已落地，P1-3 measure 报告待补）。
+**下一版规划：** [v0.9.6-plan.md](v0.9.6-plan.md)（P0–P1 完成；P2 运维 smoke 待做）。
 
 ## 第八轮（2026-08-19）
 

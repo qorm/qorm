@@ -65,7 +65,13 @@ import (
 
 const defaultListWindowPort = 800 // first-frame fallback (mirrors HTML defaultVirtualPort)
 
-// listScrollCtx carries the enclosing scroll viewport's live offset when
+// listVirtStats is set on a windowed list's LayoutNode for CollectMeasure.
+type listVirtStats struct {
+	Windowed bool
+	Total    int
+	Start    int
+	End      int // exclusive
+}
 // measuring a list candidate for window virtualization.
 type listScrollCtx struct {
 	scrollNode *model.Node
@@ -265,10 +271,10 @@ func isIdent(s string) bool {
 // order. A conditionally hidden template (if/visible/show, when) yields no
 // instance for that item — the same shape the HTML path produces when
 // node() drops it.
-func measureListItems(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, root *model.Node, sc *listScope, underBoard bool, scrollCtx *listScrollCtx) []*LayoutNode {
+func measureListItems(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, root *model.Node, sc *listScope, underBoard bool, scrollCtx *listScrollCtx) ([]*LayoutNode, listVirtStats) {
 	items := listData(n, rt, sc)
 	if len(items) == 0 {
-		return nil
+		return nil, listVirtStats{}
 	}
 	total := len(items)
 	if total > maxListItems {
@@ -320,7 +326,7 @@ func measureListItems(n *model.Node, rt *runtime.Runtime, inter *Interaction, sc
 	if windowed && winEnd < total {
 		out = append(out, listSpacerLayout(float64(total-winEnd)*itemH))
 	}
-	return out
+	return out, listVirtStats{Windowed: windowed, Total: total, Start: winStart, End: winEnd}
 }
 
 // boardWorldCull returns the board-space AABB (physical px) that can reach

@@ -75,6 +75,14 @@ type LayoutNode struct {
 	// the same clamp.
 	ContentW int
 
+	// List window virtualization (list.go): when virtualize:"window" (or
+	// virtualize:true + itemHeight) runs inside a scroll viewport, measure
+	// records how many data rows exist vs how many were laid out this frame.
+	ListVirtWindowed bool
+	ListVirtTotal    int
+	ListVirtStart    int
+	ListVirtEnd      int // exclusive; rendered rows = End - Start
+
 	// EvalVars carries the repeat-instance evaluation scope (item/index/…) to
 	// every descendant of the instance — ItemScope stays root-only for the
 	// event sidecar, EvalVars is for prop evaluation (widgets' formCtx merge).
@@ -353,7 +361,14 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 		// — each item instantiates one measured subtree under its item scope.
 		// gridview repeats the same way (render_widgets.go gridView); the grid
 		// branches below lay the items out in columns.
-		for _, cln := range measureListItems(n, rt, inter, scale, root, sc, childBoard, scrollCtx) {
+		kids, virt := measureListItems(n, rt, inter, scale, root, sc, childBoard, scrollCtx)
+		if virt.Windowed {
+			ln.ListVirtWindowed = true
+			ln.ListVirtTotal = virt.Total
+			ln.ListVirtStart = virt.Start
+			ln.ListVirtEnd = virt.End
+		}
+		for _, cln := range kids {
 			if cln.NeedsRedraw {
 				ln.NeedsRedraw = true
 			}

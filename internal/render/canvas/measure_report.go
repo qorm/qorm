@@ -117,6 +117,8 @@ type measureSnap struct {
 	marginT, marginB, marginL, marginR int
 	contentW, contentH                 int // scroll overflow
 	zIndex                             int // 0 = CSS auto
+	listVirtWindowed                   bool
+	listVirtTotal, listVirtStart, listVirtEnd int
 	contrastBG                         color.RGBA
 	contrastUnavailable                string
 }
@@ -166,6 +168,10 @@ func collectLayoutSnaps(ln *LayoutNode, out map[string]measureSnap, inherited co
 			marginL: s.MarginLeft, marginR: s.MarginRight,
 			contentW: ln.ContentW, contentH: ln.ContentH,
 			zIndex:     s.ZIndex,
+			listVirtWindowed: ln.ListVirtWindowed,
+			listVirtTotal:    ln.ListVirtTotal,
+			listVirtStart:    ln.ListVirtStart,
+			listVirtEnd:      ln.ListVirtEnd,
 			contrastBG: ctx.background, contrastUnavailable: ctx.unavailableReason(),
 		}
 	}
@@ -450,8 +456,26 @@ func measureRowFromGraph(m *model.Node, n graph.Node, b *graph.BaseNode, sn meas
 	}
 	enrichSemantics(row, sem)
 	enrichHostLimits(row, m)
+	enrichListVirtual(row, sn)
 	row["tabindex"] = ""
 	return row
+}
+
+func enrichListVirtual(row map[string]any, sn measureSnap) {
+	if !sn.listVirtWindowed || sn.listVirtTotal <= 0 {
+		return
+	}
+	rendered := sn.listVirtEnd - sn.listVirtStart
+	if rendered < 0 {
+		rendered = 0
+	}
+	row["listVirtualization"] = map[string]any{
+		"windowed": true,
+		"total":    sn.listVirtTotal,
+		"start":    sn.listVirtStart,
+		"end":      sn.listVirtEnd,
+		"rendered": rendered,
+	}
 }
 
 func measureRowFromSnap(id string, sn measureSnap, sem measureSemantic, scale int, logical bool) map[string]any {
@@ -480,6 +504,7 @@ func measureRowFromSnap(id string, sn measureSnap, sem measureSemantic, scale in
 	enrichContrast(row, sn)
 	enrichSemantics(row, sem)
 	enrichHostLimits(row, sn.node)
+	enrichListVirtual(row, sn)
 	row["tabindex"] = ""
 	return row
 }
