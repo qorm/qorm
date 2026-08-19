@@ -312,8 +312,110 @@ func TestMaterializeExpandsListRenderItem(t *testing.T) {
 	}
 }
 
+func TestMaterializeExpandsJSONComponents(t *testing.T) {
+	app := &model.App{
+		Entry: "main",
+		Components: map[string]*model.Node{
+			"metric": {Type: "column", Children: []*model.Node{
+				{Type: "text", Text: "{{prop.label}}"},
+				{Type: "text", Text: "{{prop.value}}"},
+			}},
+			"panel": {Type: "column", Children: []*model.Node{
+				{Type: "text", Text: "{{prop.title}}"},
+				{Type: "slot"},
+			}},
+		},
+		Scenes: map[string]*model.Node{
+			"main": {Type: "column", ID: "root", Children: []*model.Node{
+				{Type: "metric", ID: "m1", Label: "Revenue", Value: "$12.4k"},
+				{Type: "panel", ID: "acct", Props: map[string]any{"title": "Account"}, Children: []*model.Node{
+					{Type: "text", Text: "Pro"},
+				}},
+			}},
+		},
+	}
+	rt := qrt.New(app)
+	var texts []string
+	var ids []string
+	for _, n := range materialize(rt) {
+		if n.id != "" {
+			ids = append(ids, n.id)
+		}
+		if n.text != "" {
+			texts = append(texts, n.text)
+		}
+	}
+	joined := strings.Join(texts, ",")
+	for _, want := range []string{"Revenue", "$12.4k", "Account", "Pro"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("component template missing %q, texts=%v", want, texts)
+		}
+	}
+	idJoin := strings.Join(ids, ",")
+	if !strings.Contains(idJoin, "m1") || !strings.Contains(idJoin, "acct") {
+		t.Errorf("instance ids lost, ids=%v", ids)
+	}
+}
+
+func TestSimulateEventUsesListItemScope(t *testing.T) {
+	app := &model.App{
+		Entry: "main",
+		GlobalState: model.GlobalState{Initial: map[string]any{
+			"items": []any{
+				map[string]any{"id": "alpha"},
+				map[string]any{"id": "beta"},
+			},
+			"picked": "",
+		}},
+		Actions: map[string]*model.Action{
+			"mark": {ID: "mark", Steps: []model.Step{
+				{Type: "state.set", Path: "picked", Value: "{{ id }}"},
+			}},
+		},
+		Scenes: map[string]*model.Node{
+			"main": {Type: "list", ID: "lst", Data: "{{state.items}}",
+				Template: &model.Node{
+					Type:    "button",
+					Text:    "{{item.id}}",
+					OnPress: &model.Invoke{Name: "mark", Args: map[string]string{"id": "{{item.id}}"}},
+				}},
+		},
+	}
+	rt := qrt.New(app)
+	if err := simulateEvent(rt, Step{Target: map[string]any{"text": "beta"}, Event: "press"}); err != nil {
+		t.Fatalf("press beta: %v", err)
+	}
+	if got := qrt.Stringify(rt.State["picked"]); got != "beta" {
+		t.Fatalf("picked = %q, want beta (item scope must evaluate {{item.id}})", got)
+	}
+}
+
+func TestRunRefusesErrorDiagnostics(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "scenes"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "qorm.json"), []byte(`{"type":"app","id":"broken","entry":"main"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	scene := `{"type":"scene","id":"main","root":{"type":"text","id":"t","text":"hi"},"onEnter":"missing"}`
+	if err := os.WriteFile(filepath.Join(dir, "scenes", "main.json"), []byte(scene), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := Run(dir, nil)
+	if err == nil {
+		t.Fatal("Run must refuse an app with error-level loader diagnostics")
+	}
+	if !strings.Contains(err.Error(), ErrLoad) {
+		t.Errorf("error = %v, want %s", err, ErrLoad)
+	}
+	if !strings.Contains(err.Error(), "onEnter") {
+		t.Errorf("error = %v, want to name the dangling onEnter", err)
+	}
+}
+
 func TestRunExampleTodoAndDerived(t *testing.T) {
-	for _, dir := range []string{"../../examples/todo", "../../examples/derived"} {
+	for _, dir := range []string{"../../examples/todo", "../../examples/derived", "../../examples/uikit"} {
 		report, err := Run(dir, nil)
 		if err != nil {
 			t.Errorf("%s: Run: %v", dir, err)

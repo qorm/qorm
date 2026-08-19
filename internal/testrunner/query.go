@@ -21,6 +21,11 @@ type matNode struct {
 	// style, then layout — the same maps an author reads). Non-scalar values
 	// (arrays, objects) are not materialized in the MVP.
 	props map[string]string
+	// ctx is the evaluation scope this node was materialized under (state +
+	// any enclosing list item / JSON-component prop map). simulate_event
+	// evaluates handler args against it so {{item.id}} / {{prop.x}} match
+	// the HTML Handler.Scope and canvas itemInstance paths.
+	ctx map[string]any
 }
 
 // bindingCtx is the renderer's expression context: state, t (catalog), route,
@@ -51,8 +56,8 @@ func sceneName(rt *qrt.Runtime) string {
 // and every text/binding is interpolated against the live state. List and
 // gridview `renderItem` templates are instantiated once per data item (item
 // / index / first / last in scope, matching the HTML and canvas renderers).
-// JSON-component expansion is still out of scope — queries see the instance
-// node, not the substituted template.
+// JSON-component instances expand their template with {{prop.x}} and slots,
+// the same contract as HTML renderComponent and canvas instantiateComponent.
 func materialize(rt *qrt.Runtime) []*matNode {
 	root := rt.App.EntryRoot()
 	if sc := rt.App.Scenes[rt.Scene]; sc != nil {
@@ -60,8 +65,8 @@ func materialize(rt *qrt.Runtime) []*matNode {
 	}
 	base := bindingCtx(rt)
 	var out []*matNode
-	var walk func(n *model.Node, ctx map[string]any)
-	walk = func(n *model.Node, ctx map[string]any) {
+	var walk func(n *model.Node, ctx map[string]any, depth int)
+	walk = func(n *model.Node, ctx map[string]any, depth int) {
 		if n == nil {
 			return
 		}
@@ -72,7 +77,7 @@ func materialize(rt *qrt.Runtime) []*matNode {
 			}
 			// The when container itself renders nothing; the branch does.
 			if branch != nil {
-				walk(branch, ctx)
+				walk(branch, ctx, depth)
 			}
 			return
 		}
@@ -83,12 +88,20 @@ func materialize(rt *qrt.Runtime) []*matNode {
 		if strings.Contains(typ, "{{") {
 			typ = qrt.Stringify(qrt.EvalBinding(typ, ctx)) // bound `type`
 		}
-		out = append(out, &matNode{n: n, id: n.ID, typ: typ, text: nodeText(rt, n, ctx), props: nodeProps(rt, n, ctx)})
+		out = append(out, &matNode{
+			n: n, id: nodeID(n, ctx), typ: typ,
+			text: nodeText(rt, n, ctx), props: nodeProps(rt, n, ctx), ctx: ctx,
+		})
+		if name := componentRef(rt, n); name != "" && depth < maxCompDepth {
+			clone, inner := instantiateComponent(n, rt.App.Components[name], name, ctx, rt)
+			walk(clone, inner, depth+1)
+			return
+		}
 		if isRepeat(typ) {
 			tmpl := n.Template
 			if tmpl == nil {
 				for _, c := range n.Children {
-					walk(c, ctx)
+					walk(c, ctx, depth)
 				}
 				return
 			}
@@ -102,16 +115,28 @@ func materialize(rt *qrt.Runtime) []*matNode {
 			}
 			alias, idxKey, firstKey, lastKey := listAliasNames(as)
 			for i, it := range items {
-				walk(tmpl, itemScope(ctx, alias, idxKey, firstKey, lastKey, it, i, len(items)))
+				walk(tmpl, itemScope(ctx, alias, idxKey, firstKey, lastKey, it, i, len(items)), depth)
 			}
 			return
 		}
 		for _, c := range n.Children {
-			walk(c, ctx)
+			walk(c, ctx, depth)
 		}
 	}
-	walk(root, base)
+	walk(root, base, 0)
 	return out
+}
+
+// nodeID is the node's materialized id: a binding in the id field evaluates
+// in the current scope so list rows can be addressed as todo_done_{{item.id}}.
+func nodeID(n *model.Node, ctx map[string]any) string {
+	if n == nil || n.ID == "" {
+		return ""
+	}
+	if strings.Contains(n.ID, "{{") {
+		return qrt.Stringify(qrt.EvalBinding(n.ID, ctx))
+	}
+	return n.ID
 }
 
 // maxListItems caps repeat expansion in tests — same budget as the canvas

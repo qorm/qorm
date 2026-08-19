@@ -56,8 +56,9 @@
 // refused with query_invalid_selector (path selects on state, so the spec
 // points those reads at state_equals). `semantic` is deferred: the model has
 // no semantic-tag slot yet. List and gridview renderItem templates are
-// expanded once per data item; JSON-component instance expansion is still
-// deferred.
+// expanded once per data item (handler args evaluate in the item's scope);
+// JSON-component instances expand their template with {{prop.x}} and slots.
+// Error-level loader diagnostics fail the run as test_load_error.
 //
 // # Error codes
 //
@@ -66,7 +67,8 @@
 // additions (documented here; the spec's code list is updated on its next
 // revision):
 //
-//	test_load_error        the app directory could not be loaded
+//	test_load_error        the app directory could not be loaded, or the
+//	                       loader reported error-level diagnostics
 //	test_none_found        no test documents found under the app directory
 //	test_doc_invalid       a test document is malformed or not type:"test"
 //	test_step_unknown      unknown step type

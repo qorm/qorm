@@ -78,10 +78,10 @@ are generated from the code and kept in sync by tests.
 | **Language** | JSON + QScript + Go | Dart | JavaScript | Rust + JS | JavaScript | C# / XAML | Kotlin | Kotlin |
 | **UI paradigm** | Declarative JSON | Declarative widget | Declarative JSX | Web (HTML/CSS) | Web (HTML/CSS) | Declarative XAML | Shared logic, native UI | Declarative Compose |
 | **Rendering** | HTML/CSS (WebView) + native canvas | Skia / Impeller | Native components | System WebView | Chromium | Native controls | Native controls | Skia |
-| **Platforms** | Web, iOS, Android, macOS, Linux, Windows, Mini-program | Web, iOS, Android, macOS, Linux, Windows | iOS, Android, Web (beta) | macOS, Linux, Windows, iOS, Android (beta) | macOS, Linux, Windows | iOS, Android, macOS, Windows | iOS, Android, Desktop, Web | iOS, Android, Desktop, Web |
+| **Platforms** | Web, iOS, Android, macOS, Linux, Windows, Mini-program (static WXML) | Web, iOS, Android, macOS, Linux, Windows | iOS, Android, Web (beta) | macOS, Linux, Windows, iOS, Android (beta) | macOS, Linux, Windows | iOS, Android, macOS, Windows | iOS, Android, Desktop, Web | iOS, Android, Desktop, Web |
 | **Binary size** | ~7 MB static | ~15-25 MB | ~7-15 MB | ~3-10 MB | ~150+ MB | ~10-20 MB | ~5-15 MB | ~10-20 MB |
 | **Hot reload** | Yes (SSE live push) | Yes (stateful) | Yes (Fast Refresh) | Yes (Vite HMR) | Yes (HMR) | Yes (XAML) | Partial | Yes |
-| **AI-agent native (MCP)** | **Yes — 20+ tools, first-class** | No | No | No | No | No | No | No |
+| **AI-agent native (MCP)** | **Yes — 25 tools, first-class** | No | No | No | No | No | No | No |
 | **Human-AI live session** | **Yes — shared runtime** | No | No | No | No | No | No | No |
 | **Signed bundles** | **Yes — ed25519** | No | No | No | No | No | No | No |
 | **Built-in OTA** | **Yes — with rollback** | No | CodePush (3rd-party) | No | No | No | No | No |
@@ -94,7 +94,7 @@ are generated from the code and kept in sync by tests.
 
 **QORM-exclusive features** — no other framework offers these today:
 
-- **Agent-native MCP**: 20+ tools to read, edit (review-gated), run and self-verify a
+- **Agent-native MCP**: 25 tools to read, edit (review-gated), run and self-verify a
   live app. Seamlessly integrates with Claude, Cursor, Windsurf, or any MCP-compatible agent.
 - **Human-AI live session**: A human and an AI operate the same running app at the same time —
   the foundational premise of QORM's architecture.

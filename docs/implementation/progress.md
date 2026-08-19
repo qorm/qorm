@@ -1,6 +1,18 @@
 # 实施进度
 
-> 主控同步 · 更新：2026-08-19 **第四轮（v0.9.4 缺口收口）落地** · `go test ./...` 全绿
+> 主控同步 · 更新：2026-08-19 **第五轮落地** · 第四轮已提交 `8b640a7`
+
+## 第五轮（2026-08-19）
+
+第四轮故意留下的可验证性缺口：组件物化、list item scope、loader 错误被 test/check 丢掉。
+
+| 目标 | 状态 | 证据 |
+|------|------|------|
+| G7 JSON 组件物化 + item scope | 🟢 | `TestMaterializeExpandsJSONComponents`；`TestSimulateEventUsesListItemScope`；`examples/uikit/tests` |
+| G8 `qorm test` / `qorm check` 拒绝 error 诊断 | 🟢 | `TestRunRefusesErrorDiagnostics`；`TestCmdCheckRefusesErrorDiagnostics` |
+| G9 对比表诚实 | 🟢 | README 小程序=静态 WXML；MCP=25 工具 |
+
+未做：GTK 接线、Error Boundary、新 widget。
 
 ## 第四轮（2026-08-19）
 
@@ -15,7 +27,7 @@
 | G5 LAN 观察窗 loopback 门禁 | 🟢 | `TestLANObservationWindowLoopbackOnly` |
 | G6 `qorm package --revoked` | 🟢 | `TestPackageUpdateFlagPairing` + `TestOfflineHTMLWithRevokedUpdateConfig` |
 
-详见 [analysis-and-plan.md](analysis-and-plan.md)。未做：GTK 接线、组件物化、Error Boundary、新 widget。
+详见 [analysis-and-plan.md](analysis-and-plan.md)。未做：GTK 接线、Error Boundary、新 widget。
 
 ## 窗口建设完善轮（2026-08-13）
 

@@ -740,6 +740,13 @@ func cmdCheck(args []string) int {
 		fmt.Fprintln(os.Stderr, "usage: qorm check <app-dir> (--checks checks.json | --audit) [--width N] [--physical] [-o report.json]")
 		return 2
 	}
+	// Loader errors (computed dynamic keys, dangling onEnter, …) must fail
+	// the check the same way they fail `qorm build`: a green layout report
+	// on a statically-broken app is a false proof.
+	if n := printDiagnostics(in); n > 0 {
+		fmt.Fprintf(os.Stderr, "error: %d error-level diagnostic(s) above — refusing to check a broken app (fix them, or use `qorm run` to iterate)\n", n)
+		return 1
+	}
 	if err := runCheck(in, checks, out, audit, width, physical); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1

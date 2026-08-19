@@ -74,10 +74,10 @@ QORM 为 AI 智能体而生：只需**给你的 Agent 一句话**，就能自动
 | **开发语言** | JSON + QScript + Go | Dart | JavaScript | Rust + JS | JavaScript | C# / XAML | Kotlin | Kotlin |
 | **UI 范式** | 声明式 JSON | 声明式 Widget | 声明式 JSX | Web (HTML/CSS) | Web (HTML/CSS) | 声明式 XAML | 共享逻辑+原生 UI | 声明式 Compose |
 | **渲染方式** | HTML/CSS (WebView) + 原生画布 | Skia / Impeller | 原生组件 | 系统 WebView | Chromium | 原生控件 | 原生控件 | Skia |
-| **支持平台** | Web、iOS、Android、macOS、Linux、Windows、小程序 | Web、iOS、Android、macOS、Linux、Windows | iOS、Android、Web (beta) | macOS、Linux、Windows、iOS、Android (beta) | macOS、Linux、Windows | iOS、Android、macOS、Windows | iOS、Android、桌面、Web | iOS、Android、桌面、Web |
+| **支持平台** | Web、iOS、Android、macOS、Linux、Windows、小程序（静态 WXML） | Web、iOS、Android、macOS、Linux、Windows | iOS、Android、Web (beta) | macOS、Linux、Windows、iOS、Android (beta) | macOS、Linux、Windows | iOS、Android、macOS、Windows | iOS、Android、桌面、Web | iOS、Android、桌面、Web |
 | **包体积** | ~7 MB 静态二进制 | ~15-25 MB | ~7-15 MB | ~3-10 MB | ~150+ MB | ~10-20 MB | ~5-15 MB | ~10-20 MB |
 | **热重载** | 支持 (SSE 实时推送) | 支持 (有状态) | 支持 (Fast Refresh) | 支持 (Vite HMR) | 支持 (HMR) | 支持 (XAML) | 部分支持 | 支持 |
-| **AI 智能体原生 (MCP)** | **支持 — 20+ 工具，一等公民** | 不支持 | 不支持 | 不支持 | 不支持 | 不支持 | 不支持 | 不支持 |
+| **AI 智能体原生 (MCP)** | **支持 — 25 工具，一等公民** | 不支持 | 不支持 | 不支持 | 不支持 | 不支持 | 不支持 | 不支持 |
 | **人机实时协作** | **支持 — 共享运行时** | 不支持 | 不支持 | 不支持 | 不支持 | 不支持 | 不支持 | 不支持 |
 | **签名包** | **支持 — ed25519** | 不支持 | 不支持 | 不支持 | 不支持 | 不支持 | 不支持 | 不支持 |
 | **内置热更新 (OTA)** | **支持 — 含回滚** | 不支持 | CodePush (第三方) | 不支持 | 不支持 | 不支持 | 不支持 | 不支持 |
@@ -90,7 +90,7 @@ QORM 为 AI 智能体而生：只需**给你的 Agent 一句话**，就能自动
 
 **QORM 独有特性** —— 以下能力目前没有任何其他框架提供:
 
-- **智能体原生 MCP**: 提供 20+ 项标准化工具，支持结构化查询、审查级编辑、状态执行与几何校验，无缝集成 Claude、Cursor、Windsurf 等主流智能体。
+- **智能体原生 MCP**: 提供 25 项标准化工具，支持结构化查询、审查级编辑、状态执行与几何校验，无缝集成 Claude、Cursor、Windsurf 等主流智能体。
 - **人机共享会话**: 人类开发者与 AI 智能体共同在同一应用运行时中协同操作 —— 这是 QORM 原生架构的核心基石。
 - **签名包 + 热更新**: 基于 ed25519 签名及内容寻址的工件,本地校验完整性防篡改,支持高可靠热更新与快速回滚。
 - **设计验证**: 智能体通过 `qorm measure` / `qorm check` 测量实际渲染几何与像素约束，以客观数据验证修改效果。

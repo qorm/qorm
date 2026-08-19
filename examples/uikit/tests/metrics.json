@@ -1,0 +1,14 @@
+{
+  "qorm": "0.1",
+  "type": "test",
+  "id": "uikit_metrics",
+  "scene": "main",
+  "steps": [],
+  "assert": [
+    { "type": "node_exists", "target": { "id": "m1" } },
+    { "type": "node_exists", "target": { "text": "Revenue" } },
+    { "type": "node_exists", "target": { "text": "$12.4k" } },
+    { "type": "node_exists", "target": { "text": "Plan" } },
+    { "type": "node_exists", "target": { "text": "Pro" } }
+  ]
+}

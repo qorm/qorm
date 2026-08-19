@@ -1,6 +1,6 @@
 # QORM 整体分析与目标实施规划
 
-> 主控文档 · 2026-08-19 **第四轮（v0.9.4 缺口收口）** · 以代码、测试与 `examples/` 为准
+> 主控文档 · 2026-08-19 **第五轮（testrunner 组件物化 + 诊断联动）** · 第四轮 G1–G6 已提交
 > 第三轮（2026-08-13）G0–G4 已随 v0.9.1–v0.9.2 交付；v0.9.3 仓库改名，
 > v0.9.4 落地 agent.policy / capability 门 / breakpoints / partial render。
 > 本轮关闭「目标对照实现」审计里排过序的缺口，不扩 widget、不加 MCP 工具。
@@ -19,13 +19,16 @@
 | G4 桌面 beta 诚实 | 支持矩阵注明 Linux chromeless 解析但不剥 GTK 装饰 | `QORM_UPDATE_DOCS=1 go test ./internal/support` |
 | G5 LAN 观察窗 | `--lan` 下 `/logwindow` `/console` `/dev/tree` `/dev/canvas` `/dev/highlight`：loopback 免鉴权，非回环要 admin token | token_gate 测试：127.0.0.1 200，10.x 401，admin 200，page token 401 |
 | G6 package --revoked | OTA 包装注入吊销快照 | 缺 `--update-url` 时拒绝；有配对时 `__QORM_UPDATE__` 含 `revoked` |
+| G7 JSON 组件物化 | `qorm test` 展开组件模板 + slot；`simulate_event` 用 list item / prop 作用域求 handler 参数 | `TestMaterializeExpandsJSONComponents`；`TestSimulateEventUsesListItemScope`；`qorm test examples/uikit` |
+| G8 诊断联动 | error 级 loader 诊断让 `qorm test` / `qorm check` 失败（computed 动态 key、悬空 onEnter） | `TestRunRefusesErrorDiagnostics`；`TestCmdCheckRefusesErrorDiagnostics` |
+| G9 对比表诚实 | README 小程序标静态 WXML；MCP 工具数 25 | README en+zh |
 
 完成门槛：相关包测试绿；文档生成器同步（mcp / support）；不 push。
 
 ## 2. 实施决策
 
 1. **G1 不实现任意 `fontFamily`。** canvas 字体是 bitmap + CJK subset；把「忽略了什么」写进 measure，agent 才能证明差距。webview 一律标 placeholder（`-tags canvaswebview` 除外的语义：纯 Go 宿主没有引擎）。
-2. **G2 不物化 JSON 组件、不捕获 list 行的 item scope 到 `simulate_event`。** 查询能看见行文本即可；对行内按钮的 press 仍按模板节点 + 全局 ctx 求值（与 HTML Handler.Scope 不等价），测试只测 add 按钮 + `node_exists`。
+2. **G2 第四轮只物化 list。第五轮补上 JSON 组件与 list item scope。** 行内按钮的 press 按物化节点的 ctx 求 `{{item.id}}` / `{{prop.x}}`，与 HTML Handler.Scope / canvas itemInstance 对齐。
 3. **G4 不接线 GTK。** Linux 原生层刻意 cgo-free DBus；接线等于推翻该约束。矩阵改注释，状态保持 beta。
 4. **G5 产品决策：观察窗绑在 loopback。** 满足 AGENTS.md「必须开人类观察窗」，同时堵住 LAN 对等端裸读 `/dev/tree`。不把 token 嵌进 logwindow 页（第三轮已禁止 admin token 出现在任何响应页）。
 5. **非目标：** 新 widget、新 MCP 工具、小程序交互运行时、Platform Pack、Error Boundary / http cancel、VS Code LSP、Registry、马里奥 v2 未移植回归。
@@ -36,6 +39,8 @@
 |------|------|
 | G1 | `internal/render/canvas/measure_report.go` · `internal/mcp/tools.go` · `internal/mcp/doc.go` · `internal/measure/measure.go` |
 | G2 | `internal/testrunner/query.go` · `internal/testrunner/doc.go` · `examples/todo/tests` · `examples/derived/tests` |
+| G7 | `internal/testrunner/components.go` · `internal/testrunner/query.go` · `examples/uikit/tests` |
+| G8 | `internal/testrunner/testrunner.go` · `cmd/qorm/commands.go` |
 | G3 | `README.md` · `docs/security/security-model.md` · `docs/zh/security/security-model.md` · `integrations/skill/SKILL.md` · 本目录 |
 | G4 | `internal/support/support.go` |
 | G5 | `internal/server/server.go` · `internal/server/token_gate_test.go` |

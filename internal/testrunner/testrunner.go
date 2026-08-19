@@ -123,11 +123,15 @@ func Run(appDir string, files []string) (*Report, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %v", ErrLoad, err)
 	}
+	if errs := errorLevel(app.Diagnostics); len(errs) > 0 {
+		return nil, fmt.Errorf("%s: %d error-level diagnostic(s) — refusing to run tests against a broken app: %s", ErrLoad, len(errs), strings.Join(errs, "; "))
+	}
 
 	docs, diags, err := collectDocs(appDir, files)
 	if err != nil {
 		return nil, err
 	}
+	report.Diagnostics = append(report.Diagnostics, app.Diagnostics...)
 	report.Diagnostics = append(report.Diagnostics, diags...)
 	if len(docs) == 0 {
 		return nil, fmt.Errorf("%s: no type:\"test\" documents found under %s (canonical location: %s)", ErrNoneFound, appDir, filepath.Join(appDir, "tests"))
@@ -461,14 +465,44 @@ func simulateEvent(rt *qrt.Runtime, step Step) error {
 		}
 		return scriptErr(rt)
 	}
-	inv, event, err := targetHandler(rt, step.Target, step.Event)
+	inv, event, ctx, err := targetHandler(rt, step.Target, step.Event)
 	if err != nil {
 		return err
 	}
-	if err := rt.DispatchErr(inv.Name, rt.EvalArgs(inv.Args)); err != nil {
+	name := inv.Name
+	if strings.Contains(name, "{{") {
+		name = qrt.Stringify(qrt.EvalBinding(name, ctx))
+	}
+	if err := rt.DispatchErr(name, evalStringMap(inv.Args, ctx)); err != nil {
 		return fmt.Errorf("%s: dispatch %q: %v", ErrRuntime, event, err)
 	}
 	return scriptErr(rt)
+}
+
+// evalStringMap interpolates invoke arg expressions against the given scope
+// (scene + list item + component prop), the testrunner equivalent of the
+// HTML Handler.Scope capture.
+func evalStringMap(args map[string]string, ctx map[string]any) map[string]any {
+	if len(args) == 0 {
+		return nil
+	}
+	out := make(map[string]any, len(args))
+	for k, v := range args {
+		out[k] = qrt.EvalBinding(v, ctx)
+	}
+	return out
+}
+
+// errorLevel returns the diagnostics the loader marked as errors (`error:`
+// prefix). Warnings stay on the report; errors fail the run.
+func errorLevel(diags []string) []string {
+	var out []string
+	for _, d := range diags {
+		if strings.HasPrefix(strings.ToLower(strings.TrimSpace(d)), "error:") {
+			out = append(out, d)
+		}
+	}
+	return out
 }
 
 // scriptErr reports a script action's runtime failure, which surfaces on
@@ -520,27 +554,29 @@ var events = map[string]string{
 // matches no node is test_target_not_found; more than one is
 // test_query_ambiguous; unbound events and unhandled nodes get their own
 // codes, so a typo never masquerades as a green no-op.
-func targetHandler(rt *qrt.Runtime, sel map[string]any, event string) (*model.Invoke, string, error) {
+func targetHandler(rt *qrt.Runtime, sel map[string]any, event string) (*model.Invoke, string, map[string]any, error) {
 	nodes := materialize(rt)
 	matches := matchSelector(nodes, sel)
 	if len(matches) == 0 {
-		return nil, event, fmt.Errorf("%s: no node matches selector {%s} in scene %q", ErrTargetNotFound, selectorString(sel), sceneName(rt))
+		return nil, event, nil, fmt.Errorf("%s: no node matches selector {%s} in scene %q", ErrTargetNotFound, selectorString(sel), sceneName(rt))
 	}
 	if len(matches) > 1 {
-		return nil, event, fmt.Errorf("%s: selector {%s} matches %d nodes; simulate_event needs exactly one", ErrQueryAmbiguous, selectorString(sel), len(matches))
+		return nil, event, nil, fmt.Errorf("%s: selector {%s} matches %d nodes; simulate_event needs exactly one", ErrQueryAmbiguous, selectorString(sel), len(matches))
 	}
 	field, ok := events[strings.ToLower(event)]
 	if !ok {
-		return nil, event, fmt.Errorf("%s: event %q (supported: press, change, keydown, keyup, hoverin, hoverout, touchstart, touchmove, touchend)", ErrEventUnknown, event)
+		return nil, event, nil, fmt.Errorf("%s: event %q (supported: press, change, keydown, keyup, hoverin, hoverout, touchstart, touchmove, touchend)", ErrEventUnknown, event)
 	}
-	inv := handlerFor(matches[0].n, field)
+	mn := matches[0]
+	inv := handlerFor(mn.n, field)
 	if inv == nil {
-		return nil, event, fmt.Errorf("%s: node %q has no %s handler", ErrEventNotHandled, matches[0].id, field)
+		return nil, event, nil, fmt.Errorf("%s: node %q has no %s handler", ErrEventNotHandled, mn.id, field)
 	}
-	if strings.Contains(inv.Name, "{{") {
-		inv = &model.Invoke{Name: qrt.Stringify(qrt.EvalBinding(inv.Name, bindingCtx(rt))), Args: inv.Args}
+	ctx := mn.ctx
+	if ctx == nil {
+		ctx = bindingCtx(rt)
 	}
-	return inv, event, nil
+	return inv, event, ctx, nil
 }
 
 // handlerFor reads a handler field off a model node by name, so the event map
