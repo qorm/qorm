@@ -102,25 +102,25 @@ func (e *Engine) CollectMeasureOpts(opts MeasureOpts) []byte {
 }
 
 type measureSnap struct {
-	node                               *model.Node
-	id                                 string
-	typ                                string
-	absX, absY, w, h                   int
-	fs, fw, pad, br                    int
-	opacity                            float64
-	entranceOp                         float64 // 1 when settled; multiplies style opacity
-	animating                          bool
-	textAlign                          string
-	color, bg                          color.RGBA
-	strokeW                            float64
-	stroke                             color.RGBA
-	marginT, marginB, marginL, marginR int
-	contentW, contentH                 int // scroll overflow
-	zIndex                             int // 0 = CSS auto
-	listVirtWindowed                   bool
+	node                                      *model.Node
+	id                                        string
+	typ                                       string
+	absX, absY, w, h                          int
+	fs, fw, pad, br                           int
+	opacity                                   float64
+	entranceOp                                float64 // 1 when settled; multiplies style opacity
+	animating                                 bool
+	textAlign                                 string
+	color, bg                                 color.RGBA
+	strokeW                                   float64
+	stroke                                    color.RGBA
+	marginT, marginB, marginL, marginR        int
+	contentW, contentH                        int // scroll overflow
+	zIndex                                    int // 0 = CSS auto
+	listVirtWindowed                          bool
 	listVirtTotal, listVirtStart, listVirtEnd int
-	contrastBG                         color.RGBA
-	contrastUnavailable                string
+	contrastBG                                color.RGBA
+	contrastUnavailable                       string
 }
 
 type contrastContext struct {
@@ -167,12 +167,12 @@ func collectLayoutSnaps(ln *LayoutNode, out map[string]measureSnap, inherited co
 			marginT: s.MarginTop, marginB: s.MarginBot,
 			marginL: s.MarginLeft, marginR: s.MarginRight,
 			contentW: ln.ContentW, contentH: ln.ContentH,
-			zIndex:     s.ZIndex,
+			zIndex:           s.ZIndex,
 			listVirtWindowed: ln.ListVirtWindowed,
 			listVirtTotal:    ln.ListVirtTotal,
 			listVirtStart:    ln.ListVirtStart,
 			listVirtEnd:      ln.ListVirtEnd,
-			contrastBG: ctx.background, contrastUnavailable: ctx.unavailableReason(),
+			contrastBG:       ctx.background, contrastUnavailable: ctx.unavailableReason(),
 		}
 	}
 	childCtx := ctx

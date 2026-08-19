@@ -72,6 +72,7 @@ type listVirtStats struct {
 	Start    int
 	End      int // exclusive
 }
+
 // measuring a list candidate for window virtualization.
 type listScrollCtx struct {
 	scrollNode *model.Node
