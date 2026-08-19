@@ -5,6 +5,7 @@ import (
 	"image"
 	"math"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/qorm/platform/internal/model"
@@ -56,9 +57,122 @@ import (
 //   - keyboard focus traversal never enters instances (Focusables walks the
 //     model tree, which contains the template once, not the repeats), so
 //     Enter/Space activation and the focus ring are pointer-only there.
-//   - pagination/separator/groupBy/reorder/refresh/virtualize are HTML list
-//     features a later wave may port; item count is capped at maxListItems as
-//     the render-budget guard (HTML: maxRenderNodes, render.go:104).
+//   - pagination/separator/groupBy/reorder/refresh are HTML list features a
+//     later wave may port; canvas supports `virtualize: "window"` (and
+//     `virtualize: true` with `itemHeight`) inside a scroll viewport.
+//   - item count is capped at maxListItems as the render-budget guard (HTML:
+//     maxRenderNodes, render.go:104).
+
+const defaultListWindowPort = 800 // first-frame fallback (mirrors HTML defaultVirtualPort)
+
+// listScrollCtx carries the enclosing scroll viewport's live offset when
+// measuring a list candidate for window virtualization.
+type listScrollCtx struct {
+	scrollNode *model.Node
+	portH      float64
+	scrollTop  float64
+}
+
+// listWindowRange resolves canvas true windowing for a list inside a scroll
+// viewport. Returns ok=false to render all items (CSS-form virtualize, no
+// scroll parent, missing id/itemHeight, groupBy/reorderable).
+func listWindowRange(n *model.Node, scrollCtx *listScrollCtx, count int) (start, end int, itemH float64, ok bool) {
+	if scrollCtx == nil || n == nil || n.ID == "" || count == 0 {
+		return 0, count, 0, false
+	}
+	virt := listPropStr(n, "virtualize")
+	windowed := virt == "window" || (listPropBool(n, "virtualize") && listPropNum(n, "itemHeight", 0) > 0)
+	if !windowed {
+		return 0, count, 0, false
+	}
+	itemH = listPropNum(n, "itemHeight", 44)
+	if itemH <= 0 {
+		return 0, count, 0, false
+	}
+	if listPropStr(n, "groupBy") != "" || listPropBool(n, "reorderable") {
+		return 0, count, 0, false
+	}
+	port := scrollCtx.portH
+	if port <= 0 {
+		port = defaultListWindowPort
+	}
+	top := scrollCtx.scrollTop
+	if top < 0 {
+		top = 0
+	}
+	overscan := int(listPropNum(n, "overscan", 4))
+	if overscan < 0 {
+		overscan = 0
+	}
+	size := int(port/itemH) + 1 + 2*overscan
+	if size > count {
+		size = count
+	}
+	start = int(top/itemH) - overscan
+	if start > count-size {
+		start = count - size
+	}
+	if start < 0 {
+		start = 0
+	}
+	end = start + size
+	if end > count {
+		end = count
+	}
+	return start, end, itemH, true
+}
+
+func listSpacerLayout(h float64) *LayoutNode {
+	if h <= 0 {
+		return nil
+	}
+	hi := int(math.Round(h))
+	return &LayoutNode{
+		Node:   &model.Node{Type: "column"},
+		Style:  NodeStyle{Height: hi},
+		Height: hi,
+	}
+}
+
+func listPropStr(n *model.Node, key string) string {
+	if v, ok := n.Prop(key); ok {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return ""
+}
+
+func listPropBool(n *model.Node, key string) bool {
+	if v, ok := n.Prop(key); ok {
+		switch t := v.(type) {
+		case bool:
+			return t
+		case string:
+			t = strings.TrimSpace(strings.ToLower(t))
+			return t != "" && t != "false" && t != "0"
+		case float64:
+			return t != 0
+		case int:
+			return t != 0
+		}
+	}
+	return false
+}
+
+func listPropNum(n *model.Node, key string, def float64) float64 {
+	if v, ok := n.Prop(key); ok {
+		switch t := v.(type) {
+		case float64:
+			return t
+		case int:
+			return float64(t)
+		case int64:
+			return float64(t)
+		}
+	}
+	return def
+}
 
 // maxListItems caps repeat expansion — the canvas render budget. A native
 // frame re-measures and re-records everything, so an unbounded repeat over a
@@ -151,14 +265,16 @@ func isIdent(s string) bool {
 // order. A conditionally hidden template (if/visible/show, when) yields no
 // instance for that item — the same shape the HTML path produces when
 // node() drops it.
-func measureListItems(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, root *model.Node, sc *listScope, underBoard bool) []*LayoutNode {
+func measureListItems(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, root *model.Node, sc *listScope, underBoard bool, scrollCtx *listScrollCtx) []*LayoutNode {
 	items := listData(n, rt, sc)
 	if len(items) == 0 {
 		return nil
 	}
-	if len(items) > maxListItems {
-		warnListCapped(root, len(items))
+	total := len(items)
+	if total > maxListItems {
+		warnListCapped(root, total)
 		items = items[:maxListItems]
+		total = len(items)
 	}
 	var as string
 	if v, ok := n.Prop("as"); ok {
@@ -166,16 +282,25 @@ func measureListItems(n *model.Node, rt *runtime.Runtime, inter *Interaction, sc
 	}
 	alias, idxKey, firstKey, lastKey := listAliasNames(as)
 	outer := evalCtxScope(rt, sc)
+	winStart, winEnd, itemH, windowed := listWindowRange(n, scrollCtx, total)
 	// Board frustum: skip items whose data x/y sits outside the camera
 	// so a mario/raiden tile list does not measure hundreds of off-screen
 	// images every frame. Only applies under a board (HUD lists are safe).
-	cull := underBoard && inter != nil && inter.Board.Active
+	cull := !windowed && underBoard && inter != nil && inter.Board.Active
 	var cullMinX, cullMaxX, cullMinY, cullMaxY float64
 	if cull {
 		cullMinX, cullMaxX, cullMinY, cullMaxY = boardWorldCull(inter, rt)
 	}
-	out := make([]*LayoutNode, 0, len(items))
-	for i, it := range items {
+	out := make([]*LayoutNode, 0, winEnd-winStart+2)
+	if windowed && winStart > 0 {
+		out = append(out, listSpacerLayout(float64(winStart)*itemH))
+	}
+	loopStart, loopEnd := 0, total
+	if windowed {
+		loopStart, loopEnd = winStart, winEnd
+	}
+	for i := loopStart; i < loopEnd; i++ {
+		it := items[i]
 		if cull {
 			if box, ok := itemWorldBox(it, n.Template, scale); ok {
 				if float64(box.Max.X) < cullMinX || float64(box.Min.X) > cullMaxX ||
@@ -184,15 +309,16 @@ func measureListItems(n *model.Node, rt *runtime.Runtime, inter *Interaction, sc
 				}
 			}
 		}
-		vars := itemVars(outer, alias, idxKey, firstKey, lastKey, it, i, len(items))
-		cln := measure(n.Template, rt, inter, scale, root, &listScope{vars: vars, index: i}, underBoard)
+		vars := itemVars(outer, alias, idxKey, firstKey, lastKey, it, i, total)
+		cln := measure(n.Template, rt, inter, scale, root, &listScope{vars: vars, index: i}, underBoard, scrollCtx)
 		if cln == nil {
 			continue
 		}
-		// The instance root carries the scope so PerformLayout can record the
-		// dispatch sidecar; descendants only needed it at evaluation time.
 		cln.ItemScope = vars
 		out = append(out, cln)
+	}
+	if windowed && winEnd < total {
+		out = append(out, listSpacerLayout(float64(total-winEnd)*itemH))
 	}
 	return out
 }

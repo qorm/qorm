@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/qorm/platform/internal/model"
@@ -505,5 +506,58 @@ func TestListAliasNamesMatchHTMLRenderer(t *testing.T) {
 			t.Errorf("as=%q: canvas (%q,%q,%q,%q) != HTML (%q,%q,%q,%q)",
 				as, gotA, gotI, gotF, gotL, wantA, wantI, wantF, wantL)
 		}
+	}
+}
+
+// Canvas `virtualize: "window"` inside a scroll viewport renders only rows
+// around the live offset; spacers preserve total scroll height.
+func TestCanvasListWindowSlicesAroundScroll(t *testing.T) {
+	items := make([]any, 500)
+	for i := range items {
+		items[i] = map[string]any{"label": fmt.Sprintf("%d", i)}
+	}
+	tpl := &model.Node{Type: "text", Props: map[string]any{"text": "{{index}}:{{item.label}}"}}
+	list := &model.Node{
+		Type: "list", ID: "l", Data: "{{state.items}}",
+		Props:    map[string]any{"virtualize": "window", "itemHeight": 20.0},
+		Template: tpl,
+	}
+	sv := &model.Node{
+		Type: "scroll", ID: "sv",
+		Style:    map[string]any{"width": 200.0, "height": 200.0},
+		Children: []*model.Node{list},
+	}
+	_ = sv // scroll viewport; offset driven via HandleScroll
+	root := &model.Node{Type: "column", ID: "root", Children: []*model.Node{sv}}
+	app := &model.App{Entry: "main", Scenes: map[string]*model.Node{"main": root}}
+	rt := runtime.New(app)
+	rt.State["items"] = items
+	e := NewEngine(rt, SoftwareRenderer{})
+	surf := NewHeadlessSurface(image.Pt(400, 400))
+	e.DrawFrame(surf)
+	e.HandlePointer(PointerInput{Type: PointerMove, X: 100, Y: 50})
+	if !e.HandleScroll(ScrollInput{DY: 2000}) {
+		t.Fatal("scroll must be consumed")
+	}
+	e.DrawFrame(surf)
+
+	texts := renderedTexts(t, e)
+	if got := len(texts); got > 30 || got < 10 {
+		t.Fatalf("window should render ~19 rows, got %d texts: %v", got, texts)
+	}
+	has96, has114 := false, false
+	for _, s := range texts {
+		if strings.Contains(s, "96:") {
+			has96 = true
+		}
+		if strings.Contains(s, "114:") {
+			has114 = true
+		}
+		if strings.HasPrefix(s, "0:") || strings.Contains(s, "499:") {
+			t.Errorf("row outside window rendered: %q", s)
+		}
+	}
+	if !has96 || !has114 {
+		t.Errorf("window should span rows ~96..114, got texts %v", texts)
 	}
 }

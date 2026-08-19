@@ -100,7 +100,7 @@ type LayoutNode struct {
 // the device-pixel ratio: design pixels are multiplied by it so the resulting
 // geometry is in physical pixels (HiDPI). Pass 1 for logical == physical.
 func Measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int) *LayoutNode {
-	return measure(n, rt, inter, scale, n, nil, false)
+	return measure(n, rt, inter, scale, n, nil, false, nil)
 }
 
 // MeasureScoped is Measure with a list-instance scope: widgets that measure
@@ -108,13 +108,13 @@ func Measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int) 
 // registry passes them, or bindings like {{item.label}} evaluate empty
 // (the scope never reaches the plain entry).
 func MeasureScoped(n *model.Node, rt *runtime.Runtime, inter *Interaction, vars map[string]any, scale int) *LayoutNode {
-	return measure(n, rt, inter, scale, n, &listScope{vars: vars}, false)
+	return measure(n, rt, inter, scale, n, &listScope{vars: vars}, false, nil)
 }
 
 // measure is the recursive body of Measure; root identifies the scene tree
 // for the one-shot unsupported-style-key warnings, and sc carries the repeat
 // scope when measuring inside a list item (nil outside lists, list.go).
-func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, root *model.Node, sc *listScope, underBoard bool) *LayoutNode {
+func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, root *model.Node, sc *listScope, underBoard bool, scrollCtx *listScrollCtx) *LayoutNode {
 	if n == nil {
 		return nil
 	}
@@ -148,7 +148,7 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 		}
 		if depth < maxCompDepth {
 			clone, vars := instantiateComponent(n, rt.App.Components[name], name, evalCtxScope(rt, sc), rt)
-			return measure(clone, rt, inter, scale, root, &listScope{vars: vars, index: idx, compDepth: depth + 1}, underBoard)
+			return measure(clone, rt, inter, scale, root, &listScope{vars: vars, index: idx, compDepth: depth + 1}, underBoard, scrollCtx)
 		}
 	}
 
@@ -353,15 +353,27 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 		// — each item instantiates one measured subtree under its item scope.
 		// gridview repeats the same way (render_widgets.go gridView); the grid
 		// branches below lay the items out in columns.
-		for _, cln := range measureListItems(n, rt, inter, scale, root, sc, childBoard) {
+		for _, cln := range measureListItems(n, rt, inter, scale, root, sc, childBoard, scrollCtx) {
 			if cln.NeedsRedraw {
 				ln.NeedsRedraw = true
 			}
 			ln.Children = append(ln.Children, cln)
 		}
 	} else {
+		childScroll := scrollCtx
+		if isScrollType(n.Type) {
+			port := float64(style.Height - 2*style.Padding)
+			if port < 0 {
+				port = 0
+			}
+			top := 0.0
+			if inter != nil && inter.ScrollOffsets != nil {
+				top = inter.ScrollOffsets[n].Y
+			}
+			childScroll = &listScrollCtx{scrollNode: n, portH: port, scrollTop: top}
+		}
 		for _, child := range n.Children {
-			if cln := measure(child, rt, inter, scale, root, sc, childBoard); cln != nil {
+			if cln := measure(child, rt, inter, scale, root, sc, childBoard, childScroll); cln != nil {
 				if cln.NeedsRedraw {
 					ln.NeedsRedraw = true
 				}

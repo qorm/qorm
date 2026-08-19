@@ -66,8 +66,9 @@ release it:
 1. runs `scripts/release.sh` (preflight → bump → tag → push),
 2. waits for the **Release** and **Docker image** workflows to go green,
 3. writes curated notes onto the GitHub Release,
-4. deploys the site with `web_server/deploy-site.sh`,
-5. verifies the release assets, the image tag, and the live site.
+4. deploys the site with `web_server/deploy-site.sh` and rebuilds games WASM with
+   `web_server/build-wasm.sh`,
+5. verifies the release assets, the image tag, and the live site (homepage + `/games/`).
 
 ## Site deploy only (maintainers only)
 
@@ -77,9 +78,18 @@ release it:
 
 Renders `docs/` → `/docs` and `api/` → `/api`, overlays the hand-written
 marketing landing pages (`web_server/site/index.html` + `index.zh.html` +
-`assets/`) at the root, backs up the current docroot, rsyncs, reloads
-OpenResty, and verifies the homepage is the landing page (not the docs index).
+`assets/`) at the root, copies `llms.txt`, backs up the current docroot,
+rsyncs (without deleting server-only extras: `/games`, `/playground`,
+`/demo`, …), reloads OpenResty, and verifies the homepage plus `/games/`.
 Run it any time docs or the landing pages change — it does not need a release.
+
+Rebuild the games-page canvas WASM (and push the four example trees) with:
+
+```sh
+./web_server/build-wasm.sh
+```
+
+That compile uses `-tags qorm_canvas`. Default `qorm package -p web` stays HTML morph.
 
 ## One-time setup
 

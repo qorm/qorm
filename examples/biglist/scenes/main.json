@@ -4,15 +4,18 @@
   "root": {
     "type": "column", "id": "root", "style": { "background": "var(--bg)", "padding": 12 }, "layout": { "width": "fill", "height": "fill" },
     "children": [
-      { "type": "list", "id": "rows", "data": "{{state.items}}", "virtualize": true, "itemHeight": 40,
-        "renderItem": {
-          "type": "row", "style": { "background": "var(--surface)", "padding": { "top": 10, "bottom": 10, "left": 12, "right": 12 }, "margin": { "bottom": 6 }, "borderWidth": 1, "borderColor": "var(--sep)", "borderRadius": 10, "gap": 10 }, "layout": { "align": "center" },
-          "children": [
-            { "type": "avatar", "initials": "{{item.name}}", "size": 24 },
-            { "type": "text", "text": "{{item.name}}", "style": { "color": "var(--label)", "fontSize": 14, "flexGrow": 1 } },
-            { "type": "badge", "label": "{{item.tag}}" }
-          ]
-        } }
+      { "type": "scrollview", "id": "sv", "style": { "width": "fill", "height": "fill" },
+        "children": [
+          { "type": "list", "id": "rows", "data": "{{state.items}}", "virtualize": "window", "itemHeight": 46,
+            "renderItem": {
+              "type": "row", "style": { "background": "var(--surface)", "padding": { "top": 10, "bottom": 10, "left": 12, "right": 12 }, "margin": { "bottom": 6 }, "borderWidth": 1, "borderColor": "var(--sep)", "borderRadius": 10, "gap": 10 }, "layout": { "align": "center" },
+              "children": [
+                { "type": "avatar", "initials": "{{item.name}}", "size": 24 },
+                { "type": "text", "text": "{{item.name}}", "style": { "color": "var(--label)", "fontSize": 14, "flexGrow": 1 } },
+                { "type": "badge", "label": "{{item.tag}}" }
+              ]
+            } }
+        ] }
     ]
   }
 }

@@ -6,6 +6,13 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+- **Canvas list window virtualization**: `virtualize: "window"` (and `virtualize: true` with `itemHeight`) inside a scroll viewport renders only rows around the live offset, with spacers preserving scroll height — mirrors the HTML `virtualize: "window"` contract on the software canvas host.
+- **Site sitemap regen**: `deploy-site.sh` rebuilds `sitemap.xml` from staged docs/api/landing on each deploy.
+
+### Docs
+- **v0.9.6 plan** and post-v0.9.5 progress sync; `RELEASE.md` documents `build-wasm.sh` in the full release orchestration.
+
 ## [v0.9.5] - 2026-08-19
 
 ### Added

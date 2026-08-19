@@ -1,8 +1,7 @@
 # QORM v0.9.5 发布规划
 
 > 主控文档 · 2026-08-19 · **主题：agent 可验证性收口**
-> 第四–八轮已在 main 落地（相对 origin 超前）；本文件是发版前的完整规划：
-> 范围内做什么、明确不做什么、怎么验收、怎么线上发布。
+> **v0.9.5 已发版。** 本文件是该 tag 的规划与完成定义，保留作对照。
 
 ## 1. 这一版要达成什么
 
@@ -30,7 +29,7 @@ v0.9.5 不扩表面（不加 widget、不加 MCP 工具）。只把验证闭环�
 | G10 | todo 行内 Done + `computed.*` 断言 | 🟢 | `tests/toggle.json` |
 | G11 | derived `as:line` / checkout 守卫 / tetris smoke | 🟢 | gift_line + checkout_* + move_left |
 | G12 | `state_lt/gt` + `repeat` + mario 左走 | 🟢 | `walk_left.json` |
-| R1 | mario 跳跃阈值；CHANGELOG；SKILL 游戏规则补 `layerCache` | 本轮 | `jump.json`；`## [Unreleased]` 非空 |
+| R1 | mario 跳跃阈值；CHANGELOG；SKILL 游戏规则补 `layerCache` | 🟢 | `jump.json`；已归档进 `[v0.9.5]` |
 
 ## 3. 明确不进 v0.9.5
 
@@ -62,4 +61,4 @@ v0.9.5 不扩表面（不加 widget、不加 MCP 工具）。只把验证闭环�
 - GitHub Release `v0.9.5`：≥6 个平台二进制 + SHA256SUMS。
 - `ghcr.io/qorm/platform:v0.9.5`。
 - qorm.com 首页 200，文档带上本轮 verification 口径。
-- 下一刀（不在本 tag）：canvas list 虚拟化，或 Error Boundary 的最小切片。
+- **v0.9.6 规划：** [v0.9.6-plan.md](v0.9.6-plan.md) — 主题 canvas list 视口裁剪；Error Boundary 延后。

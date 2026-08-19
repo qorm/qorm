@@ -1,10 +1,14 @@
 # 实施进度
 
-> 主控同步 · 更新：2026-08-19 **v0.9.5 规划已落地，准备发版**
+> 主控同步 · 更新：2026-08-19 **v0.9.5 已发版**（GitHub Release + GHCR + qorm.com）
 
 ## v0.9.5（2026-08-19）
 
 Agent 可验证性收口。规划见 [analysis-and-plan.md](analysis-and-plan.md)。G1–G12 已提交；R1（mario jump、CHANGELOG、SKILL `layerCache`）已落地。
+
+线上：tag `v0.9.5`、GitHub Release、`ghcr.io/qorm/platform:v0.9.5`、qorm.com 首页/文档已打戳。首次站点 rsync `--delete` 误删 `/games/` 等 extras，已从备份恢复；后续 deploy 保护 extras，并用 `qorm_canvas` WASM 与示例源同步 games 页。
+
+**下一版规划：** [v0.9.6-plan.md](v0.9.6-plan.md)（P0 收口完成；P1 canvas list `virtualize: "window"` 已落地，P1-3 measure 报告待补）。
 
 ## 第八轮（2026-08-19）
 
@@ -143,7 +147,7 @@ CI 变红触发排查，两个失败都是真实缺陷，按根因修复而非�
 | `db3455d` | 读门禁键于"除 POST 外全部方法"（动词绕过 P1）；runtime `EnterScriptError` 链内首错累积器（enter 链吞错 P1） |
 | `5e4e2c0` | `MarkPendingEnter`：mount_scene 步骤真正触发目标 onEnter（复审链镜发现的已交付功能洞） |
 
-## 已知债（记录在案，不在本轮）
+## 已知债（记录在案，不在 v0.9.6 核心）
 
 | 债 | 级别 | 说明 |
 |----|------|------|
@@ -151,19 +155,19 @@ CI 变红触发排查，两个失败都是真实缺陷，按根因修复而非�
 | POST /dev/state（DevTool 写）仅页面 token | P2 | 设计如此；持有页面 token 的 LAN 对端可写状态 |
 | /poll /events 无 token 帧流 | P2 | EventSource 无法带 header；载荷即 GET / 已公开的 UI |
 | /dev/tree /dev/canvas 无鉴权读 | P2 | DevTools 面，待 LAN 加固轮统一处理 |
-| `qorm package --revoked` 缺失 | P2 | 吊销快照无 CLI 注入路径，需手工内置 |
 | DevTool 页在 --lan 读面 401 降级 | P3 | 无 admin token 输入口，待产品决策 |
-| `qorm check` 不诊断 computed 动态 key | P3 | 加载已拒，check 联动待补 |
-| onEnter 悬空 action 引用静默 no-op | P3 | loader 不校验引用，测试作者笔误会绿跑 |
 | 弧 → 贝塞尔展平 | P3 | 当前按弦近似，曲线呈折线 |
 | token 比较非常数时间 | P3 | == 比较；dev 工具定位可接受，记录在案 |
+
+**v0.9.5 已闭环（移出债表）：** `qorm package --revoked`（G6）；`qorm check` 拒 computed 动态 key（`TestCmdCheckRefusesErrorDiagnostics`）；scene `onEnter` 悬空 action 加载错误（`loader` 诊断）。
 
 ## 发布
 
 | 项 | 状态 |
 |----|------|
-| 上一版 | **v0.9.1**（2026-08-13）：qorm test MVP · path widget · LAN 双 token 门禁（**GitHub Release 无二进制产物**——release.yml 在 cross-compile 修复前失败，tag 不可移动） |
-| 本版 | **v0.9.2**（2026-08-13）：changelog 归档 `014d5fc` · version bump `7f938bb` · annotated tag · main+tag push · **release 工作流绿，6 平台二进制 + SHA256SUMS 补齐** · 官网 deploy（wasm 同源重建防漂移 · 109 页 · sitemap 104 · 首页 v0.9.2 戳记 200） |
+| 上一版 | **v0.9.4**（2026-08-17）：agent.policy · capability 门 · breakpoints · partial render |
+| 本版 | **v0.9.5**（2026-08-19）：agent 可验证性 G1–G12 + R1 · tag + Release 6 二进制 + GHCR · 官网 v0.9.5（deploy 误删 games 已恢复 · canvas WASM 同步） |
+| 下一版 | **v0.9.6**（进行中）：canvas list 视口 window 化 · sitemap 再生 — 见 [v0.9.6-plan.md](v0.9.6-plan.md) |
 
 ## 链接
 
@@ -191,3 +195,5 @@ CI 变红触发排查，两个失败都是真实缺陷，按根因修复而非�
 | 2026-08-13 | 对抗复审 + CI 修复波：Windows chromeless×resizable/尺寸几何、macOS fixed 窗口状态恢复、两处编译错、config 0=fluid 覆盖 |
 | 2026-08-13 | CI build·vet·test 根因修复（audio sink 重生风暴护栏）+ README 去版本信息（en+zh） |
 | 2026-08-13 | **v0.9.2 发布**：changelog 归档 + bump + annotated tag + push；release 工作流绿（6 平台二进制补齐 v0.9.1 缺失）；官网 deploy 并验证首页 v0.9.2 |
+| 2026-08-19 | **v0.9.5 发布**；官网 rsync `--delete` 误删 games 后已恢复，并补 canvas WASM 同步 |
+| 2026-08-19 | **v0.9.6 规划 + P0/P1**：文档收口 · sitemap 再生 · canvas list `virtualize: "window"` |
