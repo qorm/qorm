@@ -6,6 +6,8 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+## [v0.9.7] - 2026-08-19
+
 ### Added
 - **Error Boundary (v0.9.7 start)**: app/scene-level `errorBoundary.scene` routes `onEnter`, top-level action, and render failures to a fallback scene; node-level `errorBoundary.fallback` swaps only the failing subtree for a fallback subtree.
 - **Boundary observability**: the runtime records the latest boundary trip (`level` / `phase` / `scene` / `nodeId` / `message`); canvas `CollectMeasure` now exposes it on the `__stage` row as `lastBoundaryError`.
@@ -1474,6 +1476,7 @@ Initial release: QORM, an agent-native declarative-UI runtime in pure Go.
 - Render performance: cached parsed expressions and reflection-free CSS
   numeric writes in the hot path.
 
+[v0.9.7]: https://github.com/qorm/platform/compare/v0.9.6...v0.9.7
 [v0.9.6]: https://github.com/qorm/platform/compare/v0.9.5...v0.9.6
 [v0.9.5]: https://github.com/qorm/platform/compare/v0.9.4...v0.9.5
 [v0.9.4]: https://github.com/qorm/platform/compare/v0.9.3...v0.9.4
