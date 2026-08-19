@@ -17,6 +17,9 @@ All notable changes to QORM are documented here. The format is based on
 - **LAN observation windows** (`/logwindow`, `/console`, `/dev/tree`, `/dev/canvas`): loopback stays open; non-loopback requires the admin token.
 - **Docs match the runtime**: README architecture lists three hosts (HTML / software canvas / static WXML); mini-program called out as static export; MCP tool count is 25; async `http.*` `"key"` already cancels overlapping flights.
 
+### Fixed
+- **Release preflight** fetches only `origin/main` so a full pack download cannot hang the tag cut.
+
 ## [v0.9.4] - 2026-08-17
 
 ### Added
