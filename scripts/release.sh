@@ -361,7 +361,7 @@ fi
 say "preflight"
 [ "$(git rev-parse --abbrev-ref HEAD)" = "main" ] || { echo "not on main" >&2; exit 1; }
 git diff --quiet && git diff --cached --quiet || { echo "working tree is dirty — commit or stash first" >&2; exit 1; }
-git fetch -q origin
+git fetch -q --no-tags origin main
 [ "$(git rev-parse @)" = "$(git rev-parse @{u})" ] || { echo "main is not in sync with origin/main" >&2; exit 1; }
 git rev-parse "$TAG" >/dev/null 2>&1 && { echo "tag $TAG already exists" >&2; exit 1; }
 [ -z "$(gofmt -l cmd internal pkg 2>/dev/null)" ] || { echo "gofmt not clean" >&2; exit 1; }
