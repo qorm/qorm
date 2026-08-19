@@ -31,7 +31,9 @@ Don't reinvent behaviour — reach for these load-clean shapes (full recipes in 
 - Optimistic update: mutate state, then `http.*`, then a rollback step whose `match` is `{{ len(state.error) > 0 ? id : "" }}` — a no-op on success, a revert on failure.
 - Form validation: one conditional `state.set` per field writes `fieldErrors.<field>` (ternary → message or `""`); bind `{{ state.fieldErrors.<field> }}`.
 - Pagination: keep a `page` counter, `state.increment` it, compute the offset in the URL binding.
-- Debounce / cancel-token are **not** step types — debounce client-side via `onChange` throttling; cancellation is planned (last `result` write wins).
+- Debounce is **not** a step type — throttle `onChange` client-side. Overlapping
+  async `http.*` requests cancel via `"key"` (newer flight wins); an explicit
+  cancel-token step is still planned.
 
 ## Action step types — write actions the runtime actually accepts
 

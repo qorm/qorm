@@ -1,6 +1,17 @@
 # 实施进度
 
-> 主控同步 · 更新：2026-08-19 **第七轮落地** · 第六轮已提交 `6ccdbc5`
+> 主控同步 · 更新：2026-08-19 **第八轮落地** · 第七轮已提交 `67d088e`
+
+## 第八轮（2026-08-19）
+
+让 `qorm test` 能测固定 dt 的 canvas 游戏，并用阈值断言世界坐标。
+
+| 目标 | 状态 | 证据 |
+|------|------|------|
+| G12 `state_lt/gt/lte/gte` | 🟢 | `TestStateCompareAsserts` |
+| G12 `repeat` 步骤 | 🟢 | `TestRepeatStep`；mario 60×tick |
+| G12 mario 左走阈值 | 🟢 | `examples/mario/tests/walk_left.json`（x 低于 28） |
+| G12 http `key` 取消文档 | 🟢 | first-action en+zh；SKILL |
 
 ## 第七轮（2026-08-19）
 

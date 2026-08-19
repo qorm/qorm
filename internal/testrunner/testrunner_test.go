@@ -459,6 +459,53 @@ func TestRunRefusesErrorDiagnostics(t *testing.T) {
 	}
 }
 
+func TestStateCompareAsserts(t *testing.T) {
+	app := &model.App{
+		Entry:       "main",
+		GlobalState: model.GlobalState{Initial: map[string]any{"x": 10.0}},
+		Scenes:      map[string]*model.Node{"main": {Type: "text", ID: "t", Text: "hi"}},
+	}
+	rt := qrt.New(app)
+	if f := evalAssert(rt, Assert{Type: "state_lt", Path: "x", Value: 11}); f != nil {
+		t.Fatalf("10 < 11 should pass: %+v", f)
+	}
+	if f := evalAssert(rt, Assert{Type: "state_gt", Path: "x", Value: 9}); f != nil {
+		t.Fatalf("10 > 9 should pass: %+v", f)
+	}
+	if f := evalAssert(rt, Assert{Type: "state_lt", Path: "x", Value: 10}); f == nil {
+		t.Fatal("10 < 10 should fail")
+	}
+	if f := evalAssert(rt, Assert{Type: "state_lte", Path: "x", Value: 10}); f != nil {
+		t.Fatalf("10 <= 10 should pass: %+v", f)
+	}
+}
+
+func TestRepeatStep(t *testing.T) {
+	app := &model.App{
+		Entry: "main",
+		GlobalState: model.GlobalState{Initial: map[string]any{
+			"n": float64(0),
+		}},
+		Actions: map[string]*model.Action{
+			"bump": {ID: "bump", Steps: []model.Step{
+				{Type: "state.increment", Path: "n"},
+			}},
+		},
+		Scenes: map[string]*model.Node{"main": {Type: "text", ID: "t", Text: "hi"}},
+	}
+	rt := qrt.New(app)
+	if err := execStep(rt, Step{
+		Type:  "repeat",
+		Times: 5,
+		Steps: []Step{{Type: "simulate_event", Action: "bump"}},
+	}); err != nil {
+		t.Fatalf("repeat: %v", err)
+	}
+	if got := rt.State["n"]; got != float64(5) {
+		t.Fatalf("n = %v, want 5", got)
+	}
+}
+
 func TestStateEqualsComputedPath(t *testing.T) {
 	app := &model.App{
 		Entry: "main",
@@ -499,6 +546,7 @@ func TestRunExampleAppsWithTests(t *testing.T) {
 		"../../examples/derived",
 		"../../examples/uikit",
 		"../../examples/tetris",
+		"../../examples/mario",
 	} {
 		report, err := Run(dir, nil)
 		if err != nil {

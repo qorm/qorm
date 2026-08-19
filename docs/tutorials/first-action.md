@@ -502,7 +502,11 @@ There is no `debounce` step. Debounce is a client-side concern: bind the input t
 { "type": "http.get", "url": "https://api.example.com/search?q={{ state.q }}", "result": "results", "error": "error" }
 ```
 
-Request cancellation (cancel token) is likewise not modeled by a step today — treat it as **planned**; the last response written to `result` wins.
+Request cancellation for overlapping searches: give async `http.*` a `"key"`
+(e.g. `"key": "search"`). A newer request on the same key cancels the older
+transport and discards its continuation — the live result is always the latest
+flight. An explicit cancel-token step (cancel without superseding) is still
+**planned**.
 
 - Actions are entirely declarative data — no arbitrary code. When you need custom native logic, see the [User middle layer](../platforms/native-middlelayer.md).
 - When external side effects / system capabilities are involved, follow the [Permission model](../security/permission-model.md).

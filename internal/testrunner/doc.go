@@ -19,7 +19,7 @@
 //	  "assert": [...]         // run after the steps; "asserts" is an alias
 //	}
 //
-// Steps (MVP): mount_scene, simulate_event, set_state.
+// Steps (MVP): mount_scene, simulate_event, set_state, repeat.
 //
 //	mount_scene   {"type":"mount_scene","scene":"other"}  — navigates the
 //	              runtime to the named scene and fires its onEnter; the
@@ -37,13 +37,19 @@
 //	set_state     {"type":"set_state","path":"count","value":5} — writes the
 //	              runtime state store (refusing the computed namespace, like
 //	              every other write path).
+//	repeat        {"type":"repeat","times":60,"steps":[...]} — runs the nested
+//	              steps Times times (cap 10000; nested repeat refused). Used
+//	              to drive N physics ticks without pasting the same step.
 //
-// Asserts (MVP): state_equals, node_exists, node_not_exists, text_equals,
-// prop_equals.
+// Asserts (MVP): state_equals, state_lt / state_gt / state_lte / state_gte,
+// node_exists, node_not_exists, text_equals, prop_equals.
 //
 //	state_equals   {"type":"state_equals","path":"count","value":2}
 //	               path may also read computed.<name> after a dispatch
 //	               refreshes derived values (e.g. computed.openCount).
+//	state_lt       {"type":"state_lt","path":"mario.x","value":32} — numeric
+//	state_gt / state_lte / state_gte — same shape; used for world-position
+//	               thresholds in games (exact float equals is too brittle).
 //	node_exists    {"type":"node_exists","target":{"id":"btn_increment"}}
 //	node_not_exists same shape, inverse
 //	text_equals    {"type":"text_equals","target":{"id":"number"},"value":"2"}

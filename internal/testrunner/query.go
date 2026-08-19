@@ -1,7 +1,9 @@
 package testrunner
 
 import (
+	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/qorm/platform/internal/model"
@@ -367,6 +369,35 @@ func evalAssert(rt *qrt.Runtime, a Assert) *Failure {
 			return &Failure{Code: ErrAssertionFailed, Assert: a.Type, Target: a.Path, Expected: want, Actual: got}
 		}
 		return nil
+	case "state_lt", "state_gt", "state_lte", "state_gte":
+		gotN, gotOK := asNumber(readAssertPath(rt, a.Path))
+		wantN, wantOK := asNumber(a.Value)
+		if !gotOK || !wantOK {
+			return &Failure{
+				Code: ErrAssertionFailed, Assert: a.Type, Target: a.Path,
+				Expected: qrt.Stringify(a.Value), Actual: qrt.Stringify(readAssertPath(rt, a.Path)),
+				Message: fmt.Sprintf("%s needs numeric values (got=%v want=%v)", a.Type, readAssertPath(rt, a.Path), a.Value),
+			}
+		}
+		pass := false
+		switch a.Type {
+		case "state_lt":
+			pass = gotN < wantN
+		case "state_gt":
+			pass = gotN > wantN
+		case "state_lte":
+			pass = gotN <= wantN
+		case "state_gte":
+			pass = gotN >= wantN
+		}
+		if !pass {
+			return &Failure{
+				Code: ErrAssertionFailed, Assert: a.Type, Target: a.Path,
+				Expected: fmt.Sprintf("%s %s", strings.TrimPrefix(a.Type, "state_"), qrt.Stringify(a.Value)),
+				Actual:   qrt.Stringify(gotN),
+			}
+		}
+		return nil
 	case "node_exists", "node_not_exists":
 		if err := validateSelector(a.Target); err != nil {
 			return &Failure{Code: ErrInvalidSelector, Assert: a.Type, Target: selectorString(a.Target), Message: err.Error()}
@@ -434,6 +465,32 @@ func readAssertPath(rt *qrt.Runtime, path string) any {
 		return rt.ComputedVars()[name]
 	}
 	return rt.StatePath(path)
+}
+
+// asNumber coerces assert values for state_lt/gt: JSON numbers, numeric
+// strings, and whole floats. Non-numeric values fail the assert with a
+// message rather than silently comparing as zero.
+func asNumber(v any) (float64, bool) {
+	switch t := v.(type) {
+	case float64:
+		return t, true
+	case float32:
+		return float64(t), true
+	case int:
+		return float64(t), true
+	case int64:
+		return float64(t), true
+	case json.Number:
+		f, err := t.Float64()
+		return f, err == nil
+	case string:
+		f, err := strconv.ParseFloat(strings.TrimSpace(t), 64)
+		return f, err == nil
+	default:
+		s := qrt.Stringify(v)
+		f, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
+		return f, err == nil
+	}
 }
 
 // verb turns an existence boolean into the message word the reports read.

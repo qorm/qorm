@@ -88,6 +88,11 @@ type Step struct {
 	Event  string
 	Path   string
 	Value  any
+	// Times / Steps power the "repeat" step: run nested steps Times times
+	// (capped), so a game test can drive N physics ticks without pasting
+	// the same simulate_event sixty times.
+	Times int
+	Steps []Step
 }
 
 // Assert is one parsed assertion.
@@ -297,6 +302,36 @@ func parseStep(file string, i int, m map[string]any) (*Step, error) {
 			return nil, fmt.Errorf("%s: %s: steps[%d]: set_state needs a non-empty \"path\"", ErrDocInvalid, file, i)
 		}
 		st.Value = m["value"]
+	case "repeat":
+		switch n := m["times"].(type) {
+		case float64:
+			st.Times = int(n)
+		case int:
+			st.Times = n
+		default:
+			return nil, fmt.Errorf("%s: %s: steps[%d]: repeat needs a numeric \"times\"", ErrDocInvalid, file, i)
+		}
+		if st.Times < 0 {
+			return nil, fmt.Errorf("%s: %s: steps[%d]: repeat \"times\" must be >= 0", ErrDocInvalid, file, i)
+		}
+		raw, ok := m["steps"].([]any)
+		if !ok || len(raw) == 0 {
+			return nil, fmt.Errorf("%s: %s: steps[%d]: repeat needs a non-empty \"steps\" array", ErrDocInvalid, file, i)
+		}
+		for j, item := range raw {
+			sm, ok := item.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("%s: %s: steps[%d].steps[%d] is not an object", ErrDocInvalid, file, i, j)
+			}
+			inner, err := parseStep(file, i, sm)
+			if err != nil {
+				return nil, err
+			}
+			if inner.Type == "repeat" {
+				return nil, fmt.Errorf("%s: %s: steps[%d]: nested repeat is not supported (flatten the loop)", ErrDocInvalid, file, i)
+			}
+			st.Steps = append(st.Steps, *inner)
+		}
 	}
 	// Unknown step types parse fine and fail at EXEC time with
 	// test_step_unknown: one deferred step (advance_time, flush_async) must
@@ -312,6 +347,12 @@ func parseAssert(file string, i int, m map[string]any) (*Assert, error) {
 		a.Path = loader.DocString(m, "path")
 		if a.Path == "" {
 			return nil, fmt.Errorf("%s: %s: assert[%d]: state_equals needs a non-empty \"path\"", ErrDocInvalid, file, i)
+		}
+		a.Value = m["value"]
+	case "state_lt", "state_gt", "state_lte", "state_gte":
+		a.Path = loader.DocString(m, "path")
+		if a.Path == "" {
+			return nil, fmt.Errorf("%s: %s: assert[%d]: %s needs a non-empty \"path\"", ErrDocInvalid, file, i, a.Type)
 		}
 		a.Value = m["value"]
 	case "node_exists", "node_not_exists":
@@ -459,10 +500,28 @@ func execStep(rt *qrt.Runtime, step Step) error {
 		return nil
 	case "simulate_event":
 		return simulateEvent(rt, step)
+	case "repeat":
+		if step.Times > maxRepeatTimes {
+			return fmt.Errorf("%s: repeat times %d exceeds cap %d", ErrRuntime, step.Times, maxRepeatTimes)
+		}
+		for n := 0; n < step.Times; n++ {
+			for j, inner := range step.Steps {
+				if err := execStep(rt, inner); err != nil {
+					return fmt.Errorf("repeat[%d] step %d (%s): %w", n+1, j+1, inner.Type, err)
+				}
+				if err := drainPendingEnter(rt); err != nil {
+					return fmt.Errorf("repeat[%d] step %d (%s): %w", n+1, j+1, inner.Type, err)
+				}
+			}
+		}
+		return nil
 	default:
 		return fmt.Errorf("%s: unknown step type %q", ErrStepUnknown, step.Type)
 	}
 }
+
+// maxRepeatTimes caps a single repeat step so a typo cannot hang the runner.
+const maxRepeatTimes = 10000
 
 // simulateEvent runs the node-event or direct-action spelling. Both evaluate
 // handler args against CURRENT state (EvalArgs), exactly like the server's

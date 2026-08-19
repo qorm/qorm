@@ -448,7 +448,9 @@ JSON 在任何地方都是安全的。`examples/netdemo` 与 `examples/tasks` �
 { "type": "http.get", "url": "https://api.example.com/search?q={{ state.q }}", "result": "results", "error": "error" }
 ```
 
-请求取消(cancel token)目前同样没有对应的步骤 —— 视为**计划中(planned)**;最后一次写入 `result` 的响应生效。
+重叠搜索的请求取消:给异步 `http.*` 加 `"key"`(例如 `"key": "search"`)。同一
+key 上的新请求会取消旧传输并丢弃其 continuation —— 存活结果永远是最新一次。
+不靠 supersede、单独发出的 cancel-token 步骤仍属**计划中(planned)**。
 
 - 动作完全是声明式数据 —— 没有任意代码。当你需要自定义的原生逻辑时,参见 [用户中间层](../platforms/native-middlelayer.md)。
 - 当涉及外部副作用 / 系统能力时,请遵循 [权限模型](../security/permission-model.md)。

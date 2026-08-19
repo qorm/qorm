@@ -1,0 +1,22 @@
+{
+  "qorm": "0.1",
+  "type": "test",
+  "id": "mario_walk_left",
+  "scene": "main",
+  "steps": [
+    { "type": "simulate_event", "action": "moveLeft" },
+    {
+      "type": "repeat",
+      "times": 60,
+      "steps": [
+        { "type": "simulate_event", "action": "tick" }
+      ]
+    }
+  ],
+  "assert": [
+    { "type": "state_equals", "path": "keys.left", "value": true },
+    { "type": "state_equals", "path": "status", "value": "playing" },
+    { "type": "state_lt", "path": "mario.x", "value": 28 },
+    { "type": "node_exists", "target": { "id": "hud-score-value" } }
+  ]
+}
