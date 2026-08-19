@@ -78,7 +78,7 @@ func (e *Engine) CollectMeasureOpts(opts MeasureOpts) []byte {
 			sw /= float64(scale)
 			sh /= float64(scale)
 		}
-		rows = append([]map[string]any{{
+		stage := map[string]any{
 			"id":      "__stage",
 			"tag":     "canvas",
 			"type":    "stage",
@@ -92,7 +92,17 @@ func (e *Engine) CollectMeasureOpts(opts MeasureOpts) []byte {
 			"opacity": "1",
 			"scale":   scale,
 			"logical": opts.Logical,
-		}}, rows...)
+		}
+		if e.RT != nil && e.RT.LastBoundaryError.Message != "" {
+			stage["lastBoundaryError"] = map[string]any{
+				"level":   e.RT.LastBoundaryError.Level,
+				"phase":   e.RT.LastBoundaryError.Phase,
+				"scene":   e.RT.LastBoundaryError.Scene,
+				"nodeId":  e.RT.LastBoundaryError.NodeID,
+				"message": e.RT.LastBoundaryError.Message,
+			}
+		}
+		rows = append([]map[string]any{stage}, rows...)
 	}
 	b, err := json.Marshal(rows)
 	if err != nil {

@@ -12,7 +12,7 @@ import (
 var typedKeys = map[string]bool{
 	"type": true, "id": true, "text": true, "label": true, "placeholder": true,
 	"value": true, "style": true, "layout": true, "onPress": true, "onChange": true,
-	"children": true, "renderItem": true, "data": true,
+	"children": true, "renderItem": true, "data": true, "errorBoundary": true,
 }
 
 // whenKeys are the fields of a "when" node held in struct fields
@@ -44,6 +44,11 @@ func NodeToJSON(n *model.Node) map[string]any {
 	}
 	if n.OnChange != nil {
 		m["onChange"] = invokeToJSON(n.OnChange)
+	}
+	if n.ErrorBoundary != nil {
+		if eb := nodeErrorBoundaryToJSON(n.ErrorBoundary); eb != nil {
+			m["errorBoundary"] = eb
+		}
 	}
 	// carry through extra props not covered by typed fields
 	for k, v := range n.Props {
@@ -91,6 +96,11 @@ func ManifestToJSON(app *model.App) map[string]any {
 	putIf(m, "entry", app.Entry)
 	putIf(m, "defaultLocale", app.DefaultLocale)
 	putIf(m, "theme", app.Theme)
+	if app.ErrorBoundary != nil {
+		if eb := sceneErrorBoundaryToJSON(app.ErrorBoundary); eb != nil {
+			m["errorBoundary"] = eb
+		}
+	}
 	// The loader defaults branding to true when the key is absent, so only
 	// an explicit false must be written out for the round trip to preserve
 	// the white-label opt-out.
@@ -423,6 +433,11 @@ func AppToDocs(app *model.App) []map[string]any {
 		if g := app.SceneGuards[id]; g != nil {
 			doc["guard"] = guardToJSON(g)
 		}
+		if eb := app.SceneErrorBoundaries[id]; eb != nil {
+			if raw := sceneErrorBoundaryToJSON(eb); raw != nil {
+				doc["errorBoundary"] = raw
+			}
+		}
 		// Scene-level key and swipe bindings live on the scene document (the
 		// loader reads them off the doc, not the node tree) — emit them back,
 		// or a FromApp round trip would ship a game with no controls.
@@ -480,6 +495,20 @@ func guardToJSON(g *model.SceneGuard) map[string]any {
 		m["params"] = copyStrMap(g.Params)
 	}
 	return m
+}
+
+func sceneErrorBoundaryToJSON(eb *model.SceneErrorBoundary) map[string]any {
+	if eb == nil || eb.Scene == "" {
+		return nil
+	}
+	return map[string]any{"scene": eb.Scene}
+}
+
+func nodeErrorBoundaryToJSON(eb *model.NodeErrorBoundary) map[string]any {
+	if eb == nil || eb.Fallback == nil {
+		return nil
+	}
+	return map[string]any{"fallback": NodeToJSON(eb.Fallback)}
 }
 
 func invokeToJSON(inv *model.Invoke) map[string]any {

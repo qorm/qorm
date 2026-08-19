@@ -1,0 +1,30 @@
+{
+  "type": "scene",
+  "id": "oops",
+  "root": {
+    "type": "column",
+    "id": "oops_root",
+    "style": {
+      "padding": 20,
+      "gap": 12
+    },
+    "children": [
+      {
+        "type": "text",
+        "id": "oops_title",
+        "text": "Scene fallback"
+      },
+      {
+        "type": "text",
+        "id": "oops_msg",
+        "text": "{{route.error}}"
+      },
+      {
+        "type": "button",
+        "id": "back_main",
+        "label": "返回主场景",
+        "onPress": "reset"
+      }
+    ]
+  }
+}

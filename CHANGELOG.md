@@ -6,6 +6,11 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+- **Error Boundary (v0.9.7 start)**: app/scene-level `errorBoundary.scene` routes `onEnter`, top-level action, and render failures to a fallback scene; node-level `errorBoundary.fallback` swaps only the failing subtree for a fallback subtree.
+- **Boundary observability**: the runtime records the latest boundary trip (`level` / `phase` / `scene` / `nodeId` / `message`); canvas `CollectMeasure` now exposes it on the `__stage` row as `lastBoundaryError`.
+- **Error Boundary example**: `examples/error-boundary` demonstrates both scene fallback and local subtree fallback.
+
 ## [v0.9.6] - 2026-08-19
 
 ### Added

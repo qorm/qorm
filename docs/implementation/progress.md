@@ -8,7 +8,7 @@ Agent 可验证性收口。规划见 [analysis-and-plan.md](analysis-and-plan.md
 
 线上：tag `v0.9.5`、GitHub Release、`ghcr.io/qorm/platform:v0.9.5`、qorm.com 首页/文档已打戳。首次站点 rsync `--delete` 误删 `/games/` 等 extras，已从备份恢复；后续 deploy 保护 extras，并用 `qorm_canvas` WASM 与示例源同步 games 页。
 
-**下一版规划：** [v0.9.6-plan.md](v0.9.6-plan.md)（P0–P1 完成；P2 已补 games smoke 包装脚本，待发版执行）。
+**下一版规划：** `v0.9.7 Error Boundary`（scene fallback + subtree fallback 已开工；repo 内已补 loader/runtime/render 回归、measure 观测面与 `examples/error-boundary`）。
 
 ## 第八轮（2026-08-19）
 
@@ -167,7 +167,7 @@ CI 变红触发排查，两个失败都是真实缺陷，按根因修复而非�
 |----|------|
 | 上一版 | **v0.9.4**（2026-08-17）：agent.policy · capability 门 · breakpoints · partial render |
 | 本版 | **v0.9.5**（2026-08-19）：agent 可验证性 G1–G12 + R1 · tag + Release 6 二进制 + GHCR · 官网 v0.9.5（deploy 误删 games 已恢复 · canvas WASM 同步） |
-| 下一版 | **v0.9.6**（进行中）：canvas list 视口 window 化 · sitemap 再生 · games smoke — 见 [v0.9.6-plan.md](v0.9.6-plan.md) |
+| 下一版 | **v0.9.7**（进行中）：Error Boundary 首版 · scene fallback · subtree fallback · boundary measure — 规划见聊天附带 v0.9.7 plan，repo 侧已落最小实现与示例 |
 
 ## 链接
 
@@ -197,3 +197,4 @@ CI 变红触发排查，两个失败都是真实缺陷，按根因修复而非�
 | 2026-08-13 | **v0.9.2 发布**：changelog 归档 + bump + annotated tag + push；release 工作流绿（6 平台二进制补齐 v0.9.1 缺失）；官网 deploy 并验证首页 v0.9.2 |
 | 2026-08-19 | **v0.9.5 发布**；官网 rsync `--delete` 误删 games 后已恢复，并补 canvas WASM 同步 |
 | 2026-08-19 | **v0.9.6 规划 + P0/P1/P2**：文档收口 · sitemap 再生 · canvas list `virtualize: "window"` · games smoke 包装脚本 |
+| 2026-08-19 | **v0.9.7 启动**：Error Boundary schema/runtime/render 首版 · `lastBoundaryError` measure 观测面 · `examples/error-boundary` |

@@ -1,0 +1,15 @@
+{
+  "type": "action",
+  "id": "reset",
+  "steps": [
+    {
+      "type": "state.set",
+      "path": "brokenKind",
+      "value": "colunm"
+    },
+    {
+      "type": "navigate",
+      "to": "main"
+    }
+  ]
+}

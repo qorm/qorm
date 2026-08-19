@@ -63,12 +63,16 @@ type renderer struct {
 	rt           *runtime.Runtime
 	opts         RenderOpts
 	handlers     []Handler
+	baseHandler  int
 	scope        map[string]any
 	rootID       string // entry-scene root id (gets direction:rtl when RTL)
 	rtl          bool
 	idSuffix     string // per-item suffix so JS-wired widgets stay unique inside renderItem
 	sb           strings.Builder
 	unknowns     []string
+	boundaryTrap bool
+	boundaryHit  bool
+	boundaryMsg  string
 	compChildren []*model.Node // children of the current component instance (for slot)
 	compDepth    int
 	// render budget (see spendNode in render.go): compDepth alone bounds the

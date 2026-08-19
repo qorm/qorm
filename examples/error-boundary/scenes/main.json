@@ -1,0 +1,82 @@
+{
+  "type": "scene",
+  "id": "main",
+  "root": {
+    "type": "column",
+    "id": "root",
+    "style": {
+      "padding": 20,
+      "gap": 14
+    },
+    "children": [
+      {
+        "type": "text",
+        "id": "title",
+        "text": "Error Boundary demo",
+        "style": {
+          "fontSize": 24,
+          "fontWeight": 700
+        }
+      },
+      {
+        "type": "text",
+        "id": "intro",
+        "text": "上面是 scene 级，下面是 component 子树级。"
+      },
+      {
+        "type": "row",
+        "id": "controls",
+        "style": {
+          "gap": 10
+        },
+        "children": [
+          {
+            "type": "button",
+            "id": "trip_scene_boundary",
+            "label": "触发 scene fallback",
+            "onPress": "boom"
+          },
+          {
+            "type": "button",
+            "id": "fix_widget",
+            "label": "修复局部子树",
+            "onPress": "fix_widget"
+          },
+          {
+            "type": "button",
+            "id": "break_widget",
+            "label": "再打坏局部子树",
+            "onPress": "break_widget"
+          }
+        ]
+      },
+      {
+        "type": "card",
+        "id": "local_boundary",
+        "style": {
+          "padding": 16,
+          "gap": 8
+        },
+        "errorBoundary": {
+          "fallback": {
+            "type": "text",
+            "id": "local_fallback",
+            "text": "局部子树失败，已切到 fallback。"
+          }
+        },
+        "children": [
+          {
+            "type": "text",
+            "id": "local_label",
+            "text": "子树当前类型：{{state.brokenKind}}"
+          },
+          {
+            "type": "{{state.brokenKind}}",
+            "id": "fragile",
+            "text": "只会在 brokenKind=text 时正常显示"
+          }
+        ]
+      }
+    ]
+  }
+}

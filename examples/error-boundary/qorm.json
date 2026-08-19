@@ -1,0 +1,17 @@
+{
+  "type": "app",
+  "id": "qorm_error_boundary",
+  "name": "Error Boundary",
+  "entry": "main",
+  "errorBoundary": {
+    "scene": "oops"
+  },
+  "globalState": {
+    "schema": {
+      "brokenKind": "string"
+    },
+    "initial": {
+      "brokenKind": "colunm"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "type": "action",
+  "id": "break_widget",
+  "steps": [
+    {
+      "type": "state.set",
+      "path": "brokenKind",
+      "value": "colunm"
+    }
+  ]
+}

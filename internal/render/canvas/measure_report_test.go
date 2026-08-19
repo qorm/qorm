@@ -446,3 +446,26 @@ func TestCollectMeasureListVirtualization(t *testing.T) {
 		t.Errorf("start = %v, want ~96", start)
 	}
 }
+
+func TestCollectMeasureStageIncludesLastBoundaryError(t *testing.T) {
+	root := &model.Node{Type: "text", ID: "root", Text: "main"}
+	app := &model.App{
+		Entry:         "main",
+		Scenes:        map[string]*model.Node{"main": root, "oops": &model.Node{Type: "text", ID: "oopsText", Text: "oops"}},
+		ErrorBoundary: &model.SceneErrorBoundary{Scene: "oops"},
+	}
+	rt := runtime.New(app)
+	rt.ClearPendingEnter()
+	if !rt.HandleSceneError("main", "action", "boom") {
+		t.Fatal("HandleSceneError should redirect to fallback scene")
+	}
+	rows := measuredByID(t, MeasureScene(rt, 320, 120, 1))
+	stage := rows["__stage"]
+	eb, ok := stage["lastBoundaryError"].(map[string]any)
+	if !ok {
+		t.Fatalf("__stage missing lastBoundaryError: %v", stage)
+	}
+	if eb["level"] != "scene" || eb["phase"] != "action" || eb["scene"] != "main" || eb["message"] != "boom" {
+		t.Fatalf("lastBoundaryError = %#v", eb)
+	}
+}

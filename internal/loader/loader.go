@@ -327,6 +327,12 @@ func FromDocs(docs []map[string]any) *model.App {
 					}
 					app.SceneGuards[sceneID] = g
 				}
+				if eb := parseSceneErrorBoundary(doc["errorBoundary"], &diags, "Scene", sceneID); eb != nil {
+					if app.SceneErrorBoundaries == nil {
+						app.SceneErrorBoundaries = map[string]*model.SceneErrorBoundary{}
+					}
+					app.SceneErrorBoundaries[sceneID] = eb
+				}
 				// Scene key bindings: "keys": {"left": "moveLeft", …} — the
 				// declarative control scheme for games/keyboard apps, engine-
 				// dispatched (canvas first; the HTML client gets it later).
@@ -485,6 +491,7 @@ func FromDocs(docs []map[string]any) *model.App {
 	checkComponents(app, &diags)
 	checkDynamicComponentNames(app, &diags)
 	checkGuards(app, &diags)
+	checkErrorBoundaries(app, &diags)
 	checkComputed(app, sceneVars, &diags)
 	checkStatePaths(app, &diags)
 	app.Diagnostics = diags
@@ -591,6 +598,58 @@ func checkGuards(app *model.App, diags *[]string) {
 			*diags = append(*diags, fmt.Sprintf("warning: [Scene: %s] guard 的 redirect 可能构成环:%s。若这些条件同时为假,navigate 会停在原场景;在入口路径上运行时会退回最近一个仍被允许的历史帧或入口场景,都不行则什么都不渲染。", id, strings.Join(cycle, " -> ")))
 		}
 	}
+}
+
+func checkErrorBoundaries(app *model.App, diags *[]string) {
+	if app.ErrorBoundary != nil {
+		checkSceneBoundaryTarget(app, diags, "App", app.ID, "", app.ErrorBoundary)
+	}
+	ids := make([]string, 0, len(app.SceneErrorBoundaries))
+	for id := range app.SceneErrorBoundaries {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		checkSceneBoundaryTarget(app, diags, "Scene", id, id, app.SceneErrorBoundaries[id])
+	}
+}
+
+func checkSceneBoundaryTarget(app *model.App, diags *[]string, scope, scopeID, self string, eb *model.SceneErrorBoundary) {
+	if eb == nil || eb.Scene == "" {
+		return
+	}
+	if strings.Contains(eb.Scene, "{{") {
+		*diags = append(*diags, fmt.Sprintf("error: [%s: %s] errorBoundary 的 scene %q 是 {{...}} 绑定,但运行时不会对 fallback scene 求值。请写一个确定的场景 id。", scope, scopeID, eb.Scene))
+		return
+	}
+	if self != "" && eb.Scene == self {
+		*diags = append(*diags, fmt.Sprintf("error: [%s: %s] errorBoundary 的 scene 指向自身 %q,失败后无处可退。", scope, scopeID, eb.Scene))
+		return
+	}
+	if _, ok := app.Scenes[eb.Scene]; !ok {
+		*diags = append(*diags, fmt.Sprintf("error: [%s: %s] errorBoundary 的 scene 指向不存在的场景 %q。", scope, scopeID, eb.Scene))
+	}
+}
+
+func parseSceneErrorBoundary(v any, diags *[]string, scope, scopeID string) *model.SceneErrorBoundary {
+	if v == nil {
+		return nil
+	}
+	m, ok := v.(map[string]any)
+	if !ok {
+		if diags != nil {
+			*diags = append(*diags, fmt.Sprintf("error: [%s: %s] errorBoundary 应为对象(如 {\"scene\": \"oops\"}),已忽略。", scope, scopeID))
+		}
+		return nil
+	}
+	scene := asString(m["scene"])
+	if scene == "" {
+		if diags != nil {
+			*diags = append(*diags, fmt.Sprintf("error: [%s: %s] errorBoundary 缺少 scene(失败后进入的场景 id),已忽略。", scope, scopeID))
+		}
+		return nil
+	}
+	return &model.SceneErrorBoundary{Scene: scene}
 }
 
 // guardRedirectCycle follows the redirect chain out of scene id and returns it
@@ -1653,6 +1712,9 @@ func applyManifest(app *model.App, doc map[string]any, diags *[]string) {
 	if v, ok := doc["branding"]; ok {
 		app.Branding = asBool(v)
 	}
+	if eb := parseSceneErrorBoundary(doc["errorBoundary"], diags, "App", app.ID); eb != nil {
+		app.ErrorBoundary = eb
+	}
 	// Top-level `display` declares the app's intended viewport / window
 	// size at start time. Side-scroller games, fixed-aspect dashboards
 	// and any app whose layout is NOT fluid declare it here so the
@@ -2027,6 +2089,15 @@ func buildNode(m map[string]any, diags *[]string, sceneID string, vars map[strin
 	n.OnTouchStart = parseInvoke(m["onTouchStart"], diags, sceneID, nodeID, "onTouchStart")
 	n.OnTouchMove = parseInvoke(m["onTouchMove"], diags, sceneID, nodeID, "onTouchMove")
 	n.OnTouchEnd = parseInvoke(m["onTouchEnd"], diags, sceneID, nodeID, "onTouchEnd")
+	if eb, ok := m["errorBoundary"].(map[string]any); ok {
+		if fb, ok := eb["fallback"].(map[string]any); ok {
+			n.ErrorBoundary = &model.NodeErrorBoundary{Fallback: buildNode(fb, diags, sceneID, vars, scope)}
+		} else if diags != nil {
+			*diags = append(*diags, fmt.Sprintf("error: [Scene: %s] 节点 (id: %q, type: %q) 的 errorBoundary 缺少 fallback 根节点对象,已忽略。", sceneID, nodeID, nodeType))
+		}
+	} else if raw, ok := m["errorBoundary"]; ok && raw != nil && diags != nil {
+		*diags = append(*diags, fmt.Sprintf("error: [Scene: %s] 节点 (id: %q, type: %q) 的 errorBoundary 应为对象(如 {\"fallback\": {...}}),已忽略。", sceneID, nodeID, nodeType))
+	}
 	if ri, ok := m["renderItem"].(map[string]any); ok {
 		// A renderItem template runs with the item bound into the expression
 		// scope under `as` (default "item") plus index/first/last. Resolve the

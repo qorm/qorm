@@ -31,6 +31,17 @@ import (
 // renders.
 type Viewport struct{ W, H int }
 
+// BoundaryError is the most recent error boundary trip observed by the runtime.
+// It is a small published surface for render/measure/tests: which layer caught
+// the failure, what phase it came from, and the human-readable message.
+type BoundaryError struct {
+	Level   string
+	Phase   string
+	Scene   string
+	NodeID  string
+	Message string
+}
+
 // Runtime is a live instance of an app: its state plus a reference to the app.
 type Runtime struct {
 	App   *model.App
@@ -157,6 +168,9 @@ type Runtime struct {
 	// headless test runner reads it so a green run never comes out of a crash
 	// during an enter hook, wherever in the chain it happened.
 	EnterScriptError string
+	// LastBoundaryError is the most recent scene- or node-level error boundary
+	// activation. Empty Message means no boundary has fired yet in this runtime.
+	LastBoundaryError BoundaryError
 	// keyed maps a step's `key` to the request currently occupying that slot,
 	// so a newer request on the same key can supersede it. Entries live only
 	// between launch and continuation; the map is nil until the first keyed
@@ -736,6 +750,45 @@ func (r *Runtime) sceneID(scene string) string {
 // sameScene reports whether two scene spellings denote the same scene.
 func (r *Runtime) sameScene(a, b string) bool { return r.sceneID(a) == r.sceneID(b) }
 
+func (r *Runtime) sceneErrorBoundary(scene string) *model.SceneErrorBoundary {
+	if r == nil || r.App == nil {
+		return nil
+	}
+	scene = r.sceneID(scene)
+	if eb := r.App.SceneErrorBoundaries[scene]; eb != nil {
+		return eb
+	}
+	return r.App.ErrorBoundary
+}
+
+func (r *Runtime) tripBoundary(level, phase, scene, nodeID, msg string) {
+	r.LastBoundaryError = BoundaryError{
+		Level:   level,
+		Phase:   phase,
+		Scene:   scene,
+		NodeID:  nodeID,
+		Message: msg,
+	}
+}
+
+func (r *Runtime) HandleSceneError(scene, phase, msg string) bool {
+	if r == nil || r.App == nil || msg == "" {
+		return false
+	}
+	scene = r.sceneID(scene)
+	eb := r.sceneErrorBoundary(scene)
+	r.tripBoundary("scene", phase, scene, "", msg)
+	if eb == nil || eb.Scene == "" || r.sameScene(eb.Scene, scene) {
+		return false
+	}
+	r.enter(eb.Scene, map[string]any{
+		"failedScene": scene,
+		"errorPhase":  phase,
+		"error":       msg,
+	})
+	return true
+}
+
 // guardResolve applies the route guards protecting `scene` and returns the
 // scene that may actually be entered, the route params to enter it with, and
 // whether the navigation is allowed at all.
@@ -976,6 +1029,9 @@ func (r *Runtime) RunPendingEnter() {
 		// clean scene entered after a crashing one would hide the crash.
 		if r.LastScriptError != "" && r.EnterScriptError == "" {
 			r.EnterScriptError = r.LastScriptError
+		}
+		if r.LastScriptError != "" && r.HandleSceneError(scene, "onEnter", r.LastScriptError) {
+			continue
 		}
 	}
 	r.pendingEnter = false
@@ -1322,6 +1378,9 @@ func (r *Runtime) Dispatch(name string, args map[string]any) {
 		r.callDepth--
 		if r.callDepth == 0 {
 			r.refreshComputed()
+			if r.LastScriptError != "" {
+				_ = r.HandleSceneError(r.Scene, "action", r.LastScriptError)
+			}
 		}
 	}()
 	if name == BuiltinDismiss {

@@ -141,6 +141,15 @@ type App struct {
 	// scene — so a protected route cannot be reached by spelling a URL.
 	// Empty/absent map = no guards (every scene is public).
 	SceneGuards map[string]*SceneGuard
+	// ErrorBoundary is the app-wide default scene-level error boundary
+	// (qorm.json "errorBoundary"): when a scene has no own override and its
+	// onEnter / action / render path fails, the runtime falls back to this
+	// scene id instead of leaving the user on a broken surface. Empty means the
+	// app declares no default scene-level fallback.
+	ErrorBoundary *SceneErrorBoundary
+	// SceneErrorBoundaries are scene-specific overrides of the app-level
+	// ErrorBoundary. Keyed by scene id; absent key = inherit the app default.
+	SceneErrorBoundaries map[string]*SceneErrorBoundary
 	// Computed are the app's DERIVED values (qorm.json "computed", or
 	// "globalState.computed"): a name -> a {{binding}} expression over the rest
 	// of the state. They are evaluated ONCE per frame and published read-only
@@ -867,6 +876,23 @@ type Node struct {
 	Condition string
 	Then      *Node
 	Else      *Node
+	// ErrorBoundary is the node-local render boundary declaration. It protects
+	// THIS subtree only: a render failure inside it degrades to Fallback rather
+	// than taking down the whole scene.
+	ErrorBoundary *NodeErrorBoundary
+}
+
+// SceneErrorBoundary is the scene-level fallback target: a failed scene routes
+// to Scene, with the app-level declaration as the default and scene-level ones
+// overriding it.
+type SceneErrorBoundary struct {
+	Scene string
+}
+
+// NodeErrorBoundary is a node-local subtree fallback. Fallback is rendered in
+// place of the protected subtree when that subtree fails to render cleanly.
+type NodeErrorBoundary struct {
+	Fallback *Node
 }
 
 // Prop returns a props value; the second result reports whether the key was

@@ -129,16 +129,117 @@ const BudgetExceeded = "render-budget-exceeded"
 // panics and never errors, matching how an unknown widget type degrades.
 func (r *renderer) spendNode() bool {
 	if r.overBudget {
+		if r.boundaryTrap {
+			r.boundaryHit = true
+			if r.boundaryMsg == "" {
+				r.boundaryMsg = BudgetExceeded
+			}
+		}
 		return false
 	}
 	r.nodesRendered++
 	if r.nodesRendered > maxRenderNodes || r.sb.Len() > maxRenderBytes {
 		r.overBudget = true
+		if r.boundaryTrap {
+			r.boundaryHit = true
+			if r.boundaryMsg == "" {
+				r.boundaryMsg = BudgetExceeded
+			}
+			return false
+		}
 		r.sb.WriteString(budgetMarker)
 		r.unknowns = append(r.unknowns, BudgetExceeded)
 		return false
 	}
 	return true
+}
+
+func (r *renderer) childRenderer() *renderer {
+	return &renderer{
+		rt:            r.rt,
+		opts:          r.opts,
+		baseHandler:   r.baseHandler + len(r.handlers),
+		scope:         r.scope,
+		rootID:        r.rootID,
+		rtl:           r.rtl,
+		idSuffix:      r.idSuffix,
+		compChildren:  r.compChildren,
+		compDepth:     r.compDepth,
+		nodesRendered: r.nodesRendered,
+		catalog:       r.catalog,
+		baseCtx:       r.baseCtx,
+		viewport:      r.viewport,
+		breakpoint:    r.breakpoint,
+	}
+}
+
+func (r *renderer) mergeChild(child *renderer) {
+	if child == nil {
+		return
+	}
+	r.handlers = append(r.handlers, child.handlers...)
+	r.unknowns = append(r.unknowns, child.unknowns...)
+	r.nodesRendered = child.nodesRendered
+	r.overBudget = child.overBudget
+	r.sb.WriteString(child.sb.String())
+}
+
+func (r *renderer) renderNodeSafe(n *model.Node, trap bool) (ok bool) {
+	ok = true
+	defer func() {
+		if rec := recover(); rec != nil {
+			r.boundaryHit = true
+			r.boundaryMsg = fmt.Sprint(rec)
+			ok = false
+		}
+	}()
+	prevTrap := r.boundaryTrap
+	if trap {
+		r.boundaryTrap = true
+	}
+	r.node(n)
+	r.boundaryTrap = prevTrap
+	if trap && r.boundaryHit {
+		return false
+	}
+	return true
+}
+
+func renderProtectedCopy(n *model.Node) *model.Node {
+	if n == nil {
+		return nil
+	}
+	cp := *n
+	cp.ErrorBoundary = nil
+	return &cp
+}
+
+func (r *renderer) renderBoundary(n *model.Node) {
+	child := r.childRenderer()
+	if child.renderNodeSafe(renderProtectedCopy(n), true) {
+		r.mergeChild(child)
+		return
+	}
+	msg := child.boundaryMsg
+	if msg == "" {
+		msg = "boundary render failed"
+	}
+	r.rt.LastBoundaryError = runtime.BoundaryError{
+		Level:   "node",
+		Phase:   "render",
+		Scene:   r.rt.CurrentScene(),
+		NodeID:  n.ID,
+		Message: msg,
+	}
+	if n.ErrorBoundary == nil || n.ErrorBoundary.Fallback == nil {
+		return
+	}
+	fb := r.childRenderer()
+	if fb.renderNodeSafe(n.ErrorBoundary.Fallback, false) {
+		r.mergeChild(fb)
+		return
+	}
+	r.sb.WriteString(`<div data-qorm-error-boundary="node"></div>`)
 }
 
 // Render renders the entry scene of a runtime.
@@ -179,7 +280,23 @@ func RenderSceneWithOpts(rt *runtime.Runtime, sceneID string, opts RenderOpts) R
 	if root != nil {
 		r.rootID = root.ID
 		r.rtl = rt.IsRTL()
-		r.node(root)
+		if !r.renderNodeSafe(root, false) {
+			if rt.HandleSceneError(rt.CurrentScene(), "render", r.boundaryMsg) {
+				root = rt.App.Scenes[rt.CurrentScene()]
+				if root != nil {
+					r = &renderer{rt: rt, scope: map[string]any{}, opts: opts}
+					r.rootID = root.ID
+					r.rtl = rt.IsRTL()
+					if !r.renderNodeSafe(root, false) {
+						r.sb.Reset()
+						r.sb.WriteString(`<div data-qorm-error-boundary="scene" style="padding:24px;color:#b00020">render error</div>`)
+					}
+				}
+			} else {
+				r.sb.Reset()
+				r.sb.WriteString(`<div data-qorm-error-boundary="scene" style="padding:24px;color:#b00020">render error</div>`)
+			}
+		}
 	} else {
 		r.sb.WriteString(`<div style="padding:24px;color:#888">no scene to render</div>`)
 	}
@@ -396,6 +513,9 @@ func (r *renderer) interp(s string) string {
 // is wrapped in that entrance effect, so animation is a cross-cutting property
 // rather than something only the `motion` widget offers.
 func (r *renderer) node(n *model.Node) {
+	if n == nil {
+		return
+	}
 	if !r.spendNode() {
 		return
 	}
@@ -415,6 +535,10 @@ func (r *renderer) node(n *model.Node) {
 				return
 			}
 		}
+	}
+	if n.ErrorBoundary != nil {
+		r.renderBoundary(n)
+		return
 	}
 	r.renderInner(n)
 }
@@ -785,6 +909,13 @@ func (r *renderer) renderInner(n *model.Node) {
 // programmatically — the north star (the AI catches its own mistakes) without
 // disfiguring the UI for a human.
 func (r *renderer) unknown(n *model.Node) {
+	if r.boundaryTrap {
+		r.boundaryHit = true
+		if r.boundaryMsg == "" {
+			r.boundaryMsg = fmt.Sprintf("unknown widget %q", n.Type)
+		}
+		return
+	}
 	r.unknowns = append(r.unknowns, n.Type)
 	fmt.Fprintf(&r.sb, `<div id=%q data-qorm-unknown=%q style=%q%s>`,
 		attrID(n.ID), html.EscapeString(n.Type), r.containerCSS(n), r.a11y(n))
@@ -859,7 +990,7 @@ func (r *renderer) register(inv *model.Invoke) int {
 		scope[k] = v
 	}
 	r.handlers = append(r.handlers, Handler{Name: name, Args: inv.Args, Scope: scope})
-	return len(r.handlers) - 1
+	return r.baseHandler + len(r.handlers) - 1
 }
 
 func (r *renderer) pressAttr(n *model.Node) string {
