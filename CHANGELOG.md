@@ -6,6 +6,8 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+## [v0.9.6] - 2026-08-19
+
 ### Added
 - **Canvas list window virtualization**: `virtualize: "window"` (and `virtualize: true` with `itemHeight`) inside a scroll viewport renders only rows around the live offset, with spacers preserving scroll height. `qorm measure` / MCP `qorm_measure` expose `listVirtualization` on the list row (`total`, `start`, `end`, `rendered`).
 - **Site sitemap regen**: `deploy-site.sh` rebuilds `sitemap.xml` from staged docs/api/landing on each deploy.
@@ -1467,6 +1469,7 @@ Initial release: QORM, an agent-native declarative-UI runtime in pure Go.
 - Render performance: cached parsed expressions and reflection-free CSS
   numeric writes in the hot path.
 
+[v0.9.6]: https://github.com/qorm/platform/compare/v0.9.5...v0.9.6
 [v0.9.5]: https://github.com/qorm/platform/compare/v0.9.4...v0.9.5
 [v0.9.4]: https://github.com/qorm/platform/compare/v0.9.3...v0.9.4
 [v0.9.3]: https://github.com/qorm/platform/compare/v0.9.2...v0.9.3
