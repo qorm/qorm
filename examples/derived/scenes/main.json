@@ -52,6 +52,15 @@
                   "id": "line_amount",
                   "text": "{{ line.price * line.qty }}",
                   "style": { "color": "var(--label2)" }
+                },
+                {
+                  "type": "button",
+                  "id": "gift_{{line.id}}",
+                  "label": "Wrap",
+                  "onPress": {
+                    "name": "giftLine",
+                    "args": { "id": "{{ line.id }}" }
+                  }
                 }
               ]
             }

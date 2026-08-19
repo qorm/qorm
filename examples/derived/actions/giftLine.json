@@ -1,0 +1,13 @@
+{
+  "type": "action",
+  "id": "giftLine",
+  "steps": [
+    {
+      "type": "state.toggle",
+      "path": "items",
+      "matchKey": "id",
+      "match": "{{ id }}",
+      "field": "gift"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "qorm": "0.1",
+  "type": "test",
+  "id": "derived_checkout_guard",
+  "scene": "main",
+  "steps": [
+    { "type": "simulate_event", "target": { "id": "checkout_btn" }, "event": "press" }
+  ],
+  "assert": [
+    { "type": "node_exists", "target": { "id": "signin_title" } },
+    { "type": "text_equals", "target": { "id": "signin_why" }, "value": "The route guard sent you here on the way to checkout." },
+    { "type": "node_not_exists", "target": { "id": "checkout_title" } }
+  ]
+}

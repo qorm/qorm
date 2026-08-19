@@ -378,6 +378,14 @@ func runDoc(app *model.App, doc *Doc) *TestResult {
 			res.Errors = append(res.Errors, fmt.Sprintf("step %d (%s): %v", i+1, step.Type, err))
 			return res
 		}
+		// Hosts drain onEnter at the frame boundary after a mutation. Tests
+		// do the same so a navigate step lands on the guarded/entered scene
+		// (and set_state republishes computed) before the next step or assert.
+		if err := drainPendingEnter(rt); err != nil {
+			res.Status = StatusError
+			res.Errors = append(res.Errors, fmt.Sprintf("step %d (%s): %v", i+1, step.Type, err))
+			return res
+		}
 	}
 
 	for _, a := range doc.Asserts {
@@ -425,12 +433,16 @@ func mountScene(rt *qrt.Runtime, scene string) error {
 	// raised for the entry scene — a mount_scene STEP must fire the target's
 	// onEnter too, and the drain loop only runs while pendingEnter is raised.
 	rt.MarkPendingEnter()
+	return drainPendingEnter(rt)
+}
+
+func drainPendingEnter(rt *qrt.Runtime) error {
 	rt.RunPendingEnter()
 	if rt.Blocked() {
-		return fmt.Errorf("%s: scene %q was refused by its route guard (runtime parked on GuardBlocked)", ErrSceneNotFound, scene)
+		return fmt.Errorf("%s: scene %q was refused by its route guard (runtime parked on GuardBlocked)", ErrSceneNotFound, sceneName(rt))
 	}
 	if se := rt.EnterScriptError; se != "" {
-		return fmt.Errorf("%s: onEnter of scene %q failed: %s", ErrRuntime, scene, se)
+		return fmt.Errorf("%s: onEnter of scene %q failed: %s", ErrRuntime, sceneName(rt), se)
 	}
 	return nil
 }

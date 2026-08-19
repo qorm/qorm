@@ -283,6 +283,16 @@ func TestReportMatchesSpecJSONShape(t *testing.T) {
 	}
 }
 
+func TestMatchSelectorIdIsCaseInsensitive(t *testing.T) {
+	nodes := []*matNode{{id: "scoreVal", typ: "text", text: "0"}}
+	if got := matchSelector(nodes, map[string]any{"id": "scoreVal"}); len(got) != 1 {
+		t.Fatalf("mixed-case selector: got %d matches, want 1", len(got))
+	}
+	if got := matchSelector(nodes, map[string]any{"id": "scoreval"}); len(got) != 1 {
+		t.Fatalf("lower selector: got %d matches, want 1", len(got))
+	}
+}
+
 func TestMaterializeExpandsListRenderItem(t *testing.T) {
 	app := &model.App{
 		Entry: "main",
@@ -390,6 +400,41 @@ func TestSimulateEventUsesListItemScope(t *testing.T) {
 	}
 }
 
+func TestSimulateEventUsesListAlias(t *testing.T) {
+	app := &model.App{
+		Entry: "main",
+		GlobalState: model.GlobalState{Initial: map[string]any{
+			"items": []any{
+				map[string]any{"id": "alpha"},
+				map[string]any{"id": "beta"},
+			},
+			"picked": "",
+		}},
+		Actions: map[string]*model.Action{
+			"mark": {ID: "mark", Steps: []model.Step{
+				{Type: "state.set", Path: "picked", Value: "{{ id }}"},
+			}},
+		},
+		Scenes: map[string]*model.Node{
+			"main": {Type: "list", ID: "lst", Data: "{{state.items}}",
+				Props: map[string]any{"as": "line"},
+				Template: &model.Node{
+					Type:    "button",
+					ID:      "gift_{{line.id}}",
+					Text:    "{{line.id}}",
+					OnPress: &model.Invoke{Name: "mark", Args: map[string]string{"id": "{{line.id}}"}},
+				}},
+		},
+	}
+	rt := qrt.New(app)
+	if err := simulateEvent(rt, Step{Target: map[string]any{"id": "gift_beta"}, Event: "press"}); err != nil {
+		t.Fatalf("press gift_beta: %v", err)
+	}
+	if got := qrt.Stringify(rt.State["picked"]); got != "beta" {
+		t.Fatalf("picked = %q, want beta (as:line must evaluate {{line.id}})", got)
+	}
+}
+
 func TestRunRefusesErrorDiagnostics(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(dir, "scenes"), 0o755); err != nil {
@@ -453,6 +498,7 @@ func TestRunExampleAppsWithTests(t *testing.T) {
 		"../../examples/todo",
 		"../../examples/derived",
 		"../../examples/uikit",
+		"../../examples/tetris",
 	} {
 		report, err := Run(dir, nil)
 		if err != nil {

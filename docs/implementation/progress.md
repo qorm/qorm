@@ -1,6 +1,17 @@
 # 实施进度
 
-> 主控同步 · 更新：2026-08-19 **第六轮落地** · 第五轮已提交 `7f7a48f`
+> 主控同步 · 更新：2026-08-19 **第七轮落地** · 第六轮已提交 `6ccdbc5`
+
+## 第七轮（2026-08-19）
+
+把 `qorm test` 覆盖到 list `as` 别名、路由守卫，以及 canvas 游戏的 qscript 动作。
+
+| 目标 | 状态 | 证据 |
+|------|------|------|
+| G11 derived 行内 Wrap（`as: line`） | 🟢 | `examples/derived/tests/gift_line.json`；`TestSimulateEventUsesListAlias` |
+| G11 checkout 守卫 | 🟢 | `checkout_guard.json` / `checkout_ok.json` |
+| G11 tetris smoke | 🟢 | `examples/tetris/tests/move_left.json`（onEnter restart 后 moveLeft） |
+| G11 步骤后排空 onEnter / 刷新 computed | 🟢 | `drainPendingEnter` 在每步之后 |
 
 ## 第六轮（2026-08-19）
 

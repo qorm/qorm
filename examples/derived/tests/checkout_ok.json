@@ -1,0 +1,14 @@
+{
+  "qorm": "0.1",
+  "type": "test",
+  "id": "derived_checkout_signed_in",
+  "scene": "main",
+  "steps": [
+    { "type": "set_state", "path": "user", "value": "Ada" },
+    { "type": "simulate_event", "target": { "id": "checkout_btn" }, "event": "press" }
+  ],
+  "assert": [
+    { "type": "text_equals", "target": { "id": "checkout_who" }, "value": "Signed in as Ada" },
+    { "type": "text_equals", "target": { "id": "checkout_total" }, "value": "Charging 52 for 3 items" }
+  ]
+}

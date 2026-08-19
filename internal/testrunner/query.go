@@ -292,8 +292,8 @@ func asBool(v any) bool {
 // Selectors carry only id/type/text keys; anything else is a query error the
 // caller has already surfaced through validateSelector.
 func matchSelector(nodes []*matNode, sel map[string]any) []*matNode {
-	id := selField(sel, "id")
-	typ := selField(sel, "type")
+	id := strings.ToLower(selField(sel, "id"))
+	typ := strings.ToLower(selField(sel, "type"))
 	text := selField(sel, "text")
 	var out []*matNode
 	for _, mn := range nodes {

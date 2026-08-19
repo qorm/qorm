@@ -58,9 +58,12 @@
 // refused with query_invalid_selector (path selects on state, so the spec
 // points those reads at state_equals). `semantic` is deferred: the model has
 // no semantic-tag slot yet. List and gridview renderItem templates are
-// expanded once per data item (handler args evaluate in the item's scope);
-// JSON-component instances expand their template with {{prop.x}} and slots.
-// Error-level loader diagnostics fail the run as test_load_error.
+// expanded once per data item (handler args evaluate in the item's scope,
+// including an `as` alias such as {{line.id}}); JSON-component instances
+// expand their template with {{prop.x}} and slots. After each step the
+// runner drains pending onEnter (and republishes computed) the way a host
+// does at the frame boundary. Error-level loader diagnostics fail the run
+// as test_load_error.
 //
 // # Error codes
 //

@@ -24,7 +24,8 @@
     "shipping": "{{ computed.subtotal >= 50 ? 0 : 5 }}",
     "total": "{{ computed.subtotal + computed.shipping }}",
     "isEmpty": "{{ len(state.items) == 0 }}",
-    "signedIn": "{{ state.user != '' }}"
+    "signedIn": "{{ state.user != '' }}",
+    "giftedCount": "{{ len(filter(state.items, \"it.gift\")) }}"
   },
   "platforms": {
     "desktop": {

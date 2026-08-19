@@ -1,0 +1,15 @@
+{
+  "qorm": "0.1",
+  "type": "test",
+  "id": "tetris_move_left",
+  "scene": "main",
+  "steps": [
+    { "type": "simulate_event", "action": "moveLeft" }
+  ],
+  "assert": [
+    { "type": "state_equals", "path": "piece.x", "value": 2 },
+    { "type": "state_equals", "path": "status", "value": "playing" },
+    { "type": "text_equals", "target": { "id": "scoreVal" }, "value": "0" },
+    { "type": "node_exists", "target": { "id": "boardgrid" } }
+  ]
+}

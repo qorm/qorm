@@ -1,0 +1,15 @@
+{
+  "qorm": "0.1",
+  "type": "test",
+  "id": "derived_gift_one_line",
+  "scene": "main",
+  "steps": [
+    { "type": "simulate_event", "target": { "id": "gift_2" }, "event": "press" }
+  ],
+  "assert": [
+    { "type": "state_equals", "path": "computed.giftedCount", "value": 1 },
+    { "type": "node_exists", "target": { "text": "gift" } },
+    { "type": "node_exists", "target": { "id": "gift_1" } },
+    { "type": "node_exists", "target": { "id": "gift_2" } }
+  ]
+}
