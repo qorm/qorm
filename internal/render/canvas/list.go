@@ -198,6 +198,9 @@ type listScope struct {
 	// compDepth counts nested JSON-component instantiations on this scope
 	// chain (components.go) — self-referential templates are capped at 32.
 	compDepth int
+	// trap is set while measuring under a node errorBoundary: unknown widget
+	// types trip it so the boundary can swap in fallback (error_boundary.go).
+	trap *boundaryTrap
 }
 
 // itemInstance is the per-frame sidecar entry Layout records for each repeat
@@ -317,7 +320,7 @@ func measureListItems(n *model.Node, rt *runtime.Runtime, inter *Interaction, sc
 			}
 		}
 		vars := itemVars(outer, alias, idxKey, firstKey, lastKey, it, i, total)
-		cln := measure(n.Template, rt, inter, scale, root, &listScope{vars: vars, index: i}, underBoard, scrollCtx)
+		cln := measure(n.Template, rt, inter, scale, root, &listScope{vars: vars, index: i, trap: scopeTrap(sc)}, underBoard, scrollCtx)
 		if cln == nil {
 			continue
 		}

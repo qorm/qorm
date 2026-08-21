@@ -144,6 +144,23 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 		}
 	}
 
+	// Bound type ({{state.kind}}) must resolve before component lookup /
+	// unknown-type trapping — same contract as HTML render.resolveType.
+	n = resolveBoundType(n, rt, sc)
+
+	// Node errorBoundary: try the protected subtree under a trap, fall back
+	// on unknown widget / panic (error_boundary.go).
+	if n.ErrorBoundary != nil {
+		return measureErrorBoundary(n, rt, inter, scale, root, sc, underBoard, scrollCtx)
+	}
+
+	// Under a trap, an unrecognised type fails the enclosing boundary instead
+	// of degrading to a silent flex container (HTML unknown() + boundaryTrap).
+	if trap := scopeTrap(sc); trap != nil && !canvasTypeKnown(rt, n.Type) {
+		trap.trip(fmt.Sprintf("unknown widget %q", n.Type))
+		return nil
+	}
+
 	// JSON components (components.go): an instance node measures its template
 	// in a scope carrying the evaluated props, the instance's children
 	// filling the template's slots — the HTML renderComponent contract.
@@ -156,7 +173,7 @@ func measure(n *model.Node, rt *runtime.Runtime, inter *Interaction, scale int, 
 		}
 		if depth < maxCompDepth {
 			clone, vars := instantiateComponent(n, rt.App.Components[name], name, evalCtxScope(rt, sc), rt)
-			return measure(clone, rt, inter, scale, root, &listScope{vars: vars, index: idx, compDepth: depth + 1}, underBoard, scrollCtx)
+			return measure(clone, rt, inter, scale, root, &listScope{vars: vars, index: idx, compDepth: depth + 1, trap: scopeTrap(sc)}, underBoard, scrollCtx)
 		}
 	}
 
@@ -620,7 +637,10 @@ func evalPropStrScope(val any, rt *runtime.Runtime, sc *listScope) string {
 // vars were built this frame from this frame's outer context, so they are
 // returned as-is.
 func evalCtxScope(rt *runtime.Runtime, sc *listScope) map[string]any {
-	if sc != nil {
+	// A scope that only carries an errorBoundary trap (vars nil) must still
+	// see live state/viewport — otherwise {{state.x}} type bindings resolve
+	// to nil and trip the boundary as unknown widget "<nil>".
+	if sc != nil && sc.vars != nil {
 		return sc.vars
 	}
 	return evalCtx(rt)

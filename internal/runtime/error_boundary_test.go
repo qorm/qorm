@@ -1,9 +1,12 @@
 package runtime_test
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/qorm/platform/internal/loader"
+	"github.com/qorm/platform/internal/model"
 	"github.com/qorm/platform/internal/runtime"
 )
 
@@ -43,5 +46,73 @@ func TestActionErrorFallsBackToSceneOverride(t *testing.T) {
 	}
 	if rt.LastBoundaryError.Level != "scene" || rt.LastBoundaryError.Phase != "action" || rt.LastBoundaryError.Scene != "main" {
 		t.Fatalf("LastBoundaryError = %#v, want main/action scene boundary", rt.LastBoundaryError)
+	}
+}
+
+func TestAsyncHTTPErrorFallsBackToBoundaryScene(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	app := &model.App{
+		Entry: "main",
+		Scenes: map[string]*model.Node{
+			"main": {Type: "text", ID: "mainText", Text: "main"},
+			"oops": {Type: "text", ID: "oopsText", Text: "oops"},
+		},
+		ErrorBoundary: &model.SceneErrorBoundary{Scene: "oops"},
+		Actions: map[string]*model.Action{
+			"boom": {ID: "boom", Script: "let xs = [1]\nxs[9] = 1"},
+			"go": {
+				ID: "go",
+				Steps: []model.Step{{
+					Type: "http.get", URL: srv.URL, Async: true,
+					OnSuccess: []model.Step{{Type: "invoke", Name: "boom"}},
+				}},
+			},
+		},
+	}
+	rt := runtime.New(app)
+	rt.ClearPendingEnter()
+	rt.Async = func(work func() any, resume func(any)) { resume(work()) }
+	rt.Dispatch("go", nil)
+	if got := rt.CurrentScene(); got != "oops" {
+		t.Fatalf("CurrentScene() = %q, want oops after async continuation boom", got)
+	}
+	if rt.LastBoundaryError.Level != "scene" || rt.LastBoundaryError.Phase != "action" {
+		t.Fatalf("LastBoundaryError = %#v, want scene/action", rt.LastBoundaryError)
+	}
+}
+
+func TestDelayErrorFallsBackToBoundaryScene(t *testing.T) {
+	app := &model.App{
+		Entry: "main",
+		Scenes: map[string]*model.Node{
+			"main": {Type: "text", ID: "mainText", Text: "main"},
+			"oops": {Type: "text", ID: "oopsText", Text: "oops"},
+		},
+		ErrorBoundary: &model.SceneErrorBoundary{Scene: "oops"},
+		Actions: map[string]*model.Action{
+			"boom": {ID: "boom", Script: "let xs = [1]\nxs[7] = 1"},
+			"go": {
+				ID: "go",
+				Steps: []model.Step{
+					{Type: "delay", DelayMS: 1},
+					{Type: "invoke", Name: "boom"},
+				},
+			},
+		},
+	}
+	rt := runtime.New(app)
+	rt.ClearPendingEnter()
+	rt.Async = func(work func() any, resume func(any)) { resume(work()) }
+	rt.Dispatch("go", nil)
+	if got := rt.CurrentScene(); got != "oops" {
+		t.Fatalf("CurrentScene() = %q, want oops after delay continuation boom", got)
+	}
+	if rt.LastBoundaryError.Level != "scene" || rt.LastBoundaryError.Phase != "action" {
+		t.Fatalf("LastBoundaryError = %#v, want scene/action", rt.LastBoundaryError)
 	}
 }

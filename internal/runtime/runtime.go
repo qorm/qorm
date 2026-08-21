@@ -1534,6 +1534,11 @@ func (r *Runtime) deferRest(step model.Step, rest []model.Step, ctx map[string]a
 			r.callDepth++
 			r.applySteps(rest, freshCtx(r, frozen), depth)
 			r.callDepth--
+			// Continuations land outside Dispatch, so they must trip the scene
+			// boundary themselves when a nested invoke left LastScriptError.
+			if r.callDepth == 0 && r.LastScriptError != "" {
+				_ = r.HandleSceneError(r.Scene, "action", r.LastScriptError)
+			}
 			r.refreshComputed()
 		})
 	return true
@@ -2018,6 +2023,11 @@ func (r *Runtime) applyHTTP(step model.Step, ctx map[string]any, depth int) {
 			r.callDepth++
 			r.settleHTTP(step, resultPath, freshCtx(r, frozen), 0, out)
 			r.callDepth--
+			// Same as delay continuations: nested Dispatch sees callDepth>0 and
+			// skips HandleSceneError; the top-level resume must finish the job.
+			if r.callDepth == 0 && r.LastScriptError != "" {
+				_ = r.HandleSceneError(r.Scene, "action", r.LastScriptError)
+			}
 		})
 }
 

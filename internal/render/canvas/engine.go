@@ -414,7 +414,7 @@ func (e *Engine) RenderInto(size image.Point, scale int, target *image.RGBA) (bo
 	// nothing. (Before the Engine owned this, ops accumulated forever.)
 	t0 := time.Now()
 	e.ops.Reset()
-	rootNode, needsRedraw, instances, layoutRoot := layout(&e.ops, root, size, rt, &e.Inter, scale)
+	rootNode, needsRedraw, instances, layoutRoot := e.layoutWithSceneBoundary(&e.ops, root, size, rt, scale)
 	e.graphRoot = rootNode
 	e.layoutRoot = layoutRoot
 	e.lastScale = scale
@@ -1593,6 +1593,52 @@ func (e *Engine) sceneRoot() *model.Node {
 	}
 	return root
 }
+
+// layoutWithSceneBoundary runs layout under recover. A panic trips the scene
+// errorBoundary (HTML RenderSceneWithOpts parity); one redirect retry is
+// attempted, then a static error placeholder is laid out.
+func (e *Engine) layoutWithSceneBoundary(ops *op.Ops, root *model.Node, size image.Point, rt *runtime.Runtime, scale int) (graph.Node, bool, map[graph.Node]itemInstance, *LayoutNode) {
+	g, needs, inst, ln, msg := layoutRecover(ops, root, size, rt, &e.Inter, scale)
+	if msg == "" {
+		return g, needs, inst, ln
+	}
+	if rt != nil && rt.HandleSceneError(rt.CurrentScene(), "render", msg) {
+		e.lastRoot = nil
+		root = e.sceneRoot()
+		ops.Reset()
+		g, needs, inst, ln, msg = layoutRecover(ops, root, size, rt, &e.Inter, scale)
+		if msg == "" {
+			return g, needs, inst, ln
+		}
+	}
+	ops.Reset()
+	placeholder := &model.Node{
+		Type:  "text",
+		ID:    "qorm-scene-error-boundary",
+		Text:  "render error",
+		Style: map[string]any{"padding": 24, "color": "#b00020"},
+	}
+	return layout(ops, placeholder, size, rt, &e.Inter, scale)
+}
+
+func layoutRecover(ops *op.Ops, root *model.Node, size image.Point, rt *runtime.Runtime, inter *Interaction, scale int) (g graph.Node, needs bool, inst map[graph.Node]itemInstance, ln *LayoutNode, panicMsg string) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			panicMsg = fmt.Sprint(rec)
+			g, needs, inst, ln = nil, false, nil, nil
+		}
+	}()
+	if layoutHook != nil {
+		g, needs, inst, ln = layoutHook(ops, root, size, rt, inter, scale)
+		return
+	}
+	g, needs, inst, ln = layout(ops, root, size, rt, inter, scale)
+	return
+}
+
+// layoutHook lets tests inject a panicking layout without poisoning production
+// measure paths. Nil in normal use.
+var layoutHook func(ops *op.Ops, root *model.Node, size image.Point, rt *runtime.Runtime, inter *Interaction, scale int) (graph.Node, bool, map[graph.Node]itemInstance, *LayoutNode)
 
 // validThemeName gates what state.theme may name: skin ids only (the shipped
 // skins are apple-light/apple-dark/win11-light/win11-dark). state.theme is
