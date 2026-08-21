@@ -6,7 +6,12 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
-## [v0.9.7] - 2026-08-19
+### Fixed
+- **Async / delay scene Error Boundary**: `http.*` async and `delay` continuations now call `HandleSceneError` when a nested invoke leaves `LastScriptError`. Previously only top-level `Dispatch` tripped the scene fallback, so boom actions after an async reply or delay stayed on the broken scene.
+- **CI Ubuntu WebKitGTK apt hang**: desktop job install uses `sudo timeout` (so SIGTERM reaches apt) with shorter per-attempt budgets, instead of `timeout sudo` which left orphaned apt processes and burned the job timeout.
+
+### Added
+- **Canvas render-level Error Boundary**: node `errorBoundary.fallback` and scene layout-panic → fallback scene now work on the software canvas path (macOS default / `qorm_canvas`), matching the HTML renderer. Bound widget types (`{{state.kind}}`) resolve during measure so `examples/error-boundary` behaves on canvas.
 
 ### Added
 - **Error Boundary (v0.9.7 start)**: app/scene-level `errorBoundary.scene` routes `onEnter`, top-level action, and render failures to a fallback scene; node-level `errorBoundary.fallback` swaps only the failing subtree for a fallback subtree.

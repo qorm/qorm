@@ -38,7 +38,7 @@ v0.9.5 不扩表面（不加 widget、不加 MCP 工具）。只把验证闭环�
 | 项 | 原因 |
 |----|------|
 | Linux GTK chromeless 接线 | Linux 层刻意 cgo-free DBus；接线等于推翻约束。矩阵保持 beta。 |
-| Error Boundary 组件 | 已转入 `v0.9.7` 首版实施：先 scene fallback，再 subtree fallback。 |
+| Error Boundary 组件 | **v0.9.7 已发版**；**v0.9.8** 补齐 async/delay 续跑与 canvas 渲染级 fallback。 |
 | 独立 http cancel-token 步骤 | `"key"` 已 supersede 取消重叠请求；单独 cancel 步骤仍 planned。 |
 | canvas list 视口虚拟化 | 性能项，改动面大，发版后做。 |
 | 小程序交互运行时 | 仍是静态 WXML 快照。 |
@@ -62,4 +62,5 @@ v0.9.5 不扩表面（不加 widget、不加 MCP 工具）。只把验证闭环�
 - `ghcr.io/qorm/platform:v0.9.5`。
 - qorm.com 首页 200，文档带上本轮 verification 口径。
 - **v0.9.6 规划：** [v0.9.6-plan.md](v0.9.6-plan.md) — canvas list 视口裁剪已完成。
-- **v0.9.7 方向：** Error Boundary 首版已开工：app/scene `errorBoundary.scene` + node `errorBoundary.fallback`，并补运行时与 measure 观测面。
+- **v0.9.7 方向：** Error Boundary 首版已发版：app/scene `errorBoundary.scene` + node `errorBoundary.fallback`，并补运行时与 measure 观测面。
+- **v0.9.8：** async/delay continuation 触发 scene boundary；canvas 渲染级 node/scene fallback；CI Ubuntu apt 使用 `sudo timeout`。

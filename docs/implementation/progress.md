@@ -1,6 +1,16 @@
 # 实施进度
 
-> 主控同步 · 更新：2026-08-19 **v0.9.5 已发版**（GitHub Release + GHCR + qorm.com）
+> 主控同步 · 更新：2026-08-21 **v0.9.8 准备发版**（Error Boundary 收口：async/delay + canvas 渲染级 + CI apt）
+
+## v0.9.8（2026-08-21）
+
+Error Boundary 补齐与 CI 硬化。v0.9.7 已发 scene/subtree 首版；本版修 async/delay 绕过、canvas 渲染级 fallback，并修正 Ubuntu apt `timeout sudo` 杀不掉的问题。
+
+**完成定义：** `go test` 相关包绿；CHANGELOG `[Unreleased]` 可归档；tag `v0.9.8` → Release + GHCR；官网打戳。
+
+## v0.9.7（2026-08-19）
+
+Error Boundary 首版：app/scene `errorBoundary.scene`、node `errorBoundary.fallback`、`lastBoundaryError` measure、`examples/error-boundary`。已发版（tag + Release + GHCR + 官网）。
 
 ## v0.9.5（2026-08-19）
 
@@ -8,7 +18,7 @@ Agent 可验证性收口。规划见 [analysis-and-plan.md](analysis-and-plan.md
 
 线上：tag `v0.9.5`、GitHub Release、`ghcr.io/qorm/platform:v0.9.5`、qorm.com 首页/文档已打戳。首次站点 rsync `--delete` 误删 `/games/` 等 extras，已从备份恢复；后续 deploy 保护 extras，并用 `qorm_canvas` WASM 与示例源同步 games 页。
 
-**下一版规划：** `v0.9.7 Error Boundary`（scene fallback + subtree fallback 已开工；repo 内已补 loader/runtime/render 回归、measure 观测面与 `examples/error-boundary`）。
+**下一版：** 已发 v0.9.6（list window 虚拟化）→ v0.9.7（Error Boundary 首版）→ **v0.9.8**（本轮收口）。
 
 ## 第八轮（2026-08-19）
 
@@ -165,9 +175,9 @@ CI 变红触发排查，两个失败都是真实缺陷，按根因修复而非�
 
 | 项 | 状态 |
 |----|------|
-| 上一版 | **v0.9.4**（2026-08-17）：agent.policy · capability 门 · breakpoints · partial render |
-| 本版 | **v0.9.5**（2026-08-19）：agent 可验证性 G1–G12 + R1 · tag + Release 6 二进制 + GHCR · 官网 v0.9.5（deploy 误删 games 已恢复 · canvas WASM 同步） |
-| 下一版 | **v0.9.7**（进行中）：Error Boundary 首版 · scene fallback · subtree fallback · boundary measure — 规划见聊天附带 v0.9.7 plan，repo 侧已落最小实现与示例 |
+| 上一版 | **v0.9.7**（2026-08-19）：Error Boundary 首版 · scene/subtree fallback · measure · 示例 |
+| 本版 | **v0.9.8**（2026-08-21）：async/delay boundary · canvas 渲染级 fallback · CI apt `sudo timeout` |
+| 下一版 | 待定 |
 
 ## 链接
 
@@ -198,3 +208,5 @@ CI 变红触发排查，两个失败都是真实缺陷，按根因修复而非�
 | 2026-08-19 | **v0.9.5 发布**；官网 rsync `--delete` 误删 games 后已恢复，并补 canvas WASM 同步 |
 | 2026-08-19 | **v0.9.6 规划 + P0/P1/P2**：文档收口 · sitemap 再生 · canvas list `virtualize: "window"` · games smoke 包装脚本 |
 | 2026-08-19 | **v0.9.7 启动**：Error Boundary schema/runtime/render 首版 · `lastBoundaryError` measure 观测面 · `examples/error-boundary` |
+| 2026-08-19 | **v0.9.7 发布**：tag + Release + GHCR + 官网 |
+| 2026-08-21 | **v0.9.8**：async/delay 续跑补 `HandleSceneError` · canvas node/scene 渲染级 boundary · CI `sudo timeout` apt |
