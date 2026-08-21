@@ -6,6 +6,8 @@ All notable changes to QORM are documented here. The format is based on
 
 ## [Unreleased]
 
+## [v0.9.8] - 2026-08-21
+
 ### Fixed
 - **Async / delay scene Error Boundary**: `http.*` async and `delay` continuations now call `HandleSceneError` when a nested invoke leaves `LastScriptError`. Previously only top-level `Dispatch` tripped the scene fallback, so boom actions after an async reply or delay stayed on the broken scene.
 - **CI Ubuntu WebKitGTK apt hang**: desktop job install uses `sudo timeout` (so SIGTERM reaches apt) with shorter per-attempt budgets, instead of `timeout sudo` which left orphaned apt processes and burned the job timeout.
@@ -1481,6 +1483,7 @@ Initial release: QORM, an agent-native declarative-UI runtime in pure Go.
 - Render performance: cached parsed expressions and reflection-free CSS
   numeric writes in the hot path.
 
+[v0.9.8]: https://github.com/qorm/platform/compare/v0.9.7...v0.9.8
 [v0.9.7]: https://github.com/qorm/platform/compare/v0.9.6...v0.9.7
 [v0.9.6]: https://github.com/qorm/platform/compare/v0.9.5...v0.9.6
 [v0.9.5]: https://github.com/qorm/platform/compare/v0.9.4...v0.9.5
